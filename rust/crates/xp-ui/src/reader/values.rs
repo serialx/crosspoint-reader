@@ -1,0 +1,46 @@
+// Persisted setting/action IDs checked against the C++ providers at the resource boundary.
+pub const HOME_FOOTNOTES: u32 = 4;
+pub const HOME_SYNC: u32 = 6;
+pub const HOME_BOOKMARK: u32 = 7;
+pub const HOME_DICTIONARY: u32 = 8;
+pub const HOME_READER_MENU: u32 = 9;
+pub const HOME_CREATE_CLIPPING: u32 = 11;
+pub const LONG_MENU_SYNC: u32 = 0;
+pub const LONG_MENU_BOOKMARK: u32 = 2;
+pub const LONG_MENU_DICTIONARY: u32 = 3;
+pub const LONG_MENU_CREATE_CLIPPING: u32 = 5;
+pub const LONG_MENU_FOOTNOTES: u32 = 6;
+pub const POWER_FOOTNOTES: u32 = 4;
+pub const POWER_CREATE_CLIPPING: u32 = 6;
+pub const LONG_BUTTON_SKIP: u32 = 1;
+pub const LONG_BUTTON_ORIENTATION: u32 = 2;
+pub const OVERLAY_NONE: u32 = 0;
+pub const OVERLAY_TOOLBAR: u32 = 1;
+pub const END_REDRAW: u32 = 1;
+pub const END_OPEN_BOOK: u32 = 2;
+pub const END_GO_HOME: u32 = 3;
+pub const END_LAST_PAGE: u32 = 4;
+
+const _: () = {
+    assert!(HOME_FOOTNOTES == 4);
+    assert!(HOME_SYNC == 6);
+    assert!(HOME_BOOKMARK == 7);
+    assert!(HOME_DICTIONARY == 8);
+    assert!(HOME_READER_MENU == 9);
+    assert!(HOME_CREATE_CLIPPING == 11);
+    assert!(LONG_MENU_SYNC == 0);
+    assert!(LONG_MENU_BOOKMARK == 2);
+    assert!(LONG_MENU_DICTIONARY == 3);
+    assert!(LONG_MENU_CREATE_CLIPPING == 5);
+    assert!(LONG_MENU_FOOTNOTES == 6);
+    assert!(POWER_FOOTNOTES == 4);
+    assert!(POWER_CREATE_CLIPPING == 6);
+    assert!(LONG_BUTTON_SKIP == 1);
+    assert!(LONG_BUTTON_ORIENTATION == 2);
+    assert!(OVERLAY_NONE == 0);
+    assert!(OVERLAY_TOOLBAR == 1);
+    assert!(END_REDRAW == 1);
+    assert!(END_OPEN_BOOK == 2);
+    assert!(END_GO_HOME == 3);
+    assert!(END_LAST_PAGE == 4);
+};

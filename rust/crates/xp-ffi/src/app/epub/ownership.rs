@@ -1,0 +1,147 @@
+extern crate alloc;
+use super::{abi, app_abi, EpubSession, ResourceAccess};
+use alloc::boxed::Box;
+use core::ptr::NonNull;
+
+struct Pending(Option<Box<EpubSession>>);
+impl Drop for Pending {
+    fn drop(&mut self) {
+        if let Some(owner) = &self.0 {
+            let access = owner.entry_resources();
+            owner.close_owned_components(&access);
+        }
+    }
+}
+
+impl EpubSession {
+    pub(in crate::app) fn try_owned(
+        path: &[u8],
+        fast_initial: bool,
+        leaves: &'static abi::XpEpubLeaves,
+        runtime: &'static app_abi::Runtime,
+        resources: &'static app_abi::Resources,
+    ) -> Option<Box<Self>> {
+        Self::try_owned_with_fixture(
+            path,
+            fast_initial,
+            leaves,
+            runtime,
+            resources,
+            #[cfg(feature = "app-test")]
+            None,
+        )
+    }
+    pub(super) fn try_owned_with_fixture(
+        path: &[u8],
+        fast_initial: bool,
+        leaves: &'static abi::XpEpubLeaves,
+        runtime: &'static app_abi::Runtime,
+        resources: &'static app_abi::Resources,
+        #[cfg(feature = "app-test")] fixture: Option<
+            &'static super::test_support::legacy_page::LegacyPageServices,
+        >,
+    ) -> Option<Box<Self>> {
+        let mut pending = Pending(Some(Self::try_new(
+            path, false, 0, leaves, runtime, resources,
+        )?));
+        #[cfg(feature = "app-test")]
+        if let Some(fixture) = fixture {
+            let owner = pending.0.as_mut().expect("pending owner");
+            owner.legacy_pages.set(Some(fixture));
+        }
+        let owner = pending.0.as_ref().expect("pending owner");
+        let access = owner.entry_resources();
+        #[cfg(feature = "app-test")]
+        if let Some(fixture) = fixture {
+            let native = NonNull::new(unsafe { (fixture.resources_open)() })?;
+            owner.set_native(&access, Some(native));
+        }
+        if fast_initial {
+            unsafe { owner.initialize_refresh_counter(owner.refresh_frequency(&access)) };
+        }
+        let bookmarks = NonNull::new(unsafe { (leaves.bookmarks_open)() })?;
+        owner.set_bookmarks(&access, Some(bookmarks));
+        let overlay = NonNull::new(unsafe { (leaves.popup_open)() })?;
+        owner.set_overlay_popup(&access, Some(overlay));
+        let failure = NonNull::new(unsafe { (leaves.popup_open)() })?;
+        owner.set_failure_popup(&access, Some(failure));
+        drop(access);
+        pending.0.take()
+    }
+
+    fn close_owned_components(&self, access: &ResourceAccess<'_>) {
+        assert!(self.active_frame(access).is_none());
+        if let Some(toolbar) = self.take_toolbar(access) {
+            unsafe { (self.leaves.toolbar_close)(toolbar.as_ptr()) };
+        }
+        if let Some(popup) = self.take_failure_popup(access) {
+            unsafe { (self.leaves.popup_close)(popup.as_ptr()) };
+        }
+        if let Some(popup) = self.take_overlay_popup(access) {
+            unsafe { (self.leaves.popup_close)(popup.as_ptr()) };
+        }
+        if let Some(bookmarks) = self.take_bookmarks(access) {
+            unsafe { (self.leaves.bookmarks_close)(bookmarks.as_ptr()) };
+        }
+        #[cfg(feature = "app-test")]
+        if let Some(native) = self.take_native(access) {
+            unsafe { (self.legacy_render().resources_close)(native.as_ptr()) };
+        }
+        self.page_resources(access).close(self.leaves);
+        self.release_page_metadata(access);
+    }
+
+    // Called by App under its lifetime lock, after publication excludes render.
+    #[inline(never)]
+    pub(in crate::app) unsafe fn exit_owned(&self) {
+        let access = self.borrowed_resources();
+        self.exit(&access);
+        self.teardown_book(&access);
+        self.model(|state| state.ready = false);
+    }
+
+    // Only App-owned sessions enter here; standalone fixtures borrow their handles.
+    pub(in crate::app) fn destroy_owned(&self) {
+        // Pending owners never entered; entered owners were exited under the App lock.
+        let access = self.entry_resources();
+        assert!(self.book(&access).is_none());
+        assert!(self.section(&access).is_none());
+        self.close_owned_components(&access);
+    }
+
+    // Application calls this while failed stack reservation still holds its lock.
+    pub(in crate::app) unsafe fn child_install_failed(&self) {
+        let access = self.borrowed_resources();
+        self.model(|state| state.child = super::state::ChildIntent::None);
+        self.clear_selection_metadata(&access);
+        self.request_update();
+    }
+}
+
+impl EpubSession {
+    pub(in crate::app) fn app_facts(&self, input: bool) -> app_abi::LegacyFacts {
+        app_abi::LegacyFacts {
+            // Native reader identity uses the unclassified activity kind.
+            kind: 255,
+            reader: 1,
+            remote_input: u8::from(self.accepts_remote_input()),
+            prevent_sleep: 0,
+            exclusive_storage: 0,
+            skip_delay: 0,
+            input_over_page: u8::from(input && self.input_over_page()),
+        }
+    }
+
+    pub(in crate::app) fn app_remote_turn(&self, forward: bool, chapter: bool) -> bool {
+        let mut input = core::mem::MaybeUninit::<abi::XpEpubInputFacts>::uninit();
+        unsafe { (self.leaves.input_facts)(input.as_mut_ptr()) };
+        if unsafe { input.assume_init() }.remote_click != 0 {
+            return false;
+        }
+        if chapter {
+            self.skip_pages(if forward { 1 } else { -1 })
+        } else {
+            self.page_turn(forward)
+        }
+    }
+}

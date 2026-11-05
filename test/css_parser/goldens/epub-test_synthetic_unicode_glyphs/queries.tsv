@@ -1,0 +1,17 @@
+BODY			
+P			
+P	BIG		
+P	NOTE		
+P	SAMPLE		
+body			
+body	 unrelated		
+div	a b c d e f g h i	id	
+p			
+p	 unrelated		
+p	big		
+p	big unrelated		
+p	note		
+p	note unrelated		
+p	sample		
+p	sample unrelated		
+span	note	target	

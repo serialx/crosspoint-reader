@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <Imu.h>
+#include <xp_hal.h>
 
 // TODO: Move enums into new header and share with CrossPointSettings.h
 namespace CrossPointOrientation {
@@ -16,29 +17,9 @@ class HalTiltSensor;
 extern HalTiltSensor halTiltSensor;  // Singleton
 
 class HalTiltSensor {
-  bool _available = false;
+  XpHalTilt state{};
   mutable Imu _sdkImu;
-
-  // Tilt gesture state machine
-  bool _tiltForwardEvent = false;  // Consumed by wasTiltedForward()
-  bool _tiltBackEvent = false;     // Consumed by wasTiltedBack()
-  bool _hadActivity = false;       // Non-consuming flag for sleep timer
-  bool _inTilt = false;            // Currently tilted past threshold
-  bool _isAwake = false;           // Tracks power state
-  unsigned long _initMs = 0;       // Timestamp of sensor init
-  unsigned long _lastTiltMs = 0;   // Debounce / cooldown
-  unsigned long _wakeMs = 0;       // Timestamp of last wake() for stabilization
-
-  // Tuning constants
-  static constexpr float RATE_THRESHOLD_DPS = 270.0f;      // Deg/sec speed to trigger flick
-  static constexpr float NEUTRAL_RATE_DPS = 50.0f;         // Must stop moving below this rate before next trigger
-  static constexpr unsigned long COOLDOWN_MS = 600;        // Minimum ms between triggers
-  static constexpr unsigned long POLL_INTERVAL_MS = 50;    // 20 Hz polling
-  static constexpr unsigned long WAKE_STABILIZE_MS = 300;  // Ignore readings after wake
-
-  mutable unsigned long _lastPollMs = 0;
-
-  bool readGyro(float& gx, float& gy, float& gz) const;
+  XpHalTiltServices services();
 
  public:
   // Call after BoardConfig has selected the active device.
@@ -51,7 +32,7 @@ class HalTiltSensor {
   bool deepSleep();
 
   // True if an IMU is present on this device
-  bool isAvailable() const { return _available; }
+  bool isAvailable() const { return state.available; }
 
   // Poll the accelerometer and update tilt gesture state.
   void update(const uint8_t mode, const uint8_t orientation, const bool inReader);

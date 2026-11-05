@@ -1,43 +1,24 @@
 #pragma once
+#include <xp_ui_catalog.h>
 
-#include <cstddef>
 #include <string_view>
-
 namespace plugincatalogpaging {
-
-// A server-provided page template returns only the requested slice. A static
-// feed contains all rows and must be advanced locally during streaming.
 template <typename Headers>
-inline bool isStaticFeed(const std::string_view url, const std::string_view body, const Headers& headers) {
-  if (url.find("{page}") != std::string_view::npos || body.find("{page}") != std::string_view::npos) return false;
-  for (const auto& header : headers) {
-    if (std::string_view(header.second).find("{page}") != std::string_view::npos) return false;
-  }
+inline bool isStaticFeed(std::string_view url, std::string_view body, const Headers& headers) {
+  if (xp_ui_catalog_page_template(url.data(), url.size()) || xp_ui_catalog_page_template(body.data(), body.size()))
+    return false;
+  for (const auto& header : headers)
+    if (xp_ui_catalog_page_template(header.second.data(), header.second.size())) return false;
   return true;
 }
-
-// Counts eligible rows without retaining them. On a static feed the window
-// starts at (page - 1) * pageSize; for server-paged feeds it starts at zero.
-// The one-row lookahead determines whether Next Page is real.
 class PageWindow {
  public:
-  PageWindow(const size_t start, const size_t limit) : start_(start), limit_(limit) {}
-
-  bool take(const bool eligible = true) {
-    if (!eligible) return false;
-    const size_t index = seen_++;
-    if (index < start_) return false;
-    if (index - start_ < limit_) return true;
-    hasMore_ = true;
-    return false;
-  }
-
-  bool hasMore() const { return hasMore_; }
+  PageWindow(size_t start, size_t limit) : window{start, limit, 0, 0} {}
+  bool take(bool eligible = true) { return xp_ui_catalog_window_take(&window, eligible); }
+  bool hasMore() const { return window.more; }
 
  private:
-  size_t start_;
-  size_t limit_;
-  size_t seen_ = 0;
-  bool hasMore_ = false;
+  XpUiCatalogWindow window;
 };
+static_assert(sizeof(XpUiCatalogWindow) == 4 * sizeof(size_t));
 }  // namespace plugincatalogpaging

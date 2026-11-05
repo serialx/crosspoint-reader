@@ -2,66 +2,67 @@
 
 #include <Logging.h>
 #include <ObfuscationUtils.h>
+#include <StoreBridge.h>
 
 #include <algorithm>
 #include <cstring>
 
-void OpdsServerStore::toJson(JsonDocument& doc) const {
-  JsonArray arr = doc["servers"].to<JsonArray>();
-  for (const auto& server : servers) {
-    JsonObject obj = arr.add<JsonObject>();
-    obj["name"] = server.name;
-    obj["url"] = server.url;
-    obj["username"] = server.username;
-    obj["password_obf"] = obfuscation::obfuscateToBase64(server.password);
-    JsonArray headers = obj["headers"].to<JsonArray>();
-    for (const auto& header : server.customHeaders) {
-      JsonObject headerObj = headers.add<JsonObject>();
-      headerObj["name"] = header.name;
-      headerObj["value_obf"] = obfuscation::obfuscateToBase64(header.value);
-    }
+namespace {
+template <typename T>
+std::string& rowField(T& row, uint32_t field) {
+  switch (field) {
+    case 0:
+      return row.name;
+    case 1:
+      return row.url;
+    case 2:
+      return row.username;
+    case 3:
+      return row.password;
+    case 4:
+      return row.customHeaders[0].name;
+    case 5:
+      return row.customHeaders[0].value;
+    case 6:
+      return row.customHeaders[1].name;
+    case 7:
+      return row.customHeaders[1].value;
+    default:
+      return row.name;
   }
 }
 
+}  // namespace
+
+void OpdsServerStore::toJson(JsonDocument& doc) const {
+  store_bridge::Rows<OpdsServer, XP_STOREKIND_OPDS> rows{const_cast<std::vector<OpdsServer>&>(servers), nullptr,
+                                                         rowField<OpdsServer>, nullptr};
+  store_bridge::save(XP_STOREKIND_OPDS, doc, rows);
+}
+
 bool OpdsServerStore::fromJson(JsonVariantConst doc) {
-  // Tolerate a missing/invalid 'servers' key (treat as empty list); only a
-  // JSON parse error is fatal. A null JsonArray iterates zero times.
-  servers.clear();
-  JsonArrayConst arr = doc["servers"].as<JsonArrayConst>();
-  servers.reserve(std::min(arr.size(), MAX_SERVERS));
-  bool needsResave = false;
-
-  for (JsonObjectConst obj : arr) {
-    if (servers.size() >= OpdsServerStore::MAX_SERVERS) break;
-    OpdsServer server;
-    server.name = obj["name"] | "";
-    server.url = obj["url"] | "";
-    server.username = obj["username"] | "";
-    server.password = extractPassword(obj, needsResave);
-
-    size_t headerIndex = 0;
-    for (JsonObjectConst headerObj : obj["headers"].as<JsonArrayConst>()) {
-      if (headerIndex >= OpdsServer::MAX_CUSTOM_HEADERS) break;
-      server.customHeaders[headerIndex].name = headerObj["name"] | "";
-      server.customHeaders[headerIndex].value = obfuscation::deobfuscateFromBase64(headerObj["value_obf"] | "");
-      headerIndex++;
+  OpdsServer scratch;
+  store_bridge::Rows<OpdsServer, XP_STOREKIND_OPDS> rows{servers, &scratch, rowField<OpdsServer>, nullptr};
+  const auto diagnostic = +[](void* ctx, uint32_t event, size_t a, size_t b, size_t) {
+    (void)ctx;
+    (void)b;
+    switch (event) {
+      case XP_ROWEVENT_LOADED:
+        LOG_DBG("OPS", "Loaded %zu OPDS servers from file", a);
+        break;
+      case XP_ROWEVENT_RESAVE:
+        LOG_DBG("OPS", "Resaving JSON with obfuscated passwords");
+        break;
+      default:
+        break;
     }
-
-    servers.push_back(std::move(server));
-  }
-
-  LOG_DBG("OPS", "Loaded %zu OPDS servers from file", servers.size());
-
-  if (needsResave) {
-    LOG_DBG("OPS", "Resaving JSON with obfuscated passwords");
-    requestResave();
-  }
-
+  };
+  if (store_bridge::load(XP_STOREKIND_OPDS, doc, rows, diagnostic)) requestResave();
   return true;
 }
 
 bool OpdsServerStore::addServer(const OpdsServer& server) {
-  if (servers.size() >= MAX_SERVERS) {
+  if (!xp_store_index_action(servers.size(), 0, true)) {
     LOG_DBG("OPS", "Cannot add more servers, limit of %zu reached", MAX_SERVERS);
     return false;
   }
@@ -72,7 +73,7 @@ bool OpdsServerStore::addServer(const OpdsServer& server) {
 }
 
 bool OpdsServerStore::updateServer(size_t index, const OpdsServer& server) {
-  if (index >= servers.size()) {
+  if (!xp_store_index_action(servers.size(), index, false)) {
     return false;
   }
 
@@ -82,7 +83,7 @@ bool OpdsServerStore::updateServer(size_t index, const OpdsServer& server) {
 }
 
 bool OpdsServerStore::removeServer(size_t index) {
-  if (index >= servers.size()) {
+  if (!xp_store_index_action(servers.size(), index, false)) {
     return false;
   }
 
@@ -92,7 +93,7 @@ bool OpdsServerStore::removeServer(size_t index) {
 }
 
 const OpdsServer* OpdsServerStore::getServer(size_t index) const {
-  if (index >= servers.size()) {
+  if (!xp_store_index_action(servers.size(), index, false)) {
     return nullptr;
   }
   return &servers[index];

@@ -11,17 +11,13 @@
 #include "SilentRestart.h"
 #include "activities/network/WifiSelectionActivity.h"
 #include "activities/util/KeyboardEntryActivity.h"
-#include "components/CatalogScreens.h"
+#include "components/UiAppHelpers.h"
 #include "components/icons/search32.h"
 
-void CatalogActivity::onEnter() {
-  UiListActivity::onEnter();
-  app.on(ACTION_SEARCH, &CatalogActivity::onSearchEvent, this);
-  app.on(ACTION_CANCEL, &CatalogActivity::onCancelEvent, this);
-}
+static_assert(static_cast<int>(CatalogActivity::State::AUTH) == XP_UI_CATALOG_AUTH);
 
 void CatalogActivity::onExit() {
-  Activity::onExit();
+  CatalogUiActivity::onExit();
   if (WiFi.getMode() != WIFI_MODE_NULL) {
     WiFi.disconnect(false);
     delay(30);
@@ -34,13 +30,15 @@ bool CatalogActivity::wifiConnected() {
 }
 
 void CatalogActivity::fail(const StrId message) {
-  state = State::ERROR;
+  ResourceLock resourceLock(*this);
+  setState(State::ERROR);
   errorMessage = I18N.get(message);
   requestUpdate();
 }
 
 void CatalogActivity::beginLoading() {
-  state = State::LOADING;
+  ResourceLock resourceLock(*this);
+  setState(State::LOADING);
   statusMessage = tr(STR_LOADING);
   requestUpdate(true);
 }
@@ -59,7 +57,7 @@ void CatalogActivity::launchWifiSelection() {
     fail(StrId::STR_MEMORY_ERROR);
     return;
   }
-  state = State::WIFI_SELECTION;
+  setState(State::WIFI_SELECTION);
   requestUpdate();
   startActivityForResult(std::move(wifi), [this](const ActivityResult& result) {
     if (result.isCancelled)
@@ -78,10 +76,10 @@ void CatalogActivity::launchSearch() {
     fail(StrId::STR_MEMORY_ERROR);
     return;
   }
-  state = State::SEARCH_INPUT;
+  setState(State::SEARCH_INPUT);
   requestUpdate();
   startActivityForResult(std::move(keyboard), [this](const ActivityResult& result) {
-    state = State::BROWSING;
+    setState(State::BROWSING);
     if (!result.isCancelled)
       performSearch(std::get<KeyboardResult>(result.data).text);
     else
@@ -89,62 +87,45 @@ void CatalogActivity::launchSearch() {
   });
 }
 
-void CatalogActivity::onSearchEvent(const freeink::ui::ActionEvent&, void* user) {
-  auto* self = static_cast<CatalogActivity*>(user);
-  if (self->state != State::BROWSING || !self->hasSearch()) return;
-  self->app.clearTapFlash();
-  self->launchSearch();
-}
-
-void CatalogActivity::onCancelEvent(const freeink::ui::ActionEvent&, void* user) {
-  auto* self = static_cast<CatalogActivity*>(user);
-  if (self->state != State::DOWNLOADING) return;
-  self->app.clearTapFlash();
-  self->cancelDownload = true;
-}
-
-bool CatalogActivity::handleCustomInput() {
-  if (state == State::WIFI_SELECTION || state == State::SEARCH_INPUT || state == State::DOWNLOADING) return true;
-  if (state == State::ERROR) {
-    // Back first: a header back tap is also a screen tap, which means Retry here.
-    int x = 0, y = 0;
-    if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-      onBackButton();
-    } else if (mappedInput.wasReleased(MappedInputManager::Button::Confirm) || mappedInput.wasScreenTapped(x, y)) {
+void CatalogActivity::catalogEffect(const XpUiEffect& effect) {
+  switch (effect.kind) {
+    case XP_UI_CATALOG_SEARCH:
+      launchSearch();
+      break;
+    case XP_UI_CATALOG_RETRY:
       if (wifiConnected())
         retryBrowse();
       else
         launchWifiSelection();
-    }
-    return true;
+      break;
+    case XP_UI_CATALOG_CANCEL_TRANSFER:
+      cancelDownload = true;
+      break;
+    default:
+      break;
   }
-  if (state == State::CHECK_WIFI || state == State::LOADING) {
-    if (mappedInput.wasReleased(MappedInputManager::Button::Back)) onBackButton();
-    return true;
-  }
-  // Previous on a searchable list's top row opens search on release. Lists
-  // move on press, so latch that press instead of stepping; holding still
-  // pages (navigateButtons() drops the latch when the selection moves).
-  if (mappedInput.wasPressed(MappedInputManager::Button::NavPrevious)) {
-    searchPending = state == State::BROWSING && hasSearch() && nav.selected == 0;
-    return searchPending;
-  }
-  if (searchPending && mappedInput.wasReleased(MappedInputManager::Button::NavPrevious)) {
-    searchPending = false;
-    launchSearch();
-    return true;
-  }
-  return false;
 }
-
-void CatalogActivity::navigateButtons() {
-  const int before = nav.selected;
-  UiListActivity::navigateButtons();
-  if (nav.selected != before) searchPending = false;
+const char* CatalogActivity::catalogText(uint32_t handle) const {
+  switch (handle) {
+    case 0x80000003:
+      return statusMessage.c_str();
+    case 0x80000006:
+      return errorMessage.c_str();
+    case 0x80000009:
+      if (paintState.progress >= 1024 * 1024)
+        snprintf(bytesText, sizeof(bytesText), "%u.%u MB", unsigned(paintState.progress >> 20),
+                 unsigned((paintState.progress >> 10) % 1024 * 10 / 1024));
+      else
+        snprintf(bytesText, sizeof(bytesText), "%u KB", unsigned(paintState.progress >> 10));
+      return bytesText;
+    default:
+      return CatalogUiActivity::catalogText(handle);
+  }
 }
 
 void CatalogActivity::beginDownload(const std::string& title) {
-  state = State::DOWNLOADING;
+  ResourceLock resourceLock(*this);
+  setState(State::DOWNLOADING);
   statusMessage = title;
   downloadProgress = downloadTotal = 0;
   cancelDownload = goHomeAfterCancel = false;
@@ -152,22 +133,25 @@ void CatalogActivity::beginDownload(const std::string& title) {
 }
 
 void CatalogActivity::onDownloadProgress(const size_t downloaded, const size_t total) {
-  downloadProgress = downloaded;
-  downloadTotal = total;
   // Home cancels immediately; other configured actions are deferred to the
   // next main-loop pass by the transfer input pump.
   mappedInput.update(true);
   if (mappedInput.wasReleased(MappedInputManager::Button::Back)) cancelDownload = true;
   if (mappedInput.wasHomeGesture()) cancelDownload = goHomeAfterCancel = true;
-  routeTouch(mappedInput);
-  const int percent = total > 0 ? static_cast<int>(static_cast<uint64_t>(downloaded) * 100 / total) : 0;
-  const unsigned long now = millis();
-  if (percent >= 100 || lastRenderedPercent < 0 || percent >= lastRenderedPercent + 5 ||
-      now - lastProgressUpdateMs >= 5000) {
-    lastRenderedPercent = percent;
-    lastProgressUpdateMs = now;
-    requestUpdate(true);
+  const auto touch = touchSnapshotFrom(mappedInput);
+  if (touch.touchReleased) {
+    // Reuse the Rust adapter's published hit routing during the transfer pump.
+    RustActivityAdapter::loop();
   }
+  const auto now = millis();
+  bool redraw;
+  {
+    ModelLock lock(*this);
+    downloadProgress = downloaded;
+    downloadTotal = total;
+    redraw = xp_ui_catalog_progress(&ui, downloaded, total, now);
+  }
+  if (redraw) requestUpdate(true);
 }
 
 HttpDownloader::DownloadError CatalogActivity::downloadFile(const std::string& url, const std::string& dest,
@@ -175,8 +159,10 @@ HttpDownloader::DownloadError CatalogActivity::downloadFile(const std::string& u
                                                             const std::vector<HttpDownloader::Header>& headers,
                                                             const std::string* postBody, const char* postContentType) {
   downloadProgress = downloadTotal = 0;
-  lastRenderedPercent = -1;
-  lastProgressUpdateMs = 0;
+  {
+    ModelLock lock(*this);
+    xp_ui_catalog_mode(&ui, XP_UI_CATALOG_DOWNLOADING);
+  }
   // Rebuildable SD-font caches can hold tens of KB the TLS session needs for
   // a multi-MB file; release them up front (they repopulate on demand) and
   // refuse to start below the floor. A doomed transfer otherwise dies
@@ -206,36 +192,4 @@ void CatalogActivity::finishDownload(const HttpDownloader::DownloadError result)
     LOG_ERR("CAT", "Download failed: %d", static_cast<int>(result));
     fail(StrId::STR_DOWNLOAD_FAILED);
   }
-}
-
-void CatalogActivity::screenHeader(UiScreen& screen, const char* title) {
-  const bool search = state == State::BROWSING && hasSearch();
-  catalogScreenHeader(screen, renderer, title,
-                      search ? freeink::ui::bitmapFromIcon(icon_search_32) : freeink::ui::BitmapRef{},
-                      search ? ACTION_SEARCH : freeink::ui::NO_ACTION);
-}
-
-bool CatalogActivity::buildStatusScreen(UiScreen& screen, const bool boldError, const bool showDownloadTotal) {
-  switch (state) {
-    case State::DOWNLOADING:
-      catalogDownloadScreen(screen, statusMessage.c_str(), downloadProgress, showDownloadTotal ? downloadTotal : 0,
-                            ACTION_CANCEL);
-      break;
-    case State::ERROR:
-      if (mappedInput.hasTouch()) {
-        catalogCenteredBlock(screen, {{tr(STR_ERROR_MSG), boldError}, {errorMessage.c_str()}, {tr(STR_TAP_TO_RETRY)}});
-      } else {
-        catalogCenteredBlock(screen, {{tr(STR_ERROR_MSG), boldError}, {errorMessage.c_str()}});
-      }
-      break;
-    case State::CHECK_WIFI:
-    case State::WIFI_SELECTION:
-    case State::SEARCH_INPUT:
-    case State::LOADING:
-      screen.centeredText(statusMessage.c_str(), screen.theme().bodyText);
-      break;
-    default:
-      return false;
-  }
-  return true;
 }

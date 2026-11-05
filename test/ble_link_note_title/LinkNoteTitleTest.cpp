@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "activities/reader/LinkNoteTitle.h"
+#include "link_note_owner.h"
 
 using bleturner::LinkNote;
 

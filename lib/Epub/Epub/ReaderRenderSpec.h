@@ -1,4 +1,6 @@
 #pragma once
+#include <xp_book.h>
+
 #include <cstdint>
 
 // The resolved text-rendering configuration a reader hands to the layout
@@ -29,22 +31,17 @@ struct ReaderRenderSpec {
 // Stable signature for clipping anchors. Page-local word ordinals are valid
 // only for the exact layout that produced them.
 inline uint32_t readerRenderSpecSignature(const ReaderRenderSpec& spec) {
-  uint32_t signature = 2166136261U;
-  const auto mix = [&signature](const uint32_t value) {
-    signature ^= value;
-    signature *= 16777619U;
-  };
-  mix(static_cast<uint32_t>(spec.fontId));
-  mix(static_cast<uint32_t>(spec.lineCompression * 1000.0f));
-  mix(spec.extraParagraphSpacing);
-  mix(static_cast<uint8_t>(spec.characterSpacing));
-  mix(spec.wordSpacingPercent);
-  mix(spec.paragraphAlignment);
-  mix(spec.viewportWidth);
-  mix(spec.viewportHeight);
-  mix(spec.hyphenationEnabled);
-  mix(spec.embeddedStyle);
-  mix(spec.imageRendering);
-  mix(spec.focusReadingEnabled);
-  return signature == 0 ? 1 : signature;
+  const uint32_t fields[12] = {static_cast<uint32_t>(spec.fontId),
+                               0,
+                               spec.extraParagraphSpacing,
+                               static_cast<uint8_t>(spec.characterSpacing),
+                               spec.wordSpacingPercent,
+                               spec.paragraphAlignment,
+                               spec.viewportWidth,
+                               spec.viewportHeight,
+                               spec.hyphenationEnabled,
+                               spec.embeddedStyle,
+                               spec.imageRendering,
+                               spec.focusReadingEnabled};
+  return xp_book_layout_signature(fields, spec.lineCompression);
 }

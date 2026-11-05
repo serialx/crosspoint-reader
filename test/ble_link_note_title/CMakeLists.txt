@@ -8,4 +8,6 @@ target_link_libraries(LinkNoteTitleTest PRIVATE
   GTest::gtest_main
 )
 
+target_compile_options(LinkNoteTitleTest PRIVATE -UNDEBUG)
+
 gtest_discover_tests(LinkNoteTitleTest)

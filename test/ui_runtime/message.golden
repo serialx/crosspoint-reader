@@ -1,0 +1,192 @@
+case 480 0 0
+clear
+text 240 228 0
+refresh 1
+case 480 0 1
+clear
+text 240 228 1
+refresh 1
+case 480 0 2
+clear
+text 240 228 2
+refresh 1
+case 480 0 3
+clear
+text 240 228 3
+refresh 1
+case 480 73 0
+clear
+text 203 228 0
+refresh 1
+case 480 73 1
+clear
+text 203 228 1
+refresh 1
+case 480 73 2
+clear
+text 203 228 2
+refresh 1
+case 480 73 3
+clear
+text 203 228 3
+refresh 1
+case 480 900 0
+clear
+text -210 228 0
+refresh 1
+case 480 900 1
+clear
+text -210 228 1
+refresh 1
+case 480 900 2
+clear
+text -210 228 2
+refresh 1
+case 480 900 3
+clear
+text -210 228 3
+refresh 1
+case 528 0 0
+clear
+text 264 384 0
+refresh 1
+case 528 0 1
+clear
+text 264 384 1
+refresh 1
+case 528 0 2
+clear
+text 264 384 2
+refresh 1
+case 528 0 3
+clear
+text 264 384 3
+refresh 1
+case 528 73 0
+clear
+text 227 384 0
+refresh 1
+case 528 73 1
+clear
+text 227 384 1
+refresh 1
+case 528 73 2
+clear
+text 227 384 2
+refresh 1
+case 528 73 3
+clear
+text 227 384 3
+refresh 1
+case 528 900 0
+clear
+text -186 384 0
+refresh 1
+case 528 900 1
+clear
+text -186 384 1
+refresh 1
+case 528 900 2
+clear
+text -186 384 2
+refresh 1
+case 528 900 3
+clear
+text -186 384 3
+refresh 1
+case 792 0 0
+clear
+text 396 228 0
+refresh 1
+case 792 0 1
+clear
+text 396 228 1
+refresh 1
+case 792 0 2
+clear
+text 396 228 2
+refresh 1
+case 792 0 3
+clear
+text 396 228 3
+refresh 1
+case 792 73 0
+clear
+text 359 228 0
+refresh 1
+case 792 73 1
+clear
+text 359 228 1
+refresh 1
+case 792 73 2
+clear
+text 359 228 2
+refresh 1
+case 792 73 3
+clear
+text 359 228 3
+refresh 1
+case 792 900 0
+clear
+text -54 228 0
+refresh 1
+case 792 900 1
+clear
+text -54 228 1
+refresh 1
+case 792 900 2
+clear
+text -54 228 2
+refresh 1
+case 792 900 3
+clear
+text -54 228 3
+refresh 1
+case 800 0 0
+clear
+text 400 228 0
+refresh 1
+case 800 0 1
+clear
+text 400 228 1
+refresh 1
+case 800 0 2
+clear
+text 400 228 2
+refresh 1
+case 800 0 3
+clear
+text 400 228 3
+refresh 1
+case 800 73 0
+clear
+text 363 228 0
+refresh 1
+case 800 73 1
+clear
+text 363 228 1
+refresh 1
+case 800 73 2
+clear
+text 363 228 2
+refresh 1
+case 800 73 3
+clear
+text 363 228 3
+refresh 1
+case 800 900 0
+clear
+text -50 228 0
+refresh 1
+case 800 900 1
+clear
+text -50 228 1
+refresh 1
+case 800 900 2
+clear
+text -50 228 2
+refresh 1
+case 800 900 3
+clear
+text -50 228 3
+refresh 1

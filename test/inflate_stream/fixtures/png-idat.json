@@ -1,0 +1,345 @@
+[
+  {
+    "name": "L-1x1.png",
+    "pitch": 2,
+    "compressed": 10,
+    "output": 2,
+    "sha256": "a6e905a26ae2db6f6ab35e881bfa519d3256402d2a6a4012216aac564796ce6b"
+  },
+  {
+    "name": "L-37x29.png",
+    "pitch": 38,
+    "compressed": 382,
+    "output": 1102,
+    "sha256": "e5b944626c377f5c73a13877c28bca1a0ef509dd1afcd41a30b793cc3b1cad32"
+  },
+  {
+    "name": "L-3x7.png",
+    "pitch": 4,
+    "compressed": 31,
+    "output": 28,
+    "sha256": "84092647bb915a7099fbb0989a013f6c31a1108112bee8bad8be4b4d58729558"
+  },
+  {
+    "name": "LA-1x1.png",
+    "pitch": 3,
+    "compressed": 11,
+    "output": 3,
+    "sha256": "0d439b745da0cda3023627c019adc7f533acfc5398fd875b04371958d4cf47e7"
+  },
+  {
+    "name": "LA-37x29.png",
+    "pitch": 75,
+    "compressed": 565,
+    "output": 2175,
+    "sha256": "d821d2e4955f7655bdd76a7eee4b2ebb12969a549fb7295f3834e92b19932850"
+  },
+  {
+    "name": "LA-3x7.png",
+    "pitch": 7,
+    "compressed": 38,
+    "output": 49,
+    "sha256": "c8ee3fa873787dba0501d5ad4167006c7243617182fa4ef7570a7bc8d8e182ce"
+  },
+  {
+    "name": "P-1x1.png",
+    "pitch": 2,
+    "compressed": 10,
+    "output": 2,
+    "sha256": "a6e905a26ae2db6f6ab35e881bfa519d3256402d2a6a4012216aac564796ce6b"
+  },
+  {
+    "name": "P-37x29.png",
+    "pitch": 38,
+    "compressed": 1045,
+    "output": 1102,
+    "sha256": "edb4e88ebac2918eb901600cf43787fe655ec1fadb04f304bc4f408d4ae91a9b"
+  },
+  {
+    "name": "P-3x7.png",
+    "pitch": 4,
+    "compressed": 36,
+    "output": 28,
+    "sha256": "f49e7101591025ba579315406b9155714ba8a8da8f8a465ba76032f59ccbafe7"
+  },
+  {
+    "name": "RGB-1x1.png",
+    "pitch": 4,
+    "compressed": 12,
+    "output": 4,
+    "sha256": "4d235759c0ac00debf896140e2d13a223dc4926466ad706d3fce7bae2a580313"
+  },
+  {
+    "name": "RGB-37x29.png",
+    "pitch": 112,
+    "compressed": 236,
+    "output": 3248,
+    "sha256": "31bb108420855fa3bd4659b8704710cc0411023e92e726d56db2c7b2d7007708"
+  },
+  {
+    "name": "RGB-3x7.png",
+    "pitch": 10,
+    "compressed": 28,
+    "output": 70,
+    "sha256": "b7cd281f091b26b24a2143afe5668d2a4a458f864dc967f5761ddc6dee956287"
+  },
+  {
+    "name": "RGBA-1x1.png",
+    "pitch": 5,
+    "compressed": 13,
+    "output": 5,
+    "sha256": "f222ff84272def2b9e15b9a7ab2209e1028d474083228bab20c9b06d765dbda7"
+  },
+  {
+    "name": "RGBA-37x29.png",
+    "pitch": 149,
+    "compressed": 330,
+    "output": 4321,
+    "sha256": "49f66f476652a88c647a34cbc11c3e4cf680c7e21d4fbe73608db625e9b1997f"
+  },
+  {
+    "name": "RGBA-3x7.png",
+    "pitch": 13,
+    "compressed": 31,
+    "output": 91,
+    "sha256": "8354a6873d576a919dd628cdf0224fda00894ecd0b6a3a8ae543f9604ae9a026"
+  },
+  {
+    "name": "epub-037ac3791e984081.png",
+    "pitch": 3841,
+    "compressed": 155624,
+    "output": 6145600,
+    "sha256": "2708fffed5fd09fab7a822e2d507394b0fc8811c84607585c08357088467cd4c"
+  },
+  {
+    "name": "epub-0f64d5aeca4d820d.png",
+    "pitch": 401,
+    "compressed": 8468,
+    "output": 240600,
+    "sha256": "0dd6d2d71c68a816928709c24aee895820bce25b3f83a4cb48657f2d9c645436"
+  },
+  {
+    "name": "epub-10acfb33658fe3ef.png",
+    "pitch": 351,
+    "compressed": 7293,
+    "output": 140400,
+    "sha256": "097dd041b69e55d9662ea0815564d15535c429e896a5b97f50aa952226919f07"
+  },
+  {
+    "name": "epub-22f478bf32f377cd.png",
+    "pitch": 401,
+    "compressed": 5233,
+    "output": 120300,
+    "sha256": "ca2416db9e9418ebfc12c417172dc6e099bfe50121978ddc79668a5f3364dd08"
+  },
+  {
+    "name": "epub-341eee63188805d6.png",
+    "pitch": 121,
+    "compressed": 68,
+    "output": 9680,
+    "sha256": "4d01fb491be1b3a4e0db1aac4298464dfe6be230ebb2564a5e917f82aa814831"
+  },
+  {
+    "name": "epub-3671bb4286f55229.png",
+    "pitch": 401,
+    "compressed": 5510,
+    "output": 120300,
+    "sha256": "0910df15e6455dfc8f44ac7aa5bfe5a06333f2019a07bf285caff69bdad2eb89"
+  },
+  {
+    "name": "epub-75708cbf6df82c84.png",
+    "pitch": 351,
+    "compressed": 4821,
+    "output": 87750,
+    "sha256": "e433e51cdd3e6a35a5c062e846fd9a2afcd6d6543c84f78af60911eba157f18e"
+  },
+  {
+    "name": "epub-7904b3372352de39.png",
+    "pitch": 121,
+    "compressed": 67,
+    "output": 9680,
+    "sha256": "2f64cef37210ba7370594671ae80fca1c3f51493499b27dbfbb2344994c49f3b"
+  },
+  {
+    "name": "epub-9f9bd5bb1738460e.png",
+    "pitch": 1808,
+    "compressed": 30441,
+    "output": 1330688,
+    "sha256": "f7285e8c47976ee74b1cf25000100bbf02ce37c03887675e6dfa2a7ab7c8ce44"
+  },
+  {
+    "name": "epub-a2f649556596ca4a.png",
+    "pitch": 121,
+    "compressed": 67,
+    "output": 9680,
+    "sha256": "a401cd159b770284555e497e3079869283518690dbbcd207c10a551df56263f8"
+  },
+  {
+    "name": "epub-aa0e1aa1da0da6c5.png",
+    "pitch": 401,
+    "compressed": 7519,
+    "output": 200500,
+    "sha256": "24c12bb726c819bf97b623317a4343c7cf90fc08392a38f2535a7456e4b63ce9"
+  },
+  {
+    "name": "epub-d89ea088c576da8f.png",
+    "pitch": 121,
+    "compressed": 67,
+    "output": 9680,
+    "sha256": "bd0289b3d7f5660d881990ffc500bf7ee4f589bc3c83ad57e9b82122b3bbc8db"
+  },
+  {
+    "name": "epub-e47ac59968016a6e.png",
+    "pitch": 121,
+    "compressed": 67,
+    "output": 9680,
+    "sha256": "2d7b274e8b6c00f77b24f2a78ab351618d8eb029295e6c0704da82f9da4702db"
+  },
+  {
+    "name": "epub-ecb6e6a8a11961be.png",
+    "pitch": 1201,
+    "compressed": 34797,
+    "output": 1801500,
+    "sha256": "de382c5af55e379f8544f814358867ddbefbbd3b7fada8bfa4abe047f3a905b9"
+  },
+  {
+    "name": "epub-f2bf1aea9d1be471.png",
+    "pitch": 121,
+    "compressed": 68,
+    "output": 9680,
+    "sha256": "308a7a547573b027488cb04449a6f7795d16663cfb359162cad104dbceea66ce"
+  },
+  {
+    "name": "gray-1.png",
+    "pitch": 4,
+    "compressed": 19,
+    "output": 92,
+    "sha256": "d470760de9a39c549940aad7aaa2b123b4693363e236ae693fca69ed6e8d0b97"
+  },
+  {
+    "name": "gray-16.png",
+    "pitch": 39,
+    "compressed": 704,
+    "output": 897,
+    "sha256": "2a66486ef209faf01d2a811481c4c63e31553451b9bb8114f836b9cc739cc80d"
+  },
+  {
+    "name": "gray-2.png",
+    "pitch": 6,
+    "compressed": 28,
+    "output": 138,
+    "sha256": "39b26db1ff6822e7b9038e21ebbd0eb4c64546534b1f0f8e913ae0d2e569f9f0"
+  },
+  {
+    "name": "gray-4.png",
+    "pitch": 11,
+    "compressed": 109,
+    "output": 253,
+    "sha256": "0c1a17abb7ad4e313d1d61c8c47b97cde3d3fe5e44eadfcefa6eb9fde2046240"
+  },
+  {
+    "name": "gray-8.png",
+    "pitch": 20,
+    "compressed": 356,
+    "output": 460,
+    "sha256": "3197b94f5cdbacf030b1ba568840bbe00d38d9351f8a1b2d21f70944c96ab163"
+  },
+  {
+    "name": "indexed-1-1x1.png",
+    "pitch": 2,
+    "compressed": 10,
+    "output": 2,
+    "sha256": "a6e905a26ae2db6f6ab35e881bfa519d3256402d2a6a4012216aac564796ce6b"
+  },
+  {
+    "name": "indexed-1-37x29.png",
+    "pitch": 6,
+    "compressed": 132,
+    "output": 174,
+    "sha256": "218a83c481e5d93fa1df9d8b5a032831d9ed07bd0299a1d4a9b0d24ee4721805"
+  },
+  {
+    "name": "indexed-1-3x7.png",
+    "pitch": 2,
+    "compressed": 19,
+    "output": 14,
+    "sha256": "62e6198c0751b4068af26eb4550960373bba19737f02ea92d037bcae64ea261e"
+  },
+  {
+    "name": "indexed-2-1x1.png",
+    "pitch": 2,
+    "compressed": 10,
+    "output": 2,
+    "sha256": "a6e905a26ae2db6f6ab35e881bfa519d3256402d2a6a4012216aac564796ce6b"
+  },
+  {
+    "name": "indexed-2-37x29.png",
+    "pitch": 11,
+    "compressed": 222,
+    "output": 319,
+    "sha256": "ee588214d6ba22e7cc0f82ef3405a758224875c78779e57e21096086ec92844c"
+  },
+  {
+    "name": "indexed-2-3x7.png",
+    "pitch": 2,
+    "compressed": 20,
+    "output": 14,
+    "sha256": "6f2b5bb362b5bf05bb9de98f32545bbb56296d787bdbd07518304ed7a24a4e69"
+  },
+  {
+    "name": "indexed-4-1x1.png",
+    "pitch": 2,
+    "compressed": 10,
+    "output": 2,
+    "sha256": "a6e905a26ae2db6f6ab35e881bfa519d3256402d2a6a4012216aac564796ce6b"
+  },
+  {
+    "name": "indexed-4-37x29.png",
+    "pitch": 20,
+    "compressed": 433,
+    "output": 580,
+    "sha256": "1a9f5323527c18e7b3746dd8953fcdb27deaa7e21191eef31ae6338a80015b04"
+  },
+  {
+    "name": "indexed-4-3x7.png",
+    "pitch": 3,
+    "compressed": 30,
+    "output": 21,
+    "sha256": "6ee6fd7b62198cc11539bf9399614355e9ba1f4af5bfe58de8cdcec5d3ddaec8"
+  },
+  {
+    "name": "indexed-8-1x1.png",
+    "pitch": 2,
+    "compressed": 10,
+    "output": 2,
+    "sha256": "a6e905a26ae2db6f6ab35e881bfa519d3256402d2a6a4012216aac564796ce6b"
+  },
+  {
+    "name": "indexed-8-37x29.png",
+    "pitch": 38,
+    "compressed": 974,
+    "output": 1102,
+    "sha256": "c8a09f7aca43aacddd57aecdc1ae12b2235841d1e6503b57440bc777abc5125b"
+  },
+  {
+    "name": "indexed-8-3x7.png",
+    "pitch": 4,
+    "compressed": 36,
+    "output": 28,
+    "sha256": "a5664c17c467402f6189a2196f1533aba351a483351b3a7b187393ca644f3c89"
+  },
+  {
+    "name": "interlace.png",
+    "pitch": 2,
+    "compressed": 10,
+    "output": 2,
+    "sha256": "0d63500d955b658aa7a2b4914a6e3a9e82ace26864f435f5cb443d19014e61f6"
+  },
+  {
+    "name": "oversize.png",
+    "pitch": 32769,
+    "compressed": 10,
+    "output": 2,
+    "sha256": "a6e905a26ae2db6f6ab35e881bfa519d3256402d2a6a4012216aac564796ce6b"
+  }
+]

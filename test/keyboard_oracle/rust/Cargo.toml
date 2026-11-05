@@ -1,0 +1,11 @@
+[package]
+name="keyboard-model-oracle"
+version="0.1.0"
+edition="2021"
+publish=false
+[lib]
+path="lib.rs"
+crate-type=["staticlib"]
+[dependencies]
+xp-ui={path="../../../rust/crates/xp-ui"}
+[workspace]

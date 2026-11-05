@@ -1,0 +1,17 @@
+A			
+P			
+P			blockquote~~
+P			p~poem~
+P			p~~|p~~
+a			
+a	 unrelated		
+div	a b c d e f g h i	id	
+p			
+p			blockquote~~
+p			p~poem~
+p			p~~|p~~
+p	 unrelated		
+p	 unrelated		blockquote~~
+p	 unrelated		p~poem~
+p	 unrelated		p~~|p~~
+span	note	target	

@@ -37,48 +37,50 @@ void HalPowerManager::begin() {
   // Board charger setup (Picco SGM41562: stock charge voltage and limits); a
   // no-op on boards without a configurable charger.
   if (BatteryMonitor::configureCharger()) LOG_INF("PWR", "Charger configured");
-  normalFreq = getCpuFrequencyMhz();
+  state.normal_freq = getCpuFrequencyMhz();
   modeMutex = xSemaphoreCreateMutex();
   assert(modeMutex != nullptr);
 }
 
+XpHalPowerServices HalPowerManager::services() {
+  return {this,
+          [](void* ctx, XpHalPowerOp op, int32_t value) -> int32_t {
+            auto* self = static_cast<HalPowerManager*>(ctx);
+            switch (op) {
+              case XP_HAL_POWER_WIFI:
+                return WiFi.getMode() != WIFI_MODE_NULL;
+              case XP_HAL_POWER_LOCK:
+                xSemaphoreTake(self->modeMutex, portMAX_DELAY);
+                return 0;
+              case XP_HAL_POWER_UNLOCK:
+                xSemaphoreGive(self->modeMutex);
+                return 0;
+              case XP_HAL_POWER_FREQUENCY:
+                return setCpuFrequencyMhz(value);
+            }
+            return 0;
+          },
+          [](void*, uint32_t event, uint32_t frequency, uint32_t, uint32_t, uint32_t) {
+            switch (event) {
+              case 0:
+                LOG_DBG("PWR", "Going to low-power mode");
+                break;
+              case 1:
+                LOG_DBG("PWR", "Restoring normal CPU frequency");
+                break;
+              case 2:
+                LOG_DBG("PWR", "Failed to set CPU frequency = %d MHz", static_cast<int>(frequency));
+                break;
+              case 3:
+                LOG_ERR("PWR", "Lock already held, ignore");
+                break;
+            }
+          },
+          LOW_POWER_FREQ};
+}
 void HalPowerManager::setPowerSaving(bool enabled) {
-  if (normalFreq <= 0) {
-    return;  // invalid state
-  }
-
-  auto wifiMode = WiFi.getMode();
-  if (wifiMode != WIFI_MODE_NULL) {
-    // Wifi is active, force disabling power saving
-    enabled = false;
-  }
-
-  // Held across the check and the switch: a Lock taken in between would find full speed, do
-  // nothing, and then run at LOW_POWER_FREQ until the next key press.
-  xSemaphoreTake(modeMutex, portMAX_DELAY);
-  const LockMode mode = currentLockMode;
-
-  if (mode == None && enabled && !isLowPower) {
-    LOG_DBG("PWR", "Going to low-power mode");
-    if (!setCpuFrequencyMhz(LOW_POWER_FREQ)) {
-      LOG_DBG("PWR", "Failed to set CPU frequency = %d MHz", LOW_POWER_FREQ);
-      xSemaphoreGive(modeMutex);
-      return;
-    }
-    isLowPower = true;
-
-  } else if ((!enabled || mode != None) && isLowPower) {
-    LOG_DBG("PWR", "Restoring normal CPU frequency");
-    if (!setCpuFrequencyMhz(normalFreq)) {
-      LOG_DBG("PWR", "Failed to set CPU frequency = %d MHz", normalFreq);
-      xSemaphoreGive(modeMutex);
-      return;
-    }
-    isLowPower = false;
-  }
-
-  // Otherwise, no change needed
-  xSemaphoreGive(modeMutex);
+  const auto s = services();
+  xp_hal_power_set(&state, &s, enabled);
 }
 
 void HalPowerManager::startDeepSleep(HalGPIO& gpio, const bool wakeOnHeldButton) const {
@@ -202,51 +204,18 @@ bool HalPowerManager::holdWhileUsbPowered(HalGPIO& gpio, void (*onStatus)(bool c
 
 uint16_t HalPowerManager::getBatteryPercentage() const {
   static const BatteryMonitor battery;
-  if (BoardConfig::ACTIVE.batteryGauge.gaugeAddr != 0) {
-    const unsigned long now = millis();
-    if (_batteryLastPollMs != 0 && (now - _batteryLastPollMs) < BATTERY_POLL_MS) {
-      return _batteryCachedPercent;
-    }
-
-    _batteryLastPollMs = now;
-    uint16_t percent = 0;
-    if (!battery.readPercentageChecked(percent)) {
-      return _batteryCachedPercent;
-    }
-    _batteryCachedPercent = percent;
-    return _batteryCachedPercent;
-  }
-
-  // smooth the battery %.
-  if (_batteryCachedPercent == 0) {
-    _batteryCachedPercent = 10 * battery.readPercentage();
-  } else {
-    _batteryCachedPercent = (_batteryCachedPercent * 9 + battery.readPercentage() * 10) / 10;
-  }
-  return _batteryCachedPercent / 10;
+  const XpHalBatteryServices services{nullptr, []() { return static_cast<uint32_t>(millis()); },
+                                      [](void*, uint16_t* percent) { return battery.readPercentageChecked(*percent); },
+                                      [](void*) { return battery.readPercentage(); }};
+  return xp_hal_power_battery(&batteryState, &services, BoardConfig::ACTIVE.batteryGauge.gaugeAddr != 0);
 }
 
 HalPowerManager::Lock::Lock() {
-  xSemaphoreTake(powerManager.modeMutex, portMAX_DELAY);
-  // Current limitation: only one lock at a time
-  if (powerManager.currentLockMode != None) {
-    LOG_ERR("PWR", "Lock already held, ignore");
-    valid = false;
-  } else {
-    powerManager.currentLockMode = NormalSpeed;
-    valid = true;
-  }
-  xSemaphoreGive(powerManager.modeMutex);
-  if (valid) {
-    // Immediately restore normal CPU frequency if currently in low-power mode
-    powerManager.setPowerSaving(false);
-  }
+  const auto s = powerManager.services();
+  valid = xp_hal_power_lock(&powerManager.state, &s);
 }
 
 HalPowerManager::Lock::~Lock() {
-  xSemaphoreTake(powerManager.modeMutex, portMAX_DELAY);
-  if (valid) {
-    powerManager.currentLockMode = None;
-  }
-  xSemaphoreGive(powerManager.modeMutex);
+  const auto s = powerManager.services();
+  xp_hal_power_unlock(&powerManager.state, &s, valid);
 }

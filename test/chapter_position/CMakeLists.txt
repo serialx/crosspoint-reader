@@ -7,4 +7,6 @@ target_link_libraries(ChapterPositionTest PRIVATE
   GTest::gtest_main
 )
 
+target_compile_options(ChapterPositionTest PRIVATE -UNDEBUG)
+
 gtest_discover_tests(ChapterPositionTest)

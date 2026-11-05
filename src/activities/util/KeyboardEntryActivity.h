@@ -1,146 +1,88 @@
 #pragma once
-#include <FreeInkUIGfxRenderer.h>
-#include <GfxRenderer.h>
+#include <Memory.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#include <xp_ui_keyboard.h>
 
-#include <atomic>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <utility>
 
-#include "activities/Activity.h"
-#include "util/ButtonNavigator.h"
+#include "activities/RustActivityAdapter.h"
 
 enum class InputType { Text, Password, Url };
 
-// Text entry on the FreeInkUI keyboard component: the SDK layout tables and
-// keyboard() do the key rendering and hit-rect registration, InteractionBuffer
-// routes taps/long-presses, and this activity owns the text field, cursor
-// editing, and the URL snippet layouts.
-class KeyboardEntryActivity : public Activity {
+class KeyboardEntryActivity : public RustActivityAdapter {
  public:
   explicit KeyboardEntryActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                  std::string title = "Enter Text", std::string initialText = "",
-                                 const size_t maxLength = 0, InputType inputType = InputType::Text)
-      : Activity("KeyboardEntry", renderer, mappedInput),
-        title(std::move(title)),
-        text(std::move(initialText)),
-        maxLength(maxLength),
-        inputType(inputType) {}
-
+                                 const size_t maxLength = 0, InputType inputType = InputType::Text);
+  ~KeyboardEntryActivity() override { vSemaphoreDelete(textMutex); }
   void onEnter() override;
   void onExit() override;
   void loop() override;
-  void render(RenderLock&&) override;
   bool preventAutoSleep() override { return true; }
 
  private:
-  std::string title;
-  std::string text;
+  struct Bytes {
+    std::unique_ptr<uint8_t[]> data;
+    uint32_t capacity = 0;
+    bool grow(uint32_t required, uint32_t used);
+  };
+  struct Arena {
+    std::unique_ptr<XpUiCommand[]> commands;
+    uint16_t commandCapacity = 0;
+    std::unique_ptr<XpUiKeyboardTextSpan[]> spans;
+    uint16_t spanCapacity = 0;
+    XpUiKeyboardPlacedKey rowKeys[16];
+    Bytes sceneText;
+    XpUiKeyboardState snapshot{};
+    Bytes raw, display, paintText;
+  };
+  std::string title, initialText;
   size_t maxLength;
   InputType inputType;
-  bool passwordVisible = false;
+  std::unique_ptr<Arena> arena;
+  // Loop owns edits; render borrows only while copying, never during paint.
+  StaticSemaphore_t textMutexStorage{};
+  SemaphoreHandle_t textMutex = xSemaphoreCreateMutexStatic(&textMutexStorage);
+  class TextLock {
+    SemaphoreHandle_t mutex;
 
-  ButtonNavigator buttonNavigator;
+   public:
+    explicit TextLock(KeyboardEntryActivity& owner) : mutex(owner.textMutex) { xSemaphoreTake(mutex, portMAX_DELAY); }
+    ~TextLock() { xSemaphoreGive(mutex); }
+    TextLock(const TextLock&) = delete;
+    TextLock& operator=(const TextLock&) = delete;
+  };
+  Bytes text;
+  XpUiInterest inputInterest{};
+  XpUiKeyboardState previousPublished{};
+  bool publicationPending = false, resetInput = false;
+  void reconcileInput();
+  XpUiKeyboardState state{}, beforeInput{};
+  XpUiKeyboardViewLayout layout{};
+  XpUiKeyboardEffect pending{};
+  XpUiInput lastInput{};
+  Publication publication;
+  uint32_t tappedCursor = UINT32_MAX;
+  XpUiKeyboardState publishedState{};
+  XpUiKeyboardViewLayout publishedLayout{};
 
-  // Keyboard layers. The letter/symbol layers come from the SDK's builtin
-  // layouts (with the always-visible number row); the URL layers are
-  // app-defined tables in the .cpp.
-  freeink::ui::KeyboardLayoutId layoutId = freeink::ui::KeyboardLayoutId::QwertyEn;
-  // Asks the SDK for a layout variant with the language key. Only the Latin
-  // layouts honour it; the Cyrillic, Hebrew and Arabic tables carry the key
-  // either way.
-  // Resolved once in onEnter(): the set cannot change while a keyboard is on
-  // screen, and currentLayout() runs on every loop pass.
-  bool showLangKey = false;
-  bool shifted = false;
-  bool symbols = false;
-  bool urlPanel = false;  // URL snippet panel replaces the letter layer
-
-  // Key hit rects registered by the keyboard component during render(); loop()
-  // routes touch snapshots against them. The 5-row EN layout registers 41 keys,
-  // Cyrillic's wider rows (12/11/11 against 10/9/9) exactly 48, so 56 restores
-  // the headroom. Two generations of 16-byte entries: 256 bytes for the eight
-  // extra slots, no heap.
-  freeink::ui::InteractionBuffer<56> interactions;
-
-  // GPIO selection over the current layout grid (row/col in layout terms;
-  // the bottom action row is just the last row).
-  int selRow = 0;
-  int selCol = 0;
-
-  bool confirmHeld = false;
-  bool confirmLongHandled = false;
-
-  bool cursorMode = false;
-  bool togglePos = false;
-  size_t cursorPos = 0;  // byte offset into text (always on a code point boundary)
-  bool upHeld = false;
-  bool upLongHandled = false;
-  bool downHeld = false;
-  bool downLongHandled = false;
-  bool rightHeld = false;
-  bool rightLongHandled = false;
-  size_t savedCursorPos = 0;
-  size_t rightStartCursorPos = 0;
-
-  // Tap/hold routing (threshold long-press, release swallow, slide re-arm)
-  // lives in the SDK; loop() feeds it the level-triggered touch state.
-  freeink::ui::TouchHoldRouter touchRouter;
-
-  // loop() runs on the main task while render() rebuilds the interaction
-  // table on the render task; render() opts `interactions` into the SDK's
-  // double-buffered publish cycle (beginPublishCycle()/publish()) so
-  // TouchHoldRouter's routePublished()-based reads in loop() always see a
-  // complete, previously-published table, never one mid-rebuild — no taps
-  // dropped for that reason anymore. interactionsReady itself gates only
-  // before the very first publish (nothing registered yet). Do not clear it
-  // for later renders: the point of retaining the published generation is
-  // that loop() can keep routing a release while the next frame is built.
-  // atomic (not volatile) so the flag also orders the first table publication
-  // on dual-core targets.
-  std::atomic<bool> interactionsReady{false};
-
-  int delPressCount = 0;
-  bool hintVisible = false;
-  unsigned long hintShowTime = 0;
-
-  void onComplete(std::string text);
-  void onCancel();
-  bool cursorPositionFromPoint(int x, int y, size_t& position) const;
-  std::string displayTextForCurrentState() const;
-  // Advance of s[start, end) measured in place by temporarily null-terminating
-  // at `end` — avoids a substr temporary per measurement.
-  int measureRange(std::string& s, int start, int end) const;
-  bool rangeIsRtl(std::string& s, int start, int end) const;
-  // Largest line end in (start, s.length()] whose advance fits maxWidth.
-  // Binary search over the monotonic prefix advance; always advances at least
-  // one byte so an oversized glyph cannot stall the wrap loop.
-  int lineBreakEnd(std::string& s, int start, int maxWidth) const;
-
-  const freeink::ui::KeyboardLayout& currentLayout() const;
-  const freeink::ui::KeyboardKey* selectedKey() const;
-  int selectedLogicalIndex() const;
-  void clampSelection();
-  void moveSelectionRow(int delta);
-  void moveSelectionCol(int delta);
-  bool syncSelectionToValue(int16_t value);
-  // Handles one key activation (by stable key id). Returns true when the
-  // screen needs a repaint; OK/cancel finish the activity instead.
-  bool activateValue(int16_t value, bool longPress);
-  bool clearAllOrAltOnSelected();
-
-  void insertUtf8(const char* out);
-  bool backspaceUtf8();
-  static size_t utf8Prev(const std::string& s, size_t pos);
-  static size_t utf8Next(const std::string& s, size_t pos);
-
-  freeink::ui::Rect keyboardRect() const;
-
-  static constexpr uint16_t LONG_PRESS_MS = 500;
-  static constexpr uint16_t DEL_LONG_PRESS_MS = 1500;
-  static constexpr uint16_t TOUCH_LONG_PRESS_MS = 350;
-  static constexpr uint16_t TOUCH_DEL_LONG_PRESS_MS = 900;
-
-  // App-specific key id: toggles the URL snippet panel (URL fields only).
-  static constexpr int16_t URL_PANEL_KEY = -3;
+  static XpUiKeyboardLayouts layouts();
+  XpUiKeyboardMetrics metrics() const;
+  XpUiKeyboardViewLayout viewLayout() const;
+  Publication* rustPublication() override { return &publication; }
+  bool buildRustScene(XpUiScene&) override;
+  void rustPublished() override;
+  void rustSceneFailed() override { resetInput = true; }
+  XpUiPaint rustResources() override;
+  XpUiInterest rustInterest(uint32_t) const override { return inputInterest; }
+  XpUiEffect updateRust(const XpUiInput&) override;
+  void applyRustEffect(const XpUiEffect&) override;
+  void paintKey(const XpUiCommand&);
+  void paintRow(const XpUiCommand&);
+  void paintText(const XpUiCommand&, XpUiRect);
+  bool validText(uint32_t) const;
 };

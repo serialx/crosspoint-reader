@@ -1,7 +1,7 @@
 # Hypher Binary Tries
 
 CrossPoint embeds the exact binary automata produced by
-[Typst's `hypher`](https://github.com/typst/hypher). 
+[Typst's `hypher`](https://github.com/typst/hypher).
 
 ## File layout
 
@@ -38,16 +38,26 @@ to the current node’s base.
 
 ## Embedding blobs into the firmware
 
-The helper script `scripts/generate_hyphenation_trie.py` acts as a thin
-wrapper: it reads the hypher-generated `.bin` files, formats them as `constexpr`
-byte arrays, and emits headers under
-`lib/Epub/Epub/hyphenation/generated/`. Each header defines the raw data plus a
-`SerializedHyphenationPatterns` descriptor so the reader can keep the automaton
-in flash.
+The eleven raw `.bin` files live in `rust/crates/xp-core/data/hyph/`.
+`xp-core::hyphen` embeds them with `include_bytes!` in a four-byte-aligned
+wrapper. The root address remains in the first four bytes; node and level
+offsets use the original file coordinates. The runtime reads bytes directly
+from flash, without allocating or expanding the trie. Normal firmware builds
+embed the checked-in files; they do not download or regenerate patterns.
 
-A convenient script `update_hyphenation.sh` is used to update all languages.
-To use it, run:
+`scripts/generate_hyphenation_trie.py` validates the root address and copies
+an input `.bin` unchanged. Refresh all languages with:
 
 ```sh
 ./scripts/update_hyphenation.sh
 ```
+
+The updater downloads from [hypher's tries directory](https://github.com/typst/hypher/tree/main/tries).
+The initial Rust files preserve the prior C arrays byte-for-byte after their
+four-byte root addresses. Updating upstream patterns is a behavior change;
+run the exact golden comparison and review any differences separately.
+
+Hypher's code is dual-licensed MIT/Apache-2.0. The pattern files retain their
+[individual licenses](https://github.com/typst/hypher/tree/main/patterns), as
+explained in the [upstream license notice](https://github.com/typst/hypher#license).
+Moving the existing tries does not change those licenses.

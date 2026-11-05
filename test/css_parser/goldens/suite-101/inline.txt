@@ -1,0 +1,4 @@
+ font-style: italic; 
+ font-weight: bold; 
+ text-align: justify; 
+ text-align: left; 

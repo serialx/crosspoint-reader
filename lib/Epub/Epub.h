@@ -2,6 +2,7 @@
 
 #include <ContentProtection.h>
 #include <Print.h>
+#include <xp_epub_session.h>
 
 #include <memory>
 #include <optional>
@@ -13,6 +14,9 @@
 #include "Epub/css/CssParser.h"
 
 class ZipFile;
+struct XpBookIoServices;
+struct XpBookDocumentServices;
+struct XpBookMetadataServices;
 
 class Epub {
  public:
@@ -24,6 +28,16 @@ class Epub {
   };
 
  private:
+  struct BorrowedBook {
+    void* context;
+    const XpEpubBookBorrow& callbacks;
+    std::string language;
+    int spineCount, tocCount;
+    CssParser css;
+    BorrowedBook(void* context, const XpEpubBookView& view, const XpEpubBookBorrow& callbacks);
+  };
+  std::optional<BorrowedBook> borrowedBook;
+  bool requireOwned() const;
   // the ncx file (EPUB 2)
   std::string tocNcxItem;
   // the nav file (EPUB 3)
@@ -46,11 +60,20 @@ class Epub {
   // User-presentable reason the encrypted-entry accessor could not be opened.
   std::string protectionError;
 
+  bool loadMetadataFromSource(std::string& title, std::string& author);
+  XpBookMetadataServices cacheServices() const;
+  struct DocumentContext;
+  static XpBookDocumentServices documentServices(DocumentContext&);
+  struct ItemContext;
+  static XpBookIoServices itemServices(ItemContext& context);
+  struct CoverContext;
+  bool generateBmp(CoverContext& context) const;
+
   bool findContentOpfFile(std::string* contentOpfFile, ZipFile* sharedZip = nullptr) const;
   bool parseContentOpf(BookMetadataCache::BookMetadata& bookMetadata, bool writeSpineEntries = true,
                        bool metadataOnly = false, ZipFile* sharedZip = nullptr);
-  bool generateThumbBmpForCover(int height, const std::string& coverImageHref) const;
   bool openProtection();
+  int findSpine(const std::string&, bool) const;
   bool parseTocNcxFile() const;
   bool parseTocNavFile() const;
   void discoverCssFilesFromZip();
@@ -58,8 +81,12 @@ class Epub {
 
  public:
   explicit Epub(std::string filepath, const std::string& cacheDir);
+  // The Rust owner outlives this facade and every shared native borrower.
+  // Temporary query/render subset: docs/contributing/rust.md#reader-book-ownership.
+  // Load/cache mutation, getPath/getTitle/getAuthor/getProtectionError, cover/thumbnail
+  // and readItemContentsToBytes are ordinary-only; see that section for the full list.
+  Epub(void* book, const XpEpubBookView& view, const XpEpubBookBorrow& callbacks);
   ~Epub() = default;
-  std::string& getBasePath() { return contentBasePath; }
   bool load(bool buildIfMissing = true, bool skipLoadingCss = false);
   bool loadMetadata(std::string& title, std::string& author);
   bool loadSyncMetadata(SyncMetadata& metadata);
@@ -68,7 +95,7 @@ class Epub {
   const std::string& getCachePath() const;
   const std::string& getPath() const;
   // Empty unless the encrypted-entry accessor failed to open.
-  const std::string& getProtectionError() const { return protectionError; }
+  const std::string& getProtectionError() const;
   const std::string& getTitle() const;
   const std::string& getAuthor() const;
   const std::string& getLanguage() const;
@@ -99,6 +126,6 @@ class Epub {
 
   size_t getBookSize() const;
   float calculateProgress(int currentSpineIndex, float currentSpineRead) const;
-  CssParser* getCssParser() const { return cssParser.get(); }
+  CssParser* getCssParser() const;
   int resolveHrefToSpineIndex(const std::string& href) const;
 };

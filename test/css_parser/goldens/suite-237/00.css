@@ -1,0 +1,1 @@
+p { border: 1px solid; } .wide { border-width: 2px; } div { border-width: 3px; } .solid { border-style: solid; } .top { border-top-width: 4px; border-left-style: dashed; } .none { border-style: none; }

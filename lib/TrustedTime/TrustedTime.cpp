@@ -4,6 +4,7 @@
 #include <Logging.h>
 #include <Preferences.h>
 #include <esp_sntp.h>
+#include <xp_hal.h>
 
 #include <cstdio>
 #include <cstdlib>
@@ -12,21 +13,6 @@
 namespace trustedtime {
 
 namespace {
-
-// Below this the clock was obviously never set (2025-01-01 UTC).
-constexpr int64_t MIN_VALID_EPOCH = 1735689600LL;
-// Above this a value is a fault, not a date (2100-01-01 UTC). Every supported
-// RTC chip stops at 2099, so anything past this is a dead battery or a corrupt read --
-// and the floor never lowers again, so adopting one would lock every real clock
-// out from then on.
-constexpr int64_t MAX_VALID_EPOCH = 4102444800LL;
-// How far ahead of the persisted floor an RTC may read. A chip whose calendar is
-// a year past what we have already trusted is faulty rather than right, and the
-// days either side cover a long power-off: past this the clock stays on the
-// floor until SNTP answers.
-constexpr int64_t MAX_RTC_LEAD_SECS = 31536000LL;
-// NVS wear guard: only rewrite the floor when it moved by at least this much.
-constexpr int64_t MIN_ADVANCE_SECS = 60;
 
 constexpr const char* PREFS_NAMESPACE = "cptime";
 constexpr const char* PREFS_KEY = "floor";
@@ -41,8 +27,7 @@ portMUX_TYPE ramFloorLock = portMUX_INITIALIZER_UNLOCKED;
 // Raises the in-RAM floor to `value` if higher; returns the resulting floor.
 int64_t raiseFloor(const int64_t value) {
   portENTER_CRITICAL(&ramFloorLock);
-  if (value > ramFloor) ramFloor = value;
-  const int64_t floor = ramFloor;
+  const int64_t floor = xp_hal_time_raise(&ramFloor, value);
   portEXIT_CRITICAL(&ramFloorLock);
   return floor;
 }
@@ -62,6 +47,13 @@ void writeFloor(const int64_t value) {
   prefs.end();
 }
 
+const XpHalTimeServices services{[]() { return static_cast<int64_t>(time(nullptr)); }, readFloor, writeFloor,
+                                 raiseFloor,
+                                 [](int64_t epoch) {
+                                   timeval tv = {static_cast<time_t>(epoch), 0};
+                                   settimeofday(&tv, nullptr);
+                                 }};
+
 // SNTP sync callback (lwIP task context; Preferences/NVS is mutex-guarded).
 void onTimeSynced(struct timeval*) { note(); }
 
@@ -78,45 +70,12 @@ void configureSntp() {
 
 void init() {
   sntp_set_time_sync_notification_cb(&onTimeSynced);
-  const int64_t floor = readFloor();
-  if (floor < MIN_VALID_EPOCH) return;
-  raiseFloor(floor);
-  if (static_cast<int64_t>(time(nullptr)) < floor) {
-    // Cold boot reset the clock; resume from the floor so time keeps moving
-    // forward across power cycles instead of restarting at epoch 0.
-    timeval tv = {static_cast<time_t>(floor), 0};
-    settimeofday(&tv, nullptr);
-    LOG_DBG("TIME", "Clock restored to persisted floor");
-  }
+  if (xp_hal_time_init(&services)) LOG_DBG("TIME", "Clock restored to persisted floor");
 }
 
-void note() {
-  const int64_t now = static_cast<int64_t>(time(nullptr));
-  if (now < MIN_VALID_EPOCH) return;
-  raiseFloor(now);
-  if (now - readFloor() >= MIN_ADVANCE_SECS) writeFloor(now);
-}
+void note() { xp_hal_time_note(&services); }
 
-void adopt(const int64_t epoch) {
-  // Out of range: leave the clock and the floor exactly as they are.
-  if (epoch < MIN_VALID_EPOCH || epoch > MAX_VALID_EPOCH) return;
-  // Compared against the persisted floor, not the in-RAM one: boot calls this
-  // before init(), so the in-RAM floor is still empty and the persisted value is
-  // the only record of a time this device has already lived through.
-  const int64_t stored = readFloor();
-  if (stored >= MIN_VALID_EPOCH && epoch - stored > MAX_RTC_LEAD_SECS) return;
-  // Deep sleep keeps the system clock, so a wake arrives with a live clock and
-  // an empty floor while the RTC may be the older reading: whichever is newer
-  // wins, and only inside the supported window.
-  const int64_t now = static_cast<int64_t>(time(nullptr));
-  const bool nowPlausible = now >= MIN_VALID_EPOCH && now <= MAX_VALID_EPOCH;
-  const int64_t candidate = nowPlausible && now > epoch ? now : epoch;
-  if (candidate < raiseFloor(0)) return;  // never rewind below a time we already trust
-  raiseFloor(candidate);
-  timeval tv = {static_cast<time_t>(candidate), 0};
-  settimeofday(&tv, nullptr);
-  if (candidate - readFloor() >= MIN_ADVANCE_SECS) writeFloor(candidate);
-}
+void adopt(const int64_t epoch) { xp_hal_time_adopt(&services, epoch); }
 
 void startSync() {
   if (esp_sntp_enabled()) return;  // running; the sync callback handles the rest
@@ -124,22 +83,12 @@ void startSync() {
 }
 
 bool syncNow(const uint32_t timeoutMs) {
-  // configureSntp() (configTzTime) restarts SNTP if already running.
   configureSntp();
-  const unsigned long deadline = millis() + timeoutMs;
-  while (sntp_get_sync_status() != SNTP_SYNC_STATUS_COMPLETED && static_cast<long>(deadline - millis()) > 0) {
-    delay(100);
-  }
-  const bool synced = sntp_get_sync_status() == SNTP_SYNC_STATUS_COMPLETED;
-  if (synced) note();
-  return synced;
+  const XpHalSyncServices sync{[]() { return sntp_get_sync_status() == SNTP_SYNC_STATUS_COMPLETED; },
+                               []() { return static_cast<uint32_t>(millis()); }, [](uint32_t ms) { delay(ms); }};
+  return xp_hal_time_sync(&services, &sync, timeoutMs);
 }
 
-int64_t trustedNow() {
-  const int64_t now = static_cast<int64_t>(time(nullptr));
-  // Never earlier than a time already seen; 0 while neither is trustworthy.
-  const int64_t floor = raiseFloor(now >= MIN_VALID_EPOCH ? now : 0);
-  return floor >= MIN_VALID_EPOCH ? floor : 0;
-}
+int64_t trustedNow() { return xp_hal_time_now(&services); }
 
 }  // namespace trustedtime

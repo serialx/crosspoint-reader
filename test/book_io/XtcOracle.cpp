@@ -1,0 +1,97 @@
+#include <HalStorage.h>
+#include <Xtc.h>
+
+#include <fstream>
+#include <iterator>
+
+void run(const std::vector<uint8_t>& bytes, size_t fail, bool images) {
+  booktest::files.clear();
+  booktest::files["book.xtc"] = bytes;
+  booktest::calls = 0;
+  booktest::fail = fail;
+  std::printf("case %zu %zu %d\n", bytes.size(), fail, images);
+  if (images) {
+    Xtc book("book.xtc", "/cache");
+    std::printf("load %d\n", book.load());
+    std::printf("title %s\n", book.getTitle().c_str());
+    std::printf("cover %d\n", book.generateCoverBmp());
+    std::printf("thumb %d\n", book.generateThumbBmp(3));
+    std::printf("progress %u\n", book.calculateProgress(1));
+  } else {
+    xtc::XtcParser parser;
+    std::printf("open %d\n", static_cast<int>(parser.open("book.xtc")));
+    std::printf("metadata %s %s %u %u %u\n", parser.getTitle().c_str(), parser.getAuthor().c_str(),
+                parser.getPageCount(), parser.getWidth(), parser.getHeight());
+    for (const auto& chapter : parser.getChapters()) {
+      std::printf("chapter %s %u %u\n", chapter.name.c_str(), chapter.startPage, chapter.endPage);
+    }
+    for (uint32_t index : {0u, 1u, 3u, UINT32_MAX}) {
+      uint8_t pixels[256] = {};
+      size_t count = parser.loadPage(index, pixels, sizeof(pixels));
+      std::printf("page %u %zu %d\n", index, count, static_cast<int>(parser.getLastError()));
+      for (auto byte : pixels) std::printf("%02x", byte);
+      std::puts("");
+    }
+  }
+  for (const auto& [name, content] : booktest::files) {
+    if (name == "book.xtc") continue;
+    std::printf("file %s\n", booktest::displayPath(name).c_str());
+    for (auto byte : content) std::printf("%02x", byte);
+    std::puts("");
+  }
+}
+int main(int argc, char** argv) {
+  if (argc != 2 && argc != 3) return 2;
+  std::ifstream input(argv[1], std::ios::binary);
+  std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(input)), {});
+  if (argc == 3 && std::string(argv[2]) == "residual") {
+    for (const std::string name : {"plain", ".hidden", "a/b.xtc", "/a.with.dot/name", "a/b.c.xtc"}) {
+      for (size_t fault = 0; fault < 5; ++fault) {
+        booktest::files.clear();
+        booktest::files[name] = bytes;
+        booktest::calls = 0;
+        booktest::fail = 0;
+        Xtc book(name, "/a//cache");
+        printf("before %s %u\n", book.getTitle().c_str(), book.calculateProgress(UINT32_MAX));
+        printf("loaded %u\n", book.load());
+        printf("title %s\n", book.getTitle().c_str());
+        for (uint32_t page : {0u, 1u, 2u, UINT32_MAX, UINT32_MAX / 100})
+          printf("progress %u %u\n", page, book.calculateProgress(page));
+        booktest::calls = 0;
+        booktest::fail = fault;
+        book.setupCacheDir();
+        printf("clear absent %u\n", book.clearCache());
+        booktest::files[book.getCachePath()] = {};
+        printf("clear present %u\n", book.clearCache());
+        printf("paths %s %s %s\n", booktest::displayPath(book.getCoverBmpPath()).c_str(),
+               booktest::displayPath(book.getThumbBmpPath()).c_str(),
+               booktest::displayPath(book.getThumbBmpPath(37)).c_str());
+      }
+    }
+    return 0;
+  }
+  if (argc == 3) {
+    booktest::files["book.xtc"] = bytes;
+    if (std::string(argv[2]) == "negative-copy") {
+      Xtc book("book.xtc", "/cache");
+      if (!book.load() || !book.generateCoverBmp()) return 3;
+      booktest::calls = 0;
+      booktest::fail = 10;  // First no-scale cover-copy read.
+      if (book.generateThumbBmp(300)) return 4;
+      return 0;
+    }
+    xtc::XtcParser parser;
+    if (parser.open("book.xtc") != xtc::XtcError::OK) return 3;
+    booktest::calls = 0;
+    booktest::fail = 6;  // First bitmap read, after entry and page header.
+    bool emitted = false;
+    const auto result = parser.loadPageStreaming(0, [&](const uint8_t*, size_t, size_t) { emitted = true; }, 17);
+    if (result != xtc::XtcError::READ_ERROR || emitted) return 4;
+    return 0;
+  }
+  for (bool images : {false, true}) {
+    run(bytes, 0, images);
+    const size_t steps = booktest::calls;
+    for (size_t fail = 1; fail <= steps; ++fail) run(bytes, fail, images);
+  }
+}

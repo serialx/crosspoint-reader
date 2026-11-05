@@ -1,0 +1,10 @@
+P			
+P	 unrelated		
+P	NOTE		
+div	a b c d e f g h i	id	
+p			
+p	Note		
+p	Note unrelated		
+p	note		
+p	note unrelated		
+span	note	target	

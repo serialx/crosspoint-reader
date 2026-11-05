@@ -74,8 +74,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libpcre3
 
+      - name: Set up Rust
+        uses: ./.github/actions/setup-rust-esp
+        with:
+          mcu: esp32c3
+
       - name: Run cppcheck
         run: pio check --fail-on-defect low --fail-on-defect medium --fail-on-defect high
+
+      - name: Report cppcheck version
+        if: always()
+        run: ~/.platformio/packages/tool-cppcheck/cppcheck --version
 
   build:
     name: Build ${{ matrix.env }}
@@ -88,20 +97,28 @@ jobs:
         include:
           - env: default
             asset: firmware.bin
+            mcu: esp32c3
           - env: sticky
             asset: firmware-sticky.bin
+            mcu: esp32s3
           - env: x4pro
             asset: firmware-x4pro.bin
+            mcu: esp32s3
           - env: x4c
             asset: firmware-x4c.bin
+            mcu: esp32s3
           - env: papermono
             asset: firmware-papermono.bin
+            mcu: esp32s3
           - env: metalio_eink4
             asset: firmware-metalio_eink4.bin
+            mcu: esp32s3
           - env: eego_a4
             asset: firmware-eego_a4.bin
+            mcu: esp32s3
           - env: picco
             asset: firmware-picco.bin
+            mcu: esp32s3
     steps:
       - uses: actions/checkout@v6
         with:
@@ -150,6 +167,11 @@ jobs:
           uv pip install --python ~/.platformio/penv/bin/python "pioarduino==6.1.19"
           ~/.platformio/penv/bin/pio --version
 
+      - name: Set up Rust
+        uses: ./.github/actions/setup-rust-esp
+        with:
+          mcu: ${{ matrix.mcu }}
+
       - name: Build ${{ matrix.env }} firmware
         run: |
           set -euo pipefail
@@ -177,15 +199,67 @@ jobs:
 
   unit-tests:
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.0'
+      CC: clang-22
+      CXX: c++
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
+          # Differential tests compile frozen implementations from Git history.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      # Native oracles use the same library sources as platformio.ini.
+      - name: Check out QRCode
+        uses: actions/checkout@v6
+        with:
+          repository: ricmoo/QRCode
+          ref: 5ba5d5bf2790f4a885b0db823cf218e4fa718061 # v0.0.1
+          path: .pio/libdeps/default/QRCode
+
+      - name: Check out ArduinoJson
+        uses: actions/checkout@v6
+        with:
+          repository: bblanchon/ArduinoJson
+          ref: 733bc4ee82630c88c0a619a883cd3a206efae977 # v7.4.2
+          path: .pio/libdeps/default/ArduinoJson
 
       - name: Install build tools
         run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 22
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build
+          sudo apt-get install -y cmake ninja-build clang-22 libc++-22-dev libc++abi-22-dev libunwind-22-dev
+
+      - name: Select native C++ toolchain
+        run: |
+          # Frozen allocation traces use libc++; Python oracles also invoke c++.
+          mkdir -p "$RUNNER_TEMP/native-bin"
+          printf '%s\n' '#!/bin/sh' 'exec clang++-22 -stdlib=libc++ "$@"' > "$RUNNER_TEMP/native-bin/c++"
+          chmod +x "$RUNNER_TEMP/native-bin/c++"
+          echo "$RUNNER_TEMP/native-bin" >> "$GITHUB_PATH"
+          clang++-22 --version
+
+      - name: Generate web assets
+        run: python3 scripts/build_html.py
+
+      - name: Generate i18n sources
+        run: python3 scripts/gen_i18n.py lib/I18n/translations lib/I18n/
+
+      - name: Set up Rust
+        uses: ./.github/actions/setup-rust-esp
+        with:
+          mcu: esp32c3
+
+      - name: Run Rust tests
+        working-directory: rust
+        run: cargo test --locked -p xp-core -p xp-gif -p xp-ui -p xp-display
 
       - name: Cache googletest source
         uses: actions/cache@v4

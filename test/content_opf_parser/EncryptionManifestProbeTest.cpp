@@ -1,8 +1,7 @@
+#include <PackageParser.h>
 #include <gtest/gtest.h>
 
 #include <string>
-
-#include "EncryptionManifestProbe.h"
 
 TEST(EncryptionManifestProbe, FontOnlyAndEmptyManifestsDoNotNeedProtection) {
   // Same algorithms and references as Foundryside's retained font manifest.
@@ -17,7 +16,7 @@ TEST(EncryptionManifestProbe, FontOnlyAndEmptyManifestsDoNotNeedProtection) {
           R"(<encryption><EncryptedData><EncryptionMethod Algorithm="http://www.idpf.org/2008/embedding"/>
              <CipherData><CipherReference URI="font.otf"/></CipherData></EncryptedData></encryption>)",
           "<encryption/>", R"(<encryption><!-- <EncryptionMethod Algorithm="aes128-cbc"/> --></encryption>)"}) {
-    EncryptionManifestProbe probe;
+    PackageParser probe(XP_PKG_ENCRYPTION, "", 0, "");
     ASSERT_TRUE(probe.setup());
     for (const unsigned char byte : xml) ASSERT_EQ(probe.write(byte), 1u);
     ASSERT_TRUE(probe.finish());
@@ -26,7 +25,7 @@ TEST(EncryptionManifestProbe, FontOnlyAndEmptyManifestsDoNotNeedProtection) {
 }
 
 TEST(EncryptionManifestProbe, AesStillRequiresSdkValidation) {
-  EncryptionManifestProbe probe;
+  PackageParser probe(XP_PKG_ENCRYPTION, "", 0, "");
   ASSERT_TRUE(probe.setup());
   const std::string xml = R"(<encryption xmlns:e="http://www.w3.org/2001/04/xmlenc#"><e:EncryptedData>
     <e:EncryptionMethod Algorithm = 'http://www.w3.org/2001/04/xmlenc#aes128-cbc'/>
@@ -37,7 +36,7 @@ TEST(EncryptionManifestProbe, AesStillRequiresSdkValidation) {
 }
 
 TEST(EncryptionManifestProbe, Aes256StillRequiresSdkValidation) {
-  EncryptionManifestProbe probe;
+  PackageParser probe(XP_PKG_ENCRYPTION, "", 0, "");
   ASSERT_TRUE(probe.setup());
   const std::string xml = R"(<encryption xmlns:e="http://www.w3.org/2001/04/xmlenc#"><e:EncryptedData>
     <e:EncryptionMethod Algorithm = 'http://www.w3.org/2001/04/xmlenc#aes256-cbc'/>
@@ -48,7 +47,7 @@ TEST(EncryptionManifestProbe, Aes256StillRequiresSdkValidation) {
 }
 
 TEST(EncryptionManifestProbe, TruncatedManifestFailsValidation) {
-  EncryptionManifestProbe probe;
+  PackageParser probe(XP_PKG_ENCRYPTION, "", 0, "");
   ASSERT_TRUE(probe.setup());
   const std::string xml = "<encryption><EncryptedData>";
   ASSERT_EQ(probe.write(reinterpret_cast<const uint8_t*>(xml.data()), xml.size()), xml.size());

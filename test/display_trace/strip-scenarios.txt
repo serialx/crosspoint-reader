@@ -1,0 +1,34 @@
+begin
+frame
+source 80
+display 0
+frame 1
+display 2
+frame 1
+display 1
+frame 1
+display-off 2
+source 16
+frame 1
+display 2
+frame 1
+async-no-shadow 2
+wait
+source 160
+gray-base 0
+gray-full
+gray-show
+cleanup
+frame 1
+display 2
+invert 1
+frame 1
+display 2
+invert 0
+frame 1
+display 2
+resync 2
+frame 1
+display 2
+source 0
+sleep

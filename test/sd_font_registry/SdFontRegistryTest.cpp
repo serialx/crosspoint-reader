@@ -144,3 +144,41 @@ TEST_F(SdFontRegistryTest, FilePathReportsTruncation) {
 }
 
 }  // namespace
+
+TEST(SdFontRegistryBoundaries, FamilyCapKeepsSortedPrefixAfterBothRoots) {
+  for (int count : {127, 128, 129}) {
+    fake::reset();
+    for (int i = count - 1; i >= 0; --i) {
+      char path[80];
+      snprintf(path, sizeof(path), "%s/F%03d/F%03d_14.cpfont", i % 2 ? "/fonts" : "/.fonts", i, i);
+      fake::add(path);
+    }
+    SdCardFontRegistry registry;
+    ASSERT_TRUE(registry.discover());
+    ASSERT_EQ(registry.getFamilyCount(), std::min(count, SdCardFontRegistry::MAX_SD_FAMILIES));
+    for (int i = 0; i < registry.getFamilyCount(); ++i) {
+      char name[16];
+      snprintf(name, sizeof(name), "F%03d", i);
+      EXPECT_EQ(registry.getFamilies()[i].name, name);
+      EXPECT_NE(registry.findFamily(name), nullptr);
+    }
+    EXPECT_EQ(registry.findFamily("F128"), nullptr);
+    fake::reset();
+    ASSERT_FALSE(registry.discover());
+    EXPECT_EQ(registry.getFamilyCount(), 0);
+  }
+}
+
+TEST(SdFontRegistryBoundaries, SizeEndpointsAndNearestTies) {
+  SdCardFontFamilyInfo family;
+  for (uint8_t size : {255, 0, 2, 254}) family.files.push_back({nullptr, size, 0});
+  family.files.push_back({nullptr, 255, 1});
+  EXPECT_TRUE(family.hasSize(0));
+  EXPECT_TRUE(family.hasSize(255));
+  EXPECT_FALSE(family.hasSize(253));
+  EXPECT_EQ(family.availableSizes(), (std::vector<uint8_t>{0, 2, 254, 255}));
+  EXPECT_EQ(family.findNearestSize(1)->pointSize, 0);
+  EXPECT_EQ(family.findNearestSize(253)->pointSize, 254);
+  EXPECT_EQ(family.findFile(255, 1), &family.files[4]);
+  EXPECT_EQ(family.findFile(255, 2), nullptr);
+}

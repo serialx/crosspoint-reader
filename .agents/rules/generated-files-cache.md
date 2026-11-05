@@ -60,8 +60,15 @@ at the same path leaves this key unchanged.
 
 ### Cache Invalidation Rules
 
-Inspect `Section::loadSectionFile()` for the full comparison of layout settings,
-fonts, and viewport dimensions. Format/version mismatches invalidate saved data.
+Cache invalidation is decided by `xp_core::section::header_matches`
+(`rust/crates/xp-core/src/section/mod.rs`): it compares the font id, bit-exact
+line compression, and header word slots `values[3..14]`.
+`section_owner::lifecycle::header` in
+`rust/crates/xp-ffi/src/app/epub/section_owner/lifecycle.rs` derives those slots
+from `XpEpubRenderSpec`. `ReaderSection::load` in
+`rust/crates/xp-ffi/src/app/epub/section_owner/owner.rs` validates the cached
+header through `section_cache`.
+Format/version mismatches also invalidate saved data.
 Path changes select another cache; same-path content replacement needs the
 appropriate freshness check and an affected-cache reset during testing.
 
@@ -71,8 +78,12 @@ also deletes settings, credentials, and application state.
 
 ### Cache File Format Versioning
 
-Read `BOOK_CACHE_VERSION` and `SECTION_FILE_VERSION` from
-`BookMetadataCache.cpp` and `Section.cpp`; layouts/history are in
+Read `BOOK_CACHE_VERSION` from `lib/Epub/Epub/PackagePlatform.cpp`. The section
+format version is `XP_SEC_VERSION` / `XP_SEC_PARTIAL_VERSION` in
+`rust/crates/xp-ffi/include/xp_ffi.h`, which mirror
+`xp_core::section::VERSION` / `PARTIAL_VERSION` in
+`rust/crates/xp-core/src/section/mod.rs`. Bump the Rust and header values
+together. Layouts/history are in
 [file-formats.md](../../docs/file-formats.md).
 Increment the relevant version before changing serialized structure or layout
 behavior that changes cached line breaks, widths, or word positions, and document

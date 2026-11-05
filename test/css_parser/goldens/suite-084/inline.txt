@@ -1,0 +1,5 @@
+ font-style: italic; 
+ font-weight: bold; 
+ text-align: center; 
+ text-align: right; 
+ text-indent: 0; 

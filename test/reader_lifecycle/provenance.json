@@ -1,0 +1,92 @@
+{
+  "source_commit": "8d534a99e53f3bc98d842740de606b0396d38d56",
+  "sha256": {
+    "src/activities/reader/EpubReaderActivity.cpp": "94195f5b806fd9e88602b137c8925291e399f79055ad01409213776e56498e92",
+    "src/activities/reader/ReaderUtils.h": "32a7c3afe28193933bac5f12f298ce40100240c527a56e021fd2a4628fd60f22",
+    "src/activities/reader/ReaderSession.h": "7ae59da0d5edc477574098b2689ebe6ea692774f3e9be3e720c0b6ef4a9ad9fc",
+    "src/activities/reader/ReaderSession.cpp": "cc229ae2af90faf0dc6033c85ab6349ce40c9aea46ee9f31d230bda13a30ad93",
+    "src/activities/reader/ChapterBuildGate.h": "39e79169556b6b7c16a1525f85c7b4f9615c7450256c06bae3d78f9b18f75981",
+    "src/activities/reader/RemoteTurnGate.h": "49681d66bb88b337c95a87a045ee993635730fa80251dbd90781938ae2599ae0",
+    "src/activities/reader/LinkNoteTitle.h": "67bf1bf32b4c82e818666fd0e566144e95fde31cf68a6d75a6761cd6682554aa",
+    "src/activities/reader/EpubReaderUtils.h": "244e6b7e7bbf127831bf941dd2a25d1f53e1e0861ffa7b6351e9268c884f975b",
+    "src/activities/reader/ProgressFile.h": "c2090caceac5a10c36a4d00b8187716de8f1df0dac5519d67803eb6f910e68f2"
+  },
+  "render_oracles": {
+    "off": {
+      "cases": 5120,
+      "lines": 203194,
+      "sha256": "b7ab32a95057bbb39f4e7a8ab4fc6e3cf58cd361ab24cad50264c1fb7489f107",
+      "generation": 2,
+      "note": "Original 8d534a99 method bodies; logs heap/capability queries, timestamps, array lifetimes; uses actual 80-row strip constant and 8-byte row bounds."
+    },
+    "on": {
+      "cases": 5120,
+      "lines": 251550,
+      "sha256": "56dcfdb47b7ad4f42eff66ae5f86f71c94ef266e4249c0b383ae65b9829874cf",
+      "generation": 2,
+      "note": "Original 8d534a99 method bodies; logs heap/capability queries, timestamps, array lifetimes; uses actual 80-row strip constant and 8-byte row bounds."
+    }
+  },
+  "input_oracle": {
+    "source_commit": "8d534a99e53f3bc98d842740de606b0396d38d56",
+    "note": "Extracted ReaderUtils input definitions individually verified byte-identical to the original; refresh functions are excluded.",
+    "lines": 1065160,
+    "sha256": "0c333dfafcfa4a9aa1b2ad924d855e09843d74a392b3591d1704a07b11473175"
+  },
+  "nav_oracle": {
+    "sdk_revision": "62a72e7c735210f09631e1908c4e9d046a617371",
+    "source": "freeink-sdk/libs/ui/FreeInkUI/include/components/lists/list.h",
+    "cases": 7680,
+    "sha256": "246cd85cd711356e0300aa5e243b663282cc4d19f89031d79b6833c5217ced5d"
+  },
+  "full_loop": {
+    "base": "8d534a99e53f3bc98d842740de606b0396d38d56",
+    "method_sha256": "2aae5ae6b23c3a06881f36d975cace1be34140b27a9fe8e4c2378ef021fd6e95",
+    "cases": 4608,
+    "frames_per_case": 2,
+    "lines": 316808,
+    "golden_sha256": "2c942dbe59aac7f1248497a01d49e7f1928ea4344498125129ac0a4518dc2a4d",
+    "mutation": "Final notePageTurn direction inverted: fails at line 6456.",
+    "limitations": "Deterministic resource leaves and uint32-range times on the host; no GPIO scheduling, resource pixel output, or full activity ownership.",
+    "generation": 3,
+    "note": "Original source loop and production timing constants. Debug arguments are evaluated, including the clock read inside the idle-prewarm log; a separate release-level capture omits debug calls and their arguments. Generation 2 did not evaluate diagnostic arguments.",
+    "release_lines": 309908,
+    "release_sha256": "9a7fdd7ad2545507745a31020f4e34ea2ef3737a252171bb4de3bddd35a56992"
+  },
+  "base_activity": {
+    "source": "8d534a99:src/activities/reader/ReaderActivity.cpp",
+    "methods_sha256": "b8849ae88ac00b24736260cfd061615756dadc4a3bbee3251f3e23f8b70524b0",
+    "cases": 576,
+    "lines": 53786,
+    "golden_sha256": "8ad8010f26e7697c31f27ad137db2cabdb4c92dfee5022491ac7b4ab118da1ee",
+    "limitations": "Deterministic resource leaves; page rasterization, task scheduling and child activity implementations are covered separately.",
+    "mutation": "Inverted shared-loop session direction: rejected at line 494.",
+    "generation": 3,
+    "action_sha256": "10c501c806c904822f814c2cb6af59cc3957e7f02bae423a67b6a0b49bfb74f6",
+    "note": "Original source methods and action IDs; records exact requested allocation/free sizes to detect transient resource lifetime changes in nested lifecycle operations.",
+    "lifetime_negative": "Keeping the document string until outer onExit returns fails at line 64: release-bytes expected before exit subscriber probe."
+  },
+  "close_overlay": {
+    "baseline": "8d534a99",
+    "source": "src/activities/reader/EpubReaderActivity.cpp:closeOverlayToPage",
+    "cases": 48,
+    "trace_lines": 444,
+    "capture_command": "python3 test/reader_lifecycle/test_close_overlay.py --freeze-original",
+    "negative": "Omitting the A4 counter assignment changes the frozen resource-boundary trace.",
+    "coverage": "A4 flag, Xteink-panel flag, stored framebuffer, toolbar lifetime and initial refresh counter 0/1/15; existing restore/settle/display/lock order."
+  },
+  "overlay_input": {
+    "baseline": "8d534a99",
+    "source": "src/activities/reader/EpubReaderActivity.cpp:handleOverlayInput",
+    "cases": 1728,
+    "trace_lines": 24067,
+    "capture_command": "python3 test/reader_lifecycle/test_overlay_input.py --freeze-original",
+    "negative": "Changing left-tool rotation from +2 to +1 changes the frozen transition trace.",
+    "coverage": "Toolbar/Contents/Text/More; routed events, buttons, paired hold-release, swipes, row bounds, popup still-active/dismissed, font-picker result, TOC jump and scroll/panel cursor behavior; every resource-lock path returns at depth zero.; TOC item ownership/destruction relative to navigation and update.",
+    "limits": "Resource leaves are deterministic; actual SDK/Rust viewport behavior is covered separately by nav.golden.gz and reader_toolbar_publication.",
+    "generation": 2,
+    "note": "Extracts the original MappedInputManager::SwipeDir declaration as well as method bodies; actual IDs are None=0, Left=1, Right=2, Up=3, Down=4.",
+    "swipe_provider_sha256": "2b11d91fe75bb03fc5503264342e1ffbf1ad73bb7d0d7394dfc3bc37208fe5d0",
+    "golden_sha256": "4c5782110b74a8300186c9b82e7e1edd55ae0728ab9fbd4b75ad0f87f1c1b652"
+  }
+}

@@ -20,27 +20,35 @@ jobs:
           - release_env: gh_release
             rc_env: gh_release_rc
             device: x3-x4
+            mcu: esp32c3
           - release_env: sticky-gh_release
             rc_env: sticky-gh_release_rc
             device: sticky
+            mcu: esp32s3
           - release_env: x4pro-gh_release
             rc_env: x4pro-gh_release_rc
             device: x4pro
+            mcu: esp32s3
           - release_env: x4c-gh_release
             rc_env: x4c-gh_release_rc
             device: x4c
+            mcu: esp32s3
           - release_env: papermono-gh_release
             rc_env: papermono-gh_release_rc
             device: papermono
+            mcu: esp32s3
           - release_env: metalio_eink4-gh_release
             rc_env: metalio_eink4-gh_release_rc
             device: metalio_eink4
+            mcu: esp32s3
           - release_env: eego_a4-gh_release
             rc_env: eego_a4-gh_release_rc
             device: eego_a4
+            mcu: esp32s3
           - release_env: picco-gh_release
             rc_env: picco-gh_release_rc
             device: picco
+            mcu: esp32s3
     steps:
       - uses: actions/checkout@v6
         with:
@@ -91,6 +99,11 @@ jobs:
           pio pkg install -e "$PIO_ENV"
           uv pip install --python ~/.platformio/penv/bin/python "pioarduino==6.1.19"
           ~/.platformio/penv/bin/pio --version
+
+      - name: Set up Rust
+        uses: ./.github/actions/setup-rust-esp
+        with:
+          mcu: ${{ matrix.mcu }}
 
       - name: Build CrossPoint
         env:

@@ -12,6 +12,8 @@
 
 #pragma once
 
+#include <xp_ffi.h>
+
 #include <cstdint>
 #include <string>
 
@@ -34,25 +36,9 @@ constexpr uint16_t DISPLAY_HEIGHT = 800;
 constexpr uint64_t XTC_LEGACY_HEADER_SIZE = 0x30;  // Original header before chapterOffset was added.
 
 // XTC file header (56 bytes; legacy files may start the page table at 48 bytes)
-#pragma pack(push, 1)
-struct XtcHeader {
-  uint32_t magic;            // 0x00: Magic number "XTC\0" (0x00435458)
-  uint8_t versionMajor;      // 0x04: Format version major (typically 1) (together with minor = 1.0)
-  uint8_t versionMinor;      // 0x05: Format version minor (typically 0)
-  uint16_t pageCount;        // 0x06: Total page count
-  uint8_t readDirection;     // 0x08: Reading direction (0-2)
-  uint8_t hasMetadata;       // 0x09: Has metadata (0-1)
-  uint8_t hasThumbnails;     // 0x0A: Has thumbnails (0-1)
-  uint8_t hasChapters;       // 0x0B: Has chapters (0-1)
-  uint32_t currentPage;      // 0x0C: Current page (1-based) (0-65535)
-  uint64_t metadataOffset;   // 0x10: Metadata offset (0 if unused)
-  uint64_t pageTableOffset;  // 0x18: Page table offset
-  uint64_t dataOffset;       // 0x20: First page data offset
-  uint64_t thumbOffset;      // 0x28: Thumbnail offset
-  uint32_t chapterOffset;    // 0x30: Chapter data offset
-  uint32_t padding;          // 0x34: Padding to 56 bytes
-};
-#pragma pack(pop)
+using XtcHeader = XpXtcHeader;
+static_assert(sizeof(XtcHeader) == 56);
+static_assert(sizeof(XpXtcEntry) == 16);
 
 // Page table entry (16 bytes per page)
 #pragma pack(push, 1)

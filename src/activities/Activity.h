@@ -13,6 +13,8 @@
 #include "RenderLock.h"
 #include "util/ScreenshotInfo.h"
 
+class ReaderActivity;
+
 class Activity {
   friend class ActivityManager;
 
@@ -25,9 +27,8 @@ class Activity {
   ActivityResult result;
 
  public:
-  explicit Activity(std::string name, GfxRenderer& renderer, MappedInputManager& mappedInput)
-      : name(std::move(name)), renderer(renderer), mappedInput(mappedInput) {}
-  virtual ~Activity() = default;
+  explicit Activity(std::string name, GfxRenderer& renderer, MappedInputManager& mappedInput);
+  virtual ~Activity();
   virtual void onEnter();
   virtual void onExit();
   // Last chance to queue activity-owned state before sleep events are drained.
@@ -49,10 +50,11 @@ class Activity {
   // transitions so no filesystem code races a raw SD-card owner.
   virtual bool requiresExclusiveStorageLoop() const { return false; }
   virtual bool isReaderActivity() const { return false; }
+  // Reader identity also includes child screens that do not provide page-turn controls.
+  virtual ReaderActivity* readerControls() { return nullptr; }
   virtual bool acceptsRemoteInput() const { return false; }
   // Returns true when the activity schedules its own forced refresh.
   virtual bool handleForcedRefresh() { return false; }
-  virtual bool isHomeActivity() const { return false; }
   virtual bool handleHomeGesture() { return false; }
   virtual ScreenshotInfo getScreenshotInfo() const { return {}; }
 

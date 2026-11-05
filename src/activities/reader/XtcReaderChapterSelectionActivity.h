@@ -2,31 +2,40 @@
 #include <Xtc.h>
 
 #include <memory>
-#include <vector>
 
-#include "activities/UiListActivity.h"
+#include "activities/RustActivityAdapter.h"
 
-class XtcReaderChapterSelectionActivity final : public UiListActivity {
+class XtcReaderChapterSelectionActivity final : public RustActivityAdapter {
+  // One fallible allocation per visit. Chapter strings stay in the book.
+  struct Arena {
+    XpUiCommand commands[78];
+    XpUiInteraction hits[2][32];
+    const char* hints[4]{};
+    XpUiListState nextState{};
+  };
+  static_assert(sizeof(Arena) <= 4096);
   std::shared_ptr<Xtc> xtc;
-  uint32_t currentPage = 0;
+  uint32_t currentPage;
+  std::unique_ptr<Arena> arena;
+  XpUiListState state{};
+  Publication publication;
+  int32_t renderingScroll = 0;
+  uint8_t buildHits = 0;
 
-  // Row buffer, built once in onEnter() (chapters never change for the
-  // lifetime of this screen) and reused by buildScreen() on every repaint
-  // instead of rebuilding a ListItem vector per render.
-  std::vector<freeink::ui::ListItem> rowItems;
-  void buildRowItems();
-
-  int listCount() const override { return xtc ? static_cast<int>(xtc->getChapters().size()) : 0; }
-  void buildScreen(UiScreen& screen) override;
-  void activateIndex(int index) override;
-  // Back cancels with a result and Confirm activates on RELEASE here; a `!xtc`
-  // guard consumes the pass after Back so nothing else runs without a book.
-  bool handleButtons() override;
-  void drawChrome() override;
-  int findChapterIndexForPage(uint32_t page) const;
+  const char* text(uint32_t handle) const;
+  XpUiResources resources();
+  Publication* rustPublication() override { return &publication; }
+  void rustPublished() override;
+  void rustSceneFailed() override { state.last_repeat = 0; }
+  XpUiInterest rustInterest(uint32_t nowMs) const override { return xp_ui_list_interest(&state, nowMs); }
+  XpUiPaint rustResources() override;
+  bool buildRustScene(XpUiScene& scene) override;
+  XpUiEffect updateRust(const XpUiInput& input) override;
+  void applyRustEffect(const XpUiEffect& effect) override;
 
  public:
   explicit XtcReaderChapterSelectionActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                              const std::shared_ptr<Xtc>& xtc, uint32_t currentPage);
   void onEnter() override;
+  void onExit() override;
 };

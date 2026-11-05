@@ -1,0 +1,6 @@
+P	REPLACEMENT		
+div	a b c d e f g h i	id	
+p			
+p	replacement		
+p	replacement unrelated		
+span	note	target	

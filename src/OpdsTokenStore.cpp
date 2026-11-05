@@ -2,78 +2,66 @@
 
 #include <Logging.h>
 #include <ObfuscationUtils.h>
+#include <StoreBridge.h>
 
 #include <algorithm>
 
 namespace {
-// Access/refresh tokens (JWTs) run long; cap the decode to avoid a malformed
-// file ballooning the heap.
-constexpr size_t MAX_TOKEN_CHARS = 2048;
-}  // namespace
-
-void OpdsTokenStore::toJson(JsonDocument& doc) const {
-  JsonArray arr = doc["tokens"].to<JsonArray>();
-  for (const auto& entry : entries) {
-    JsonObject obj = arr.add<JsonObject>();
-    obj["url"] = entry.url;
-    obj["access_obf"] = obfuscation::obfuscateToBase64(entry.tokens.accessToken);
-    obj["refresh_obf"] = obfuscation::obfuscateToBase64(entry.tokens.refreshToken);
-    obj["refresh_url"] = entry.tokens.refreshUrl;
+template <typename T>
+std::string& rowField(T& row, uint32_t field) {
+  switch (field) {
+    case 0:
+      return row.url;
+    case 1:
+      return row.tokens.accessToken;
+    case 2:
+      return row.tokens.refreshToken;
+    case 3:
+      return row.tokens.refreshUrl;
+    default:
+      return row.url;
   }
 }
 
+}  // namespace
+
+void OpdsTokenStore::toJson(JsonDocument& doc) const {
+  store_bridge::Rows<Entry, XP_STOREKIND_TOKENS> rows{const_cast<std::vector<Entry>&>(entries), nullptr,
+                                                      rowField<Entry>, nullptr};
+  store_bridge::save(XP_STOREKIND_TOKENS, doc, rows);
+}
+
 bool OpdsTokenStore::fromJson(JsonVariantConst doc) {
-  entries.clear();
-  JsonArrayConst arr = doc["tokens"].as<JsonArrayConst>();
-  entries.reserve(std::min(arr.size(), MAX_SERVERS));
-  for (JsonObjectConst obj : arr) {
-    if (entries.size() >= MAX_SERVERS) break;
-    Entry entry;
-    entry.url = obj["url"] | "";
-    if (entry.url.empty()) continue;
-    bool ok = false;
-    bool tooLong = false;
-    entry.tokens.accessToken =
-        obfuscation::deobfuscateFromBase64(obj["access_obf"] | "", MAX_TOKEN_CHARS, &ok, &tooLong);
-    entry.tokens.refreshToken =
-        obfuscation::deobfuscateFromBase64(obj["refresh_obf"] | "", MAX_TOKEN_CHARS, &ok, &tooLong);
-    entry.tokens.refreshUrl = obj["refresh_url"] | "";
-    entries.push_back(std::move(entry));
-  }
-  LOG_DBG("OPDSTOK", "Loaded %zu OPDS token entries", entries.size());
+  Entry scratch;
+  store_bridge::Rows<Entry, XP_STOREKIND_TOKENS> rows{entries, &scratch, rowField<Entry>, nullptr};
+  const auto diagnostic = +[](void* ctx, uint32_t event, size_t a, size_t b, size_t) {
+    (void)ctx;
+    (void)b;
+    switch (event) {
+      case XP_ROWEVENT_LOADED:
+        LOG_DBG("OPDSTOK", "Loaded %zu OPDS token entries", a);
+        break;
+      default:
+        break;
+    }
+  };
+  if (store_bridge::load(XP_STOREKIND_TOKENS, doc, rows, diagnostic)) requestResave();
   return true;
 }
 
 OpdsTokens OpdsTokenStore::get(const std::string& url) const {
-  for (const auto& entry : entries) {
-    if (entry.url == url) return entry.tokens;
-  }
-  return {};
+  store_bridge::Rows<Entry, XP_STOREKIND_TOKENS> rows{const_cast<std::vector<Entry>&>(entries), nullptr,
+                                                      rowField<Entry>};
+  const auto ops = rows.ops(nullptr);
+  const auto index = xp_store_find(&ops, 0, store_bridge::bytes(url));
+  return index == SIZE_MAX ? OpdsTokens{} : entries[index].tokens;
 }
 
 bool OpdsTokenStore::put(const std::string& url, const OpdsTokens& tokens) {
-  const auto it = std::find_if(entries.begin(), entries.end(), [&](const Entry& e) { return e.url == url; });
-
-  if (tokens.empty()) {
-    // Clearing: drop the entry if present; nothing to write otherwise.
-    if (it == entries.end()) return true;
-    entries.erase(it);
-    return saveToFile();
-  }
-
-  if (it != entries.end()) {
-    if (it->tokens.accessToken == tokens.accessToken && it->tokens.refreshToken == tokens.refreshToken &&
-        it->tokens.refreshUrl == tokens.refreshUrl) {
-      return true;  // unchanged: skip the SD write
-    }
-    it->tokens = tokens;
-    return saveToFile();
-  }
-
-  if (entries.size() >= MAX_SERVERS) {
-    // Full: evict the oldest entry so a new server can still be remembered.
-    entries.erase(entries.begin());
-  }
-  entries.push_back(Entry{url, tokens});
-  return saveToFile();
+  Entry scratch;
+  store_bridge::Rows<Entry, XP_STOREKIND_TOKENS> rows{entries, &scratch, rowField<Entry>};
+  const auto ops = rows.ops(nullptr);
+  const XpStoreBytes args[] = {store_bridge::bytes(url), store_bridge::bytes(tokens.accessToken),
+                               store_bridge::bytes(tokens.refreshToken), store_bridge::bytes(tokens.refreshUrl)};
+  return xp_store_mutate(&ops, XP_MUTATION_TOKENPUT, args) == XP_MUTATIONRESULT_UNCHANGED || saveToFile();
 }

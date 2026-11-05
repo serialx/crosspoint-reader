@@ -1,5 +1,7 @@
 #include "HalSystem.h"
 
+#include <xp_hal.h>
+
 #include <string>
 
 #include "Arduino.h"
@@ -88,40 +90,62 @@ void IRAM_ATTR __wrap_panic_print_backtrace(const void* frame, int core) {
 
 namespace HalSystem {
 
-void begin() {
-  // On a panic reboot, preserve diagnostics until checkPanic() has tried to write them to the SD card.
-  // Ordinary boots clear any stale retained diagnostics.
-  if (!isRebootFromPanic()) {
-    clearPanic();
-  } else {
-    // Panic reboot: preserve logs and panic info, but clamp logHead in case the
-    // panic occurred before begin() ever ran (e.g. in a static constructor).
-    // If logHead was out of range, logMessages is also garbage — clear it so
-    // getLastLogs() does not dump corrupt data into the crash report.
-    if (sanitizeLogHead()) {
+namespace {
+struct PanicReport {
+  std::string info;
+  HalFile file;
+};
+size_t systemCall(void* raw, XpHalSystemOp op) {
+  auto* report = static_cast<PanicReport*>(raw);
+  switch (op) {
+    case XP_HAL_SYSTEM_PANIC:
+      return isRebootFromPanic();
+    case XP_HAL_SYSTEM_CLEAR:
+      clearPanic();
+      return 0;
+    case XP_HAL_SYSTEM_SANITIZE:
+      return sanitizeLogHead();
+    case XP_HAL_SYSTEM_CLEAR_LOGS:
       clearLastLogs();
-    }
+      return 0;
+    case XP_HAL_SYSTEM_INFO:
+      report->info = getPanicInfo(true);
+      return 0;
+    case XP_HAL_SYSTEM_OPEN:
+      report->file = Storage.open("/crash_report.txt", O_WRITE | O_CREAT | O_TRUNC);
+      return static_cast<bool>(report->file);
+    case XP_HAL_SYSTEM_WRITE:
+      return report->file.write(report->info.c_str(), report->info.size());
+    case XP_HAL_SYSTEM_CLOSE:
+      report->file.close();
+      return 0;
+    case XP_HAL_SYSTEM_CONSUME:
+      panicCaptureMarker = 0;
+      return 0;
+    case XP_HAL_SYSTEM_SIZE:
+      return report->info.size();
   }
+  return 0;
 }
+}  // namespace
+
+void begin() { xp_hal_system_begin(nullptr, systemCall); }
 
 void checkPanic() {
-  if (isRebootFromPanic()) {
-    auto panicInfo = getPanicInfo(true);
-    auto file = Storage.open("/crash_report.txt", O_WRITE | O_CREAT | O_TRUNC);
-    if (file) {
-      const size_t written = file.write(panicInfo.c_str(), panicInfo.size());
-      file.close();
-      if (written == panicInfo.size()) {
-        // Keep the crash data for CrashActivity, but mark it consumed so a
-        // later watchdog reset cannot be mistaken for this panic.
-        panicCaptureMarker = 0;
-        LOG_INF("SYS", "Dumped panic info to SD card");
-      } else {
-        LOG_ERR("SYS", "Failed to write complete crash report (%zu of %zu bytes)", written, panicInfo.size());
-      }
-    } else {
+  PanicReport report;
+  size_t written = 0;
+  switch (xp_hal_system_save(&report, systemCall, &written)) {
+    case 0:
+      break;
+    case 1:
+      LOG_INF("SYS", "Dumped panic info to SD card");
+      break;
+    case 2:
+      LOG_ERR("SYS", "Failed to write complete crash report (%zu of %zu bytes)", written, report.info.size());
+      break;
+    case 3:
       LOG_ERR("SYS", "Failed to open crash_report.txt for writing");
-    }
+      break;
   }
 }
 
@@ -196,13 +220,10 @@ std::string getPanicInfo(bool full) {
 
 bool isRebootFromPanic() {
   const auto resetReason = esp_reset_reason();
-  if (resetReason == ESP_RST_PANIC || resetReason == ESP_RST_CPU_LOCKUP) {
-    return true;
-  }
-
-  const bool watchdogReset =
-      resetReason == ESP_RST_INT_WDT || resetReason == ESP_RST_TASK_WDT || resetReason == ESP_RST_WDT;
-  return watchdogReset && panicCaptureMarker == PANIC_CAPTURE_MAGIC;
+  return xp_hal_system_is_panic(
+      resetReason == ESP_RST_PANIC || resetReason == ESP_RST_CPU_LOCKUP,
+      resetReason == ESP_RST_INT_WDT || resetReason == ESP_RST_TASK_WDT || resetReason == ESP_RST_WDT,
+      panicCaptureMarker);
 }
 
 }  // namespace HalSystem

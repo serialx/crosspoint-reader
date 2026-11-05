@@ -15,6 +15,7 @@ namespace fake {
 struct Node {
   bool directory = false;
   uint32_t time = 1;
+  uint64_t reportedSize = 0;
   std::vector<uint8_t> bytes;
 };
 
@@ -24,8 +25,12 @@ inline int failWrite = -1;
 inline int shortWrite = -1;
 inline int failTruncate = -1;
 inline int failRename = -1;
+inline int failRemove = -1;
+inline int failOpen = -1;
+inline int failMkdir = -1;
 inline int failAlloc = -1;
 inline bool failDirectorySeek = false;
+inline bool corruptStageAuthor = false;
 inline std::string failClosePath;
 inline std::string failWritePath;
 inline unsigned parses = 0;
@@ -55,8 +60,12 @@ inline void reset() {
   shortWrite = -1;
   failTruncate = -1;
   failRename = -1;
+  failRemove = -1;
+  failOpen = -1;
+  failMkdir = -1;
   failAlloc = -1;
   failDirectorySeek = false;
+  corruptStageAuthor = false;
   failClosePath.clear();
   failWritePath.clear();
   parses = 0;
@@ -142,7 +151,7 @@ class HalFile {
     return name.size();
   }
   uint32_t modificationTime() const { return node ? node->time : 0; }
-  uint64_t fileSize64() const { return node ? node->bytes.size() : 0; }
+  uint64_t fileSize64() const { return node ? (node->reportedSize ? node->reportedSize : node->bytes.size()) : 0; }
   size_t fileSize() const { return static_cast<size_t>(fileSize64()); }
   size_t position() const { return pos; }
   bool seekSet(const size_t offset) {
@@ -170,6 +179,11 @@ class HalFile {
     if (!node || fake::fail(fake::failRead)) return -1;
     size = std::min(size, node->bytes.size() - std::min(pos, node->bytes.size()));
     std::memcpy(out, node->bytes.data() + std::min(pos, node->bytes.size()), size);
+    if (fake::corruptStageAuthor && path == "/.crosspoint/library.stage") {
+      for (size_t i = 0; i < size; ++i) {
+        if ((pos + i) % 776 == 391) static_cast<uint8_t*>(out)[i] = 255;
+      }
+    }
     pos += size;
     return static_cast<int>(size);
   }
@@ -203,11 +217,13 @@ class HalStorage {
 
   bool exists(const char* path) const { return fake::files.count(path) != 0; }
   bool mkdir(const char* path) {
+    if (fake::fail(fake::failMkdir)) return false;
     if (!exists(path)) fake::add(path, "");
     fake::files[path]->directory = true;
     return true;
   }
   HalFile open(const char* path) {
+    if (fake::fail(fake::failOpen)) return {};
     HalFile file;
     const auto found = fake::files.find(path);
     if (found != fake::files.end()) {
@@ -233,12 +249,12 @@ class HalStorage {
   bool openFileForWrite(const char*, const char* path, HalFile& file) {
     fake::add(path, "");
     file = open(path);
-    return true;
+    return bool(file);
   }
   bool openFileForWrite(const char* module, const std::string& path, HalFile& file) {
     return openFileForWrite(module, path.c_str(), file);
   }
-  bool remove(const char* path) { return fake::files.erase(path) != 0; }
+  bool remove(const char* path) { return !fake::fail(fake::failRemove) && fake::files.erase(path) != 0; }
   bool rename(const char* from, const char* to) {
     if (fake::fail(fake::failRename) || !exists(from) || exists(to)) return false;
     std::vector<std::pair<std::string, std::shared_ptr<fake::Node>>> moved;

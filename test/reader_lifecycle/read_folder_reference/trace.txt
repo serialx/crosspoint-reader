@@ -1,0 +1,2519 @@
+case 0 classify ""
+result 0
+recent "" "" 0
+open "" "" 0
+end
+case 1 classify "book.epub"
+result 0
+recent "" "" 0
+open "" "" 0
+end
+case 2 classify "/"
+result 0
+recent "" "" 0
+open "" "" 0
+end
+case 3 classify "/read"
+result 0
+recent "" "" 0
+open "" "" 0
+end
+case 4 classify "/read/"
+result 1
+recent "" "" 0
+open "" "" 0
+end
+case 5 classify "/read/book.epub"
+result 1
+recent "" "" 0
+open "" "" 0
+end
+case 6 classify "/Read/"
+result 0
+recent "" "" 0
+open "" "" 0
+end
+case 7 classify "/Read/book.epub"
+result 0
+recent "" "" 0
+open "" "" 0
+end
+case 8 classify "/readish/"
+result 0
+recent "" "" 0
+open "" "" 0
+end
+case 9 classify "/readish/book.epub"
+result 0
+recent "" "" 0
+open "" "" 0
+end
+case 10 classify "read/book.epub"
+result 0
+recent "" "" 0
+open "" "" 0
+end
+case 11 classify "/nested/book.epub"
+result 0
+recent "" "" 0
+open "" "" 0
+end
+case 12 classify "/nested/deeper/book.part.epub"
+result 0
+recent "" "" 0
+open "" "" 0
+end
+case 13 classify "/nested/.hidden"
+result 0
+recent "" "" 0
+open "" "" 0
+end
+case 14 classify ".hidden"
+result 0
+recent "" "" 0
+open "" "" 0
+end
+case 15 classify "/read/.hidden"
+result 1
+recent "" "" 0
+open "" "" 0
+end
+case 16 classify "/read//book.epub"
+result 1
+recent "" "" 0
+open "" "" 0
+end
+case 17 destination "/in/book.epub" 0
+mkdir "/read" 1
+exists "/read/book.epub" 0
+result "/read/book.epub"
+fs d "/read"
+recent "" "" 0
+open "" "" 0
+end
+case 18 destination "/in/book" 0
+mkdir "/read" 1
+exists "/read/book" 0
+result "/read/book"
+fs d "/read"
+recent "" "" 0
+open "" "" 0
+end
+case 19 destination "/in/book.epub" 1
+mkdir "/read" 1
+exists "/read/book.epub" 1
+exists "/read/book (2).epub" 0
+result "/read/book (2).epub"
+fs d "/read"
+fs f "/read/book.epub" "occupied"
+recent "" "" 0
+open "" "" 0
+end
+case 20 destination "/in/book" 1
+mkdir "/read" 1
+exists "/read/book" 1
+exists "/read/book (2)" 0
+result "/read/book (2)"
+fs d "/read"
+fs f "/read/book" "occupied"
+recent "" "" 0
+open "" "" 0
+end
+case 21 destination "/in/book.epub" 2
+mkdir "/read" 1
+exists "/read/book.epub" 1
+exists "/read/book (2).epub" 1
+exists "/read/book (3).epub" 0
+result "/read/book (3).epub"
+fs d "/read"
+fs f "/read/book (2).epub" "occupied"
+fs f "/read/book.epub" "occupied"
+recent "" "" 0
+open "" "" 0
+end
+case 22 destination "/in/book" 2
+mkdir "/read" 1
+exists "/read/book" 1
+exists "/read/book (2)" 1
+exists "/read/book (3)" 0
+result "/read/book (3)"
+fs d "/read"
+fs f "/read/book" "occupied"
+fs f "/read/book (2)" "occupied"
+recent "" "" 0
+open "" "" 0
+end
+case 23 destination "/in/book.epub" 97
+mkdir "/read" 1
+exists "/read/book.epub" 1
+exists "/read/book (2).epub" 1
+exists "/read/book (3).epub" 1
+exists "/read/book (4).epub" 1
+exists "/read/book (5).epub" 1
+exists "/read/book (6).epub" 1
+exists "/read/book (7).epub" 1
+exists "/read/book (8).epub" 1
+exists "/read/book (9).epub" 1
+exists "/read/book (10).epub" 1
+exists "/read/book (11).epub" 1
+exists "/read/book (12).epub" 1
+exists "/read/book (13).epub" 1
+exists "/read/book (14).epub" 1
+exists "/read/book (15).epub" 1
+exists "/read/book (16).epub" 1
+exists "/read/book (17).epub" 1
+exists "/read/book (18).epub" 1
+exists "/read/book (19).epub" 1
+exists "/read/book (20).epub" 1
+exists "/read/book (21).epub" 1
+exists "/read/book (22).epub" 1
+exists "/read/book (23).epub" 1
+exists "/read/book (24).epub" 1
+exists "/read/book (25).epub" 1
+exists "/read/book (26).epub" 1
+exists "/read/book (27).epub" 1
+exists "/read/book (28).epub" 1
+exists "/read/book (29).epub" 1
+exists "/read/book (30).epub" 1
+exists "/read/book (31).epub" 1
+exists "/read/book (32).epub" 1
+exists "/read/book (33).epub" 1
+exists "/read/book (34).epub" 1
+exists "/read/book (35).epub" 1
+exists "/read/book (36).epub" 1
+exists "/read/book (37).epub" 1
+exists "/read/book (38).epub" 1
+exists "/read/book (39).epub" 1
+exists "/read/book (40).epub" 1
+exists "/read/book (41).epub" 1
+exists "/read/book (42).epub" 1
+exists "/read/book (43).epub" 1
+exists "/read/book (44).epub" 1
+exists "/read/book (45).epub" 1
+exists "/read/book (46).epub" 1
+exists "/read/book (47).epub" 1
+exists "/read/book (48).epub" 1
+exists "/read/book (49).epub" 1
+exists "/read/book (50).epub" 1
+exists "/read/book (51).epub" 1
+exists "/read/book (52).epub" 1
+exists "/read/book (53).epub" 1
+exists "/read/book (54).epub" 1
+exists "/read/book (55).epub" 1
+exists "/read/book (56).epub" 1
+exists "/read/book (57).epub" 1
+exists "/read/book (58).epub" 1
+exists "/read/book (59).epub" 1
+exists "/read/book (60).epub" 1
+exists "/read/book (61).epub" 1
+exists "/read/book (62).epub" 1
+exists "/read/book (63).epub" 1
+exists "/read/book (64).epub" 1
+exists "/read/book (65).epub" 1
+exists "/read/book (66).epub" 1
+exists "/read/book (67).epub" 1
+exists "/read/book (68).epub" 1
+exists "/read/book (69).epub" 1
+exists "/read/book (70).epub" 1
+exists "/read/book (71).epub" 1
+exists "/read/book (72).epub" 1
+exists "/read/book (73).epub" 1
+exists "/read/book (74).epub" 1
+exists "/read/book (75).epub" 1
+exists "/read/book (76).epub" 1
+exists "/read/book (77).epub" 1
+exists "/read/book (78).epub" 1
+exists "/read/book (79).epub" 1
+exists "/read/book (80).epub" 1
+exists "/read/book (81).epub" 1
+exists "/read/book (82).epub" 1
+exists "/read/book (83).epub" 1
+exists "/read/book (84).epub" 1
+exists "/read/book (85).epub" 1
+exists "/read/book (86).epub" 1
+exists "/read/book (87).epub" 1
+exists "/read/book (88).epub" 1
+exists "/read/book (89).epub" 1
+exists "/read/book (90).epub" 1
+exists "/read/book (91).epub" 1
+exists "/read/book (92).epub" 1
+exists "/read/book (93).epub" 1
+exists "/read/book (94).epub" 1
+exists "/read/book (95).epub" 1
+exists "/read/book (96).epub" 1
+exists "/read/book (97).epub" 1
+exists "/read/book (98).epub" 0
+result "/read/book (98).epub"
+fs d "/read"
+fs f "/read/book (10).epub" "occupied"
+fs f "/read/book (11).epub" "occupied"
+fs f "/read/book (12).epub" "occupied"
+fs f "/read/book (13).epub" "occupied"
+fs f "/read/book (14).epub" "occupied"
+fs f "/read/book (15).epub" "occupied"
+fs f "/read/book (16).epub" "occupied"
+fs f "/read/book (17).epub" "occupied"
+fs f "/read/book (18).epub" "occupied"
+fs f "/read/book (19).epub" "occupied"
+fs f "/read/book (2).epub" "occupied"
+fs f "/read/book (20).epub" "occupied"
+fs f "/read/book (21).epub" "occupied"
+fs f "/read/book (22).epub" "occupied"
+fs f "/read/book (23).epub" "occupied"
+fs f "/read/book (24).epub" "occupied"
+fs f "/read/book (25).epub" "occupied"
+fs f "/read/book (26).epub" "occupied"
+fs f "/read/book (27).epub" "occupied"
+fs f "/read/book (28).epub" "occupied"
+fs f "/read/book (29).epub" "occupied"
+fs f "/read/book (3).epub" "occupied"
+fs f "/read/book (30).epub" "occupied"
+fs f "/read/book (31).epub" "occupied"
+fs f "/read/book (32).epub" "occupied"
+fs f "/read/book (33).epub" "occupied"
+fs f "/read/book (34).epub" "occupied"
+fs f "/read/book (35).epub" "occupied"
+fs f "/read/book (36).epub" "occupied"
+fs f "/read/book (37).epub" "occupied"
+fs f "/read/book (38).epub" "occupied"
+fs f "/read/book (39).epub" "occupied"
+fs f "/read/book (4).epub" "occupied"
+fs f "/read/book (40).epub" "occupied"
+fs f "/read/book (41).epub" "occupied"
+fs f "/read/book (42).epub" "occupied"
+fs f "/read/book (43).epub" "occupied"
+fs f "/read/book (44).epub" "occupied"
+fs f "/read/book (45).epub" "occupied"
+fs f "/read/book (46).epub" "occupied"
+fs f "/read/book (47).epub" "occupied"
+fs f "/read/book (48).epub" "occupied"
+fs f "/read/book (49).epub" "occupied"
+fs f "/read/book (5).epub" "occupied"
+fs f "/read/book (50).epub" "occupied"
+fs f "/read/book (51).epub" "occupied"
+fs f "/read/book (52).epub" "occupied"
+fs f "/read/book (53).epub" "occupied"
+fs f "/read/book (54).epub" "occupied"
+fs f "/read/book (55).epub" "occupied"
+fs f "/read/book (56).epub" "occupied"
+fs f "/read/book (57).epub" "occupied"
+fs f "/read/book (58).epub" "occupied"
+fs f "/read/book (59).epub" "occupied"
+fs f "/read/book (6).epub" "occupied"
+fs f "/read/book (60).epub" "occupied"
+fs f "/read/book (61).epub" "occupied"
+fs f "/read/book (62).epub" "occupied"
+fs f "/read/book (63).epub" "occupied"
+fs f "/read/book (64).epub" "occupied"
+fs f "/read/book (65).epub" "occupied"
+fs f "/read/book (66).epub" "occupied"
+fs f "/read/book (67).epub" "occupied"
+fs f "/read/book (68).epub" "occupied"
+fs f "/read/book (69).epub" "occupied"
+fs f "/read/book (7).epub" "occupied"
+fs f "/read/book (70).epub" "occupied"
+fs f "/read/book (71).epub" "occupied"
+fs f "/read/book (72).epub" "occupied"
+fs f "/read/book (73).epub" "occupied"
+fs f "/read/book (74).epub" "occupied"
+fs f "/read/book (75).epub" "occupied"
+fs f "/read/book (76).epub" "occupied"
+fs f "/read/book (77).epub" "occupied"
+fs f "/read/book (78).epub" "occupied"
+fs f "/read/book (79).epub" "occupied"
+fs f "/read/book (8).epub" "occupied"
+fs f "/read/book (80).epub" "occupied"
+fs f "/read/book (81).epub" "occupied"
+fs f "/read/book (82).epub" "occupied"
+fs f "/read/book (83).epub" "occupied"
+fs f "/read/book (84).epub" "occupied"
+fs f "/read/book (85).epub" "occupied"
+fs f "/read/book (86).epub" "occupied"
+fs f "/read/book (87).epub" "occupied"
+fs f "/read/book (88).epub" "occupied"
+fs f "/read/book (89).epub" "occupied"
+fs f "/read/book (9).epub" "occupied"
+fs f "/read/book (90).epub" "occupied"
+fs f "/read/book (91).epub" "occupied"
+fs f "/read/book (92).epub" "occupied"
+fs f "/read/book (93).epub" "occupied"
+fs f "/read/book (94).epub" "occupied"
+fs f "/read/book (95).epub" "occupied"
+fs f "/read/book (96).epub" "occupied"
+fs f "/read/book (97).epub" "occupied"
+fs f "/read/book.epub" "occupied"
+recent "" "" 0
+open "" "" 0
+end
+case 24 destination "/in/book" 97
+mkdir "/read" 1
+exists "/read/book" 1
+exists "/read/book (2)" 1
+exists "/read/book (3)" 1
+exists "/read/book (4)" 1
+exists "/read/book (5)" 1
+exists "/read/book (6)" 1
+exists "/read/book (7)" 1
+exists "/read/book (8)" 1
+exists "/read/book (9)" 1
+exists "/read/book (10)" 1
+exists "/read/book (11)" 1
+exists "/read/book (12)" 1
+exists "/read/book (13)" 1
+exists "/read/book (14)" 1
+exists "/read/book (15)" 1
+exists "/read/book (16)" 1
+exists "/read/book (17)" 1
+exists "/read/book (18)" 1
+exists "/read/book (19)" 1
+exists "/read/book (20)" 1
+exists "/read/book (21)" 1
+exists "/read/book (22)" 1
+exists "/read/book (23)" 1
+exists "/read/book (24)" 1
+exists "/read/book (25)" 1
+exists "/read/book (26)" 1
+exists "/read/book (27)" 1
+exists "/read/book (28)" 1
+exists "/read/book (29)" 1
+exists "/read/book (30)" 1
+exists "/read/book (31)" 1
+exists "/read/book (32)" 1
+exists "/read/book (33)" 1
+exists "/read/book (34)" 1
+exists "/read/book (35)" 1
+exists "/read/book (36)" 1
+exists "/read/book (37)" 1
+exists "/read/book (38)" 1
+exists "/read/book (39)" 1
+exists "/read/book (40)" 1
+exists "/read/book (41)" 1
+exists "/read/book (42)" 1
+exists "/read/book (43)" 1
+exists "/read/book (44)" 1
+exists "/read/book (45)" 1
+exists "/read/book (46)" 1
+exists "/read/book (47)" 1
+exists "/read/book (48)" 1
+exists "/read/book (49)" 1
+exists "/read/book (50)" 1
+exists "/read/book (51)" 1
+exists "/read/book (52)" 1
+exists "/read/book (53)" 1
+exists "/read/book (54)" 1
+exists "/read/book (55)" 1
+exists "/read/book (56)" 1
+exists "/read/book (57)" 1
+exists "/read/book (58)" 1
+exists "/read/book (59)" 1
+exists "/read/book (60)" 1
+exists "/read/book (61)" 1
+exists "/read/book (62)" 1
+exists "/read/book (63)" 1
+exists "/read/book (64)" 1
+exists "/read/book (65)" 1
+exists "/read/book (66)" 1
+exists "/read/book (67)" 1
+exists "/read/book (68)" 1
+exists "/read/book (69)" 1
+exists "/read/book (70)" 1
+exists "/read/book (71)" 1
+exists "/read/book (72)" 1
+exists "/read/book (73)" 1
+exists "/read/book (74)" 1
+exists "/read/book (75)" 1
+exists "/read/book (76)" 1
+exists "/read/book (77)" 1
+exists "/read/book (78)" 1
+exists "/read/book (79)" 1
+exists "/read/book (80)" 1
+exists "/read/book (81)" 1
+exists "/read/book (82)" 1
+exists "/read/book (83)" 1
+exists "/read/book (84)" 1
+exists "/read/book (85)" 1
+exists "/read/book (86)" 1
+exists "/read/book (87)" 1
+exists "/read/book (88)" 1
+exists "/read/book (89)" 1
+exists "/read/book (90)" 1
+exists "/read/book (91)" 1
+exists "/read/book (92)" 1
+exists "/read/book (93)" 1
+exists "/read/book (94)" 1
+exists "/read/book (95)" 1
+exists "/read/book (96)" 1
+exists "/read/book (97)" 1
+exists "/read/book (98)" 0
+result "/read/book (98)"
+fs d "/read"
+fs f "/read/book" "occupied"
+fs f "/read/book (10)" "occupied"
+fs f "/read/book (11)" "occupied"
+fs f "/read/book (12)" "occupied"
+fs f "/read/book (13)" "occupied"
+fs f "/read/book (14)" "occupied"
+fs f "/read/book (15)" "occupied"
+fs f "/read/book (16)" "occupied"
+fs f "/read/book (17)" "occupied"
+fs f "/read/book (18)" "occupied"
+fs f "/read/book (19)" "occupied"
+fs f "/read/book (2)" "occupied"
+fs f "/read/book (20)" "occupied"
+fs f "/read/book (21)" "occupied"
+fs f "/read/book (22)" "occupied"
+fs f "/read/book (23)" "occupied"
+fs f "/read/book (24)" "occupied"
+fs f "/read/book (25)" "occupied"
+fs f "/read/book (26)" "occupied"
+fs f "/read/book (27)" "occupied"
+fs f "/read/book (28)" "occupied"
+fs f "/read/book (29)" "occupied"
+fs f "/read/book (3)" "occupied"
+fs f "/read/book (30)" "occupied"
+fs f "/read/book (31)" "occupied"
+fs f "/read/book (32)" "occupied"
+fs f "/read/book (33)" "occupied"
+fs f "/read/book (34)" "occupied"
+fs f "/read/book (35)" "occupied"
+fs f "/read/book (36)" "occupied"
+fs f "/read/book (37)" "occupied"
+fs f "/read/book (38)" "occupied"
+fs f "/read/book (39)" "occupied"
+fs f "/read/book (4)" "occupied"
+fs f "/read/book (40)" "occupied"
+fs f "/read/book (41)" "occupied"
+fs f "/read/book (42)" "occupied"
+fs f "/read/book (43)" "occupied"
+fs f "/read/book (44)" "occupied"
+fs f "/read/book (45)" "occupied"
+fs f "/read/book (46)" "occupied"
+fs f "/read/book (47)" "occupied"
+fs f "/read/book (48)" "occupied"
+fs f "/read/book (49)" "occupied"
+fs f "/read/book (5)" "occupied"
+fs f "/read/book (50)" "occupied"
+fs f "/read/book (51)" "occupied"
+fs f "/read/book (52)" "occupied"
+fs f "/read/book (53)" "occupied"
+fs f "/read/book (54)" "occupied"
+fs f "/read/book (55)" "occupied"
+fs f "/read/book (56)" "occupied"
+fs f "/read/book (57)" "occupied"
+fs f "/read/book (58)" "occupied"
+fs f "/read/book (59)" "occupied"
+fs f "/read/book (6)" "occupied"
+fs f "/read/book (60)" "occupied"
+fs f "/read/book (61)" "occupied"
+fs f "/read/book (62)" "occupied"
+fs f "/read/book (63)" "occupied"
+fs f "/read/book (64)" "occupied"
+fs f "/read/book (65)" "occupied"
+fs f "/read/book (66)" "occupied"
+fs f "/read/book (67)" "occupied"
+fs f "/read/book (68)" "occupied"
+fs f "/read/book (69)" "occupied"
+fs f "/read/book (7)" "occupied"
+fs f "/read/book (70)" "occupied"
+fs f "/read/book (71)" "occupied"
+fs f "/read/book (72)" "occupied"
+fs f "/read/book (73)" "occupied"
+fs f "/read/book (74)" "occupied"
+fs f "/read/book (75)" "occupied"
+fs f "/read/book (76)" "occupied"
+fs f "/read/book (77)" "occupied"
+fs f "/read/book (78)" "occupied"
+fs f "/read/book (79)" "occupied"
+fs f "/read/book (8)" "occupied"
+fs f "/read/book (80)" "occupied"
+fs f "/read/book (81)" "occupied"
+fs f "/read/book (82)" "occupied"
+fs f "/read/book (83)" "occupied"
+fs f "/read/book (84)" "occupied"
+fs f "/read/book (85)" "occupied"
+fs f "/read/book (86)" "occupied"
+fs f "/read/book (87)" "occupied"
+fs f "/read/book (88)" "occupied"
+fs f "/read/book (89)" "occupied"
+fs f "/read/book (9)" "occupied"
+fs f "/read/book (90)" "occupied"
+fs f "/read/book (91)" "occupied"
+fs f "/read/book (92)" "occupied"
+fs f "/read/book (93)" "occupied"
+fs f "/read/book (94)" "occupied"
+fs f "/read/book (95)" "occupied"
+fs f "/read/book (96)" "occupied"
+fs f "/read/book (97)" "occupied"
+recent "" "" 0
+open "" "" 0
+end
+case 25 destination "/in/book.epub" 98
+mkdir "/read" 1
+exists "/read/book.epub" 1
+exists "/read/book (2).epub" 1
+exists "/read/book (3).epub" 1
+exists "/read/book (4).epub" 1
+exists "/read/book (5).epub" 1
+exists "/read/book (6).epub" 1
+exists "/read/book (7).epub" 1
+exists "/read/book (8).epub" 1
+exists "/read/book (9).epub" 1
+exists "/read/book (10).epub" 1
+exists "/read/book (11).epub" 1
+exists "/read/book (12).epub" 1
+exists "/read/book (13).epub" 1
+exists "/read/book (14).epub" 1
+exists "/read/book (15).epub" 1
+exists "/read/book (16).epub" 1
+exists "/read/book (17).epub" 1
+exists "/read/book (18).epub" 1
+exists "/read/book (19).epub" 1
+exists "/read/book (20).epub" 1
+exists "/read/book (21).epub" 1
+exists "/read/book (22).epub" 1
+exists "/read/book (23).epub" 1
+exists "/read/book (24).epub" 1
+exists "/read/book (25).epub" 1
+exists "/read/book (26).epub" 1
+exists "/read/book (27).epub" 1
+exists "/read/book (28).epub" 1
+exists "/read/book (29).epub" 1
+exists "/read/book (30).epub" 1
+exists "/read/book (31).epub" 1
+exists "/read/book (32).epub" 1
+exists "/read/book (33).epub" 1
+exists "/read/book (34).epub" 1
+exists "/read/book (35).epub" 1
+exists "/read/book (36).epub" 1
+exists "/read/book (37).epub" 1
+exists "/read/book (38).epub" 1
+exists "/read/book (39).epub" 1
+exists "/read/book (40).epub" 1
+exists "/read/book (41).epub" 1
+exists "/read/book (42).epub" 1
+exists "/read/book (43).epub" 1
+exists "/read/book (44).epub" 1
+exists "/read/book (45).epub" 1
+exists "/read/book (46).epub" 1
+exists "/read/book (47).epub" 1
+exists "/read/book (48).epub" 1
+exists "/read/book (49).epub" 1
+exists "/read/book (50).epub" 1
+exists "/read/book (51).epub" 1
+exists "/read/book (52).epub" 1
+exists "/read/book (53).epub" 1
+exists "/read/book (54).epub" 1
+exists "/read/book (55).epub" 1
+exists "/read/book (56).epub" 1
+exists "/read/book (57).epub" 1
+exists "/read/book (58).epub" 1
+exists "/read/book (59).epub" 1
+exists "/read/book (60).epub" 1
+exists "/read/book (61).epub" 1
+exists "/read/book (62).epub" 1
+exists "/read/book (63).epub" 1
+exists "/read/book (64).epub" 1
+exists "/read/book (65).epub" 1
+exists "/read/book (66).epub" 1
+exists "/read/book (67).epub" 1
+exists "/read/book (68).epub" 1
+exists "/read/book (69).epub" 1
+exists "/read/book (70).epub" 1
+exists "/read/book (71).epub" 1
+exists "/read/book (72).epub" 1
+exists "/read/book (73).epub" 1
+exists "/read/book (74).epub" 1
+exists "/read/book (75).epub" 1
+exists "/read/book (76).epub" 1
+exists "/read/book (77).epub" 1
+exists "/read/book (78).epub" 1
+exists "/read/book (79).epub" 1
+exists "/read/book (80).epub" 1
+exists "/read/book (81).epub" 1
+exists "/read/book (82).epub" 1
+exists "/read/book (83).epub" 1
+exists "/read/book (84).epub" 1
+exists "/read/book (85).epub" 1
+exists "/read/book (86).epub" 1
+exists "/read/book (87).epub" 1
+exists "/read/book (88).epub" 1
+exists "/read/book (89).epub" 1
+exists "/read/book (90).epub" 1
+exists "/read/book (91).epub" 1
+exists "/read/book (92).epub" 1
+exists "/read/book (93).epub" 1
+exists "/read/book (94).epub" 1
+exists "/read/book (95).epub" 1
+exists "/read/book (96).epub" 1
+exists "/read/book (97).epub" 1
+exists "/read/book (98).epub" 1
+exists "/read/book (99).epub" 0
+result "/read/book (99).epub"
+fs d "/read"
+fs f "/read/book (10).epub" "occupied"
+fs f "/read/book (11).epub" "occupied"
+fs f "/read/book (12).epub" "occupied"
+fs f "/read/book (13).epub" "occupied"
+fs f "/read/book (14).epub" "occupied"
+fs f "/read/book (15).epub" "occupied"
+fs f "/read/book (16).epub" "occupied"
+fs f "/read/book (17).epub" "occupied"
+fs f "/read/book (18).epub" "occupied"
+fs f "/read/book (19).epub" "occupied"
+fs f "/read/book (2).epub" "occupied"
+fs f "/read/book (20).epub" "occupied"
+fs f "/read/book (21).epub" "occupied"
+fs f "/read/book (22).epub" "occupied"
+fs f "/read/book (23).epub" "occupied"
+fs f "/read/book (24).epub" "occupied"
+fs f "/read/book (25).epub" "occupied"
+fs f "/read/book (26).epub" "occupied"
+fs f "/read/book (27).epub" "occupied"
+fs f "/read/book (28).epub" "occupied"
+fs f "/read/book (29).epub" "occupied"
+fs f "/read/book (3).epub" "occupied"
+fs f "/read/book (30).epub" "occupied"
+fs f "/read/book (31).epub" "occupied"
+fs f "/read/book (32).epub" "occupied"
+fs f "/read/book (33).epub" "occupied"
+fs f "/read/book (34).epub" "occupied"
+fs f "/read/book (35).epub" "occupied"
+fs f "/read/book (36).epub" "occupied"
+fs f "/read/book (37).epub" "occupied"
+fs f "/read/book (38).epub" "occupied"
+fs f "/read/book (39).epub" "occupied"
+fs f "/read/book (4).epub" "occupied"
+fs f "/read/book (40).epub" "occupied"
+fs f "/read/book (41).epub" "occupied"
+fs f "/read/book (42).epub" "occupied"
+fs f "/read/book (43).epub" "occupied"
+fs f "/read/book (44).epub" "occupied"
+fs f "/read/book (45).epub" "occupied"
+fs f "/read/book (46).epub" "occupied"
+fs f "/read/book (47).epub" "occupied"
+fs f "/read/book (48).epub" "occupied"
+fs f "/read/book (49).epub" "occupied"
+fs f "/read/book (5).epub" "occupied"
+fs f "/read/book (50).epub" "occupied"
+fs f "/read/book (51).epub" "occupied"
+fs f "/read/book (52).epub" "occupied"
+fs f "/read/book (53).epub" "occupied"
+fs f "/read/book (54).epub" "occupied"
+fs f "/read/book (55).epub" "occupied"
+fs f "/read/book (56).epub" "occupied"
+fs f "/read/book (57).epub" "occupied"
+fs f "/read/book (58).epub" "occupied"
+fs f "/read/book (59).epub" "occupied"
+fs f "/read/book (6).epub" "occupied"
+fs f "/read/book (60).epub" "occupied"
+fs f "/read/book (61).epub" "occupied"
+fs f "/read/book (62).epub" "occupied"
+fs f "/read/book (63).epub" "occupied"
+fs f "/read/book (64).epub" "occupied"
+fs f "/read/book (65).epub" "occupied"
+fs f "/read/book (66).epub" "occupied"
+fs f "/read/book (67).epub" "occupied"
+fs f "/read/book (68).epub" "occupied"
+fs f "/read/book (69).epub" "occupied"
+fs f "/read/book (7).epub" "occupied"
+fs f "/read/book (70).epub" "occupied"
+fs f "/read/book (71).epub" "occupied"
+fs f "/read/book (72).epub" "occupied"
+fs f "/read/book (73).epub" "occupied"
+fs f "/read/book (74).epub" "occupied"
+fs f "/read/book (75).epub" "occupied"
+fs f "/read/book (76).epub" "occupied"
+fs f "/read/book (77).epub" "occupied"
+fs f "/read/book (78).epub" "occupied"
+fs f "/read/book (79).epub" "occupied"
+fs f "/read/book (8).epub" "occupied"
+fs f "/read/book (80).epub" "occupied"
+fs f "/read/book (81).epub" "occupied"
+fs f "/read/book (82).epub" "occupied"
+fs f "/read/book (83).epub" "occupied"
+fs f "/read/book (84).epub" "occupied"
+fs f "/read/book (85).epub" "occupied"
+fs f "/read/book (86).epub" "occupied"
+fs f "/read/book (87).epub" "occupied"
+fs f "/read/book (88).epub" "occupied"
+fs f "/read/book (89).epub" "occupied"
+fs f "/read/book (9).epub" "occupied"
+fs f "/read/book (90).epub" "occupied"
+fs f "/read/book (91).epub" "occupied"
+fs f "/read/book (92).epub" "occupied"
+fs f "/read/book (93).epub" "occupied"
+fs f "/read/book (94).epub" "occupied"
+fs f "/read/book (95).epub" "occupied"
+fs f "/read/book (96).epub" "occupied"
+fs f "/read/book (97).epub" "occupied"
+fs f "/read/book (98).epub" "occupied"
+fs f "/read/book.epub" "occupied"
+recent "" "" 0
+open "" "" 0
+end
+case 26 destination "/in/book" 98
+mkdir "/read" 1
+exists "/read/book" 1
+exists "/read/book (2)" 1
+exists "/read/book (3)" 1
+exists "/read/book (4)" 1
+exists "/read/book (5)" 1
+exists "/read/book (6)" 1
+exists "/read/book (7)" 1
+exists "/read/book (8)" 1
+exists "/read/book (9)" 1
+exists "/read/book (10)" 1
+exists "/read/book (11)" 1
+exists "/read/book (12)" 1
+exists "/read/book (13)" 1
+exists "/read/book (14)" 1
+exists "/read/book (15)" 1
+exists "/read/book (16)" 1
+exists "/read/book (17)" 1
+exists "/read/book (18)" 1
+exists "/read/book (19)" 1
+exists "/read/book (20)" 1
+exists "/read/book (21)" 1
+exists "/read/book (22)" 1
+exists "/read/book (23)" 1
+exists "/read/book (24)" 1
+exists "/read/book (25)" 1
+exists "/read/book (26)" 1
+exists "/read/book (27)" 1
+exists "/read/book (28)" 1
+exists "/read/book (29)" 1
+exists "/read/book (30)" 1
+exists "/read/book (31)" 1
+exists "/read/book (32)" 1
+exists "/read/book (33)" 1
+exists "/read/book (34)" 1
+exists "/read/book (35)" 1
+exists "/read/book (36)" 1
+exists "/read/book (37)" 1
+exists "/read/book (38)" 1
+exists "/read/book (39)" 1
+exists "/read/book (40)" 1
+exists "/read/book (41)" 1
+exists "/read/book (42)" 1
+exists "/read/book (43)" 1
+exists "/read/book (44)" 1
+exists "/read/book (45)" 1
+exists "/read/book (46)" 1
+exists "/read/book (47)" 1
+exists "/read/book (48)" 1
+exists "/read/book (49)" 1
+exists "/read/book (50)" 1
+exists "/read/book (51)" 1
+exists "/read/book (52)" 1
+exists "/read/book (53)" 1
+exists "/read/book (54)" 1
+exists "/read/book (55)" 1
+exists "/read/book (56)" 1
+exists "/read/book (57)" 1
+exists "/read/book (58)" 1
+exists "/read/book (59)" 1
+exists "/read/book (60)" 1
+exists "/read/book (61)" 1
+exists "/read/book (62)" 1
+exists "/read/book (63)" 1
+exists "/read/book (64)" 1
+exists "/read/book (65)" 1
+exists "/read/book (66)" 1
+exists "/read/book (67)" 1
+exists "/read/book (68)" 1
+exists "/read/book (69)" 1
+exists "/read/book (70)" 1
+exists "/read/book (71)" 1
+exists "/read/book (72)" 1
+exists "/read/book (73)" 1
+exists "/read/book (74)" 1
+exists "/read/book (75)" 1
+exists "/read/book (76)" 1
+exists "/read/book (77)" 1
+exists "/read/book (78)" 1
+exists "/read/book (79)" 1
+exists "/read/book (80)" 1
+exists "/read/book (81)" 1
+exists "/read/book (82)" 1
+exists "/read/book (83)" 1
+exists "/read/book (84)" 1
+exists "/read/book (85)" 1
+exists "/read/book (86)" 1
+exists "/read/book (87)" 1
+exists "/read/book (88)" 1
+exists "/read/book (89)" 1
+exists "/read/book (90)" 1
+exists "/read/book (91)" 1
+exists "/read/book (92)" 1
+exists "/read/book (93)" 1
+exists "/read/book (94)" 1
+exists "/read/book (95)" 1
+exists "/read/book (96)" 1
+exists "/read/book (97)" 1
+exists "/read/book (98)" 1
+exists "/read/book (99)" 0
+result "/read/book (99)"
+fs d "/read"
+fs f "/read/book" "occupied"
+fs f "/read/book (10)" "occupied"
+fs f "/read/book (11)" "occupied"
+fs f "/read/book (12)" "occupied"
+fs f "/read/book (13)" "occupied"
+fs f "/read/book (14)" "occupied"
+fs f "/read/book (15)" "occupied"
+fs f "/read/book (16)" "occupied"
+fs f "/read/book (17)" "occupied"
+fs f "/read/book (18)" "occupied"
+fs f "/read/book (19)" "occupied"
+fs f "/read/book (2)" "occupied"
+fs f "/read/book (20)" "occupied"
+fs f "/read/book (21)" "occupied"
+fs f "/read/book (22)" "occupied"
+fs f "/read/book (23)" "occupied"
+fs f "/read/book (24)" "occupied"
+fs f "/read/book (25)" "occupied"
+fs f "/read/book (26)" "occupied"
+fs f "/read/book (27)" "occupied"
+fs f "/read/book (28)" "occupied"
+fs f "/read/book (29)" "occupied"
+fs f "/read/book (3)" "occupied"
+fs f "/read/book (30)" "occupied"
+fs f "/read/book (31)" "occupied"
+fs f "/read/book (32)" "occupied"
+fs f "/read/book (33)" "occupied"
+fs f "/read/book (34)" "occupied"
+fs f "/read/book (35)" "occupied"
+fs f "/read/book (36)" "occupied"
+fs f "/read/book (37)" "occupied"
+fs f "/read/book (38)" "occupied"
+fs f "/read/book (39)" "occupied"
+fs f "/read/book (4)" "occupied"
+fs f "/read/book (40)" "occupied"
+fs f "/read/book (41)" "occupied"
+fs f "/read/book (42)" "occupied"
+fs f "/read/book (43)" "occupied"
+fs f "/read/book (44)" "occupied"
+fs f "/read/book (45)" "occupied"
+fs f "/read/book (46)" "occupied"
+fs f "/read/book (47)" "occupied"
+fs f "/read/book (48)" "occupied"
+fs f "/read/book (49)" "occupied"
+fs f "/read/book (5)" "occupied"
+fs f "/read/book (50)" "occupied"
+fs f "/read/book (51)" "occupied"
+fs f "/read/book (52)" "occupied"
+fs f "/read/book (53)" "occupied"
+fs f "/read/book (54)" "occupied"
+fs f "/read/book (55)" "occupied"
+fs f "/read/book (56)" "occupied"
+fs f "/read/book (57)" "occupied"
+fs f "/read/book (58)" "occupied"
+fs f "/read/book (59)" "occupied"
+fs f "/read/book (6)" "occupied"
+fs f "/read/book (60)" "occupied"
+fs f "/read/book (61)" "occupied"
+fs f "/read/book (62)" "occupied"
+fs f "/read/book (63)" "occupied"
+fs f "/read/book (64)" "occupied"
+fs f "/read/book (65)" "occupied"
+fs f "/read/book (66)" "occupied"
+fs f "/read/book (67)" "occupied"
+fs f "/read/book (68)" "occupied"
+fs f "/read/book (69)" "occupied"
+fs f "/read/book (7)" "occupied"
+fs f "/read/book (70)" "occupied"
+fs f "/read/book (71)" "occupied"
+fs f "/read/book (72)" "occupied"
+fs f "/read/book (73)" "occupied"
+fs f "/read/book (74)" "occupied"
+fs f "/read/book (75)" "occupied"
+fs f "/read/book (76)" "occupied"
+fs f "/read/book (77)" "occupied"
+fs f "/read/book (78)" "occupied"
+fs f "/read/book (79)" "occupied"
+fs f "/read/book (8)" "occupied"
+fs f "/read/book (80)" "occupied"
+fs f "/read/book (81)" "occupied"
+fs f "/read/book (82)" "occupied"
+fs f "/read/book (83)" "occupied"
+fs f "/read/book (84)" "occupied"
+fs f "/read/book (85)" "occupied"
+fs f "/read/book (86)" "occupied"
+fs f "/read/book (87)" "occupied"
+fs f "/read/book (88)" "occupied"
+fs f "/read/book (89)" "occupied"
+fs f "/read/book (9)" "occupied"
+fs f "/read/book (90)" "occupied"
+fs f "/read/book (91)" "occupied"
+fs f "/read/book (92)" "occupied"
+fs f "/read/book (93)" "occupied"
+fs f "/read/book (94)" "occupied"
+fs f "/read/book (95)" "occupied"
+fs f "/read/book (96)" "occupied"
+fs f "/read/book (97)" "occupied"
+fs f "/read/book (98)" "occupied"
+recent "" "" 0
+open "" "" 0
+end
+case 27 destination "/in/book.epub" 99
+mkdir "/read" 1
+exists "/read/book.epub" 1
+exists "/read/book (2).epub" 1
+exists "/read/book (3).epub" 1
+exists "/read/book (4).epub" 1
+exists "/read/book (5).epub" 1
+exists "/read/book (6).epub" 1
+exists "/read/book (7).epub" 1
+exists "/read/book (8).epub" 1
+exists "/read/book (9).epub" 1
+exists "/read/book (10).epub" 1
+exists "/read/book (11).epub" 1
+exists "/read/book (12).epub" 1
+exists "/read/book (13).epub" 1
+exists "/read/book (14).epub" 1
+exists "/read/book (15).epub" 1
+exists "/read/book (16).epub" 1
+exists "/read/book (17).epub" 1
+exists "/read/book (18).epub" 1
+exists "/read/book (19).epub" 1
+exists "/read/book (20).epub" 1
+exists "/read/book (21).epub" 1
+exists "/read/book (22).epub" 1
+exists "/read/book (23).epub" 1
+exists "/read/book (24).epub" 1
+exists "/read/book (25).epub" 1
+exists "/read/book (26).epub" 1
+exists "/read/book (27).epub" 1
+exists "/read/book (28).epub" 1
+exists "/read/book (29).epub" 1
+exists "/read/book (30).epub" 1
+exists "/read/book (31).epub" 1
+exists "/read/book (32).epub" 1
+exists "/read/book (33).epub" 1
+exists "/read/book (34).epub" 1
+exists "/read/book (35).epub" 1
+exists "/read/book (36).epub" 1
+exists "/read/book (37).epub" 1
+exists "/read/book (38).epub" 1
+exists "/read/book (39).epub" 1
+exists "/read/book (40).epub" 1
+exists "/read/book (41).epub" 1
+exists "/read/book (42).epub" 1
+exists "/read/book (43).epub" 1
+exists "/read/book (44).epub" 1
+exists "/read/book (45).epub" 1
+exists "/read/book (46).epub" 1
+exists "/read/book (47).epub" 1
+exists "/read/book (48).epub" 1
+exists "/read/book (49).epub" 1
+exists "/read/book (50).epub" 1
+exists "/read/book (51).epub" 1
+exists "/read/book (52).epub" 1
+exists "/read/book (53).epub" 1
+exists "/read/book (54).epub" 1
+exists "/read/book (55).epub" 1
+exists "/read/book (56).epub" 1
+exists "/read/book (57).epub" 1
+exists "/read/book (58).epub" 1
+exists "/read/book (59).epub" 1
+exists "/read/book (60).epub" 1
+exists "/read/book (61).epub" 1
+exists "/read/book (62).epub" 1
+exists "/read/book (63).epub" 1
+exists "/read/book (64).epub" 1
+exists "/read/book (65).epub" 1
+exists "/read/book (66).epub" 1
+exists "/read/book (67).epub" 1
+exists "/read/book (68).epub" 1
+exists "/read/book (69).epub" 1
+exists "/read/book (70).epub" 1
+exists "/read/book (71).epub" 1
+exists "/read/book (72).epub" 1
+exists "/read/book (73).epub" 1
+exists "/read/book (74).epub" 1
+exists "/read/book (75).epub" 1
+exists "/read/book (76).epub" 1
+exists "/read/book (77).epub" 1
+exists "/read/book (78).epub" 1
+exists "/read/book (79).epub" 1
+exists "/read/book (80).epub" 1
+exists "/read/book (81).epub" 1
+exists "/read/book (82).epub" 1
+exists "/read/book (83).epub" 1
+exists "/read/book (84).epub" 1
+exists "/read/book (85).epub" 1
+exists "/read/book (86).epub" 1
+exists "/read/book (87).epub" 1
+exists "/read/book (88).epub" 1
+exists "/read/book (89).epub" 1
+exists "/read/book (90).epub" 1
+exists "/read/book (91).epub" 1
+exists "/read/book (92).epub" 1
+exists "/read/book (93).epub" 1
+exists "/read/book (94).epub" 1
+exists "/read/book (95).epub" 1
+exists "/read/book (96).epub" 1
+exists "/read/book (97).epub" 1
+exists "/read/book (98).epub" 1
+exists "/read/book (99).epub" 1
+result "/read/book (99).epub"
+fs d "/read"
+fs f "/read/book (10).epub" "occupied"
+fs f "/read/book (11).epub" "occupied"
+fs f "/read/book (12).epub" "occupied"
+fs f "/read/book (13).epub" "occupied"
+fs f "/read/book (14).epub" "occupied"
+fs f "/read/book (15).epub" "occupied"
+fs f "/read/book (16).epub" "occupied"
+fs f "/read/book (17).epub" "occupied"
+fs f "/read/book (18).epub" "occupied"
+fs f "/read/book (19).epub" "occupied"
+fs f "/read/book (2).epub" "occupied"
+fs f "/read/book (20).epub" "occupied"
+fs f "/read/book (21).epub" "occupied"
+fs f "/read/book (22).epub" "occupied"
+fs f "/read/book (23).epub" "occupied"
+fs f "/read/book (24).epub" "occupied"
+fs f "/read/book (25).epub" "occupied"
+fs f "/read/book (26).epub" "occupied"
+fs f "/read/book (27).epub" "occupied"
+fs f "/read/book (28).epub" "occupied"
+fs f "/read/book (29).epub" "occupied"
+fs f "/read/book (3).epub" "occupied"
+fs f "/read/book (30).epub" "occupied"
+fs f "/read/book (31).epub" "occupied"
+fs f "/read/book (32).epub" "occupied"
+fs f "/read/book (33).epub" "occupied"
+fs f "/read/book (34).epub" "occupied"
+fs f "/read/book (35).epub" "occupied"
+fs f "/read/book (36).epub" "occupied"
+fs f "/read/book (37).epub" "occupied"
+fs f "/read/book (38).epub" "occupied"
+fs f "/read/book (39).epub" "occupied"
+fs f "/read/book (4).epub" "occupied"
+fs f "/read/book (40).epub" "occupied"
+fs f "/read/book (41).epub" "occupied"
+fs f "/read/book (42).epub" "occupied"
+fs f "/read/book (43).epub" "occupied"
+fs f "/read/book (44).epub" "occupied"
+fs f "/read/book (45).epub" "occupied"
+fs f "/read/book (46).epub" "occupied"
+fs f "/read/book (47).epub" "occupied"
+fs f "/read/book (48).epub" "occupied"
+fs f "/read/book (49).epub" "occupied"
+fs f "/read/book (5).epub" "occupied"
+fs f "/read/book (50).epub" "occupied"
+fs f "/read/book (51).epub" "occupied"
+fs f "/read/book (52).epub" "occupied"
+fs f "/read/book (53).epub" "occupied"
+fs f "/read/book (54).epub" "occupied"
+fs f "/read/book (55).epub" "occupied"
+fs f "/read/book (56).epub" "occupied"
+fs f "/read/book (57).epub" "occupied"
+fs f "/read/book (58).epub" "occupied"
+fs f "/read/book (59).epub" "occupied"
+fs f "/read/book (6).epub" "occupied"
+fs f "/read/book (60).epub" "occupied"
+fs f "/read/book (61).epub" "occupied"
+fs f "/read/book (62).epub" "occupied"
+fs f "/read/book (63).epub" "occupied"
+fs f "/read/book (64).epub" "occupied"
+fs f "/read/book (65).epub" "occupied"
+fs f "/read/book (66).epub" "occupied"
+fs f "/read/book (67).epub" "occupied"
+fs f "/read/book (68).epub" "occupied"
+fs f "/read/book (69).epub" "occupied"
+fs f "/read/book (7).epub" "occupied"
+fs f "/read/book (70).epub" "occupied"
+fs f "/read/book (71).epub" "occupied"
+fs f "/read/book (72).epub" "occupied"
+fs f "/read/book (73).epub" "occupied"
+fs f "/read/book (74).epub" "occupied"
+fs f "/read/book (75).epub" "occupied"
+fs f "/read/book (76).epub" "occupied"
+fs f "/read/book (77).epub" "occupied"
+fs f "/read/book (78).epub" "occupied"
+fs f "/read/book (79).epub" "occupied"
+fs f "/read/book (8).epub" "occupied"
+fs f "/read/book (80).epub" "occupied"
+fs f "/read/book (81).epub" "occupied"
+fs f "/read/book (82).epub" "occupied"
+fs f "/read/book (83).epub" "occupied"
+fs f "/read/book (84).epub" "occupied"
+fs f "/read/book (85).epub" "occupied"
+fs f "/read/book (86).epub" "occupied"
+fs f "/read/book (87).epub" "occupied"
+fs f "/read/book (88).epub" "occupied"
+fs f "/read/book (89).epub" "occupied"
+fs f "/read/book (9).epub" "occupied"
+fs f "/read/book (90).epub" "occupied"
+fs f "/read/book (91).epub" "occupied"
+fs f "/read/book (92).epub" "occupied"
+fs f "/read/book (93).epub" "occupied"
+fs f "/read/book (94).epub" "occupied"
+fs f "/read/book (95).epub" "occupied"
+fs f "/read/book (96).epub" "occupied"
+fs f "/read/book (97).epub" "occupied"
+fs f "/read/book (98).epub" "occupied"
+fs f "/read/book (99).epub" "occupied"
+fs f "/read/book.epub" "occupied"
+recent "" "" 0
+open "" "" 0
+end
+case 28 destination "/in/book" 99
+mkdir "/read" 1
+exists "/read/book" 1
+exists "/read/book (2)" 1
+exists "/read/book (3)" 1
+exists "/read/book (4)" 1
+exists "/read/book (5)" 1
+exists "/read/book (6)" 1
+exists "/read/book (7)" 1
+exists "/read/book (8)" 1
+exists "/read/book (9)" 1
+exists "/read/book (10)" 1
+exists "/read/book (11)" 1
+exists "/read/book (12)" 1
+exists "/read/book (13)" 1
+exists "/read/book (14)" 1
+exists "/read/book (15)" 1
+exists "/read/book (16)" 1
+exists "/read/book (17)" 1
+exists "/read/book (18)" 1
+exists "/read/book (19)" 1
+exists "/read/book (20)" 1
+exists "/read/book (21)" 1
+exists "/read/book (22)" 1
+exists "/read/book (23)" 1
+exists "/read/book (24)" 1
+exists "/read/book (25)" 1
+exists "/read/book (26)" 1
+exists "/read/book (27)" 1
+exists "/read/book (28)" 1
+exists "/read/book (29)" 1
+exists "/read/book (30)" 1
+exists "/read/book (31)" 1
+exists "/read/book (32)" 1
+exists "/read/book (33)" 1
+exists "/read/book (34)" 1
+exists "/read/book (35)" 1
+exists "/read/book (36)" 1
+exists "/read/book (37)" 1
+exists "/read/book (38)" 1
+exists "/read/book (39)" 1
+exists "/read/book (40)" 1
+exists "/read/book (41)" 1
+exists "/read/book (42)" 1
+exists "/read/book (43)" 1
+exists "/read/book (44)" 1
+exists "/read/book (45)" 1
+exists "/read/book (46)" 1
+exists "/read/book (47)" 1
+exists "/read/book (48)" 1
+exists "/read/book (49)" 1
+exists "/read/book (50)" 1
+exists "/read/book (51)" 1
+exists "/read/book (52)" 1
+exists "/read/book (53)" 1
+exists "/read/book (54)" 1
+exists "/read/book (55)" 1
+exists "/read/book (56)" 1
+exists "/read/book (57)" 1
+exists "/read/book (58)" 1
+exists "/read/book (59)" 1
+exists "/read/book (60)" 1
+exists "/read/book (61)" 1
+exists "/read/book (62)" 1
+exists "/read/book (63)" 1
+exists "/read/book (64)" 1
+exists "/read/book (65)" 1
+exists "/read/book (66)" 1
+exists "/read/book (67)" 1
+exists "/read/book (68)" 1
+exists "/read/book (69)" 1
+exists "/read/book (70)" 1
+exists "/read/book (71)" 1
+exists "/read/book (72)" 1
+exists "/read/book (73)" 1
+exists "/read/book (74)" 1
+exists "/read/book (75)" 1
+exists "/read/book (76)" 1
+exists "/read/book (77)" 1
+exists "/read/book (78)" 1
+exists "/read/book (79)" 1
+exists "/read/book (80)" 1
+exists "/read/book (81)" 1
+exists "/read/book (82)" 1
+exists "/read/book (83)" 1
+exists "/read/book (84)" 1
+exists "/read/book (85)" 1
+exists "/read/book (86)" 1
+exists "/read/book (87)" 1
+exists "/read/book (88)" 1
+exists "/read/book (89)" 1
+exists "/read/book (90)" 1
+exists "/read/book (91)" 1
+exists "/read/book (92)" 1
+exists "/read/book (93)" 1
+exists "/read/book (94)" 1
+exists "/read/book (95)" 1
+exists "/read/book (96)" 1
+exists "/read/book (97)" 1
+exists "/read/book (98)" 1
+exists "/read/book (99)" 1
+result "/read/book (99)"
+fs d "/read"
+fs f "/read/book" "occupied"
+fs f "/read/book (10)" "occupied"
+fs f "/read/book (11)" "occupied"
+fs f "/read/book (12)" "occupied"
+fs f "/read/book (13)" "occupied"
+fs f "/read/book (14)" "occupied"
+fs f "/read/book (15)" "occupied"
+fs f "/read/book (16)" "occupied"
+fs f "/read/book (17)" "occupied"
+fs f "/read/book (18)" "occupied"
+fs f "/read/book (19)" "occupied"
+fs f "/read/book (2)" "occupied"
+fs f "/read/book (20)" "occupied"
+fs f "/read/book (21)" "occupied"
+fs f "/read/book (22)" "occupied"
+fs f "/read/book (23)" "occupied"
+fs f "/read/book (24)" "occupied"
+fs f "/read/book (25)" "occupied"
+fs f "/read/book (26)" "occupied"
+fs f "/read/book (27)" "occupied"
+fs f "/read/book (28)" "occupied"
+fs f "/read/book (29)" "occupied"
+fs f "/read/book (3)" "occupied"
+fs f "/read/book (30)" "occupied"
+fs f "/read/book (31)" "occupied"
+fs f "/read/book (32)" "occupied"
+fs f "/read/book (33)" "occupied"
+fs f "/read/book (34)" "occupied"
+fs f "/read/book (35)" "occupied"
+fs f "/read/book (36)" "occupied"
+fs f "/read/book (37)" "occupied"
+fs f "/read/book (38)" "occupied"
+fs f "/read/book (39)" "occupied"
+fs f "/read/book (4)" "occupied"
+fs f "/read/book (40)" "occupied"
+fs f "/read/book (41)" "occupied"
+fs f "/read/book (42)" "occupied"
+fs f "/read/book (43)" "occupied"
+fs f "/read/book (44)" "occupied"
+fs f "/read/book (45)" "occupied"
+fs f "/read/book (46)" "occupied"
+fs f "/read/book (47)" "occupied"
+fs f "/read/book (48)" "occupied"
+fs f "/read/book (49)" "occupied"
+fs f "/read/book (5)" "occupied"
+fs f "/read/book (50)" "occupied"
+fs f "/read/book (51)" "occupied"
+fs f "/read/book (52)" "occupied"
+fs f "/read/book (53)" "occupied"
+fs f "/read/book (54)" "occupied"
+fs f "/read/book (55)" "occupied"
+fs f "/read/book (56)" "occupied"
+fs f "/read/book (57)" "occupied"
+fs f "/read/book (58)" "occupied"
+fs f "/read/book (59)" "occupied"
+fs f "/read/book (6)" "occupied"
+fs f "/read/book (60)" "occupied"
+fs f "/read/book (61)" "occupied"
+fs f "/read/book (62)" "occupied"
+fs f "/read/book (63)" "occupied"
+fs f "/read/book (64)" "occupied"
+fs f "/read/book (65)" "occupied"
+fs f "/read/book (66)" "occupied"
+fs f "/read/book (67)" "occupied"
+fs f "/read/book (68)" "occupied"
+fs f "/read/book (69)" "occupied"
+fs f "/read/book (7)" "occupied"
+fs f "/read/book (70)" "occupied"
+fs f "/read/book (71)" "occupied"
+fs f "/read/book (72)" "occupied"
+fs f "/read/book (73)" "occupied"
+fs f "/read/book (74)" "occupied"
+fs f "/read/book (75)" "occupied"
+fs f "/read/book (76)" "occupied"
+fs f "/read/book (77)" "occupied"
+fs f "/read/book (78)" "occupied"
+fs f "/read/book (79)" "occupied"
+fs f "/read/book (8)" "occupied"
+fs f "/read/book (80)" "occupied"
+fs f "/read/book (81)" "occupied"
+fs f "/read/book (82)" "occupied"
+fs f "/read/book (83)" "occupied"
+fs f "/read/book (84)" "occupied"
+fs f "/read/book (85)" "occupied"
+fs f "/read/book (86)" "occupied"
+fs f "/read/book (87)" "occupied"
+fs f "/read/book (88)" "occupied"
+fs f "/read/book (89)" "occupied"
+fs f "/read/book (9)" "occupied"
+fs f "/read/book (90)" "occupied"
+fs f "/read/book (91)" "occupied"
+fs f "/read/book (92)" "occupied"
+fs f "/read/book (93)" "occupied"
+fs f "/read/book (94)" "occupied"
+fs f "/read/book (95)" "occupied"
+fs f "/read/book (96)" "occupied"
+fs f "/read/book (97)" "occupied"
+fs f "/read/book (98)" "occupied"
+fs f "/read/book (99)" "occupied"
+recent "" "" 0
+open "" "" 0
+end
+case 29 destination "" 0
+mkdir "/read" 1
+exists "/read/" 1
+exists "/read/ (2)" 0
+result "/read/ (2)"
+fs d "/read"
+recent "" "" 0
+open "" "" 0
+end
+case 30 destination "book.epub" 0
+mkdir "/read" 1
+exists "/read/book.epub" 0
+result "/read/book.epub"
+fs d "/read"
+recent "" "" 0
+open "" "" 0
+end
+case 31 destination "/" 0
+mkdir "/read" 1
+exists "/read/" 1
+exists "/read/ (2)" 0
+result "/read/ (2)"
+fs d "/read"
+recent "" "" 0
+open "" "" 0
+end
+case 32 destination "/read" 0
+mkdir "/read" 1
+exists "/read/read" 0
+result "/read/read"
+fs d "/read"
+recent "" "" 0
+open "" "" 0
+end
+case 33 destination "/read/" 0
+mkdir "/read" 1
+exists "/read/" 1
+exists "/read/ (2)" 0
+result "/read/ (2)"
+fs d "/read"
+recent "" "" 0
+open "" "" 0
+end
+case 34 destination "/nested/deeper/book.part.epub" 0
+mkdir "/read" 1
+exists "/read/book.part.epub" 0
+result "/read/book.part.epub"
+fs d "/read"
+recent "" "" 0
+open "" "" 0
+end
+case 35 destination "/nested/.hidden" 0
+mkdir "/read" 1
+exists "/read/.hidden" 0
+result "/read/.hidden"
+fs d "/read"
+recent "" "" 0
+open "" "" 0
+end
+case 36 destination "/nested/book." 0
+mkdir "/read" 1
+exists "/read/book." 0
+result "/read/book."
+fs d "/read"
+recent "" "" 0
+open "" "" 0
+end
+case 37 destination "/nested/deeper/book.part.epub" 1
+mkdir "/read" 1
+exists "/read/book.part.epub" 1
+exists "/read/book.part (2).epub" 0
+result "/read/book.part (2).epub"
+fs d "/read"
+fs f "/read/book.part.epub" "occupied"
+recent "" "" 0
+open "" "" 0
+end
+case 38 destination "/nested/.hidden" 1
+mkdir "/read" 1
+exists "/read/.hidden" 1
+exists "/read/ (2).hidden" 0
+result "/read/ (2).hidden"
+fs d "/read"
+fs f "/read/.hidden" "occupied"
+recent "" "" 0
+open "" "" 0
+end
+case 39 destination "/nested/book." 1
+mkdir "/read" 1
+exists "/read/book." 1
+exists "/read/book (2)." 0
+result "/read/book (2)."
+fs d "/read"
+fs f "/read/book." "occupied"
+recent "" "" 0
+open "" "" 0
+end
+case 40 move 0 0 0 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 0
+exists "/books/book.epub.rights" 0
+path-hash "/read/book.epub" 843386022
+recent-update "/books/book.epub" "/read/book.epub" "" ""
+fs d "/read"
+fs f "/read/book.epub" "book"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "" 1
+open "/other.epub" "/other.epub" 0
+end
+case 41 move 0 0 1 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 0
+exists "/books/book.epub.rights" 0
+path-hash "/read/book.epub" 843386022
+recent-update "/books/book.epub" "/read/book.epub" "" ""
+app-save "/read/book.epub"
+fs d "/read"
+fs f "/read/book.epub" "book"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "" 1
+open "/read/book.epub" "/read/book.epub" 1
+end
+case 42 move 0 1 0 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 0
+exists "/books/book.epub.rights" 0
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 0
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/cache/old"
+fs d "/read"
+fs f "/read/book.epub" "book"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/cache/old" 1
+open "/other.epub" "/other.epub" 0
+end
+case 43 move 0 1 1 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 0
+exists "/books/book.epub.rights" 0
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 0
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/cache/old"
+app-save "/read/book.epub"
+fs d "/read"
+fs f "/read/book.epub" "book"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/cache/old" 1
+open "/read/book.epub" "/read/book.epub" 1
+end
+case 44 move 0 2 0 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 0
+exists "/books/book.epub.rights" 0
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 1
+rename "/cache/old" "/.crosspoint/epub_843386022" 1
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/.crosspoint/epub_843386022"
+fs d "/.crosspoint/epub_843386022"
+fs f "/.crosspoint/epub_843386022/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/.crosspoint/epub_843386022" 1
+open "/other.epub" "/other.epub" 0
+end
+case 45 move 0 2 1 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 0
+exists "/books/book.epub.rights" 0
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 1
+rename "/cache/old" "/.crosspoint/epub_843386022" 1
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/.crosspoint/epub_843386022"
+app-save "/read/book.epub"
+fs d "/.crosspoint/epub_843386022"
+fs f "/.crosspoint/epub_843386022/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/.crosspoint/epub_843386022" 1
+open "/read/book.epub" "/read/book.epub" 1
+end
+case 46 move 0 3 0 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 0
+exists "/books/book.epub.rights" 0
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 1
+rename "/cache/old" "/.crosspoint/epub_843386022" 0
+log error ERS "Failed to rename cache dir /cache/old -> /.crosspoint/epub_843386022 (non-fatal)"
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/cache/old"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/cache/old" 1
+open "/other.epub" "/other.epub" 0
+end
+case 47 move 0 3 1 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 0
+exists "/books/book.epub.rights" 0
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 1
+rename "/cache/old" "/.crosspoint/epub_843386022" 0
+log error ERS "Failed to rename cache dir /cache/old -> /.crosspoint/epub_843386022 (non-fatal)"
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/cache/old"
+app-save "/read/book.epub"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/cache/old" 1
+open "/read/book.epub" "/read/book.epub" 1
+end
+case 48 move 1 0 0 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 0
+path-hash "/read/book.epub" 843386022
+recent-update "/books/book.epub" "/read/book.epub" "" ""
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.key" "key"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "" 1
+open "/other.epub" "/other.epub" 0
+end
+case 49 move 1 0 1 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 0
+path-hash "/read/book.epub" 843386022
+recent-update "/books/book.epub" "/read/book.epub" "" ""
+app-save "/read/book.epub"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.key" "key"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "" 1
+open "/read/book.epub" "/read/book.epub" 1
+end
+case 50 move 1 1 0 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 0
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 0
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/cache/old"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.key" "key"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/cache/old" 1
+open "/other.epub" "/other.epub" 0
+end
+case 51 move 1 1 1 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 0
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 0
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/cache/old"
+app-save "/read/book.epub"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.key" "key"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/cache/old" 1
+open "/read/book.epub" "/read/book.epub" 1
+end
+case 52 move 1 2 0 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 0
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 1
+rename "/cache/old" "/.crosspoint/epub_843386022" 1
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/.crosspoint/epub_843386022"
+fs d "/.crosspoint/epub_843386022"
+fs f "/.crosspoint/epub_843386022/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.key" "key"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/.crosspoint/epub_843386022" 1
+open "/other.epub" "/other.epub" 0
+end
+case 53 move 1 2 1 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 0
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 1
+rename "/cache/old" "/.crosspoint/epub_843386022" 1
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/.crosspoint/epub_843386022"
+app-save "/read/book.epub"
+fs d "/.crosspoint/epub_843386022"
+fs f "/.crosspoint/epub_843386022/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.key" "key"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/.crosspoint/epub_843386022" 1
+open "/read/book.epub" "/read/book.epub" 1
+end
+case 54 move 1 3 0 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 0
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 1
+rename "/cache/old" "/.crosspoint/epub_843386022" 0
+log error ERS "Failed to rename cache dir /cache/old -> /.crosspoint/epub_843386022 (non-fatal)"
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/cache/old"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.key" "key"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/cache/old" 1
+open "/other.epub" "/other.epub" 0
+end
+case 55 move 1 3 1 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 0
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 1
+rename "/cache/old" "/.crosspoint/epub_843386022" 0
+log error ERS "Failed to rename cache dir /cache/old -> /.crosspoint/epub_843386022 (non-fatal)"
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/cache/old"
+app-save "/read/book.epub"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.key" "key"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/cache/old" 1
+open "/read/book.epub" "/read/book.epub" 1
+end
+case 56 move 2 0 0 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 0
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 1
+path-hash "/read/book.epub" 843386022
+recent-update "/books/book.epub" "/read/book.epub" "" ""
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.rights" "rights"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "" 1
+open "/other.epub" "/other.epub" 0
+end
+case 57 move 2 0 1 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 0
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 1
+path-hash "/read/book.epub" 843386022
+recent-update "/books/book.epub" "/read/book.epub" "" ""
+app-save "/read/book.epub"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.rights" "rights"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "" 1
+open "/read/book.epub" "/read/book.epub" 1
+end
+case 58 move 2 1 0 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 0
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 1
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 0
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/cache/old"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.rights" "rights"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/cache/old" 1
+open "/other.epub" "/other.epub" 0
+end
+case 59 move 2 1 1 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 0
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 1
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 0
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/cache/old"
+app-save "/read/book.epub"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.rights" "rights"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/cache/old" 1
+open "/read/book.epub" "/read/book.epub" 1
+end
+case 60 move 2 2 0 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 0
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 1
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 1
+rename "/cache/old" "/.crosspoint/epub_843386022" 1
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/.crosspoint/epub_843386022"
+fs d "/.crosspoint/epub_843386022"
+fs f "/.crosspoint/epub_843386022/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.rights" "rights"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/.crosspoint/epub_843386022" 1
+open "/other.epub" "/other.epub" 0
+end
+case 61 move 2 2 1 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 0
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 1
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 1
+rename "/cache/old" "/.crosspoint/epub_843386022" 1
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/.crosspoint/epub_843386022"
+app-save "/read/book.epub"
+fs d "/.crosspoint/epub_843386022"
+fs f "/.crosspoint/epub_843386022/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.rights" "rights"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/.crosspoint/epub_843386022" 1
+open "/read/book.epub" "/read/book.epub" 1
+end
+case 62 move 2 3 0 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 0
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 1
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 1
+rename "/cache/old" "/.crosspoint/epub_843386022" 0
+log error ERS "Failed to rename cache dir /cache/old -> /.crosspoint/epub_843386022 (non-fatal)"
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/cache/old"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.rights" "rights"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/cache/old" 1
+open "/other.epub" "/other.epub" 0
+end
+case 63 move 2 3 1 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 0
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 1
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 1
+rename "/cache/old" "/.crosspoint/epub_843386022" 0
+log error ERS "Failed to rename cache dir /cache/old -> /.crosspoint/epub_843386022 (non-fatal)"
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/cache/old"
+app-save "/read/book.epub"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.rights" "rights"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/cache/old" 1
+open "/read/book.epub" "/read/book.epub" 1
+end
+case 64 move 3 0 0 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 1
+path-hash "/read/book.epub" 843386022
+recent-update "/books/book.epub" "/read/book.epub" "" ""
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.key" "key"
+fs f "/read/book.epub.rights" "rights"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "" 1
+open "/other.epub" "/other.epub" 0
+end
+case 65 move 3 0 1 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 1
+path-hash "/read/book.epub" 843386022
+recent-update "/books/book.epub" "/read/book.epub" "" ""
+app-save "/read/book.epub"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.key" "key"
+fs f "/read/book.epub.rights" "rights"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "" 1
+open "/read/book.epub" "/read/book.epub" 1
+end
+case 66 move 3 1 0 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 1
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 0
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/cache/old"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.key" "key"
+fs f "/read/book.epub.rights" "rights"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/cache/old" 1
+open "/other.epub" "/other.epub" 0
+end
+case 67 move 3 1 1 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 1
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 0
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/cache/old"
+app-save "/read/book.epub"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.key" "key"
+fs f "/read/book.epub.rights" "rights"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/cache/old" 1
+open "/read/book.epub" "/read/book.epub" 1
+end
+case 68 move 3 2 0 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 1
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 1
+rename "/cache/old" "/.crosspoint/epub_843386022" 1
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/.crosspoint/epub_843386022"
+fs d "/.crosspoint/epub_843386022"
+fs f "/.crosspoint/epub_843386022/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.key" "key"
+fs f "/read/book.epub.rights" "rights"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/.crosspoint/epub_843386022" 1
+open "/other.epub" "/other.epub" 0
+end
+case 69 move 3 2 1 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 1
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 1
+rename "/cache/old" "/.crosspoint/epub_843386022" 1
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/.crosspoint/epub_843386022"
+app-save "/read/book.epub"
+fs d "/.crosspoint/epub_843386022"
+fs f "/.crosspoint/epub_843386022/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.key" "key"
+fs f "/read/book.epub.rights" "rights"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/.crosspoint/epub_843386022" 1
+open "/read/book.epub" "/read/book.epub" 1
+end
+case 70 move 3 3 0 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 1
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 1
+rename "/cache/old" "/.crosspoint/epub_843386022" 0
+log error ERS "Failed to rename cache dir /cache/old -> /.crosspoint/epub_843386022 (non-fatal)"
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/cache/old"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.key" "key"
+fs f "/read/book.epub.rights" "rights"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/cache/old" 1
+open "/other.epub" "/other.epub" 0
+end
+case 71 move 3 3 1 0 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 1
+path-hash "/read/book.epub" 843386022
+exists "/cache/old" 1
+rename "/cache/old" "/.crosspoint/epub_843386022" 0
+log error ERS "Failed to rename cache dir /cache/old -> /.crosspoint/epub_843386022 (non-fatal)"
+recent-update "/books/book.epub" "/read/book.epub" "/cache/old" "/cache/old"
+app-save "/read/book.epub"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.key" "key"
+fs f "/read/book.epub.rights" "rights"
+clip "/read/book.epub" "annotation"
+recent "/read/book.epub" "/cache/old" 1
+open "/read/book.epub" "/read/book.epub" 1
+end
+case 72 move 0 2 0 1 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 0
+log error ERS "Failed to move finished book and clippings to '/Read' folder"
+fs f "/books/book.epub" "book"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+clip "/books/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/other.epub" "/other.epub" 0
+end
+case 73 move 0 2 1 1 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 0
+log error ERS "Failed to move finished book and clippings to '/Read' folder"
+fs f "/books/book.epub" "book"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+clip "/books/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/books/book.epub" "/books/book.epub" 0
+end
+case 74 move 1 2 0 1 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 0
+log error ERS "Failed to move finished book and clippings to '/Read' folder"
+fs f "/books/book.epub" "book"
+fs f "/books/book.epub.key" "key"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+clip "/books/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/other.epub" "/other.epub" 0
+end
+case 75 move 1 2 1 1 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 0
+log error ERS "Failed to move finished book and clippings to '/Read' folder"
+fs f "/books/book.epub" "book"
+fs f "/books/book.epub.key" "key"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+clip "/books/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/books/book.epub" "/books/book.epub" 0
+end
+case 76 move 2 2 0 1 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 0
+log error ERS "Failed to move finished book and clippings to '/Read' folder"
+fs f "/books/book.epub" "book"
+fs f "/books/book.epub.rights" "rights"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+clip "/books/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/other.epub" "/other.epub" 0
+end
+case 77 move 2 2 1 1 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 0
+log error ERS "Failed to move finished book and clippings to '/Read' folder"
+fs f "/books/book.epub" "book"
+fs f "/books/book.epub.rights" "rights"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+clip "/books/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/books/book.epub" "/books/book.epub" 0
+end
+case 78 move 3 2 0 1 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 0
+log error ERS "Failed to move finished book and clippings to '/Read' folder"
+fs f "/books/book.epub" "book"
+fs f "/books/book.epub.key" "key"
+fs f "/books/book.epub.rights" "rights"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+clip "/books/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/other.epub" "/other.epub" 0
+end
+case 79 move 3 2 1 1 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 0
+log error ERS "Failed to move finished book and clippings to '/Read' folder"
+fs f "/books/book.epub" "book"
+fs f "/books/book.epub.key" "key"
+fs f "/books/book.epub.rights" "rights"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+clip "/books/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/books/book.epub" "/books/book.epub" 0
+end
+case 80 move 1 2 0 2 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 0
+log error ERS "Failed to move sidecar /books/book.epub.key -> /read/book.epub.key"
+rename "/read/book.epub" "/books/book.epub" 1
+fs f "/books/book.epub" "book"
+fs f "/books/book.epub.key" "key"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+clip "/read/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/other.epub" "/other.epub" 0
+end
+case 81 move 1 2 1 2 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 0
+log error ERS "Failed to move sidecar /books/book.epub.key -> /read/book.epub.key"
+rename "/read/book.epub" "/books/book.epub" 1
+fs f "/books/book.epub" "book"
+fs f "/books/book.epub.key" "key"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+clip "/read/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/books/book.epub" "/books/book.epub" 0
+end
+case 82 move 1 2 0 2 1
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 0
+log error ERS "Failed to move sidecar /books/book.epub.key -> /read/book.epub.key"
+rename "/read/book.epub" "/books/book.epub" 0
+log error ERS "Failed to restore epub after sidecar move failure: /read/book.epub -> /books/book.epub"
+fs f "/books/book.epub.key" "key"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+clip "/read/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/other.epub" "/other.epub" 0
+end
+case 83 move 1 2 1 2 1
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 0
+log error ERS "Failed to move sidecar /books/book.epub.key -> /read/book.epub.key"
+rename "/read/book.epub" "/books/book.epub" 0
+log error ERS "Failed to restore epub after sidecar move failure: /read/book.epub -> /books/book.epub"
+fs f "/books/book.epub.key" "key"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+clip "/read/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/books/book.epub" "/books/book.epub" 0
+end
+case 84 move 3 2 0 2 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 0
+log error ERS "Failed to move sidecar /books/book.epub.key -> /read/book.epub.key"
+rename "/read/book.epub" "/books/book.epub" 1
+fs f "/books/book.epub" "book"
+fs f "/books/book.epub.key" "key"
+fs f "/books/book.epub.rights" "rights"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+clip "/read/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/other.epub" "/other.epub" 0
+end
+case 85 move 3 2 1 2 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 0
+log error ERS "Failed to move sidecar /books/book.epub.key -> /read/book.epub.key"
+rename "/read/book.epub" "/books/book.epub" 1
+fs f "/books/book.epub" "book"
+fs f "/books/book.epub.key" "key"
+fs f "/books/book.epub.rights" "rights"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+clip "/read/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/books/book.epub" "/books/book.epub" 0
+end
+case 86 move 3 2 0 2 1
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 0
+log error ERS "Failed to move sidecar /books/book.epub.key -> /read/book.epub.key"
+rename "/read/book.epub" "/books/book.epub" 0
+log error ERS "Failed to restore epub after sidecar move failure: /read/book.epub -> /books/book.epub"
+fs f "/books/book.epub.key" "key"
+fs f "/books/book.epub.rights" "rights"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+clip "/read/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/other.epub" "/other.epub" 0
+end
+case 87 move 3 2 1 2 1
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 0
+log error ERS "Failed to move sidecar /books/book.epub.key -> /read/book.epub.key"
+rename "/read/book.epub" "/books/book.epub" 0
+log error ERS "Failed to restore epub after sidecar move failure: /read/book.epub -> /books/book.epub"
+fs f "/books/book.epub.key" "key"
+fs f "/books/book.epub.rights" "rights"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+clip "/read/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/books/book.epub" "/books/book.epub" 0
+end
+case 88 move 2 2 0 3 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 0
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 0
+log error ERS "Failed to move sidecar /books/book.epub.rights -> /read/book.epub.rights"
+rename "/read/book.epub.key" "/books/book.epub.key" 0
+rename "/read/book.epub" "/books/book.epub" 1
+fs f "/books/book.epub" "book"
+fs f "/books/book.epub.rights" "rights"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+clip "/read/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/other.epub" "/other.epub" 0
+end
+case 89 move 2 2 1 3 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 0
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 0
+log error ERS "Failed to move sidecar /books/book.epub.rights -> /read/book.epub.rights"
+rename "/read/book.epub.key" "/books/book.epub.key" 0
+rename "/read/book.epub" "/books/book.epub" 1
+fs f "/books/book.epub" "book"
+fs f "/books/book.epub.rights" "rights"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+clip "/read/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/books/book.epub" "/books/book.epub" 0
+end
+case 90 move 2 2 0 3 1
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 0
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 0
+log error ERS "Failed to move sidecar /books/book.epub.rights -> /read/book.epub.rights"
+rename "/read/book.epub.key" "/books/book.epub.key" 0
+rename "/read/book.epub" "/books/book.epub" 0
+log error ERS "Failed to restore epub after sidecar move failure: /read/book.epub -> /books/book.epub"
+fs f "/books/book.epub.rights" "rights"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+clip "/read/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/other.epub" "/other.epub" 0
+end
+case 91 move 2 2 1 3 1
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 0
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 0
+log error ERS "Failed to move sidecar /books/book.epub.rights -> /read/book.epub.rights"
+rename "/read/book.epub.key" "/books/book.epub.key" 0
+rename "/read/book.epub" "/books/book.epub" 0
+log error ERS "Failed to restore epub after sidecar move failure: /read/book.epub -> /books/book.epub"
+fs f "/books/book.epub.rights" "rights"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+clip "/read/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/books/book.epub" "/books/book.epub" 0
+end
+case 92 move 3 2 0 3 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 0
+log error ERS "Failed to move sidecar /books/book.epub.rights -> /read/book.epub.rights"
+rename "/read/book.epub.key" "/books/book.epub.key" 1
+rename "/read/book.epub" "/books/book.epub" 1
+fs f "/books/book.epub" "book"
+fs f "/books/book.epub.key" "key"
+fs f "/books/book.epub.rights" "rights"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+clip "/read/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/other.epub" "/other.epub" 0
+end
+case 93 move 3 2 1 3 0
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 0
+log error ERS "Failed to move sidecar /books/book.epub.rights -> /read/book.epub.rights"
+rename "/read/book.epub.key" "/books/book.epub.key" 1
+rename "/read/book.epub" "/books/book.epub" 1
+fs f "/books/book.epub" "book"
+fs f "/books/book.epub.key" "key"
+fs f "/books/book.epub.rights" "rights"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+clip "/read/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/books/book.epub" "/books/book.epub" 0
+end
+case 94 move 3 2 0 3 1
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 0
+log error ERS "Failed to move sidecar /books/book.epub.rights -> /read/book.epub.rights"
+rename "/read/book.epub.key" "/books/book.epub.key" 1
+rename "/read/book.epub" "/books/book.epub" 0
+log error ERS "Failed to restore epub after sidecar move failure: /read/book.epub -> /books/book.epub"
+fs f "/books/book.epub.key" "key"
+fs f "/books/book.epub.rights" "rights"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+clip "/read/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/other.epub" "/other.epub" 0
+end
+case 95 move 3 2 1 3 1
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 0
+log error ERS "Failed to move sidecar /books/book.epub.rights -> /read/book.epub.rights"
+rename "/read/book.epub.key" "/books/book.epub.key" 1
+rename "/read/book.epub" "/books/book.epub" 0
+log error ERS "Failed to restore epub after sidecar move failure: /read/book.epub -> /books/book.epub"
+fs f "/books/book.epub.key" "key"
+fs f "/books/book.epub.rights" "rights"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+clip "/read/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/books/book.epub" "/books/book.epub" 0
+end
+case 96 move 3 2 0 3 2
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 0
+log error ERS "Failed to move sidecar /books/book.epub.rights -> /read/book.epub.rights"
+rename "/read/book.epub.key" "/books/book.epub.key" 0
+rename "/read/book.epub" "/books/book.epub" 1
+fs f "/books/book.epub" "book"
+fs f "/books/book.epub.rights" "rights"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub.key" "key"
+clip "/read/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/other.epub" "/other.epub" 0
+end
+case 97 move 3 2 1 3 2
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 0
+log error ERS "Failed to move sidecar /books/book.epub.rights -> /read/book.epub.rights"
+rename "/read/book.epub.key" "/books/book.epub.key" 0
+rename "/read/book.epub" "/books/book.epub" 1
+fs f "/books/book.epub" "book"
+fs f "/books/book.epub.rights" "rights"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub.key" "key"
+clip "/read/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/books/book.epub" "/books/book.epub" 0
+end
+case 98 move 3 2 0 3 3
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 0
+log error ERS "Failed to move sidecar /books/book.epub.rights -> /read/book.epub.rights"
+rename "/read/book.epub.key" "/books/book.epub.key" 0
+rename "/read/book.epub" "/books/book.epub" 0
+log error ERS "Failed to restore epub after sidecar move failure: /read/book.epub -> /books/book.epub"
+fs f "/books/book.epub.rights" "rights"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.key" "key"
+clip "/read/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/other.epub" "/other.epub" 0
+end
+case 99 move 3 2 1 3 3
+log info ERS "Moving finished epub: /books/book.epub -> /read/book.epub"
+clipping-move "/books/book.epub" "/read/book.epub" 1
+exists "/books/book.epub.key" 1
+rename "/books/book.epub.key" "/read/book.epub.key" 1
+exists "/books/book.epub.rights" 1
+rename "/books/book.epub.rights" "/read/book.epub.rights" 0
+log error ERS "Failed to move sidecar /books/book.epub.rights -> /read/book.epub.rights"
+rename "/read/book.epub.key" "/books/book.epub.key" 0
+rename "/read/book.epub" "/books/book.epub" 0
+log error ERS "Failed to restore epub after sidecar move failure: /read/book.epub -> /books/book.epub"
+fs f "/books/book.epub.rights" "rights"
+fs d "/cache/old"
+fs f "/cache/old/progress.bin" "progress"
+fs d "/read"
+fs f "/read/book.epub" "book"
+fs f "/read/book.epub.key" "key"
+clip "/read/book.epub" "annotation"
+recent "/books/book.epub" "/cache/old" 0
+open "/books/book.epub" "/books/book.epub" 0
+end
+cases 100

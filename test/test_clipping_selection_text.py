@@ -1,14 +1,16 @@
 """Run with python3 test/test_clipping_selection_text.py (requires a host C/C++ compiler)."""
 
 from pathlib import Path
+import sys
 import subprocess
 import tempfile
-
-ROOT = Path(__file__).resolve().parents[1]
+ADAPTER = Path(__file__).resolve().parent
+ROOT = Path(__import__("os").environ.get("XP_RETIREMENT_REPO", ADAPTER.parent)).resolve()
+sys.path.insert(0, str(ROOT / "test"))
+from rust_host import rust_link_flags
 source = (ROOT / "src/activities/reader/ClipSelectionActivity.cpp").read_text()
-reader_source = (ROOT / "src/activities/reader/EpubReaderActivity.cpp").read_text()
 header = (ROOT / "src/activities/reader/ClipSelectionActivity.h").read_text()
-word_box = "struct WordBox {" + header.split("struct WordBox {", 1)[1].split("  };", 1)[0] + "};"
+word_box = next(line.strip() for line in header.splitlines() if 'using WordBox =' in line)
 clean_word = "const char* cleanWordStart" + source.split("const char* cleanWordStart", 1)[1].split(
     "}  // namespace", 1
 )[0]
@@ -25,25 +27,25 @@ def method(name, next_name, text=source):
     start = text.rfind("\n", 0, signature) + 1
     return text[start:text.index(next_name, signature)].rstrip()
 
-extract_words = method("bool ClipSelectionActivity::extractWords", "int ClipSelectionActivity::closestInRow")
-clean_draw = method("void ClipSelectionActivity::drawWordClean", "void ClipSelectionActivity::drawWordHighlight")
-highlight_draw = method("void ClipSelectionActivity::drawWordHighlight", "bool ClipSelectionActivity::renderIncremental")
-selection_draw = method("void ClipSelectionActivity::drawSelection", "void ClipSelectionActivity::render(")
-word_font = method("int clippingWordFont", "Rect clippingWordRect", reader_source)
-word_rect = method("Rect clippingWordRect", "int clampPercent", reader_source)
-saved_hit = method("int EpubReaderActivity::clippingAtPoint", "void EpubReaderActivity::drawClippingHighlights", reader_source)
-saved_draw = method("void EpubReaderActivity::drawClippingHighlights", "void EpubReaderActivity::renderStatusBar", reader_source)
+extract_words = method("bool ClipSelectionActivity::extractWords", "bool ClipSelectionActivity::buildSelectedText")
+sys.path.insert(0, str(ROOT / "test/reader_lifecycle"))
+from extract import definition
+saved_owner = (ADAPTER / "clipping_selection_owner.inc").read_text()
 
 # Compile production extraction, export, and redraws with bounded UI/rendering stubs.
 harness = r"""
+#include <xp_ui_dictionary.h>
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <memory>
+#include <optional>
+#include <xp_ui_reader.h>
 #include <set>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <BidiUtils.h>
 #include <Memory.h>
@@ -100,7 +102,17 @@ struct PageLine {
   int getTag() const { return TAG_PageLine; }
   const Block* getBlock() const { return &block; }
 };
-struct Page { std::vector<std::unique_ptr<PageLine>> elements; };
+struct PageElementView {
+  const PageLine* line;
+  int xPos, yPos;
+  int getTag() const { return line->getTag(); }
+  const Block& textBlock() const { return *line->getBlock(); }
+};
+struct Page {
+  std::vector<std::unique_ptr<PageLine>> elements;
+  size_t elementCount() const { return elements.size(); }
+  PageElementView element(size_t i) const { return {elements[i].get(), elements[i]->xPos, elements[i]->yPos}; }
+};
 struct Renderer {
   enum RenderMode { BW };
   struct Draw { int x, width, tracking; };
@@ -220,8 +232,9 @@ struct ClipSelectionActivity {
   Rect handleRect(int, bool) const { return {}; }
   Rect actionRect() const { return {}; }
 };
-""" + build_text + extract_words + clean_draw + highlight_draw + selection_draw + r"""
+""" + build_text + extract_words + r"""
 struct EpubReaderActivity {
+  struct ModelLock { explicit ModelLock(const EpubReaderActivity&) {} };
   Renderer& renderer;
   explicit EpubReaderActivity(Renderer& renderer) : renderer(renderer) {}
   struct Section { int currentPage = 0, pageCount = 1; } sectionData;
@@ -230,7 +243,7 @@ struct EpubReaderActivity {
   int clippingAtPoint(const Page&, int, int) const;
   void drawClippingHighlights(const Page&, int, int, int) const;
 };
-""" + word_font + word_rect + saved_hit + saved_draw + r"""
+""" + saved_owner + r"""
 int loadLine(ClipSelectionActivity& activity, const std::vector<std::string>& logical,
              bool rtl, int first = 0, uint32_t offset = 0, uint16_t row = 0) {
   std::vector<uint16_t> visual;
@@ -328,23 +341,6 @@ int main() {
     assert(activity.extractWords());
     assert(activity.wordCount == 2);
     expect(activity, 0, 1, "one\ntwo");
-    activity.renderer.draws.clear();
-    activity.renderer.fills.clear();
-    activity.rangeStart = 0;
-    activity.selected = 1;
-    activity.drawSelection();
-    activity.drawWordClean(0, 0, 0);  // Cursor leaves the old word.
-    activity.drawWordHighlight(1, 1, 1, 0, 0);
-    assert(activity.renderer.draws.size() == 4);
-    assert(activity.renderer.fills.size() == 4);
-    for (size_t i = 0; i < 4; ++i) {
-      const auto& draw = activity.renderer.draws[i];
-      const auto& fill = activity.renderer.fills[i];
-      assert(draw.tracking == tracking);
-      assert(draw.width == 24 + 2 * tracking);
-      assert(fill.width == draw.width);
-      assert(fill.x == draw.x);
-    }
     for (size_t i = 0; i < 2; ++i) {
       assert(activity.words[i].characterSpacing == tracking);
       assert(activity.words[i].width == 24 + 2 * tracking);
@@ -427,17 +423,15 @@ int main() {
 with tempfile.TemporaryDirectory() as directory:
     cpp = Path(directory) / "selection.cpp"
     executable = Path(directory) / "selection"
-    bidi_object = Path(directory) / "minibidi.o"
     cpp.write_text(harness)
-    subprocess.run(["cc", "-c", str(ROOT / "lib/MiniBidi/minibidi.c"), "-o", str(bidi_object)], check=True)
     subprocess.run([
         "c++", "-std=c++20", "-Wall", "-Wextra", "-Werror",
-        "-I", str(ROOT / "src"), "-I", str(ROOT / "lib/Memory"),
+        "-I", str(ROOT / "src"), "-I", str(ADAPTER), "-I", str(ROOT / "test/reader_lifecycle"), "-I", str(ROOT / "lib/Memory"),
         "-I", str(ROOT / "test/minibidi_arabic/stubs"),
         "-I", str(ROOT / "lib/MiniBidi"), "-I", str(ROOT / "lib/Utf8"),
         "-I", str(ROOT / "lib/Epub"),
-        str(cpp), str(bidi_object), str(ROOT / "lib/MiniBidi/BidiUtils.cpp"),
-        str(ROOT / "lib/Utf8/Utf8.cpp"), "-o", str(executable),
+        str(cpp), str(ROOT / "lib/MiniBidi/RustBidi.cpp"),
+        str(ROOT / "lib/Utf8/Utf8.cpp"), *rust_link_flags(), "-o", str(executable),
     ], check=True)
     subprocess.run([str(executable)], check=True)
 print("Clipping selection text regression checks passed")

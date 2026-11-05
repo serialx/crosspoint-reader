@@ -1,0 +1,1 @@
+<!DOCTYPE r [<!ATTLIST r a CDATA "default" b NMTOKENS " a  b ">]><r b=" a	 b  c "/>

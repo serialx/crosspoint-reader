@@ -1,0 +1,185 @@
+// Test-only C boundary; the adapter bodies above are extracted without edits.
+struct ResourceCallbacks {
+  void* context;
+  uint32_t (*query)(void*, uint8_t);
+  uint32_t (*operation)(void*, const XpEpubPhysicalOp*);
+  uint8_t (*prewarmBegin)(void*, XpEpubPrewarm*);
+  void (*prewarmFinish)(void*, XpEpubPrewarm*);
+  void (*prewarmDrop)(void*, XpEpubPrewarm*);
+  void (*plan)(void*, void*, uint8_t*, uint16_t, uint8_t);
+  void (*window)(void*, uint8_t*, uint32_t);
+  uint8_t (*source)(void*, void*);
+  uint8_t* (*framebuffer)(void*, size_t*);
+  uint32_t (*pageQuery)(void*, uint8_t);
+  void (*pageCommand)(void*, uint8_t, uint32_t);
+  void (*log)(void*, uint8_t, const uint8_t*, size_t);
+};
+extern "C" void* xp_epub_test_render_resources_create();
+extern "C" void xp_epub_test_render_resources_destroy(void*);
+extern "C" uint8_t xp_epub_test_render_resources_idle(void*);
+extern "C" void xp_epub_test_render_resources_run(void*, const ResourceCallbacks*, const XpAppResources*,
+                                             const uint8_t*, size_t, uint8_t);
+namespace {
+struct Content {
+  GfxRenderer& renderer;
+  const XpEpubPageView& view;
+  Page page;
+  unsigned highlights = 0;
+  explicit Content(GfxRenderer& renderer, const XpEpubPageView& view)
+      : renderer(renderer), view(view), page(Page::Borrowed{}, view.arena, view.size, view.visible_offset) {}
+};
+Content& content(void* raw) { return *static_cast<Content*>(raw); }
+const XpAppResources memory = [] {
+  XpAppResources result{};
+  result.buffer_allocate = [](uint8_t domain, size_t bytes) -> uint8_t* {
+    assert(domain == XP_APP_MEMORY_DEFAULT);
+    return static_cast<uint8_t*>(::operator new[](bytes, std::nothrow));
+  };
+  result.buffer_release = [](uint8_t domain, uint8_t* bytes) {
+    assert(domain == XP_APP_MEMORY_DEFAULT);
+    ::operator delete[](bytes);
+  };
+  return result;
+}();
+ResourceCallbacks callbacks(Content& context) {
+  return {
+    &context,
+    [](void* c, uint8_t q) { return physicalRenderQuery(content(c).renderer, q); },
+    [](void* c, const XpEpubPhysicalOp* op) { return physicalRenderOperation(content(c).renderer, *op); },
+    [](void* c, XpEpubPrewarm* p) { return physicalPrewarmBegin(content(c).renderer, p); },
+    [](void*, XpEpubPrewarm* p) { physicalPrewarmFinish(p); },
+    [](void*, XpEpubPrewarm* p) { physicalPrewarmDrop(p); },
+    [](void* c, void* plan, uint8_t* bounds, uint16_t count, uint8_t record) {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+      physicalRenderPlan(content(c).renderer, static_cast<XpPagePlan*>(plan),
+                         reinterpret_cast<XpPageRowBounds*>(bounds), count, record);
+#else
+      (void)c; (void)plan; (void)bounds; (void)count; (void)record;
+#endif
+    },
+    [](void*, uint8_t* bytes, uint32_t length) { physicalImageWindow(bytes, length); },
+    [](void*, void* source) { return physicalDisplaySource(static_cast<XpDisplaySource*>(source)); },
+    [](void* c, size_t* length) {
+      uint32_t bytes = 0;
+      auto* pixels = physicalFramebuffer(content(c).renderer, &bytes);
+      *length = bytes;
+      return pixels;
+    },
+    [](void* c, uint8_t query) -> uint32_t {
+      switch (query) {
+        case XP_UI_READER_RENDER_NOW: return millis();
+        case XP_UI_READER_RENDER_HAS_IMAGES: return content(c).page.hasImages();
+        case XP_UI_READER_RENDER_IMAGES_NEED_DECODE: return content(c).page.hasImagesNeedingDecode();
+        case XP_UI_READER_RENDER_ELEMENTS: return content(c).page.elementCount();
+        case XP_UI_READER_RENDER_TAKE_FORCED: return 0;
+        case XP_UI_READER_RENDER_COUNTER: return 3;
+        case XP_UI_READER_RENDER_FREQUENCY: return SETTINGS.getRefreshFrequency();
+        case XP_UI_READER_RENDER_TEXT_AA: return SETTINGS.textAntiAliasing;
+        case XP_UI_READER_RENDER_IS_A4: return BoardConfig::isEegoA4();
+      }
+      std::abort();
+    },
+    [](void* c, uint8_t kind, uint32_t) {
+      auto& r = content(c);
+      switch (kind) {
+        case XP_UI_READER_RENDER_IMAGE_RESET: FrameImageBlock::clearRenderFailures(); break;
+        case XP_UI_READER_RENDER_PAGE: r.page.render(r.renderer, 24, 7, 11); break;
+        case XP_UI_READER_RENDER_IMAGES: r.page.renderImages(r.renderer, 24, 7, 11); break;
+        case XP_UI_READER_RENDER_PLACEHOLDERS: r.page.renderWithImagePlaceholders(r.renderer, 24, 7, 11); break;
+        case XP_UI_READER_RENDER_HIGHLIGHTS:
+          assert(r.page.visibleTextOffset == r.view.visible_offset); ++r.highlights; break;
+        case XP_UI_READER_RENDER_STATUS:
+        case XP_UI_READER_RENDER_SET_COUNTER: break;
+        case 255: FrameImageBlock::releaseRenderCache(); break;
+        default: std::abort();
+      }
+    },
+    [](void*, uint8_t, const uint8_t*, size_t) {},
+  };
+}
+}
+
+void testPageFrame(const XpEpubPageView& page, GfxRenderer& renderer) {
+  renderer.physicalWidthOverride = 758;
+  assert(physicalRenderQuery(renderer, XP_EPUB_RENDER_WIDTH) == 758);
+  renderer.physicalWidthOverride = 0;
+  void* owner = xp_epub_test_render_resources_create();
+  Content context(renderer, page);
+  const auto services = callbacks(context);
+  xp_epub_test_render_resources_run(owner, &services, &memory, page.arena, page.size, 0);
+  assert(context.highlights > 0 && renderer.frameCache.scopes == 0);
+  xp_epub_test_render_resources_destroy(owner);
+}
+
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+extern "C" void xp_epub_test_page_borrow(const XpAppResources*, const XpEpubLeaves*, XpAppText,
+                                        void (*)(const XpEpubPageView*, void*), void*);
+namespace {
+unsigned expectedSourceWidth = 800;
+bool checkedIndependentWidth = false;
+struct StripRun { GfxRenderer& renderer; size_t fail; bool reject; size_t allocations = 0; };
+void stripBorrow(const XpEpubPageView* page, void* raw) {
+  auto& run = *static_cast<StripRun*>(raw);
+  auto& renderer = run.renderer;
+  frameChecks::reset();
+  ++frameChecks::borrows;
+  renderer.frameStride = 100;
+  expectedSourceWidth = checkedIndependentWidth ? 800 : 758;
+  renderer.physicalWidthOverride = expectedSourceWidth;
+  renderer.displays = renderer.stripBegins = 0;
+  memset(renderer.framePixels, 0xff, sizeof(renderer.framePixels));
+  display.reject = run.reject;
+  void* owner = xp_epub_test_render_resources_create();
+  Content context(renderer, *page);
+  const auto services = callbacks(context);
+  renderer.onDisplay = +[] {
+    if (!display.source) return;
+    const auto& source = *display.source;
+    assert(source.width == expectedSourceWidth && source.capacity == 8000 && source.rows == 80);
+    checkedIndependentWidth = true;
+    assert(source.paint(source.ctx, source.scratch, 0, 80) == 0);
+    assert(source.paint(source.ctx, source.scratch, 0, 80) == 0);
+  };
+  const unsigned priorDetaches = frameChecks::detaches;
+  const unsigned priorReleases = frameChecks::cacheReleases;
+  frameChecks::allocating = true;
+  frameChecks::failAt = run.fail;
+  xp_epub_test_render_resources_run(owner, &services, &memory, page->arena, page->size, 1);
+  frameChecks::allocating = false;
+  run.allocations = frameChecks::requests;
+  if (context.page.hasImages()) ++frameChecks::imageBorrows;
+  const bool active = context.page.elementCount() <= 512 && run.fail == SIZE_MAX && !run.reject;
+  if (active) ++frameChecks::successes;
+  if (run.fail != SIZE_MAX) ++frameChecks::allocationFailures[run.fail];
+  if (run.reject) ++frameChecks::sourceRejections;
+  assert(!display.source && !frameChecks::loan && !frameChecks::window);
+  assert(!renderer.framePlan && renderer.frameCache.scopes == 0);
+  assert(context.highlights && renderer.displays);
+  assert(frameChecks::cacheReleases == priorReleases + 1);
+  assert(frameChecks::detaches == priorDetaches + (active ? 1 : 0));
+  assert(frameChecks::windowClearAt < frameChecks::prewarmDropAt);
+  assert(frameChecks::prewarmDropAt < frameChecks::cacheReleaseAt);
+  if (active) assert(frameChecks::detachAt < frameChecks::windowClearAt);
+  assert(bool(xp_epub_test_render_resources_idle(owner)) == active);
+  xp_epub_test_render_resources_destroy(owner);
+  for (auto* p : frameChecks::live) assert(!p);
+  renderer.onDisplay = nullptr;
+  renderer.frameStride = 60;
+  renderer.physicalWidthOverride = 0;
+  display.reject = false;
+}
+}
+void testStripPageBorrow(const XpAppResources& memory, const XpEpubLeaves& leaves, XpAppText wire,
+                        GfxRenderer& renderer) {
+  StripRun run{renderer, SIZE_MAX, false};
+  xp_epub_test_page_borrow(&memory, &leaves, wire, stripBorrow, &run);
+  const size_t count = run.allocations;
+  for (size_t fail = 0; fail < count; ++fail) {
+    run.fail = fail;
+    xp_epub_test_page_borrow(&memory, &leaves, wire, stripBorrow, &run);
+  }
+  run.fail = SIZE_MAX;
+  run.reject = true;
+  xp_epub_test_page_borrow(&memory, &leaves, wire, stripBorrow, &run);
+}
+#endif

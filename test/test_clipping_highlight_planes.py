@@ -3,12 +3,17 @@
 from pathlib import Path
 import subprocess
 import tempfile
-
-ROOT = Path(__file__).resolve().parents[1]
-source = (ROOT / "src/activities/reader/EpubReaderActivity.cpp").read_text()
-fill = "const auto fillHighlight =" + source.split("const auto fillHighlight =", 1)[1].split("\n  uint16_t pageWordIndex", 1)[0]
-render = "auto renderGrayscalePass =" + source.split("auto renderGrayscalePass =", 1)[1].split("\n\n  if (pageHasImagesNeedingDecode)", 1)[0]
+import sys
+ADAPTER = Path(__file__).resolve().parent
+ROOT = Path(__import__("os").environ.get("XP_RETIREMENT_REPO", ADAPTER.parent)).resolve()
+sys.path.insert(0, str(ROOT / "test"))
+from rust_host import rust_link_flags
+fill = "const auto fillHighlight = [&](int x, int y, int w, int h) { retirement_planes::fill(renderer, x, y, w, h); };"
+flags = rust_link_flags()
 harness = r"""
+#if __has_include(<xp_ui_reader.h>)
+#include <xp_ui_reader.h>
+#endif
 #include <cassert>
 #include <memory>
 struct BoardConfig {
@@ -27,6 +32,7 @@ struct GfxRenderer {
   }
   void fillRectDither(int, int, int, int, Color) { ++ditherRects; }
 };
+#include "highlight_planes_owner.h"
 int main() {
   GfxRenderer renderer;
 """ + fill + r"""
@@ -40,32 +46,15 @@ int main() {
       assert(renderer.ditherRects == (a4 && mode != GfxRenderer::BW ? 0u : 1u));
     }
   }
-  int order = 0;
-  struct Page {
-    int& order;
-    void render(GfxRenderer&, int, int, int) { assert(++order == 2); }
-    void renderImages(GfxRenderer&, int, int, int) { assert(++order == 2); }
-  };
-  auto page = std::make_unique<Page>(order);
-  const int fontId = 0, orientedMarginTop = 0, orientedMarginLeft = 0;
-  const bool absoluteImageGrayscale = false;
-  bool needsTextGrayscale = true;
-  auto drawClippingHighlights = [&](Page&, int, int, int) { assert(++order == 1); };
-  auto renderStatusBar = [&] { assert(++order == 3); };
-""" + render + r"""
-  BoardConfig::a4 = true;
-  renderGrayscalePass();
-  assert(order == 3);
-  order = 0;
-  needsTextGrayscale = false;
-  renderGrayscalePass();
-  assert(order == 3);
+
 }
 """
 with tempfile.TemporaryDirectory() as directory:
     cpp = Path(directory) / "highlight.cpp"
     executable = Path(directory) / "highlight"
     cpp.write_text(harness)
-    subprocess.run(["c++", "-std=c++20", "-Wall", "-Wextra", "-Werror", str(cpp), "-o", str(executable)], check=True)
+    subprocess.run(["c++", "-std=c++20", "-Wall", "-Wextra", "-Werror", "-I", str(ADAPTER), "-I", str(ROOT / "test/reader_lifecycle"), str(cpp), *flags, "-o", str(executable)], check=True)
     subprocess.run([str(executable)], check=True)
+# Grayscale operation order is frozen by reader_render_oracle_off/on, which
+# now executes the Rust plan through the extracted production resource binding.
 print("Clipping highlight plane regression checks passed")

@@ -21,10 +21,13 @@
 #include <VectorFontSupport.h>
 #include <WiFi.h>
 #include <XteinkDetect.h>
+#include <ZipFile.h>
 #include <builtinFonts/all.h>
 #include <esp_heap_caps.h>
 #include <esp_wifi.h>
+#include <miniz.h>
 #include <time.h>
+#include <xp_ffi.h>
 
 #include <atomic>
 #include <cstdarg>
@@ -43,7 +46,9 @@
 #include "activities/Activity.h"
 #include "activities/ActivityManager.h"
 #include "activities/settings/SdFirmwareUpdateActivity.h"
+#include "components/HeaderBackTapTarget.h"
 #include "components/UITheme.h"
+#include "components/UiAppHelpers.h"
 #include "fontIds.h"
 #include "platform/UsbSerialJtagHandoff.h"
 #include "util/ButtonNavigator.h"
@@ -68,13 +73,6 @@ FontDecompressor fontDecompressor;
 SdCardFontSystem sdFontSystem;
 FontCacheManager fontCacheManager(renderer.getFontMap(), renderer.getSdCardFonts(), renderer.getTtfFonts());
 static unsigned long allowSleepAt = 0;
-static unsigned long lastX4ProPowerClickAt = 0;
-
-namespace {
-constexpr unsigned long X4PRO_POWER_DOUBLE_CLICK_MS = 500;
-constexpr unsigned long X4PRO_POWER_CLICK_MAX_HOLD_MS = 300;
-}  // namespace
-
 // A wake hold must never become an in-app power-button action.  Boot may continue
 // while the button is held; swallow the one release that ends that wake gesture.
 static bool wakePowerReleasePending = false;
@@ -205,69 +203,6 @@ void restartToHomeAfterStorageHandoff() {
   delay(50);
   handoffUsbOtgToSerialJtag();
   ESP.restart();
-}
-
-void toggleFrontlight() {
-  if (!Frontlight.present()) return;
-  const bool lightOn = !Frontlight.isOn();
-  Frontlight.setOn(lightOn);
-  SETTINGS.frontlightOn = lightOn ? 1 : 0;
-  SETTINGS.saveToFile();
-  LOG_INF("LIGHT", "Frontlight toggled %s", lightOn ? "on" : "off");
-}
-
-// Applies the slide switch's position to the bound function at boot, on each
-// change, and when its binding changes; the physical position stays the source
-// of truth, as on stock.
-void handleSlideSwitch() {
-  static int appliedAction = -1;
-  static int appliedOn = -1;
-  if (!gpio.hasToggleSwitch()) return;
-  // Compare the position, not the change edge: transfer loops poll input and
-  // clear the edge before this runs.
-  const bool on = gpio.isToggleSwitchOn();
-  if (appliedAction == SETTINGS.slideSwitchAction && appliedOn == static_cast<int>(on)) return;
-  appliedAction = SETTINGS.slideSwitchAction;
-  appliedOn = on;
-  switch (SETTINGS.slideSwitchAction) {
-    case CrossPointSettings::SLIDE_SWITCH_NIGHT_MODE:
-      if ((SETTINGS.screenInverted != 0) == on) return;
-      SETTINGS.screenInverted = on ? 1 : 0;
-      break;
-    case CrossPointSettings::SLIDE_SWITCH_TOUCH_CONTROLS:
-      if ((SETTINGS.touchReaderControls != CrossPointSettings::TOUCH_READER_OFF) == on) return;
-      SETTINGS.touchReaderControls = on ? CrossPointSettings::TOUCH_READER_ON : CrossPointSettings::TOUCH_READER_OFF;
-      break;
-    default:
-      if (!Frontlight.present() || Frontlight.isOn() == on) return;
-      Frontlight.setOn(on);
-      SETTINGS.frontlightOn = on ? 1 : 0;
-      break;
-  }
-  SETTINGS.saveToFile();
-  activityManager.requestUpdate();
-  LOG_INF("SWITCH", "Slide switch %s", on ? "on" : "off");
-}
-
-bool handleX4ProFrontlightDoubleClick() {
-  if (!BoardConfig::isX4Pro() || !SETTINGS.doubleClickPwrLight || !gpio.wasReleased(HalGPIO::BTN_POWER)) {
-    return false;
-  }
-
-  const unsigned long now = millis();
-  if (gpio.getPowerButtonHeldTime() > X4PRO_POWER_CLICK_MAX_HOLD_MS) {
-    lastX4ProPowerClickAt = 0;
-    return false;
-  }
-
-  if (lastX4ProPowerClickAt == 0 || now - lastX4ProPowerClickAt > X4PRO_POWER_DOUBLE_CLICK_MS) {
-    lastX4ProPowerClickAt = now;
-    return false;
-  }
-
-  lastX4ProPowerClickAt = 0;
-  toggleFrontlight();
-  return true;
 }
 
 // Bluetooth page turner (lib/BlePageTurner): what the module may ask of this firmware. The module
@@ -516,6 +451,245 @@ void enterDeepSleep(bool fromTimeout = false) {
   powerManager.startDeepSleep(gpio, wakeOnHeldButton);
 }
 
+namespace {
+void mappedSnapshot(uint8_t poll, uint8_t fullButtons, uint8_t consumeRelease, XpAppMappedSnapshot* snapshot) {
+  if (poll) mappedInputManager.update(false);
+  *snapshot = {};
+  auto& input = snapshot->input;
+  if (fullButtons) {
+    constexpr MappedInputManager::Button buttons[] = {
+        MappedInputManager::Button::Back,        MappedInputManager::Button::Confirm,
+        MappedInputManager::Button::NavNext,     MappedInputManager::Button::NavPrevious,
+        MappedInputManager::Button::Left,        MappedInputManager::Button::Right,
+        MappedInputManager::Button::Up,          MappedInputManager::Button::Down,
+        MappedInputManager::Button::Power,       MappedInputManager::Button::PageBack,
+        MappedInputManager::Button::PageForward, MappedInputManager::Button::ScreenLeft,
+        MappedInputManager::Button::ScreenRight, MappedInputManager::Button::ScreenUp,
+        MappedInputManager::Button::ScreenDown};
+    for (unsigned i = 0; i < sizeof(buttons) / sizeof(buttons[0]); ++i) {
+      if (mappedInputManager.wasPressed(buttons[i])) input.pressed |= 1u << i;
+      if (mappedInputManager.wasReleased(buttons[i])) input.released |= 1u << i;
+      if (mappedInputManager.isPressed(buttons[i])) input.held |= 1u << i;
+    }
+    input.now_ms = millis();
+    input.held_ms = mappedInputManager.getHeldTime();
+    const auto touch = touchSnapshotFrom(mappedInputManager);
+    input.touch_x = touch.touchX;
+    input.touch_y = touch.touchY;
+    input.touch_flags = (touch.touchPressed ? XP_UI_TOUCH_PRESSED : 0) |
+                        (touch.touchReleased ? XP_UI_TOUCH_RELEASED : 0) | (touch.touchHeld ? XP_UI_TOUCH_HELD : 0);
+  }
+  const bool homeKeys = !poll && !consumeRelease;
+  if (fullButtons || homeKeys) {
+    switch (mappedInputManager.wasSwipe()) {
+      case MappedInputManager::SwipeDir::Up:
+        input.swipe = XP_UI_SWIPE_UP;
+        break;
+      case MappedInputManager::SwipeDir::Down:
+        input.swipe = XP_UI_SWIPE_DOWN;
+        break;
+      case MappedInputManager::SwipeDir::Left:
+        input.swipe = XP_UI_SWIPE_LEFT;
+        break;
+      case MappedInputManager::SwipeDir::Right:
+        input.swipe = XP_UI_SWIPE_RIGHT;
+        break;
+      case MappedInputManager::SwipeDir::None:
+        break;
+    }
+  }
+  if (homeKeys) {
+    input.now_ms = millis();
+    snapshot->home_key_pressed = gpio.wasHomeKeyPressed();
+    snapshot->home_key_tapped = gpio.wasHomeKeyTapped();
+    snapshot->home_key_long_pressed = gpio.wasHomeKeyLongPressed();
+    snapshot->has_home_key = gpio.hasHomeKey();
+  }
+  if (poll || homeKeys) snapshot->power_released = gpio.wasReleased(HalGPIO::BTN_POWER);
+  if (poll) {
+    if (!fullButtons && mappedInputManager.wasReleased(MappedInputManager::Button::Power))
+      input.released |= XP_UI_POWER;
+    snapshot->power_held_ms = gpio.getPowerButtonHeldTime();
+    snapshot->power_held = gpio.isPressed(HalGPIO::BTN_POWER);
+    snapshot->physical_down = gpio.isPressed(HalGPIO::BTN_DOWN);
+    snapshot->any_pressed = gpio.wasAnyPressed();
+    snapshot->any_released = gpio.wasAnyReleased();
+    snapshot->touch_activity = gpio.wasTouchActivity();
+    snapshot->has_switch = gpio.hasToggleSwitch();
+    snapshot->switch_on = gpio.isToggleSwitchOn();
+    snapshot->usb_changed = gpio.wasUsbStateChanged();
+  }
+  if (consumeRelease) {
+    snapshot->suppressed_release = mappedInputManager.consumeSuppressedRelease();
+    snapshot->home_gesture = mappedInputManager.wasHomeGesture();
+    snapshot->light_panel_gesture = mappedInputManager.wasLightPanelGesture();
+    int tx = 0, ty = 0;
+    snapshot->status_bar_tap = mappedInputManager.hasTouch() && mappedInputManager.wasScreenTapped(tx, ty) && ty < 44 &&
+                               !HeaderBackTapTarget::contains(tx, ty);
+  }
+  snapshot->cpu_hold = pageturner::holdsCpu.load();
+}
+
+const XpAppRuntime& appRuntime() {
+  static const XpAppRuntime runtime{
+      .input_mapped_snapshot = mappedSnapshot,
+      .input_shared_power_mode = [](uint8_t enabled) { gpio.setSharedConfirmPowerShortPressEmitsPower(enabled != 0); },
+      .input_power_confirm =
+          [](uint8_t clicked) {
+#if FREEINK_CAP_TOUCH
+            mappedInputManager.setPowerConfirmClickFrame(clicked != 0);
+#else
+            (void)clicked;
+#endif
+          },
+      .input_remote_click = [](uint8_t button) -> uint8_t {
+        return mappedInputManager.injectRemoteClick(static_cast<RemoteButton>(button));
+      },
+      .loop_settings =
+          [](XpAppSettings* settings) {
+            *settings = {};
+            const auto& stored = SETTINGS;
+            settings->power_duration = stored.getPowerButtonDuration();
+            settings->sleep_timeout = stored.getSleepTimeoutMs();
+            settings->idle_power_saving = HalPowerManager::IDLE_POWER_SAVING_MS;
+            settings->home_tap = stored.homeButtonTapAction;
+            settings->home_double = stored.homeButtonDoubleTapAction;
+            settings->home_long = stored.homeButtonLongPressAction;
+            settings->short_power = stored.shortPwrBtn;
+            settings->double_power_light = stored.doubleClickPwrLight;
+            settings->slide_action = stored.slideSwitchAction;
+            settings->tilt = stored.tiltPageTurn;
+            settings->reader_orientation = stored.orientation;
+            settings->fading_fix = stored.fadingFix;
+            settings->screen_inverted = stored.screenInverted;
+            settings->touch_reader = stored.touchReaderControls;
+            settings->frontlight_on = stored.frontlightOn;
+            settings->is_x4pro = BoardConfig::isX4Pro();
+            settings->is_papermono = FREEINK_DEVICE_PAPERMONO;
+          },
+      .display_geometry = []() -> XpAppDisplayGeometry {
+        return {renderer.getScreenWidth(), renderer.getScreenHeight(), renderer.getOrientation(),
+                static_cast<uint8_t>(renderer.hasFrameBuffer())};
+      },
+      .header_back_clear = [] { HeaderBackTapTarget::clear(); },
+      .now_ms = []() -> uint32_t { return millis(); },
+      .delay_ms = [](uint32_t ms) { delay(ms); },
+      .idle_wait =
+          [](uint32_t duration, uint32_t slice) {
+            const auto started = millis();
+            while (millis() - started < duration) {
+              delay(slice);
+              if (gpio.rawInputActive()) break;
+            }
+          },
+      .yield_task = [] { yield(); },
+      .power_saving = [](uint8_t enabled) { powerManager.setPowerSaving(enabled != 0); },
+      .tilt_update = [](uint8_t enabled, uint8_t orientation, uint8_t reader) -> uint8_t {
+        halTiltSensor.update(enabled, orientation, reader != 0);
+        return halTiltSensor.hadActivity();
+      },
+      .battery_capacity_step = []() -> uint8_t { return BatteryMonitor::loadDesignCapacity(); },
+      .fading_fix = [](uint8_t enabled) { renderer.setFadingFix(enabled); },
+      .memory_diagnostic =
+          [] {
+            if (!(Serial || FREEINK_LOG_TRANSPORT == FREEINK_LOG_TRANSPORT_ROM_PRINTF)) return;
+            const auto heap = HalMemory::getInternalHeap();
+            LOG_INF("MEM", "Free: %zu bytes, Total: %zu bytes, Min Free: %zu bytes, MaxAlloc: %zu bytes",
+                    heap.freeBytes, heap.totalBytes, heap.minFreeBytes, heap.largestBlockBytes);
+#ifdef BOARD_HAS_PSRAM
+            const auto psram = HalMemory::getPsramHeap();
+            LOG_INF("MEM", "PSRAM: Free: %zu bytes, Total: %zu bytes, Min Free: %zu bytes, MaxAlloc: %zu bytes",
+                    psram.freeBytes, psram.totalBytes, psram.minFreeBytes, psram.largestBlockBytes);
+#endif
+          },
+      .console_service =
+          [] {
+            if (logSerial.available() <= 0) return;
+            String line = logSerial.readStringUntil('\n');
+            if (!line.startsWith("CMD:")) return;
+            String command = line.substring(4);
+            command.trim();
+            if (command == "SCREENSHOT") {
+              const uint32_t size = display.getBufferSize();
+              logSerial.printf("SCREENSHOT_START:%d\n", size);
+              logSerial.write(display.getFrameBuffer(), size);
+              logSerial.printf("SCREENSHOT_END\n");
+            }
+          },
+      .screenshot = [] { ScreenshotUtil::takeScreenshot(renderer); },
+      .touch_feedback = [](uint8_t longPress) { haptic_feedback::touchAction(longPress != 0); },
+      .frontlight_present = []() -> uint8_t { return Frontlight.present(); },
+      .frontlight_state = []() -> uint8_t { return Frontlight.isOn(); },
+      .frontlight_set = [](uint8_t enabled) { Frontlight.setOn(enabled != 0); },
+      .settings_save =
+          [](const XpAppSettings* settings) {
+            SETTINGS.frontlightOn = settings->frontlight_on;
+            SETTINGS.screenInverted = settings->screen_inverted;
+            SETTINGS.touchReaderControls = settings->touch_reader;
+            SETTINGS.saveToFile();
+          },
+      .ble_tick = [](const XpAppBleScene* view) -> uint8_t {
+        bleturner::Scene scene{};
+        scene.where = static_cast<bleturner::Where>(view->where);
+        scene.visit = view->visit;
+        scene.pageShown = view->page_shown != 0;
+        scene.storageBusy = view->storage_busy != 0;
+        scene.wifiOn = WiFi.getMode() != WIFI_MODE_NULL;
+        return bleturner::tick(scene);
+      },
+      .ble_before_screen_change = [](uint8_t reader) -> uint8_t {
+        return bleturner::beforeScreenChange(0, reader != 0);
+      },
+      .sleep_enter = [](uint8_t timeout) { enterDeepSleep(timeout != 0); },
+      .diagnostic =
+          [](uint8_t event, uint32_t first, uint32_t second) {
+            switch (event) {
+              case 0:
+                LOG_DBG("ACT", "Entering activity: Home");
+                break;
+              case 1:
+                LOG_DBG("ACT", "Exiting activity: Home");
+                break;
+              case 2:
+                LOG_ERR("ACT", "OOM: Rust application resource %u", first);
+                break;
+              case 3:
+                LOG_ERR("RUI", "Cannot build or paint Home scene");
+                break;
+              case 5:
+                LOG_DBG("LOOP", "New max loop duration: %lu ms (activity: %lu ms)", static_cast<unsigned long>(first),
+                        static_cast<unsigned long>(second));
+                break;
+              case 6:
+                LOG_DBG("SLP", "Auto-sleep triggered after %lu ms of inactivity", static_cast<unsigned long>(first));
+                break;
+              case 7:
+                LOG_DBG("MAIN", "Power button held %lums, sleeping", static_cast<unsigned long>(first));
+                break;
+              case 8:
+                LOG_DBG("MAIN", "Manual screen refresh triggered");
+                break;
+              case 9:
+                LOG_ERR("ACT", "Pop set but currentActivity is null; ignoring pop request");
+                break;
+              case 10:
+                LOG_ERR("ACT", "Result transfer failed for kind=%u", first);
+                break;
+              case 11:
+                LOG_INF("LIGHT", "Frontlight toggled %s", first ? "on" : "off");
+                break;
+              case 12:
+                LOG_INF("SWITCH", "Slide switch %s", first ? "on" : "off");
+                break;
+              default:
+                break;
+            }
+          },
+  };
+  return runtime;
+}
+}  // namespace
+
 void setupDisplayAndFonts(bool seamless = false) {
 #if !FREEINK_MCU_C3
   // C3 resolves its controller in HalGPIO::begin() before SPI claims the
@@ -532,7 +706,7 @@ void setupDisplayAndFonts(bool seamless = false) {
 
   display.begin(seamless);
   renderer.begin();
-  activityManager.begin();
+  activityManager.begin(appRuntime());
   LOG_DBG("MAIN", "Display initialized");
 
   // Initialize font decompressor for compressed reader fonts
@@ -573,6 +747,13 @@ void setup() {
 #endif
 
   HalSystem::begin();
+  constexpr char RUST_CHECK[] = "123456789";
+  const auto* rustCheck = reinterpret_cast<const uint8_t*>(RUST_CHECK);
+  const bool rustOk =
+      xp_fnv1a64(rustCheck, sizeof(RUST_CHECK) - 1) == ZipFile::fnvHash64(RUST_CHECK, sizeof(RUST_CHECK) - 1) &&
+      xp_crc32(rustCheck, sizeof(RUST_CHECK) - 1) == mz_crc32(0, rustCheck, sizeof(RUST_CHECK) - 1);
+  LOG_INF("RUST", "ABI version %lu; self-check %s", static_cast<unsigned long>(xp_abi_version()),
+          rustOk ? "OK" : "MISMATCH");
   // checkPanic() clears the watchdog capture marker after a successful SD
   // dump, so retain the boot classification for the later activity route.
   const bool rebootedFromPanic = HalSystem::isRebootFromPanic();
@@ -831,282 +1012,12 @@ void setup() {
   }
 
   allowSleepAt = millis() + 2000;
+  XpAppEvent bootInput{.kind = XP_APP_BOOT_INPUT_STATE};
+  bootInput.value.boot_input = {static_cast<uint32_t>(allowSleepAt), static_cast<uint8_t>(wakePowerReleasePending)};
+  xp_app_event(&bootInput);
+#ifdef CROSSPOINT_UI_ORACLE
+  uiOracleEnter(renderer, mappedInputManager);  // Test-only activity fixtures.
+#endif
 }
 
-void loop() {
-  static unsigned long maxLoopDuration = 0;
-  const unsigned long loopStartTime = millis();
-  static unsigned long lastMemPrint = 0;
-
-  gpio.setSharedConfirmPowerShortPressEmitsPower(SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::SLEEP);
-  mappedInputManager.update();
-
-  // Bluetooth page turner, before the USB drive's early return: a card handed to USB stops the radio
-  // before anything else.
-  bleturner::Scene scene{};
-  // Home counts only for builds whose radio may start there (the S3 profile, RadioPolicy.h).
-  const bool homeShown = activityManager.isForegroundHomeShown();
-  const bool remoteContext = activityManager.isRemoteReaderContext();
-  scene.where = remoteContext ? bleturner::Where::Reader
-                : homeShown   ? bleturner::Where::Home
-                              : bleturner::Where::Elsewhere;
-  scene.visit = activityManager.visit();
-  scene.pageShown = homeShown || remoteContext;
-  scene.storageBusy = activityManager.requiresExclusiveStorageLoop();
-  scene.wifiOn = WiFi.getMode() != WIFI_MODE_NULL;
-  const bool remoteActed = bleturner::tick(scene);
-
-  if (activityManager.requiresExclusiveStorageLoop()) {
-    // USB Drive handed the raw SD card to the host. Do not run screenshots,
-    // sleep, shortcuts, or normal navigation while its filesystem is detached.
-    activityManager.loop();
-    if (activityManager.preventAutoSleep()) {
-      powerManager.setPowerSaving(false);
-      delay(10);
-    } else {
-      // No host is active, so a slower loop is safe. The activity itself times
-      // out the raw-storage handoff rather than entering deep sleep detached.
-      powerManager.setPowerSaving(true);
-      delay(50);
-    }
-    return;
-  }
-
-  // After the exclusive-storage return: it saves settings to the SD card.
-  handleSlideSwitch();
-  halTiltSensor.update(SETTINGS.tiltPageTurn, SETTINGS.orientation, activityManager.isReaderActivity());
-
-  // Under the render lock, so a step never overlaps the themes' gauge reads.
-  static bool gaugeCapacityPending = true;
-  if (gaugeCapacityPending) {
-    RenderLock lock(RenderLock::Mode::Try);
-    if (lock.ownsLock()) gaugeCapacityPending = BatteryMonitor::loadDesignCapacity();
-  }
-
-  renderer.setFadingFix(SETTINGS.fadingFix);
-
-  // The ROM console does not depend on Arduino USB CDC's connection state.
-  if ((Serial || FREEINK_LOG_TRANSPORT == FREEINK_LOG_TRANSPORT_ROM_PRINTF) && millis() - lastMemPrint >= 10000) {
-    const auto heap = HalMemory::getInternalHeap();
-    LOG_INF("MEM", "Free: %zu bytes, Total: %zu bytes, Min Free: %zu bytes, MaxAlloc: %zu bytes", heap.freeBytes,
-            heap.totalBytes, heap.minFreeBytes, heap.largestBlockBytes);
-#ifdef BOARD_HAS_PSRAM
-    const auto psram = HalMemory::getPsramHeap();
-    LOG_INF("MEM", "PSRAM: Free: %zu bytes, Total: %zu bytes, Min Free: %zu bytes, MaxAlloc: %zu bytes",
-            psram.freeBytes, psram.totalBytes, psram.minFreeBytes, psram.largestBlockBytes);
-#endif
-    lastMemPrint = millis();
-  }
-
-  // Handle incoming serial commands,
-  // nb: we use logSerial from logging to avoid deprecation warnings
-  if (logSerial.available() > 0) {
-    String line = logSerial.readStringUntil('\n');
-    if (line.startsWith("CMD:")) {
-      String cmd = line.substring(4);
-      cmd.trim();
-      if (cmd == "SCREENSHOT") {
-        const uint32_t bufferSize = display.getBufferSize();
-        logSerial.printf("SCREENSHOT_START:%d\n", bufferSize);
-        uint8_t* buf = display.getFrameBuffer();
-        logSerial.write(buf, bufferSize);
-        logSerial.printf("SCREENSHOT_END\n");
-      }
-    }
-  }
-
-  // Check for any user activity (button press or release) or active background work
-  static unsigned long lastActivityTime = millis();
-  if (gpio.wasAnyPressed() || gpio.wasAnyReleased() || gpio.wasTouchActivity() || halTiltSensor.hadActivity() ||
-      remoteActed || activityManager.preventAutoSleep()) {
-    lastActivityTime = millis();         // Reset inactivity timer
-    powerManager.setPowerSaving(false);  // Restore normal CPU frequency on user activity
-  }
-
-  // Let wake continue as soon as its hold has been verified. The release can
-  // arrive after setup, so consume that one input frame rather than making it
-  // a page turn, refresh, or other short power-button action.
-  if (wakePowerReleasePending && !gpio.isPressed(HalGPIO::BTN_POWER)) {
-    wakePowerReleasePending = false;
-    return;
-  }
-
-  static bool screenshotButtonsReleased = true;
-  static bool screenshotComboActive = false;
-  if (gpio.isPressed(HalGPIO::BTN_POWER) && gpio.isPressed(HalGPIO::BTN_DOWN)) {
-    screenshotComboActive = true;
-    if (screenshotButtonsReleased) {
-      screenshotButtonsReleased = false;
-      {
-        RenderLock lock;
-        ScreenshotUtil::takeScreenshot(renderer);
-      }
-    }
-    return;
-  }
-  if (screenshotComboActive) {
-    if (gpio.isPressed(HalGPIO::BTN_POWER)) return;
-    if (gpio.wasReleased(HalGPIO::BTN_POWER)) {
-      screenshotButtonsReleased = true;
-      screenshotComboActive = false;
-      return;
-    }
-    screenshotButtonsReleased = true;
-    screenshotComboActive = false;
-  }
-
-  // Consume the second X4 Pro power-button release so it does not also run a
-  // configured short-power action after toggling the frontlight.
-  if (handleX4ProFrontlightDoubleClick()) {
-    return;
-  }
-
-  const bool x4ProDoubleClickPwrLight = BoardConfig::isX4Pro() && SETTINGS.doubleClickPwrLight;
-
-#if FREEINK_CAP_TOUCH
-  // A single X4 Pro power click becomes Confirm only after the frontlight
-  // double-click window expires without a second click.
-  mappedInputManager.setPowerConfirmClickFrame(false);
-  if (SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::PWR_CONFIRM && x4ProDoubleClickPwrLight) {
-    if (lastX4ProPowerClickAt != 0 && millis() - lastX4ProPowerClickAt > X4PRO_POWER_DOUBLE_CLICK_MS) {
-      lastX4ProPowerClickAt = 0;
-      mappedInputManager.setPowerConfirmClickFrame(true);
-    }
-    // A release held too long to be a double-click candidate (but still within
-    // the normal Confirm press duration) never reaches handleX4ProFrontlightDoubleClick's
-    // click tracking above, so it needs its own Confirm check here.
-    if (mappedInputManager.wasReleased(MappedInputManager::Button::Power) &&
-        gpio.getPowerButtonHeldTime() > X4PRO_POWER_CLICK_MAX_HOLD_MS &&
-        gpio.getPowerButtonHeldTime() <= SETTINGS.getPowerButtonDuration()) {
-      mappedInputManager.setPowerConfirmClickFrame(true);
-    }
-  }
-#endif
-
-  // Same deferral for SLEEP: getPowerButtonDuration() drops to 10ms so a quick
-  // tap sleeps the device, which otherwise fires on button-down and never lets
-  // a second click land. Sleep only once the double-click window has passed.
-  if (SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::SLEEP && x4ProDoubleClickPwrLight &&
-      lastX4ProPowerClickAt != 0 && millis() - lastX4ProPowerClickAt > X4PRO_POWER_DOUBLE_CLICK_MS) {
-    lastX4ProPowerClickAt = 0;
-    enterDeepSleep();
-    // This should never be hit as `enterDeepSleep` calls esp_deep_sleep_start
-    return;
-  }
-
-  const unsigned long sleepTimeoutMs = SETTINGS.getSleepTimeoutMs();
-  if (sleepTimeoutMs > 0 && millis() - lastActivityTime >= sleepTimeoutMs) {
-    LOG_DBG("SLP", "Auto-sleep triggered after %lu ms of inactivity", sleepTimeoutMs);
-    enterDeepSleep(true);
-    // This should never be hit as `enterDeepSleep` calls esp_deep_sleep_start
-    return;
-  }
-
-  // A hold that woke the device must be released before it can count as a new
-  // in-app long press. Otherwise a user who keeps holding after wake would put
-  // the device straight back to sleep once allowSleepAt expires.
-  static bool powerReleasedSinceWake = false;
-  if (!gpio.isPressed(HalGPIO::BTN_POWER)) powerReleasedSinceWake = true;
-
-  // On X4 Pro with SLEEP, a press still within the click window is a
-  // double-click candidate — let it be released and evaluated above instead
-  // of sleeping on button-down.
-  const bool x4ProAwaitingClickWindow = x4ProDoubleClickPwrLight &&
-                                        SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::SLEEP &&
-                                        gpio.getPowerButtonHeldTime() <= X4PRO_POWER_CLICK_MAX_HOLD_MS;
-
-  if (!x4ProAwaitingClickWindow && powerReleasedSinceWake && millis() >= allowSleepAt &&
-      gpio.isPressed(HalGPIO::BTN_POWER) && gpio.getPowerButtonHeldTime() > SETTINGS.getPowerButtonDuration()) {
-    // If the screenshot combination is potentially being pressed, don't sleep
-    if (gpio.isPressed(HalGPIO::BTN_DOWN)) {
-      return;
-    }
-    LOG_DBG("MAIN", "Power button held %lums, sleeping", gpio.getPowerButtonHeldTime());
-    enterDeepSleep();
-    // This should never be hit as `enterDeepSleep` calls esp_deep_sleep_start
-    return;
-  }
-
-#if FREEINK_DEVICE_PAPERMONO
-  // Paper Mono reports the PMIC power button as a one-tick click, so the held
-  // path above cannot fire. With the default Ignore action, retain the normal
-  // power-button meaning and shut down; explicit alternate bindings still win.
-  if ((SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::SLEEP ||
-       SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::IGNORE) &&
-      millis() >= allowSleepAt && mappedInputManager.wasReleased(MappedInputManager::Button::Power)) {
-    enterDeepSleep();
-    return;
-  }
-#endif
-
-  // Refresh screen when power button is short-pressed with FORCE_REFRESH setting.
-  if (mappedInputManager.homeButtonAction() == HomeButtonAction::ToggleFrontlight) {
-    toggleFrontlight();
-  }
-  if (mappedInputManager.homeButtonAction() == HomeButtonAction::Refresh ||
-      (SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::FORCE_REFRESH &&
-       mappedInputManager.wasReleased(MappedInputManager::Button::Power))) {
-    LOG_DBG("MAIN", "Manual screen refresh triggered");
-    if (!activityManager.handleForcedRefresh()) {
-      RenderLock lock;
-      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
-    }
-  }
-
-  // Refresh the battery icon when USB is plugged or unplugged.
-  // Placed after sleep guards so we never queue a render that won't be processed.
-  // Not while reading: there a repaint is a full page re-render (visible
-  // flash, the AA pass re-running, and a frontlight dip under the refresh
-  // load); the reader's status bar picks the charging state up on the next
-  // page turn instead.
-  if (gpio.wasUsbStateChanged() && !activityManager.isReaderActivity()) {
-    activityManager.requestUpdate();
-  }
-
-  const unsigned long activityStartTime = millis();
-  activityManager.loop();
-  const unsigned long activityDuration = millis() - activityStartTime;
-
-  const unsigned long loopDuration = millis() - loopStartTime;
-  if (loopDuration > maxLoopDuration) {
-    maxLoopDuration = loopDuration;
-    if (maxLoopDuration > 50) {
-      LOG_DBG("LOOP", "New max loop duration: %lu ms (activity: %lu ms)", maxLoopDuration, activityDuration);
-    }
-  }
-
-  bool skipLoopDelay = false;
-  {
-    RenderLock lock(RenderLock::Mode::Try);
-    if (!lock.ownsLock()) {
-      // Let rendering advance without treating lock contention as idle.
-      delay(10);
-      return;
-    }
-    skipLoopDelay = activityManager.skipLoopDelay();
-  }
-
-  // Add delay at the end of the loop to prevent tight spinning
-  // When an activity requests skip loop delay (e.g., webserver running), use yield() for faster response
-  // Otherwise, use longer delay to save power
-  if (skipLoopDelay) {
-    powerManager.setPowerSaving(false);  // Make sure we're at full performance when skipLoopDelay is requested
-    yield();                             // Give FreeRTOS a chance to run tasks, but return immediately
-  } else {
-    if (millis() - lastActivityTime >= HalPowerManager::IDLE_POWER_SAVING_MS && !pageturner::holdsCpu.load()) {
-      // If we've been inactive for a while, increase the delay to save power
-      powerManager.setPowerSaving(true);  // Lower CPU frequency after extended inactivity
-      // Sleep in short slices and wake the poll as soon as a button contact closes.
-      // InputManager commits a press only when two consecutive polls agree, so a
-      // press shorter than one 50 ms sleep could land in a single sample and be lost.
-      const unsigned long idleStart = millis();
-      while (millis() - idleStart < 50) {
-        delay(10);
-        if (gpio.rawInputActive()) break;
-      }
-    } else {
-      // Short delay to prevent tight loop while still being responsive
-      delay(10);
-    }
-  }
-}
+void loop() { activityManager.loop(); }

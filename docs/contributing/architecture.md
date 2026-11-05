@@ -47,8 +47,10 @@ In each loop iteration, the firmware updates input, runs the active activity, ha
 
 ## Activity model
 
-Activities are screen-level controllers deriving from `src/activities/Activity.h`.
-Some flows use `src/activities/ActivityWithSubactivity.h` to host nested activities.
+The Rust application owns the activity stack, Home and the EPUB session. Native
+activities derive from `src/activities/Activity.h` and join that stack through the
+legacy activity boundary. Some native flows use
+`src/activities/ActivityWithSubactivity.h` to host nested activities.
 
 - `onEnter()` and `onExit()` manage setup/teardown
 - `loop()` handles per-frame behavior
@@ -57,26 +59,43 @@ Some flows use `src/activities/ActivityWithSubactivity.h` to host nested activit
 Top-level activity groups:
 
 - `src/activities/home/`: home and library navigation
-- `src/activities/reader/`: EPUB/XTC/TXT reading flows
+- `rust/crates/xp-ffi/src/app/epub/`: EPUB/TXT/Markdown session policy
+- `src/activities/reader/`: native XTC owner, reader resources and child screens
 - `src/activities/settings/`: settings menus and configuration
 - `src/activities/network/`: Wi-Fi selection, AP/STA mode, file transfer server
 - `src/activities/boot_sleep/`: boot and sleep transitions
 
 ## Reader and content pipeline
 
-Reader orchestration starts in `src/activities/reader/ReaderActivity.h` and dispatches to format-specific readers.
-EPUB processing is implemented in `lib/Epub/`.
+Reader launches enter the Rust application. Reflowable books use its `EpubSession`;
+XTC/XTCH retain the native `ReaderActivity`/`XtcReaderActivity` route.
+The [reader policy boundary](rust-ui.md#reader-policy-boundary) describes Rust policy ownership and native resource lifetimes.
+The reader owns one Rust `ReaderBook` for metadata, cache setup and resource
+lifetimes, and one Rust `ReaderSection` for cache/build/Chapter lifetime. Its
+retained native `Epub` facade forwards child and sync queries to that book.
+Rust's `page_owner` owns reader Pages and Page metadata. Native `Page` remains
+for dictionary/preview Pages and as borrowed/transferred facades for the three
+native children. The cache-only ProgressMapper Section and dictionary Chapter
+adapter remain in `lib/Epub/`. See [Reader Page ownership](rust.md#reader-page-ownership).
+Ordinary Home, Library, Sleep and sync consumers retain native Epub ownership.
+Both routes use the streaming Rust core. The KOReader XPath adapter uses `xp_sync_xpath_*`;
+Rust owns the parser and XPath state and consumes XML events directly. The pinned SDK's
+OPDS, OpenSearch and XML catalog consumers retain their interfaces through the
+small Expat API adapter in `lib/expat`; the firmware does not link Expat's C
+parser. The original parser lives in `test/vendor/expat` as a host oracle.
+See [Rust integration](rust.md#sdk-xml-compatibility) for the supported API and
+allocation ownership.
 
 ```mermaid
 flowchart LR
-    A[Select book] --> B[ReaderActivity]
+    A[Select book] --> B[Rust application]
     B --> C{Format}
-    C -->|EPUB| D[lib/Epub/Epub]
-    C -->|XTC| E[lib/Xtc reader]
-    C -->|TXT| F[lib/Txt reader]
+    C -->|EPUB / TXT / Markdown| F[EpubSession]
+    F --> D[Rust ReaderBook / native physical leaves]
+    C -->|XTC / XTCH| E[Native XtcReaderActivity]
     D --> G[Parse OPF/TOC and collect CSS refs]
     G --> H[Build/load book.bin and css_rules.cache]
-    H --> I[Layout pages/sections]
+    H --> I[Native Epub facade / Section layout]
     I --> J[Write section cache]
     J --> K[Render current page via GfxRenderer]
 ```
@@ -92,17 +111,17 @@ This diagram zooms into the EPUB path to show the main control and data flow fro
 
 ```mermaid
 flowchart TD
-    A[ReaderActivity onEnter] --> B{File type}
-    B -->|EPUB| C[Create Epub object]
-    B -->|XTC/TXT| Z[Use format-specific reader]
+    A[Rust application Reader launch] --> B{File type}
+    B -->|Reflowable| C[EpubSession creates Rust ReaderBook]
+    B -->|XTC / XTCH| Z[Native XtcReaderActivity]
 
-    C --> D[Epub load]
+    C --> D[ReaderBook load]
     D --> E[Locate container and OPF]
-    E --> F[Build or load BookMetadataCache]
+    E --> F[Build or load book.bin in Rust]
     F --> G[Load TOC and spine]
     G --> H[Load CSS cache or parse manifest/base-dir CSS]
 
-    H --> I[EpubReaderActivity]
+    H --> I[Publish native facade for Section / EpubSession render]
     I --> J{Section cache exists for current settings?}
     J -->|Yes| K[Read section bin from SD cache]
     J -->|No| L[Parse chapter HTML and layout text]
@@ -188,7 +207,10 @@ Some sources are generated and should not be edited manually.
 
 - `scripts/build_html.py` generates `src/network/html/*.generated.h` from HTML files
 - `scripts/gen_i18n.py` generates `lib/I18n/I18nKeys.h`, `I18nStrings.h`, and `I18nStrings.cpp`
-- `scripts/generate_hyphenation_trie.py` generates hyphenation headers under `lib/Epub/Epub/hyphenation/generated/`
+- `scripts/generate_hyphenation_trie.py` validates and copies raw hyphenation
+  `.bin` files into `rust/crates/xp-core/data/hyph/`. Refresh them explicitly with
+  `./scripts/update_hyphenation.sh`; normal firmware builds embed the checked-in
+  files. See the [trie format and refresh workflow](../hyphenation-trie-format.md).
 
 When editing related source assets, regenerate via normal build steps/scripts.
 

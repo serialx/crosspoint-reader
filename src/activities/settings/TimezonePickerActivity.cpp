@@ -11,10 +11,11 @@
 namespace fui = freeink::ui;
 
 TimezonePickerActivity::TimezonePickerActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
-    : UiListActivity("TimezonePicker", renderer, mappedInput) {}
+    : SettingsUiActivity("TimezonePicker", renderer, mappedInput, XP_UI_SETTINGS_TIMEZONE) {}
 
 void TimezonePickerActivity::onEnter() {
-  UiListActivity::onEnter();
+  SettingsUiActivity::onEnter();
+  if (!hasUiStorage()) return;
   const size_t count = timezones::count();
   offsetLabels_.resize(count);
   rowItems_.resize(count);
@@ -27,7 +28,7 @@ void TimezonePickerActivity::onEnter() {
     rowItems_[i].actionValue = static_cast<int16_t>(i);
   }
   // Open on the active zone rather than the top of a ~50-row list.
-  nav.reset(timezones::activeIndex());
+  resetSelection(timezones::activeIndex());
 }
 
 int TimezonePickerActivity::listCount() const { return static_cast<int>(timezones::count()); }
@@ -42,20 +43,4 @@ void TimezonePickerActivity::activateIndex(const int index) {
   finish();
 }
 
-void TimezonePickerActivity::buildScreen(UiScreen& screen) {
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  screen.setContentMarginFromScreen(fui::Insets{static_cast<int16_t>(metrics.topPadding + metrics.headerHeight), 0,
-                                                static_cast<int16_t>(metrics.buttonHintsHeight), 0});
-  screen.spacer(static_cast<int16_t>(metrics.verticalSpacing));
-
-  fui::ListProps props;
-  props.items = rowItems_.data();
-  props.count = static_cast<uint16_t>(rowItems_.size());
-  props.action = ACTION_ROW;
-  props.inputMask = fui::InputTouch;  // physical buttons stay in loop()
-  props.valueInset = 8;
-  props.labelText = screen.theme().smallText;
-  props.labelText.maxLines = 1;
-  syncListViewport(screen, props);
-  screen.list(props);
-}
+void TimezonePickerActivity::prepareRows() {}

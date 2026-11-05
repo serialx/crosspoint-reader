@@ -4,6 +4,9 @@
 
 class PluginHubInstallActivity final : public CatalogActivity {
  public:
+#ifdef CROSSPOINT_UI_ORACLE
+  friend bool uiOracleHubEnter(PluginHubInstallActivity&);
+#endif
   explicit PluginHubInstallActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                     bool showConfirmation = true);
 
@@ -16,8 +19,10 @@ class PluginHubInstallActivity final : public CatalogActivity {
   int listCount() const override { return 0; }
   bool hasSearch() const override { return false; }
   void activateIndex(int) override {}
-  void buildScreen(UiScreen& screen) override;
-  bool handleCustomInput() override;
+  bool rowAt(int, XpUiCatalogRow&) const override { return false; }
+  const char* headerTitle() const override { return tr(STR_INSTALL_PLUGIN_HUB); }
+  const char* catalogText(uint32_t) const override;
+  void catalogEffect(const XpUiEffect&) override;
   void onBackButton() override;
   void startBrowse() override;
   void retryBrowse() override { startBrowse(); }

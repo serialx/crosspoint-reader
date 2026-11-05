@@ -1,9 +1,9 @@
 #pragma once
-#include "activities/Activity.h"
+#include "BootUiActivity.h"
 
-class BootActivity final : public Activity {
+class BootActivity final : public BootUiActivity {
  public:
   explicit BootActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
-      : Activity("Boot", renderer, mappedInput) {}
+      : BootUiActivity("Boot", renderer, mappedInput) {}
   void onEnter() override;
 };

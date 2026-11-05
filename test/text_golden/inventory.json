@@ -1,0 +1,23 @@
+{
+  "capture_revision": "c9330408c0ff5fd22a95d0dbb635b1ff5ffa5dca",
+  "sdk_revision": "37d272d42732c31065ebed4d9cb90cef7bfa7416",
+  "source_fonts_sha256": {
+    "lib/EpdFont/builtinFonts/source/NotoSans/NotoSans-Bold.ttf": "13a813c49624ae3ba3c5c6e72c5ebffc4b9e1e6ea32f421c04069b037c6ad431",
+    "lib/EpdFont/builtinFonts/source/NotoSans/NotoSans-BoldItalic.ttf": "7e34616e092593c340449baf9a259075a054c6419511ccf21ff0d83a1c9dd0d0",
+    "lib/EpdFont/builtinFonts/source/NotoSans/NotoSans-Italic.ttf": "feb3e57888ce3acb604f270c278cfb304c674306518771619ddbdefca42a066b",
+    "lib/EpdFont/builtinFonts/source/NotoSans/NotoSans-Regular.ttf": "fe8c022f48d8dd29f17b744d16f9346f4357e16f7d4f7be58b000ae7c291b614",
+    "lib/EpdFont/builtinFonts/source/NotoSans/OFL.txt": "be2f3f8727ac2e18b714ad1c4336d4ddb3f3adbeb9a7f70bfab74d21f4d2b3fb",
+    "lib/EpdFont/builtinFonts/source/NotoSansArabic/NotoSansArabic-Bold.ttf": "a86a704ff8b315082f4859b04c2f8f746f4cefb14553ef10505f143e0d4829d3",
+    "lib/EpdFont/builtinFonts/source/NotoSansArabic/NotoSansArabic-Regular.ttf": "252629ca0e87b6233851249b8cbf7b43445211a8caf199f1b306a19202251508",
+    "lib/EpdFont/builtinFonts/source/NotoSansArabic/OFL.txt": "a7a5a25eb188bf1cd96982030d53e23c33485c69b1044a562254226857ee13af",
+    "lib/EpdFont/builtinFonts/source/NotoSansHebrew/NotoSansHebrew-Bold.ttf": "96f88305d31a8432f0fe6648c853cb9ef77db8e52ada8948ed0c577037d45423",
+    "lib/EpdFont/builtinFonts/source/NotoSansHebrew/NotoSansHebrew-Regular.ttf": "671951828bd5c95db818e5bb12dcea2d0c0dda00311888522be061ee6835125e",
+    "lib/EpdFont/builtinFonts/source/NotoSansHebrew/OFL.txt": "a2643c6400107f5be499025f0cafc96492be5cf1733d8e4222c15b98302d895a"
+  },
+  "generation_command": "python test/text_golden/generate_fonts.py",
+  "converter_sha256": "21441059aa9bf5f429ecddfbf57148022c43e7d5300279b5039a6ea138ee69fb",
+  "generation_environment": {
+    "freetype": "2.13.2",
+    "fonttools": "4.63.0"
+  }
+}

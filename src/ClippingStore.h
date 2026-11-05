@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #if defined(ARDUINO_ARCH_ESP32)
 #include <sdkconfig.h>
@@ -52,8 +53,8 @@ class ClippingStore {
 
   static ClippingStore& getInstance() { return instance; }
 
-  bool loadForBook(const std::string& filePath, const std::string& title, const std::string& author,
-                   const std::string& bookType);
+  bool loadForBook(std::string_view filePath, std::string_view title, std::string_view author,
+                   std::string_view bookType);
   void unload();
 
   AddResult addClipping(uint16_t spineIndex, uint16_t startPage, uint16_t endPage, uint16_t pageCount,
@@ -102,27 +103,5 @@ class ClippingStore {
   bool readFromFile();
   bool writeToFile(const std::string* replacementText = nullptr, size_t replacementIndex = SIZE_MAX);
 };
-
-inline bool clippingStoredRangeMatchesLayout(const Clipping& clipping, const uint16_t currentPageCount,
-                                             const uint32_t currentLayoutSignature) {
-  if (clipping.pageCount != currentPageCount) return false;
-  // A zero signature belongs to legacy data and cannot safely address page-local
-  // word ordinals after relayout. It remains viewable in the clipping list, but
-  // is not rendered as a highlight until it can be anchored by a newer format.
-  return clipping.layoutSignature != 0 && currentLayoutSignature != 0 &&
-         clipping.layoutSignature == currentLayoutSignature;
-}
-
-inline bool clippingContainsWord(const Clipping& clipping, const uint16_t spineIndex, const uint16_t page,
-                                 const uint16_t pageCount, const uint32_t layoutSignature, const uint16_t wordIndex,
-                                 const uint32_t sourceStart, const uint32_t sourceEnd) {
-  if (clipping.spineIndex != spineIndex) return false;
-  if (clipping.startOffset != UINT32_MAX && clipping.endOffset != UINT32_MAX) {
-    return sourceStart != UINT32_MAX && sourceEnd > clipping.startOffset && sourceStart < clipping.endOffset;
-  }
-  return clippingStoredRangeMatchesLayout(clipping, pageCount, layoutSignature) && page >= clipping.startPage &&
-         page <= clipping.endPage && (page != clipping.startPage || wordIndex >= clipping.startWordIndex) &&
-         (page != clipping.endPage || wordIndex <= clipping.endWordIndex);
-}
 
 #define CLIPPINGS ClippingStore::getInstance()

@@ -44,11 +44,11 @@ class GfxRenderer;
 namespace pluginevents {
 
 enum class Event : uint8_t {
-  ReaderOpen,      // "reader.open"      vars: book
-  ReaderExit,      // "reader.exit"      vars: book, percent
-  ReaderSession,   // "reader.session"   vars: book, document, active-session summary
-  BookDownloaded,  // "book.downloaded"  vars: path, title, plugin
-  SleepEnter,      // "sleep.enter"      vars: book, percent when sleeping from a reader, else none
+#define XP_PLUGIN_EVENT(name, id, wire) name = id,
+#define XP_PLUGIN_LIMIT(name, value)
+#include <xp_plugin_contract.def>
+#undef XP_PLUGIN_LIMIT
+#undef XP_PLUGIN_EVENT
   COUNT
 };
 

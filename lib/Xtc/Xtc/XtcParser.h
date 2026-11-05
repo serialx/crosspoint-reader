@@ -35,14 +35,14 @@ class XtcParser {
   // File open/close
   XtcError open(const char* filepath);
   void close();
-  bool isOpen() const { return m_isOpen; }
+  bool isOpen() const { return m_state.opened; }
 
   // Header information access
-  const XtcHeader& getHeader() const { return m_header; }
-  uint16_t getPageCount() const { return m_header.pageCount; }
-  uint16_t getWidth() const { return m_defaultWidth; }
-  uint16_t getHeight() const { return m_defaultHeight; }
-  uint8_t getBitDepth() const { return m_bitDepth; }  // 1 = XTC/XTG, 2 = XTCH/XTH
+  const XtcHeader& getHeader() const { return m_state.header; }
+  uint16_t getPageCount() const { return m_state.header.pageCount; }
+  uint16_t getWidth() const { return m_state.width; }
+  uint16_t getHeight() const { return m_state.height; }
+  uint8_t getBitDepth() const { return m_state.depth; }  // 1 = XTC/XTG, 2 = XTCH/XTH
 
   // Page information
   bool getPageInfo(uint32_t pageIndex, PageInfo& info);
@@ -74,41 +74,24 @@ class XtcParser {
   const std::string& getTitle() const { return m_title; }
   const std::string& getAuthor() const { return m_author; }
 
-  bool hasChapters() const { return m_hasChapters; }
+  bool hasChapters() const { return m_state.has_chapters; }
   const std::vector<ChapterInfo>& getChapters();
 
   // Validation
   static bool isValidXtcFile(const char* filepath);
 
   // Error information
-  XtcError getLastError() const { return m_lastError; }
+  XtcError getLastError() const { return static_cast<XtcError>(m_state.error); }
 
  private:
   HalFile m_file;
   std::string m_filepath;
-  bool m_isOpen;
-  XtcHeader m_header;
+  XpBookXtcState m_state{};
   std::vector<ChapterInfo> m_chapters;
   std::string m_title;
   std::string m_author;
-  uint16_t m_defaultWidth;
-  uint16_t m_defaultHeight;
-  uint8_t m_bitDepth;  // 1 = XTC/XTG (1-bit), 2 = XTCH/XTH (2-bit)
-  bool m_hasChapters;
-  bool m_chaptersLoaded;
-  XtcError m_lastError;
-
-  // Internal helper functions
-  XtcError readHeader();
-  XtcError readFirstPageInfo();
-  XtcError readTitle();
-  XtcError readAuthor();
-  XtcError readChapters();
-  bool readPageTableEntry(uint32_t pageIndex, PageInfo& info);
-
-  // File handle management — reopen on demand, close after use
-  bool ensureFileOpen();
-  void closeFile();
+  XpBookXtcServices services();
+  void diagnostic(uint32_t event, uint32_t a, uint32_t b, uint32_t c);
 };
 
 }  // namespace xtc

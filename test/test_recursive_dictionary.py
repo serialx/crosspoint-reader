@@ -3,11 +3,19 @@
 Run: python3 test/test_recursive_dictionary.py (requires a C++20 compiler).
 """
 from pathlib import Path
+import hashlib
+import json
 import re
 import subprocess
+import sys
 import tempfile
-
-ROOT = Path(__file__).resolve().parents[1]
+ADAPTER = Path(__file__).resolve().parent
+ROOT = Path(__import__("os").environ.get("XP_RETIREMENT_REPO", ADAPTER.parent)).resolve()
+sys.path.insert(0, str(ROOT / "test"))
+from rust_host import rust_link_flags
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(ROOT / "test/reader_lifecycle"))
+from test_app_results import make_source as app_result_source
 viewer = (ROOT / "src/activities/reader/DictionaryDefinitionActivity.cpp").read_text()
 header = (ROOT / "src/activities/reader/DictionaryDefinitionActivity.h").read_text()
 selector = (ROOT / "src/activities/reader/ClipSelectionActivity.h").read_text()
@@ -49,21 +57,38 @@ plain_scratch = block(viewer, "struct DictionaryDefinitionActivity::PlainSelecti
 constants = viewer.split("namespace {", 1)[1].split("}  // namespace", 1)[0]
 # The harness copies every constant but only some methods; clang's -Wall flags the unused ones.
 constants = re.sub(r"^constexpr ", "[[maybe_unused]] constexpr ", constants, flags=re.MULTILINE)
-viewer_loop = block(viewer, "void DictionaryDefinitionActivity::loop()")
-back_handler = viewer_loop.split("  int sx = 0;", 1)[1].split(
-    "  if (lookup && mappedInput.wasReleased(MappedInputManager::Button::Confirm))", 1
-)[0]
-back_handler = "  int sx = 0;" + back_handler
+navigation = block(viewer, "void DictionaryDefinitionActivity::applyNavigation")
+loop = block(viewer, "void DictionaryDefinitionActivity::loop()")
+input_prefix = loop[loop.index("  int x = 0, y = 0;"):loop.index("  XpUiEffect effect;")]
+if '--mutate-input-order' in sys.argv:
+    input_prefix = input_prefix.replace('  auto input = dictionaryUiInput(mappedInput);\n', '')
+    input_prefix = input_prefix.replace('  input.touch_x', '  auto input = dictionaryUiInput(mappedInput);\n  input.touch_x', 1)
+back_handler = input_prefix + r'''
+  XpUiDefinitionState state{};
+  state.lookup = lookup != nullptr;
+  state.history_depth = lookup ? lookup->depth : 0;
+  state.page = content.currentPage;
+  state.pages = content.totalPages;
+  const auto effect = xp_ui_definition_update(&state, &input, tap, longPress,
+      headerLongPress, 528, SETTINGS.touchReaderControls);
+  applyNavigation(effect, x, y);
+'''
+methods += "\n" + navigation
 lookup_source = (ROOT / "src/activities/reader/DictionaryWordSelectActivity.cpp").read_text()
 definition_result = block(lookup_source, "[this](const ActivityResult& result)")
-reader_source = (ROOT / "src/activities/reader/EpubReaderActivity.cpp").read_text()
-lookup_result = block(reader_source.split("startActivityForResult(std::move(lookup)", 1)[1],
-                      "[this](const ActivityResult& result)")
-reader_constants = (ROOT / "src/activities/reader/ReaderUtils.h").read_text().split("namespace ReaderUtils {", 1)[1].split(
-    "constexpr unsigned long SKIP_HOLD_MS", 1
-)[0]
+parent_adapter = ADAPTER / 'recursive_dictionary_owner.inc'
+if not parent_adapter.is_file():
+    raise SystemExit('Missing required recursive_dictionary_owner.inc App composition fixture')
+reader_owner = parent_adapter.read_text()
+for retired in ('xp_ui_reader_child(', 'XpUiReaderChildServices'):
+    assert retired not in reader_owner, retired
+reader_constants = "\n".join(re.findall(
+    r"^constexpr unsigned long (?:GO_HOME_MS|GO_BACK_OR_HOME_MS) = [^;]+;",
+    (ROOT / "src/activities/reader/ReaderUtils.h").read_text(), re.MULTILINE))
+reader_constants = re.sub(r'^constexpr ', '[[maybe_unused]] constexpr ', reader_constants, flags=re.MULTILINE)
 harness = r'''
 #include <algorithm>
+#include <xp_ui_reader.h>
 #include <array>
 #include <cassert>
 #include <cstdint>
@@ -75,6 +100,7 @@ harness = r'''
 #include <string>
 #include <vector>
 #include <BidiUtils.h>
+#include <xp_ui_dictionary.h>
 #include <Utf8.h>
 #include <Memory.h>
 #include "activities/ActivityResult.h"
@@ -115,7 +141,34 @@ struct PageLine : PageElement {
   int y;
   PageLine(std::unique_ptr<TextBlock> block, int, int y) : block(std::move(block)), y(y) {}
 };
-struct Page { std::vector<std::unique_ptr<PageElement>> elements; };
+struct Page {
+  std::vector<std::unique_ptr<PageElement>> elements;
+  static size_t plainLineAllocationSize(size_t bytes, size_t) { return bytes + sizeof(Page); }
+};
+// Keep navigation assertions independent of the page codec, covered by page/line goldens.
+struct LinePageBuilder {
+  std::unique_ptr<Page> page;
+  static size_t capacityForLines(size_t lines, size_t words, size_t textBytes) {
+    return xp_page_line_capacity(lines, words, textBytes, 0, 0, 0);
+  }
+  explicit LinePageBuilder(size_t) {}
+  bool reset() { page = std::make_unique<Page>(); return true; }
+  bool addLine(const XpParaLine& line, int16_t x, int16_t y) {
+    std::vector<std::string> words;
+    std::vector<TextBlock::SourceRange> ranges;
+    for (size_t i = 0; i < line.count; ++i) {
+      words.emplace_back(reinterpret_cast<const char*>(line.text.data) + line.offsets[i]);
+      ranges.push_back({line.sources[i * 2], line.sources[i * 2 + 1]});
+    }
+    auto block = std::make_unique<TextBlock>(words,
+        std::vector<int16_t>(line.positions, line.positions + line.count),
+        std::vector<EpdFontFamily::Style>{}, std::vector<uint8_t>{}, std::vector<uint16_t>{},
+        BlockStyle{}, std::vector<std::string>{}, std::vector<TextBlock::LinkSpan>{}, ranges);
+    page->elements.push_back(std::make_unique<PageLine>(std::move(block), x, y));
+    return true;
+  }
+  std::unique_ptr<Page> finish() { return std::move(page); }
+};
 struct FontCacheManager {
   bool released = false;
   void releaseSdFontCaches() { released = true; }
@@ -142,10 +195,16 @@ struct MappedInputManager {
   bool released = false;
   unsigned long heldMs = 0;
   bool longPress = false;
+  bool tap = false;
   bool contactSuppressed = false;
   int touchX = 0, touchY = 0;
   bool wasReleased(Button) const { return released; }
   unsigned long getHeldTime() const { return heldMs; }
+  bool wasScreenTapped(int& x, int& y) {
+    if (!tap || contactSuppressed) return false;
+    x = touchX; y = touchY; heldMs = 100;
+    return true;
+  }
   bool wasScreenLongPress(int& x, int& y) {
     if (!longPress) return false;
     longPress = false;
@@ -155,6 +214,12 @@ struct MappedInputManager {
     return true;
   }
 };
+XpUiInput dictionaryUiInput(const MappedInputManager& input) {
+  XpUiInput frame{};
+  frame.released = input.wasReleased(MappedInputManager::Button::Back) ? XP_UI_BACK : 0;
+  frame.held_ms = input.getHeldTime();
+  return frame;
+}
 ''' + location + r'''
 struct Dictionary {
   enum class LookupResult { Found, NotFound, LowMemory, ReadError, Decompress };
@@ -209,8 +274,11 @@ struct DictionaryDefinitionActivity {
   StrId message{};
   unsigned long messageTime = 0;
   bool messageVisible = false;
+  bool initialLayoutFailed = false;
   bool finished = false;
   bool selectionOpened = false;
+  bool rejected = false;
+  bool rustSceneRejected() const { return rejected; }
   ActivityResult result;
   std::unique_ptr<ClipSelectionActivity> child;
   ActivityResultHandler callback;
@@ -220,9 +288,10 @@ struct DictionaryDefinitionActivity {
   void finish() { finished = true; }
   void setResult(ActivityResult&& next) { result = std::move(next); }
   void openDictionaryWordSelect() { selectionOpened = true; }
+  void applyNavigation(const XpUiEffect&, int x, int y);
   void handleBack() { ''' + back_handler + r''' }
   void onDefinitionResult(const ActivityResult& child) { (''' + definition_result + r''')(child); }
-  void onLookupResult(const ActivityResult& child) { (''' + lookup_result + r''')(child); }
+  void onLookupResult(const ActivityResult& child);
   void startActivityForResult(std::unique_ptr<ClipSelectionActivity> next, ActivityResultHandler handler) {
     child = std::move(next);
     callback = std::move(handler);
@@ -238,7 +307,7 @@ struct DictionaryDefinitionActivity {
   bool buildPlainSelectionPages();
   void startSelection(int x = -1, int y = -1);
 };
-''' + methods + r'''
+''' + methods + reader_owner + r'''
 int main() {
   Dictionary dictionary;
   dictionary.entries = {{10, "first entry one two three four five six"}, {20, "other definition"}};
@@ -251,6 +320,15 @@ int main() {
   view.content.currentPage = 1;
   view.content.selectionPage = 0;
   view.content.selection = {0, 1, 2, 0, true};
+  // Rejection after a resource wait must not replace the definition or open selection.
+  view.rejected = true;
+  view.lookup->pendingWord = "alias";
+  view.navigateDefinition(false);
+  assert(view.lookup->pendingWord.empty() && view.lookup->depth == 0);
+  assert(view.content.text == dictionary.entries.at(10));
+  view.startSelection();
+  assert(!view.child && view.content.selection.valid);
+  view.rejected = false;
   // On C3 the inflate window must fit before another definition is allocated.
   dictionary.canRead = [&] {
     return view.content.text.empty() && view.content.text.capacity() == std::string{}.capacity() &&
@@ -420,6 +498,14 @@ int main() {
   root.mappedInput.heldMs = 1000;
   root.handleBack();
   assert(root.finished && root.result.isCancelled);
+  // Tap classification changes the native held-time override; Back uses its prior value.
+  DictionaryDefinitionActivity simultaneous;
+  simultaneous.lookup = std::make_unique<DictionaryDefinitionActivity::LookupState>(dictionary);
+  simultaneous.mappedInput.released = true;
+  simultaneous.mappedInput.heldMs = 1000;
+  simultaneous.mappedInput.tap = true;
+  simultaneous.handleBack();
+  assert(simultaneous.finished && simultaneous.result.isCancelled);
   // Header long-press exits independently of text-selection settings; body long-press still selects.
   HeaderBackTapTarget::set(4, 4, 32, 32);
   for (const bool controlsEnabled : {false, true}) {
@@ -445,6 +531,7 @@ int main() {
       }
     }
   }
+  assert(xp_recursive_dictionary_cases() == 5);
 }
 '''
 
@@ -454,6 +541,7 @@ lookup_methods = "\n".join(block(dictionary_source, name) for name in (
 ))
 lookup_harness = r'''
 #include <algorithm>
+#include <xp_ui_reader.h>
 #include <cassert>
 #include <cctype>
 #include <cstdint>
@@ -463,10 +551,11 @@ lookup_harness = r'''
 #include <string_view>
 #include <vector>
 #include <CjkBreaks.h>
+#include <xp_ffi.h>
 #include <Utf8.h>
-#define LOG_ERR(...) ((void)0)
-#define LOG_INF(...) ((void)0)
-constexpr size_t DEFINITION_HEAP_HEADROOM_BYTES = 8192;
+template<typename... Args> void ignoreLog(Args&&...) {}
+#define LOG_ERR(...) ignoreLog(__VA_ARGS__)
+#define LOG_INF(...) ignoreLog(__VA_ARGS__)
 struct HalMemory {
   struct Heap { size_t freeBytes, largestBlockBytes; };
   static inline Heap heap{65536, 65536};
@@ -485,7 +574,8 @@ struct TxtToHtml {
 class Dictionary {
  public:
   enum class LookupResult { Found, NotFound, LowMemory, Decompress, ReadError };
-  struct LookupSession {};
+  struct HalFile {};
+  struct LookupSession { HalFile idx, qidx, syn, sidx; };
   static constexpr uint32_t MAX_DEFINITION_BYTES = 64 * 1024;
   bool hasSyn = false;
   bool htmlDefinitions = false;
@@ -506,8 +596,13 @@ class Dictionary {
   static void stemVariants(const std::string&, std::vector<std::string>&);
   bool lookup(const char*, std::string&, std::string&, LookupResult*);
 };
-''' + lookup_methods + r'''
+''' + (ROOT / 'src/util/DictionaryIo.h').read_text().split('// Internal callback discriminants;', 1)[1].split('\n', 1)[1] + lookup_methods + r'''
 int main() {
+  assert(Dictionary::cleanWord("「言葉」") == "言葉");
+  assert(Dictionary::cleanWord("『《言葉》』") == "言葉");
+  assert(Dictionary::cleanWord("（言葉）") == "言葉");
+  assert(Dictionary::cleanWord("「」").empty());
+  assert(Dictionary::cleanWord("言「葉") == "言「葉");
   Dictionary dictionary;
   std::string definition = "unchanged", headword = "unchanged";
   for (const char* suffix : {"ing", "ed", "ies"}) {
@@ -528,19 +623,52 @@ int main() {
 }
 '''
 
+# Reuse complete physical tables, actual entry/render, native borrowed-result producer,
+# and App child ownership checks. No policy hooks or direct Dictionary intent seed.
+owner_source = app_result_source(ROOT, ROOT / "test/reader_lifecycle")
+assert owner_source.count('int main(') == 1
+owner_source = owner_source.split('int main(', 1)[0]
+owner_source += '\n#define XP_RECURSIVE_DICTIONARY_OWNER 1\n' + reader_owner
+owner_sources = [
+    ROOT / 'test/reader_lifecycle/test_app_results.py',
+    ROOT / 'test/reader_lifecycle/app_owned_epub.cpp',
+    ROOT / 'test/reader_lifecycle/physical_defaults.h',
+    ROOT / 'test/reader_lifecycle/app_results_main.inc',
+    ROOT / 'test/reader_lifecycle/app_results_physical.inc',
+    ROOT / 'test/ui_runtime/app_leaves.h',
+    ROOT / 'src/activities/ActivityManager.cpp',
+    ROOT / 'src/activities/ActivityResult.h',
+    ROOT / 'src/activities/ActivityResultView.h',
+    ROOT / 'rust/crates/xp-ffi/src/app/epub/child.rs',
+    ROOT / 'rust/crates/xp-ffi/src/app/epub/child_result.rs',
+    parent_adapter, Path(__file__),
+]
+owner_hashes = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in owner_sources}
+
 harness = harness.replace('bool DictionaryDefinitionActivity::prepareDefinition',
                           plain_scratch + '\nbool DictionaryDefinitionActivity::prepareDefinition', 1)
 with tempfile.TemporaryDirectory() as directory:
     path = Path(directory)
     (path / "navigation.cpp").write_text(harness)
-    subprocess.run(["cc", "-c", str(ROOT / "lib/MiniBidi/minibidi.c"), "-o", str(path / "minibidi.o")], check=True)
+    (path / "owner.cpp").write_text(owner_source)
+    # Keep the original widget's strict warning flags; the reused App fixture uses
+    # its established independent translation-unit flags and complete physical table.
+    subprocess.run([
+        "c++", "-std=c++20", "-UNDEBUG", "-O0", "-DXP_FFI_HOST_FAULT_INJECTION",
+        "-fsanitize=address,undefined", "-fno-sanitize-recover=all",
+        "-I", str(ROOT / "test/reader_lifecycle"), "-I", str(ROOT / "test/ui_runtime"),
+        "-I", str(ROOT / "src/activities"), "-I", str(ROOT / "rust/crates/xp-ffi/include"),
+        "-c", str(path / "owner.cpp"), "-o", str(path / "owner.o"),
+    ], check=True)
     subprocess.run([
         "c++", "-std=c++20", "-Wall", "-Wextra", "-Werror",
+        "-UNDEBUG", "-DXP_FFI_HOST_FAULT_INJECTION", "-fsanitize=address,undefined", "-fno-sanitize-recover=all",
         "-I", str(ROOT / "src"), "-I", str(ROOT / "lib/Memory"),
+        "-I", str(ADAPTER), "-I", str(ROOT / "test/reader_lifecycle"),
         "-I", str(ROOT / "lib/MiniBidi"), "-I", str(ROOT / "lib/Utf8"),
         "-I", str(ROOT / "test/minibidi_arabic/stubs"),
-        str(path / "navigation.cpp"), str(path / "minibidi.o"),
-        str(ROOT / "lib/MiniBidi/BidiUtils.cpp"), str(ROOT / "lib/Utf8/Utf8.cpp"),
+        str(path / "navigation.cpp"), str(path / "owner.o"),
+        str(ROOT / "lib/MiniBidi/RustBidi.cpp"), str(ROOT / "lib/Utf8/Utf8.cpp"), *rust_link_flags(),
         "-o", str(path / "navigation"),
     ], check=True)
     subprocess.run([str(path / "navigation")], check=True)
@@ -548,8 +676,14 @@ with tempfile.TemporaryDirectory() as directory:
     subprocess.run(["c++", "-std=c++20", "-Wall", "-Wextra", "-Werror",
                     "-I", str(ROOT / "lib/Epub/Epub"), "-I", str(ROOT / "lib/Utf8"),
                     str(path / "lookup.cpp"),
-                    str(ROOT / "lib/Utf8/Utf8.cpp"), str(ROOT / "lib/Epub/Epub/CjkBreaks.cpp"),
-                    str(ROOT / "lib/Epub/Epub/hyphenation/HyphenationCommon.cpp"),
+                    str(ROOT / "lib/Utf8/Utf8.cpp"), str(ROOT / "lib/Epub/Epub/CjkBreaks.cpp"), *rust_link_flags(),
                     "-o", str(path / "lookup")], check=True)
     subprocess.run([str(path / "lookup")], check=True)
+assert all(hashlib.sha256(Path(p).read_bytes()).hexdigest() == digest for p, digest in owner_hashes.items())
+print(json.dumps({'owner_source_sha256': owner_hashes,
+                  'generated_owner_sha256': hashlib.sha256(owner_source.encode()).hexdigest(),
+                  'widget_cases': 'unchanged', 'app_dictionary_return_cases': 5,
+                  'sequence': 'real entry/render -> Selection -> successful Lookup -> Dictionary -> original viewer result',
+                  'policy_hooks': 0, 'intent_seeds': 0,
+                  'limits': 'synthetic physical Section/Page and native children; no device or dictionary storage integration'}))
 print("Recursive dictionary navigation checks passed")

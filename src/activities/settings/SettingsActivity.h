@@ -8,7 +8,7 @@
 
 #include "CrossPointSettings.h"
 #include "SettingsSection.h"
-#include "activities/UiListActivity.h"
+#include "SettingsUiActivity.h"
 #include "components/OptionPopup.h"
 
 enum class SettingType { TOGGLE, ENUM, ACTION, VALUE, STRING };
@@ -183,20 +183,19 @@ struct SettingInfo {
 
 // The rows of one SettingsSection; activating a row toggles/cycles it, opens
 // its option popup, or launches its sub-screen.
-class SettingsActivity final : public UiListActivity {
+class SettingsActivity final : public SettingsUiActivity {
   const SettingsSection section;
   std::vector<SettingInfo> settings;
 
-  bool preserveQuickResumeTimeoutOn = false;
-  bool quickResumeTimeoutAutoEnabled = false;
+  XpUiSettingsQuickResume quickResume{};
 
   OptionPopup optionPopup;
 
   // Row structure (label/actionValue), rebuilt only when the setting list
   // changes; rowValues_ holds the live value text, refreshed every
-  // buildScreen() by assigning into the existing strings.
+  // prepareRows() by assigning into the existing strings.
   std::vector<std::string> rowValues_;
-  std::vector<freeink::ui::ListItem> rowItems_;
+  std::vector<SettingsUiRow> rowItems_;
 
   void rebuildSettings();
   void rebuildRowItems();
@@ -207,7 +206,8 @@ class SettingsActivity final : public UiListActivity {
   static std::string settingValueText(const SettingInfo& setting);
 
   int listCount() const override { return static_cast<int>(settings.size()); }
-  void buildScreen(UiScreen& screen) override;
+  const SettingsUiRow* rowAt(int i) const override { return i >= 0 && i < listCount() ? &rowItems_[i] : nullptr; }
+  void prepareRows() override;
   void activateIndex(int index) override;
   bool handleCustomInput() override;
   const char* headerTitle() const override;

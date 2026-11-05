@@ -2,55 +2,30 @@
 
 #include <I18n.h>
 
-#include "HalDisplay.h"
 #include "components/UITheme.h"
-
-ConfirmationActivity::ConfirmationActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
-                                           const std::string& heading, const std::string& body,
-                                           const std::string& cancelLabel, const std::string& confirmLabel)
-    : Activity("Confirmation", renderer, mappedInput),
+ConfirmationActivity::ConfirmationActivity(GfxRenderer& renderer, MappedInputManager& input, const std::string& heading,
+                                           const std::string& body, const std::string& cancelLabel,
+                                           const std::string& confirmLabel)
+    : UtilityActivity("Confirmation", renderer, input, XP_UI_UTILITY_CONFIRMATION, 10, 3),
       heading(heading),
       body(body),
       cancelLabel(cancelLabel),
       confirmLabel(confirmLabel) {}
-
-void ConfirmationActivity::onEnter() {
-  Activity::onEnter();
-
-  // Both texts live inside the dialog: the heading as its caption and the
-  // subject (a book title) as the wrapping headline beneath it. No
-  // pre-truncation — the dialog wraps both to its own width.
-  const char* options[] = {
-      cancelLabel.empty() ? I18N.get(StrId::STR_CANCEL) : cancelLabel.c_str(),
-      confirmLabel.empty() ? I18N.get(StrId::STR_CONFIRM) : confirmLabel.c_str(),
-  };
-  confirmPopup.show(heading.c_str(), body.c_str(), options, 2, 0, [this](int idx) {
-    ActivityResult res;
-    res.isCancelled = (idx != 1);
-    setResult(std::move(res));
-    finish();
-  });
-
-  requestUpdate(true);
+const char* ConfirmationActivity::utilityText(const uint32_t h) const {
+  switch (h) {
+    case Title:
+      return heading.c_str();
+    case Body:
+      return body.c_str();
+    case Cancel:
+      return cancelLabel.empty() ? tr(STR_CANCEL) : cancelLabel.c_str();
+    case Confirm:
+      return confirmLabel.empty() ? tr(STR_CONFIRM) : confirmLabel.c_str();
+    default:
+      return UtilityActivity::utilityText(h);
+  }
 }
-
-void ConfirmationActivity::render(RenderLock&& lock) {
-  renderer.clearScreen();
-
-  if (confirmPopup.processRender(renderer, mappedInput)) return;
-
-  renderer.displayBuffer(HalDisplay::RefreshMode::FAST_REFRESH);
-}
-
-void ConfirmationActivity::loop() {
-  if (confirmPopup.handleInput(mappedInput, [this] {
-        if (confirmPopup.isActive()) requestUpdate();
-      }))
-    return;
-
-  // Popup dismissed without a selection (Back button or tap outside): cancel.
-  ActivityResult res;
-  res.isCancelled = true;
-  setResult(std::move(res));
-  finish();
+void ConfirmationActivity::utilityHints() const {
+  const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
+  GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
 }

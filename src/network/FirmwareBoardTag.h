@@ -1,5 +1,7 @@
 #pragma once
 
+#include <xp_ffi.h>
+
 #include <cstddef>
 #include <cstdint>
 
@@ -33,17 +35,12 @@ class Scanner {
   void feed(const uint8_t* data, size_t len);
   // True once a tag naming a different board has been seen. Valid mid-stream:
   // callers may abort a download as soon as this turns true.
-  bool mismatch() const { return mismatchFound; }
+  bool mismatch() const { return state.mismatch; }
   // Board name from the offending tag, for logging (empty until mismatch()).
-  const char* foundName() const { return mismatchFound ? captured : ""; }
+  const char* foundName() const { return state.mismatch ? reinterpret_cast<const char*>(state.captured) : ""; }
 
  private:
-  static constexpr size_t MAX_NAME = 23;
-  char captured[MAX_NAME + 1] = {0};
-  size_t nameLen = 0;
-  size_t magicMatched = 0;
-  bool capturing = false;
-  bool mismatchFound = false;
+  XpBoardScanner state{};
 };
 
 }  // namespace board_tag

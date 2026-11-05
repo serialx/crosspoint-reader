@@ -1,0 +1,9 @@
+P			p~poem~
+P	A B	T	
+div	a b c d e f g h i	id	
+p			
+p			p~poem~
+p	 unrelated		p~poem~
+p	a b	t	
+p	a b unrelated	t	
+span	note	target	

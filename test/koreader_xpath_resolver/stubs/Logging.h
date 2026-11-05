@@ -1,4 +1,3 @@
 #pragma once
 
-#define LOG_DBG(...)
-#define LOG_ERR(...)
+#include "../../css_parser/stubs/Logging.h"

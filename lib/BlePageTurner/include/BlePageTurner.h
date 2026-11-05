@@ -47,6 +47,8 @@ struct Config {
   uint8_t remoteCount = 0;
 };
 
+extern "C" uint8_t xp_ble_page_action(const Config*, uint8_t usage, uint8_t mods);
+
 // HID usages of the decoded key path. Keyboard page (0x07): Left 0x50, Right 0x4F, Page Up
 // 0x4B, Page Down 0x4E, Up 0x52, Down 0x51, Space 0x2C, Enter 0x28, Backspace 0x2A. Volume
 // Up/Down and Scan Next/Prev live on the Consumer page (0x0C) and arrive as the low byte of
@@ -70,21 +72,8 @@ inline constexpr uint8_t kUsageScanPrev = 0xB6;
 // keys of its direction, so a wrong mapping can always be undone; with nothing learned the
 // wide default set applies, because cheap remotes send only arrows, Space, Enter or the
 // volume keys. Plain typing and any key with a modifier turn nothing.
-constexpr Action pageActionFor(const Config& c, const uint8_t usage, const uint8_t mods) {
-  if (!c.enabled || usage == kUsageNone || mods != 0) return Action::None;
-  if (c.prevKeyUsage != kUsageNone && usage == c.prevKeyUsage) return Action::PrevPage;
-  if (c.nextKeyUsage != kUsageNone && usage == c.nextKeyUsage) return Action::NextPage;
-  if (c.prevKeyUsage == kUsageNone &&
-      (usage == kUsageLeft || usage == kUsagePageUp || usage == kUsageUp || usage == kUsageBackspace ||
-       usage == kUsageVolumeDown || usage == kUsageScanPrev)) {
-    return Action::PrevPage;
-  }
-  if (c.nextKeyUsage == kUsageNone &&
-      (usage == kUsageRight || usage == kUsagePageDown || usage == kUsageDown || usage == kUsageSpace ||
-       usage == kUsageEnter || usage == kUsageVolumeUp || usage == kUsageScanNext)) {
-    return Action::NextPage;
-  }
-  return Action::None;
+inline Action pageActionFor(const Config& c, const uint8_t usage, const uint8_t mods) {
+  return static_cast<Action>(xp_ble_page_action(&c, usage, mods));
 }
 
 // Why the radio may not be on (Ok: it may). radioVerdict (RadioPolicy.h) is the one place

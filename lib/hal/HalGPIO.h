@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <InputManager.h>
+#include <xp_hal.h>
 
 // Display SPI pins (custom pins for XteinkX4, not hardware SPI defaults)
 #define EPD_SCLK 8   // SPI Clock
@@ -43,10 +44,7 @@ class HalGPIO {
   InputManager inputMgr;
 #endif
 
-  bool lastUsbConnected = false;
-  bool usbStateChanged = false;
-  uint8_t previousCapacitivePageButtons = 0;
-  bool capacitivePagePressed = false;
+  XpHalInput state{};
 
  public:
   enum class DeviceType : uint8_t { X4, X3 };
@@ -97,9 +95,9 @@ class HalGPIO {
   bool wasHomeKeyLongPressed() const;
   bool wasTouchTap(float& nx, float& ny) const;
   bool wasTouchDown(float& nx, float& ny) const;
-  bool wasCapacitivePagePressed() const { return capacitivePagePressed; }
+  bool wasCapacitivePagePressed() const { return state.page_pressed; }
   bool isCapacitivePagePressed(uint8_t buttonIndex) const {
-    return buttonIndex < 8 && (previousCapacitivePageButtons & (1u << buttonIndex)) != 0;
+    return buttonIndex < 8 && (state.page_buttons & (1u << buttonIndex)) != 0;
   }
   // Raw release edge, reported even when the contact was not a tap (swipe end,
   // drag-off). Snapshot builders forward it so interaction routing can clear

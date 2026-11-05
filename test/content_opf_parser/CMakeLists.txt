@@ -1,9 +1,7 @@
-find_package(EXPAT REQUIRED)
-
 add_executable(ContentOpfParserTest
   ContentOpfParserTest.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/PackagePlatform.cpp
   EncryptionManifestProbeTest.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/parsers/ContentOpfParser.cpp
 )
 
 target_include_directories(ContentOpfParserTest PRIVATE
@@ -14,8 +12,19 @@ target_include_directories(ContentOpfParserTest PRIVATE
 
 target_link_libraries(ContentOpfParserTest PRIVATE
   crosspoint_test_common
-  EXPAT::EXPAT
   GTest::gtest_main
 )
 
 gtest_discover_tests(ContentOpfParserTest)
+
+include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
+target_link_libraries(ContentOpfParserTest PRIVATE xp_ffi_host)
+
+target_sources(ContentOpfParserTest PRIVATE ${REPO_ROOT}/lib/expat/ExpatErrors.cpp)
+target_include_directories(ContentOpfParserTest PRIVATE ${REPO_ROOT}/lib/expat)
+
+target_sources(ContentOpfParserTest PRIVATE ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp ${REPO_ROOT}/lib/Utf8/Utf8.cpp)
+target_include_directories(ContentOpfParserTest BEFORE PRIVATE ${REPO_ROOT}/lib/Epub)
+target_include_directories(ContentOpfParserTest PRIVATE ${REPO_ROOT}/lib/Memory ${REPO_ROOT}/lib/Serialization
+  ${REPO_ROOT}/lib/FsHelpers ${REPO_ROOT}/lib/Utf8 ${REPO_ROOT}/test/book_metadata_cache/stubs
+  ${REPO_ROOT}/test/fs_helpers/stubs)

@@ -1,0 +1,4340 @@
+{
+  "schema": 1,
+  "settings": {
+    "language": "EN",
+    "fontFamily": 1,
+    "fontSize": 16,
+    "sdFontFamilyName": "",
+    "sleepTimeoutMinutes": 30,
+    "frontButtonFollowOrientation": 0,
+    "textAntiAliasing": 1,
+    "readerMenuStyle": 0
+  },
+  "groups": [
+    {
+      "id": "general",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "home",
+          "activity": "Home",
+          "steps": []
+        },
+        {
+          "id": "settings",
+          "activity": "SettingsList",
+          "steps": [
+            "press:up",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "general",
+          "activity": "Settings",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "language",
+          "activity": "LanguageSelect",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "language-scroll",
+          "activity": "LanguageSelect",
+          "steps": [
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down"
+          ]
+        },
+        {
+          "id": "keyboard-layouts",
+          "activity": "KeyboardLayouts",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "about",
+          "activity": "About",
+          "steps": {
+            "x3": [
+              "press:back",
+              "press:up",
+              "press:up",
+              "press:confirm"
+            ],
+            "x4": [
+              "press:back",
+              "press:up",
+              "press:up",
+              "press:confirm"
+            ]
+          }
+        },
+        {
+          "id": "about-scroll",
+          "activity": "About",
+          "steps": [
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "clock",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "clock-settings",
+          "activity": "ClockSettings",
+          "steps": [
+            "press:up",
+            "press:confirm",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "timezone",
+          "activity": "TimezonePicker",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "timezone-scroll",
+          "activity": "TimezonePicker",
+          "steps": [
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down"
+          ]
+        },
+        {
+          "id": "clock-dst",
+          "activity": "ClockSettings",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "clock-format",
+          "activity": "ClockSettings",
+          "steps": [
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "clock-sync-wifi",
+          "activity": "WifiSelection",
+          "steps": [
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        }
+      ],
+      "machines": [
+        "x3"
+      ]
+    },
+    {
+      "id": "display",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "display-settings",
+          "activity": "Settings",
+          "steps": [
+            "press:up",
+            "press:confirm",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "sleep-picker",
+          "activity": "Settings",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "sleep-picker-scroll",
+          "activity": "Settings",
+          "steps": [
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down"
+          ]
+        },
+        {
+          "id": "sleep-filter-picker",
+          "activity": "Settings",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "battery-picker",
+          "activity": "Settings",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "refresh-picker",
+          "activity": "Settings",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "theme-picker",
+          "activity": "Settings",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "sleep-interval",
+          "activity": "SleepTimeoutInterval",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reader-settings",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "reader-settings",
+          "activity": "Settings",
+          "steps": [
+            "press:up",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "text-font",
+          "activity": "TextSettings",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "text-size",
+          "activity": "TextSettings",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "text-layout",
+          "activity": "TextSettings",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "line-spacing",
+          "activity": "TextSettings",
+          "steps": [
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "word-spacing",
+          "activity": "TextSettings",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "character-spacing",
+          "activity": "TextSettings",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "text-style",
+          "activity": "TextSettings",
+          "steps": [
+            "press:back",
+            "press:up",
+            "press:up",
+            "press:up",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "reader-orientation",
+          "activity": "Settings",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "reader-image-mode",
+          "activity": "Settings",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "controls",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "controls-settings",
+          "activity": "Settings",
+          "steps": [
+            "press:up",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "button-remap",
+          "activity": "ButtonRemap",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "button-remap-confirm",
+          "activity": "ButtonRemap",
+          "steps": [
+            "press:back"
+          ]
+        },
+        {
+          "id": "button-remap-left",
+          "activity": "ButtonRemap",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "button-remap-right",
+          "activity": "ButtonRemap",
+          "steps": [
+            "press:left"
+          ]
+        },
+        {
+          "id": "controls-side-layout",
+          "activity": "Settings",
+          "steps": [
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "controls-long-press",
+          "activity": "Settings",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "library-settings",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "library-settings",
+          "activity": "Settings",
+          "steps": [
+            "press:up",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "library-metadata-off",
+          "activity": "Settings",
+          "steps": [
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "status-cache",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "status-bar",
+          "activity": "StatusBarSettings",
+          "steps": [
+            "press:up",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:confirm",
+            "press:up",
+            "press:up",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "status-progress-picker",
+          "activity": "StatusBarSettings",
+          "steps": [
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "cache-warning",
+          "activity": "ClearCache",
+          "steps": [
+            "press:back",
+            "press:back",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "cache-success",
+          "activity": "ClearCache",
+          "steps": [
+            "press:down",
+            "press:confirm"
+          ]
+        }
+      ],
+      "input_quiet_ms": 0,
+      "pacing_reason": "ClearCache WARNING never satisfies the emulator CPU-idle heuristic; wait for serial/panel quiet after every button instead."
+    },
+    {
+      "id": "koreader",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "connectivity",
+          "activity": "Settings",
+          "steps": [
+            "press:up",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "koreader-settings",
+          "activity": "KOReaderSettings",
+          "steps": [
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "keyboard-text",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "keyboard-text-entered",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "keyboard-password",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "keyboard-url",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "koreader-server-type",
+          "activity": "KOReaderSettings",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "koreader-disabled-auth",
+          "activity": "KOReaderSettings",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "opds",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "opds-servers",
+          "activity": "OpdsServerList",
+          "steps": [
+            "press:up",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "opds-new-server",
+          "activity": "OpdsSettings",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "opds-name",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "opds-url",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "opds-password",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "opds-download-folder",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:back",
+            "press:back",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "opds-filename-picker",
+          "activity": "OpdsServerList",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bluetooth",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "bluetooth-off",
+          "activity": "BleSettings",
+          "steps": [
+            "press:up",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "bluetooth-enabled",
+          "activity": "BleSettings",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "bluetooth-scanning",
+          "activity": "BleSettings",
+          "steps": [
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "bluetooth-no-peers",
+          "activity": "BleSettings",
+          "steps": [
+            "wait:16"
+          ]
+        },
+        {
+          "id": "bluetooth-paired",
+          "activity": "BleSettings",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wifi",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "wifi-empty",
+          "activity": "WifiSelection",
+          "steps": [
+            "press:up",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm",
+            "press:confirm",
+            "wait:5"
+          ]
+        },
+        {
+          "id": "wifi-hidden-ssid",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "wifi-hidden-password",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:right",
+            "press:right",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "wifi-connection-failed",
+          "activity": "WifiSelection",
+          "steps": [
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:right",
+            "press:right",
+            "press:confirm",
+            "wait:20"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "transfer",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "transfer-mode",
+          "activity": "NetworkModeSelection",
+          "steps": [
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "transfer-wifi",
+          "activity": "WifiSelection",
+          "steps": [
+            "press:confirm",
+            "wait:5"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "calibre",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "calibre-wifi",
+          "activity": "WifiSelection",
+          "steps": [
+            "press:down",
+            "press:down",
+            "press:confirm",
+            "press:down",
+            "press:confirm",
+            "wait:5"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hotspot",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "hotspot",
+          "activity": "CrossPointWebServer",
+          "steps": [
+            "press:down",
+            "press:down",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:confirm",
+            "wait:3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ota",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "ota-wifi",
+          "activity": "WifiSelection",
+          "steps": {
+            "x3": [
+              "press:up",
+              "press:confirm",
+              "press:confirm",
+              "press:down",
+              "press:down",
+              "press:down",
+              "press:down",
+              "press:confirm",
+              "wait:5"
+            ],
+            "x4": [
+              "press:up",
+              "press:confirm",
+              "press:confirm",
+              "press:down",
+              "press:down",
+              "press:down",
+              "press:confirm",
+              "wait:5"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "font-download",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "font-download-wifi",
+          "activity": "WifiSelection",
+          "steps": [
+            "press:up",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:confirm",
+            "press:down",
+            "press:confirm",
+            "wait:5"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "plugins",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {
+        "pluginsEnabled": 1
+      },
+      "screens": [
+        {
+          "id": "plugins-home",
+          "activity": "Home",
+          "steps": []
+        },
+        {
+          "id": "plugin-catalog",
+          "activity": "PluginCatalog",
+          "steps": [
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "plugin-hub-prompt",
+          "activity": "PluginCatalog",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "plugin-install-wifi",
+          "activity": "WifiSelection",
+          "steps": [
+            "press:confirm",
+            "wait:5"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "files",
+      "fixture": "files",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "file-list",
+          "activity": "FileBrowser",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "file-options",
+          "activity": "FileBrowser",
+          "steps": [
+            "press:confirm:1200"
+          ]
+        },
+        {
+          "id": "delete-confirmation",
+          "activity": "Confirmation",
+          "steps": [
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "rename-keyboard",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:back",
+            "press:confirm:1200",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "empty-files",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "empty-file-list",
+          "activity": "FileBrowser",
+          "steps": [
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "firmware-error",
+      "fixture": "firmware",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "firmware-picker",
+          "activity": "FileBrowser",
+          "steps": {
+            "x3": [
+              "press:up",
+              "press:confirm",
+              "press:confirm",
+              "press:down",
+              "press:down",
+              "press:down",
+              "press:down",
+              "press:down",
+              "press:confirm"
+            ],
+            "x4": [
+              "press:up",
+              "press:confirm",
+              "press:confirm",
+              "press:down",
+              "press:down",
+              "press:down",
+              "press:down",
+              "press:confirm"
+            ]
+          }
+        },
+        {
+          "id": "firmware-invalid",
+          "activity": "SdFirmwareUpdate",
+          "steps": [
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "broken-book",
+      "fixture": "broken-book",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "rejected-book-home",
+          "activity": "Home",
+          "steps": [
+            "press:confirm",
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "image",
+      "fixture": "image",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "image-viewer",
+          "activity": "BmpViewer",
+          "steps": [
+            "press:confirm",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "image-actions",
+          "activity": "Confirmation",
+          "steps": [
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "library",
+      "fixture": "library",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "library",
+          "activity": "Library",
+          "steps": [
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "library-next-tab",
+          "activity": "Library",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "library-row",
+          "activity": "Library",
+          "steps": [
+            "press:down"
+          ]
+        },
+        {
+          "id": "library-group-collapsed",
+          "activity": "Library",
+          "steps": [
+            "press:confirm:1200"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reader",
+      "fixture": "reader",
+      "rotates": true,
+      "settings": {
+        "dictionaryName": "Oracle"
+      },
+      "screens": [
+        {
+          "id": "reader-page",
+          "activity": "EpubReader",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "wait-log:Page render"
+          ]
+        },
+        {
+          "id": "reader-menu",
+          "activity": "EpubReaderMenu",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "reader-chapters",
+          "activity": "EpubReaderChapterSelection",
+          "steps": [
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "clip",
+      "fixture": "reader",
+      "rotates": true,
+      "settings": {
+        "dictionaryName": "Oracle"
+      },
+      "screens": [
+        {
+          "id": "clip",
+          "activity": "ClipSelection",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "wait-log:Page render",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "clip-selected",
+          "activity": "ClipSelection",
+          "steps": [
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dictionary",
+      "fixture": "reader",
+      "rotates": true,
+      "settings": {
+        "dictionaryName": "Oracle"
+      },
+      "screens": [
+        {
+          "id": "dictionary",
+          "activity": "ClipSelection",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "wait-log:Page render",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "dictionary-result",
+          "activity": "DictionaryDefinition",
+          "steps": [
+            "press:confirm",
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "percent",
+      "fixture": "reader",
+      "rotates": true,
+      "settings": {
+        "dictionaryName": "Oracle"
+      },
+      "screens": [
+        {
+          "id": "percent",
+          "activity": "EpubReaderPercentSelection",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "wait-log:Page render",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "percent-changed",
+          "activity": "EpubReaderPercentSelection",
+          "steps": [
+            "press:right"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "qr",
+      "fixture": "reader",
+      "rotates": true,
+      "settings": {
+        "dictionaryName": "Oracle"
+      },
+      "screens": [
+        {
+          "id": "qr",
+          "activity": "QrDisplay",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "wait-log:Page render",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reader-sync",
+      "fixture": "reader",
+      "rotates": true,
+      "settings": {
+        "dictionaryName": "Oracle"
+      },
+      "screens": [
+        {
+          "id": "reader-sync",
+          "activity": "WifiSelection",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "wait-log:Page render",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reader-text",
+      "fixture": "reader",
+      "rotates": true,
+      "settings": {
+        "dictionaryName": "Oracle"
+      },
+      "screens": [
+        {
+          "id": "reader-text",
+          "activity": "TextSettings",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "wait-log:Page render",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reader-popups",
+      "fixture": "reader",
+      "rotates": true,
+      "settings": {
+        "dictionaryName": "Oracle"
+      },
+      "screens": [
+        {
+          "id": "reader-orientation-popup",
+          "activity": "EpubReaderMenu",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "wait-log:Page render",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "reader-auto-turn-popup",
+          "activity": "EpubReaderMenu",
+          "steps": [
+            "press:back",
+            "press:down",
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "toolbar",
+      "fixture": "reader",
+      "rotates": true,
+      "settings": {
+        "readerMenuStyle": 1
+      },
+      "screens": [
+        {
+          "id": "toolbar-page",
+          "activity": "EpubReader",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "wait-log:Page render"
+          ]
+        },
+        {
+          "id": "toolbar",
+          "activity": "EpubReader",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "toolbar-contents",
+          "activity": "EpubReader",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "toolbar-text",
+          "activity": "EpubReader",
+          "steps": [
+            "press:back",
+            "press:right",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "toolbar-more",
+          "activity": "EpubReader",
+          "steps": [
+            "press:back",
+            "press:right",
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xtc",
+      "fixture": "xtc",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "xtc-page",
+          "activity": "XtcReader",
+          "steps": [
+            "press:confirm",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "xtc-chapters",
+          "activity": "XtcReaderChapterSelection",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "xtc-last-chapter",
+          "activity": "XtcReader",
+          "steps": [
+            "press:down",
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sleep-0",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {
+        "sleepScreen": 0
+      },
+      "screens": [
+        {
+          "id": "sleep-0",
+          "activity": "Sleep",
+          "steps": [
+            "press:power:1600"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sleep-1",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {
+        "sleepScreen": 1
+      },
+      "screens": [
+        {
+          "id": "sleep-1",
+          "activity": "Sleep",
+          "steps": [
+            "press:power:1600"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sleep-2",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {
+        "sleepScreen": 2
+      },
+      "screens": [
+        {
+          "id": "sleep-2",
+          "activity": "Sleep",
+          "steps": [
+            "press:power:1600"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sleep-3",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {
+        "sleepScreen": 3
+      },
+      "screens": [
+        {
+          "id": "sleep-3",
+          "activity": "Sleep",
+          "steps": [
+            "press:power:1600"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sleep-4",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {
+        "sleepScreen": 4
+      },
+      "screens": [
+        {
+          "id": "sleep-4",
+          "activity": "Sleep",
+          "steps": [
+            "press:power:1600"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sleep-5",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {
+        "sleepScreen": 5
+      },
+      "screens": [
+        {
+          "id": "sleep-5",
+          "activity": "Sleep",
+          "steps": [
+            "press:power:1600"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sleep-6",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {
+        "sleepScreen": 6
+      },
+      "screens": [
+        {
+          "id": "sleep-6",
+          "activity": "Sleep",
+          "steps": [
+            "press:power:1600"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sleep-7",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {
+        "sleepScreen": 7
+      },
+      "screens": [
+        {
+          "id": "sleep-7",
+          "activity": "Sleep",
+          "steps": [
+            "press:power:1600"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sleep-8",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {
+        "sleepScreen": 8
+      },
+      "screens": [
+        {
+          "id": "sleep-8",
+          "activity": "Sleep",
+          "steps": [
+            "press:power:1600"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "footnotes",
+      "fixture": "reader",
+      "rotates": true,
+      "settings": {
+        "dictionaryName": "Oracle"
+      },
+      "screens": [
+        {
+          "id": "footnote-selector",
+          "activity": "EpubReaderFootnoteSelect",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "wait-log:Page render",
+            "press:confirm",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "footnote-page",
+          "activity": "EpubReader",
+          "steps": [
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bookmarks",
+      "fixture": "reader",
+      "rotates": true,
+      "settings": {
+        "dictionaryName": "Oracle"
+      },
+      "screens": [
+        {
+          "id": "bookmark-saved",
+          "activity": "EpubReader",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "wait-log:Page render",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "bookmarks-list",
+          "activity": "EpubReaderBookmarks",
+          "steps": [
+            "wait:4",
+            "wait-quiet:1",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "bookmark-actions",
+          "activity": "EpubReaderBookmarks",
+          "steps": [
+            "press:confirm:1200"
+          ]
+        },
+        {
+          "id": "bookmark-rename",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:down",
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "clippings",
+      "fixture": "reader",
+      "rotates": true,
+      "settings": {
+        "dictionaryName": "Oracle"
+      },
+      "screens": [
+        {
+          "id": "clipping-save",
+          "activity": "EpubReader",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "wait-log:Page render",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "clippings-list",
+          "activity": "EpubReaderClippings",
+          "steps": [
+            "wait:4",
+            "wait-quiet:1",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "clipping-actions",
+          "activity": "EpubReaderClippings",
+          "steps": [
+            "press:confirm:1200"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "end-book",
+      "fixture": "reader",
+      "rotates": true,
+      "settings": {
+        "dictionaryName": "Oracle"
+      },
+      "screens": [
+        {
+          "id": "last-chapter",
+          "activity": "EpubReader",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "wait-log:Page render",
+            "press:confirm",
+            "press:confirm",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "end-of-book",
+          "activity": "EpubReader",
+          "steps": [
+            "press:right"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "boot",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {
+        "dictionaryName": "Oracle"
+      },
+      "screens": [
+        {
+          "id": "boot",
+          "activity": "Boot",
+          "steps": [
+            "wait-log:Entering activity: Boot",
+            "wait-screen",
+            "wait-screen"
+          ]
+        }
+      ],
+      "boot": true
+    },
+    {
+      "id": "sd-error",
+      "fixture": "empty",
+      "boot": true,
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "sd-error",
+          "activity": "FullScreenMessage",
+          "steps": [
+            "hmp:eject -f sd-card",
+            "wait-log:Entering activity: FullScreenMessage",
+            "wait:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "crash",
+      "fixture": "empty",
+      "boot": true,
+      "fault": "panic-reset",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "crash",
+          "activity": "Crash",
+          "steps": [
+            "wait-log:Entering activity: Crash",
+            "wait:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "plugin-readme",
+      "fixture": "plugin",
+      "rotates": false,
+      "settings": {
+        "pluginsEnabled": 1
+      },
+      "screens": [
+        {
+          "id": "plugin-installed",
+          "activity": "PluginCatalog",
+          "steps": [
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "plugin-readme",
+          "activity": "DictionaryDefinition",
+          "steps": [
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "plugin-uninstall",
+          "activity": "Confirmation",
+          "steps": [
+            "press:back",
+            "press:confirm:1200"
+          ]
+        }
+      ],
+      "config_files": {}
+    },
+    {
+      "id": "opds-offline",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "opds-offline-wifi",
+          "activity": "WifiSelection",
+          "steps": [
+            "press:down",
+            "press:down",
+            "press:confirm",
+            "wait:5"
+          ]
+        }
+      ],
+      "config_files": {
+        "opds.json": {
+          "servers": [
+            {
+              "name": "Offline Oracle",
+              "url": "http://192.0.2.1/catalog",
+              "username": "",
+              "password": ""
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "koreader-auth",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "koreader-auth-wifi",
+          "activity": "WifiSelection",
+          "steps": [
+            "press:up",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm",
+            "wait:5"
+          ]
+        }
+      ],
+      "config_files": {
+        "koreader.json": {
+          "username": "oracle",
+          "password": "oracle",
+          "serverUrl": "http://192.0.2.1",
+          "configVersion": 2
+        }
+      }
+    },
+    {
+      "id": "keyboard-layers",
+      "fixture": "empty",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "keyboard-lower",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:up",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:confirm",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "keyboard-upper",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "keyboard-symbols",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "keyboard-cursor",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:up:800"
+          ]
+        }
+      ],
+      "config_files": {}
+    },
+    {
+      "id": "sleep-custom-image",
+      "fixture": "sleep-custom",
+      "settings": {
+        "sleepScreen": 2
+      },
+      "screens": [
+        {
+          "id": "sleep-custom-image",
+          "activity": "Sleep",
+          "steps": [
+            "press:power:1600"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sleep-cover-3",
+      "fixture": "xtc",
+      "settings": {
+        "sleepScreen": 3
+      },
+      "screens": [
+        {
+          "id": "sleep-cover-3",
+          "activity": "Sleep",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "press:power:1600"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sleep-cover-4",
+      "fixture": "xtc",
+      "settings": {
+        "sleepScreen": 4
+      },
+      "screens": [
+        {
+          "id": "sleep-cover-4",
+          "activity": "Sleep",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "press:power:1600"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sleep-cover-8",
+      "fixture": "xtc",
+      "settings": {
+        "sleepScreen": 8
+      },
+      "screens": [
+        {
+          "id": "sleep-cover-8",
+          "activity": "Sleep",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "press:power:1600"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "home-theme-0",
+      "fixture": "files",
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "home-theme-0",
+          "activity": "Home",
+          "steps": []
+        },
+        {
+          "id": "home-theme-0-next",
+          "activity": "Home",
+          "steps": [
+            "press:down"
+          ]
+        }
+      ],
+      "config_files": {
+        "recent.json": {
+          "books": [
+            {
+              "path": "/Oracle.epub",
+              "title": "UI Oracle",
+              "author": "CrossPoint Test",
+              "coverBmpPath": ""
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "home-theme-1",
+      "fixture": "files",
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "home-theme-1",
+          "activity": "Home",
+          "steps": []
+        },
+        {
+          "id": "home-theme-1-next",
+          "activity": "Home",
+          "steps": [
+            "press:down"
+          ]
+        }
+      ],
+      "config_files": {
+        "recent.json": {
+          "books": [
+            {
+              "path": "/Oracle.epub",
+              "title": "UI Oracle",
+              "author": "CrossPoint Test",
+              "coverBmpPath": ""
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "home-theme-2",
+      "fixture": "files",
+      "settings": {
+        "uiTheme": 2
+      },
+      "screens": [
+        {
+          "id": "home-theme-2",
+          "activity": "Home",
+          "steps": []
+        },
+        {
+          "id": "home-theme-2-next",
+          "activity": "Home",
+          "steps": [
+            "press:down"
+          ]
+        }
+      ],
+      "config_files": {
+        "recent.json": {
+          "books": [
+            {
+              "path": "/Oracle.epub",
+              "title": "UI Oracle",
+              "author": "CrossPoint Test",
+              "coverBmpPath": ""
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "home-theme-3",
+      "fixture": "files",
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "home-theme-3",
+          "activity": "Home",
+          "steps": []
+        },
+        {
+          "id": "home-theme-3-next",
+          "activity": "Home",
+          "steps": [
+            "press:down"
+          ]
+        }
+      ],
+      "config_files": {
+        "recent.json": {
+          "books": [
+            {
+              "path": "/Oracle.epub",
+              "title": "UI Oracle",
+              "author": "CrossPoint Test",
+              "coverBmpPath": ""
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "home-theme-4",
+      "fixture": "files",
+      "settings": {
+        "uiTheme": 4
+      },
+      "screens": [
+        {
+          "id": "home-theme-4",
+          "activity": "Home",
+          "steps": []
+        },
+        {
+          "id": "home-theme-4-next",
+          "activity": "Home",
+          "steps": [
+            "press:down"
+          ]
+        }
+      ],
+      "config_files": {
+        "recent.json": {
+          "books": [
+            {
+              "path": "/Oracle.epub",
+              "title": "UI Oracle",
+              "author": "CrossPoint Test",
+              "coverBmpPath": ""
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "sleep-overlay-image",
+      "fixture": "sleep-overlay",
+      "settings": {
+        "sleepScreen": 7
+      },
+      "screens": [
+        {
+          "id": "sleep-overlay-image",
+          "activity": "Sleep",
+          "steps": [
+            "press:power:1600"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "library-actions",
+      "fixture": "library",
+      "screens": [
+        {
+          "id": "library-recent-actions",
+          "activity": "Library",
+          "steps": [
+            "press:down",
+            "press:confirm",
+            "wait-log:page first=0 title=UI Oracle",
+            "wait-quiet:1",
+            "press:down",
+            "press:confirm:1200"
+          ]
+        },
+        {
+          "id": "library-delete-confirmation",
+          "activity": "Confirmation",
+          "steps": [
+            "press:down",
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "library-search",
+      "fixture": "library",
+      "screens": [
+        {
+          "id": "library-search",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:down",
+            "press:confirm",
+            "wait-log:Entering activity: Library",
+            "wait-quiet:2",
+            "press:up"
+          ]
+        },
+        {
+          "id": "library-search-empty",
+          "activity": "Library",
+          "steps": [
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:right",
+            "press:right",
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "end-book-next",
+      "fixture": "reader-next",
+      "rotates": true,
+      "settings": {
+        "dictionaryName": "Oracle"
+      },
+      "screens": [
+        {
+          "id": "last-chapter-with-next",
+          "activity": "EpubReader",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "wait-log:Page render",
+            "press:confirm",
+            "press:confirm",
+            "press:down",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "end-of-book-with-next",
+          "activity": "EpubReader",
+          "steps": [
+            "press:right"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-details-plain",
+      "fixture": "entry-details-plain",
+      "screens": [
+        {
+          "id": "details-plain",
+          "activity": "Details",
+          "steps": [
+            "expect-log:Entering activity: Details",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "details-plain-more",
+          "activity": "DictionaryDefinition",
+          "steps": [
+            "press:right",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "details-plain-return",
+          "activity": "Details",
+          "steps": [
+            "press:back"
+          ]
+        },
+        {
+          "id": "details-plain-confirm",
+          "activity": "Home",
+          "steps": [
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-details-html",
+      "fixture": "entry-details-html",
+      "screens": [
+        {
+          "id": "details-html",
+          "activity": "Details",
+          "steps": [
+            "expect-log:Entering activity: Details",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "details-html-more",
+          "activity": "DictionaryDefinition",
+          "steps": [
+            "press:right",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "details-html-return",
+          "activity": "Details",
+          "steps": [
+            "press:back"
+          ]
+        },
+        {
+          "id": "details-html-confirm",
+          "activity": "Home",
+          "steps": [
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-details-cover",
+      "fixture": "entry-details-cover",
+      "screens": [
+        {
+          "id": "details-cover",
+          "activity": "Details",
+          "steps": [
+            "expect-log:Entering activity: Details",
+            "wait-quiet:2",
+            "expect-log:PNG decoding complete"
+          ]
+        },
+        {
+          "id": "details-cover-cancel",
+          "activity": "Home",
+          "steps": [
+            "press:back"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-frontlight-mono",
+      "fixture": "entry-frontlight-mono",
+      "screens": [
+        {
+          "id": "frontlight-mono",
+          "activity": "FrontlightPanel",
+          "steps": [
+            "expect-log:Entering activity: FrontlightPanel",
+            "expect-log:Entering activity: Home"
+          ]
+        },
+        {
+          "id": "frontlight-mono-off",
+          "activity": "FrontlightPanel",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "frontlight-mono-brighter",
+          "activity": "FrontlightPanel",
+          "steps": [
+            "press:right"
+          ]
+        },
+        {
+          "id": "frontlight-mono-dimmer",
+          "activity": "FrontlightPanel",
+          "steps": [
+            "press:left"
+          ]
+        },
+        {
+          "id": "frontlight-mono-close",
+          "activity": "Home",
+          "steps": [
+            "press:back"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-frontlight-warm",
+      "fixture": "entry-frontlight-warm",
+      "screens": [
+        {
+          "id": "frontlight-warm",
+          "activity": "FrontlightPanel",
+          "steps": [
+            "expect-log:Entering activity: FrontlightPanel",
+            "expect-log:Entering activity: Home"
+          ]
+        },
+        {
+          "id": "frontlight-warm-off",
+          "activity": "FrontlightPanel",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "frontlight-warm-brighter",
+          "activity": "FrontlightPanel",
+          "steps": [
+            "press:right"
+          ]
+        },
+        {
+          "id": "frontlight-warm-dimmer",
+          "activity": "FrontlightPanel",
+          "steps": [
+            "press:left"
+          ]
+        },
+        {
+          "id": "frontlight-warm-close",
+          "activity": "Home",
+          "steps": [
+            "press:back"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-unknown",
+      "fixture": "entry-unknown",
+      "screens": [
+        {
+          "id": "fixture-unknown",
+          "activity": "Home",
+          "steps": [
+            "expect-log:Rejected unknown selector"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-oversized",
+      "fixture": "entry-oversized",
+      "screens": [
+        {
+          "id": "fixture-oversized",
+          "activity": "Home",
+          "steps": [
+            "expect-log:Rejected selector length"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-settings-home-button",
+      "fixture": "entry-settings-home-button",
+      "screens": [
+        {
+          "id": "home-button",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "expect-log:Entering activity: HomeButtonSettings",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "home-button-options",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "home-button-cancel",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "press:back"
+          ]
+        },
+        {
+          "id": "home-button-double",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "press:down"
+          ]
+        },
+        {
+          "id": "home-button-long",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "press:down"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-browse",
+      "fixture": "entry-opds-browse",
+      "screens": [
+        {
+          "id": "opds-fixture-browse",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "opds-search",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:left",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "opds-search-cancel",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "press:back",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-empty",
+      "fixture": "entry-opds-empty",
+      "screens": [
+        {
+          "id": "opds-fixture-empty",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-error",
+      "fixture": "entry-opds-error",
+      "screens": [
+        {
+          "id": "opds-fixture-error",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-loading",
+      "fixture": "entry-opds-loading",
+      "screens": [
+        {
+          "id": "opds-fixture-loading",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-download",
+      "fixture": "entry-opds-download",
+      "screens": [
+        {
+          "id": "opds-fixture-download",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-bytes",
+      "fixture": "entry-opds-bytes",
+      "screens": [
+        {
+          "id": "opds-fixture-bytes",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-auth",
+      "fixture": "entry-opds-auth",
+      "screens": [
+        {
+          "id": "opds-fixture-auth",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-browse",
+      "fixture": "entry-plugin-browse",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-browse",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "plugin-browse-next",
+          "activity": "PluginCatalog",
+          "steps": [
+            "press:right"
+          ]
+        },
+        {
+          "id": "plugin-browse-hold",
+          "activity": "PluginCatalog",
+          "steps": [
+            "press:right:1200"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-xml",
+      "fixture": "entry-plugin-xml",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-xml",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "plugin-xml-next",
+          "activity": "PluginCatalog",
+          "steps": [
+            "press:right"
+          ]
+        },
+        {
+          "id": "plugin-xml-hold",
+          "activity": "PluginCatalog",
+          "steps": [
+            "press:right:1200"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-lists",
+      "fixture": "entry-plugin-lists",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-lists",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "plugin-lists-next",
+          "activity": "PluginCatalog",
+          "steps": [
+            "press:right"
+          ]
+        },
+        {
+          "id": "plugin-lists-hold",
+          "activity": "PluginCatalog",
+          "steps": [
+            "press:right:1200"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-empty",
+      "fixture": "entry-plugin-empty",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-empty",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-error",
+      "fixture": "entry-plugin-error",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-error",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-loading",
+      "fixture": "entry-plugin-loading",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-loading",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-wifi",
+      "fixture": "entry-plugin-wifi",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-wifi",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-search",
+      "fixture": "entry-plugin-search",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-search",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-download",
+      "fixture": "entry-plugin-download",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-download",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-done",
+      "fixture": "entry-plugin-done",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-done",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-no-token",
+      "fixture": "entry-plugin-no-token",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-no-token",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-auth",
+      "fixture": "entry-plugin-auth",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-auth",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-hub-download",
+      "fixture": "entry-hub-download",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "hub-download",
+          "activity": "PluginHubInstall",
+          "steps": [
+            "expect-log:Entering activity: PluginHubInstall",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-hub-done",
+      "fixture": "entry-hub-done",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "hub-done",
+          "activity": "PluginHubInstall",
+          "steps": [
+            "expect-log:Entering activity: PluginHubInstall",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-hub-error",
+      "fixture": "entry-hub-error",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "hub-error",
+          "activity": "PluginHubInstall",
+          "steps": [
+            "expect-log:Entering activity: PluginHubInstall",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-hub-loading",
+      "fixture": "entry-hub-loading",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "hub-loading",
+          "activity": "PluginHubInstall",
+          "steps": [
+            "expect-log:Entering activity: PluginHubInstall",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xtc-gray",
+      "fixture": "xtc-gray",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "xtc-gray-page",
+          "activity": "XtcReader",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "wait-log:Rendered page"
+          ]
+        },
+        {
+          "id": "xtc-gray-next",
+          "activity": "XtcReader",
+          "steps": [
+            "press:right",
+            "wait-log:Rendered page"
+          ]
+        },
+        {
+          "id": "xtc-gray-chapters",
+          "activity": "XtcReaderChapterSelection",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "xtc-gray-return",
+          "activity": "XtcReader",
+          "steps": [
+            "press:back",
+            "wait-log:Rendered page"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "image-navigation",
+      "fixture": "image-siblings",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "image-first",
+          "activity": "BmpViewer",
+          "steps": [
+            "press:confirm",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "image-next",
+          "activity": "BmpViewer",
+          "steps": [
+            "press:right"
+          ]
+        },
+        {
+          "id": "image-previous",
+          "activity": "BmpViewer",
+          "steps": [
+            "press:left"
+          ]
+        },
+        {
+          "id": "image-confirmation",
+          "activity": "Confirmation",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "image-cancelled",
+          "activity": "BmpViewer",
+          "steps": [
+            "press:back"
+          ]
+        },
+        {
+          "id": "image-confirmation-again",
+          "activity": "Confirmation",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "image-cancelled-again",
+          "activity": "BmpViewer",
+          "steps": [
+            "press:back"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xtc-visits",
+      "fixture": "xtc",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "xtc-visit-page",
+          "activity": "XtcReader",
+          "steps": [
+            "press:confirm",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "xtc-visit-chapters",
+          "activity": "XtcReaderChapterSelection",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "xtc-visit-return",
+          "activity": "XtcReader",
+          "steps": [
+            "press:back"
+          ]
+        },
+        {
+          "id": "xtc-visit-chapters-again",
+          "activity": "XtcReaderChapterSelection",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "xtc-visit-return-again",
+          "activity": "XtcReader",
+          "steps": [
+            "press:back"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-kosync-hash",
+      "fixture": "entry-kosync-hash",
+      "rotates": true,
+      "settings": {},
+      "screens": [
+        {
+          "id": "kosync-hash",
+          "activity": "KOReaderSync",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-kosync-fetch",
+      "fixture": "entry-kosync-fetch",
+      "rotates": true,
+      "settings": {},
+      "screens": [
+        {
+          "id": "kosync-fetch",
+          "activity": "KOReaderSync",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-kosync-clippings",
+      "fixture": "entry-kosync-clippings",
+      "rotates": true,
+      "settings": {},
+      "screens": [
+        {
+          "id": "kosync-clippings",
+          "activity": "KOReaderSync",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-kosync-uploading",
+      "fixture": "entry-kosync-uploading",
+      "rotates": true,
+      "settings": {},
+      "screens": [
+        {
+          "id": "kosync-uploading",
+          "activity": "KOReaderSync",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-kosync-uploaded",
+      "fixture": "entry-kosync-uploaded",
+      "rotates": true,
+      "settings": {},
+      "screens": [
+        {
+          "id": "kosync-uploaded",
+          "activity": "KOReaderSync",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-kosync-synced",
+      "fixture": "entry-kosync-synced",
+      "rotates": true,
+      "settings": {},
+      "screens": [
+        {
+          "id": "kosync-synced",
+          "activity": "KOReaderSync",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-kosync-missing",
+      "fixture": "entry-kosync-missing",
+      "rotates": true,
+      "settings": {},
+      "screens": [
+        {
+          "id": "kosync-missing",
+          "activity": "KOReaderSync",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-kosync-credentials",
+      "fixture": "entry-kosync-credentials",
+      "rotates": true,
+      "settings": {},
+      "screens": [
+        {
+          "id": "kosync-credentials",
+          "activity": "KOReaderSync",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-kosync-failed",
+      "fixture": "entry-kosync-failed",
+      "rotates": true,
+      "settings": {},
+      "screens": [
+        {
+          "id": "kosync-failed",
+          "activity": "KOReaderSync",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-kosync-result",
+      "fixture": "entry-kosync-result",
+      "rotates": true,
+      "settings": {},
+      "screens": [
+        {
+          "id": "kosync-result",
+          "activity": "KOReaderSync",
+          "steps": []
+        },
+        {
+          "id": "kosync-result-local",
+          "activity": "KOReaderSync",
+          "steps": [
+            "press:down"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-koauth-busy",
+      "fixture": "entry-koauth-busy",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "koauth-busy",
+          "activity": "KOReaderAuth",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-koauth-success",
+      "fixture": "entry-koauth-success",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "koauth-success",
+          "activity": "KOReaderAuth",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-koauth-failed",
+      "fixture": "entry-koauth-failed",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "koauth-failed",
+          "activity": "KOReaderAuth",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-koauth-signup-busy",
+      "fixture": "entry-koauth-signup-busy",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "koauth-signup-busy",
+          "activity": "KOReaderAuth",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-koauth-signup-success",
+      "fixture": "entry-koauth-signup-success",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "koauth-signup-success",
+          "activity": "KOReaderAuth",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-koauth-signup-failed",
+      "fixture": "entry-koauth-signup-failed",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "koauth-signup-failed",
+          "activity": "KOReaderAuth",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-1-theme0",
+      "fixture": "entry-upd-ota-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-ota-1",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-1-theme1",
+      "fixture": "entry-upd-ota-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-ota-1",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-1-theme3",
+      "fixture": "entry-upd-ota-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-ota-1",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-2-theme0",
+      "fixture": "entry-upd-ota-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-ota-2",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-2-theme1",
+      "fixture": "entry-upd-ota-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-ota-2",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-2-theme3",
+      "fixture": "entry-upd-ota-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-ota-2",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-3-theme0",
+      "fixture": "entry-upd-ota-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-ota-3",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-3-theme1",
+      "fixture": "entry-upd-ota-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-ota-3",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-3-theme3",
+      "fixture": "entry-upd-ota-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-ota-3",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-4-theme0",
+      "fixture": "entry-upd-ota-4",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-ota-4",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-4-theme1",
+      "fixture": "entry-upd-ota-4",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-ota-4",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-4-theme3",
+      "fixture": "entry-upd-ota-4",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-ota-4",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-5-theme0",
+      "fixture": "entry-upd-ota-5",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-ota-5",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-5-theme1",
+      "fixture": "entry-upd-ota-5",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-ota-5",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-5-theme3",
+      "fixture": "entry-upd-ota-5",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-ota-5",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-6-theme0",
+      "fixture": "entry-upd-ota-6",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-ota-6",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-6-theme1",
+      "fixture": "entry-upd-ota-6",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-ota-6",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-6-theme3",
+      "fixture": "entry-upd-ota-6",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-ota-6",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-0-theme0",
+      "fixture": "entry-upd-sd-0",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-sd-0",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-0-theme1",
+      "fixture": "entry-upd-sd-0",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-sd-0",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-0-theme3",
+      "fixture": "entry-upd-sd-0",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-sd-0",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-1-theme0",
+      "fixture": "entry-upd-sd-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-sd-1",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-1-theme1",
+      "fixture": "entry-upd-sd-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-sd-1",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-1-theme3",
+      "fixture": "entry-upd-sd-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-sd-1",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-2-theme0",
+      "fixture": "entry-upd-sd-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-sd-2",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-2-theme1",
+      "fixture": "entry-upd-sd-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-sd-2",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-2-theme3",
+      "fixture": "entry-upd-sd-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-sd-2",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-3-theme0",
+      "fixture": "entry-upd-sd-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-sd-3",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-3-theme1",
+      "fixture": "entry-upd-sd-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-sd-3",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-3-theme3",
+      "fixture": "entry-upd-sd-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-sd-3",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-4-theme0",
+      "fixture": "entry-upd-sd-4",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-sd-4",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-4-theme1",
+      "fixture": "entry-upd-sd-4",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-sd-4",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-4-theme3",
+      "fixture": "entry-upd-sd-4",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-sd-4",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-5-theme0",
+      "fixture": "entry-upd-sd-5",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-sd-5",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-5-theme1",
+      "fixture": "entry-upd-sd-5",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-sd-5",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-5-theme3",
+      "fixture": "entry-upd-sd-5",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-sd-5",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-0-theme0",
+      "fixture": "entry-upd-cache-0",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-cache-0",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-0-theme1",
+      "fixture": "entry-upd-cache-0",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-cache-0",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-0-theme3",
+      "fixture": "entry-upd-cache-0",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-cache-0",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-1-theme0",
+      "fixture": "entry-upd-cache-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-cache-1",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-1-theme1",
+      "fixture": "entry-upd-cache-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-cache-1",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-1-theme3",
+      "fixture": "entry-upd-cache-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-cache-1",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-2-theme0",
+      "fixture": "entry-upd-cache-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-cache-2",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-2-theme1",
+      "fixture": "entry-upd-cache-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-cache-2",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-2-theme3",
+      "fixture": "entry-upd-cache-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-cache-2",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-3-theme0",
+      "fixture": "entry-upd-cache-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-cache-3",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-3-theme1",
+      "fixture": "entry-upd-cache-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-cache-3",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-3-theme3",
+      "fixture": "entry-upd-cache-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-cache-3",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-1-theme0",
+      "fixture": "entry-upd-font-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-font-1",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-1-theme1",
+      "fixture": "entry-upd-font-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-font-1",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-1-theme3",
+      "fixture": "entry-upd-font-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-font-1",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-2-theme0",
+      "fixture": "entry-upd-font-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-font-2",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-2-theme1",
+      "fixture": "entry-upd-font-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-font-2",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-2-theme3",
+      "fixture": "entry-upd-font-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-font-2",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-3-theme0",
+      "fixture": "entry-upd-font-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-font-3",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-3-theme1",
+      "fixture": "entry-upd-font-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-font-3",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-3-theme3",
+      "fixture": "entry-upd-font-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-font-3",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-4-theme0",
+      "fixture": "entry-upd-font-4",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-font-4",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-4-theme1",
+      "fixture": "entry-upd-font-4",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-font-4",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-4-theme3",
+      "fixture": "entry-upd-font-4",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-font-4",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-5-theme0",
+      "fixture": "entry-upd-font-5",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-font-5",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-5-theme1",
+      "fixture": "entry-upd-font-5",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-font-5",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-5-theme3",
+      "fixture": "entry-upd-font-5",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-font-5",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-6-theme0",
+      "fixture": "entry-upd-font-6",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-font-6",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-6-theme1",
+      "fixture": "entry-upd-font-6",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-font-6",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-6-theme3",
+      "fixture": "entry-upd-font-6",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-font-6",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+p { text-align: justify; }
+.poem p { text-align: left; }
+blockquote > p { font-style: italic; }
+p + p { font-weight: bold; }
+a:hover { font-weight: bold; }

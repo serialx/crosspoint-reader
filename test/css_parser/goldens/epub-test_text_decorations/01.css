@@ -1,0 +1,39 @@
+.calibre {
+  display: block;
+  font-size: 1em;
+  padding-left: 0;
+  padding-right: 0;
+  margin: 0 5pt;
+}
+.calibre1 {
+  display: block;
+  margin: 1em 0;
+}
+
+/* Baseline */
+.thro { text-decoration: line-through; }
+.under { text-decoration: underline; }
+.underthro { text-decoration: underline line-through; }
+
+/* Scenario 1 */
+.line-through-only { text-decoration: line-through; }
+.no-deco { text-decoration: none; }
+
+/* Scenario 2 */
+.parent-line-through { text-decoration: line-through; }
+
+/* Helpers */
+.section-heading {
+  display: block;
+  font-size: 1em;
+  font-weight: bold;
+  margin: 1.5em 0 0.25em;
+  border-bottom: 0.5pt solid #999;
+  padding-bottom: 2pt;
+}
+.note {
+  font-size: 0.85em;
+  color: #666;
+  font-style: italic;
+  margin-bottom: 0.25em;
+}

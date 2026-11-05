@@ -1,0 +1,2279 @@
+confirmation 480 0 0
+fill 60 276 360 240 1 1 0 15
+stroke 60 276 360 240 1 4 2 0 15
+text 115 292 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 115 292
+text 85 324 310 24 1 0 4 1 0 0 A long title with more than one
+origin 85 324
+text 110 348 260 24 1 0 4 1 0 0 line of text in the narrow
+origin 110 348
+text 210 372 60 24 1 0 4 1 0 0 dialog
+origin 210 372
+fill 76 412 328 40 2 2 0 15
+text 80 414 320 36 1 1 4 1 0 0 Cancel
+origin 210 420
+fill 76 460 328 40 1 1 0 15
+text 80 462 320 36 1 1 4 1 0 0 Confirm
+origin 205 468
+hit 60 276 360 240 2 0 1
+hit 76 410 328 44 1 0 1
+hit 76 458 328 44 1 1 1
+confirmation 480 0 1
+fill 60 276 360 240 1 1 0 15
+stroke 60 276 360 240 1 4 2 0 15
+text 115 292 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 115 292
+text 85 324 310 24 1 0 4 1 0 0 A long title with more than one
+origin 85 324
+text 110 348 260 24 1 0 4 1 0 0 line of text in the narrow
+origin 110 348
+text 210 372 60 24 1 0 4 1 0 0 dialog
+origin 210 372
+fill 76 412 328 40 1 1 0 15
+text 80 414 320 36 1 1 4 1 0 0 Cancel
+origin 210 420
+fill 76 460 328 40 2 2 0 15
+text 80 462 320 36 1 1 4 1 0 0 Confirm
+origin 205 468
+hit 60 276 360 240 2 0 1
+hit 76 410 328 44 1 0 1
+hit 76 458 328 44 1 1 1
+capsule 480 0 0
+fill 30 100 420 56 1 1 0 15
+fill 32 102 52 52 1 4 0 15
+stroke 30 100 420 56 1 4 2 0 15
+fill 32 102 52 52 1 1 0 15
+stroke 32 102 52 52 1 4 2 0 15
+hit 30 100 420 56 1 0 513
+capsule 480 0 1
+fill 30 100 420 56 1 1 0 15
+fill 32 102 55 52 1 4 0 15
+stroke 30 100 420 56 1 4 2 0 15
+fill 35 102 52 52 1 1 0 15
+stroke 35 102 52 52 1 4 2 0 15
+hit 30 100 420 56 1 0 513
+capsule 480 0 50
+fill 30 100 420 56 1 1 0 15
+fill 32 102 234 52 1 4 0 15
+stroke 30 100 420 56 1 4 2 0 15
+fill 214 102 52 52 1 1 0 15
+stroke 214 102 52 52 1 4 2 0 15
+hit 30 100 420 56 1 0 513
+capsule 480 0 99
+fill 30 100 420 56 1 1 0 15
+fill 32 102 412 52 1 4 0 15
+stroke 30 100 420 56 1 4 2 0 15
+fill 392 102 52 52 1 1 0 15
+stroke 392 102 52 52 1 4 2 0 15
+hit 30 100 420 56 1 0 513
+capsule 480 0 100
+fill 30 100 420 56 1 1 0 15
+fill 32 102 416 52 1 4 0 15
+stroke 30 100 420 56 1 4 2 0 15
+fill 396 102 52 52 1 1 0 15
+stroke 396 102 52 52 1 4 2 0 15
+hit 30 100 420 56 1 0 513
+slider-row 480 0 0
+text 16 40 448 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 448 18 0 2 4 1 0 0 60%
+origin 440 40
+fill 16 66 56 56 1 1 0 15
+stroke 16 66 56 56 1 4 2 0 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 408 66 56 56 1 1 0 15
+stroke 408 66 56 56 1 4 2 0 15
+text 412 68 48 52 2 1 4 1 0 0 +
+origin 431 82
+fill 80 66 320 56 1 1 0 15
+fill 82 68 210 52 1 4 0 15
+stroke 80 66 320 56 1 4 2 0 15
+fill 240 68 52 52 1 1 0 15
+stroke 240 68 52 52 1 4 2 0 15
+hit 16 66 56 56 4 -1 1
+hit 408 66 56 56 4 1 1
+hit 80 66 320 56 1 0 513
+slider-row 480 0 1
+text 16 40 448 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 448 18 0 2 4 1 0 0 60%
+origin 440 40
+fill 408 66 56 56 1 1 0 15
+stroke 408 66 56 56 1 4 2 0 15
+fill 16 66 56 56 1 1 0 15
+stroke 16 66 56 56 1 4 2 0 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 344 66 56 56 1 1 0 15
+stroke 344 66 56 56 1 4 2 0 15
+text 348 68 48 52 2 1 4 1 0 0 +
+origin 367 82
+fill 80 66 256 56 1 1 0 15
+fill 82 68 172 52 1 4 0 15
+stroke 80 66 256 56 1 4 2 0 15
+fill 202 68 52 52 1 1 0 15
+stroke 202 68 52 52 1 4 2 0 15
+hit 408 66 56 56 3 0 1
+hit 16 66 56 56 4 -1 1
+hit 344 66 56 56 4 1 1
+hit 80 66 256 56 1 0 513
+sheet 480 0
+fill 0 0 480 300 1 1 0 12
+fill 0 298 480 2 1 4 0 15
+fill 204 271 72 5 1 4 2 15
+details 480 0 0
+fill 0 80 480 660 1 1 0 15
+fill 16 668 448 56 1 1 0 15
+stroke 16 668 448 56 1 4 1 0 15
+text 20 670 440 52 1 1 4 1 0 0 Read
+origin 220 684
+fill 16 604 448 56 1 1 0 15
+stroke 16 604 448 56 1 4 1 0 15
+text 20 606 440 52 1 1 4 1 0 0 Details
+origin 205 620
+fill 16 96 448 122 1 1 0 15
+text 16 96 448 24 1 0 4 2 1 0 A publication title
+origin 16 96
+text 16 130 448 24 1 0 4 1 0 0 An author
+origin 16 130
+text 16 164 448 24 1 0 4 1 0 0 Source
+origin 16 164
+fill 16 230 448 100 1 1 0 15
+fill 16 230 448 1 1 4 0 15
+text 16 240 448 24 1 0 4 1 1 0 Available
+origin 16 240
+text 16 270 448 24 1 0 4 1 0 0 2 copies
+origin 16 270
+text 16 300 448 24 1 0 4 1 0 0 No holds
+origin 16 300
+text 16 342 448 24 1 0 4 3 0 0 Version 1
+origin 16 342
+text 16 378 448 24 1 0 4 1 1 0 Description
+origin 16 378
+text 16 410 448 48 1 0 4 7 0 0 Some description text that wraps across lines.
+hit 16 668 448 56 1 0 7
+hit 16 604 448 56 2 0 7
+details 480 0 1
+fill 0 80 480 660 1 1 0 15
+fill 16 668 448 56 1 1 0 15
+stroke 16 668 448 56 1 4 1 0 15
+text 20 670 440 52 1 1 4 1 0 0 Read
+origin 220 684
+fill 16 604 448 56 1 1 0 15
+stroke 16 604 448 56 1 4 1 0 15
+text 20 606 440 52 1 1 4 1 0 0 Details
+origin 205 620
+fill 16 96 448 192 1 1 0 15
+fill 16 96 128 192 1 1 0 15
+stroke 16 96 128 192 1 4 1 0 15
+text 24 108 112 72 1 1 4 5 0 0 A publication title
+text 160 96 304 24 1 0 4 3 1 0 A publication title
+origin 160 96
+text 160 130 304 24 1 0 4 2 0 0 An author
+origin 160 130
+text 160 164 304 24 1 0 4 1 0 0 Source
+origin 160 164
+fill 16 300 448 100 1 1 0 15
+fill 16 300 448 1 1 4 0 15
+text 16 310 448 24 1 0 4 1 1 0 Available
+origin 16 310
+text 16 340 448 24 1 0 4 1 0 0 2 copies
+origin 16 340
+text 16 370 448 24 1 0 4 1 0 0 No holds
+origin 16 370
+text 16 412 448 24 1 0 4 3 0 0 Version 1
+origin 16 412
+text 16 448 448 24 1 0 4 1 1 0 Description
+origin 16 448
+text 16 480 448 48 1 0 4 4 0 0 Some description text that wraps across lines.
+hit 16 668 448 56 1 0 7
+hit 16 604 448 56 2 0 7
+confirmation 480 12 0
+fill 60 276 360 240 1 1 12 15
+stroke 60 276 360 240 1 4 2 12 15
+text 115 292 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 115 292
+text 85 324 310 24 1 0 4 1 0 0 A long title with more than one
+origin 85 324
+text 110 348 260 24 1 0 4 1 0 0 line of text in the narrow
+origin 110 348
+text 210 372 60 24 1 0 4 1 0 0 dialog
+origin 210 372
+fill 76 412 328 40 1 4 12 15
+text 80 414 320 36 1 1 1 1 0 0 Cancel
+origin 210 420
+fill 76 460 328 40 1 1 12 15
+text 80 462 320 36 1 1 4 1 0 0 Confirm
+origin 205 468
+hit 60 276 360 240 2 0 1
+hit 76 410 328 44 1 0 1
+hit 76 458 328 44 1 1 1
+confirmation 480 12 1
+fill 60 276 360 240 1 1 12 15
+stroke 60 276 360 240 1 4 2 12 15
+text 115 292 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 115 292
+text 85 324 310 24 1 0 4 1 0 0 A long title with more than one
+origin 85 324
+text 110 348 260 24 1 0 4 1 0 0 line of text in the narrow
+origin 110 348
+text 210 372 60 24 1 0 4 1 0 0 dialog
+origin 210 372
+fill 76 412 328 40 1 1 12 15
+text 80 414 320 36 1 1 4 1 0 0 Cancel
+origin 210 420
+fill 76 460 328 40 1 4 12 15
+text 80 462 320 36 1 1 1 1 0 0 Confirm
+origin 205 468
+hit 60 276 360 240 2 0 1
+hit 76 410 328 44 1 0 1
+hit 76 458 328 44 1 1 1
+capsule 480 12 0
+fill 30 100 420 56 1 1 12 15
+fill 32 102 52 52 1 4 12 15
+stroke 30 100 420 56 1 4 2 12 15
+fill 32 102 52 52 1 1 12 15
+stroke 32 102 52 52 1 4 2 12 15
+hit 30 100 420 56 1 0 513
+capsule 480 12 1
+fill 30 100 420 56 1 1 12 15
+fill 32 102 55 52 1 4 12 15
+stroke 30 100 420 56 1 4 2 12 15
+fill 35 102 52 52 1 1 12 15
+stroke 35 102 52 52 1 4 2 12 15
+hit 30 100 420 56 1 0 513
+capsule 480 12 50
+fill 30 100 420 56 1 1 12 15
+fill 32 102 234 52 1 4 12 15
+stroke 30 100 420 56 1 4 2 12 15
+fill 214 102 52 52 1 1 12 15
+stroke 214 102 52 52 1 4 2 12 15
+hit 30 100 420 56 1 0 513
+capsule 480 12 99
+fill 30 100 420 56 1 1 12 15
+fill 32 102 412 52 1 4 12 15
+stroke 30 100 420 56 1 4 2 12 15
+fill 392 102 52 52 1 1 12 15
+stroke 392 102 52 52 1 4 2 12 15
+hit 30 100 420 56 1 0 513
+capsule 480 12 100
+fill 30 100 420 56 1 1 12 15
+fill 32 102 416 52 1 4 12 15
+stroke 30 100 420 56 1 4 2 12 15
+fill 396 102 52 52 1 1 12 15
+stroke 396 102 52 52 1 4 2 12 15
+hit 30 100 420 56 1 0 513
+slider-row 480 12 0
+text 16 40 448 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 448 18 0 2 4 1 0 0 60%
+origin 440 40
+fill 16 66 56 56 1 1 12 15
+stroke 16 66 56 56 1 4 2 12 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 408 66 56 56 1 1 12 15
+stroke 408 66 56 56 1 4 2 12 15
+text 412 68 48 52 2 1 4 1 0 0 +
+origin 431 82
+fill 80 66 320 56 1 1 12 15
+fill 82 68 210 52 1 4 12 15
+stroke 80 66 320 56 1 4 2 12 15
+fill 240 68 52 52 1 1 12 15
+stroke 240 68 52 52 1 4 2 12 15
+hit 16 66 56 56 4 -1 1
+hit 408 66 56 56 4 1 1
+hit 80 66 320 56 1 0 513
+slider-row 480 12 1
+text 16 40 448 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 448 18 0 2 4 1 0 0 60%
+origin 440 40
+fill 408 66 56 56 1 1 12 15
+stroke 408 66 56 56 1 4 2 12 15
+fill 16 66 56 56 1 1 12 15
+stroke 16 66 56 56 1 4 2 12 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 344 66 56 56 1 1 12 15
+stroke 344 66 56 56 1 4 2 12 15
+text 348 68 48 52 2 1 4 1 0 0 +
+origin 367 82
+fill 80 66 256 56 1 1 12 15
+fill 82 68 172 52 1 4 12 15
+stroke 80 66 256 56 1 4 2 12 15
+fill 202 68 52 52 1 1 12 15
+stroke 202 68 52 52 1 4 2 12 15
+hit 408 66 56 56 3 0 1
+hit 16 66 56 56 4 -1 1
+hit 344 66 56 56 4 1 1
+hit 80 66 256 56 1 0 513
+sheet 480 12
+fill 0 0 480 300 1 1 12 12
+fill 0 298 480 2 1 4 0 15
+fill 204 271 72 5 1 4 2 15
+details 480 12 0
+fill 0 80 480 660 1 1 0 15
+fill 16 668 448 56 1 1 12 15
+stroke 16 668 448 56 1 4 1 12 15
+text 20 670 440 52 1 1 4 1 0 0 Read
+origin 220 684
+fill 16 604 448 56 1 1 12 15
+stroke 16 604 448 56 1 4 1 12 15
+text 20 606 440 52 1 1 4 1 0 0 Details
+origin 205 620
+fill 16 96 448 122 1 1 0 15
+text 16 96 448 24 1 0 4 2 1 0 A publication title
+origin 16 96
+text 16 130 448 24 1 0 4 1 0 0 An author
+origin 16 130
+text 16 164 448 24 1 0 4 1 0 0 Source
+origin 16 164
+fill 16 230 448 100 1 1 0 15
+fill 16 230 448 1 1 4 0 15
+text 16 240 448 24 1 0 4 1 1 0 Available
+origin 16 240
+text 16 270 448 24 1 0 4 1 0 0 2 copies
+origin 16 270
+text 16 300 448 24 1 0 4 1 0 0 No holds
+origin 16 300
+text 16 342 448 24 1 0 4 3 0 0 Version 1
+origin 16 342
+text 16 378 448 24 1 0 4 1 1 0 Description
+origin 16 378
+text 16 410 448 48 1 0 4 7 0 0 Some description text that wraps across lines.
+hit 16 668 448 56 1 0 7
+hit 16 604 448 56 2 0 7
+details 480 12 1
+fill 0 80 480 660 1 1 0 15
+fill 16 668 448 56 1 1 12 15
+stroke 16 668 448 56 1 4 1 12 15
+text 20 670 440 52 1 1 4 1 0 0 Read
+origin 220 684
+fill 16 604 448 56 1 1 12 15
+stroke 16 604 448 56 1 4 1 12 15
+text 20 606 440 52 1 1 4 1 0 0 Details
+origin 205 620
+fill 16 96 448 192 1 1 0 15
+fill 16 96 128 192 1 1 0 15
+stroke 16 96 128 192 1 4 1 0 15
+text 24 108 112 72 1 1 4 5 0 0 A publication title
+text 160 96 304 24 1 0 4 3 1 0 A publication title
+origin 160 96
+text 160 130 304 24 1 0 4 2 0 0 An author
+origin 160 130
+text 160 164 304 24 1 0 4 1 0 0 Source
+origin 160 164
+fill 16 300 448 100 1 1 0 15
+fill 16 300 448 1 1 4 0 15
+text 16 310 448 24 1 0 4 1 1 0 Available
+origin 16 310
+text 16 340 448 24 1 0 4 1 0 0 2 copies
+origin 16 340
+text 16 370 448 24 1 0 4 1 0 0 No holds
+origin 16 370
+text 16 412 448 24 1 0 4 3 0 0 Version 1
+origin 16 412
+text 16 448 448 24 1 0 4 1 1 0 Description
+origin 16 448
+text 16 480 448 48 1 0 4 4 0 0 Some description text that wraps across lines.
+hit 16 668 448 56 1 0 7
+hit 16 604 448 56 2 0 7
+confirmation 480 18 0
+fill 60 276 360 240 1 1 18 15
+stroke 60 276 360 240 1 4 2 18 15
+text 115 292 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 115 292
+text 85 324 310 24 1 0 4 1 0 0 A long title with more than one
+origin 85 324
+text 110 348 260 24 1 0 4 1 0 0 line of text in the narrow
+origin 110 348
+text 210 372 60 24 1 0 4 1 0 0 dialog
+origin 210 372
+fill 76 412 328 40 1 4 18 15
+text 80 414 320 36 1 1 1 1 0 0 Cancel
+origin 210 420
+fill 76 460 328 40 1 1 18 15
+text 80 462 320 36 1 1 4 1 0 0 Confirm
+origin 205 468
+hit 60 276 360 240 2 0 1
+hit 76 410 328 44 1 0 1
+hit 76 458 328 44 1 1 1
+confirmation 480 18 1
+fill 60 276 360 240 1 1 18 15
+stroke 60 276 360 240 1 4 2 18 15
+text 115 292 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 115 292
+text 85 324 310 24 1 0 4 1 0 0 A long title with more than one
+origin 85 324
+text 110 348 260 24 1 0 4 1 0 0 line of text in the narrow
+origin 110 348
+text 210 372 60 24 1 0 4 1 0 0 dialog
+origin 210 372
+fill 76 412 328 40 1 1 18 15
+text 80 414 320 36 1 1 4 1 0 0 Cancel
+origin 210 420
+fill 76 460 328 40 1 4 18 15
+text 80 462 320 36 1 1 1 1 0 0 Confirm
+origin 205 468
+hit 60 276 360 240 2 0 1
+hit 76 410 328 44 1 0 1
+hit 76 458 328 44 1 1 1
+capsule 480 18 0
+fill 30 100 420 56 1 1 18 15
+fill 32 102 52 52 1 4 18 15
+stroke 30 100 420 56 1 4 2 18 15
+fill 32 102 52 52 1 1 18 15
+stroke 32 102 52 52 1 4 2 18 15
+hit 30 100 420 56 1 0 513
+capsule 480 18 1
+fill 30 100 420 56 1 1 18 15
+fill 32 102 55 52 1 4 18 15
+stroke 30 100 420 56 1 4 2 18 15
+fill 35 102 52 52 1 1 18 15
+stroke 35 102 52 52 1 4 2 18 15
+hit 30 100 420 56 1 0 513
+capsule 480 18 50
+fill 30 100 420 56 1 1 18 15
+fill 32 102 234 52 1 4 18 15
+stroke 30 100 420 56 1 4 2 18 15
+fill 214 102 52 52 1 1 18 15
+stroke 214 102 52 52 1 4 2 18 15
+hit 30 100 420 56 1 0 513
+capsule 480 18 99
+fill 30 100 420 56 1 1 18 15
+fill 32 102 412 52 1 4 18 15
+stroke 30 100 420 56 1 4 2 18 15
+fill 392 102 52 52 1 1 18 15
+stroke 392 102 52 52 1 4 2 18 15
+hit 30 100 420 56 1 0 513
+capsule 480 18 100
+fill 30 100 420 56 1 1 18 15
+fill 32 102 416 52 1 4 18 15
+stroke 30 100 420 56 1 4 2 18 15
+fill 396 102 52 52 1 1 18 15
+stroke 396 102 52 52 1 4 2 18 15
+hit 30 100 420 56 1 0 513
+slider-row 480 18 0
+text 16 40 448 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 448 18 0 2 4 1 0 0 60%
+origin 440 40
+fill 16 66 56 56 1 1 18 15
+stroke 16 66 56 56 1 4 2 18 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 408 66 56 56 1 1 18 15
+stroke 408 66 56 56 1 4 2 18 15
+text 412 68 48 52 2 1 4 1 0 0 +
+origin 431 82
+fill 80 66 320 56 1 1 18 15
+fill 82 68 210 52 1 4 18 15
+stroke 80 66 320 56 1 4 2 18 15
+fill 240 68 52 52 1 1 18 15
+stroke 240 68 52 52 1 4 2 18 15
+hit 16 66 56 56 4 -1 1
+hit 408 66 56 56 4 1 1
+hit 80 66 320 56 1 0 513
+slider-row 480 18 1
+text 16 40 448 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 448 18 0 2 4 1 0 0 60%
+origin 440 40
+fill 408 66 56 56 1 1 18 15
+stroke 408 66 56 56 1 4 2 18 15
+fill 16 66 56 56 1 1 18 15
+stroke 16 66 56 56 1 4 2 18 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 344 66 56 56 1 1 18 15
+stroke 344 66 56 56 1 4 2 18 15
+text 348 68 48 52 2 1 4 1 0 0 +
+origin 367 82
+fill 80 66 256 56 1 1 18 15
+fill 82 68 172 52 1 4 18 15
+stroke 80 66 256 56 1 4 2 18 15
+fill 202 68 52 52 1 1 18 15
+stroke 202 68 52 52 1 4 2 18 15
+hit 408 66 56 56 3 0 1
+hit 16 66 56 56 4 -1 1
+hit 344 66 56 56 4 1 1
+hit 80 66 256 56 1 0 513
+sheet 480 18
+fill 0 0 480 300 1 1 18 12
+fill 0 298 480 2 1 4 0 15
+fill 204 271 72 5 1 4 2 15
+details 480 18 0
+fill 0 80 480 660 1 1 0 15
+fill 16 668 448 56 1 1 18 15
+stroke 16 668 448 56 1 4 1 18 15
+text 20 670 440 52 1 1 4 1 0 0 Read
+origin 220 684
+fill 16 604 448 56 1 1 18 15
+stroke 16 604 448 56 1 4 1 18 15
+text 20 606 440 52 1 1 4 1 0 0 Details
+origin 205 620
+fill 16 96 448 122 1 1 0 15
+text 16 96 448 24 1 0 4 2 1 0 A publication title
+origin 16 96
+text 16 130 448 24 1 0 4 1 0 0 An author
+origin 16 130
+text 16 164 448 24 1 0 4 1 0 0 Source
+origin 16 164
+fill 16 230 448 100 1 1 0 15
+fill 16 230 448 1 1 4 0 15
+text 16 240 448 24 1 0 4 1 1 0 Available
+origin 16 240
+text 16 270 448 24 1 0 4 1 0 0 2 copies
+origin 16 270
+text 16 300 448 24 1 0 4 1 0 0 No holds
+origin 16 300
+text 16 342 448 24 1 0 4 3 0 0 Version 1
+origin 16 342
+text 16 378 448 24 1 0 4 1 1 0 Description
+origin 16 378
+text 16 410 448 48 1 0 4 7 0 0 Some description text that wraps across lines.
+hit 16 668 448 56 1 0 7
+hit 16 604 448 56 2 0 7
+details 480 18 1
+fill 0 80 480 660 1 1 0 15
+fill 16 668 448 56 1 1 18 15
+stroke 16 668 448 56 1 4 1 18 15
+text 20 670 440 52 1 1 4 1 0 0 Read
+origin 220 684
+fill 16 604 448 56 1 1 18 15
+stroke 16 604 448 56 1 4 1 18 15
+text 20 606 440 52 1 1 4 1 0 0 Details
+origin 205 620
+fill 16 96 448 192 1 1 0 15
+fill 16 96 128 192 1 1 0 15
+stroke 16 96 128 192 1 4 1 0 15
+text 24 108 112 72 1 1 4 5 0 0 A publication title
+text 160 96 304 24 1 0 4 3 1 0 A publication title
+origin 160 96
+text 160 130 304 24 1 0 4 2 0 0 An author
+origin 160 130
+text 160 164 304 24 1 0 4 1 0 0 Source
+origin 160 164
+fill 16 300 448 100 1 1 0 15
+fill 16 300 448 1 1 4 0 15
+text 16 310 448 24 1 0 4 1 1 0 Available
+origin 16 310
+text 16 340 448 24 1 0 4 1 0 0 2 copies
+origin 16 340
+text 16 370 448 24 1 0 4 1 0 0 No holds
+origin 16 370
+text 16 412 448 24 1 0 4 3 0 0 Version 1
+origin 16 412
+text 16 448 448 24 1 0 4 1 1 0 Description
+origin 16 448
+text 16 480 448 48 1 0 4 4 0 0 Some description text that wraps across lines.
+hit 16 668 448 56 1 0 7
+hit 16 604 448 56 2 0 7
+confirmation 528 0 0
+fill 66 288 396 216 1 1 0 15
+stroke 66 288 396 216 1 4 2 0 15
+text 139 304 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 139 304
+text 84 336 360 24 1 0 4 1 0 0 A long title with more than one line
+origin 84 336
+text 124 360 280 24 1 0 4 1 0 0 of text in the narrow dialog
+origin 124 360
+fill 82 400 364 40 2 2 0 15
+text 86 402 356 36 1 1 4 1 0 0 Cancel
+origin 234 408
+fill 82 448 364 40 1 1 0 15
+text 86 450 356 36 1 1 4 1 0 0 Confirm
+origin 229 456
+hit 66 288 396 216 2 0 1
+hit 82 398 364 44 1 0 1
+hit 82 446 364 44 1 1 1
+confirmation 528 0 1
+fill 66 288 396 216 1 1 0 15
+stroke 66 288 396 216 1 4 2 0 15
+text 139 304 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 139 304
+text 84 336 360 24 1 0 4 1 0 0 A long title with more than one line
+origin 84 336
+text 124 360 280 24 1 0 4 1 0 0 of text in the narrow dialog
+origin 124 360
+fill 82 400 364 40 1 1 0 15
+text 86 402 356 36 1 1 4 1 0 0 Cancel
+origin 234 408
+fill 82 448 364 40 2 2 0 15
+text 86 450 356 36 1 1 4 1 0 0 Confirm
+origin 229 456
+hit 66 288 396 216 2 0 1
+hit 82 398 364 44 1 0 1
+hit 82 446 364 44 1 1 1
+capsule 528 0 0
+fill 30 100 468 56 1 1 0 15
+fill 32 102 52 52 1 4 0 15
+stroke 30 100 468 56 1 4 2 0 15
+fill 32 102 52 52 1 1 0 15
+stroke 32 102 52 52 1 4 2 0 15
+hit 30 100 468 56 1 0 513
+capsule 528 0 1
+fill 30 100 468 56 1 1 0 15
+fill 32 102 56 52 1 4 0 15
+stroke 30 100 468 56 1 4 2 0 15
+fill 36 102 52 52 1 1 0 15
+stroke 36 102 52 52 1 4 2 0 15
+hit 30 100 468 56 1 0 513
+capsule 528 0 50
+fill 30 100 468 56 1 1 0 15
+fill 32 102 258 52 1 4 0 15
+stroke 30 100 468 56 1 4 2 0 15
+fill 238 102 52 52 1 1 0 15
+stroke 238 102 52 52 1 4 2 0 15
+hit 30 100 468 56 1 0 513
+capsule 528 0 99
+fill 30 100 468 56 1 1 0 15
+fill 32 102 459 52 1 4 0 15
+stroke 30 100 468 56 1 4 2 0 15
+fill 439 102 52 52 1 1 0 15
+stroke 439 102 52 52 1 4 2 0 15
+hit 30 100 468 56 1 0 513
+capsule 528 0 100
+fill 30 100 468 56 1 1 0 15
+fill 32 102 464 52 1 4 0 15
+stroke 30 100 468 56 1 4 2 0 15
+fill 444 102 52 52 1 1 0 15
+stroke 444 102 52 52 1 4 2 0 15
+hit 30 100 468 56 1 0 513
+slider-row 528 0 0
+text 16 40 496 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 496 18 0 2 4 1 0 0 60%
+origin 488 40
+fill 16 66 56 56 1 1 0 15
+stroke 16 66 56 56 1 4 2 0 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 456 66 56 56 1 1 0 15
+stroke 456 66 56 56 1 4 2 0 15
+text 460 68 48 52 2 1 4 1 0 0 +
+origin 479 82
+fill 80 66 368 56 1 1 0 15
+fill 82 68 239 52 1 4 0 15
+stroke 80 66 368 56 1 4 2 0 15
+fill 269 68 52 52 1 1 0 15
+stroke 269 68 52 52 1 4 2 0 15
+hit 16 66 56 56 4 -1 1
+hit 456 66 56 56 4 1 1
+hit 80 66 368 56 1 0 513
+slider-row 528 0 1
+text 16 40 496 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 496 18 0 2 4 1 0 0 60%
+origin 488 40
+fill 456 66 56 56 1 1 0 15
+stroke 456 66 56 56 1 4 2 0 15
+fill 16 66 56 56 1 1 0 15
+stroke 16 66 56 56 1 4 2 0 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 392 66 56 56 1 1 0 15
+stroke 392 66 56 56 1 4 2 0 15
+text 396 68 48 52 2 1 4 1 0 0 +
+origin 415 82
+fill 80 66 304 56 1 1 0 15
+fill 82 68 200 52 1 4 0 15
+stroke 80 66 304 56 1 4 2 0 15
+fill 230 68 52 52 1 1 0 15
+stroke 230 68 52 52 1 4 2 0 15
+hit 456 66 56 56 3 0 1
+hit 16 66 56 56 4 -1 1
+hit 392 66 56 56 4 1 1
+hit 80 66 304 56 1 0 513
+sheet 528 0
+fill 0 0 528 300 1 1 0 12
+fill 0 298 528 2 1 4 0 15
+fill 228 271 72 5 1 4 2 15
+details 528 0 0
+fill 0 80 528 660 1 1 0 15
+fill 16 668 496 56 1 1 0 15
+stroke 16 668 496 56 1 4 1 0 15
+text 20 670 488 52 1 1 4 1 0 0 Read
+origin 244 684
+fill 16 604 496 56 1 1 0 15
+stroke 16 604 496 56 1 4 1 0 15
+text 20 606 488 52 1 1 4 1 0 0 Details
+origin 229 620
+fill 16 96 496 122 1 1 0 15
+text 16 96 496 24 1 0 4 2 1 0 A publication title
+origin 16 96
+text 16 130 496 24 1 0 4 1 0 0 An author
+origin 16 130
+text 16 164 496 24 1 0 4 1 0 0 Source
+origin 16 164
+fill 16 230 496 100 1 1 0 15
+fill 16 230 496 1 1 4 0 15
+text 16 240 496 24 1 0 4 1 1 0 Available
+origin 16 240
+text 16 270 496 24 1 0 4 1 0 0 2 copies
+origin 16 270
+text 16 300 496 24 1 0 4 1 0 0 No holds
+origin 16 300
+text 16 342 496 24 1 0 4 3 0 0 Version 1
+origin 16 342
+text 16 378 496 24 1 0 4 1 1 0 Description
+origin 16 378
+text 16 410 496 24 1 0 4 7 0 0 Some description text that wraps across lines.
+origin 16 410
+hit 16 668 496 56 1 0 7
+hit 16 604 496 56 2 0 7
+details 528 0 1
+fill 0 80 528 660 1 1 0 15
+fill 16 668 496 56 1 1 0 15
+stroke 16 668 496 56 1 4 1 0 15
+text 20 670 488 52 1 1 4 1 0 0 Read
+origin 244 684
+fill 16 604 496 56 1 1 0 15
+stroke 16 604 496 56 1 4 1 0 15
+text 20 606 488 52 1 1 4 1 0 0 Details
+origin 229 620
+fill 16 96 496 192 1 1 0 15
+fill 16 96 128 192 1 1 0 15
+stroke 16 96 128 192 1 4 1 0 15
+text 24 108 112 72 1 1 4 5 0 0 A publication title
+text 160 96 352 24 1 0 4 3 1 0 A publication title
+origin 160 96
+text 160 130 352 24 1 0 4 2 0 0 An author
+origin 160 130
+text 160 164 352 24 1 0 4 1 0 0 Source
+origin 160 164
+fill 16 300 496 100 1 1 0 15
+fill 16 300 496 1 1 4 0 15
+text 16 310 496 24 1 0 4 1 1 0 Available
+origin 16 310
+text 16 340 496 24 1 0 4 1 0 0 2 copies
+origin 16 340
+text 16 370 496 24 1 0 4 1 0 0 No holds
+origin 16 370
+text 16 412 496 24 1 0 4 3 0 0 Version 1
+origin 16 412
+text 16 448 496 24 1 0 4 1 1 0 Description
+origin 16 448
+text 16 480 496 24 1 0 4 4 0 0 Some description text that wraps across lines.
+origin 16 480
+hit 16 668 496 56 1 0 7
+hit 16 604 496 56 2 0 7
+confirmation 528 12 0
+fill 66 288 396 216 1 1 12 15
+stroke 66 288 396 216 1 4 2 12 15
+text 139 304 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 139 304
+text 84 336 360 24 1 0 4 1 0 0 A long title with more than one line
+origin 84 336
+text 124 360 280 24 1 0 4 1 0 0 of text in the narrow dialog
+origin 124 360
+fill 82 400 364 40 1 4 12 15
+text 86 402 356 36 1 1 1 1 0 0 Cancel
+origin 234 408
+fill 82 448 364 40 1 1 12 15
+text 86 450 356 36 1 1 4 1 0 0 Confirm
+origin 229 456
+hit 66 288 396 216 2 0 1
+hit 82 398 364 44 1 0 1
+hit 82 446 364 44 1 1 1
+confirmation 528 12 1
+fill 66 288 396 216 1 1 12 15
+stroke 66 288 396 216 1 4 2 12 15
+text 139 304 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 139 304
+text 84 336 360 24 1 0 4 1 0 0 A long title with more than one line
+origin 84 336
+text 124 360 280 24 1 0 4 1 0 0 of text in the narrow dialog
+origin 124 360
+fill 82 400 364 40 1 1 12 15
+text 86 402 356 36 1 1 4 1 0 0 Cancel
+origin 234 408
+fill 82 448 364 40 1 4 12 15
+text 86 450 356 36 1 1 1 1 0 0 Confirm
+origin 229 456
+hit 66 288 396 216 2 0 1
+hit 82 398 364 44 1 0 1
+hit 82 446 364 44 1 1 1
+capsule 528 12 0
+fill 30 100 468 56 1 1 12 15
+fill 32 102 52 52 1 4 12 15
+stroke 30 100 468 56 1 4 2 12 15
+fill 32 102 52 52 1 1 12 15
+stroke 32 102 52 52 1 4 2 12 15
+hit 30 100 468 56 1 0 513
+capsule 528 12 1
+fill 30 100 468 56 1 1 12 15
+fill 32 102 56 52 1 4 12 15
+stroke 30 100 468 56 1 4 2 12 15
+fill 36 102 52 52 1 1 12 15
+stroke 36 102 52 52 1 4 2 12 15
+hit 30 100 468 56 1 0 513
+capsule 528 12 50
+fill 30 100 468 56 1 1 12 15
+fill 32 102 258 52 1 4 12 15
+stroke 30 100 468 56 1 4 2 12 15
+fill 238 102 52 52 1 1 12 15
+stroke 238 102 52 52 1 4 2 12 15
+hit 30 100 468 56 1 0 513
+capsule 528 12 99
+fill 30 100 468 56 1 1 12 15
+fill 32 102 459 52 1 4 12 15
+stroke 30 100 468 56 1 4 2 12 15
+fill 439 102 52 52 1 1 12 15
+stroke 439 102 52 52 1 4 2 12 15
+hit 30 100 468 56 1 0 513
+capsule 528 12 100
+fill 30 100 468 56 1 1 12 15
+fill 32 102 464 52 1 4 12 15
+stroke 30 100 468 56 1 4 2 12 15
+fill 444 102 52 52 1 1 12 15
+stroke 444 102 52 52 1 4 2 12 15
+hit 30 100 468 56 1 0 513
+slider-row 528 12 0
+text 16 40 496 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 496 18 0 2 4 1 0 0 60%
+origin 488 40
+fill 16 66 56 56 1 1 12 15
+stroke 16 66 56 56 1 4 2 12 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 456 66 56 56 1 1 12 15
+stroke 456 66 56 56 1 4 2 12 15
+text 460 68 48 52 2 1 4 1 0 0 +
+origin 479 82
+fill 80 66 368 56 1 1 12 15
+fill 82 68 239 52 1 4 12 15
+stroke 80 66 368 56 1 4 2 12 15
+fill 269 68 52 52 1 1 12 15
+stroke 269 68 52 52 1 4 2 12 15
+hit 16 66 56 56 4 -1 1
+hit 456 66 56 56 4 1 1
+hit 80 66 368 56 1 0 513
+slider-row 528 12 1
+text 16 40 496 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 496 18 0 2 4 1 0 0 60%
+origin 488 40
+fill 456 66 56 56 1 1 12 15
+stroke 456 66 56 56 1 4 2 12 15
+fill 16 66 56 56 1 1 12 15
+stroke 16 66 56 56 1 4 2 12 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 392 66 56 56 1 1 12 15
+stroke 392 66 56 56 1 4 2 12 15
+text 396 68 48 52 2 1 4 1 0 0 +
+origin 415 82
+fill 80 66 304 56 1 1 12 15
+fill 82 68 200 52 1 4 12 15
+stroke 80 66 304 56 1 4 2 12 15
+fill 230 68 52 52 1 1 12 15
+stroke 230 68 52 52 1 4 2 12 15
+hit 456 66 56 56 3 0 1
+hit 16 66 56 56 4 -1 1
+hit 392 66 56 56 4 1 1
+hit 80 66 304 56 1 0 513
+sheet 528 12
+fill 0 0 528 300 1 1 12 12
+fill 0 298 528 2 1 4 0 15
+fill 228 271 72 5 1 4 2 15
+details 528 12 0
+fill 0 80 528 660 1 1 0 15
+fill 16 668 496 56 1 1 12 15
+stroke 16 668 496 56 1 4 1 12 15
+text 20 670 488 52 1 1 4 1 0 0 Read
+origin 244 684
+fill 16 604 496 56 1 1 12 15
+stroke 16 604 496 56 1 4 1 12 15
+text 20 606 488 52 1 1 4 1 0 0 Details
+origin 229 620
+fill 16 96 496 122 1 1 0 15
+text 16 96 496 24 1 0 4 2 1 0 A publication title
+origin 16 96
+text 16 130 496 24 1 0 4 1 0 0 An author
+origin 16 130
+text 16 164 496 24 1 0 4 1 0 0 Source
+origin 16 164
+fill 16 230 496 100 1 1 0 15
+fill 16 230 496 1 1 4 0 15
+text 16 240 496 24 1 0 4 1 1 0 Available
+origin 16 240
+text 16 270 496 24 1 0 4 1 0 0 2 copies
+origin 16 270
+text 16 300 496 24 1 0 4 1 0 0 No holds
+origin 16 300
+text 16 342 496 24 1 0 4 3 0 0 Version 1
+origin 16 342
+text 16 378 496 24 1 0 4 1 1 0 Description
+origin 16 378
+text 16 410 496 24 1 0 4 7 0 0 Some description text that wraps across lines.
+origin 16 410
+hit 16 668 496 56 1 0 7
+hit 16 604 496 56 2 0 7
+details 528 12 1
+fill 0 80 528 660 1 1 0 15
+fill 16 668 496 56 1 1 12 15
+stroke 16 668 496 56 1 4 1 12 15
+text 20 670 488 52 1 1 4 1 0 0 Read
+origin 244 684
+fill 16 604 496 56 1 1 12 15
+stroke 16 604 496 56 1 4 1 12 15
+text 20 606 488 52 1 1 4 1 0 0 Details
+origin 229 620
+fill 16 96 496 192 1 1 0 15
+fill 16 96 128 192 1 1 0 15
+stroke 16 96 128 192 1 4 1 0 15
+text 24 108 112 72 1 1 4 5 0 0 A publication title
+text 160 96 352 24 1 0 4 3 1 0 A publication title
+origin 160 96
+text 160 130 352 24 1 0 4 2 0 0 An author
+origin 160 130
+text 160 164 352 24 1 0 4 1 0 0 Source
+origin 160 164
+fill 16 300 496 100 1 1 0 15
+fill 16 300 496 1 1 4 0 15
+text 16 310 496 24 1 0 4 1 1 0 Available
+origin 16 310
+text 16 340 496 24 1 0 4 1 0 0 2 copies
+origin 16 340
+text 16 370 496 24 1 0 4 1 0 0 No holds
+origin 16 370
+text 16 412 496 24 1 0 4 3 0 0 Version 1
+origin 16 412
+text 16 448 496 24 1 0 4 1 1 0 Description
+origin 16 448
+text 16 480 496 24 1 0 4 4 0 0 Some description text that wraps across lines.
+origin 16 480
+hit 16 668 496 56 1 0 7
+hit 16 604 496 56 2 0 7
+confirmation 528 18 0
+fill 66 288 396 216 1 1 18 15
+stroke 66 288 396 216 1 4 2 18 15
+text 139 304 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 139 304
+text 84 336 360 24 1 0 4 1 0 0 A long title with more than one line
+origin 84 336
+text 124 360 280 24 1 0 4 1 0 0 of text in the narrow dialog
+origin 124 360
+fill 82 400 364 40 1 4 18 15
+text 86 402 356 36 1 1 1 1 0 0 Cancel
+origin 234 408
+fill 82 448 364 40 1 1 18 15
+text 86 450 356 36 1 1 4 1 0 0 Confirm
+origin 229 456
+hit 66 288 396 216 2 0 1
+hit 82 398 364 44 1 0 1
+hit 82 446 364 44 1 1 1
+confirmation 528 18 1
+fill 66 288 396 216 1 1 18 15
+stroke 66 288 396 216 1 4 2 18 15
+text 139 304 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 139 304
+text 84 336 360 24 1 0 4 1 0 0 A long title with more than one line
+origin 84 336
+text 124 360 280 24 1 0 4 1 0 0 of text in the narrow dialog
+origin 124 360
+fill 82 400 364 40 1 1 18 15
+text 86 402 356 36 1 1 4 1 0 0 Cancel
+origin 234 408
+fill 82 448 364 40 1 4 18 15
+text 86 450 356 36 1 1 1 1 0 0 Confirm
+origin 229 456
+hit 66 288 396 216 2 0 1
+hit 82 398 364 44 1 0 1
+hit 82 446 364 44 1 1 1
+capsule 528 18 0
+fill 30 100 468 56 1 1 18 15
+fill 32 102 52 52 1 4 18 15
+stroke 30 100 468 56 1 4 2 18 15
+fill 32 102 52 52 1 1 18 15
+stroke 32 102 52 52 1 4 2 18 15
+hit 30 100 468 56 1 0 513
+capsule 528 18 1
+fill 30 100 468 56 1 1 18 15
+fill 32 102 56 52 1 4 18 15
+stroke 30 100 468 56 1 4 2 18 15
+fill 36 102 52 52 1 1 18 15
+stroke 36 102 52 52 1 4 2 18 15
+hit 30 100 468 56 1 0 513
+capsule 528 18 50
+fill 30 100 468 56 1 1 18 15
+fill 32 102 258 52 1 4 18 15
+stroke 30 100 468 56 1 4 2 18 15
+fill 238 102 52 52 1 1 18 15
+stroke 238 102 52 52 1 4 2 18 15
+hit 30 100 468 56 1 0 513
+capsule 528 18 99
+fill 30 100 468 56 1 1 18 15
+fill 32 102 459 52 1 4 18 15
+stroke 30 100 468 56 1 4 2 18 15
+fill 439 102 52 52 1 1 18 15
+stroke 439 102 52 52 1 4 2 18 15
+hit 30 100 468 56 1 0 513
+capsule 528 18 100
+fill 30 100 468 56 1 1 18 15
+fill 32 102 464 52 1 4 18 15
+stroke 30 100 468 56 1 4 2 18 15
+fill 444 102 52 52 1 1 18 15
+stroke 444 102 52 52 1 4 2 18 15
+hit 30 100 468 56 1 0 513
+slider-row 528 18 0
+text 16 40 496 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 496 18 0 2 4 1 0 0 60%
+origin 488 40
+fill 16 66 56 56 1 1 18 15
+stroke 16 66 56 56 1 4 2 18 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 456 66 56 56 1 1 18 15
+stroke 456 66 56 56 1 4 2 18 15
+text 460 68 48 52 2 1 4 1 0 0 +
+origin 479 82
+fill 80 66 368 56 1 1 18 15
+fill 82 68 239 52 1 4 18 15
+stroke 80 66 368 56 1 4 2 18 15
+fill 269 68 52 52 1 1 18 15
+stroke 269 68 52 52 1 4 2 18 15
+hit 16 66 56 56 4 -1 1
+hit 456 66 56 56 4 1 1
+hit 80 66 368 56 1 0 513
+slider-row 528 18 1
+text 16 40 496 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 496 18 0 2 4 1 0 0 60%
+origin 488 40
+fill 456 66 56 56 1 1 18 15
+stroke 456 66 56 56 1 4 2 18 15
+fill 16 66 56 56 1 1 18 15
+stroke 16 66 56 56 1 4 2 18 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 392 66 56 56 1 1 18 15
+stroke 392 66 56 56 1 4 2 18 15
+text 396 68 48 52 2 1 4 1 0 0 +
+origin 415 82
+fill 80 66 304 56 1 1 18 15
+fill 82 68 200 52 1 4 18 15
+stroke 80 66 304 56 1 4 2 18 15
+fill 230 68 52 52 1 1 18 15
+stroke 230 68 52 52 1 4 2 18 15
+hit 456 66 56 56 3 0 1
+hit 16 66 56 56 4 -1 1
+hit 392 66 56 56 4 1 1
+hit 80 66 304 56 1 0 513
+sheet 528 18
+fill 0 0 528 300 1 1 18 12
+fill 0 298 528 2 1 4 0 15
+fill 228 271 72 5 1 4 2 15
+details 528 18 0
+fill 0 80 528 660 1 1 0 15
+fill 16 668 496 56 1 1 18 15
+stroke 16 668 496 56 1 4 1 18 15
+text 20 670 488 52 1 1 4 1 0 0 Read
+origin 244 684
+fill 16 604 496 56 1 1 18 15
+stroke 16 604 496 56 1 4 1 18 15
+text 20 606 488 52 1 1 4 1 0 0 Details
+origin 229 620
+fill 16 96 496 122 1 1 0 15
+text 16 96 496 24 1 0 4 2 1 0 A publication title
+origin 16 96
+text 16 130 496 24 1 0 4 1 0 0 An author
+origin 16 130
+text 16 164 496 24 1 0 4 1 0 0 Source
+origin 16 164
+fill 16 230 496 100 1 1 0 15
+fill 16 230 496 1 1 4 0 15
+text 16 240 496 24 1 0 4 1 1 0 Available
+origin 16 240
+text 16 270 496 24 1 0 4 1 0 0 2 copies
+origin 16 270
+text 16 300 496 24 1 0 4 1 0 0 No holds
+origin 16 300
+text 16 342 496 24 1 0 4 3 0 0 Version 1
+origin 16 342
+text 16 378 496 24 1 0 4 1 1 0 Description
+origin 16 378
+text 16 410 496 24 1 0 4 7 0 0 Some description text that wraps across lines.
+origin 16 410
+hit 16 668 496 56 1 0 7
+hit 16 604 496 56 2 0 7
+details 528 18 1
+fill 0 80 528 660 1 1 0 15
+fill 16 668 496 56 1 1 18 15
+stroke 16 668 496 56 1 4 1 18 15
+text 20 670 488 52 1 1 4 1 0 0 Read
+origin 244 684
+fill 16 604 496 56 1 1 18 15
+stroke 16 604 496 56 1 4 1 18 15
+text 20 606 488 52 1 1 4 1 0 0 Details
+origin 229 620
+fill 16 96 496 192 1 1 0 15
+fill 16 96 128 192 1 1 0 15
+stroke 16 96 128 192 1 4 1 0 15
+text 24 108 112 72 1 1 4 5 0 0 A publication title
+text 160 96 352 24 1 0 4 3 1 0 A publication title
+origin 160 96
+text 160 130 352 24 1 0 4 2 0 0 An author
+origin 160 130
+text 160 164 352 24 1 0 4 1 0 0 Source
+origin 160 164
+fill 16 300 496 100 1 1 0 15
+fill 16 300 496 1 1 4 0 15
+text 16 310 496 24 1 0 4 1 1 0 Available
+origin 16 310
+text 16 340 496 24 1 0 4 1 0 0 2 copies
+origin 16 340
+text 16 370 496 24 1 0 4 1 0 0 No holds
+origin 16 370
+text 16 412 496 24 1 0 4 3 0 0 Version 1
+origin 16 412
+text 16 448 496 24 1 0 4 1 1 0 Description
+origin 16 448
+text 16 480 496 24 1 0 4 4 0 0 Some description text that wraps across lines.
+origin 16 480
+hit 16 668 496 56 1 0 7
+hit 16 604 496 56 2 0 7
+confirmation 792 0 0
+fill 99 288 594 216 1 1 0 15
+stroke 99 288 594 216 1 4 2 0 15
+text 271 304 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 271 304
+text 141 336 510 24 1 0 4 1 0 0 A long title with more than one line of text in the
+origin 141 336
+text 331 360 130 24 1 0 4 1 0 0 narrow dialog
+origin 331 360
+fill 115 400 562 40 2 2 0 15
+text 119 402 554 36 1 1 4 1 0 0 Cancel
+origin 366 408
+fill 115 448 562 40 1 1 0 15
+text 119 450 554 36 1 1 4 1 0 0 Confirm
+origin 361 456
+hit 99 288 594 216 2 0 1
+hit 115 398 562 44 1 0 1
+hit 115 446 562 44 1 1 1
+confirmation 792 0 1
+fill 99 288 594 216 1 1 0 15
+stroke 99 288 594 216 1 4 2 0 15
+text 271 304 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 271 304
+text 141 336 510 24 1 0 4 1 0 0 A long title with more than one line of text in the
+origin 141 336
+text 331 360 130 24 1 0 4 1 0 0 narrow dialog
+origin 331 360
+fill 115 400 562 40 1 1 0 15
+text 119 402 554 36 1 1 4 1 0 0 Cancel
+origin 366 408
+fill 115 448 562 40 2 2 0 15
+text 119 450 554 36 1 1 4 1 0 0 Confirm
+origin 361 456
+hit 99 288 594 216 2 0 1
+hit 115 398 562 44 1 0 1
+hit 115 446 562 44 1 1 1
+capsule 792 0 0
+fill 30 100 732 56 1 1 0 15
+fill 32 102 52 52 1 4 0 15
+stroke 30 100 732 56 1 4 2 0 15
+fill 32 102 52 52 1 1 0 15
+stroke 32 102 52 52 1 4 2 0 15
+hit 30 100 732 56 1 0 513
+capsule 792 0 1
+fill 30 100 732 56 1 1 0 15
+fill 32 102 58 52 1 4 0 15
+stroke 30 100 732 56 1 4 2 0 15
+fill 38 102 52 52 1 1 0 15
+stroke 38 102 52 52 1 4 2 0 15
+hit 30 100 732 56 1 0 513
+capsule 792 0 50
+fill 30 100 732 56 1 1 0 15
+fill 32 102 390 52 1 4 0 15
+stroke 30 100 732 56 1 4 2 0 15
+fill 370 102 52 52 1 1 0 15
+stroke 370 102 52 52 1 4 2 0 15
+hit 30 100 732 56 1 0 513
+capsule 792 0 99
+fill 30 100 732 56 1 1 0 15
+fill 32 102 721 52 1 4 0 15
+stroke 30 100 732 56 1 4 2 0 15
+fill 701 102 52 52 1 1 0 15
+stroke 701 102 52 52 1 4 2 0 15
+hit 30 100 732 56 1 0 513
+capsule 792 0 100
+fill 30 100 732 56 1 1 0 15
+fill 32 102 728 52 1 4 0 15
+stroke 30 100 732 56 1 4 2 0 15
+fill 708 102 52 52 1 1 0 15
+stroke 708 102 52 52 1 4 2 0 15
+hit 30 100 732 56 1 0 513
+slider-row 792 0 0
+text 16 40 760 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 760 18 0 2 4 1 0 0 60%
+origin 752 40
+fill 16 66 56 56 1 1 0 15
+stroke 16 66 56 56 1 4 2 0 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 720 66 56 56 1 1 0 15
+stroke 720 66 56 56 1 4 2 0 15
+text 724 68 48 52 2 1 4 1 0 0 +
+origin 743 82
+fill 80 66 632 56 1 1 0 15
+fill 82 68 397 52 1 4 0 15
+stroke 80 66 632 56 1 4 2 0 15
+fill 427 68 52 52 1 1 0 15
+stroke 427 68 52 52 1 4 2 0 15
+hit 16 66 56 56 4 -1 1
+hit 720 66 56 56 4 1 1
+hit 80 66 632 56 1 0 513
+slider-row 792 0 1
+text 16 40 760 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 760 18 0 2 4 1 0 0 60%
+origin 752 40
+fill 720 66 56 56 1 1 0 15
+stroke 720 66 56 56 1 4 2 0 15
+fill 16 66 56 56 1 1 0 15
+stroke 16 66 56 56 1 4 2 0 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 656 66 56 56 1 1 0 15
+stroke 656 66 56 56 1 4 2 0 15
+text 660 68 48 52 2 1 4 1 0 0 +
+origin 679 82
+fill 80 66 568 56 1 1 0 15
+fill 82 68 359 52 1 4 0 15
+stroke 80 66 568 56 1 4 2 0 15
+fill 389 68 52 52 1 1 0 15
+stroke 389 68 52 52 1 4 2 0 15
+hit 720 66 56 56 3 0 1
+hit 16 66 56 56 4 -1 1
+hit 656 66 56 56 4 1 1
+hit 80 66 568 56 1 0 513
+sheet 792 0
+fill 0 0 792 300 1 1 0 12
+fill 0 298 792 2 1 4 0 15
+fill 360 271 72 5 1 4 2 15
+details 792 0 0
+fill 0 80 792 660 1 1 0 15
+fill 16 668 760 56 1 1 0 15
+stroke 16 668 760 56 1 4 1 0 15
+text 20 670 752 52 1 1 4 1 0 0 Read
+origin 376 684
+fill 16 604 760 56 1 1 0 15
+stroke 16 604 760 56 1 4 1 0 15
+text 20 606 752 52 1 1 4 1 0 0 Details
+origin 361 620
+fill 16 96 760 122 1 1 0 15
+text 16 96 760 24 1 0 4 2 1 0 A publication title
+origin 16 96
+text 16 130 760 24 1 0 4 1 0 0 An author
+origin 16 130
+text 16 164 760 24 1 0 4 1 0 0 Source
+origin 16 164
+fill 16 230 760 100 1 1 0 15
+fill 16 230 760 1 1 4 0 15
+text 16 240 760 24 1 0 4 1 1 0 Available
+origin 16 240
+text 16 270 760 24 1 0 4 1 0 0 2 copies
+origin 16 270
+text 16 300 760 24 1 0 4 1 0 0 No holds
+origin 16 300
+text 16 342 760 24 1 0 4 3 0 0 Version 1
+origin 16 342
+text 16 378 760 24 1 0 4 1 1 0 Description
+origin 16 378
+text 16 410 760 24 1 0 4 7 0 0 Some description text that wraps across lines.
+origin 16 410
+hit 16 668 760 56 1 0 7
+hit 16 604 760 56 2 0 7
+details 792 0 1
+fill 0 80 792 660 1 1 0 15
+fill 16 668 760 56 1 1 0 15
+stroke 16 668 760 56 1 4 1 0 15
+text 20 670 752 52 1 1 4 1 0 0 Read
+origin 376 684
+fill 16 604 760 56 1 1 0 15
+stroke 16 604 760 56 1 4 1 0 15
+text 20 606 752 52 1 1 4 1 0 0 Details
+origin 361 620
+fill 16 96 760 192 1 1 0 15
+fill 16 96 128 192 1 1 0 15
+stroke 16 96 128 192 1 4 1 0 15
+text 24 108 112 72 1 1 4 5 0 0 A publication title
+text 160 96 616 24 1 0 4 3 1 0 A publication title
+origin 160 96
+text 160 130 616 24 1 0 4 2 0 0 An author
+origin 160 130
+text 160 164 616 24 1 0 4 1 0 0 Source
+origin 160 164
+fill 16 300 760 100 1 1 0 15
+fill 16 300 760 1 1 4 0 15
+text 16 310 760 24 1 0 4 1 1 0 Available
+origin 16 310
+text 16 340 760 24 1 0 4 1 0 0 2 copies
+origin 16 340
+text 16 370 760 24 1 0 4 1 0 0 No holds
+origin 16 370
+text 16 412 760 24 1 0 4 3 0 0 Version 1
+origin 16 412
+text 16 448 760 24 1 0 4 1 1 0 Description
+origin 16 448
+text 16 480 760 24 1 0 4 4 0 0 Some description text that wraps across lines.
+origin 16 480
+hit 16 668 760 56 1 0 7
+hit 16 604 760 56 2 0 7
+confirmation 792 12 0
+fill 99 288 594 216 1 1 12 15
+stroke 99 288 594 216 1 4 2 12 15
+text 271 304 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 271 304
+text 141 336 510 24 1 0 4 1 0 0 A long title with more than one line of text in the
+origin 141 336
+text 331 360 130 24 1 0 4 1 0 0 narrow dialog
+origin 331 360
+fill 115 400 562 40 1 4 12 15
+text 119 402 554 36 1 1 1 1 0 0 Cancel
+origin 366 408
+fill 115 448 562 40 1 1 12 15
+text 119 450 554 36 1 1 4 1 0 0 Confirm
+origin 361 456
+hit 99 288 594 216 2 0 1
+hit 115 398 562 44 1 0 1
+hit 115 446 562 44 1 1 1
+confirmation 792 12 1
+fill 99 288 594 216 1 1 12 15
+stroke 99 288 594 216 1 4 2 12 15
+text 271 304 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 271 304
+text 141 336 510 24 1 0 4 1 0 0 A long title with more than one line of text in the
+origin 141 336
+text 331 360 130 24 1 0 4 1 0 0 narrow dialog
+origin 331 360
+fill 115 400 562 40 1 1 12 15
+text 119 402 554 36 1 1 4 1 0 0 Cancel
+origin 366 408
+fill 115 448 562 40 1 4 12 15
+text 119 450 554 36 1 1 1 1 0 0 Confirm
+origin 361 456
+hit 99 288 594 216 2 0 1
+hit 115 398 562 44 1 0 1
+hit 115 446 562 44 1 1 1
+capsule 792 12 0
+fill 30 100 732 56 1 1 12 15
+fill 32 102 52 52 1 4 12 15
+stroke 30 100 732 56 1 4 2 12 15
+fill 32 102 52 52 1 1 12 15
+stroke 32 102 52 52 1 4 2 12 15
+hit 30 100 732 56 1 0 513
+capsule 792 12 1
+fill 30 100 732 56 1 1 12 15
+fill 32 102 58 52 1 4 12 15
+stroke 30 100 732 56 1 4 2 12 15
+fill 38 102 52 52 1 1 12 15
+stroke 38 102 52 52 1 4 2 12 15
+hit 30 100 732 56 1 0 513
+capsule 792 12 50
+fill 30 100 732 56 1 1 12 15
+fill 32 102 390 52 1 4 12 15
+stroke 30 100 732 56 1 4 2 12 15
+fill 370 102 52 52 1 1 12 15
+stroke 370 102 52 52 1 4 2 12 15
+hit 30 100 732 56 1 0 513
+capsule 792 12 99
+fill 30 100 732 56 1 1 12 15
+fill 32 102 721 52 1 4 12 15
+stroke 30 100 732 56 1 4 2 12 15
+fill 701 102 52 52 1 1 12 15
+stroke 701 102 52 52 1 4 2 12 15
+hit 30 100 732 56 1 0 513
+capsule 792 12 100
+fill 30 100 732 56 1 1 12 15
+fill 32 102 728 52 1 4 12 15
+stroke 30 100 732 56 1 4 2 12 15
+fill 708 102 52 52 1 1 12 15
+stroke 708 102 52 52 1 4 2 12 15
+hit 30 100 732 56 1 0 513
+slider-row 792 12 0
+text 16 40 760 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 760 18 0 2 4 1 0 0 60%
+origin 752 40
+fill 16 66 56 56 1 1 12 15
+stroke 16 66 56 56 1 4 2 12 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 720 66 56 56 1 1 12 15
+stroke 720 66 56 56 1 4 2 12 15
+text 724 68 48 52 2 1 4 1 0 0 +
+origin 743 82
+fill 80 66 632 56 1 1 12 15
+fill 82 68 397 52 1 4 12 15
+stroke 80 66 632 56 1 4 2 12 15
+fill 427 68 52 52 1 1 12 15
+stroke 427 68 52 52 1 4 2 12 15
+hit 16 66 56 56 4 -1 1
+hit 720 66 56 56 4 1 1
+hit 80 66 632 56 1 0 513
+slider-row 792 12 1
+text 16 40 760 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 760 18 0 2 4 1 0 0 60%
+origin 752 40
+fill 720 66 56 56 1 1 12 15
+stroke 720 66 56 56 1 4 2 12 15
+fill 16 66 56 56 1 1 12 15
+stroke 16 66 56 56 1 4 2 12 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 656 66 56 56 1 1 12 15
+stroke 656 66 56 56 1 4 2 12 15
+text 660 68 48 52 2 1 4 1 0 0 +
+origin 679 82
+fill 80 66 568 56 1 1 12 15
+fill 82 68 359 52 1 4 12 15
+stroke 80 66 568 56 1 4 2 12 15
+fill 389 68 52 52 1 1 12 15
+stroke 389 68 52 52 1 4 2 12 15
+hit 720 66 56 56 3 0 1
+hit 16 66 56 56 4 -1 1
+hit 656 66 56 56 4 1 1
+hit 80 66 568 56 1 0 513
+sheet 792 12
+fill 0 0 792 300 1 1 12 12
+fill 0 298 792 2 1 4 0 15
+fill 360 271 72 5 1 4 2 15
+details 792 12 0
+fill 0 80 792 660 1 1 0 15
+fill 16 668 760 56 1 1 12 15
+stroke 16 668 760 56 1 4 1 12 15
+text 20 670 752 52 1 1 4 1 0 0 Read
+origin 376 684
+fill 16 604 760 56 1 1 12 15
+stroke 16 604 760 56 1 4 1 12 15
+text 20 606 752 52 1 1 4 1 0 0 Details
+origin 361 620
+fill 16 96 760 122 1 1 0 15
+text 16 96 760 24 1 0 4 2 1 0 A publication title
+origin 16 96
+text 16 130 760 24 1 0 4 1 0 0 An author
+origin 16 130
+text 16 164 760 24 1 0 4 1 0 0 Source
+origin 16 164
+fill 16 230 760 100 1 1 0 15
+fill 16 230 760 1 1 4 0 15
+text 16 240 760 24 1 0 4 1 1 0 Available
+origin 16 240
+text 16 270 760 24 1 0 4 1 0 0 2 copies
+origin 16 270
+text 16 300 760 24 1 0 4 1 0 0 No holds
+origin 16 300
+text 16 342 760 24 1 0 4 3 0 0 Version 1
+origin 16 342
+text 16 378 760 24 1 0 4 1 1 0 Description
+origin 16 378
+text 16 410 760 24 1 0 4 7 0 0 Some description text that wraps across lines.
+origin 16 410
+hit 16 668 760 56 1 0 7
+hit 16 604 760 56 2 0 7
+details 792 12 1
+fill 0 80 792 660 1 1 0 15
+fill 16 668 760 56 1 1 12 15
+stroke 16 668 760 56 1 4 1 12 15
+text 20 670 752 52 1 1 4 1 0 0 Read
+origin 376 684
+fill 16 604 760 56 1 1 12 15
+stroke 16 604 760 56 1 4 1 12 15
+text 20 606 752 52 1 1 4 1 0 0 Details
+origin 361 620
+fill 16 96 760 192 1 1 0 15
+fill 16 96 128 192 1 1 0 15
+stroke 16 96 128 192 1 4 1 0 15
+text 24 108 112 72 1 1 4 5 0 0 A publication title
+text 160 96 616 24 1 0 4 3 1 0 A publication title
+origin 160 96
+text 160 130 616 24 1 0 4 2 0 0 An author
+origin 160 130
+text 160 164 616 24 1 0 4 1 0 0 Source
+origin 160 164
+fill 16 300 760 100 1 1 0 15
+fill 16 300 760 1 1 4 0 15
+text 16 310 760 24 1 0 4 1 1 0 Available
+origin 16 310
+text 16 340 760 24 1 0 4 1 0 0 2 copies
+origin 16 340
+text 16 370 760 24 1 0 4 1 0 0 No holds
+origin 16 370
+text 16 412 760 24 1 0 4 3 0 0 Version 1
+origin 16 412
+text 16 448 760 24 1 0 4 1 1 0 Description
+origin 16 448
+text 16 480 760 24 1 0 4 4 0 0 Some description text that wraps across lines.
+origin 16 480
+hit 16 668 760 56 1 0 7
+hit 16 604 760 56 2 0 7
+confirmation 792 18 0
+fill 99 288 594 216 1 1 18 15
+stroke 99 288 594 216 1 4 2 18 15
+text 271 304 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 271 304
+text 141 336 510 24 1 0 4 1 0 0 A long title with more than one line of text in the
+origin 141 336
+text 331 360 130 24 1 0 4 1 0 0 narrow dialog
+origin 331 360
+fill 115 400 562 40 1 4 18 15
+text 119 402 554 36 1 1 1 1 0 0 Cancel
+origin 366 408
+fill 115 448 562 40 1 1 18 15
+text 119 450 554 36 1 1 4 1 0 0 Confirm
+origin 361 456
+hit 99 288 594 216 2 0 1
+hit 115 398 562 44 1 0 1
+hit 115 446 562 44 1 1 1
+confirmation 792 18 1
+fill 99 288 594 216 1 1 18 15
+stroke 99 288 594 216 1 4 2 18 15
+text 271 304 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 271 304
+text 141 336 510 24 1 0 4 1 0 0 A long title with more than one line of text in the
+origin 141 336
+text 331 360 130 24 1 0 4 1 0 0 narrow dialog
+origin 331 360
+fill 115 400 562 40 1 1 18 15
+text 119 402 554 36 1 1 4 1 0 0 Cancel
+origin 366 408
+fill 115 448 562 40 1 4 18 15
+text 119 450 554 36 1 1 1 1 0 0 Confirm
+origin 361 456
+hit 99 288 594 216 2 0 1
+hit 115 398 562 44 1 0 1
+hit 115 446 562 44 1 1 1
+capsule 792 18 0
+fill 30 100 732 56 1 1 18 15
+fill 32 102 52 52 1 4 18 15
+stroke 30 100 732 56 1 4 2 18 15
+fill 32 102 52 52 1 1 18 15
+stroke 32 102 52 52 1 4 2 18 15
+hit 30 100 732 56 1 0 513
+capsule 792 18 1
+fill 30 100 732 56 1 1 18 15
+fill 32 102 58 52 1 4 18 15
+stroke 30 100 732 56 1 4 2 18 15
+fill 38 102 52 52 1 1 18 15
+stroke 38 102 52 52 1 4 2 18 15
+hit 30 100 732 56 1 0 513
+capsule 792 18 50
+fill 30 100 732 56 1 1 18 15
+fill 32 102 390 52 1 4 18 15
+stroke 30 100 732 56 1 4 2 18 15
+fill 370 102 52 52 1 1 18 15
+stroke 370 102 52 52 1 4 2 18 15
+hit 30 100 732 56 1 0 513
+capsule 792 18 99
+fill 30 100 732 56 1 1 18 15
+fill 32 102 721 52 1 4 18 15
+stroke 30 100 732 56 1 4 2 18 15
+fill 701 102 52 52 1 1 18 15
+stroke 701 102 52 52 1 4 2 18 15
+hit 30 100 732 56 1 0 513
+capsule 792 18 100
+fill 30 100 732 56 1 1 18 15
+fill 32 102 728 52 1 4 18 15
+stroke 30 100 732 56 1 4 2 18 15
+fill 708 102 52 52 1 1 18 15
+stroke 708 102 52 52 1 4 2 18 15
+hit 30 100 732 56 1 0 513
+slider-row 792 18 0
+text 16 40 760 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 760 18 0 2 4 1 0 0 60%
+origin 752 40
+fill 16 66 56 56 1 1 18 15
+stroke 16 66 56 56 1 4 2 18 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 720 66 56 56 1 1 18 15
+stroke 720 66 56 56 1 4 2 18 15
+text 724 68 48 52 2 1 4 1 0 0 +
+origin 743 82
+fill 80 66 632 56 1 1 18 15
+fill 82 68 397 52 1 4 18 15
+stroke 80 66 632 56 1 4 2 18 15
+fill 427 68 52 52 1 1 18 15
+stroke 427 68 52 52 1 4 2 18 15
+hit 16 66 56 56 4 -1 1
+hit 720 66 56 56 4 1 1
+hit 80 66 632 56 1 0 513
+slider-row 792 18 1
+text 16 40 760 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 760 18 0 2 4 1 0 0 60%
+origin 752 40
+fill 720 66 56 56 1 1 18 15
+stroke 720 66 56 56 1 4 2 18 15
+fill 16 66 56 56 1 1 18 15
+stroke 16 66 56 56 1 4 2 18 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 656 66 56 56 1 1 18 15
+stroke 656 66 56 56 1 4 2 18 15
+text 660 68 48 52 2 1 4 1 0 0 +
+origin 679 82
+fill 80 66 568 56 1 1 18 15
+fill 82 68 359 52 1 4 18 15
+stroke 80 66 568 56 1 4 2 18 15
+fill 389 68 52 52 1 1 18 15
+stroke 389 68 52 52 1 4 2 18 15
+hit 720 66 56 56 3 0 1
+hit 16 66 56 56 4 -1 1
+hit 656 66 56 56 4 1 1
+hit 80 66 568 56 1 0 513
+sheet 792 18
+fill 0 0 792 300 1 1 18 12
+fill 0 298 792 2 1 4 0 15
+fill 360 271 72 5 1 4 2 15
+details 792 18 0
+fill 0 80 792 660 1 1 0 15
+fill 16 668 760 56 1 1 18 15
+stroke 16 668 760 56 1 4 1 18 15
+text 20 670 752 52 1 1 4 1 0 0 Read
+origin 376 684
+fill 16 604 760 56 1 1 18 15
+stroke 16 604 760 56 1 4 1 18 15
+text 20 606 752 52 1 1 4 1 0 0 Details
+origin 361 620
+fill 16 96 760 122 1 1 0 15
+text 16 96 760 24 1 0 4 2 1 0 A publication title
+origin 16 96
+text 16 130 760 24 1 0 4 1 0 0 An author
+origin 16 130
+text 16 164 760 24 1 0 4 1 0 0 Source
+origin 16 164
+fill 16 230 760 100 1 1 0 15
+fill 16 230 760 1 1 4 0 15
+text 16 240 760 24 1 0 4 1 1 0 Available
+origin 16 240
+text 16 270 760 24 1 0 4 1 0 0 2 copies
+origin 16 270
+text 16 300 760 24 1 0 4 1 0 0 No holds
+origin 16 300
+text 16 342 760 24 1 0 4 3 0 0 Version 1
+origin 16 342
+text 16 378 760 24 1 0 4 1 1 0 Description
+origin 16 378
+text 16 410 760 24 1 0 4 7 0 0 Some description text that wraps across lines.
+origin 16 410
+hit 16 668 760 56 1 0 7
+hit 16 604 760 56 2 0 7
+details 792 18 1
+fill 0 80 792 660 1 1 0 15
+fill 16 668 760 56 1 1 18 15
+stroke 16 668 760 56 1 4 1 18 15
+text 20 670 752 52 1 1 4 1 0 0 Read
+origin 376 684
+fill 16 604 760 56 1 1 18 15
+stroke 16 604 760 56 1 4 1 18 15
+text 20 606 752 52 1 1 4 1 0 0 Details
+origin 361 620
+fill 16 96 760 192 1 1 0 15
+fill 16 96 128 192 1 1 0 15
+stroke 16 96 128 192 1 4 1 0 15
+text 24 108 112 72 1 1 4 5 0 0 A publication title
+text 160 96 616 24 1 0 4 3 1 0 A publication title
+origin 160 96
+text 160 130 616 24 1 0 4 2 0 0 An author
+origin 160 130
+text 160 164 616 24 1 0 4 1 0 0 Source
+origin 160 164
+fill 16 300 760 100 1 1 0 15
+fill 16 300 760 1 1 4 0 15
+text 16 310 760 24 1 0 4 1 1 0 Available
+origin 16 310
+text 16 340 760 24 1 0 4 1 0 0 2 copies
+origin 16 340
+text 16 370 760 24 1 0 4 1 0 0 No holds
+origin 16 370
+text 16 412 760 24 1 0 4 3 0 0 Version 1
+origin 16 412
+text 16 448 760 24 1 0 4 1 1 0 Description
+origin 16 448
+text 16 480 760 24 1 0 4 4 0 0 Some description text that wraps across lines.
+origin 16 480
+hit 16 668 760 56 1 0 7
+hit 16 604 760 56 2 0 7
+confirmation 800 0 0
+fill 100 288 600 216 1 1 0 15
+stroke 100 288 600 216 1 4 2 0 15
+text 275 304 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 275 304
+text 145 336 510 24 1 0 4 1 0 0 A long title with more than one line of text in the
+origin 145 336
+text 335 360 130 24 1 0 4 1 0 0 narrow dialog
+origin 335 360
+fill 116 400 568 40 2 2 0 15
+text 120 402 560 36 1 1 4 1 0 0 Cancel
+origin 370 408
+fill 116 448 568 40 1 1 0 15
+text 120 450 560 36 1 1 4 1 0 0 Confirm
+origin 365 456
+hit 100 288 600 216 2 0 1
+hit 116 398 568 44 1 0 1
+hit 116 446 568 44 1 1 1
+confirmation 800 0 1
+fill 100 288 600 216 1 1 0 15
+stroke 100 288 600 216 1 4 2 0 15
+text 275 304 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 275 304
+text 145 336 510 24 1 0 4 1 0 0 A long title with more than one line of text in the
+origin 145 336
+text 335 360 130 24 1 0 4 1 0 0 narrow dialog
+origin 335 360
+fill 116 400 568 40 1 1 0 15
+text 120 402 560 36 1 1 4 1 0 0 Cancel
+origin 370 408
+fill 116 448 568 40 2 2 0 15
+text 120 450 560 36 1 1 4 1 0 0 Confirm
+origin 365 456
+hit 100 288 600 216 2 0 1
+hit 116 398 568 44 1 0 1
+hit 116 446 568 44 1 1 1
+capsule 800 0 0
+fill 30 100 740 56 1 1 0 15
+fill 32 102 52 52 1 4 0 15
+stroke 30 100 740 56 1 4 2 0 15
+fill 32 102 52 52 1 1 0 15
+stroke 32 102 52 52 1 4 2 0 15
+hit 30 100 740 56 1 0 513
+capsule 800 0 1
+fill 30 100 740 56 1 1 0 15
+fill 32 102 58 52 1 4 0 15
+stroke 30 100 740 56 1 4 2 0 15
+fill 38 102 52 52 1 1 0 15
+stroke 38 102 52 52 1 4 2 0 15
+hit 30 100 740 56 1 0 513
+capsule 800 0 50
+fill 30 100 740 56 1 1 0 15
+fill 32 102 394 52 1 4 0 15
+stroke 30 100 740 56 1 4 2 0 15
+fill 374 102 52 52 1 1 0 15
+stroke 374 102 52 52 1 4 2 0 15
+hit 30 100 740 56 1 0 513
+capsule 800 0 99
+fill 30 100 740 56 1 1 0 15
+fill 32 102 729 52 1 4 0 15
+stroke 30 100 740 56 1 4 2 0 15
+fill 709 102 52 52 1 1 0 15
+stroke 709 102 52 52 1 4 2 0 15
+hit 30 100 740 56 1 0 513
+capsule 800 0 100
+fill 30 100 740 56 1 1 0 15
+fill 32 102 736 52 1 4 0 15
+stroke 30 100 740 56 1 4 2 0 15
+fill 716 102 52 52 1 1 0 15
+stroke 716 102 52 52 1 4 2 0 15
+hit 30 100 740 56 1 0 513
+slider-row 800 0 0
+text 16 40 768 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 768 18 0 2 4 1 0 0 60%
+origin 760 40
+fill 16 66 56 56 1 1 0 15
+stroke 16 66 56 56 1 4 2 0 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 728 66 56 56 1 1 0 15
+stroke 728 66 56 56 1 4 2 0 15
+text 732 68 48 52 2 1 4 1 0 0 +
+origin 751 82
+fill 80 66 640 56 1 1 0 15
+fill 82 68 402 52 1 4 0 15
+stroke 80 66 640 56 1 4 2 0 15
+fill 432 68 52 52 1 1 0 15
+stroke 432 68 52 52 1 4 2 0 15
+hit 16 66 56 56 4 -1 1
+hit 728 66 56 56 4 1 1
+hit 80 66 640 56 1 0 513
+slider-row 800 0 1
+text 16 40 768 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 768 18 0 2 4 1 0 0 60%
+origin 760 40
+fill 728 66 56 56 1 1 0 15
+stroke 728 66 56 56 1 4 2 0 15
+fill 16 66 56 56 1 1 0 15
+stroke 16 66 56 56 1 4 2 0 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 664 66 56 56 1 1 0 15
+stroke 664 66 56 56 1 4 2 0 15
+text 668 68 48 52 2 1 4 1 0 0 +
+origin 687 82
+fill 80 66 576 56 1 1 0 15
+fill 82 68 364 52 1 4 0 15
+stroke 80 66 576 56 1 4 2 0 15
+fill 394 68 52 52 1 1 0 15
+stroke 394 68 52 52 1 4 2 0 15
+hit 728 66 56 56 3 0 1
+hit 16 66 56 56 4 -1 1
+hit 664 66 56 56 4 1 1
+hit 80 66 576 56 1 0 513
+sheet 800 0
+fill 0 0 800 300 1 1 0 12
+fill 0 298 800 2 1 4 0 15
+fill 364 271 72 5 1 4 2 15
+details 800 0 0
+fill 0 80 800 660 1 1 0 15
+fill 16 668 768 56 1 1 0 15
+stroke 16 668 768 56 1 4 1 0 15
+text 20 670 760 52 1 1 4 1 0 0 Read
+origin 380 684
+fill 16 604 768 56 1 1 0 15
+stroke 16 604 768 56 1 4 1 0 15
+text 20 606 760 52 1 1 4 1 0 0 Details
+origin 365 620
+fill 16 96 768 122 1 1 0 15
+text 16 96 768 24 1 0 4 2 1 0 A publication title
+origin 16 96
+text 16 130 768 24 1 0 4 1 0 0 An author
+origin 16 130
+text 16 164 768 24 1 0 4 1 0 0 Source
+origin 16 164
+fill 16 230 768 100 1 1 0 15
+fill 16 230 768 1 1 4 0 15
+text 16 240 768 24 1 0 4 1 1 0 Available
+origin 16 240
+text 16 270 768 24 1 0 4 1 0 0 2 copies
+origin 16 270
+text 16 300 768 24 1 0 4 1 0 0 No holds
+origin 16 300
+text 16 342 768 24 1 0 4 3 0 0 Version 1
+origin 16 342
+text 16 378 768 24 1 0 4 1 1 0 Description
+origin 16 378
+text 16 410 768 24 1 0 4 7 0 0 Some description text that wraps across lines.
+origin 16 410
+hit 16 668 768 56 1 0 7
+hit 16 604 768 56 2 0 7
+details 800 0 1
+fill 0 80 800 660 1 1 0 15
+fill 16 668 768 56 1 1 0 15
+stroke 16 668 768 56 1 4 1 0 15
+text 20 670 760 52 1 1 4 1 0 0 Read
+origin 380 684
+fill 16 604 768 56 1 1 0 15
+stroke 16 604 768 56 1 4 1 0 15
+text 20 606 760 52 1 1 4 1 0 0 Details
+origin 365 620
+fill 16 96 768 192 1 1 0 15
+fill 16 96 128 192 1 1 0 15
+stroke 16 96 128 192 1 4 1 0 15
+text 24 108 112 72 1 1 4 5 0 0 A publication title
+text 160 96 624 24 1 0 4 3 1 0 A publication title
+origin 160 96
+text 160 130 624 24 1 0 4 2 0 0 An author
+origin 160 130
+text 160 164 624 24 1 0 4 1 0 0 Source
+origin 160 164
+fill 16 300 768 100 1 1 0 15
+fill 16 300 768 1 1 4 0 15
+text 16 310 768 24 1 0 4 1 1 0 Available
+origin 16 310
+text 16 340 768 24 1 0 4 1 0 0 2 copies
+origin 16 340
+text 16 370 768 24 1 0 4 1 0 0 No holds
+origin 16 370
+text 16 412 768 24 1 0 4 3 0 0 Version 1
+origin 16 412
+text 16 448 768 24 1 0 4 1 1 0 Description
+origin 16 448
+text 16 480 768 24 1 0 4 4 0 0 Some description text that wraps across lines.
+origin 16 480
+hit 16 668 768 56 1 0 7
+hit 16 604 768 56 2 0 7
+confirmation 800 12 0
+fill 100 288 600 216 1 1 12 15
+stroke 100 288 600 216 1 4 2 12 15
+text 275 304 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 275 304
+text 145 336 510 24 1 0 4 1 0 0 A long title with more than one line of text in the
+origin 145 336
+text 335 360 130 24 1 0 4 1 0 0 narrow dialog
+origin 335 360
+fill 116 400 568 40 1 4 12 15
+text 120 402 560 36 1 1 1 1 0 0 Cancel
+origin 370 408
+fill 116 448 568 40 1 1 12 15
+text 120 450 560 36 1 1 4 1 0 0 Confirm
+origin 365 456
+hit 100 288 600 216 2 0 1
+hit 116 398 568 44 1 0 1
+hit 116 446 568 44 1 1 1
+confirmation 800 12 1
+fill 100 288 600 216 1 1 12 15
+stroke 100 288 600 216 1 4 2 12 15
+text 275 304 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 275 304
+text 145 336 510 24 1 0 4 1 0 0 A long title with more than one line of text in the
+origin 145 336
+text 335 360 130 24 1 0 4 1 0 0 narrow dialog
+origin 335 360
+fill 116 400 568 40 1 1 12 15
+text 120 402 560 36 1 1 4 1 0 0 Cancel
+origin 370 408
+fill 116 448 568 40 1 4 12 15
+text 120 450 560 36 1 1 1 1 0 0 Confirm
+origin 365 456
+hit 100 288 600 216 2 0 1
+hit 116 398 568 44 1 0 1
+hit 116 446 568 44 1 1 1
+capsule 800 12 0
+fill 30 100 740 56 1 1 12 15
+fill 32 102 52 52 1 4 12 15
+stroke 30 100 740 56 1 4 2 12 15
+fill 32 102 52 52 1 1 12 15
+stroke 32 102 52 52 1 4 2 12 15
+hit 30 100 740 56 1 0 513
+capsule 800 12 1
+fill 30 100 740 56 1 1 12 15
+fill 32 102 58 52 1 4 12 15
+stroke 30 100 740 56 1 4 2 12 15
+fill 38 102 52 52 1 1 12 15
+stroke 38 102 52 52 1 4 2 12 15
+hit 30 100 740 56 1 0 513
+capsule 800 12 50
+fill 30 100 740 56 1 1 12 15
+fill 32 102 394 52 1 4 12 15
+stroke 30 100 740 56 1 4 2 12 15
+fill 374 102 52 52 1 1 12 15
+stroke 374 102 52 52 1 4 2 12 15
+hit 30 100 740 56 1 0 513
+capsule 800 12 99
+fill 30 100 740 56 1 1 12 15
+fill 32 102 729 52 1 4 12 15
+stroke 30 100 740 56 1 4 2 12 15
+fill 709 102 52 52 1 1 12 15
+stroke 709 102 52 52 1 4 2 12 15
+hit 30 100 740 56 1 0 513
+capsule 800 12 100
+fill 30 100 740 56 1 1 12 15
+fill 32 102 736 52 1 4 12 15
+stroke 30 100 740 56 1 4 2 12 15
+fill 716 102 52 52 1 1 12 15
+stroke 716 102 52 52 1 4 2 12 15
+hit 30 100 740 56 1 0 513
+slider-row 800 12 0
+text 16 40 768 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 768 18 0 2 4 1 0 0 60%
+origin 760 40
+fill 16 66 56 56 1 1 12 15
+stroke 16 66 56 56 1 4 2 12 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 728 66 56 56 1 1 12 15
+stroke 728 66 56 56 1 4 2 12 15
+text 732 68 48 52 2 1 4 1 0 0 +
+origin 751 82
+fill 80 66 640 56 1 1 12 15
+fill 82 68 402 52 1 4 12 15
+stroke 80 66 640 56 1 4 2 12 15
+fill 432 68 52 52 1 1 12 15
+stroke 432 68 52 52 1 4 2 12 15
+hit 16 66 56 56 4 -1 1
+hit 728 66 56 56 4 1 1
+hit 80 66 640 56 1 0 513
+slider-row 800 12 1
+text 16 40 768 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 768 18 0 2 4 1 0 0 60%
+origin 760 40
+fill 728 66 56 56 1 1 12 15
+stroke 728 66 56 56 1 4 2 12 15
+fill 16 66 56 56 1 1 12 15
+stroke 16 66 56 56 1 4 2 12 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 664 66 56 56 1 1 12 15
+stroke 664 66 56 56 1 4 2 12 15
+text 668 68 48 52 2 1 4 1 0 0 +
+origin 687 82
+fill 80 66 576 56 1 1 12 15
+fill 82 68 364 52 1 4 12 15
+stroke 80 66 576 56 1 4 2 12 15
+fill 394 68 52 52 1 1 12 15
+stroke 394 68 52 52 1 4 2 12 15
+hit 728 66 56 56 3 0 1
+hit 16 66 56 56 4 -1 1
+hit 664 66 56 56 4 1 1
+hit 80 66 576 56 1 0 513
+sheet 800 12
+fill 0 0 800 300 1 1 12 12
+fill 0 298 800 2 1 4 0 15
+fill 364 271 72 5 1 4 2 15
+details 800 12 0
+fill 0 80 800 660 1 1 0 15
+fill 16 668 768 56 1 1 12 15
+stroke 16 668 768 56 1 4 1 12 15
+text 20 670 760 52 1 1 4 1 0 0 Read
+origin 380 684
+fill 16 604 768 56 1 1 12 15
+stroke 16 604 768 56 1 4 1 12 15
+text 20 606 760 52 1 1 4 1 0 0 Details
+origin 365 620
+fill 16 96 768 122 1 1 0 15
+text 16 96 768 24 1 0 4 2 1 0 A publication title
+origin 16 96
+text 16 130 768 24 1 0 4 1 0 0 An author
+origin 16 130
+text 16 164 768 24 1 0 4 1 0 0 Source
+origin 16 164
+fill 16 230 768 100 1 1 0 15
+fill 16 230 768 1 1 4 0 15
+text 16 240 768 24 1 0 4 1 1 0 Available
+origin 16 240
+text 16 270 768 24 1 0 4 1 0 0 2 copies
+origin 16 270
+text 16 300 768 24 1 0 4 1 0 0 No holds
+origin 16 300
+text 16 342 768 24 1 0 4 3 0 0 Version 1
+origin 16 342
+text 16 378 768 24 1 0 4 1 1 0 Description
+origin 16 378
+text 16 410 768 24 1 0 4 7 0 0 Some description text that wraps across lines.
+origin 16 410
+hit 16 668 768 56 1 0 7
+hit 16 604 768 56 2 0 7
+details 800 12 1
+fill 0 80 800 660 1 1 0 15
+fill 16 668 768 56 1 1 12 15
+stroke 16 668 768 56 1 4 1 12 15
+text 20 670 760 52 1 1 4 1 0 0 Read
+origin 380 684
+fill 16 604 768 56 1 1 12 15
+stroke 16 604 768 56 1 4 1 12 15
+text 20 606 760 52 1 1 4 1 0 0 Details
+origin 365 620
+fill 16 96 768 192 1 1 0 15
+fill 16 96 128 192 1 1 0 15
+stroke 16 96 128 192 1 4 1 0 15
+text 24 108 112 72 1 1 4 5 0 0 A publication title
+text 160 96 624 24 1 0 4 3 1 0 A publication title
+origin 160 96
+text 160 130 624 24 1 0 4 2 0 0 An author
+origin 160 130
+text 160 164 624 24 1 0 4 1 0 0 Source
+origin 160 164
+fill 16 300 768 100 1 1 0 15
+fill 16 300 768 1 1 4 0 15
+text 16 310 768 24 1 0 4 1 1 0 Available
+origin 16 310
+text 16 340 768 24 1 0 4 1 0 0 2 copies
+origin 16 340
+text 16 370 768 24 1 0 4 1 0 0 No holds
+origin 16 370
+text 16 412 768 24 1 0 4 3 0 0 Version 1
+origin 16 412
+text 16 448 768 24 1 0 4 1 1 0 Description
+origin 16 448
+text 16 480 768 24 1 0 4 4 0 0 Some description text that wraps across lines.
+origin 16 480
+hit 16 668 768 56 1 0 7
+hit 16 604 768 56 2 0 7
+confirmation 800 18 0
+fill 100 288 600 216 1 1 18 15
+stroke 100 288 600 216 1 4 2 18 15
+text 275 304 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 275 304
+text 145 336 510 24 1 0 4 1 0 0 A long title with more than one line of text in the
+origin 145 336
+text 335 360 130 24 1 0 4 1 0 0 narrow dialog
+origin 335 360
+fill 116 400 568 40 1 4 18 15
+text 120 402 560 36 1 1 1 1 0 0 Cancel
+origin 370 408
+fill 116 448 568 40 1 1 18 15
+text 120 450 560 36 1 1 4 1 0 0 Confirm
+origin 365 456
+hit 100 288 600 216 2 0 1
+hit 116 398 568 44 1 0 1
+hit 116 446 568 44 1 1 1
+confirmation 800 18 1
+fill 100 288 600 216 1 1 18 15
+stroke 100 288 600 216 1 4 2 18 15
+text 275 304 250 24 1 0 4 1 1 0 Remove from Recent Books?
+origin 275 304
+text 145 336 510 24 1 0 4 1 0 0 A long title with more than one line of text in the
+origin 145 336
+text 335 360 130 24 1 0 4 1 0 0 narrow dialog
+origin 335 360
+fill 116 400 568 40 1 1 18 15
+text 120 402 560 36 1 1 4 1 0 0 Cancel
+origin 370 408
+fill 116 448 568 40 1 4 18 15
+text 120 450 560 36 1 1 1 1 0 0 Confirm
+origin 365 456
+hit 100 288 600 216 2 0 1
+hit 116 398 568 44 1 0 1
+hit 116 446 568 44 1 1 1
+capsule 800 18 0
+fill 30 100 740 56 1 1 18 15
+fill 32 102 52 52 1 4 18 15
+stroke 30 100 740 56 1 4 2 18 15
+fill 32 102 52 52 1 1 18 15
+stroke 32 102 52 52 1 4 2 18 15
+hit 30 100 740 56 1 0 513
+capsule 800 18 1
+fill 30 100 740 56 1 1 18 15
+fill 32 102 58 52 1 4 18 15
+stroke 30 100 740 56 1 4 2 18 15
+fill 38 102 52 52 1 1 18 15
+stroke 38 102 52 52 1 4 2 18 15
+hit 30 100 740 56 1 0 513
+capsule 800 18 50
+fill 30 100 740 56 1 1 18 15
+fill 32 102 394 52 1 4 18 15
+stroke 30 100 740 56 1 4 2 18 15
+fill 374 102 52 52 1 1 18 15
+stroke 374 102 52 52 1 4 2 18 15
+hit 30 100 740 56 1 0 513
+capsule 800 18 99
+fill 30 100 740 56 1 1 18 15
+fill 32 102 729 52 1 4 18 15
+stroke 30 100 740 56 1 4 2 18 15
+fill 709 102 52 52 1 1 18 15
+stroke 709 102 52 52 1 4 2 18 15
+hit 30 100 740 56 1 0 513
+capsule 800 18 100
+fill 30 100 740 56 1 1 18 15
+fill 32 102 736 52 1 4 18 15
+stroke 30 100 740 56 1 4 2 18 15
+fill 716 102 52 52 1 1 18 15
+stroke 716 102 52 52 1 4 2 18 15
+hit 30 100 740 56 1 0 513
+slider-row 800 18 0
+text 16 40 768 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 768 18 0 2 4 1 0 0 60%
+origin 760 40
+fill 16 66 56 56 1 1 18 15
+stroke 16 66 56 56 1 4 2 18 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 728 66 56 56 1 1 18 15
+stroke 728 66 56 56 1 4 2 18 15
+text 732 68 48 52 2 1 4 1 0 0 +
+origin 751 82
+fill 80 66 640 56 1 1 18 15
+fill 82 68 402 52 1 4 18 15
+stroke 80 66 640 56 1 4 2 18 15
+fill 432 68 52 52 1 1 18 15
+stroke 432 68 52 52 1 4 2 18 15
+hit 16 66 56 56 4 -1 1
+hit 728 66 56 56 4 1 1
+hit 80 66 640 56 1 0 513
+slider-row 800 18 1
+text 16 40 768 18 0 0 4 1 0 0 Brightness
+origin 16 40
+text 16 40 768 18 0 2 4 1 0 0 60%
+origin 760 40
+fill 728 66 56 56 1 1 18 15
+stroke 728 66 56 56 1 4 2 18 15
+fill 16 66 56 56 1 1 18 15
+stroke 16 66 56 56 1 4 2 18 15
+text 20 68 48 52 2 1 4 1 0 0 -
+origin 39 82
+fill 664 66 56 56 1 1 18 15
+stroke 664 66 56 56 1 4 2 18 15
+text 668 68 48 52 2 1 4 1 0 0 +
+origin 687 82
+fill 80 66 576 56 1 1 18 15
+fill 82 68 364 52 1 4 18 15
+stroke 80 66 576 56 1 4 2 18 15
+fill 394 68 52 52 1 1 18 15
+stroke 394 68 52 52 1 4 2 18 15
+hit 728 66 56 56 3 0 1
+hit 16 66 56 56 4 -1 1
+hit 664 66 56 56 4 1 1
+hit 80 66 576 56 1 0 513
+sheet 800 18
+fill 0 0 800 300 1 1 18 12
+fill 0 298 800 2 1 4 0 15
+fill 364 271 72 5 1 4 2 15
+details 800 18 0
+fill 0 80 800 660 1 1 0 15
+fill 16 668 768 56 1 1 18 15
+stroke 16 668 768 56 1 4 1 18 15
+text 20 670 760 52 1 1 4 1 0 0 Read
+origin 380 684
+fill 16 604 768 56 1 1 18 15
+stroke 16 604 768 56 1 4 1 18 15
+text 20 606 760 52 1 1 4 1 0 0 Details
+origin 365 620
+fill 16 96 768 122 1 1 0 15
+text 16 96 768 24 1 0 4 2 1 0 A publication title
+origin 16 96
+text 16 130 768 24 1 0 4 1 0 0 An author
+origin 16 130
+text 16 164 768 24 1 0 4 1 0 0 Source
+origin 16 164
+fill 16 230 768 100 1 1 0 15
+fill 16 230 768 1 1 4 0 15
+text 16 240 768 24 1 0 4 1 1 0 Available
+origin 16 240
+text 16 270 768 24 1 0 4 1 0 0 2 copies
+origin 16 270
+text 16 300 768 24 1 0 4 1 0 0 No holds
+origin 16 300
+text 16 342 768 24 1 0 4 3 0 0 Version 1
+origin 16 342
+text 16 378 768 24 1 0 4 1 1 0 Description
+origin 16 378
+text 16 410 768 24 1 0 4 7 0 0 Some description text that wraps across lines.
+origin 16 410
+hit 16 668 768 56 1 0 7
+hit 16 604 768 56 2 0 7
+details 800 18 1
+fill 0 80 800 660 1 1 0 15
+fill 16 668 768 56 1 1 18 15
+stroke 16 668 768 56 1 4 1 18 15
+text 20 670 760 52 1 1 4 1 0 0 Read
+origin 380 684
+fill 16 604 768 56 1 1 18 15
+stroke 16 604 768 56 1 4 1 18 15
+text 20 606 760 52 1 1 4 1 0 0 Details
+origin 365 620
+fill 16 96 768 192 1 1 0 15
+fill 16 96 128 192 1 1 0 15
+stroke 16 96 128 192 1 4 1 0 15
+text 24 108 112 72 1 1 4 5 0 0 A publication title
+text 160 96 624 24 1 0 4 3 1 0 A publication title
+origin 160 96
+text 160 130 624 24 1 0 4 2 0 0 An author
+origin 160 130
+text 160 164 624 24 1 0 4 1 0 0 Source
+origin 160 164
+fill 16 300 768 100 1 1 0 15
+fill 16 300 768 1 1 4 0 15
+text 16 310 768 24 1 0 4 1 1 0 Available
+origin 16 310
+text 16 340 768 24 1 0 4 1 0 0 2 copies
+origin 16 340
+text 16 370 768 24 1 0 4 1 0 0 No holds
+origin 16 370
+text 16 412 768 24 1 0 4 3 0 0 Version 1
+origin 16 412
+text 16 448 768 24 1 0 4 1 1 0 Description
+origin 16 448
+text 16 480 768 24 1 0 4 4 0 0 Some description text that wraps across lines.
+origin 16 480
+hit 16 668 768 56 1 0 7
+hit 16 604 768 56 2 0 7
+route 0 1 7 101
+route 1 1 7 1000
+route 2 1 7 1000
+route 3 1 7 1000
+route 4 0 0 -1

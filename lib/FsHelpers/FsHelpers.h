@@ -9,7 +9,7 @@ namespace FsHelpers {
 
 std::string decodeUriEscapes(const std::string& path);
 
-std::string normalisePath(const std::string& path);
+std::string normalisePath(std::string_view path);
 
 // Numeric-aware, case-insensitive comparison ("2" < "10"). Returns true when str1 orders
 // before str2. Same ordering sortFileList applies within the file/directory groups.
@@ -42,12 +42,6 @@ bool hasBmpExtension(std::string_view fileName);
 
 bool hasImageExtension(std::string_view fileName);
 
-// Check for .gif extension (case-insensitive)
-bool hasGifExtension(std::string_view fileName);
-inline bool hasGifExtension(const String& fileName) {
-  return hasGifExtension(std::string_view{fileName.c_str(), fileName.length()});
-}
-
 // Check for .epub extension (case-insensitive)
 bool hasEpubExtension(std::string_view fileName);
 inline bool hasEpubExtension(const String& fileName) {
@@ -68,11 +62,6 @@ bool hasMarkdownExtension(std::string_view fileName);
 
 bool hasReflowableBookExtension(std::string_view fileName);
 
-// Check for .css extension (case-insensitive)
-bool hasCssExtension(std::string_view fileName);
-inline bool hasCssExtension(const String& fileName) {
-  return hasCssExtension(std::string_view{fileName.c_str(), fileName.length()});
-}
 std::string extractFolderPath(const std::string& filePath);
 std::string getFileNameWithoutExtension(std::string_view filePath);
 inline std::string getFileNameWithoutExtension(const String& filePath) {

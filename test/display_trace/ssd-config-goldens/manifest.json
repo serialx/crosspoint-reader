@@ -1,0 +1,869 @@
+{
+  "sdk": "62a72e7c735210f09631e1908c4e9d046a617371",
+  "cases": [
+    {
+      "case": "absent-0",
+      "sha256": "4550c27ed0a06c2db6a8e181ffe4e92071f7e85b268f3eba1d75717875bb2889",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-1",
+      "sha256": "217e3c3a18483a6ae6433dd6eb1568712209894dcca2c5f75e30813bd44836cf",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-2",
+      "sha256": "4efedbf5b5ffeccdcf31da56556e36e6548098ec90eb095b4103e498d5ddc1a6",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-3",
+      "sha256": "cbece8d1e4d7acf2876e1651b681b898563d8787aeab58b0446c4c19c01b82f8",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-4",
+      "sha256": "f1672a75ff53b6691271dcb4b0fc424c2ac9faf0b8a37e02a12df264b1d5dc30",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-5",
+      "sha256": "0fbfa174fd5e2490a00baac733d3f5396902a46ea2999d57ab72336bcc3a82e2",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-6",
+      "sha256": "a7c75e622812d9ccd55f28478b9706dd8ac179b2d7d777cd7dff14bdd58fe084",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-7",
+      "sha256": "85cb0e1240e6ece6fc35a7079cd0689e3db976a74a61fd6031d0be9754198790",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-8",
+      "sha256": "428d15baf3338121fff960149fbd7b1825456634cc7d87104aa6c0afb2bfc62e",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-9",
+      "sha256": "7493b5576b997c51118e24b4835562b1f5e722c1fd7b147a40aed27c03159e90",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-10",
+      "sha256": "e77dea79e2fdac023e07873c23c4e445685c69c3db9234b9879ce9322ad93ef6",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-11",
+      "sha256": "6dfc370728f81c9ae4bc80fff515e48ac9ee4863bf6c401612170f6e4a9dc5d4",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-12",
+      "sha256": "63db3c75a0ed5380bd144930461bdf3f157f265fd6ca63d70aa679482c16643e",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-13",
+      "sha256": "271fdded8936c12c09669f7e6e6ddb659f62311a52300c93c9201111b4638b18",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-14",
+      "sha256": "c833acfe0a44402b300b3267d2386dd1f8e3e78f186732f6ad56b07cb3162f3b",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-15",
+      "sha256": "db610a5a1da39a61337658d6e8411225897d78d881e6140966d41c0b6140111e",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-16",
+      "sha256": "63bfd92ae737ae54cb57d81875dcedef7b091f495a7abfc4af4d39334058bf32",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-17",
+      "sha256": "b8993f4a7c63bd54a0da08d341b93f47bd35adb70f0dbe3301d8afba763c02d3",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-18",
+      "sha256": "9ecb8d97096b66f48be9ae046701147e5d12d3df912dbeac51d1f8c3149c1d5c",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-19",
+      "sha256": "ff1bcb71e0cc449ad5ae41132b230c2484e2418769f0b3995c86ec3cf05fc8a1",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-20",
+      "sha256": "c06a70313b202f74e853978d2d3c70a2729120392518e5935e50c14a41cdeb31",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-21",
+      "sha256": "7b0ab46357844faf2debcf76a3988cfdf7e402694987ae4c70bf7a9dda460513",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-22",
+      "sha256": "4cd137c506293233f8f104f18ecb025a61d0383c818b8f18bb890c97c3efe05b",
+      "diagnostics": []
+    },
+    {
+      "case": "absent-23",
+      "sha256": "9f74b9852dd7805f33cbde4e24a82f6ad642d31c0488aa6ba5b1574502c9f628",
+      "diagnostics": []
+    },
+    {
+      "case": "0-0",
+      "sha256": "4550c27ed0a06c2db6a8e181ffe4e92071f7e85b268f3eba1d75717875bb2889",
+      "diagnostics": []
+    },
+    {
+      "case": "0-1",
+      "sha256": "217e3c3a18483a6ae6433dd6eb1568712209894dcca2c5f75e30813bd44836cf",
+      "diagnostics": []
+    },
+    {
+      "case": "0-2",
+      "sha256": "4efedbf5b5ffeccdcf31da56556e36e6548098ec90eb095b4103e498d5ddc1a6",
+      "diagnostics": []
+    },
+    {
+      "case": "0-3",
+      "sha256": "cbece8d1e4d7acf2876e1651b681b898563d8787aeab58b0446c4c19c01b82f8",
+      "diagnostics": []
+    },
+    {
+      "case": "0-4",
+      "sha256": "f1672a75ff53b6691271dcb4b0fc424c2ac9faf0b8a37e02a12df264b1d5dc30",
+      "diagnostics": []
+    },
+    {
+      "case": "0-5",
+      "sha256": "0fbfa174fd5e2490a00baac733d3f5396902a46ea2999d57ab72336bcc3a82e2",
+      "diagnostics": []
+    },
+    {
+      "case": "0-6",
+      "sha256": "a7c75e622812d9ccd55f28478b9706dd8ac179b2d7d777cd7dff14bdd58fe084",
+      "diagnostics": []
+    },
+    {
+      "case": "0-7",
+      "sha256": "85cb0e1240e6ece6fc35a7079cd0689e3db976a74a61fd6031d0be9754198790",
+      "diagnostics": []
+    },
+    {
+      "case": "0-8",
+      "sha256": "428d15baf3338121fff960149fbd7b1825456634cc7d87104aa6c0afb2bfc62e",
+      "diagnostics": []
+    },
+    {
+      "case": "0-9",
+      "sha256": "7493b5576b997c51118e24b4835562b1f5e722c1fd7b147a40aed27c03159e90",
+      "diagnostics": []
+    },
+    {
+      "case": "0-10",
+      "sha256": "e77dea79e2fdac023e07873c23c4e445685c69c3db9234b9879ce9322ad93ef6",
+      "diagnostics": []
+    },
+    {
+      "case": "0-11",
+      "sha256": "6dfc370728f81c9ae4bc80fff515e48ac9ee4863bf6c401612170f6e4a9dc5d4",
+      "diagnostics": []
+    },
+    {
+      "case": "0-12",
+      "sha256": "63db3c75a0ed5380bd144930461bdf3f157f265fd6ca63d70aa679482c16643e",
+      "diagnostics": []
+    },
+    {
+      "case": "0-13",
+      "sha256": "271fdded8936c12c09669f7e6e6ddb659f62311a52300c93c9201111b4638b18",
+      "diagnostics": []
+    },
+    {
+      "case": "0-14",
+      "sha256": "c833acfe0a44402b300b3267d2386dd1f8e3e78f186732f6ad56b07cb3162f3b",
+      "diagnostics": []
+    },
+    {
+      "case": "0-15",
+      "sha256": "db610a5a1da39a61337658d6e8411225897d78d881e6140966d41c0b6140111e",
+      "diagnostics": []
+    },
+    {
+      "case": "0-16",
+      "sha256": "63bfd92ae737ae54cb57d81875dcedef7b091f495a7abfc4af4d39334058bf32",
+      "diagnostics": []
+    },
+    {
+      "case": "0-17",
+      "sha256": "b8993f4a7c63bd54a0da08d341b93f47bd35adb70f0dbe3301d8afba763c02d3",
+      "diagnostics": []
+    },
+    {
+      "case": "0-18",
+      "sha256": "9ecb8d97096b66f48be9ae046701147e5d12d3df912dbeac51d1f8c3149c1d5c",
+      "diagnostics": []
+    },
+    {
+      "case": "0-19",
+      "sha256": "ff1bcb71e0cc449ad5ae41132b230c2484e2418769f0b3995c86ec3cf05fc8a1",
+      "diagnostics": []
+    },
+    {
+      "case": "0-20",
+      "sha256": "c06a70313b202f74e853978d2d3c70a2729120392518e5935e50c14a41cdeb31",
+      "diagnostics": []
+    },
+    {
+      "case": "0-21",
+      "sha256": "7b0ab46357844faf2debcf76a3988cfdf7e402694987ae4c70bf7a9dda460513",
+      "diagnostics": []
+    },
+    {
+      "case": "0-22",
+      "sha256": "4cd137c506293233f8f104f18ecb025a61d0383c818b8f18bb890c97c3efe05b",
+      "diagnostics": []
+    },
+    {
+      "case": "0-23",
+      "sha256": "9f74b9852dd7805f33cbde4e24a82f6ad642d31c0488aa6ba5b1574502c9f628",
+      "diagnostics": []
+    },
+    {
+      "case": "1-0",
+      "sha256": "a5831fdd3768e2d0b088bb77f5863d2c36cd88b834992c18ea9a89835fd0c442",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)"
+      ]
+    },
+    {
+      "case": "1-1",
+      "sha256": "8c1d48a8f0578d7aa7e3c50c55766b8ffee0db4a21d350e32e264fa7e995b3c4",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)"
+      ]
+    },
+    {
+      "case": "1-2",
+      "sha256": "5800e217679401c087a826287db7012c5e7839542f62ed93889cccbab6d83b0c",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)"
+      ]
+    },
+    {
+      "case": "1-3",
+      "sha256": "0c7c359afb6055fb871767688b9e2a40b21160314cda4c03fa4fb4342eed382c",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)"
+      ]
+    },
+    {
+      "case": "1-4",
+      "sha256": "0488c425bf7040579c95492d1da5a7bb9fe71dd4cc02811c255040b6a2f649f2",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)"
+      ]
+    },
+    {
+      "case": "1-5",
+      "sha256": "18148ce20e68a330eddef85e3cb9c9deb34d87b6cfef519cab656130bfea0c1d",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)"
+      ]
+    },
+    {
+      "case": "1-6",
+      "sha256": "8031a0bbd938de80447a1bdb747cccfa49daba2492021eba5197f8ac0ae98b64",
+      "diagnostics": [
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd4)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0x34)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0x37)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd4)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd4)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd4)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0x1c)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0x1f)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xdf)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd4)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd4)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd4)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd4)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd4)"
+      ]
+    },
+    {
+      "case": "1-7",
+      "sha256": "a6f2e8a0686d9dded912e26a815cc939b2b4ada1e55014541799a71b8d7e0951",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf4, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf4, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf4, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf4, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xf4, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xf4, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xf4, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xf4, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xdc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xdc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xdc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xdc, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xf4, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xf4, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xf4, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xf4, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xf4, seq)"
+      ]
+    },
+    {
+      "case": "1-8",
+      "sha256": "4aeefeb0ff270618bde79a0a9318253059a28f746b9ce10d4e5b863d8faf2b0e",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)"
+      ]
+    },
+    {
+      "case": "1-9",
+      "sha256": "5ac075835abed556537b100d5a0b57fc8c7ae2e859e4e421dbae400701038dbd",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)"
+      ]
+    },
+    {
+      "case": "1-10",
+      "sha256": "11873a29d578c12274b35e66e6228ea36e6c63d08b7bebf73e52da3c6cf6ea73",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)"
+      ]
+    },
+    {
+      "case": "1-11",
+      "sha256": "5b36c0d19c214a9731254ec5b5a7b6aff15a02c24bef59f842ba9ad20ac846e3",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)"
+      ]
+    },
+    {
+      "case": "1-12",
+      "sha256": "615c648e5a3a8008eb01851f4f6b0d9afeabe0bddc8f9c11e10d5821d621c975",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)"
+      ]
+    },
+    {
+      "case": "1-13",
+      "sha256": "e30963b9cde0714110a227534385bca6ff0f8e5d74f6fd061e81817f55faaf88",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)"
+      ]
+    },
+    {
+      "case": "1-14",
+      "sha256": "c7fe8bf36cf715d7e9493ef70b3689805eb30f74c110afa57d3f129edaae91e9",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)"
+      ]
+    },
+    {
+      "case": "1-15",
+      "sha256": "99c1f831379c7586a4f015dcf77bfcd4166fa9abedd77dae243ee56d09a57f85",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)"
+      ]
+    },
+    {
+      "case": "1-16",
+      "sha256": "9f73f543983225918ed387e51c14203f444cc00c01867ffcb17a2b1f5873f1ed",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)"
+      ]
+    },
+    {
+      "case": "1-17",
+      "sha256": "6f6e69ab2c925f8cda93fc5758aa4661a52c72dbb30ae8a93f06d15fc7a97b71",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)"
+      ]
+    },
+    {
+      "case": "1-18",
+      "sha256": "e17cdb4f4695287c7f48d0786e10ec65e03acc7d8caa8f542ec7cbe3e7cf3c5d",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcf)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xcf)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)"
+      ]
+    },
+    {
+      "case": "1-19",
+      "sha256": "6da27e640f0523bbccd5ad907a51b57ec48dc64af06ec2a04069281c8e94e8a1",
+      "diagnostics": [
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)"
+      ]
+    },
+    {
+      "case": "1-20",
+      "sha256": "6128da2efd39a4c4dcd06f2916b37f7ad4533e08b39355935aa246483404bed2",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)"
+      ]
+    },
+    {
+      "case": "1-21",
+      "sha256": "b528a5cf4ca737d7761fac7e87c2d7a9e6b918de9390b988add44234d0b78b9c",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)"
+      ]
+    },
+    {
+      "case": "1-22",
+      "sha256": "4f08043f44ebc2458529df40149ff040fff49ea49e81ecfb4dcff844126a25b0",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)"
+      ]
+    },
+    {
+      "case": "1-23",
+      "sha256": "e3500d95607de83e5dd5458a31de2a334ae9d97726d7aad0df84f51f55d5e914",
+      "diagnostics": [
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 4ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] FULL refresh 0ms (ctrl2=0xf7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 0ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] FAST refresh 0ms (ctrl2=0xfc, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)",
+        "diagnostic [SSD1677] FAST refresh 4ms (ctrl2=0xcc)",
+        "diagnostic [SSD1677] HALF refresh 4ms (ctrl2=0xd7, seq)"
+      ]
+    }
+  ]
+}

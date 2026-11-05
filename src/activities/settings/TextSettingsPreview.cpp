@@ -1,132 +1,83 @@
 #include "TextSettingsPreview.h"
 
-#include <EpdFontFamily.h>
-#include <Epub/ParsedText.h>
-#include <Epub/blocks/BlockStyle.h>
-#include <Epub/blocks/TextBlock.h>
+#include <Epub/Page.h>
+#include <Epub/Paragraph.h>
 #include <FontCacheManager.h>
 #include <GfxRenderer.h>
 #include <I18n.h>
-
-#include <algorithm>
-#include <string>
-#include <utility>
+#include <Logging.h>
 
 #include "CrossPointSettings.h"
 #include "fontIds.h"
-
 namespace textsettings {
-
 PreviewLayout::PreviewLayout() = default;
 PreviewLayout::~PreviewLayout() = default;
-
 namespace {
-
-// Map the paragraph-alignment setting to the engine's CssTextAlign (BOOK_STYLE = justified)
-CssTextAlign toCssAlign(uint8_t align) {
-  if (align == CrossPointSettings::BOOK_STYLE) return CssTextAlign::Justify;
-  return static_cast<CssTextAlign>(align);
-}
-
-// Lay the sample text out through the reader engine into layout.lines
-void relayout(PreviewLayout& layout, const GfxRenderer& renderer, int fontId, int textWidth) {
-  layout.lines.clear();
-
+bool relayout(PreviewLayout& layout, const GfxRenderer& renderer, const XpUiTextPreviewKey& key,
+              const XpUiTextPreviewGeometry& geometry, int lineHeight) {
+  layout.page.reset();
   BlockStyle style;
-  style.alignment = toCssAlign(SETTINGS.paragraphAlignment);
-  style.textAlignDefined = true;  // honor the user's choice; RTL auto-detected from text
-
-  ParsedText parsed(SETTINGS.hyphenationEnabled != 0, SETTINGS.focusReadingEnabled != 0, style,
-                    SETTINGS.paragraphIndentSpaces);
-
-  // Feed one space-separated word at a time; addWord handles NFC/CJK/RTL/focus splitting
-  const char* text = I18N.get(StrId::STR_FONT_PREVIEW_TEXT);
-  std::string word;
-  for (const char* p = text;; p++) {
-    if (*p == ' ' || *p == '\0') {
-      if (!word.empty()) {
-        parsed.addWord(word, EpdFontFamily::REGULAR);
-        word.clear();
-      }
-      if (*p == '\0') break;
-    } else {
-      word.push_back(*p);
-    }
-  }
-
-  parsed.layoutAndExtractLines(
-      renderer, fontId, static_cast<uint16_t>(textWidth),
-      [&layout](std::unique_ptr<TextBlock> line, uint32_t) { layout.lines.push_back(std::move(line)); }, true,
-      SETTINGS.getCharacterSpacing(), SETTINGS.wordSpacing);
+  style.alignment = static_cast<CssTextAlign>(xp_ui_text_preview_align(key.alignment));
+  style.textAlignDefined = true;
+  Paragraph paragraph(key.hyphenation, key.focus, style, key.indent);
+  xp_ui_text_preview_feed(paragraph.handle(), I18N.get(StrId::STR_FONT_PREVIEW_TEXT));
+  const auto capacity = xp_ui_text_preview_capacity(paragraph.handle(), key.height, lineHeight, geometry.advance);
+  if (capacity == SIZE_MAX) return false;
+  LinePageBuilder builder(capacity);
+  struct Lines {
+    LinePageBuilder& builder;
+    Paragraph& paragraph;
+    int row, height, lineHeight, advance, gap;
+  } lines{builder, paragraph, 0, key.height, lineHeight, geometry.advance, geometry.gap};
+  paragraph.layoutLines(
+      renderer, key.font_id, key.width, &lines,
+      [](void* raw, const XpParaLine* line) -> uint8_t {
+        auto& c = *static_cast<Lines*>(raw);
+        int16_t y[2]{};
+        const uint8_t visible = xp_ui_text_preview_line(c.row++, c.paragraph.linesAfterCurrentLine(), c.height,
+                                                        c.lineHeight, c.advance, c.gap, y);
+        if ((visible & 1) && !c.builder.addLine(*line, 0, y[0])) return false;
+        return !(visible & 2) || c.builder.addLine(*line, 0, y[1]);
+      },
+      true, key.tracking, key.word_spacing);
+  if (paragraph.hadDroppedWords()) return false;
+  layout.page = builder.finish();
+  return layout.page != nullptr;
 }
-
 }  // namespace
-
-void renderPreview(const GfxRenderer& renderer, PreviewLayout& layout, int previewPadding, int labelGap, Rect bounds,
+void renderPreview(GfxRenderer& renderer, PreviewLayout& layout, int padding, int labelGap, Rect bounds,
                    const char* caption) {
-  const int top = bounds.y;
-  const int height = bounds.height;
-  const int left = bounds.x + previewPadding;
-  const int width = bounds.width - (previewPadding * 2);
-  if (width <= 0 || height <= 0) return;
-
-  const int labelH = renderer.getTextHeight(UI_10_FONT_ID);
-  const int labelReserved = labelH + labelGap + previewPadding;
-
-  const int labelY = top + height - previewPadding - labelH;
-  renderer.drawText(UI_10_FONT_ID, left, labelY, caption);
-
-  const int fontId = SETTINGS.getReaderFontId();
-  if (fontId == 0) return;
-
-  const int lineH = renderer.getTextHeight(fontId);
-  if (lineH <= 0) return;
-
-  const int textLeft = left + SETTINGS.screenMargin;
-  const int textWidth = width - 2 * SETTINGS.screenMargin;
-  if (textWidth <= 0) return;
-
-  const float compression = SETTINGS.getReaderLineCompression();
-  const int lineAdvance = std::max(1, renderer.getLineHeight(fontId, compression));
-  const int paragraphGap = SETTINGS.extraParagraphSpacing ? lineAdvance / 2 : 0;
-
-  // Re-lay-out (and re-prewarm glyphs) only when a layout-affecting setting or the
-  // geometry changed; else reuse the cache. The prewarm inputs are (fontId, constant
-  // sample text, styleMask<-focusReading), all of which are key fields, so a matching
-  // key means an identical prewarm call. This relies on nothing else evicting the SD
-  // glyph cache while this activity is up — true today: the only evictor is
-  // FontCacheManager::PrewarmScope, used solely by the reader/dictionary activities.
-  const PreviewKey key{.fontId = fontId,
-                       .fontPointSize = SETTINGS.fontPointSize,
-                       .screenMargin = SETTINGS.screenMargin,
-                       .textWidth = textWidth,
-                       .lineCompression = compression,
-                       .alignment = SETTINGS.paragraphAlignment,
-                       .extraParagraphSpacing = SETTINGS.extraParagraphSpacing != 0,
-                       .paragraphIndentSpaces = SETTINGS.paragraphIndentSpaces,
-                       .characterSpacing = SETTINGS.getCharacterSpacing(),
-                       .wordSpacingPercent = SETTINGS.wordSpacing,
-                       .focusReading = SETTINGS.focusReadingEnabled != 0,
-                       .hyphenation = SETTINGS.hyphenationEnabled != 0};
-  if (key != layout.key) {
-    if (auto* fcm = renderer.getFontCacheManager()) {
-      fcm->prewarmCache(fontId, I18N.get(StrId::STR_FONT_PREVIEW_TEXT), SETTINGS.focusReadingEnabled ? 0x03 : 0x01);
+  XpUiTextPreviewKey key{};
+  key.font_id = SETTINGS.getReaderFontId();
+  key.point_size = SETTINGS.fontPointSize;
+  key.margin = SETTINGS.screenMargin;
+  key.compression = SETTINGS.getReaderLineCompression();
+  key.alignment = SETTINGS.paragraphAlignment;
+  key.paragraph_gap = SETTINGS.extraParagraphSpacing != 0;
+  key.indent = SETTINGS.paragraphIndentSpaces;
+  key.tracking = SETTINGS.getCharacterSpacing();
+  key.word_spacing = SETTINGS.wordSpacing;
+  key.focus = SETTINGS.focusReadingEnabled != 0;
+  key.hyphenation = SETTINGS.hyphenationEnabled != 0;
+  const int lineHeight = key.font_id ? renderer.getTextHeight(key.font_id) : 0;
+  XpUiTextPreviewGeometry geometry{};
+  xp_ui_text_preview_geometry({static_cast<int16_t>(bounds.x), static_cast<int16_t>(bounds.y),
+                               static_cast<int16_t>(bounds.width), static_cast<int16_t>(bounds.height)},
+                              padding, labelGap, renderer.getTextHeight(UI_10_FONT_ID), lineHeight,
+                              key.font_id ? renderer.getLineHeight(key.font_id, key.compression) : 0, &key, &geometry);
+  if (geometry.caption_visible) renderer.drawText(UI_10_FONT_ID, geometry.caption.x, geometry.caption.y, caption);
+  if (!geometry.text_visible) return;
+  key.width = geometry.text.w;
+  key.height = geometry.text.h;
+  if (!xp_ui_text_preview_same(&key, &layout.key) || !layout.page) {
+    if (auto* cache = renderer.getFontCacheManager())
+      cache->prewarmCache(key.font_id, I18N.get(StrId::STR_FONT_PREVIEW_TEXT), key.focus ? 0x03 : 0x01);
+    if (!relayout(layout, renderer, key, geometry, lineHeight)) {
+      LOG_ERR("TXT", "Cannot build text preview page");
+      return;
     }
-    relayout(layout, renderer, fontId, textWidth);
     layout.key = key;
   }
-
-  // Draw the sample twice so the paragraph gap is visible
-  int y = top + previewPadding;
-  const int textBottomLimit = top + height - labelReserved;
-  for (int paragraph = 0; paragraph < 2; paragraph++) {
-    for (const auto& line : layout.lines) {
-      if (y + lineH > textBottomLimit) return;
-      line->render(renderer, fontId, textLeft, y);
-      y += lineAdvance;
-    }
-    y += paragraphGap;
-  }
+  if (layout.page) layout.page->render(renderer, key.font_id, geometry.text.x, geometry.text.y);
 }
-
 }  // namespace textsettings

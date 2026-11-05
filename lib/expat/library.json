@@ -1,11 +1,11 @@
 {
   "name": "expat",
   "version": "2.7.3",
+  "description": "SDK Expat API subset backed by the Rust XML core",
   "build": {
     "srcFilter": [
-      "+<xmlparse.c>",
-      "+<xmlrole.c>",
-      "+<xmltok.c>"
+      "+<ExpatCompat.cpp>",
+      "+<ExpatErrors.cpp>"
     ]
   }
 }

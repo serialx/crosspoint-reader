@@ -1,119 +1,73 @@
 #include "KOReaderAuthActivity.h"
 
-#include <GfxRenderer.h>
 #include <I18n.h>
-#include <Logging.h>
 #include <WiFi.h>
 
-#include "KOReaderCredentialStore.h"
 #include "KOReaderSyncClient.h"
-#include "MappedInputManager.h"
 #include "SilentRestart.h"
 #include "activities/network/WifiSelectionActivity.h"
-#include "components/UITheme.h"
-#include "fontIds.h"
 #include "network/WifiPowerSaveGuard.h"
 
-void KOReaderAuthActivity::onWifiSelectionComplete(const bool success) {
+void KOReaderAuthActivity::onWifiSelectionComplete(bool success) {
   if (!success) {
-    {
-      RenderLock lock(*this);
-      state = FAILED;
-      errorMessage = tr(STR_WIFI_CONN_FAILED);
-    }
+    publish(XP_KO_FAILED, XP_KO_WIFI_FAILED);
     requestUpdate();
     return;
   }
-
-  {
-    RenderLock lock(*this);
-    state = AUTHENTICATING;
-    statusMessage = mode == Mode::SIGN_UP ? tr(STR_CREATING_ACCOUNT) : tr(STR_AUTHENTICATING);
-  }
+  publish(XP_KO_AUTHENTICATING, XP_KO_AUTH_BUSY);
   requestUpdate();
-
   performAuthentication();
 }
-
 void KOReaderAuthActivity::performAuthentication() {
+  RunGuard guard(runActive);
+  if (!guard) return;
   WifiPowerSaveGuard psGuard;
-  const auto result = mode == Mode::SIGN_UP ? KOReaderSyncClient::createUser() : KOReaderSyncClient::authenticate();
-
-  {
-    RenderLock lock(*this);
-    if (result == KOReaderSyncClient::OK) {
-      state = SUCCESS;
-      statusMessage = mode == Mode::SIGN_UP ? tr(STR_ACCOUNT_CREATED) : tr(STR_AUTH_SUCCESS);
-    } else {
-      state = FAILED;
-      errorMessage =
-          result == KOReaderSyncClient::USER_EXISTS ? tr(STR_USERNAME_TAKEN) : KOReaderSyncClient::errorString(result);
-    }
-  }
-  requestUpdate();
+  const XpKoServices services{this, &KOReaderAuthActivity::service};
+  xp_ui_koreader_auth(model.kind == XP_KO_SIGNUP, &services);
 }
-
 void KOReaderAuthActivity::onEnter() {
   Activity::onEnter();
-
-  // Check if already connected
+  if (!initializeUi()) {
+    finish();
+    return;
+  }
+#ifdef CROSSPOINT_UI_ORACLE
+  if (oracleFreeze) {
+    requestUpdate();
+    return;
+  }
+#endif
   if (WiFi.status() == WL_CONNECTED) {
     onWifiSelectionComplete(true);
     return;
   }
-
-  // Launch WiFi selection
   startActivityForResult(std::make_unique<WifiSelectionActivity>(renderer, mappedInput),
                          [this](const ActivityResult& result) { onWifiSelectionComplete(!result.isCancelled); });
 }
-
 void KOReaderAuthActivity::onExit() {
-  Activity::onExit();
-
+  KOReaderUiActivity::onExit();
   if (WiFi.getMode() != WIFI_MODE_NULL) {
     WiFi.disconnect(false);
     delay(30);
     silentRestart();
   }
 }
-
-void KOReaderAuthActivity::render(RenderLock&&) {
-  renderer.clearScreen();
-
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  const auto pageWidth = renderer.getScreenWidth();
-  const auto pageHeight = renderer.getScreenHeight();
-
-  GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.headerHeight},
-                 mode == Mode::SIGN_UP ? tr(STR_SIGN_UP) : tr(STR_KOREADER_AUTH));
-  const auto height = renderer.getLineHeight(UI_10_FONT_ID);
-  const auto top = (pageHeight - height) / 2;
-
-  if (state == AUTHENTICATING) {
-    renderer.drawCenteredText(UI_10_FONT_ID, top, statusMessage.c_str());
-  } else if (state == SUCCESS) {
-    renderer.drawCenteredText(UI_10_FONT_ID, top,
-                              mode == Mode::SIGN_UP ? tr(STR_ACCOUNT_CREATED) : tr(STR_AUTH_SUCCESS), true,
-                              EpdFontFamily::BOLD);
-    renderer.drawCenteredText(UI_10_FONT_ID, top + height + 10, tr(STR_SYNC_READY));
-  } else if (state == FAILED) {
-    renderer.drawCenteredText(UI_10_FONT_ID, top, mode == Mode::SIGN_UP ? tr(STR_SIGNUP_FAILED) : tr(STR_AUTH_FAILED),
-                              true, EpdFontFamily::BOLD);
-    renderer.drawCenteredText(UI_10_FONT_ID, top + height + 10, errorMessage.c_str());
-  }
-
-  const auto labels = mappedInput.mapLabels(tr(STR_BACK), "", "", "");
-  GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-  renderer.displayBuffer();
+void KOReaderAuthActivity::performEffect(const XpUiEffect& effect) {
+  if (effect.kind == XP_UI_ACTIVATE) finish();
 }
-
-void KOReaderAuthActivity::loop() {
-  if (state == SUCCESS || state == FAILED) {
-    int x = 0;
-    int y = 0;
-    if (mappedInput.wasPressed(MappedInputManager::Button::Back) ||
-        mappedInput.wasPressed(MappedInputManager::Button::Confirm) || mappedInput.wasScreenTapped(x, y)) {
-      finish();
-    }
+uint32_t KOReaderAuthActivity::service(void* context, uint32_t op, uint32_t a, uint32_t b) {
+  auto& self = *static_cast<KOReaderAuthActivity*>(context);
+  switch (static_cast<XpKoOperation>(op)) {
+    case XP_KO_AUTH_REQUEST:
+      return a ? KOReaderSyncClient::createUser() : KOReaderSyncClient::authenticate();
+    case XP_KO_PUBLISH:
+      self.publish(static_cast<XpKoPhase>(a), static_cast<XpKoMessage>(b & 255), 0,
+                   KOReaderSyncClient::errorString(static_cast<KOReaderSyncClient::Error>((b >> 8) & 255)));
+      return 0;
+    case XP_KO_REPAINT:
+      self.requestUpdate();
+      return 0;
+    default:
+      return 0;  // The authentication run only binds these three operations.
   }
 }

@@ -1,0 +1,111 @@
+[
+  {
+    "name": "compound-offset-and-footnote-count",
+    "hex": "010001000000000200000400ffff0000000000000000000000000000000001000200000000000000610062000000000000000000000000000000000000000000000000000000000000000000000000000011000000",
+    "reference": [
+      "ERR\tTXB\tDeserialization failed: corrupt text layout",
+      "ERR\tPGE\tDeserialization failed: null TextBlock"
+    ],
+    "candidate": {
+      "memory": [
+        "ERR\tTXB\tDeserialization failed: corrupt text layout",
+        "ERR\tPGE\tDeserialization failed: null TextBlock"
+      ],
+      "file": [
+        "ERR\tPGE\tInvalid footnote count 17"
+      ]
+    },
+    "reason": "The existing file sizing pass rejects the footnote count before validating the skipped text arena; both implementations reject. Coordinator approved preserving read/allocation order on 2026-10-28."
+  },
+  {
+    "name": "rule-cut-3",
+    "hex": "010003",
+    "reader_required": true,
+    "reference": [
+      "ERR\tPGE\tDeserialization failed: invalid horizontal rule metadata (width=0 thickness=0)"
+    ],
+    "candidate": {
+      "memory": [],
+      "file": []
+    },
+    "reason": "Existing complete-record bounds reject before legacy partially initialized scalar validation. Coordinator approved no extra reads; the reader must report the load failure."
+  },
+  {
+    "name": "rule-cut-4",
+    "hex": "01000300",
+    "reader_required": true,
+    "reference": [
+      "ERR\tPGE\tDeserialization failed: invalid horizontal rule metadata (width=0 thickness=0)"
+    ],
+    "candidate": {
+      "memory": [],
+      "file": []
+    },
+    "reason": "Existing complete-record bounds reject before legacy partially initialized scalar validation. Coordinator approved no extra reads; the reader must report the load failure."
+  },
+  {
+    "name": "rule-cut-5",
+    "hex": "0100030000",
+    "reader_required": true,
+    "reference": [
+      "ERR\tPGE\tDeserialization failed: invalid horizontal rule metadata (width=0 thickness=0)"
+    ],
+    "candidate": {
+      "memory": [],
+      "file": []
+    },
+    "reason": "Existing complete-record bounds reject before legacy partially initialized scalar validation. Coordinator approved no extra reads; the reader must report the load failure."
+  },
+  {
+    "name": "rule-cut-6",
+    "hex": "010003000000",
+    "reader_required": true,
+    "reference": [
+      "ERR\tPGE\tDeserialization failed: invalid horizontal rule metadata (width=0 thickness=0)"
+    ],
+    "candidate": {
+      "memory": [],
+      "file": []
+    },
+    "reason": "Existing complete-record bounds reject before legacy partially initialized scalar validation. Coordinator approved no extra reads; the reader must report the load failure."
+  },
+  {
+    "name": "rule-cut-7",
+    "hex": "01000300000000",
+    "reader_required": true,
+    "reference": [
+      "ERR\tPGE\tDeserialization failed: invalid horizontal rule metadata (width=0 thickness=0)"
+    ],
+    "candidate": {
+      "memory": [],
+      "file": []
+    },
+    "reason": "Existing complete-record bounds reject before legacy partially initialized scalar validation. Coordinator approved no extra reads; the reader must report the load failure."
+  },
+  {
+    "name": "rule-cut-8",
+    "hex": "0100030000000032",
+    "reader_required": true,
+    "reference": [
+      "ERR\tPGE\tDeserialization failed: invalid horizontal rule metadata (width=50 thickness=0)"
+    ],
+    "candidate": {
+      "memory": [],
+      "file": []
+    },
+    "reason": "Existing complete-record bounds reject before legacy partially initialized scalar validation. Coordinator approved no extra reads; the reader must report the load failure."
+  },
+  {
+    "name": "rule-cut-9",
+    "hex": "010003000000003200",
+    "reader_required": true,
+    "reference": [
+      "ERR\tPGE\tDeserialization failed: invalid horizontal rule metadata (width=50 thickness=0)"
+    ],
+    "candidate": {
+      "memory": [],
+      "file": []
+    },
+    "reason": "Existing complete-record bounds reject before legacy partially initialized scalar validation. Coordinator approved no extra reads; the reader must report the load failure."
+  }
+]

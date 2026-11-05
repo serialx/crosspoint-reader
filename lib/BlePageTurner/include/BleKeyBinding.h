@@ -56,6 +56,26 @@ struct RemoteTable {
   Binding bindings[kMaxBindings];
 };
 
+// C ABI borrows bounded tables and strings for one call; no allocation or pointer retention.
+struct HoldWait;
+struct Router;
+extern "C" {
+bool xp_ble_valid(uint32_t);
+bool xp_ble_matches(uint32_t, uint32_t, bool);
+uint8_t xp_ble_lookup(const RemoteTable*, uint32_t, bool);
+bool xp_ble_find(const RemoteTable*, uint8_t, Binding*);
+bool xp_ble_clear(RemoteTable*, uint8_t);
+bool xp_ble_learn(RemoteTable*, uint8_t, uint32_t, bool);
+uint8_t xp_ble_raw_edge(const RemoteTable*, uint32_t, bool, uint32_t, uint8_t, HoldWait*);
+uint8_t xp_ble_poll_hold(HoldWait*, uint32_t);
+const RemoteTable* xp_ble_table_for(const RemoteTable*, uint8_t, const char*, const char*,
+                                    const RemoteTable* (*)(const char*));
+RemoteTable* xp_ble_editable_table(RemoteTable*, uint8_t*, const char*, const char*,
+                                   const RemoteTable* (*)(const char*));
+bool xp_ble_forget_remote(RemoteTable*, uint8_t*, const char*);
+void xp_ble_follow(Router*, bool);
+}
+
 constexpr Binding makeBinding(const uint32_t code, const bool hold, const Action action) {
   return (code & kCodeMask) | (hold ? kHoldBit : 0u) | static_cast<uint32_t>(action) << kActionShift;
 }
@@ -64,32 +84,17 @@ constexpr Action actionOf(const Binding b) { return static_cast<Action>(b >> kAc
 // A slot read from the card is kept only when every bit means something: an action
 // in range, a non-zero value, no unknown bit. Garbage is dropped rather than turned
 // into a button that does something odd.
-constexpr bool valid(const Binding b) {
-  return (b & ~(kCodeMask | kHoldBit | kAnyReportBit | 0xF0000000u)) == 0 && (b & 0xFFu) != 0 &&
-         actionOf(b) != Action::None && static_cast<uint8_t>(actionOf(b)) <= static_cast<uint8_t>(Action::Back);
-}
+inline bool valid(const Binding b) { return xp_ble_valid(b); }
 
-constexpr bool matches(const Binding b, const uint32_t code, const bool hold) {
-  const uint32_t mask = (b & kAnyReportBit) ? 0x0100FFFFu : 0x01FFFFFFu;
-  return ((b ^ (code | (hold ? kHoldBit : 0u))) & mask) == 0;
-}
+inline bool matches(const Binding b, const uint32_t code, const bool hold) { return xp_ble_matches(b, code, hold); }
 
 // Lookup: at most 8 compares over 32 contiguous bytes, no allocation.
 inline Action lookup(const RemoteTable& t, const uint32_t code, const bool hold) {
-  for (uint8_t i = 0; i < t.count; ++i) {
-    if (matches(t.bindings[i], code, hold)) return actionOf(t.bindings[i]);
-  }
-  return Action::None;
+  return static_cast<Action>(xp_ble_lookup(&t, code, hold));
 }
 
 inline bool find(const RemoteTable& t, const Action action, Binding& out) {
-  for (uint8_t i = 0; i < t.count; ++i) {
-    if (actionOf(t.bindings[i]) == action) {
-      out = t.bindings[i];
-      return true;
-    }
-  }
-  return false;
+  return xp_ble_find(&t, static_cast<uint8_t>(action), &out);
 }
 
 inline const char* actionName(const Action action) {
@@ -137,11 +142,7 @@ inline const RemoteTable* defaultTableFor(const char* name) {
 // Table of the connected remote: the saved one for its address, else the default for
 // its name, else none (nullptr = the old usage path, exactly as today). Writes nothing.
 inline const RemoteTable* tableFor(const RemoteTable* tables, const uint8_t count, const char* addr, const char* name) {
-  if (addr == nullptr || addr[0] == '\0') return nullptr;
-  for (uint8_t i = 0; i < count; ++i) {
-    if (strncmp(tables[i].addr, addr, sizeof(tables[i].addr)) == 0) return &tables[i];
-  }
-  return defaultTableFor(name);
+  return xp_ble_table_for(tables, count, addr, name, defaultTableFor);
 }
 
 // Only a table with at least one slot changes the path. An empty table (cleared by
@@ -151,52 +152,21 @@ inline bool routes(const RemoteTable* t) { return t != nullptr && t->count > 0; 
 // Editable table of a remote: the saved one, or a new one copied from its default.
 // nullptr when kMaxRemotes remotes already have one.
 inline RemoteTable* editableTable(RemoteTable* tables, uint8_t& count, const char* addr, const char* name) {
-  if (addr == nullptr || addr[0] == '\0') return nullptr;
-  for (uint8_t i = 0; i < count; ++i) {
-    if (strncmp(tables[i].addr, addr, sizeof(tables[i].addr)) == 0) return &tables[i];
-  }
-  if (count >= kMaxRemotes) return nullptr;
-  RemoteTable& t = tables[count++];
-  const RemoteTable* seed = defaultTableFor(name);
-  t = seed != nullptr ? *seed : RemoteTable{};
-  snprintf(t.addr, sizeof(t.addr), "%.*s", static_cast<int>(sizeof(t.addr) - 1), addr);
-  return &t;
+  return xp_ble_editable_table(tables, &count, addr, name, defaultTableFor);
 }
 
 // Forgetting a device forgets its table too.
 inline bool forgetRemote(RemoteTable* tables, uint8_t& count, const char* addr) {
-  for (uint8_t i = 0; i < count; ++i) {
-    if (strncmp(tables[i].addr, addr, sizeof(tables[i].addr)) != 0) continue;
-    for (uint8_t j = i + 1; j < count; ++j) tables[j - 1] = tables[j];
-    --count;
-    return true;
-  }
-  return false;
+  return xp_ble_forget_remote(tables, &count, addr);
 }
 
-inline bool clearAction(RemoteTable& t, const Action action) {
-  uint8_t kept = 0;
-  for (uint8_t i = 0; i < t.count; ++i) {
-    if (actionOf(t.bindings[i]) != action) t.bindings[kept++] = t.bindings[i];
-  }
-  const bool changed = kept != t.count;
-  t.count = kept;
-  return changed;
-}
+inline bool clearAction(RemoteTable& t, const Action action) { return xp_ble_clear(&t, static_cast<uint8_t>(action)); }
 
 // Store a learned button. An action has one button and a gesture (button + tap or
 // hold) does one thing: the old slots of both go. false when the table is full,
 // never a silent overwrite.
 inline bool learn(RemoteTable& t, const Action action, const uint32_t code, const bool hold) {
-  clearAction(t, action);
-  uint8_t kept = 0;
-  for (uint8_t i = 0; i < t.count; ++i) {
-    if (!matches(t.bindings[i], code, hold)) t.bindings[kept++] = t.bindings[i];
-  }
-  t.count = kept;
-  if (t.count >= kMaxBindings) return false;
-  t.bindings[t.count++] = makeBinding(code, hold, action);
-  return true;
+  return xp_ble_learn(&t, static_cast<uint8_t>(action), code, hold);
 }
 
 // --- Decision for each raw edge ------------------------------------------------
@@ -219,26 +189,12 @@ struct HoldWait {
 //   - Release: only ends a wait.
 inline Action onRawEdge(const RemoteTable& t, const uint32_t code, const bool pressed, const uint32_t atMs,
                         const Action legacy, HoldWait& w) {
-  if (pressed) {
-    const Action tap = lookup(t, code, false);
-    const Action now = tap != Action::None ? tap : legacy;
-    const Action hold = lookup(t, code, true);
-    if (hold == Action::None) return now;
-    w = HoldWait{code, atMs, now, hold, true};
-    return Action::None;
-  }
-  if (!w.active || w.code != code) return Action::None;
-  w.active = false;
-  return atMs - w.atMs < kHoldMs ? w.tap : w.hold;
+  return static_cast<Action>(xp_ble_raw_edge(&t, code, pressed, atMs, static_cast<uint8_t>(legacy), &w));
 }
 
 // Called every pass: a waiting button still down after kHoldMs is a hold, acted on
 // now without waiting for the release.
-inline Action pollHold(HoldWait& w, const uint32_t nowMs) {
-  if (!w.active || nowMs - w.atMs < kHoldMs) return Action::None;
-  w.active = false;
-  return w.hold;
-}
+inline Action pollHold(HoldWait& w, const uint32_t nowMs) { return static_cast<Action>(xp_ble_poll_hold(&w, nowMs)); }
 
 // Tick state: the table is picked ONCE per link (off the hot path) and forgotten
 // when the link changes or the reader leaves the front.
@@ -248,11 +204,7 @@ struct Router {
   bool linked = false;
   HoldWait wait;
 
-  void follow(const bool isLinked) {
-    if (isLinked == linked) return;
-    *this = Router();
-    linked = isLinked;
-  }
+  void follow(const bool isLinked) { xp_ble_follow(this, isLinked); }
 };
 
 }  // namespace bleturner

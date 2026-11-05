@@ -1,4 +1,4 @@
-#include <Epub/ParsedText.h>
+#include <Epub/Paragraph.h>
 #include <Epub/blocks/TextBlock.h>
 #include <Epub/hyphenation/Hyphenator.h>
 #include <GfxRenderer.h>
@@ -22,7 +22,7 @@ std::vector<Line> layout(const std::vector<const char*>& words, const bool hyphe
   BlockStyle style;
   style.alignment = CssTextAlign::Justify;
   style.textIndentDefined = true;
-  ParsedText text(hyphenation, false, style, 0);
+  Paragraph text(hyphenation, false, style, 0);
   for (const char* word : words) text.addWord(word, EpdFontFamily::REGULAR);
   std::vector<Line> lines;
   text.layoutAndExtractLines(renderer, 0, width, [&](std::unique_ptr<TextBlock> block, auto) {
@@ -109,7 +109,7 @@ TEST(PartialLineLayout, WiderRemainderDoesNotKeepSpeculativeHyphens) {
       for (const size_t limit : {0u, 1u, 3u}) {
         SCOPED_TRACE(::testing::Message() << hyphenation << ", " << includeLastLine << ", " << limit);
         GfxRenderer renderer;
-        ParsedText text(hyphenation, false, BlockStyle{}, 0);
+        Paragraph text(hyphenation, false, BlockStyle{}, 0);
         for (const char* word : {"nd",  "as",    "Jesus", "times",  "it",  "had", "laid",  "hold",  "him", "and",  "he",
                                  "was", "bound", "with",  "chains", "but", "he",  "would", "break", "the", "bonds"}) {
           text.addWord(word, EpdFontFamily::REGULAR);
@@ -144,7 +144,7 @@ TEST(PartialLineLayout, WiderRemainderDoesNotKeepSpeculativeHyphens) {
 
 TEST(PartialLineLayout, HoldsTheParagraphLastLineUntilItIsComplete) {
   GfxRenderer renderer;
-  ParsedText text(true, false, BlockStyle{}, 0);
+  Paragraph text(true, false, BlockStyle{}, 0);
   for (const char* word : {"one", "two", "three"}) text.addWord(word, EpdFontFamily::REGULAR);
   size_t lines = 0;
   const auto collect = [&](std::unique_ptr<TextBlock>, auto) { ++lines; };
@@ -160,7 +160,7 @@ TEST(PartialLineLayout, HoldsTheParagraphLastLineUntilItIsComplete) {
 TEST(PartialLineLayout, LastEmittedLineStillJustifiesWhenMoreTextRemains) {
   for (const bool hyphenation : {false, true}) {
     GfxRenderer renderer;
-    ParsedText text(hyphenation, false, BlockStyle{}, 0);
+    Paragraph text(hyphenation, false, BlockStyle{}, 0);
     for (const char* word : {"one", "two", "three"}) text.addWord(word, EpdFontFamily::REGULAR);
     text.layoutAndExtractLines(
         renderer, 0, 80,
@@ -176,7 +176,7 @@ TEST(PartialLineLayout, BoundedLinesReserveRubyOverhangAtBothMargins) {
   for (const bool hyphenation : {false, true}) {
     for (const bool rubyFirst : {false, true}) {
       GfxRenderer renderer;
-      ParsedText text(hyphenation, false, BlockStyle{}, 0);
+      Paragraph text(hyphenation, false, BlockStyle{}, 0);
       text.addWord(rubyFirst ? "a" : "word", EpdFontFamily::REGULAR);
       text.addWord(rubyFirst ? "word" : "a", EpdFontFamily::REGULAR);
       text.addWord("tail", EpdFontFamily::REGULAR);
@@ -193,7 +193,7 @@ TEST(PartialLineLayout, FollowingTextCanAbsorbRubyOverhang) {
     for (const bool attached : {false, true}) {
       for (const size_t limit : {size_t{1}, SIZE_MAX}) {
         GfxRenderer renderer;
-        ParsedText text(hyphenation, false, BlockStyle{}, 0);
+        Paragraph text(hyphenation, false, BlockStyle{}, 0);
         text.addWord("a", EpdFontFamily::REGULAR);
         text.setRubyForWordAt(0, attached ? "ruby" : "longer");
         text.addWord("b", EpdFontFamily::REGULAR, false, attached);
@@ -203,5 +203,90 @@ TEST(PartialLineLayout, FollowingTextCanAbsorbRubyOverhang) {
         EXPECT_TRUE(text.isEmpty());
       }
     }
+  }
+}
+
+TEST(ParagraphPackedText, SoftHyphenLimitUsesSanitizedBytes) {
+  GfxRenderer renderer;
+  Paragraph text(false, false, BlockStyle{}, 0);
+  std::string chunk;
+  for (size_t i = 0; i < 100; ++i) chunk += "\xc2\xad";
+  for (size_t i = 0; i < 330; ++i) text.addWord(chunk, EpdFontFamily::REGULAR, false, i != 0, i * 100);
+  text.addWord("a", EpdFontFamily::REGULAR, false, true, 33000);
+  ASSERT_EQ(text.size(), 331u);
+  size_t lines = 0;
+  text.layoutAndExtractLines(renderer, 0, 480, [&](std::unique_ptr<TextBlock> line, auto) {
+    ++lines;
+    ASSERT_TRUE(line->valid());
+    ASSERT_EQ(line->wordCount(), 331u);
+    for (uint16_t i = 0; i < 331; ++i) {
+      EXPECT_STREQ(line->wordText(i), i == 330 ? "a" : "");
+      EXPECT_EQ(line->wordSourceRange(i).start, i * 100u);
+      EXPECT_EQ(line->wordSourceRange(i).end, i == 330 ? 33001u : (i + 1) * 100u);
+    }
+  });
+  EXPECT_EQ(lines, 1u);
+  EXPECT_FALSE(text.hadDroppedWords());
+}
+
+TEST(ParagraphPackedText, SanitizedSizeBoundary) {
+  for (const size_t total : {65534u, 65535u, 65536u}) {
+    SCOPED_TRACE(total);
+    GfxRenderer renderer;
+    Paragraph text(false, false, BlockStyle{}, 0);
+    std::vector<std::string> expected;
+    size_t remaining = total;
+    while (remaining != 0) {
+      const size_t bytes = std::min(remaining, size_t{200});
+      std::string word;
+      for (size_t i = 0; i < (bytes - 1) / 2; ++i) word += "\xcc\x80";
+      if ((bytes - 1) % 2) word += 'a';
+      expected.push_back(word);
+      text.addWord("\xc2\xad" + word, EpdFontFamily::REGULAR, false, !text.isEmpty());
+      remaining -= bytes;
+    }
+    size_t lines = 0;
+    text.layoutAndExtractLines(renderer, 0, UINT16_MAX, [&](std::unique_ptr<TextBlock> line, auto) {
+      ++lines;
+      ASSERT_TRUE(line->valid());
+      ASSERT_EQ(line->wordCount(), expected.size());
+      for (uint16_t i = 0; i < line->wordCount(); ++i) EXPECT_EQ(line->wordText(i), expected[i]);
+    });
+    EXPECT_EQ(lines, total <= UINT16_MAX ? 1u : 0u);
+    EXPECT_EQ(text.hadDroppedWords(), total > UINT16_MAX);
+  }
+}
+
+TEST(TextBlockConstruction, VectorAndPackedInputsPreserveRtlAndFocusMetadata) {
+  const std::vector<std::string> words{"العربية", "word"};
+  const std::vector<int16_t> positions{45, 0};
+  const std::vector<EpdFontFamily::Style> styles{EpdFontFamily::REGULAR, EpdFontFamily::BOLD};
+  const std::vector<uint8_t> focus{0, 2};
+  const std::vector<uint16_t> suffix{0, 16};
+  const std::vector<TextBlock::SourceRange> ranges{{7, 14}, {0, 4}};
+  std::string packed;
+  std::vector<uint16_t> offsets;
+  for (const auto& word : words) {
+    offsets.push_back(packed.size());
+    packed += word;
+    packed += '\0';
+  }
+  BlockStyle style;
+  style.isRtl = true;
+  TextBlock dictionary(words, positions, styles, focus, suffix, style, {}, {}, ranges, 1);
+  TextBlock paragraph(TextBlock::BorrowedLayout{}, std::span<const char>(packed.data(), packed.size()), offsets,
+                      positions, styles, focus, suffix, style, {}, {}, ranges, 1);
+  ASSERT_TRUE(dictionary.valid());
+  ASSERT_TRUE(paragraph.valid());
+  ASSERT_EQ(dictionary.wordCount(), paragraph.wordCount());
+  for (uint16_t i = 0; i < dictionary.wordCount(); ++i) {
+    EXPECT_STREQ(dictionary.wordText(i), paragraph.wordText(i));
+    EXPECT_EQ(dictionary.wordXpos(i), paragraph.wordXpos(i));
+    EXPECT_EQ(dictionary.wordStyle(i), paragraph.wordStyle(i));
+    EXPECT_EQ(dictionary.focusBoundary(i), paragraph.focusBoundary(i));
+    EXPECT_EQ(dictionary.focusSuffixX(i), paragraph.focusSuffixX(i));
+    EXPECT_EQ(dictionary.wordSourceRange(i).start, paragraph.wordSourceRange(i).start);
+    EXPECT_EQ(dictionary.wordSourceRange(i).end, paragraph.wordSourceRange(i).end);
+    EXPECT_EQ(dictionary.wordStartsParagraph(i), paragraph.wordStartsParagraph(i));
   }
 }

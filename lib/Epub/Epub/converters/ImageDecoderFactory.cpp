@@ -2,6 +2,7 @@
 
 #include <Logging.h>
 #include <Memory.h>
+#include <xp_book.h>
 
 #include <memory>
 #include <string>
@@ -16,27 +17,30 @@ std::unique_ptr<GifToFramebufferConverter> ImageDecoderFactory::gifDecoder = nul
 
 ImageToFramebufferDecoder* ImageDecoderFactory::getDecoder(const std::string& imagePath) {
   std::string ext = imagePath;
-  size_t dotPos = ext.rfind('.');
-  if (dotPos != std::string::npos) {
-    ext = ext.substr(dotPos);
-    for (auto& c : ext) {
-      c = tolower(c);
-    }
-  } else {
-    ext = "";
-  }
-
-  if (JpegToFramebufferConverter::supportsFormat(ext)) {
+  const XpBookExtensionServices services{&ext,
+                                         [](void* raw) -> XpBookMutableSpan {
+                                           auto& text = *static_cast<std::string*>(raw);
+                                           return {reinterpret_cast<uint8_t*>(text.data()), text.size()};
+                                         },
+                                         [](void* raw, size_t offset) {
+                                           auto& text = *static_cast<std::string*>(raw);
+                                           if (offset == SIZE_MAX)
+                                             text = "";
+                                           else
+                                             text = text.substr(offset);
+                                         }};
+  const auto kind = xp_book_image_decoder(&services);
+  if (kind == 1) {
     if (!jpegDecoder) {
       jpegDecoder.reset(new JpegToFramebufferConverter());
     }
     return jpegDecoder.get();
-  } else if (PngToFramebufferConverter::supportsFormat(ext)) {
+  } else if (kind == 2) {
     if (!pngDecoder) {
       pngDecoder.reset(new PngToFramebufferConverter());
     }
     return pngDecoder.get();
-  } else if (GifToFramebufferConverter::supportsFormat(ext)) {
+  } else if (kind == 3) {
     if (!gifDecoder) {
       gifDecoder = makeUniqueNoThrow<GifToFramebufferConverter>();
       if (!gifDecoder) {

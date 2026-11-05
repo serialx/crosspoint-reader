@@ -3,6 +3,8 @@
 
 #include <cstdlib>
 
+#include "legacy_render_wire.h"
+
 // Frozen native-shaped inputs for named synthetic Page oracles only.
 typedef struct {
   uint32_t visible_offset;
@@ -69,6 +71,14 @@ struct XpEpubLegacyPageServices {
   void* (*child_footnote)(void* page, int32_t left, int32_t top);
   void* (*child_dictionary)(void* page, int32_t left, int32_t top, XpAppText initial_text);
   void* (*child_selection)(void** pages, uint8_t count, const XpEpubSelectionArgs* args);
+  void* (*resources_open)();
+  void (*resources_close)(void*);
+  const XpUiReaderRenderServices* (*render_services)(void*);
+  void (*render_finish_page)(void*);
+  uint8_t (*strip_release_idle)(void*);
+  uint8_t (*fonts_prewarm_begin)(void*);
+  void (*fonts_prewarm_finish_scan)(void*);
+  void (*fonts_prewarm_drop)(void*);
 };
 
 template <class F>
@@ -100,5 +110,13 @@ inline XpEpubLegacyPageServices unexpectedLegacyPageServices() {
   value.child_footnote = &LegacyPageUnexpected<decltype(value.child_footnote)>::call;
   value.child_dictionary = &LegacyPageUnexpected<decltype(value.child_dictionary)>::call;
   value.child_selection = &LegacyPageUnexpected<decltype(value.child_selection)>::call;
+  value.resources_open = &LegacyPageUnexpected<decltype(value.resources_open)>::call;
+  value.resources_close = &LegacyPageUnexpected<decltype(value.resources_close)>::call;
+  value.render_services = &LegacyPageUnexpected<decltype(value.render_services)>::call;
+  value.render_finish_page = &LegacyPageUnexpected<decltype(value.render_finish_page)>::call;
+  value.strip_release_idle = &LegacyPageUnexpected<decltype(value.strip_release_idle)>::call;
+  value.fonts_prewarm_begin = &LegacyPageUnexpected<decltype(value.fonts_prewarm_begin)>::call;
+  value.fonts_prewarm_finish_scan = &LegacyPageUnexpected<decltype(value.fonts_prewarm_finish_scan)>::call;
+  value.fonts_prewarm_drop = &LegacyPageUnexpected<decltype(value.fonts_prewarm_drop)>::call;
   return value;
 }

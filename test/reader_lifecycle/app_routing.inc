@@ -25,7 +25,7 @@ void bindRouting() {
     handle->path = text(path);
     return handle;
   };
-  leaves.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
+  legacyBook.section.page.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
     auto& root = f().handle(raw, Kind::Root);
     assert(f().componentAttempt == 1 && root.generation == f().generation);
     assert(!f().renderDepth && !f().modelDepth);
@@ -51,7 +51,8 @@ uint8_t navigate(XpAppText path, bool fast) {
   event.kind = XP_APP_NAVIGATE;
   event.value.navigate.kind = XP_APP_READER;
   event.value.navigate.value.reader = {path, uint8_t(fast)};
-  return xp_app_event(&event);
+  assert(xp_app_test_event_legacy_book(nullptr, &legacyBook) == XP_APP_EVENT_INVALID);
+  return xp_app_test_event_legacy_book(&event, &legacyBook);
 }
 
 void closeRoute(bool owned) {

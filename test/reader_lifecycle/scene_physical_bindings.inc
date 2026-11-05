@@ -97,11 +97,11 @@ static void bindScenePhysical() {
     sceneLeaf(1); *out = {}; out->width = width; out->height = height; out->font = 1;
     out->compression = 1; out->word_spacing_percent = 100;
   };
-  leaves.render_services = [](void*) -> const XpUiReaderRenderServices* { sceneLeaf(1); return &sceneRenderServices; };
+  legacyBook.section.page.render_services = [](void*) -> const XpUiReaderRenderServices* { sceneLeaf(1); return &sceneRenderServices; };
   legacyBook.section.page.render_bind_page = [](void*, void* page, int32_t, int32_t, int32_t, int32_t, XpEpubLegacyHighlight, void*) {
     sceneLeaf(1); assert(page && !scene.boundPage); scene.boundPage = page;
   };
-  leaves.render_finish_page = [](void*) { sceneLeaf(1); assert(scene.boundPage); scene.boundPage = nullptr; ++scene.pageDrawn; };
+  legacyBook.section.page.render_finish_page = [](void*) { sceneLeaf(1); assert(scene.boundPage); scene.boundPage = nullptr; ++scene.pageDrawn; };
   leaves.render_restore_bw = [](uint8_t resync) { sceneLeaf(1); assert(!resync && scene.backup); ++scene.restored; };
   leaves.render_discard_bw = [] { sceneLeaf(1); assert(scene.backup); scene.backup = false; };
   legacyBook.book_spine_count = [](void*) -> int32_t {

@@ -121,18 +121,12 @@ static auto legacyPage = unexpectedLegacyPageServices();
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
   static_assert(sizeof(XpEpubLeaves) == 167 * sizeof(void (*)()));
-  UNUSED_LEAF(resources_open);
-  UNUSED_LEAF(resources_close);
-  UNUSED_LEAF(render_services);
-  UNUSED_LEAF(render_bind_page);
-  UNUSED_LEAF(render_finish_page);
   UNUSED_LEAF(render_margins);
   UNUSED_LEAF(render_geometry);
   UNUSED_LEAF(render_restore_bw);
   UNUSED_LEAF(render_discard_bw);
   UNUSED_LEAF(render_orientation);
   UNUSED_LEAF(loan_count);
-  UNUSED_LEAF(strip_release_idle);
   UNUSED_LEAF(progress_to_reader);
   UNUSED_LEAF(progress_to_saved);
   UNUSED_LEAF(progress_save);
@@ -289,7 +283,13 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(paint_arena);
   UNUSED_LEAF(image_needs_decode);
   UNUSED_LEAF(font_ascent);
-  table.render_services = [](void* context) -> const XpUiReaderRenderServices* {
+  UNUSED_LEAF(render_physical_query);
+  UNUSED_LEAF(render_physical_operation);
+  UNUSED_LEAF(render_plan);
+  UNUSED_LEAF(image_read_window);
+  UNUSED_LEAF(display_source);
+  UNUSED_LEAF(framebuffer_view);
+  legacyPage.render_services = [](void* context) -> const XpUiReaderRenderServices* {
     root(context);
     const auto* native = actualServices(context);
     assert(native == &active->native->renderServices && native->context == context && native->read && native->execute);
@@ -305,7 +305,7 @@ static const XpEpubLeaves leaves = [] {
     actualBind(context, page, font, left, top, bottom, highlights, highlightContext);
     assert(active->native->frame && &active->native->frame->page == activePage);
   };
-  table.render_finish_page = [](void* context) {
+  legacyPage.render_finish_page = [](void* context) {
     root(context);
     assert(bound && !finishing && livePages == 1 && activePage && finishCount == 0);
     finishing = true;
@@ -366,7 +366,7 @@ static void lifetimeFacts() {
   enter(owner);
   owner.native = std::make_unique<NativeResources>(owner.renderer);
   assert(!owner.native->frame && livePages == 0);
-  const auto* services = leaves.render_services(owner.native.get());
+  const auto* services = legacyPage.render_services(owner.native.get());
   assert(services->read(services->context, XP_UI_READER_RENDER_FREQUENCY) == 3);
   ESP.free = 123456;
   assert(services->read(services->context, XP_UI_READER_RENDER_FREE_HEAP) == 123456);

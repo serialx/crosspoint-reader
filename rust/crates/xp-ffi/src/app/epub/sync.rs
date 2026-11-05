@@ -1,6 +1,6 @@
+use super::render_resources::physical::Query;
 use super::{abi, app_abi, EpubSession, ResourceAccess, Text};
 use core::{ffi::c_void, ptr::NonNull};
-use xp_ui::reader::render::Query;
 
 struct SavedProgress {
     xpath: Text,
@@ -12,11 +12,8 @@ impl EpubSession {
         if unsafe { (self.leaves.log_enabled)(0) } == 0 {
             return;
         }
-        let services = unsafe { (self.leaves.render_services)(self.native(access)).as_ref() }
-            .expect("physical renderer services");
-        let heap = unsafe {
-            services.read.expect("physical renderer query")(services.context, Query::FreeHeap as u8)
-        };
+        self.check_resources(access);
+        let heap = self.physical_query(access, Query::FreeHeap);
         if before {
             self.loop_log_formatted(
                 0,

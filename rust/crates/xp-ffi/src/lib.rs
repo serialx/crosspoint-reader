@@ -1,6 +1,8 @@
 #![no_std]
 
 mod app;
+#[path = "display/source.rs"]
+mod display_source;
 
 #[cfg(feature = "display-api")]
 mod display;

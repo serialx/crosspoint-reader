@@ -369,7 +369,7 @@ void bindReader() {
     out->height = height;
     out->word_spacing_percent = 100;
   };
-  leaves.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
+  legacyBook.section.page.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
     physical(1);
     root(raw);
     return &renderServices;
@@ -384,7 +384,7 @@ void bindReader() {
     parent.left = left;
     parent.top = top;
   };
-  leaves.render_finish_page = [](void* raw) {
+  legacyBook.section.page.render_finish_page = [](void* raw) {
     physical(1);
     root(raw);
     assert(parent.bound);
@@ -394,7 +394,7 @@ void bindReader() {
     physical();
     return 0;
   };
-  leaves.strip_release_idle = [](void* raw) -> uint8_t {
+  legacyBook.section.page.strip_release_idle = [](void* raw) -> uint8_t {
     physical(1);
     root(raw);
     return 1;

@@ -119,7 +119,7 @@ def sdk_source(root, definition):
     source = once(source, '    std::printf("prepare %d %d %d\\n", width, images, prepareOk);',
                   '    a1Physical("prepare", width, images, prepareOk);')
     painter = definition(source, 'struct ReaderStripPainter {') + ';'
-    actual_painter = definition((root / 'src/activities/reader/ReaderStripPainter.h').read_text(),
+    actual_painter = definition((root / 'test/reader_lifecycle/native_render/activities/reader/ReaderStripPainter.h').read_text(),
                                 'struct ReaderStripPainter {') + ';'
     source = once(source, painter, actual_painter + '''
 static void replayBeforeDetach() {
@@ -131,6 +131,11 @@ static void replayBeforeDetach() {
     return '''#pragma once
 #include <xp_ffi.h>
 #include <xp_epub_session.h>
+#define XpDisplaySource LegacyOracleDisplaySource
+#if !defined(XP_STRIP_RENDER) || !XP_STRIP_RENDER
+#define XpPagePlan LegacyOraclePagePlan
+#define XpPageRowBounds LegacyOraclePageRowBounds
+#endif
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -199,7 +204,7 @@ def main():
     import test_failed_scene_owner as failed
     from rust_host import rust_link_flags
     paths = [root / 'rust' / PRODUCTION, root / 'src/activities/reader/RustEpubResources.cpp',
-             root / 'src/activities/reader/ReaderStripPainter.h', root / 'lib/Epub/Epub/Page.cpp',
+             root / 'test/reader_lifecycle/native_render/activities/reader/ReaderStripPainter.h', root / 'lib/Epub/Epub/Page.cpp',
              root / 'lib/Epub/Epub/Page.h', root / 'test/reader_lifecycle/render_oracle.cpp',
              root / 'test/reader_lifecycle/app_owned_epub.cpp', root / 'test/reader_lifecycle/physical_defaults.h',
              root / 'test/reader_lifecycle/scene_owner_bridge.inc', root / 'test/reader_lifecycle/scene_physical_bindings.inc',

@@ -171,18 +171,12 @@ static const XpAppRuntime runtime = [] {
 static const LegacyEpubLeaves leaves = [] {
   LegacyEpubLeaves table{};
   static_assert(sizeof(XpEpubLeaves) == 167 * sizeof(void (*)()));
-  UNUSED_LEAF(physical.resources_open);
-  UNUSED_LEAF(physical.resources_close);
-  UNUSED_LEAF(physical.render_services);
-  UNUSED_LEAF(physical.render_bind_page);
-  UNUSED_LEAF(physical.render_finish_page);
   UNUSED_LEAF(physical.render_margins);
   UNUSED_LEAF(physical.render_geometry);
   UNUSED_LEAF(physical.render_restore_bw);
   UNUSED_LEAF(physical.render_discard_bw);
   UNUSED_LEAF(physical.render_orientation);
   UNUSED_LEAF(physical.loan_count);
-  UNUSED_LEAF(physical.strip_release_idle);
   UNUSED_LEAF(book.book_open);
   UNUSED_LEAF(book.book_load);
   UNUSED_LEAF(book.book_close);
@@ -398,6 +392,12 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(physical.paint_arena);
   UNUSED_LEAF(physical.image_needs_decode);
   UNUSED_LEAF(physical.font_ascent);
+  UNUSED_LEAF(physical.render_physical_query);
+  UNUSED_LEAF(physical.render_physical_operation);
+  UNUSED_LEAF(physical.render_plan);
+  UNUSED_LEAF(physical.image_read_window);
+  UNUSED_LEAF(physical.display_source);
+  UNUSED_LEAF(physical.framebuffer_view);
   table.book.section.section_page_count = [](void* section) -> uint16_t {
     publication(section, 0); return active->nativeSection->count;
   };

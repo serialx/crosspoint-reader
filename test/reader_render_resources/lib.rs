@@ -29,7 +29,7 @@ mod tests;
 
 #[cfg(feature = "reader-strips")]
 #[path = "../../rust/crates/xp-ffi/src/display/source.rs"]
-mod display;
+mod display_source;
 #[cfg(feature = "reader-strips")]
 pub(crate) enum Command {}
 #[cfg(feature = "reader-strips")]

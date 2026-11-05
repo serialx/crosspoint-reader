@@ -148,18 +148,12 @@ static auto legacySection = unexpectedLegacySectionServices();
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
   static_assert(sizeof(XpEpubLeaves) == 167 * sizeof(void (*)()));
-  UNUSED_LEAF(resources_open);
-  UNUSED_LEAF(resources_close);
-  UNUSED_LEAF(render_services);
-  UNUSED_LEAF(render_bind_page);
-  UNUSED_LEAF(render_finish_page);
   UNUSED_LEAF(render_margins);
   UNUSED_LEAF(render_geometry);
   UNUSED_LEAF(render_restore_bw);
   UNUSED_LEAF(render_discard_bw);
   UNUSED_LEAF(render_orientation);
   UNUSED_LEAF(loan_count);
-  UNUSED_LEAF(strip_release_idle);
   UNUSED_LEAF(progress_to_reader);
   UNUSED_LEAF(progress_to_saved);
   UNUSED_LEAF(progress_save);
@@ -316,6 +310,12 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(paint_arena);
   UNUSED_LEAF(image_needs_decode);
   UNUSED_LEAF(font_ascent);
+  UNUSED_LEAF(render_physical_query);
+  UNUSED_LEAF(render_physical_operation);
+  UNUSED_LEAF(render_plan);
+  UNUSED_LEAF(image_read_window);
+  UNUSED_LEAF(display_source);
+  UNUSED_LEAF(framebuffer_view);
   legacySection.section_page_count = [](void* section) -> uint16_t { publication(section, 0); return liveSection->pageCount; };
   legacySection.section_estimated_pages = [](void* section) -> int32_t { publication(section, 1); return liveSection->pageCount; };
   legacySection.section_building = [](void* section) -> uint8_t { publication(section, 2); return 0; };
@@ -384,7 +384,7 @@ static const XpEpubLeaves leaves = [] {
     *out = {value.spineIndex, value.startPage, value.endPage, value.pageCount,
       value.startWordIndex, value.endWordIndex, value.layoutSignature, value.startOffset, value.endOffset};
   };
-  table.render_services = [](void* root) -> const XpUiReaderRenderServices* {
+  legacySection.page.render_services = [](void* root) -> const XpUiReaderRenderServices* {
     context(root); renderServices.context = root; return &renderServices;
   };
   table.paint_pixel = [](int32_t x, int32_t y) { leaf(); a4Read = false; active->renderer.drawPixel(x, y, false); };

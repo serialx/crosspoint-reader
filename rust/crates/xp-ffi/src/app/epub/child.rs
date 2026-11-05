@@ -90,7 +90,7 @@ impl EpubSession {
                 return;
             };
             if cfg!(feature = "reader-strips") {
-                unsafe { (self.leaves.strip_release_idle)(self.native(&access)) };
+                self.release_idle_strips(&access);
             }
             capture
         };

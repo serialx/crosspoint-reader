@@ -132,7 +132,7 @@ static XpUiReaderRenderServices renderServices = {
 };
 static const LegacyEpubLeaves leaves = [] {
   auto table = overlayLegacyLeaves();
-  table.physical.render_services = [](void* value) -> const XpUiReaderRenderServices* {
+  table.book.section.page.render_services = [](void* value) -> const XpUiReaderRenderServices* {
     context(value);
     renderServices.context = value;
     return &renderServices;

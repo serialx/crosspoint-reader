@@ -184,7 +184,7 @@ static void configureOverlayInputLeaves() {
     auto& owner = overlayInputOwner(); assert(lockDepth == 1 && !resync);
     owner.renderer.restoreBwBuffer(resync != 0);
   };
-  overlayInputLeaves.physical.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
+  overlayInputLeaves.book.section.page.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
     overlayInputBridge(raw); assert(lockDepth == 1);
     static const XpUiReaderRenderServices render{
       nullptr, &OverlayUnexpected<decltype(XpUiReaderRenderServices::read)>::call,

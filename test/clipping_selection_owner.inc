@@ -81,7 +81,7 @@ static XpEpubLeaves physicalLeaves() {
     *out = {row.spineIndex, row.startPage, row.endPage, row.pageCount, row.startWordIndex, row.endWordIndex,
             row.layoutSignature, row.startOffset, row.endOffset};
   };
-  table.render_services = [](void* p) -> const XpUiReaderRenderServices* { assert(p == active); return &renderServices; };
+  legacySection.page.render_services = [](void* p) -> const XpUiReaderRenderServices* { assert(p == active); return &renderServices; };
   table.paint_pixel = [](int32_t x, int32_t y) { active->reader.renderer.drawPixel(x, y, false); };
   table.paint_dither = [](int32_t x, int32_t y, int32_t width, int32_t height) {
     active->reader.renderer.fillRectDither(x, y, width, height, Color::LightGray);

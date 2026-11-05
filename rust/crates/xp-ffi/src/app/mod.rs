@@ -89,6 +89,8 @@ struct App {
     widths: UnsafeCell<xp_ui::home::view::Widths>,
     legacy: &'static abi::Legacy,
     epub: &'static epub::abi::XpEpubLeaves,
+    #[cfg(feature = "app-test")]
+    legacy_entry_fixture: Cell<Option<&'static epub::LegacyBookServices>>,
     resources: &'static abi::Resources,
     runtime: &'static abi::Runtime,
 }
@@ -197,6 +199,45 @@ impl App {
             let reader = unsafe { launch.value.reader };
             let path = unsafe { reader.path.bytes() }?;
             if home_books::book_kind(path) != Some(abi::BOOK_XTC) {
+                #[cfg(feature = "app-test")]
+                {
+                    if let Some(fixture) = self.legacy_entry_fixture.get() {
+                        return epub::EpubSession::try_owned_legacy_render(
+                            path,
+                            reader.fast_initial != 0,
+                            self.epub,
+                            self.runtime,
+                            self.resources,
+                            &fixture.section.page,
+                        )
+                        .map(Owner::Epub);
+                    }
+                    if let Some(Target::Epub(previous)) = self.navigation.current() {
+                        let previous = unsafe { previous.as_ref() };
+                        if let Some(fixture) = previous.legacy_book_fixture() {
+                            return epub::EpubSession::try_owned_legacy(
+                                path,
+                                reader.fast_initial != 0,
+                                self.epub,
+                                self.runtime,
+                                self.resources,
+                                fixture,
+                            )
+                            .map(Owner::Epub);
+                        }
+                        if let Some(fixture) = previous.legacy_page_fixture() {
+                            return epub::EpubSession::try_owned_legacy_render(
+                                path,
+                                reader.fast_initial != 0,
+                                self.epub,
+                                self.runtime,
+                                self.resources,
+                                fixture,
+                            )
+                            .map(Owner::Epub);
+                        }
+                    }
+                }
                 return epub::EpubSession::try_owned(
                     path,
                     reader.fast_initial != 0,
@@ -204,17 +245,7 @@ impl App {
                     self.runtime,
                     self.resources,
                 )
-                .map(|owner| {
-                    #[cfg(feature = "app-test")]
-                    let owner = {
-                        let mut owner = owner;
-                        if let Some(Target::Epub(previous)) = self.navigation.current() {
-                            owner.inherit_legacy_book_fixture(unsafe { previous.as_ref() });
-                        }
-                        owner
-                    };
-                    Owner::Epub(owner)
-                });
+                .map(Owner::Epub);
             }
         }
         if !matches!(
@@ -698,6 +729,8 @@ pub unsafe extern "C" fn xp_app_init(
             runtime,
         ),
         widths: UnsafeCell::new(xp_ui::home::view::Widths::default()),
+        #[cfg(feature = "app-test")]
+        legacy_entry_fixture: Cell::new(None),
         legacy,
         epub,
         resources,

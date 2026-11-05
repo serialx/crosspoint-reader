@@ -29,7 +29,7 @@ impl EpubSession {
     }
 
     pub(super) fn make_build_room(&self, access: &ResourceAccess<'_>) -> bool {
-        unsafe { (self.leaves.strip_release_idle)(self.native(access)) };
+        self.release_idle_strips(access);
         let mut asked = false;
         if self.radio_ready(&mut asked) {
             return true;
@@ -62,7 +62,7 @@ impl EpubSession {
         let before = self.heap();
         let mut paused = before.free_bytes < MIN_FREE || before.largest_block < MIN_BLOCK;
         self.model(|state| state.heap_paused = paused);
-        if paused && unsafe { (self.leaves.strip_release_idle)(self.native(access)) } != 0 {
+        if paused && self.release_idle_strips(access) {
             let after = self.heap();
             paused = after.free_bytes < MIN_FREE || after.largest_block < MIN_BLOCK;
             self.model(|state| state.heap_paused = paused);

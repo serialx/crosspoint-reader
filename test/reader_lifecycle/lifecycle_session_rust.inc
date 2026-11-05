@@ -169,18 +169,12 @@ static XpAppRuntime runtimeDefaults() {
 static LegacyEpubLeaves leavesDefaults() {
   LegacyEpubLeaves table{};
   static_assert(sizeof(XpEpubLeaves) == 167 * sizeof(void (*)()));
-  UNUSED_LEAF(physical.resources_open);
-  UNUSED_LEAF(physical.resources_close);
-  UNUSED_LEAF(physical.render_services);
-  UNUSED_LEAF(physical.render_bind_page);
-  UNUSED_LEAF(physical.render_finish_page);
   UNUSED_LEAF(physical.render_margins);
   UNUSED_LEAF(physical.render_geometry);
   UNUSED_LEAF(physical.render_restore_bw);
   UNUSED_LEAF(physical.render_discard_bw);
   UNUSED_LEAF(physical.render_orientation);
   UNUSED_LEAF(physical.loan_count);
-  UNUSED_LEAF(physical.strip_release_idle);
   UNUSED_LEAF(physical.progress_to_reader);
   UNUSED_LEAF(physical.progress_to_saved);
   UNUSED_LEAF(physical.progress_save);
@@ -372,6 +366,12 @@ static LegacyEpubLeaves leavesDefaults() {
   UNUSED_LEAF(physical.paint_arena);
   UNUSED_LEAF(physical.image_needs_decode);
   UNUSED_LEAF(physical.font_ascent);
+  UNUSED_LEAF(physical.render_physical_query);
+  UNUSED_LEAF(physical.render_physical_operation);
+  UNUSED_LEAF(physical.render_plan);
+  UNUSED_LEAF(physical.image_read_window);
+  UNUSED_LEAF(physical.display_source);
+  UNUSED_LEAF(physical.framebuffer_view);
     UNUSED_LEAF(physical.book_facade_open);
     UNUSED_LEAF(physical.book_facade_close);
     UNUSED_LEAF(physical.book_set_extractor);
@@ -483,7 +483,7 @@ static const LegacyEpubLeaves leaves = [] {
     leaf(); assert(out);
     *out = {static_cast<uint32_t>(ESP.getFreeHeap()), static_cast<uint32_t>(ESP.getMaxAllocHeap())};
   };
-  table.physical.strip_release_idle = [](void* native) -> uint8_t { context(native); return 0; };
+  table.book.section.page.strip_release_idle = [](void* native) -> uint8_t { context(native); return 0; };
   table.physical.radio_status = [](XpEpubRadio* out, XpEpubPeer* peer) {
     leaf(); assert(room && out && !peer && lockDepth == 0);
     const auto value = room->status(room->context);

@@ -69,7 +69,7 @@ def main():
     paths.update(here / name for name in ('abi.cpp', 'CMakeLists.txt', 'test_app_owned_epub.py',
                                         'app_owned_epub.cpp', 'physical_defaults.h'))
     source_bytes = {path: path.read_bytes() for path in sorted(paths)}
-    draft_bytes = {path: path.read_bytes() for path in (Path(__file__).resolve(), boundary, here / "legacy_page_fixture.h")}
+    draft_bytes = {path: path.read_bytes() for path in (Path(__file__).resolve(), boundary, here / "legacy_page_fixture.h", here / "legacy_render_wire.h")}
     golden_bytes = {path: path.read_bytes() for path in sorted(here.glob('*.golden.gz'))}
     assert len(golden_bytes) == 39, ('expected immutable original golden set', len(golden_bytes))
     binary_hashes = {archive: digest(archive.read_bytes()), original: digest(original.read_bytes())}

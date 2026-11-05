@@ -43,11 +43,11 @@ MUTANTS = (
                     continue;
                 }'''),
     ('eager-bw-query', None,
-     b'''if unsafe { read(services.context, Query::IsA4 as u8) } != 0
-            && unsafe { read(services.context, Query::IsBw as u8) } == 0''',
-     b'''let a4 = unsafe { read(services.context, Query::IsA4 as u8) };
-        let bw = unsafe { read(services.context, Query::IsBw as u8) };
-        if a4 != 0 && bw == 0'''),
+     b'''if self.owner.render_is_a4(self.access)
+            && self.owner.physical_query(self.access, PhysicalQuery::IsBw) == 0''',
+     b'''let a4 = self.owner.render_is_a4(self.access);
+        let bw = self.owner.physical_query(self.access, PhysicalQuery::IsBw);
+        if a4 && bw == 0'''),
     ('release-end-clock', None,
      b'''if unsafe { (self.leaves.log_enabled)(0) } != 0 {
             let elapsed = unsafe { (self.runtime.now_ms)() }.wrapping_sub(started);''',

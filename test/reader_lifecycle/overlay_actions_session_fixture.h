@@ -157,18 +157,12 @@ inline XpAppRuntime overlayUnexpectedRuntime() {
 inline XpEpubLeaves overlayUnexpectedLeaves() {
   XpEpubLeaves table{};
   static_assert(sizeof(XpEpubLeaves) == 167 * sizeof(void (*)()));
-  table.resources_open = &OverlayUnexpected<decltype(table.resources_open)>::call;
-  table.resources_close = &OverlayUnexpected<decltype(table.resources_close)>::call;
-  table.render_services = &OverlayUnexpected<decltype(table.render_services)>::call;
-  table.render_bind_page = &OverlayUnexpected<decltype(table.render_bind_page)>::call;
-  table.render_finish_page = &OverlayUnexpected<decltype(table.render_finish_page)>::call;
   table.render_margins = &OverlayUnexpected<decltype(table.render_margins)>::call;
   table.render_geometry = &OverlayUnexpected<decltype(table.render_geometry)>::call;
   table.render_restore_bw = &OverlayUnexpected<decltype(table.render_restore_bw)>::call;
   table.render_discard_bw = &OverlayUnexpected<decltype(table.render_discard_bw)>::call;
   table.render_orientation = &OverlayUnexpected<decltype(table.render_orientation)>::call;
   table.loan_count = &OverlayUnexpected<decltype(table.loan_count)>::call;
-  table.strip_release_idle = &OverlayUnexpected<decltype(table.strip_release_idle)>::call;
   table.progress_to_reader = &OverlayUnexpected<decltype(table.progress_to_reader)>::call;
   table.progress_to_saved = &OverlayUnexpected<decltype(table.progress_to_saved)>::call;
   table.progress_save = &OverlayUnexpected<decltype(table.progress_save)>::call;

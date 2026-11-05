@@ -1,4 +1,4 @@
-//! Dormant implementation of the existing reader command stream.
+//! Execute the existing reader command stream using the session resource owner.
 use super::{abi, physical, FrameLease, PageGeometry, PageResources, PlaneBuffer};
 use core::pin::Pin;
 #[cfg(feature = "reader-strips")]
@@ -26,6 +26,7 @@ pub(crate) trait Context {
 
 // Separate from FrameLease: detach may re-enter this context during its Drop.
 struct Replay<'a, P, C> {
+    #[cfg_attr(not(feature = "reader-strips"), allow(dead_code))]
     owner: Pin<&'a PageResources>,
     physical: &'a P,
     context: &'a C,
@@ -268,11 +269,11 @@ impl<P: physical::Physical, C: Context> Renderer for Call<'_, P, C> {
                         .strips
                         .source
                         .get()
-                        .cast::<crate::display::DisplaySource>();
+                        .cast::<crate::display_source::DisplaySource>();
                     unsafe {
-                        source.write(crate::display::DisplaySource {
-                            struct_size: core::mem::size_of::<crate::display::DisplaySource>()
-                                as u32,
+                        source.write(crate::display_source::DisplaySource {
+                            struct_size: core::mem::size_of::<crate::display_source::DisplaySource>(
+                            ) as u32,
                             ctx: (self.replay as *const Replay<'_, P, C>).cast_mut().cast(),
                             scratch: owner.strips.scratch.pointer(),
                             capacity: scratch_bytes,

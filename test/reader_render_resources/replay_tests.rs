@@ -10,7 +10,7 @@ struct Panel {
     width: Cell<u16>,
     stride: Cell<u16>,
     caps: Cell<u32>,
-    source: Cell<*mut crate::display::DisplaySource>,
+    source: Cell<*mut crate::display_source::DisplaySource>,
     seen_width: Cell<u16>,
     reject: Cell<bool>,
 }
@@ -110,7 +110,7 @@ impl physical::Physical for Panel {
         }
     }
     fn image_window(&self, _: *mut u8, _: u32) {}
-    fn source(&self, source: *mut crate::display::DisplaySource) -> bool {
+    fn source(&self, source: *mut crate::display_source::DisplaySource) -> bool {
         self.seen_width.set(unsafe { (*source).width });
         if self.reject.get() {
             return false;

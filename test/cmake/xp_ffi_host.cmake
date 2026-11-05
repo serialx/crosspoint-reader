@@ -37,3 +37,7 @@ add_dependencies(xp_ffi_host xp_ffi_host_build)
 target_sources(xp_ffi_host INTERFACE ${CMAKE_CURRENT_LIST_DIR}/xp_ffi_host.cpp)
 target_include_directories(xp_ffi_host INTERFACE ${XP_FFI_HOST_WORKSPACE}/crates/xp-ffi/include)
 target_link_libraries(xp_ffi_host INTERFACE ${XP_FFI_HOST_ARCHIVE})
+
+# Historical oracle wire declarations and native replay are test inputs only.
+target_compile_options(xp_ffi_host INTERFACE "SHELL:-include ${XP_FFI_REPO_ROOT}/test/reader_lifecycle/legacy_render_wire.h")
+target_include_directories(xp_ffi_host BEFORE INTERFACE ${XP_FFI_REPO_ROOT}/test/reader_lifecycle/native_render ${XP_FFI_REPO_ROOT}/test/reader_lifecycle/native_render/activities/reader)

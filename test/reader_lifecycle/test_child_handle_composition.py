@@ -133,7 +133,7 @@ static GfxRenderer* target = &renderer;
 static MappedInputManager* mapped = &input;
 struct ActivityManager {
   MappedInputManager mappedInput;
-  bool send(const XpAppEvent& event) { return xp_app_event(&event) == XP_APP_ACCEPTED; }
+  bool send(const XpAppEvent& event) { return xp_app_test_event_legacy_book(&event, &legacyBook) == XP_APP_ACCEPTED; }
   void pushActivity(std::unique_ptr<Activity>&&);
 };
 static ActivityManager activityManager;
@@ -198,7 +198,8 @@ struct SavedProgressPosition { std::string xpath; float percentage; };
   state.startAttempt();
   XpAppEvent navigate{}; navigate.kind = XP_APP_NAVIGATE; navigate.value.navigate.kind = XP_APP_READER;
   navigate.value.navigate.value.reader = {wire(f().path), 0};
-  assert(xp_app_event(&navigate) == XP_APP_ACCEPTED); assertEntered();''')
+  assert(xp_app_test_event_legacy_book(nullptr, &legacyBook) == XP_APP_EVENT_INVALID);
+  assert(xp_app_test_event_legacy_book(&navigate, &legacyBook) == XP_APP_ACCEPTED); assertEntered();''')
     source = replace_once(source, '  assert(xp_app_test_current_legacy() && !xp_app_test_current_epub());\n}', '''
   assert(xp_app_test_current_legacy() && !xp_app_test_current_epub());
   auto* raw = xp_app_test_current_legacy();

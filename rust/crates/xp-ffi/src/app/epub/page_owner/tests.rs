@@ -153,3 +153,39 @@ pub unsafe extern "C" fn xp_epub_test_page_render(
     let renderer = unsafe { xp_ui::reader::render::PhysicalRenderer::new(&*services) };
     xp_ui::reader::render::render(&renderer, true);
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_session_render(
+    resources: &'static app_abi::Resources,
+    leaves: &'static XpEpubLeaves,
+    runtime: &'static app_abi::Runtime,
+    input: app_abi::Text,
+    strips: u8,
+) -> u8 {
+    use super::super::{page, EpubSession};
+    let Some(owner) = EpubSession::try_owned(b"", false, leaves, runtime, resources) else {
+        return 0;
+    };
+    assert!(owner.legacy_pages.get().is_none() && owner.render_hooks.is_none());
+    let mut rendered = 0;
+    owner.model(|state| state.ready = true);
+    for _ in 0..2 {
+        let Some(page) = Page::from_bytes(resources, leaves, input.bytes().unwrap(), 37) else {
+            break;
+        };
+        assert!(owner.render_with(|access| {
+            owner.render_contents(
+                access,
+                page::Page::Reader(page),
+                24,
+                [11, 0, 20, 7],
+                strips != 0,
+            );
+        }));
+        rendered += 1;
+    }
+    owner.model(|state| state.ready = false);
+    owner.destroy_owned();
+    drop(owner);
+    rendered
+}

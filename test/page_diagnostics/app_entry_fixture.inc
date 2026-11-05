@@ -235,7 +235,7 @@ void bind() {
     f().physical("result-end", 0, id);
   };
 
-  leaves.resources_open = [] { return f().component(Kind::Root); };
+  legacyBook.section.page.resources_open = [] { return f().component(Kind::Root); };
   leaves.bookmarks_open = [] { return f().component(Kind::Bookmarks); };
   leaves.popup_open = [] {
     assert(f().componentAttempt == 2 || f().componentAttempt == 3);
@@ -249,7 +249,7 @@ void bind() {
     f().release(raw, kind);
   };
   leaves.bookmarks_close = [](void* raw) { f().release(raw, Kind::Bookmarks); };
-  leaves.resources_close = [](void* raw) {
+  legacyBook.section.page.resources_close = [](void* raw) {
     auto& root = f().handle(raw, Kind::Root);
     for (const auto& entry : f().handles) assert(entry.first == raw || entry.second->generation != root.generation);
     f().release(raw, Kind::Root);

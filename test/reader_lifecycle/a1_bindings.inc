@@ -95,16 +95,16 @@ static size_t a1Find(const char* event, size_t start = 0) {
 
 static void bindA1() {
   bindScenePhysical();
-  static auto openRoot = leaves.resources_open;
-  static auto closeRoot = leaves.resources_close;
-  leaves.resources_open = []() -> void* {
+  static auto openRoot = legacyBook.section.page.resources_open;
+  static auto closeRoot = legacyBook.section.page.resources_close;
+  legacyBook.section.page.resources_open = []() -> void* {
     auto* tag = openRoot(); assert(tag && !a1Root);
     a1Root = new NativeResources(*target);
     auto node = f().handles.extract(tag); assert(!node.empty());
     node.key() = a1Root; f().handles.insert(std::move(node));
     a1Physical("root-open", 0, 0, 0); return a1Root;
   };
-  leaves.resources_close = [](void* raw) {
+  legacyBook.section.page.resources_close = [](void* raw) {
     sceneLeaf(1); assert(raw == a1Root && !a1Root->frame && !sceneSection && !livePages);
     a1Physical("root-drop-begin", 0, 0, 0);
     delete a1Root; a1Root = nullptr;
@@ -130,7 +130,7 @@ static void bindA1() {
     out->font = 41; out->width = width; out->height = height;
     out->compression = 1; out->word_spacing_percent = 100; out->embedded_style = 1;
   };
-  leaves.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
+  legacyBook.section.page.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
     sceneLeaf(1); assert(raw == a1Root); return a1NativeServices(raw);
   };
   legacyBook.section.page.render_bind_page = [](void* raw, void* page, int32_t font, int32_t left, int32_t top,
@@ -141,7 +141,7 @@ static void bindA1() {
     scene.boundPage = page; a1Physical("bind", font, left, top);
     a1NativeBind(raw, page, font, left, top, bottom, callback, context);
   };
-  leaves.render_finish_page = [](void* raw) {
+  legacyBook.section.page.render_finish_page = [](void* raw) {
     sceneLeaf(1); assert(raw == a1Root && a1Root->frame && scene.boundPage && livePages == 1);
     a1Physical("finish-begin", 0, 0, 0); a1NativeFinish(raw);
     assert(!a1Root->frame && !boundSource && livePages == 1);

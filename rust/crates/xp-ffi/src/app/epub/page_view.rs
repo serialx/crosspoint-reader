@@ -14,6 +14,7 @@ pub(super) enum View<'a> {
 }
 
 impl<'a> View<'a> {
+    #[cfg(any(test, feature = "app-test"))]
     pub(super) unsafe fn from_wire(wire: &abi::XpEpubPageView) -> Self {
         Self::Arena(unsafe { core::slice::from_raw_parts(wire.arena, wire.size) })
     }
@@ -37,7 +38,7 @@ impl<'a> View<'a> {
         }
     }
 
-    fn arena(self) -> &'a [u8] {
+    pub(super) fn arena(self) -> &'a [u8] {
         match self {
             Self::Arena(arena) => arena,
             #[cfg(feature = "app-test")]
@@ -46,6 +47,20 @@ impl<'a> View<'a> {
     }
     fn core(self) -> page::Page<'a> {
         page::Page::open(self.arena()).expect("validated Page")
+    }
+
+    pub(super) fn has_images(self) -> bool {
+        let page = self.core();
+        (0..page.element_count()).any(|i| {
+            page.element(i)
+                .expect("validated element")
+                .tag()
+                .expect("validated tag")
+                == 2
+        })
+    }
+    pub(super) fn element_count(self) -> u16 {
+        self.core().element_count()
     }
 
     // Reborrow the complete terminated span from the owning arena.

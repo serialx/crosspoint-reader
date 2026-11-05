@@ -153,7 +153,7 @@ void bindDiagnostic() {
     ++diagnostic.paints;
     return 0;
   };
-  leaves.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
+  legacyBook.section.page.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
     physical();
     f().handle(raw, Kind::Root);
     return &diagnosticRender;

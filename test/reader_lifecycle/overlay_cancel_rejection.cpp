@@ -79,7 +79,7 @@ static const LegacyEpubLeaves leaves = [] {
     assert(!resync);
     locked("restore");
   };
-  value.physical.render_services = [](void* root) {
+  value.book.section.page.render_services = [](void* root) {
     assert(root == &native && renderDepth == 1);
     return &renderServices;
   };

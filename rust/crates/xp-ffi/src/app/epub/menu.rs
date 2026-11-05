@@ -211,7 +211,7 @@ impl EpubSession {
                 self.request_update();
                 return;
             }
-            unsafe { (self.leaves.strip_release_idle)(self.native(&access)) };
+            self.release_idle_strips(&access);
         }
         match action {
             x if x == Action::Chapter as i32 => self.open_chapters(),

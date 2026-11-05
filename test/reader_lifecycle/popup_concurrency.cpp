@@ -74,7 +74,7 @@ static const XpUiReaderRenderServices rendering{
       assert(op->kind == XP_UI_READER_RENDER_CLEAR || op->kind == XP_UI_READER_RENDER_DISPLAY);
       return 0;
     }};
-static const XpEpubLegacyBookServices legacyBook = [] {
+static XpEpubLegacyBookServices legacyBook = [] {
   auto value = unexpectedLegacyBookServices();
   value.book_open = [](XpAppText) -> void* {
     assert(!renderDepth);
@@ -146,7 +146,7 @@ static const XpEpubLeaves leaves = [] {
     locked();
     static_cast<OptionPopup*>(p)->render(renderer);
   };
-  value.render_services = [](void*) -> const XpUiReaderRenderServices* {
+  legacyBook.section.page.render_services = [](void*) -> const XpUiReaderRenderServices* {
     locked();
     return &rendering;
   };

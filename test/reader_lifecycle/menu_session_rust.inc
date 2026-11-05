@@ -205,7 +205,7 @@ static void configureMenuLeaves() {
     return activeMenu->owner.cachedBookmarks.size();
   };
   menuLeaves.physical.clippings_count = []() -> uint32_t { assert(!menuModelDepth); return CLIPPINGS.hasClippings(); };
-  menuLeaves.physical.strip_release_idle = [](void* raw) -> uint8_t {
+  menuLeaves.book.section.page.strip_release_idle = [](void* raw) -> uint8_t {
     assert(!menuModelDepth && lockDepth == 1 && raw == activeMenu);
     activeMenu->owner.stripBuffers.releaseIdle();
     return 0;
@@ -227,7 +227,7 @@ static void configureMenuLeaves() {
     assert(!menuModelDepth && lockDepth == 1);
     activeMenu->owner.renderer.restoreBwBuffer(resync != 0);
   };
-  menuLeaves.physical.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
+  menuLeaves.book.section.page.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
     assert(!menuModelDepth && raw == activeMenu);
     static const XpUiReaderRenderServices render{
         nullptr, &OverlayUnexpected<decltype(XpUiReaderRenderServices::read)>::call,

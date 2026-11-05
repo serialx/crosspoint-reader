@@ -549,10 +549,7 @@ pub unsafe extern "C" fn xp_display_x3_default_config(
 }
 
 #[cfg(feature = "reader-strips")]
-#[path = "display/source.rs"]
-mod source;
-#[cfg(feature = "reader-strips")]
-pub(crate) use source::DisplaySource;
+use crate::display_source::DisplaySource;
 #[cfg(feature = "reader-strips")]
 impl xp_display::frame::Source for DisplaySource {
     fn rows(&self) -> u16 {

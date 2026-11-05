@@ -33,11 +33,12 @@ fn failure(value: u8) -> LoadFailure {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn xp_epub_test_recovery_create(
+pub unsafe extern "C" fn xp_epub_test_recovery_create_legacy_render(
     seed: *const RecoverySeed,
     leaves: *const abi::XpEpubLeaves,
     runtime: *const app_abi::Runtime,
     resources: *const app_abi::Resources,
+    legacy: Option<&'static super::legacy_page::LegacyPageServices>,
 ) -> *mut c_void {
     let seed = &*seed;
     let path = seed.path.bytes().expect("fixture path");
@@ -45,6 +46,7 @@ pub unsafe extern "C" fn xp_epub_test_recovery_create(
     else {
         return core::ptr::null_mut();
     };
+    owner.legacy_pages.set(legacy);
     owner.state.get_mut().ready = true;
     owner.state.get_mut().failure = failure(seed.failure);
     owner.guarded.get_mut().native = Some(NonNull::new(seed.native).expect("fixture root"));

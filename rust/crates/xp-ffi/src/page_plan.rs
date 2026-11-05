@@ -97,9 +97,7 @@ impl Command {
         }
     }
 }
-#[path = "page_plan/storage.rs"]
-mod storage;
-pub(crate) use storage::Plan;
+pub(crate) use super::Plan;
 
 impl Plan {
     pub(super) fn add(&mut self, target: &xp_core::glyph::GlyphTarget, rect: xp_core::glyph::Clip) {
@@ -107,7 +105,7 @@ impl Plan {
             return;
         }
         let (start, end) = xp_core::strip::row_bounds(target, rect);
-        let command = unsafe { &mut *self.storage.add(self.count - 1) };
+        let command = unsafe { &mut *self.storage.cast::<Command>().add(self.count - 1) };
         command.start = command.start.min(start.clamp(0, target.height) as i16);
         command.end = command.end.max(end.clamp(0, target.height) as i16);
     }
@@ -115,7 +113,7 @@ impl Plan {
         if self.count == 0 || self.count > self.capacity_bytes / size_of::<Command>() {
             return;
         }
-        let command = unsafe { &mut *self.storage.add(self.count - 1) };
+        let command = unsafe { &mut *self.storage.cast::<Command>().add(self.count - 1) };
         command.start = 0;
         command.end = height as i16;
     }
@@ -153,7 +151,10 @@ impl Renderer<'_> {
         }
         if plan.count < plan.capacity_bytes / size_of::<Command>() {
             unsafe {
-                plan.storage.add(plan.count).write(command);
+                plan.storage
+                    .cast::<Command>()
+                    .add(plan.count)
+                    .write(command);
             }
         }
         plan.count = plan.count.saturating_add(1);
@@ -259,7 +260,7 @@ pub unsafe extern "C" fn xp_page_plan_render(
         plan.valid = 1;
     } else {
         for i in 0..plan.count {
-            let command = *plan.storage.add(i);
+            let command = *plan.storage.cast::<Command>().add(i);
             let state = renderer.strip.as_mut().unwrap();
             let Some(bound) = state.bounds.get(usize::from(command.element)) else {
                 return 1;

@@ -62,13 +62,13 @@ void bindResultsPhysical() {
     physical("render-spec"); *out = {}; out->width = width; out->height = height;
     out->font = 1; out->compression = 1; out->word_spacing_percent = 100;
   };
-  leaves.render_services = [](void*) -> const XpUiReaderRenderServices* { physical("render-services", 1); return &resultRenderServices; };
+  legacyBook.section.page.render_services = [](void*) -> const XpUiReaderRenderServices* { physical("render-services", 1); return &resultRenderServices; };
   legacyBook.section.page.render_bind_page = [](void*, void* page, int32_t, int32_t, int32_t, int32_t, XpEpubLegacyHighlight, void*) {
     physical("bind-page", 1); assert(results.pages.count(static_cast<ResultPage*>(page)) && !results.bound); results.bound = page;
   };
-  leaves.render_finish_page = [](void*) { physical("finish-page", 1); assert(results.bound); results.bound = nullptr; };
+  legacyBook.section.page.render_finish_page = [](void*) { physical("finish-page", 1); assert(results.bound); results.bound = nullptr; };
   leaves.render_busy = []() -> uint8_t { physical("display-busy"); return 0; };
-  leaves.strip_release_idle = [](void*) -> uint8_t { physical("strip-release", 1); return 1; };
+  legacyBook.section.page.strip_release_idle = [](void*) -> uint8_t { physical("strip-release", 1); return 1; };
   legacyBook.book_spine_count = [](void*) -> int32_t { physical("spine-count"); return 7; };
   legacyBook.book_size = [](void*) -> uint32_t { physical("book-size"); return 1000; };
   legacyBook.book_progress = [](void*, int32_t, float) -> float { physical("book-progress"); return .1f; };

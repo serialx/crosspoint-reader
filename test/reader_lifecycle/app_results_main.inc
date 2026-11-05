@@ -271,8 +271,8 @@ void bindWifiMatrix() {
     assert(launch && launch->kind != XP_APP_READER && "reopen must use the owned EPUB factory");
     return baseCreate(launch);
   };
-  static auto baseOpen = leaves.resources_open;
-  leaves.resources_open = []() -> void* {
+  static auto baseOpen = legacyBook.section.page.resources_open;
+  legacyBook.section.page.resources_open = []() -> void* {
     if (!results.inResult) return baseOpen();
     borrowedUse("reopen-reader-create");
     ++results.reopenAttempts;
@@ -292,8 +292,8 @@ void bindWifiMatrix() {
     if (f().generation == 2) requireResult(text(path) == f().path, "WIFI_REOPEN_DESTINATION");
     return baseBookOpen(path);
   };
-  static auto baseRenderServices = leaves.render_services;
-  leaves.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
+  static auto baseRenderServices = legacyBook.section.page.render_services;
+  legacyBook.section.page.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
     // A fast-initial reopen would query Frequency during construction.
     requireResult(!results.inResult || !results.reopenAttempts, "WIFI_REOPEN_DESTINATION");
     return baseRenderServices(raw);

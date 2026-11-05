@@ -39,7 +39,7 @@ static const LegacyEpubLeaves leaves = [] {
   table.physical.render_geometry = [](XpEpubGeometry* out) {
     unlocked(); assert(out); *out = {}; out->a4 = isA4; out->xteink_panel = isXteink;
   };
-  table.physical.render_services = [](void* root) -> const XpUiReaderRenderServices* {
+  table.book.section.page.render_services = [](void* root) -> const XpUiReaderRenderServices* {
     locked(); assert(root == active); renderServices.context = root; return &renderServices;
   };
   table.physical.render_restore_bw = [](uint8_t resync) {

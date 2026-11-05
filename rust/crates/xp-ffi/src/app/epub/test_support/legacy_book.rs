@@ -1,5 +1,7 @@
 // Synthetic book inputs for frozen session oracles; never linked into firmware.
 use super::super::{abi::*, app_abi};
+extern crate alloc;
+use alloc::boxed::Box;
 type XpAppText = app_abi::Text;
 type XpAppTextSink = app_abi::TextSink;
 #[repr(C)]
@@ -89,12 +91,13 @@ pub unsafe extern "C" fn xp_app_test_install_epub_legacy_book(
     else {
         return 0;
     };
-    let Some(mut owner) = super::super::EpubSession::try_owned(
+    let Some(mut owner) = super::super::EpubSession::try_owned_legacy(
         path,
         fast_initial != 0,
         leaves,
         app.runtime,
         app.resources,
+        services,
     ) else {
         return 0;
     };
@@ -105,16 +108,68 @@ pub unsafe extern "C" fn xp_app_test_install_epub_legacy_book(
 }
 
 impl super::super::EpubSession {
-    pub(in crate::app) fn inherit_legacy_book_fixture(&mut self, previous: &Self) {
-        // A reopen of an explicitly selected legacy fixture keeps the same input type.
-        self.legacy_pages.set(previous.legacy_pages.get());
-        self.book_factory = match previous.book_factory {
-            super::super::session_book::Factory::Reader => {
-                super::super::session_book::Factory::Reader
-            }
-            super::super::session_book::Factory::Legacy(services) => {
-                super::super::session_book::Factory::Legacy(services)
-            }
-        };
+    pub(in crate::app) fn try_owned_legacy(
+        path: &[u8],
+        fast: bool,
+        leaves: &'static XpEpubLeaves,
+        runtime: &'static app_abi::Runtime,
+        resources: &'static app_abi::Resources,
+        fixture: &'static LegacyBookServices,
+    ) -> Option<Box<Self>> {
+        let mut owner = Self::try_owned_with_fixture(
+            path,
+            fast,
+            leaves,
+            runtime,
+            resources,
+            Some(&fixture.section.page),
+        )?;
+        owner.book_factory = super::super::session_book::Factory::Legacy(fixture);
+        Some(owner)
     }
+    pub(in crate::app) fn try_owned_legacy_render(
+        path: &[u8],
+        fast: bool,
+        leaves: &'static XpEpubLeaves,
+        runtime: &'static app_abi::Runtime,
+        resources: &'static app_abi::Resources,
+        fixture: &'static super::legacy_page::LegacyPageServices,
+    ) -> Option<Box<Self>> {
+        Self::try_owned_with_fixture(path, fast, leaves, runtime, resources, Some(fixture))
+    }
+    pub(in crate::app) fn legacy_page_fixture(
+        &self,
+    ) -> Option<&'static super::legacy_page::LegacyPageServices> {
+        self.legacy_pages.get()
+    }
+    pub(in crate::app) fn legacy_book_fixture(&self) -> Option<&'static LegacyBookServices> {
+        match self.book_factory {
+            super::super::session_book::Factory::Legacy(f) => Some(f),
+            _ => None,
+        }
+    }
+}
+
+// Only named routing oracles may install this fixture for one real App event.
+#[no_mangle]
+pub unsafe extern "C" fn xp_app_test_event_legacy_book(
+    event: *const app_abi::Event,
+    services: &'static LegacyBookServices,
+) -> app_abi::EventResult {
+    let Some(app) = crate::app::app() else {
+        return app_abi::EVENT_INVALID;
+    };
+    struct Entry<'a>(&'a core::cell::Cell<Option<&'static LegacyBookServices>>);
+    impl Drop for Entry<'_> {
+        fn drop(&mut self) {
+            self.0.set(None);
+        }
+    }
+    assert!(app.legacy_entry_fixture.get().is_none());
+    app.legacy_entry_fixture.set(Some(services));
+    let entry = Entry(&app.legacy_entry_fixture);
+    let result = unsafe { crate::app::xp_app_event(event) };
+    drop(entry);
+    assert!(app.legacy_entry_fixture.get().is_none());
+    result
 }

@@ -51,7 +51,7 @@ static const LegacyEpubLeaves leaves = [] {
   table.physical.input_services = []() -> const XpUiReaderInputServices* {
     unlocked(); inputServices.context = active; return &inputServices;
   };
-  table.physical.render_services = [](void* root) -> const XpUiReaderRenderServices* {
+  table.book.section.page.render_services = [](void* root) -> const XpUiReaderRenderServices* {
     locked(); assert(root == active); renderServices.context = root; return &renderServices;
   };
   table.physical.render_restore_bw = [](uint8_t resync) {

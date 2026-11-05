@@ -137,3 +137,5 @@ inline XpEpubLegacyBookServices unexpectedLegacyBookServices() {
   value.recents_add = &LegacyBookUnexpected<decltype(value.recents_add)>::call;
   return value;
 }
+
+extern "C" XpAppEventResult xp_app_test_event_legacy_book(const XpAppEvent*, const XpEpubLegacyBookServices*);

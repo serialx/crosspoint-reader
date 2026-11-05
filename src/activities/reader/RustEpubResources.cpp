@@ -74,10 +74,6 @@
 #include "util/HomeButtonInput.h"
 #include "util/PluginEvents.h"
 #include "util/SlideSwitch.h"
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-#include "ReaderStripBuffers.h"
-#include "ReaderStripPainter.h"
-#endif
 
 const XpParaAllocator* paragraphAllocator();
 
@@ -204,12 +200,18 @@ static_assert(alignof(FontCacheManager::PrewarmScope) == alignof(uintptr_t));
   return 0;
 }
 
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
 [[maybe_unused]] void physicalRenderPlan(GfxRenderer& renderer, XpPagePlan* plan, XpPageRowBounds* bounds,
                                          uint16_t count, uint8_t recording) {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
   renderer.usePagePlan(plan, bounds, count, recording != 0);
-}
+#else
+  (void)renderer;
+  (void)plan;
+  (void)bounds;
+  (void)count;
+  (void)recording;
 #endif
+}
 [[maybe_unused]] void physicalImageWindow(uint8_t* bytes, uint32_t length) {
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
   ImageBlock::setRenderReadWindow(bytes, length);
@@ -363,9 +365,6 @@ static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::GO_HOME) 
 static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::SYNC) == 16);
 static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::DELETE_CACHE) == 17);
 static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::DICTIONARY) == 18);
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-static_assert(ReaderStripBuffers::ROWS == 80 && ReaderStripBuffers::MAX_ELEMENTS == 512);
-#endif
 
 XpAppText text(const std::string& value) { return {reinterpret_cast<const uint8_t*>(value.data()), value.size()}; }
 XpAppText text(const char* value) { return {reinterpret_cast<const uint8_t*>(value), strlen(value)}; }
@@ -427,409 +426,6 @@ struct BookHandle {
     });
   }
 };
-struct NativeRenderFrame {
-  GfxRenderer& renderer;
-  XpEpubHighlight highlight;
-  void* highlightContext;
-  XpEpubPageView pageView;
-  Page page;
-  int font, left, top;
-  bool images = false;
-  struct ImageGuard {
-    ~ImageGuard() { ImageBlock::releaseRenderCache(); }
-  } imageGuard;
-  std::optional<FontCacheManager::PrewarmScope> prewarm;
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-  struct StripFrame {
-    GfxRenderer& renderer;
-    ReaderStripBuffers& buffers;
-    ReaderStripPainter painter;
-    XpPagePlan plan{};
-    XpDisplaySource source{};
-    bool active = false;
-    ~StripFrame() {
-      if (active) display.setFrameSource(nullptr);
-      buffers.setSourceLoanActive(false);
-      renderer.usePagePlan(nullptr, nullptr, 0);
-      ImageBlock::setRenderReadWindow(nullptr, 0);
-    }
-  } strips;
-#endif
-  std::unique_ptr<uint8_t[]> lsb, msb, scratch;
-  uint8_t* borrowedScratch = nullptr;
-  unsigned long times[10]{};
-  NativeRenderFrame(GfxRenderer& renderer, const XpEpubPageView& view, int font, int left, int top, int bottom,
-                    XpEpubHighlight highlight, void* context
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-                    ,
-                    ReaderStripBuffers& buffers
-#endif
-                    )
-      : renderer(renderer),
-        highlight(highlight),
-        highlightContext(context),
-        pageView(view),
-        page(Page::Borrowed{}, view.arena, view.size, view.visible_offset),
-        font(font),
-        left(left),
-        top(top)
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-        ,
-        strips{renderer,
-               buffers,
-               {renderer, page, font, left, top, renderer.getScreenHeight() - bottom - 8, display.isInverted(), this,
-                [](void* raw, const Page&, int font, int left, int top) {
-                  auto& frame = *static_cast<NativeRenderFrame*>(raw);
-                  frame.highlight(frame.highlightContext, &frame.pageView, font, left, top);
-                }}}
-#endif
-  {
-    (void)bottom;
-  }
-  uint8_t* buffer(uint8_t id) {
-    switch (static_cast<XpUiReaderRenderBuffer>(id)) {
-      case XP_UI_READER_BUFFER_LSB:
-        return lsb.get();
-      case XP_UI_READER_BUFFER_MSB:
-        return msb.get();
-      case XP_UI_READER_BUFFER_SCRATCH:
-        return borrowedScratch ? borrowedScratch : scratch.get();
-    }
-    return nullptr;
-  }
-  uint32_t read(uint8_t query) {
-    switch (static_cast<XpUiReaderRenderQuery>(query)) {
-      case XP_UI_READER_RENDER_NOW:
-        return millis();
-      case XP_UI_READER_RENDER_HAS_IMAGES:
-        images = page.hasImages();
-        return images;
-      case XP_UI_READER_RENDER_IMAGES_NEED_DECODE:
-        return page.hasImagesNeedingDecode();
-      case XP_UI_READER_RENDER_TAKE_FORCED:
-      case XP_UI_READER_RENDER_COUNTER:
-        assert(false);  // Intercepted by the Rust session.
-        return 0;
-      case XP_UI_READER_RENDER_FREQUENCY:
-        return SETTINGS.getRefreshFrequency();
-      case XP_UI_READER_RENDER_TEXT_AA:
-        return SETTINGS.textAntiAliasing;
-      case XP_UI_READER_RENDER_IS_A4:
-        return BoardConfig::isEegoA4();
-      case XP_UI_READER_RENDER_IS_BW:
-        return renderer.getRenderMode() == GfxRenderer::BW;
-      case XP_UI_READER_RENDER_IS_X3:
-        return gpio.deviceIsX3();
-      case XP_UI_READER_RENDER_IS_UC8279:
-        return display.getController() == HalDisplay::Controller::UC8279;
-      case XP_UI_READER_RENDER_ABSOLUTE_SUPPORTED:
-        return renderer.grayscaleCapabilities(HalDisplay::GrayscaleMode::Absolute).supported();
-      case XP_UI_READER_RENDER_OVERLAY_CAPS:
-      case XP_UI_READER_RENDER_ABSOLUTE_CAPS: {
-        const auto caps = renderer.grayscaleCapabilities(query == XP_UI_READER_RENDER_ABSOLUTE_CAPS
-                                                             ? HalDisplay::GrayscaleMode::Absolute
-                                                             : HalDisplay::GrayscaleMode::Overlay);
-        return (caps.stripUploads ? 1u : 0u) | (caps.base == HalDisplay::GrayscaleBase::Combined ? 2u : 0u) |
-               (caps.asyncBase ? 4u : 0u);
-      }
-      case XP_UI_READER_RENDER_STRIP_BOARD:
-        return display.getController() == HalDisplay::Controller::UC8253 ||
-               (BoardConfig::ACTIVE.board == BoardConfig::Board::XteinkX4 &&
-                display.getController() == HalDisplay::Controller::SSD1677);
-      case XP_UI_READER_RENDER_ELEMENTS:
-        return page.elementCount();
-      case XP_UI_READER_RENDER_WIDTH_BYTES:
-        return renderer.getDisplayWidthBytes();
-      case XP_UI_READER_RENDER_HEIGHT:
-        return renderer.getDisplayHeight();
-      case XP_UI_READER_RENDER_FREE_HEAP:
-        return ESP.getFreeHeap();
-      case XP_UI_READER_RENDER_MAX_BLOCK:
-        return ESP.getMaxAllocHeap();
-    }
-    return 0;
-  }
-  [[gnu::noinline]] void log(uint32_t id) const {  // Keep log locals off the nested page-drawing stack.
-    const auto* t = times;
-    switch (static_cast<XpUiReaderRenderLog>(id)) {
-      case XP_UI_READER_RENDER_STRIP_OOM:
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-        LOG_ERR(
-            "ERS", "OOM: reader strips (%u bytes); using framebuffer",
-            static_cast<unsigned>(ReaderStripBuffers::SCRATCH_BYTES + ReaderStripBuffers::COMMAND_BYTES +
-                                  sizeof(XpPageRowBounds) * ReaderStripBuffers::MAX_ELEMENTS + (images ? 4096 : 0)));
-#endif
-        break;
-      case XP_UI_READER_RENDER_ABSOLUTE_FAILED:
-        LOG_ERR("ERS", "Could not start absolute image page; displaying B/W");
-        break;
-      case XP_UI_READER_RENDER_ABSOLUTE_QUALITY:
-        LOG_DBG("ERS", "UC8279 image page: absolute quality waveform");
-        break;
-      case XP_UI_READER_RENDER_SCRATCH_OOM:
-        LOG_ERR("ERS", "OOM: grayscale strip scratch (%d bytes); skipping AA this page",
-                renderer.getDisplayWidthBytes() * 80);
-        break;
-      case XP_UI_READER_RENDER_STORE_FAILED:
-        LOG_ERR("ERS", "Failed to store BW buffer for grayscale render; skipping grayscale this page");
-        break;
-      case XP_UI_READER_RENDER_TIMING_ASYNC:
-        LOG_DBG("ERS",
-                "Page render (tiled async): prewarm=%lums bw_render=%lums display=%lums gray_render=%lums "
-                "wait=%lums gray_write=%lums gray_display=%lums cleanup=%lums total=%lums (planes buffered: %d)",
-                t[1] - t[0], t[2] - t[1], t[3] - t[2], t[4] - t[3], t[5] - t[4], t[6] - t[5], t[7] - t[6], t[8] - t[7],
-                t[8] - t[0], msb ? 2 : 1);
-        break;
-      case XP_UI_READER_RENDER_TIMING_TILED:
-        LOG_DBG("ERS",
-                "Page render (tiled): prewarm=%lums bw_render=%lums display=%lums gray_lsb=%lums "
-                "gray_msb=%lums gray_display=%lums cleanup=%lums total=%lums",
-                t[1] - t[0], t[2] - t[1], t[3] - t[2], t[4] - t[3], t[5] - t[4], t[6] - t[5], t[7] - t[6], t[8] - t[0]);
-        break;
-      case XP_UI_READER_RENDER_TIMING_GRAY:
-        LOG_DBG("ERS",
-                "Page render: prewarm=%lums bw_render=%lums display=%lums bw_store=%lums "
-                "gray_lsb=%lums gray_msb=%lums gray_display=%lums bw_restore=%lums total=%lums",
-                t[1] - t[0], t[2] - t[1], t[3] - t[2], t[4] - t[3], t[5] - t[4], t[6] - t[5], t[7] - t[6], t[8] - t[7],
-                t[9] - t[0]);
-        break;
-      case XP_UI_READER_RENDER_TIMING_BW:
-        LOG_DBG("ERS", "Page render: prewarm=%lums bw_render=%lums display=%lums total=%lums", t[1] - t[0], t[2] - t[1],
-                t[3] - t[2], t[4] - t[0]);
-        break;
-    }
-  }
-  uint32_t execute(const XpUiReaderRenderOp& op) {
-    const auto refresh = op.mode == XP_UI_HALF ? HalDisplay::HALF_REFRESH : HalDisplay::FAST_REFRESH;
-    switch (static_cast<XpUiReaderRenderOperation>(op.kind)) {
-      case XP_UI_READER_RENDER_IMAGE_RESET:
-        ImageBlock::clearRenderFailures();
-        break;
-      case XP_UI_READER_RENDER_PREWARM_BEGIN:
-        prewarm.emplace(*renderer.getFontCacheManager());
-        break;
-      case XP_UI_READER_RENDER_PAGE:
-        page.render(renderer, font, left, top);
-        break;
-      case XP_UI_READER_RENDER_STATUS:
-        assert(false);  // Intercepted by the Rust session.
-        break;
-      case XP_UI_READER_RENDER_PREWARM_END:
-        prewarm->endScanAndPrewarm();
-        break;
-      case XP_UI_READER_RENDER_HIGHLIGHTS:
-        highlight(highlightContext, &pageView, font, left, top);
-        break;
-      case XP_UI_READER_RENDER_IMAGES:
-        page.renderImages(renderer, font, left, top);
-        break;
-      case XP_UI_READER_RENDER_PLACEHOLDERS:
-        page.renderWithImagePlaceholders(renderer, font, left, top);
-        break;
-      case XP_UI_READER_RENDER_CLEAR:
-        renderer.clearScreen(op.value);
-        break;
-      case XP_UI_READER_RENDER_DISPLAY:
-        renderer.displayBuffer(refresh);
-        break;
-      case XP_UI_READER_RENDER_DISPLAY_ASYNC:
-        renderer.displayBufferAsync(refresh);
-        break;
-      case XP_UI_READER_RENDER_GRAY_BASE:
-        renderer.displayGrayscaleBase(refresh);
-        break;
-      case XP_UI_READER_RENDER_ABSOLUTE_BASE:
-        return renderer.displayGrayscaleBase(HalDisplay::GrayscaleMode::Absolute, refresh);
-      case XP_UI_READER_RENDER_PRECONDITION:
-        renderer.preconditionGrayscale();
-        break;
-      case XP_UI_READER_RENDER_SET_COUNTER:
-        assert(false);  // Intercepted by the Rust session.
-        break;
-      case XP_UI_READER_RENDER_PREPARE_STRIPS:
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-        return strips.buffers.prepare(renderer.getDisplayWidthBytes(), op.value != 0);
-#else
-        return false;
-#endif
-      case XP_UI_READER_RENDER_IMAGE_WINDOW:
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-        ImageBlock::setRenderReadWindow(strips.buffers.imageWindow.get(), strips.buffers.imageWindow ? 4096 : 0);
-#endif
-        break;
-      case XP_UI_READER_RENDER_RECORD_BEGIN:
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-        strips.plan = {strips.buffers.commands.get(), ReaderStripBuffers::COMMAND_BYTES, 0, 0};
-        renderer.usePagePlan(&strips.plan, strips.buffers.bounds.get(), page.elementCount(), true);
-#endif
-        break;
-      case XP_UI_READER_RENDER_RECORD_END:
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-        renderer.usePagePlan(strips.plan.valid ? &strips.plan : nullptr, strips.buffers.bounds.get(),
-                             page.elementCount());
-        return strips.plan.valid;
-#else
-        return false;
-#endif
-      case XP_UI_READER_RENDER_SET_SOURCE:
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-        strips.source = {sizeof(XpDisplaySource),      &strips.painter,
-                         strips.buffers.scratch.get(), op.value,
-                         ReaderStripBuffers::ROWS,     renderer.getDisplayWidth(),
-                         &ReaderStripPainter::paint};
-        strips.active = display.setFrameSource(&strips.source);
-        strips.buffers.setSourceLoanActive(strips.active);
-        return strips.active;
-#else
-        return false;
-#endif
-      case XP_UI_READER_RENDER_CLEAR_PLAN:
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-        renderer.usePagePlan(nullptr, nullptr, 0);
-#endif
-        break;
-      case XP_UI_READER_RENDER_CLEAR_WINDOW:
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-        ImageBlock::setRenderReadWindow(nullptr, 0);
-#endif
-        break;
-      case XP_UI_READER_RENDER_RELEASE_STRIPS:
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-        strips.buffers.releaseIdle();
-#endif
-        break;
-      case XP_UI_READER_RENDER_ALLOCATE:
-        switch (static_cast<XpUiReaderRenderBuffer>(op.buffer)) {
-          case XP_UI_READER_BUFFER_LSB:
-            lsb = makeUniqueNoThrow<uint8_t[]>(op.value);
-            return lsb != nullptr;
-          case XP_UI_READER_BUFFER_MSB:
-            msb = makeUniqueNoThrow<uint8_t[]>(op.value);
-            return msb != nullptr;
-          case XP_UI_READER_BUFFER_SCRATCH:
-            scratch = makeUniqueNoThrow<uint8_t[]>(op.value);
-            return scratch != nullptr;
-        }
-        return false;
-      case XP_UI_READER_RENDER_BORROW_SCRATCH:
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-        borrowedScratch = strips.buffers.scratch.get();
-        return borrowedScratch != nullptr;
-#else
-        return false;
-#endif
-      case XP_UI_READER_RENDER_MODE:
-        switch (op.mode) {
-          case 0:
-            renderer.setRenderMode(GfxRenderer::BW);
-            break;
-          case 1:
-            renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
-            break;
-          case 2:
-            renderer.setRenderMode(GfxRenderer::GRAYSCALE_MSB);
-            break;
-        }
-        break;
-      case XP_UI_READER_RENDER_STRIP_BEGIN:
-        renderer.beginStripTarget(buffer(op.buffer) + op.offset, op.y, op.rows);
-        break;
-      case XP_UI_READER_RENDER_STRIP_END:
-        renderer.endStripTarget();
-        break;
-      case XP_UI_READER_RENDER_WAIT:
-        renderer.waitRefreshComplete();
-        break;
-      case XP_UI_READER_RENDER_WRITE_PLANE:
-        renderer.writeGrayscalePlaneStrip(op.mode == 1, buffer(op.buffer), op.y, op.rows);
-        break;
-      case XP_UI_READER_RENDER_GRAY_DISPLAY:
-        renderer.displayGrayBuffer();
-        break;
-      case XP_UI_READER_RENDER_CLEANUP:
-        renderer.cleanupGrayscaleWithFrameBuffer();
-        break;
-      case XP_UI_READER_RENDER_STORE_BW:
-        return renderer.storeBwBuffer();
-      case XP_UI_READER_RENDER_RESTORE_BW:
-        renderer.restoreBwBuffer();
-        break;
-      case XP_UI_READER_RENDER_COPY_LSB:
-        renderer.copyGrayscaleLsbBuffers();
-        break;
-      case XP_UI_READER_RENDER_COPY_MSB:
-        renderer.copyGrayscaleMsbBuffers();
-        break;
-      case XP_UI_READER_RENDER_LOG:
-        log(op.value);
-        break;
-      case XP_UI_READER_RENDER_MARK:
-        times[op.value] = millis();
-        break;
-    }
-    return 0;
-  }
-};
-
-struct NativeResources {
-  GfxRenderer& renderer;
-  XpUiReaderRenderServices renderServices;
-  std::optional<FontCacheManager::PrewarmScope> prewarm;
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-  ReaderStripBuffers strips;
-#endif
-  // Page-bound physical scratch replaces the former renderContents stack context.
-  std::optional<NativeRenderFrame> frame;
-  explicit NativeResources(GfxRenderer& renderer)
-      : renderer(renderer),
-        renderServices{
-            this, [](void* raw, uint8_t query) -> uint32_t { return static_cast<NativeResources*>(raw)->read(query); },
-            [](void* raw, const XpUiReaderRenderOp* op) -> uint32_t {
-              return static_cast<NativeResources*>(raw)->execute(*op);
-            }} {}
-  uint32_t read(uint8_t query) {
-    switch (static_cast<XpUiReaderRenderQuery>(query)) {
-      case XP_UI_READER_RENDER_NOW:
-        return millis();
-      case XP_UI_READER_RENDER_IS_A4:
-        return BoardConfig::isEegoA4();
-      case XP_UI_READER_RENDER_IS_BW:
-        return renderer.getRenderMode() == GfxRenderer::BW;
-      case XP_UI_READER_RENDER_FREQUENCY:
-        return SETTINGS.getRefreshFrequency();
-      case XP_UI_READER_RENDER_FREE_HEAP:
-        return ESP.getFreeHeap();
-      case XP_UI_READER_RENDER_MAX_BLOCK:
-        return ESP.getMaxAllocHeap();
-      default:
-        assert(frame);  // Remaining queries belong to a bound Page render.
-        return frame->read(query);
-    }
-  }
-  uint32_t execute(const XpUiReaderRenderOp& op) {
-    const auto refresh = op.mode == XP_UI_HALF ? HalDisplay::HALF_REFRESH : HalDisplay::FAST_REFRESH;
-    switch (static_cast<XpUiReaderRenderOperation>(op.kind)) {
-      case XP_UI_READER_RENDER_CLEAR:
-        renderer.clearScreen(op.value);
-        return 0;
-      case XP_UI_READER_RENDER_DISPLAY:
-        renderer.displayBuffer(refresh);
-        return 0;
-      case XP_UI_READER_RENDER_DISPLAY_ASYNC:
-        renderer.displayBufferAsync(refresh);
-        return 0;
-      case XP_UI_READER_RENDER_CLEANUP:
-        renderer.cleanupGrayscaleWithFrameBuffer();
-        return 0;
-      case XP_UI_READER_RENDER_STORE_BW:
-        return renderer.storeBwBuffer();
-      default:
-        assert(frame);  // Remaining operations borrow the bound Page and scratch.
-        return frame->execute(op);
-    }
-  }
-};
-NativeResources& resources(void* handle) { return *static_cast<NativeResources*>(handle); }
 BookHandle& book(void* handle) { return *static_cast<BookHandle*>(handle); }
 using Bookmarks = std::vector<BookmarkEntry>;
 Bookmarks& bookmarkRows(void* handle) { return *static_cast<Bookmarks*>(handle); }
@@ -894,29 +490,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
   static GfxRenderer* const target = &renderer;
   static MappedInputManager* const mapped = &input;
   static const XpEpubLeaves leaves{
-      .resources_open = []() -> void* { return makeUniqueNoThrow<NativeResources>(*target).release(); },
-      .resources_close = [](void* handle) { delete static_cast<NativeResources*>(handle); },
-      .render_services = [](void* handle) -> const XpUiReaderRenderServices* {
-        return &resources(handle).renderServices;
-      },
-      .render_bind_page =
-          [](void* handle, const XpEpubPageView* page, int32_t font, int32_t left, int32_t top, int32_t bottom,
-             XpEpubHighlight highlight, void* context) {
-            auto& root = resources(handle);
-            assert(!root.frame && page && highlight);
-            root.frame.emplace(*target, *page, font, left, top, bottom, highlight, context
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-                               ,
-                               root.strips
-#endif
-            );
-          },
-      .render_finish_page =
-          [](void* handle) {
-            auto& root = resources(handle);
-            assert(root.frame);
-            root.frame.reset();
-          },
       .render_margins = [](int32_t* margins) { readMargins(*target, margins); },
       .render_geometry =
           [](XpEpubGeometry* out) {
@@ -943,14 +516,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .render_discard_bw = [] { target->discardStoredBwBuffer(); },
       .render_orientation = [](uint8_t orientation) { ReaderUtils::applyOrientation(*target, orientation); },
       .loan_count = [] { return target->frameBufferLoanCount(); },
-      .strip_release_idle = [](void* handle) -> uint8_t {
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-        return resources(handle).strips.releaseIdle();
-#else
-        (void)handle;
-        return false;
-#endif
-      },
       .book_facade_open = [](void* owner, const XpEpubBookView* view, const XpEpubBookBorrow* borrow) -> void* {
         auto handle = makeUniqueNoThrow<BookHandle>();
         if (!handle) return nullptr;
@@ -1037,16 +602,9 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
           [] {
             if (auto* cache = target->getFontCacheManager()) cache->releaseSdFontCaches();
           },
-      .fonts_prewarm_begin = [](void* handle) -> uint8_t {
-        auto* cache = target->getFontCacheManager();
-        if (!cache) return 0;
-        auto& prewarm = resources(handle).prewarm;
-        assert(!prewarm);
-        prewarm.emplace(*cache);
-        return 1;
-      },
-      .fonts_prewarm_finish_scan = [](void* handle) { resources(handle).prewarm->endScanAndPrewarm(); },
-      .fonts_prewarm_drop = [](void* handle) { resources(handle).prewarm.reset(); },
+      .fonts_prewarm_begin = [](XpEpubPrewarm* storage) -> uint8_t { return physicalPrewarmBegin(*target, storage); },
+      .fonts_prewarm_finish_scan = physicalPrewarmFinish,
+      .fonts_prewarm_drop = physicalPrewarmDrop,
       .fonts_take_corrupt_notice = []() -> uint8_t { return SdCardFont::takeCorruptGlyphNotice(); },
       .font_sizes = [](XpAppText family, XpAppTextSink sink, void* context) -> uint8_t {
         // Families borrow NUL-terminated owner or settings storage.
@@ -1080,6 +638,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
                     .screen_inverted = settings.screenInverted,
                     .ble_enabled = settings.ble.enabled,
                     .dictionary_available = static_cast<uint8_t>(settings.dictionaryName[0] != '\0'),
+                    .refresh_frequency = settings.refreshFrequency,
                     .font_family = text(settings.sdFontFamilyName)};
           },
       .settings_render_spec =
@@ -1551,6 +1110,15 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
                         uint8_t mode) { epubPage::paint(*target, *page, font, left, top, mode); },
       .image_needs_decode = epubPage::imageNeedsDecode,
       .font_ascent = [](int32_t font) -> int32_t { return epubPage::fontAscent(*target, font); },
+      .render_physical_query = [](uint8_t query) -> uint32_t { return physicalRenderQuery(*target, query); },
+      .render_physical_operation = [](const XpEpubPhysicalOp* op) -> uint32_t {
+        return physicalRenderOperation(*target, *op);
+      },
+      .render_plan = [](XpPagePlan* plan, XpPageRowBounds* bounds, uint16_t count,
+                        uint8_t recording) { physicalRenderPlan(*target, plan, bounds, count, recording); },
+      .image_read_window = physicalImageWindow,
+      .display_source = physicalDisplaySource,
+      .framebuffer_view = [](uint32_t* bytes) -> uint8_t* { return physicalFramebuffer(*target, bytes); },
   };
   if (!sectionMetrics.context) sectionMetrics.context = target;
   return leaves;

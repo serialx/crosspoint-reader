@@ -1,14 +1,36 @@
 use super::{abi, EpubSession, ResourceAccess};
 use core::mem::MaybeUninit;
-use xp_ui::{
-    reader::render::{Command, PhysicalRenderer, Renderer},
-    scene::Refresh,
-};
+use xp_ui::{reader::render::Command, scene::Refresh};
 
 impl EpubSession {
     pub(super) fn render_operation(&self, access: &ResourceAccess<'_>, command: Command) -> u32 {
-        let services = unsafe { &*(self.leaves.render_services)(self.native(access)) };
-        unsafe { PhysicalRenderer::new(services) }.execute(command)
+        #[cfg(feature = "app-test")]
+        if let Some(fixture) = self.legacy_pages.get() {
+            use xp_ui::reader::render::{PhysicalRenderer, Renderer};
+            let services = unsafe { &*(fixture.render_services)(self.native(access)) };
+            return unsafe { PhysicalRenderer::new(services) }.execute(command);
+        }
+        use super::render_resources::physical::{Kind, Op, Physical};
+        self.check_resources(access);
+        let mut op = Op::new(Kind::Clear);
+        op.kind = match command {
+            Command::Clear(value) => {
+                op.value = u32::from(value);
+                Kind::Clear
+            }
+            Command::Display(mode) => {
+                op.mode = mode as u8;
+                Kind::Display
+            }
+            Command::DisplayAsync(mode) => {
+                op.mode = mode as u8;
+                Kind::DisplayAsync
+            }
+            Command::Cleanup => Kind::Cleanup,
+            Command::StoreBw => Kind::StoreBw,
+            _ => panic!("overlay physical operation"),
+        } as u8;
+        self.leaves.operation(&op)
     }
 
     pub(super) fn discard_overlay_page(&self, access: &ResourceAccess<'_>) {

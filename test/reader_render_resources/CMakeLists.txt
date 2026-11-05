@@ -23,7 +23,7 @@ if(TARGET ReaderPageTransfer)
   execute_process(COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_physical.py
     ${PHYSICAL_DIR} COMMAND_ERROR_IS_FATAL ANY)
   set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-    extract_physical.py PhysicalFrame.cpp.in LogParity.cpp.in PixelPhysical.cpp.in
+    extract_physical.py PhysicalFrame.cpp.in LogParity.cpp.in PixelPhysical.cpp.in Frequency.cpp.in SessionFrame.cpp.in
     ${REPO_ROOT}/src/activities/reader/RustEpubResources.cpp)
   get_target_property(RESOURCE_SOURCES ReaderPageTransfer SOURCES)
   get_target_property(RESOURCE_INCLUDES ReaderPageTransfer INCLUDE_DIRECTORIES)
@@ -61,22 +61,44 @@ if(TARGET ReaderPageTransfer)
       ${REPO_ROOT}/test/cmake/xp_ffi_host.cpp)
     add_dependencies(ReaderResourceComposition_${mode} ResourceArchive_${mode} ReaderPageTransfer)
     target_include_directories(ReaderResourceComposition_${mode} PRIVATE
-      ${PHYSICAL_DIR}/physical ${RESOURCE_INCLUDES} ${REPO_ROOT} ${REPO_ROOT}/lib
+      ${REPO_ROOT}/test/reader_lifecycle/native_render ${PHYSICAL_DIR}/physical ${RESOURCE_INCLUDES} ${REPO_ROOT} ${REPO_ROOT}/lib
       ${REPO_ROOT}/rust/crates/xp-ffi/include)
     target_compile_definitions(ReaderResourceComposition_${mode} PRIVATE ${definitions})
-    target_compile_options(ReaderResourceComposition_${mode} PRIVATE -UNDEBUG)
+    target_compile_options(ReaderResourceComposition_${mode} PRIVATE -UNDEBUG -include ${REPO_ROOT}/test/reader_lifecycle/legacy_render_wire.h)
     target_link_libraries(ReaderResourceComposition_${mode} PRIVATE ${archive})
     add_test(NAME ReaderResourceComposition_${mode} COMMAND ${Python3_EXECUTABLE}
       ${REPO_ROOT}/test/page_codec_diff/run.py --dump $<TARGET_FILE:ReaderResourceComposition_${mode}>)
+    set(SESSION_SOURCES ${COMPOSITION_SOURCES})
+    list(FILTER SESSION_SOURCES EXCLUDE REGEX "PageTransfer.cpp$")
+    add_executable(ReaderSessionComposition_${mode} ${SESSION_SOURCES}
+      ${PHYSICAL_DIR}/SessionTransfer.cpp ${PHYSICAL_DIR}/SessionFrame.cpp
+      ${REPO_ROOT}/test/cmake/xp_ffi_host.cpp)
+    add_dependencies(ReaderSessionComposition_${mode} ResourceArchive_${mode} ReaderPageTransfer)
+    target_include_directories(ReaderSessionComposition_${mode} PRIVATE
+      ${REPO_ROOT}/test/reader_lifecycle/native_render ${PHYSICAL_DIR}/physical ${RESOURCE_INCLUDES}
+      ${REPO_ROOT}/test ${REPO_ROOT}/test/reader_page_owner ${REPO_ROOT} ${REPO_ROOT}/lib
+      ${REPO_ROOT}/rust/crates/xp-ffi/include)
+    target_compile_definitions(ReaderSessionComposition_${mode} PRIVATE ${definitions})
+    target_compile_options(ReaderSessionComposition_${mode} PRIVATE -UNDEBUG
+      -include ${REPO_ROOT}/test/reader_lifecycle/legacy_render_wire.h)
+    target_link_libraries(ReaderSessionComposition_${mode} PRIVATE ${archive})
+    add_test(NAME ReaderSessionComposition_${mode} COMMAND ${Python3_EXECUTABLE}
+      ${REPO_ROOT}/test/page_codec_diff/run.py --dump $<TARGET_FILE:ReaderSessionComposition_${mode}>)
     add_executable(ReaderResourceLogParity_${mode} ${PHYSICAL_DIR}/LogParity.cpp
       ${REPO_ROOT}/test/cmake/xp_ffi_host.cpp)
     add_dependencies(ReaderResourceLogParity_${mode} ResourceArchive_${mode})
     target_include_directories(ReaderResourceLogParity_${mode} PRIVATE
       ${PHYSICAL_DIR} ${REPO_ROOT}/src ${REPO_ROOT}/rust/crates/xp-ffi/include)
     target_compile_definitions(ReaderResourceLogParity_${mode} PRIVATE ${definitions})
-    target_compile_options(ReaderResourceLogParity_${mode} PRIVATE -UNDEBUG)
+    target_compile_options(ReaderResourceLogParity_${mode} PRIVATE -UNDEBUG -include ${REPO_ROOT}/test/reader_lifecycle/legacy_render_wire.h)
     target_link_libraries(ReaderResourceLogParity_${mode} PRIVATE ${archive})
     add_test(NAME ReaderResourceLogParity_${mode} COMMAND ReaderResourceLogParity_${mode})
+    add_executable(ReaderRefreshFrequency_${mode} ${PHYSICAL_DIR}/Frequency.cpp ${REPO_ROOT}/test/cmake/xp_ffi_host.cpp)
+    add_dependencies(ReaderRefreshFrequency_${mode} ResourceArchive_${mode})
+    target_include_directories(ReaderRefreshFrequency_${mode} PRIVATE ${REPO_ROOT}/test ${REPO_ROOT}/rust/crates/xp-ffi/include)
+    target_compile_options(ReaderRefreshFrequency_${mode} PRIVATE -UNDEBUG)
+    target_link_libraries(ReaderRefreshFrequency_${mode} PRIVATE ${archive})
+    add_test(NAME ReaderRefreshFrequency_${mode} COMMAND ReaderRefreshFrequency_${mode})
   endforeach()
   function(add_resource_pixel_composition)
     if(NOT TARGET ReaderStripReplay)
@@ -104,7 +126,7 @@ if(TARGET ReaderPageTransfer)
     target_include_directories(ReaderRustStripReplay PRIVATE ${source} ${binary}/composition
       ${REPO_ROOT}/test/page_golden ${includes} ${REPO_ROOT}/rust/crates/xp-ffi/include)
     target_compile_definitions(ReaderRustStripReplay PRIVATE ${definitions})
-    target_compile_options(ReaderRustStripReplay PRIVATE -UNDEBUG -ffunction-sections -fdata-sections -fno-exceptions)
+    target_compile_options(ReaderRustStripReplay PRIVATE -include ${REPO_ROOT}/test/reader_lifecycle/legacy_render_wire.h -UNDEBUG -ffunction-sections -fdata-sections -fno-exceptions)
     if(APPLE)
       target_link_options(ReaderRustStripReplay PRIVATE -Wl,-dead_strip)
     else()

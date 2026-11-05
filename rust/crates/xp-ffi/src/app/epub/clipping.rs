@@ -1,7 +1,6 @@
 use super::page_view::View;
 use super::{abi, app_abi, EpubSession, ResourceAccess};
 use core::mem::MaybeUninit;
-use xp_ui::reader::render::Query;
 
 const PAGE_LINE: u8 = 1;
 const UNDERLINE: u8 = 4;
@@ -104,11 +103,9 @@ impl ClipPage<'_, '_> {
     }
 
     fn fill(&self, rect: Rect) {
-        let services =
-            unsafe { &*(self.owner.leaves.render_services)(self.owner.native(self.access)) };
-        let read = services.read.expect("reader renderer");
-        if unsafe { read(services.context, Query::IsA4 as u8) } != 0
-            && unsafe { read(services.context, Query::IsBw as u8) } == 0
+        use super::render_resources::physical::Query as PhysicalQuery;
+        if self.owner.render_is_a4(self.access)
+            && self.owner.physical_query(self.access, PhysicalQuery::IsBw) == 0
         {
             let mut y = rect.y.wrapping_add(rect.y & 1);
             while y < rect.y.wrapping_add(rect.height) {

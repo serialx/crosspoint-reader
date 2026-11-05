@@ -1,4 +1,4 @@
-//! Stable storage for one reader's render resources; not yet used by the session.
+//! Stable session storage for the reader frame, prewarm and reusable strips.
 #[path = "render_resources/logging.rs"]
 pub(crate) mod logging;
 #[path = "render_resources/physical.rs"]
@@ -11,7 +11,6 @@ pub(crate) mod replay;
 use crate::app::{abi, resources::Buffer};
 use core::{
     cell::{Cell, RefCell, UnsafeCell},
-    ffi::c_void,
     marker::PhantomPinned,
     mem::MaybeUninit,
     pin::Pin,
@@ -28,8 +27,11 @@ pub(crate) trait PhysicalResources {
     unsafe fn prewarm_begin(&self, storage: *mut PrewarmStorage) -> bool;
     unsafe fn prewarm_finish(&self, storage: *mut PrewarmStorage);
     unsafe fn prewarm_drop(&self, storage: *mut PrewarmStorage);
+    #[cfg_attr(not(feature = "reader-strips"), allow(dead_code))]
     fn detach_source(&self);
+    #[cfg_attr(not(feature = "reader-strips"), allow(dead_code))]
     fn clear_plan(&self);
+    #[cfg_attr(not(feature = "reader-strips"), allow(dead_code))]
     fn clear_window(&self);
     fn release_images(&self);
 }
@@ -104,6 +106,7 @@ impl Slot {
         drop(old);
         success
     }
+    #[cfg(feature = "reader-strips")]
     fn ensure(&self, resources: &'static abi::Resources, bytes: usize) -> bool {
         !self.pointer().is_null() || self.allocate(resources, bytes)
     }
@@ -134,10 +137,11 @@ pub(crate) struct PageGeometry {
     pub(crate) font: i32,
     pub(crate) left: i32,
     pub(crate) top: i32,
+    #[cfg_attr(not(feature = "reader-strips"), allow(dead_code))]
     pub(crate) status_top: i32,
     pub(crate) images: bool,
+    #[cfg_attr(not(feature = "reader-strips"), allow(dead_code))]
     pub(crate) inverted: bool,
-    pub(crate) context: *mut c_void,
 }
 impl PageGeometry {
     pub(crate) const EMPTY: Self = Self {
@@ -150,14 +154,13 @@ impl PageGeometry {
         status_top: 0,
         images: false,
         inverted: false,
-        context: ptr::null_mut(),
     };
 }
 
 #[cfg(feature = "reader-strips")]
 struct StripFrame {
     plan: UnsafeCell<MaybeUninit<crate::page_render::Plan>>,
-    source: UnsafeCell<MaybeUninit<crate::display::DisplaySource>>,
+    source: UnsafeCell<MaybeUninit<crate::display_source::DisplaySource>>,
     committed_rows: Cell<u16>,
 }
 #[cfg(feature = "reader-strips")]
@@ -275,6 +278,20 @@ impl PageResources {
         Strips::initialize(ptr::addr_of_mut!((*out).strips));
         Prewarm::initialize(ptr::addr_of_mut!((*out).idle_prewarm));
         ptr::addr_of_mut!((*out).pinned).write(PhantomPinned);
+    }
+    pub(crate) fn close(self: Pin<&Self>, physical: &dyn PhysicalResources) {
+        assert!(!self.frame.active.get());
+        assert!(self.frame.prewarm.state.get() == Scan::Closed);
+        #[cfg(feature = "reader-strips")]
+        {
+            assert!(!self.strips.loaned());
+            self.strips.release_idle();
+        }
+        self.idle_prewarm.close(physical);
+    }
+    pub(crate) fn geometry(self: Pin<&Self>) -> PageGeometry {
+        assert!(self.frame.active.get());
+        self.frame.page.get()
     }
     pub(crate) fn begin_frame<'a>(
         self: Pin<&'a Self>,

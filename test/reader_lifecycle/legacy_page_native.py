@@ -13,7 +13,10 @@ FIELDS = ('page_close', 'page_info', 'page_element', 'page_word', 'metadata_assi
 def source(native):
     legacy = (HERE / 'legacy_page_native.inc').read_text()
     for signature in ('struct NativeRenderFrame {', 'struct NativeResources {', 'NativeResources& resources(void* handle)'):
-        native = native.replace(definition(native, signature), definition(legacy, signature))
+        if signature in native:
+            native = native.replace(definition(native, signature), definition(legacy, signature))
+        else:
+            native += '\n' + definition(legacy, signature) + '\n'
     for field in FIELDS:
         old = native_leaf(legacy, field)
         if re.search(r'\.' + field + r'\s*=', native):

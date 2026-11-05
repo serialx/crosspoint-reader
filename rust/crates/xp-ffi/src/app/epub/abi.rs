@@ -1,9 +1,7 @@
 // Evidence draft: import existing ABI types at the platform boundary.
 use super::super::abi::{Text as XpAppText, TextSink as XpAppTextSink, XpAppNativeText};
 use super::app_abi;
-use xp_ui::reader::{
-    input::Services as XpUiReaderInputServices, render::Services as XpUiReaderRenderServices,
-};
+use xp_ui::reader::input::Services as XpUiReaderInputServices;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -92,6 +90,7 @@ pub struct XpEpubSettings {
     pub screen_inverted: u8,
     pub ble_enabled: u8,
     pub dictionary_available: u8,
+    pub refresh_frequency: u8,
     pub font_family: XpAppText,
 }
 
@@ -305,13 +304,7 @@ pub type XpEpubBookmarkSink =
 pub type XpEpubToolbarRowSink =
     unsafe extern "C" fn(context: *mut core::ffi::c_void, value: *const XpEpubToolbarRow) -> u8;
 pub type XpEpubBuildPopup = unsafe extern "C" fn(context: *mut core::ffi::c_void);
-pub type XpEpubHighlight = unsafe extern "C" fn(
-    context: *mut core::ffi::c_void,
-    page: *const XpEpubPageView,
-    font: i32,
-    left: i32,
-    top: i32,
-);
+
 pub type XpEpubRowSource = unsafe extern "C" fn(
     context: *mut core::ffi::c_void,
     index: i32,
@@ -370,28 +363,12 @@ pub struct XpEpubOwnedPage {
 
 #[repr(C)]
 pub struct XpEpubLeaves {
-    pub resources_open: unsafe extern "C" fn() -> *mut core::ffi::c_void,
-    pub resources_close: unsafe extern "C" fn(resources: *mut core::ffi::c_void),
-    pub render_services:
-        unsafe extern "C" fn(resources: *mut core::ffi::c_void) -> *const XpUiReaderRenderServices,
-    pub render_bind_page: unsafe extern "C" fn(
-        resources: *mut core::ffi::c_void,
-        page: *const XpEpubPageView,
-        font: i32,
-        left: i32,
-        top: i32,
-        bottom: i32,
-        highlight: XpEpubHighlight,
-        context: *mut core::ffi::c_void,
-    ),
-    pub render_finish_page: unsafe extern "C" fn(resources: *mut core::ffi::c_void),
     pub render_margins: unsafe extern "C" fn(margins: *mut i32),
     pub render_geometry: unsafe extern "C" fn(out: *mut XpEpubGeometry),
     pub render_restore_bw: unsafe extern "C" fn(resync: u8),
     pub render_discard_bw: unsafe extern "C" fn(),
     pub render_orientation: unsafe extern "C" fn(orientation: u8),
     pub loan_count: unsafe extern "C" fn() -> u32,
-    pub strip_release_idle: unsafe extern "C" fn(resources: *mut core::ffi::c_void) -> u8,
     pub book_facade_open: unsafe extern "C" fn(
         book: *mut core::ffi::c_void,
         view: *const XpEpubBookView,
@@ -440,9 +417,12 @@ pub struct XpEpubLeaves {
     pub image_release_cache: unsafe extern "C" fn(),
     pub fonts_ensure_loaded: unsafe extern "C" fn(),
     pub fonts_release_caches: unsafe extern "C" fn(),
-    pub fonts_prewarm_begin: unsafe extern "C" fn(resources: *mut core::ffi::c_void) -> u8,
-    pub fonts_prewarm_finish_scan: unsafe extern "C" fn(resources: *mut core::ffi::c_void),
-    pub fonts_prewarm_drop: unsafe extern "C" fn(resources: *mut core::ffi::c_void),
+    pub fonts_prewarm_begin:
+        unsafe extern "C" fn(storage: *mut super::render_resources::PrewarmStorage) -> u8,
+    pub fonts_prewarm_finish_scan:
+        unsafe extern "C" fn(storage: *mut super::render_resources::PrewarmStorage),
+    pub fonts_prewarm_drop:
+        unsafe extern "C" fn(storage: *mut super::render_resources::PrewarmStorage),
     pub fonts_take_corrupt_notice: unsafe extern "C" fn() -> u8,
     pub font_sizes: unsafe extern "C" fn(
         family: XpAppText,
@@ -668,6 +648,13 @@ pub struct XpEpubLeaves {
     pub paint_arena: unsafe extern "C" fn(*const XpEpubPageView, i32, i32, i32, u8),
     pub image_needs_decode: unsafe extern "C" fn(XpAppText, XpAppText, i16, i16) -> u8,
     pub font_ascent: unsafe extern "C" fn(i32) -> i32,
+    pub render_physical_query: unsafe extern "C" fn(u8) -> u32,
+    pub render_physical_operation:
+        unsafe extern "C" fn(*const super::render_resources::physical::Op) -> u32,
+    pub render_plan: unsafe extern "C" fn(*mut crate::page_render::Plan, *mut u8, u16, u8),
+    pub image_read_window: unsafe extern "C" fn(*mut u8, u32),
+    pub display_source: unsafe extern "C" fn(*mut crate::display_source::DisplaySource) -> u8,
+    pub framebuffer_view: unsafe extern "C" fn(*mut u32) -> *mut u8,
 }
 
 const _: () = {
@@ -693,11 +680,11 @@ const _: () = {
     );
     assert!(
         core::mem::offset_of!(XpEpubLeaves, log)
-            == 141 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 135 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
     assert!(
         core::mem::offset_of!(XpEpubLeaves, font_text_advance)
-            == 142 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 136 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
 };
 
@@ -714,7 +701,7 @@ const _: fn(&XpEpubLeaves) = |leaves| {
 const _: () = {
     assert!(
         core::mem::offset_of!(XpEpubLeaves, log_enabled)
-            == 143 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 137 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
 };
 const _: fn(&XpEpubLeaves) = |leaves| {
@@ -724,7 +711,7 @@ const _: fn(&XpEpubLeaves) = |leaves| {
 const _: () = {
     assert!(
         core::mem::offset_of!(XpEpubLeaves, toolbar_reset_navigation)
-            == 144 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 138 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
 };
 const _: fn(&XpEpubLeaves) = |leaves| {
@@ -734,6 +721,7 @@ const _: fn(&XpEpubLeaves) = |leaves| {
 const _: () = {
     assert!(core::mem::offset_of!(XpEpubSettings, orientation) == 4);
     assert!(core::mem::offset_of!(XpEpubSettings, dictionary_available) == 26);
+    assert!(core::mem::offset_of!(XpEpubSettings, refresh_frequency) == 27);
     assert!(
         core::mem::offset_of!(XpEpubSettings, font_family)
             == if core::mem::size_of::<usize>() == 8 {
@@ -762,7 +750,7 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubPeer, addr) == 64);
     assert!(
         core::mem::offset_of!(XpEpubLeaves, radio_status)
-            == 65 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 59 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
 };
 const _: fn(&XpEpubLeaves) = |leaves| {
@@ -788,7 +776,7 @@ const _: () = {
 const _: () = {
     assert!(
         core::mem::offset_of!(XpEpubLeaves, input_snapshot)
-            == 145 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 139 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
 };
 const _: fn(&XpEpubLeaves) = |leaves| {
@@ -803,38 +791,38 @@ const _: () = {
 
 const _: () = {
     assert!(
-        core::mem::offset_of!(XpEpubLeaves, protection_open) == 15 * core::mem::size_of::<usize>()
+        core::mem::offset_of!(XpEpubLeaves, protection_open) == 9 * core::mem::size_of::<usize>()
     );
     assert!(
-        core::mem::offset_of!(XpEpubLeaves, protection_close) == 16 * core::mem::size_of::<usize>()
+        core::mem::offset_of!(XpEpubLeaves, protection_close) == 10 * core::mem::size_of::<usize>()
     );
     assert!(
         core::mem::offset_of!(XpEpubLeaves, protection_encrypted)
-            == 17 * core::mem::size_of::<usize>()
+            == 11 * core::mem::size_of::<usize>()
     );
     assert!(
-        core::mem::offset_of!(XpEpubLeaves, protection_size) == 18 * core::mem::size_of::<usize>()
+        core::mem::offset_of!(XpEpubLeaves, protection_size) == 12 * core::mem::size_of::<usize>()
     );
     assert!(
         core::mem::offset_of!(XpEpubLeaves, protection_stream)
-            == 19 * core::mem::size_of::<usize>()
+            == 13 * core::mem::size_of::<usize>()
     );
-    assert!(core::mem::offset_of!(XpEpubLeaves, file_seek) == 20 * core::mem::size_of::<usize>());
-    assert!(core::mem::offset_of!(XpEpubLeaves, file_size) == 21 * core::mem::size_of::<usize>());
+    assert!(core::mem::offset_of!(XpEpubLeaves, file_seek) == 14 * core::mem::size_of::<usize>());
+    assert!(core::mem::offset_of!(XpEpubLeaves, file_size) == 15 * core::mem::size_of::<usize>());
     assert!(
-        core::mem::offset_of!(XpEpubLeaves, path_remove_tree) == 22 * core::mem::size_of::<usize>()
+        core::mem::offset_of!(XpEpubLeaves, path_remove_tree) == 16 * core::mem::size_of::<usize>()
     );
-    assert!(core::mem::offset_of!(XpEpubLeaves, cache_lock) == 146 * core::mem::size_of::<usize>());
+    assert!(core::mem::offset_of!(XpEpubLeaves, cache_lock) == 140 * core::mem::size_of::<usize>());
     assert!(
-        core::mem::offset_of!(XpEpubLeaves, cache_unlock) == 147 * core::mem::size_of::<usize>()
-    );
-    assert!(
-        core::mem::offset_of!(XpEpubLeaves, scratch_claim) == 148 * core::mem::size_of::<usize>()
+        core::mem::offset_of!(XpEpubLeaves, cache_unlock) == 141 * core::mem::size_of::<usize>()
     );
     assert!(
-        core::mem::offset_of!(XpEpubLeaves, scratch_release) == 149 * core::mem::size_of::<usize>()
+        core::mem::offset_of!(XpEpubLeaves, scratch_claim) == 142 * core::mem::size_of::<usize>()
     );
     assert!(
-        core::mem::offset_of!(XpEpubLeaves, inflate_oom_log) == 150 * core::mem::size_of::<usize>()
+        core::mem::offset_of!(XpEpubLeaves, scratch_release) == 143 * core::mem::size_of::<usize>()
+    );
+    assert!(
+        core::mem::offset_of!(XpEpubLeaves, inflate_oom_log) == 144 * core::mem::size_of::<usize>()
     );
 };

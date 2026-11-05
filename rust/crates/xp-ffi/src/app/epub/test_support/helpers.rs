@@ -21,17 +21,19 @@ pub struct HelpersObservation {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn xp_epub_test_helpers_create(
+pub unsafe extern "C" fn xp_epub_test_helpers_create_legacy_render(
     seed: *const HelpersSeed,
     leaves: *const abi::XpEpubLeaves,
     runtime: *const app_abi::Runtime,
     resources: *const app_abi::Resources,
+    legacy: Option<&'static super::legacy_page::LegacyPageServices>,
 ) -> *mut c_void {
     let seed = &*seed;
     let Some(mut owner) = EpubSession::try_new(b"", false, 0, &*leaves, &*runtime, &*resources)
     else {
         return core::ptr::null_mut();
     };
+    owner.legacy_pages.set(legacy);
     let state = owner.state.get_mut();
     state.ready = true;
     state.base.refresh_counter = seed.refresh;

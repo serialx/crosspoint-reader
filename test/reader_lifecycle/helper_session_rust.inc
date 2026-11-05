@@ -1,3 +1,4 @@
+static auto legacyRender = unexpectedLegacyPageServices();
 static int modelDepth = 0;
 static EpubReaderActivity* activeEpub = nullptr;
 static ReaderActivity* activeBase = nullptr;
@@ -154,18 +155,12 @@ static XpUiReaderRenderServices renderServices{
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
   static_assert(sizeof(XpEpubLeaves) == 167 * sizeof(void (*)()));
-  UNUSED_LEAF(resources_open);
-  UNUSED_LEAF(resources_close);
-  UNUSED_LEAF(render_services);
-  UNUSED_LEAF(render_bind_page);
-  UNUSED_LEAF(render_finish_page);
   UNUSED_LEAF(render_margins);
   UNUSED_LEAF(render_geometry);
   UNUSED_LEAF(render_restore_bw);
   UNUSED_LEAF(render_discard_bw);
   UNUSED_LEAF(render_orientation);
   UNUSED_LEAF(loan_count);
-  UNUSED_LEAF(strip_release_idle);
   UNUSED_LEAF(progress_to_reader);
   UNUSED_LEAF(progress_to_saved);
   UNUSED_LEAF(progress_save);
@@ -322,7 +317,13 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(paint_arena);
   UNUSED_LEAF(image_needs_decode);
   UNUSED_LEAF(font_ascent);
-  table.render_services = [](void* root) -> const XpUiReaderRenderServices* {
+  UNUSED_LEAF(render_physical_query);
+  UNUSED_LEAF(render_physical_operation);
+  UNUSED_LEAF(render_plan);
+  UNUSED_LEAF(image_read_window);
+  UNUSED_LEAF(display_source);
+  UNUSED_LEAF(framebuffer_view);
+  legacyRender.render_services = [](void* root) -> const XpUiReaderRenderServices* {
     leaf();
     assert(activeEpub && root == activeEpub && lockDepth == 1);
     renderServices.context = root;
@@ -373,7 +374,7 @@ void EpubReaderActivity::initialize() {
   activeEpub = this;
   const XpEpubTestHelpersSeed seed{this, &overlayPopup, 0, static_cast<uint8_t>(overlayPageStored),
                                   static_cast<uint8_t>(overlayRefreshPending)};
-  owner = xp_epub_test_helpers_create(&seed, &leaves, &runtime, &resources);
+  owner = xp_epub_test_helpers_create_legacy_render(&seed, &leaves, &runtime, &resources, &legacyRender);
   assert(owner && !modelDepth);
 }
 EpubReaderActivity::~EpubReaderActivity() {
@@ -428,7 +429,7 @@ void ReaderActivity::initialize() {
   assert(!activeBase && !activeEpub);
   activeBase = this;
   const XpEpubTestHelpersSeed seed{this, nullptr, counter, 0, 0};
-  owner = xp_epub_test_helpers_create(&seed, &leaves, &runtime, &resources);
+  owner = xp_epub_test_helpers_create_legacy_render(&seed, &leaves, &runtime, &resources, &legacyRender);
   assert(owner && !modelDepth);
 }
 ReaderActivity::~ReaderActivity() {

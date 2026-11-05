@@ -1,4 +1,4 @@
-//! Physical wire values for the dormant adapter; no production leaf is added yet.
+//! Physical display boundary; ownership and logical rendering stay in Rust.
 use super::PhysicalResources;
 
 #[repr(u8)]
@@ -15,8 +15,10 @@ pub(crate) enum Query {
     Height,
     FreeHeap,
     MaxBlock,
+    #[cfg_attr(not(feature = "reader-strips"), allow(dead_code))]
     Mode,
     Inverted,
+    #[cfg_attr(not(feature = "reader-strips"), allow(dead_code))]
     Width,
 }
 
@@ -29,6 +31,7 @@ pub(crate) enum Kind {
     GrayBase,
     AbsoluteBase,
     Precondition,
+    #[cfg_attr(not(feature = "reader-strips"), allow(dead_code))]
     Mode,
     StripBegin,
     StripEnd,
@@ -40,6 +43,7 @@ pub(crate) enum Kind {
     RestoreBw,
     CopyLsb,
     CopyMsb,
+    #[cfg_attr(not(feature = "reader-strips"), allow(dead_code))]
     CopyStatus,
 }
 
@@ -82,7 +86,7 @@ pub(crate) trait Physical: PhysicalResources {
     #[cfg(feature = "reader-strips")]
     fn image_window(&self, bytes: *mut u8, length: u32);
     #[cfg(feature = "reader-strips")]
-    fn source(&self, source: *mut crate::display::DisplaySource) -> bool;
+    fn source(&self, source: *mut crate::display_source::DisplaySource) -> bool;
     #[cfg(feature = "reader-strips")]
     fn framebuffer(&self) -> (*mut u8, usize);
 }

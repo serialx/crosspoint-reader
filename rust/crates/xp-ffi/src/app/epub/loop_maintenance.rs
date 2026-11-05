@@ -1,17 +1,10 @@
+use super::render_resources::physical::Query;
 use super::session_section::Section as ReaderSection;
-use super::{abi, EpubSession, ResourceAccess};
+use super::{abi, EpubSession};
 use core::mem::MaybeUninit;
 use xp_ui::reader::{
     BACKGROUND_BUILD_MIN_MAX_ALLOC, PARTIAL_REBUILD_START_MARGIN, RENDER_MIN_FREE_HEAP,
 };
-
-struct Prewarm<'a, 'b>(&'a ResourceAccess<'b>);
-impl Drop for Prewarm<'_, '_> {
-    fn drop(&mut self) {
-        let owner = self.0.owner;
-        unsafe { (owner.leaves.fonts_prewarm_drop)(owner.native(self.0)) };
-    }
-}
 
 impl EpubSession {
     pub(super) fn loop_radio_after(&self) {
@@ -90,21 +83,8 @@ impl EpubSession {
         {
             return;
         }
-        let services = unsafe { (self.leaves.render_services)(self.native(&access)).as_ref() }
-            .expect("physical renderer services");
-        let read = services.read.expect("physical renderer query");
-        if unsafe {
-            read(
-                services.context,
-                xp_ui::reader::render::Query::FreeHeap as u8,
-            )
-        } <= RENDER_MIN_FREE_HEAP
-            || unsafe {
-                read(
-                    services.context,
-                    xp_ui::reader::render::Query::MaxBlock as u8,
-                )
-            } <= BACKGROUND_BUILD_MIN_MAX_ALLOC
+        if self.physical_query(&access, Query::FreeHeap) <= RENDER_MIN_FREE_HEAP
+            || self.physical_query(&access, Query::MaxBlock) <= BACKGROUND_BUILD_MIN_MAX_ALLOC
         {
             return;
         }
@@ -125,15 +105,12 @@ impl EpubSession {
             return;
         }
         let started = unsafe { (self.runtime.now_ms)() };
-        if unsafe { (self.leaves.fonts_prewarm_begin)(self.native(&access)) } == 0 {
+        let Some(prewarm) = self.idle_prewarm(&access) else {
             return;
-        }
-        let _prewarm = Prewarm(&access);
-        unsafe {
-            page.borrow()
-                .paint(self.leaves, self.settings(true).font, 0, 0);
-            (self.leaves.fonts_prewarm_finish_scan)(self.native(&access));
-        }
+        };
+        page.borrow()
+            .paint(self.leaves, self.settings(true).font, 0, 0);
+        prewarm.finish_scan();
         if unsafe { (self.leaves.log_enabled)(0) } != 0 {
             let elapsed = unsafe { (self.runtime.now_ms)() }.wrapping_sub(started);
             self.loop_log(
@@ -162,7 +139,7 @@ impl EpubSession {
         {
             return;
         }
-        unsafe { (self.leaves.strip_release_idle)(self.native(&access)) };
+        self.release_idle_strips(&access);
         let (width, height) = self.model(|state| state.viewport);
         let mut spec = MaybeUninit::<abi::XpEpubRenderSpec>::uninit();
         unsafe { (self.leaves.settings_render_spec)(width, height, spec.as_mut_ptr()) };

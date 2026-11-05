@@ -109,7 +109,7 @@ inline void fill(GfxRenderer& renderer, int x, int y, int width, int height) {
     return active->renderer.getRenderMode() == GfxRenderer::BW;
   };
   renderServices.execute = &Unexpected<decltype(renderServices.execute)>::call;
-  leaves.render_services = [](void* p) -> const XpUiReaderRenderServices* {
+  legacySection.page.render_services = [](void* p) -> const XpUiReaderRenderServices* {
     assert(p == active);
     return &renderServices;
   };

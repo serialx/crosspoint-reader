@@ -43,6 +43,13 @@ def digest(data):
 
 def fixture(native):
     source = (HERE / 'render_oracle.cpp').read_text()
+    # Keep the frozen oracle's synthetic wire types distinct from the public ABI.
+    source = replace_once(source, '#include <algorithm>',
+                          '#define XpDisplaySource LegacyOracleDisplaySource\n'
+                          '#if !defined(XP_STRIP_RENDER) || !XP_STRIP_RENDER\n'
+                          '#define XpPagePlan LegacyOraclePagePlan\n'
+                          '#define XpPageRowBounds LegacyOraclePageRowBounds\n'
+                          '#endif\n#include <algorithm>')
     source = replace_once(source, '// ACTUAL_NATIVE_FRAME', definition(native, 'struct NativeRenderFrame {') + ';')
     source = replace_once(source, '// ACTUAL_NATIVE_RESOURCES', definition(native, 'struct NativeResources {') + ';')
     source = replace_once(source, '// ACTUAL_NATIVE_RESOURCE_ACCESS',

@@ -28,3 +28,8 @@ pub unsafe extern "C" fn xp_crc32(data: *const u8, len: usize) -> u32 {
     };
     xp_core::crc32(bytes)
 }
+
+#[path = "../../../rust/crates/xp-ffi/src/display/source.rs"]
+mod display_source;
+#[path = "../../../rust/crates/xp-ffi/src/page_plan/storage.rs"]
+mod page_render;

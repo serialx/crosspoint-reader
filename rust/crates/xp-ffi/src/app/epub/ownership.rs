@@ -21,24 +21,43 @@ impl EpubSession {
         runtime: &'static app_abi::Runtime,
         resources: &'static app_abi::Resources,
     ) -> Option<Box<Self>> {
+        Self::try_owned_with_fixture(
+            path,
+            fast_initial,
+            leaves,
+            runtime,
+            resources,
+            #[cfg(feature = "app-test")]
+            None,
+        )
+    }
+    pub(super) fn try_owned_with_fixture(
+        path: &[u8],
+        fast_initial: bool,
+        leaves: &'static abi::XpEpubLeaves,
+        runtime: &'static app_abi::Runtime,
+        resources: &'static app_abi::Resources,
+        #[cfg(feature = "app-test")] fixture: Option<
+            &'static super::test_support::legacy_page::LegacyPageServices,
+        >,
+    ) -> Option<Box<Self>> {
         let mut pending = Pending(Some(Self::try_new(
             path, false, 0, leaves, runtime, resources,
         )?));
+        #[cfg(feature = "app-test")]
+        if let Some(fixture) = fixture {
+            let owner = pending.0.as_mut().expect("pending owner");
+            owner.legacy_pages.set(Some(fixture));
+        }
         let owner = pending.0.as_ref().expect("pending owner");
         let access = owner.entry_resources();
-        let native = NonNull::new(unsafe { (leaves.resources_open)() })?;
-        owner.set_native(&access, Some(native));
+        #[cfg(feature = "app-test")]
+        if let Some(fixture) = fixture {
+            let native = NonNull::new(unsafe { (fixture.resources_open)() })?;
+            owner.set_native(&access, Some(native));
+        }
         if fast_initial {
-            let render = unsafe { (leaves.render_services)(native.as_ptr()).as_ref() }
-                .expect("physical root render services");
-            let frequency = unsafe {
-                render.read.expect("physical root query")(
-                    render.context,
-                    xp_ui::reader::render::Query::Frequency as u8,
-                )
-            } as i32;
-            // Entry owns the unpublished model; no render can observe it yet.
-            unsafe { owner.initialize_refresh_counter(frequency) };
+            unsafe { owner.initialize_refresh_counter(owner.refresh_frequency(&access)) };
         }
         let bookmarks = NonNull::new(unsafe { (leaves.bookmarks_open)() })?;
         owner.set_bookmarks(&access, Some(bookmarks));
@@ -64,10 +83,12 @@ impl EpubSession {
         if let Some(bookmarks) = self.take_bookmarks(access) {
             unsafe { (self.leaves.bookmarks_close)(bookmarks.as_ptr()) };
         }
+        #[cfg(feature = "app-test")]
         if let Some(native) = self.take_native(access) {
-            unsafe { (self.leaves.resources_close)(native.as_ptr()) };
-            self.release_page_metadata(access);
+            unsafe { (self.legacy_render().resources_close)(native.as_ptr()) };
         }
+        self.page_resources(access).close(self.leaves);
+        self.release_page_metadata(access);
     }
 
     // Called by App under its lifetime lock, after publication excludes render.

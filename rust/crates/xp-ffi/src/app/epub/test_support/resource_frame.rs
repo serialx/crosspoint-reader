@@ -82,7 +82,7 @@ impl physical::Physical for Callbacks {
         }
     }
     #[cfg(feature = "reader-strips")]
-    fn source(&self, source: *mut crate::display::DisplaySource) -> bool {
+    fn source(&self, source: *mut crate::display_source::DisplaySource) -> bool {
         unsafe { (self.source)(self.context, source.cast()) != 0 }
     }
     #[cfg(feature = "reader-strips")]

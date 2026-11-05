@@ -119,7 +119,7 @@ static void run(bool callerHeld) {
   assert(renderer.storeBwBuffer());
   unlockRender(token);
   XpEpubTestHelpersSeed seed{&renderer, nullptr, 7, 1, 0};
-  void* owner = xp_epub_test_helpers_create(&seed, &leaves, &runtime, &resources);
+  void* owner = xp_epub_test_helpers_create_legacy_render(&seed, &leaves, &runtime, &resources);
   assert(owner);
   pauseDiscard = true;
   auto disposal = std::async(std::launch::async, [=] {

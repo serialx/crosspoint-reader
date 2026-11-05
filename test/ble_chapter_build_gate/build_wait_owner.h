@@ -1,7 +1,10 @@
 #pragma once
 #include <string_view>
 
+#include "../reader_lifecycle/legacy_page_fixture.h"
 #include "owner_tables.h"
+
+static auto legacyRender = unexpectedLegacyPageServices();
 
 struct XpEpubTestHelpersSeed {
   void* native;
@@ -11,8 +14,8 @@ struct XpEpubTestHelpersSeed {
   uint8_t pending;
 };
 extern "C" {
-void* xp_epub_test_helpers_create(const XpEpubTestHelpersSeed*, const XpEpubLeaves*, const XpAppRuntime*,
-                                  const XpAppResources*);
+void* xp_epub_test_helpers_create_legacy_render(const XpEpubTestHelpersSeed*, const XpEpubLeaves*, const XpAppRuntime*,
+                                                const XpAppResources*, const XpEpubLegacyPageServices*);
 void xp_epub_test_helpers_destroy(void*);
 uint8_t xp_epub_test_build_room(void*);
 }
@@ -45,7 +48,7 @@ bool waitForBuildRoom(Status status, Now now, Sleep sleep) {
   auto leaves = leavesDefaults();
   auto runtime = modelRuntime();
   auto resources = resourcesDefaults();
-  leaves.strip_release_idle = [](void* raw) -> uint8_t {
+  legacyRender.strip_release_idle = [](void* raw) -> uint8_t {
     physical();
     assert(raw == active);
     ++active->strips;
@@ -83,7 +86,7 @@ bool waitForBuildRoom(Status status, Now now, Sleep sleep) {
     active->sleep(active->context, ms);
   };
   const XpEpubTestHelpersSeed seed{&calls, nullptr, 0, 0, 0};
-  void* owner = xp_epub_test_helpers_create(&seed, &leaves, &runtime, &resources);
+  void* owner = xp_epub_test_helpers_create_legacy_render(&seed, &leaves, &runtime, &resources, &legacyRender);
   assert(owner);
   // This existing test entry borrows the fixture's exclusive resource capability.
   const bool room = xp_epub_test_build_room(owner) != 0;

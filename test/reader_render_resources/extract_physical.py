@@ -6,7 +6,7 @@ import sys
 root = Path(__file__).resolve().parents[2]
 here = Path(__file__).resolve().parent
 sys.path.insert(0, str(root / 'test/reader_lifecycle'))
-from test_popup_resource import definition, replace_once
+from test_popup_resource import definition, native_leaf, replace_once
 
 out = Path(sys.argv[1])
 (out / 'physical').mkdir(parents=True, exist_ok=True)
@@ -42,7 +42,7 @@ bridge = (here / 'PhysicalFrame.cpp.in').read_text()
 (out / 'ResourceCallbacks.h').write_text('#pragma once\n#include <xp_app.h>\n'
     '#include "activities/reader/RustEpubRenderPhysical.h"\n'
     + definition(bridge, 'struct ResourceCallbacks {') + ';\n')
-log = definition(native, '[[gnu::noinline]] void log(uint32_t id) const')
+log = definition((here / 'parent_frame.inc').read_text(), '[[gnu::noinline]] void log(uint32_t id) const')
 (out / 'LogParity.cpp').write_text(replace_once((here / 'LogParity.cpp.in').read_text(), '// ACTUAL_LOG', log))
 pixels = (here / 'PixelPhysical.cpp.in').read_text()
 pixels = replace_once(pixels, '// ACTUAL_OPERATION', definition(native, signatures[1]))
@@ -53,3 +53,20 @@ oracle = (root / 'test/page_golden/ReaderStripReplay.cpp').read_text()
 oracle = replace_once(oracle, '#include <activities/reader/ReaderStripPainter.h>',
     '#include "RustStripPainter.h"\n#define ReaderStripPainter RustStripPainter')
 (out / 'RustStripReplay.cpp').write_text(oracle)
+
+frequency = (here / 'Frequency.cpp.in').read_text()
+frequency = replace_once(frequency, '// ACTUAL_GETTER', definition((root / 'src/CrossPointSettings.cpp').read_text(), 'int CrossPointSettings::getRefreshFrequency() const'))
+frequency = replace_once(frequency, '/* ACTUAL_SNAPSHOT */', native_leaf(native, 'settings_snapshot'))
+(out / 'Frequency.cpp').write_text(frequency)
+
+# Add real session coverage beside the unchanged Page transfer oracle body.
+session = (root / 'test/reader_page_owner/PageTransfer.cpp').read_text()
+session = replace_once(session, 'void exercise(const uint8_t* wire, size_t size, bool faults) {',
+    'void exercise(const uint8_t* wire, size_t size, bool faults) {\n'
+    '  reset();\n  testRealSession(leaves, {wire, size}, renderer, faults);\n')
+session = replace_once(session, 'void testPageFrame(const XpEpubPageView&, GfxRenderer&);',
+    'void testPageFrame(const XpEpubPageView&, GfxRenderer&);\n'
+    'void testRealSession(const XpEpubLeaves&, XpAppText, GfxRenderer&, bool);')
+(out / 'SessionTransfer.cpp').write_text(session)
+(out / 'SessionFrame.cpp').write_text((out / 'ResourceFrame.cpp').read_text() + '\n'
+    + (here / 'SessionFrame.cpp.in').read_text())

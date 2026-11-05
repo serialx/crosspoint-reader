@@ -83,6 +83,15 @@ pub struct LegacyPageServices {
         count: u8,
         args: *const XpEpubSelectionArgs,
     ) -> *mut core::ffi::c_void,
+    pub resources_open: unsafe extern "C" fn() -> *mut c_void,
+    pub resources_close: unsafe extern "C" fn(*mut c_void),
+    pub render_services:
+        unsafe extern "C" fn(*mut c_void) -> *const xp_ui::reader::render::Services,
+    pub render_finish_page: unsafe extern "C" fn(*mut c_void),
+    pub strip_release_idle: unsafe extern "C" fn(*mut c_void) -> u8,
+    pub fonts_prewarm_begin: unsafe extern "C" fn(*mut c_void) -> u8,
+    pub fonts_prewarm_finish_scan: unsafe extern "C" fn(*mut c_void),
+    pub fonts_prewarm_drop: unsafe extern "C" fn(*mut c_void),
 }
 
 use super::super::{page::Factory, page_owner, page_view};
@@ -242,4 +251,12 @@ pub unsafe extern "C" fn xp_epub_test_install_page_fake(
     let owner = unsafe { &*owner.cast::<super::super::EpubSession>() };
     assert!(owner.legacy_pages.get().is_none());
     owner.legacy_pages.set(Some(services));
+}
+
+impl super::super::EpubSession {
+    pub(in crate::app::epub) fn legacy_render(&self) -> &'static LegacyPageServices {
+        self.legacy_pages
+            .get()
+            .expect("named legacy render fixture")
+    }
 }

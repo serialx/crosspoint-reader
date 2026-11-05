@@ -20,18 +20,12 @@ struct AppFixtureUnexpected<R (*)(A...), Slot> {
 inline XpEpubLeaves unexpectedEpubLeaves() {
   XpEpubLeaves value{};
   static_assert(sizeof(XpEpubLeaves) == 167 * sizeof(void (*)()));
-  value.resources_open = &AppFixtureUnexpected<decltype(value.resources_open), 0>::call;
-  value.resources_close = &AppFixtureUnexpected<decltype(value.resources_close), 1>::call;
-  value.render_services = &AppFixtureUnexpected<decltype(value.render_services), 2>::call;
-  value.render_bind_page = &AppFixtureUnexpected<decltype(value.render_bind_page), 3>::call;
-  value.render_finish_page = &AppFixtureUnexpected<decltype(value.render_finish_page), 4>::call;
   value.render_margins = &AppFixtureUnexpected<decltype(value.render_margins), 5>::call;
   value.render_geometry = &AppFixtureUnexpected<decltype(value.render_geometry), 6>::call;
   value.render_restore_bw = &AppFixtureUnexpected<decltype(value.render_restore_bw), 7>::call;
   value.render_discard_bw = &AppFixtureUnexpected<decltype(value.render_discard_bw), 8>::call;
   value.render_orientation = &AppFixtureUnexpected<decltype(value.render_orientation), 9>::call;
   value.loan_count = &AppFixtureUnexpected<decltype(value.loan_count), 13>::call;
-  value.strip_release_idle = &AppFixtureUnexpected<decltype(value.strip_release_idle), 14>::call;
   value.book_facade_open = &AppFixtureUnexpected<decltype(value.book_facade_open), 15>::call;
   value.book_facade_close = &AppFixtureUnexpected<decltype(value.book_facade_close), 16>::call;
   value.book_set_extractor = &AppFixtureUnexpected<decltype(value.book_set_extractor), 17>::call;
@@ -187,6 +181,12 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.paint_arena = &AppFixtureUnexpected<decltype(value.paint_arena), 164>::call;
   value.image_needs_decode = &AppFixtureUnexpected<decltype(value.image_needs_decode), 165>::call;
   value.font_ascent = &AppFixtureUnexpected<decltype(value.font_ascent), 166>::call;
+  value.render_physical_query = &AppFixtureUnexpected<decltype(value.render_physical_query), 166>::call;
+  value.render_physical_operation = &AppFixtureUnexpected<decltype(value.render_physical_operation), 166>::call;
+  value.render_plan = &AppFixtureUnexpected<decltype(value.render_plan), 166>::call;
+  value.image_read_window = &AppFixtureUnexpected<decltype(value.image_read_window), 166>::call;
+  value.display_source = &AppFixtureUnexpected<decltype(value.display_source), 166>::call;
+  value.framebuffer_view = &AppFixtureUnexpected<decltype(value.framebuffer_view), 166>::call;
   return value;
 }
 

@@ -17,6 +17,7 @@ mod input;
 mod overlay_actions;
 mod overlay_input;
 pub(super) use overlay_input::OverlayInputHooks;
+mod frequency;
 pub(super) mod overlay_view;
 mod popup_concurrency;
 mod render;

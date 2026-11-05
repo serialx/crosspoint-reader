@@ -2,6 +2,8 @@
 
 #include <xp_epub_session.h>
 
+#include "legacy_page_fixture.h"
+
 struct XpEpubTestHelpersSeed {
   void* native;
   void* popup;
@@ -17,8 +19,8 @@ struct XpEpubTestHelpersObservation {
 };
 
 extern "C" {
-void* xp_epub_test_helpers_create(const XpEpubTestHelpersSeed*, const XpEpubLeaves*, const XpAppRuntime*,
-                                  const XpAppResources*);
+void* xp_epub_test_helpers_create_legacy_render(const XpEpubTestHelpersSeed*, const XpEpubLeaves*, const XpAppRuntime*,
+                                                const XpAppResources*, const XpEpubLegacyPageServices* = nullptr);
 void xp_epub_test_helpers_destroy(void*);
 void xp_epub_test_helpers_observe(void*, XpEpubTestHelpersObservation*);
 void xp_epub_test_helpers_discard(void*);

@@ -8,8 +8,9 @@ use super::{
 use alloc::vec::Vec;
 use core::{cell::UnsafeCell, ffi::c_void, ptr::NonNull};
 
-#[derive(Default)]
 pub(super) struct Guarded {
+    pub(super) render_resources: super::render_resources::PageResources,
+    #[cfg(feature = "app-test")]
     pub(super) native: Option<NonNull<c_void>>,
     pub(super) page_metadata: super::page_owner::Metadata,
     pub(super) book: Option<NonNull<c_void>>,
@@ -29,11 +30,33 @@ pub(super) struct Guarded {
     pub(super) selection_metadata: SelectionMetadata,
 }
 
-#[derive(Default)]
 #[repr(transparent)]
 pub(super) struct GuardedCell(UnsafeCell<Guarded>);
 
 impl GuardedCell {
+    pub(super) unsafe fn initialize(out: *mut Self) {
+        let data = out.cast::<Guarded>();
+        super::render_resources::PageResources::initialize(core::ptr::addr_of_mut!(
+            (*data).render_resources
+        ));
+        #[cfg(feature = "app-test")]
+        core::ptr::addr_of_mut!((*data).native).write(None);
+        core::ptr::addr_of_mut!((*data).page_metadata).write(Default::default());
+        core::ptr::addr_of_mut!((*data).book).write(Default::default());
+        core::ptr::addr_of_mut!((*data).section).write(Default::default());
+        core::ptr::addr_of_mut!((*data).toolbar).write(Default::default());
+        core::ptr::addr_of_mut!((*data).overlay_popup).write(Default::default());
+        core::ptr::addr_of_mut!((*data).failure_popup).write(Default::default());
+        core::ptr::addr_of_mut!((*data).end_options).write(Default::default());
+        core::ptr::addr_of_mut!((*data).bookmarks).write(Default::default());
+        core::ptr::addr_of_mut!((*data).active_frame).write(Default::default());
+        core::ptr::addr_of_mut!((*data).anchor).write(Default::default());
+        core::ptr::addr_of_mut!((*data).more_actions).write(Default::default());
+        core::ptr::addr_of_mut!((*data).more_count).write(Default::default());
+        core::ptr::addr_of_mut!((*data).font_sizes).write(Default::default());
+        core::ptr::addr_of_mut!((*data).selection_metadata).write(Default::default());
+    }
+
     #[cfg(feature = "app-test")]
     pub(super) fn get_mut(&mut self) -> &mut Guarded {
         self.0.get_mut()
@@ -47,6 +70,15 @@ impl GuardedCell {
 }
 
 impl EpubSession {
+    pub(super) fn page_resources<'a>(
+        &'a self,
+        access: &ResourceAccess<'_>,
+    ) -> core::pin::Pin<&'a super::render_resources::PageResources> {
+        let data = self.guarded_ptr(access);
+        // Session storage stays fixed from member initialization through destruction.
+        unsafe { core::pin::Pin::new_unchecked(&*core::ptr::addr_of!((*data).render_resources)) }
+    }
+
     #[cfg(feature = "app-test")]
     fn fixture_book_pointer(&self, book: Option<NonNull<c_void>>) -> Option<NonNull<c_void>> {
         // Box reclamation may retag the fixture allocation. Derive the inline
@@ -68,10 +100,12 @@ impl EpubSession {
         self.guarded.0.get()
     }
 
+    #[cfg(feature = "app-test")]
     pub(super) fn set_native(&self, access: &ResourceAccess<'_>, value: Option<NonNull<c_void>>) {
         unsafe { (*self.guarded_ptr(access)).native = value };
     }
 
+    #[cfg(feature = "app-test")]
     pub(super) fn take_native(&self, access: &ResourceAccess<'_>) -> Option<NonNull<c_void>> {
         unsafe { (*self.guarded_ptr(access)).native.take() }
     }
@@ -195,6 +229,7 @@ impl EpubSession {
         unsafe { (*self.guarded_ptr(access)).bookmarks.take() }
     }
 
+    #[cfg(feature = "app-test")]
     pub(super) fn native(&self, access: &ResourceAccess<'_>) -> *mut c_void {
         unsafe {
             (*self.guarded_ptr(access))

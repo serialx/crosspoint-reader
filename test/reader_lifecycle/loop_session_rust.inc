@@ -172,7 +172,7 @@ static void configure() {
     owner.publication = 1; ++owner.buildAttempts;
     return result;
   };
-  leaves.physical.strip_release_idle = [](void* raw) -> uint8_t { context(raw); locked(); return 0; };
+  leaves.book.section.page.strip_release_idle = [](void* raw) -> uint8_t { context(raw); locked(); return 0; };
   leaves.physical.settings_snapshot = [](uint8_t resolve, XpEpubSettings* out) {
     bridge(); *out = {};
     out->orientation = SETTINGS.orientation; out->long_menu = SETTINGS.longPressMenuFunction;
@@ -193,7 +193,7 @@ static void configure() {
     auto& owner = bridge().owner; locked(); *out = {};
     out->has_framebuffer = owner.renderer.frame; out->has_font_cache = owner.renderer.font;
   };
-  leaves.physical.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
+  leaves.book.section.page.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
     context(raw); locked();
     static const XpUiReaderRenderServices services{
       nullptr,
@@ -206,15 +206,15 @@ static void configure() {
     };
     return &services;
   };
-  leaves.physical.fonts_prewarm_begin = [](void* raw) -> uint8_t {
+  leaves.book.section.page.fonts_prewarm_begin = [](void* raw) -> uint8_t {
     auto& value = context(raw); locked(); assert(value.page && !value.prewarm && value.owner.renderer.font);
     value.prewarm.emplace(value.owner.renderer.cache.createPrewarmScope()); value.scanFinished = false; return 1;
   };
-  leaves.physical.fonts_prewarm_finish_scan = [](void* raw) {
+  leaves.book.section.page.fonts_prewarm_finish_scan = [](void* raw) {
     auto& value = context(raw); locked(); assert(value.page && value.prewarm && !value.scanFinished);
     value.prewarm->endScanAndPrewarm(); value.scanFinished = true;
   };
-  leaves.physical.fonts_prewarm_drop = [](void* raw) {
+  leaves.book.section.page.fonts_prewarm_drop = [](void* raw) {
     auto& value = context(raw); locked(); assert(value.page && value.prewarm && value.scanFinished);
     value.prewarm.reset();
   };

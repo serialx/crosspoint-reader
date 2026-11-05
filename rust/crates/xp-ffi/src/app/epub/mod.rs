@@ -36,7 +36,7 @@ mod read_folder;
 mod recovery;
 mod rejected_input;
 mod render;
-#[allow(dead_code)] // Dormant until the render-resource ownership switch.
+mod render_physical;
 mod render_resources;
 mod render_scope;
 mod section_owner;
@@ -151,7 +151,7 @@ impl EpubSession {
             core::ptr::addr_of_mut!((*ptr).legacy_pages).write(core::cell::Cell::new(None));
             core::ptr::addr_of_mut!((*ptr).state)
                 .write(UnsafeCell::new(State::new(fast_initial, frequency)));
-            core::ptr::addr_of_mut!((*ptr).guarded).write(GuardedCell::default());
+            GuardedCell::initialize(core::ptr::addr_of_mut!((*ptr).guarded));
             core::ptr::addr_of_mut!((*ptr).leaves).write(leaves);
             core::ptr::addr_of_mut!((*ptr).runtime).write(runtime);
             core::ptr::addr_of_mut!((*ptr).resources).write(resources);
@@ -282,3 +282,6 @@ impl EpubSession {
         }
     }
 }
+
+#[cfg(feature = "app-test")]
+pub(super) use test_support::legacy_book::LegacyBookServices;

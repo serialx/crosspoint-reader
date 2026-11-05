@@ -8,7 +8,7 @@ from test_popup_resource import definition, native_leaf, replace_once
 
 out = Path(sys.argv[1])
 out.mkdir(parents=True, exist_ok=True)
-native = (root / 'src/activities/reader/RustEpubResources.cpp').read_text()
+native = (root / 'test/reader_render_resources/parent_frame.inc').read_text()
 source = Path(__file__).with_name('Frame.cpp.in').read_text()
 for marker, signature in [('FRAME', 'struct NativeRenderFrame {'),
                           ('RESOURCES', 'struct NativeResources {'),

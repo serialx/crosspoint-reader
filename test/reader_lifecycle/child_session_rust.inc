@@ -238,7 +238,7 @@ static void configureChildLeaves() {
         childString(chapter), events != 0).release();
   };
   childLeaves.physical.has_sync_credentials = []() -> uint8_t { return KOREADER_STORE.hasCredentials(); };
-  childLeaves.physical.strip_release_idle = [](void* raw) -> uint8_t {
+  childLeaves.book.section.page.strip_release_idle = [](void* raw) -> uint8_t {
     assert(raw == activeChild);
     activeChild->owner.stripBuffers.releaseIdle();
     return 1;
@@ -263,7 +263,7 @@ static void configureChildLeaves() {
     const XpEpubSavedProgress row{childText(saved.xpath), saved.percentage};
     return sink(context, &row);
   };
-  childLeaves.physical.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
+  childLeaves.book.section.page.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
     assert(raw == activeChild);
     static const XpUiReaderRenderServices services{
         nullptr,

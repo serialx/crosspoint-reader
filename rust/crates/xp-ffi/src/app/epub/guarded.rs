@@ -72,7 +72,7 @@ impl GuardedCell {
 impl EpubSession {
     pub(super) fn page_resources<'a>(
         &'a self,
-        access: &ResourceAccess<'_>,
+        access: &'a ResourceAccess<'_>,
     ) -> core::pin::Pin<&'a super::render_resources::PageResources> {
         let data = self.guarded_ptr(access);
         // Session storage stays fixed from member initialization through destruction.

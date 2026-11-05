@@ -47,9 +47,9 @@ pixels, input behavior, child timing, heap fragmentation, or runtime stack use.
 The adapters and transfer descriptors are active in firmware; the retired
 Page/metadata service table remains only in named app-test legacy oracles.
 
-`ReaderPageTransfer` also composes the current native frame with strips disabled.
+`ReaderPageTransfer` also composes the frozen parent frame with strips disabled.
 `ReaderPageFrameStrip` enables `XP_STRIP_RENDER` and the Rust `reader-strips`
-feature in a separate host build. It uses the actual NativeRenderFrame,
+feature in a separate host build. It uses the retained parent NativeRenderFrame,
 NativeResources, ReaderStripBuffers and ReaderStripPainter with a real Rust Page
 borrow, and drives the production Rust render planner. Every corpus Page also
 runs each strip-allocation failure and a rejected display-source installation.
@@ -62,7 +62,10 @@ Display upload, font prewarm, session status/counter handling and drawing metric
 are physical host substitutes. Plan recording is a deterministic host substitute;
 this test does not prove pixels, actual plan commands, DMA, panel timing or font
 cache behaviour. Image cache/window observers forward to the real ImageBlock
-services. The separate strip replay/pixel oracles retain their own coverage.
+services. These native owners exist only under test/ and are not firmware owners.
+The [render-resource compositions](../reader_render_resources/README.md) cover
+the production Rust frame and session, including the same failure and detach
+properties. The separate strip replay/pixel oracles retain their own coverage.
 The C++ PageMetadata comparison is frozen from the former native reader owner in
 `test/reader_lifecycle/legacy_page_metadata.h`; no shipping code includes it.
 

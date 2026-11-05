@@ -15,8 +15,5 @@ def rust_link_flags(archive=None):
                         '--target-dir', str(target), '-p', 'xp-ffi', '--features', 'app-test',
                         '--release', '--locked'], check=True)
         archive = str(target / 'release/libxp_ffi.a')
-    return ['-include', str(ROOT / 'test/reader_lifecycle/legacy_render_wire.h'),
-            '-I', str(ROOT / 'test/reader_lifecycle/native_render'),
-            '-I', str(ROOT / 'test/reader_lifecycle/native_render/activities/reader'),
-            '-I', str(ROOT / 'rust/crates/xp-ffi/include'),
+    return ['-I', str(ROOT / 'rust/crates/xp-ffi/include'),
             str(ROOT / 'test/cmake/xp_ffi_host.cpp'), archive]

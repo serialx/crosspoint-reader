@@ -4,6 +4,7 @@
 #include <blocks/ImageBlock.h>
 #include <xp_epub_session.h>
 #include <xp_display.h>
+#include "reader_lifecycle/legacy_render_wire.h"
 typedef void (*XpEpubHighlight)(void*, const XpEpubPageView*, int32_t, int32_t, int32_t);
 #include "FrameChecks.h"
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER

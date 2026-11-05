@@ -1,4 +1,4 @@
-"""Compile the current Page-bound native frame with the real Page codec."""
+"""Compile the frozen parent Page-bound native frame with the real Page codec."""
 from pathlib import Path
 import sys
 

@@ -2574,7 +2574,6 @@ typedef struct {
   size_t count;
   uint8_t valid;
 } XpPagePlan;
-
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
 // Serialized render-owner loan; clear before freeing/reusing the caller buffer.
 // Cache reset/release does not end the loan and never frees borrowed storage.

@@ -59,7 +59,6 @@
 #include "ReaderUtils.h"
 #include "RecentBooksStore.h"
 #include "RustEpubPage.h"
-#include "RustEpubRenderPhysical.h"
 #include "SilentRestart.h"
 #include "activities/OwnedLegacyActivity.h"
 #include "activities/RenderLock.h"
@@ -81,7 +80,7 @@ namespace {
 static_assert(sizeof(FontCacheManager::PrewarmScope) == 2 * sizeof(uintptr_t));
 static_assert(alignof(FontCacheManager::PrewarmScope) == alignof(uintptr_t));
 
-[[maybe_unused]] uint32_t physicalRenderQuery(GfxRenderer& renderer, uint8_t query) {
+uint32_t physicalRenderQuery(GfxRenderer& renderer, uint8_t query) {
   switch (query) {
     case XP_EPUB_RENDER_IS_BW:
       return renderer.getRenderMode() == GfxRenderer::BW;
@@ -129,7 +128,7 @@ static_assert(alignof(FontCacheManager::PrewarmScope) == alignof(uintptr_t));
   return 0;
 }
 
-[[maybe_unused]] uint32_t physicalRenderOperation(GfxRenderer& renderer, const XpEpubPhysicalOp& op) {
+uint32_t physicalRenderOperation(GfxRenderer& renderer, const XpEpubPhysicalOp& op) {
   const auto refresh = op.mode == XP_UI_HALF ? HalDisplay::HALF_REFRESH : HalDisplay::FAST_REFRESH;
   switch (op.kind) {
     case XP_EPUB_RENDER_CLEAR:
@@ -200,8 +199,8 @@ static_assert(alignof(FontCacheManager::PrewarmScope) == alignof(uintptr_t));
   return 0;
 }
 
-[[maybe_unused]] void physicalRenderPlan(GfxRenderer& renderer, XpPagePlan* plan, XpPageRowBounds* bounds,
-                                         uint16_t count, uint8_t recording) {
+void physicalRenderPlan(GfxRenderer& renderer, XpPagePlan* plan, XpPageRowBounds* bounds, uint16_t count,
+                        uint8_t recording) {
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
   renderer.usePagePlan(plan, bounds, count, recording != 0);
 #else
@@ -212,7 +211,7 @@ static_assert(alignof(FontCacheManager::PrewarmScope) == alignof(uintptr_t));
   (void)recording;
 #endif
 }
-[[maybe_unused]] void physicalImageWindow(uint8_t* bytes, uint32_t length) {
+void physicalImageWindow(uint8_t* bytes, uint32_t length) {
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
   ImageBlock::setRenderReadWindow(bytes, length);
 #else
@@ -220,7 +219,7 @@ static_assert(alignof(FontCacheManager::PrewarmScope) == alignof(uintptr_t));
   (void)length;
 #endif
 }
-[[maybe_unused]] uint8_t physicalDisplaySource(XpDisplaySource* source) {
+uint8_t physicalDisplaySource(XpDisplaySource* source) {
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
   return display.setFrameSource(source);
 #else
@@ -228,20 +227,20 @@ static_assert(alignof(FontCacheManager::PrewarmScope) == alignof(uintptr_t));
   return 0;
 #endif
 }
-[[maybe_unused]] uint8_t* physicalFramebuffer(GfxRenderer& renderer, uint32_t* bytes) {
+uint8_t* physicalFramebuffer(GfxRenderer& renderer, uint32_t* bytes) {
   *bytes = renderer.getBufferSize();
   return renderer.getFrameBuffer();
 }
-[[maybe_unused]] uint8_t physicalPrewarmBegin(GfxRenderer& renderer, XpEpubPrewarm* storage) {
+uint8_t physicalPrewarmBegin(GfxRenderer& renderer, XpEpubPrewarm* storage) {
   auto* cache = renderer.getFontCacheManager();
   if (!cache) return 0;
   new (storage) FontCacheManager::PrewarmScope(*cache);
   return 1;
 }
-[[maybe_unused]] void physicalPrewarmFinish(XpEpubPrewarm* storage) {
+void physicalPrewarmFinish(XpEpubPrewarm* storage) {
   std::launder(reinterpret_cast<FontCacheManager::PrewarmScope*>(storage))->endScanAndPrewarm();
 }
-[[maybe_unused]] void physicalPrewarmDrop(XpEpubPrewarm* storage) {
+void physicalPrewarmDrop(XpEpubPrewarm* storage) {
   std::launder(reinterpret_cast<FontCacheManager::PrewarmScope*>(storage))->~PrewarmScope();
 }
 

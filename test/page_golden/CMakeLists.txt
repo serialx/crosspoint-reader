@@ -97,7 +97,7 @@ if(STRIP_PLAN)
   target_compile_definitions(PageGolden PRIVATE XP_STRIP_PLAN=1)
 endif()
 
-# Use the production painter and both controllers without the golden tracing replacements.
+# Use the frozen parent painter and real controllers without tracing replacements.
 if(STRIP_PLAN AND XP_FFI_HOST_FEATURES MATCHES "display-panel")
   get_target_property(REPLAY_SOURCES PageGolden SOURCES)
   list(REMOVE_ITEM REPLAY_SOURCES PageGolden.cpp ${INSTRUMENTED}/GfxRenderer.cpp
@@ -108,6 +108,7 @@ if(STRIP_PLAN AND XP_FFI_HOST_FEATURES MATCHES "display-panel")
   get_target_property(REPLAY_INCLUDES PageGolden INCLUDE_DIRECTORIES)
   list(REMOVE_ITEM REPLAY_INCLUDES ${INSTRUMENTED})
   target_include_directories(ReaderStripReplay PRIVATE ${REPO_ROOT}/lib/GfxRenderer ${REPLAY_INCLUDES})
+  target_include_directories(ReaderStripReplay PRIVATE ${REPO_ROOT}/test/reader_lifecycle/native_render)
   get_target_property(REPLAY_DEFINITIONS PageGolden COMPILE_DEFINITIONS)
   list(REMOVE_ITEM REPLAY_DEFINITIONS XP_STRIP_SPIKE=1 XP_STRIP_PLAN=1)
   target_compile_definitions(ReaderStripReplay PRIVATE ${REPLAY_DEFINITIONS} XP_STRIP_RENDER=1)

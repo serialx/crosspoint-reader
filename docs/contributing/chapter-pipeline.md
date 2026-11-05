@@ -2,10 +2,10 @@
 
 Rust owns EPUB parsing and layout, page records, page-byte construction and
 load-time decoding and page rendering through `xp-core::page`. The reader owns
-its Page allocation and metadata in Rust; native render frames borrow the arena
+its Page allocation, metadata and render resources in Rust; render frames borrow the arena
 and native selection children adopt it through a facade. C++ retains file I/O,
 font registration/preparation, built-in/TTF caches, JPEGDEC integration and
-render-resource storage. Dictionary and settings-preview Pages remain native.
+physical display operations. Dictionary and settings-preview Pages remain native.
 Glyph bitmap views and rasterization run in Rust. The Rust reader also owns its
 loaded book, Section and incremental Chapter build. A native `Epub` facade forwards
 child and sync queries to that same book; the dictionary retains its native

@@ -217,8 +217,10 @@ book to child and sync consumers. Rust's `page_owner` owns reader Pages and Page
 metadata. C++ retains dictionary/preview Pages, borrowed/transferred Page facades
 for the three native children, native child screens and physical leaves,
 including file implementations and stores, font/display services and toolbar
-widgets. The render frame and optional strips stay native. Rust chooses
-their operations and order. See [Reader Page ownership](rust.md#reader-page-ownership)
+widgets. Rust owns the inline render frame, prewarm storage, plane/scratch buffers
+and optional strip storage, including source/plan loans and cleanup. Physical
+leaves perform native font, paint and display operations. See
+[Reader Page ownership](rust.md#reader-page-ownership)
 for Page lifetimes and [Reader book ownership](rust.md#reader-book-ownership)
 for facade loans, cache locking and teardown. `ReaderActivity` and
 `XtcReaderActivity` remain the native XTC owner path with shared reader helpers.

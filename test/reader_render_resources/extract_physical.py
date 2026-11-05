@@ -1,4 +1,4 @@
-"""Compile the dormant production physical adapters with the Page corpus harness."""
+"""Compile the production physical adapters with the Page corpus harness."""
 from pathlib import Path
 import subprocess
 import sys
@@ -21,26 +21,29 @@ renderer_text = replace_once(renderer_text, 'return frameStride * 8;',
     'return physicalWidthOverride ? physicalWidthOverride : frameStride * 8;')
 renderer.write_text(renderer_text)
 native = (root / 'src/activities/reader/RustEpubResources.cpp').read_text()
-prefix = (root / 'test/reader_page_owner/Frame.cpp.in').read_text().split('// ACTUAL_FRAME')[0]
+frame_template = (root / 'test/reader_page_owner/Frame.cpp.in').read_text()
+if frame_template.count('// ACTUAL_FRAME') != 1:
+    raise ValueError('Expected one frame prefix marker: // ACTUAL_FRAME')
+prefix = frame_template.split('// ACTUAL_FRAME')[0]
 signatures = [
-    '[[maybe_unused]] uint32_t physicalRenderQuery(',
-    '[[maybe_unused]] uint32_t physicalRenderOperation(',
-    '[[maybe_unused]] void physicalRenderPlan(',
-    '[[maybe_unused]] void physicalImageWindow(',
-    '[[maybe_unused]] uint8_t physicalDisplaySource(',
-    '[[maybe_unused]] uint8_t* physicalFramebuffer(',
-    '[[maybe_unused]] uint8_t physicalPrewarmBegin(',
-    '[[maybe_unused]] void physicalPrewarmFinish(',
-    '[[maybe_unused]] void physicalPrewarmDrop(',
+    'uint32_t physicalRenderQuery(',
+    'uint32_t physicalRenderOperation(',
+    'void physicalRenderPlan(',
+    'void physicalImageWindow(',
+    'uint8_t physicalDisplaySource(',
+    'uint8_t* physicalFramebuffer(',
+    'uint8_t physicalPrewarmBegin(',
+    'void physicalPrewarmFinish(',
+    'void physicalPrewarmDrop(',
 ]
-prefix = '#include "activities/reader/RustEpubRenderPhysical.h"\n' + prefix
+prefix = '#include <xp_epub_session.h>\n' + prefix
 fragments = [definition(native, signature) for signature in signatures]
 fragments[2] = '#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER\n' + fragments[2] + '\n#endif'
 (out / 'ResourceFrame.cpp').write_text(prefix + '\n'.join(fragments)
     + '\n#undef ImageBlock\n}\n' + (here / 'PhysicalFrame.cpp.in').read_text())
 bridge = (here / 'PhysicalFrame.cpp.in').read_text()
 (out / 'ResourceCallbacks.h').write_text('#pragma once\n#include <xp_app.h>\n'
-    '#include "activities/reader/RustEpubRenderPhysical.h"\n'
+    '#include <xp_epub_session.h>\n'
     + definition(bridge, 'struct ResourceCallbacks {') + ';\n')
 log = definition((here / 'parent_frame.inc').read_text(), '[[gnu::noinline]] void log(uint32_t id) const')
 (out / 'LogParity.cpp').write_text(replace_once((here / 'LogParity.cpp.in').read_text(), '// ACTUAL_LOG', log))

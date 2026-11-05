@@ -875,13 +875,24 @@ Session metadata outlives the rendered Page, so `page_owner::Metadata` copies
 only its footnote and link records into two exact-size buffers (288 bytes per
 footnote and 264 per link, at most 13,056 bytes). Replacement clears old targets
 before allocation; failure leaves both counts zero. ResourceAccess guards these
-buffers. Shutdown destroys native render resources, then releases links before
+buffers. Shutdown closes the Rust render resources, then releases links before
 footnotes. The historical C++ metadata class exists only in host tests.
 
-The native render frame borrows a Page descriptor until RenderCall finishes.
-Its optional strip source detaches, and prewarm/image cleanup completes, before
-Rust drops the Page. NativeResources still owns the frame, strip buffers and
-idle-prewarm scope. Dictionary and settings-preview Pages retain native ownership.
+The session's inline `render_resources::PageResources` owns the frame, plane and
+scratch buffers, optional strip storage and idle-prewarm scope. `ResourceAccess`
+keeps each resource borrow within the existing render-lock scope. Storage is
+initialized member by member at its final address; callbacks never borrow a
+complete mutable session or frame.
+
+`FrameLease` borrows the Page until rendering finishes. Cleanup frees owned
+scratch, MSB and LSB buffers, detaches the source, clears the plan and image-window
+loans, destroys the prewarm scope and releases the image cache. Rust then drops
+the Page. Session shutdown releases reusable strips and idle prewarm before Page
+metadata. Native physical leaves construct and destroy the font prewarm scope in
+Rust-owned inline storage and perform drawing/display operations. Dictionary and
+settings-preview Pages retain native ownership. See the
+[render-resource checks](../../test/reader_render_resources/README.md) for
+production compositions and the explicitly retained parent oracles.
 
 Footnote, dictionary-word and clipping selection children adopt Rust Pages
 through small native facades. Pending retains every owner until all fallible

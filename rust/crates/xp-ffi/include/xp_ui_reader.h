@@ -143,11 +143,6 @@ uint8_t xp_ui_reader_toolbar_scroll(XpUiListState*, int32_t delta, int32_t count
 // Exactly 2^32 changes during one layout can produce a false match; this wrap case is accepted.
 void xp_ui_reader_toolbar_nav_publish(XpUiListState* state, const XpUiListState* painted);
 
-/* Called with the original RenderLock held. Resource context owns the original
- * scoped buffers/guards, whose cleanup runs after this synchronous plan returns.
- * Query/operation output pointers must not be retained. The operation borrows
- * existing Rust page/strip execution through the C++ resource binding. */
-
 typedef enum {
   XP_UI_READER_REFRESH_MANUAL = 1,
   XP_UI_READER_REFRESH_COUNTER_ONLY = 2,
@@ -934,9 +929,6 @@ static_assert(offsetof(XpUiReaderTurnInput, held_ms) == 0);
 static_assert(offsetof(XpUiReaderTurnInput, prev) == 4 && offsetof(XpUiReaderTurnInput, next) == 5);
 static_assert(offsetof(XpUiReaderTurnInput, from_tilt) == 6 && offsetof(XpUiReaderTurnInput, reserved) == 7);
 
-#endif
-
-#ifdef __cplusplus
 #endif
 
 #ifdef __cplusplus

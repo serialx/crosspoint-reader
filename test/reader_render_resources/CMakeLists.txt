@@ -19,11 +19,22 @@ endforeach()
 
 if(TARGET ReaderPageTransfer)
   find_package(Python3 REQUIRED COMPONENTS Interpreter)
+  add_test(NAME ReaderResourceAccess COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_resource_access.py)
   set(PHYSICAL_DIR ${CMAKE_CURRENT_BINARY_DIR}/composition)
   execute_process(COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_physical.py
     ${PHYSICAL_DIR} COMMAND_ERROR_IS_FATAL ANY)
   set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     extract_physical.py PhysicalFrame.cpp.in LogParity.cpp.in PixelPhysical.cpp.in Frequency.cpp.in SessionFrame.cpp.in
+    parent_frame.inc
+    ${REPO_ROOT}/test/reader_page_owner/extract_frame.py
+    ${REPO_ROOT}/test/reader_page_owner/Frame.cpp.in
+    ${REPO_ROOT}/test/reader_page_owner/frame_renderer.inc
+    ${REPO_ROOT}/test/reader_page_owner/PageTransfer.cpp
+    ${REPO_ROOT}/test/reader_lifecycle/test_popup_resource.py
+    ${REPO_ROOT}/test/section_golden/stubs/GfxRenderer.h
+    ${REPO_ROOT}/test/page_golden/ReaderStripReplay.cpp
+    ${REPO_ROOT}/src/CrossPointSettings.cpp
     ${REPO_ROOT}/src/activities/reader/RustEpubResources.cpp)
   get_target_property(RESOURCE_SOURCES ReaderPageTransfer SOURCES)
   get_target_property(RESOURCE_INCLUDES ReaderPageTransfer INCLUDE_DIRECTORIES)

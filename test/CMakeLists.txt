@@ -171,6 +171,7 @@ add_subdirectory(library_oracle)
 
 add_subdirectory(ui_runtime)
 add_subdirectory(reader_chrome)
+add_subdirectory(reader_children)
 
 
 add_subdirectory(sync_golden)

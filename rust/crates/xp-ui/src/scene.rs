@@ -125,7 +125,7 @@ pub trait HitSink {
 }
 
 /// A builder owns all mutable arena loans until finish. Overflow poisons the
-/// entire frame, including its interaction table.
+/// frame unless command truncation and its diagnostic are explicitly requested.
 pub struct Arena<'a> {
     commands: &'a mut [Command],
     text: &'a mut [u8],
@@ -135,6 +135,7 @@ pub struct Arena<'a> {
     text_used: usize,
     hit_used: usize,
     error: Option<Error>,
+    dropped_commands: Option<u16>,
 }
 impl<'a> Arena<'a> {
     pub fn new(
@@ -157,6 +158,7 @@ impl<'a> Arena<'a> {
             text_used: 0,
             hit_used: 0,
             error: None,
+            dropped_commands: None,
         })
     }
     pub fn with_hit_sink(
@@ -165,6 +167,16 @@ impl<'a> Arena<'a> {
     ) -> Result<Self, Error> {
         let mut arena = Self::new(commands, &mut [], &mut [])?;
         arena.hit_sink = Some(sink);
+        Ok(arena)
+    }
+    /// For flat command streams that must publish even after command overflow.
+    /// Interaction/text overflow still rejects the frame. Finish with a diagnostic.
+    pub fn with_truncated_commands(
+        commands: &'a mut [Command],
+        sink: &'a mut dyn HitSink,
+    ) -> Result<Self, Error> {
+        let mut arena = Self::with_hit_sink(commands, sink)?;
+        arena.dropped_commands = Some(0);
         Ok(arena)
     }
     fn fail<T>(&mut self, error: Error) -> Result<T, Error> {
@@ -176,6 +188,10 @@ impl<'a> Arena<'a> {
             return Err(error);
         }
         let Some(slot) = self.commands.get_mut(self.used) else {
+            if let Some(dropped) = &mut self.dropped_commands {
+                *dropped = dropped.saturating_add(1);
+                return Ok(());
+            }
             return self.fail(Error::Capacity);
         };
         *slot = command;
@@ -219,6 +235,9 @@ impl<'a> Arena<'a> {
         Ok(())
     }
     pub fn finish(self, refresh: Refresh, generation: u32) -> Result<Scene<'a>, Error> {
+        if self.dropped_commands.is_some_and(|count| count != 0) {
+            return Err(Error::Capacity);
+        }
         if let Some(error) = self.error {
             return Err(error);
         }
@@ -231,6 +250,17 @@ impl<'a> Arena<'a> {
         };
         scene.validate(|_, _| true)?;
         Ok(scene)
+    }
+    pub fn finish_reporting_overflow(
+        mut self,
+        refresh: Refresh,
+        generation: u32,
+        report: impl FnOnce(u16),
+    ) -> Result<Scene<'a>, Error> {
+        if let Some(count) = self.dropped_commands.take().filter(|count| *count != 0) {
+            report(count);
+        }
+        self.finish(refresh, generation)
     }
 }
 impl Scene<'_> {

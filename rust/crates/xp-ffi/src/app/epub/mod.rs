@@ -10,6 +10,8 @@ mod bookmarks;
 mod build;
 mod child;
 mod child_result;
+#[allow(dead_code)]
+mod children;
 mod clipping;
 mod guarded;
 mod idle;

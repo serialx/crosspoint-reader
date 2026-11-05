@@ -470,3 +470,6 @@ pub mod clipping;
 pub mod child;
 
 pub mod projection;
+
+/// Percent dialog input policy, independent of its activity owner.
+pub mod percent;

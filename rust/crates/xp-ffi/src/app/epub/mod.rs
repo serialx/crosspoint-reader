@@ -36,6 +36,8 @@ mod read_folder;
 mod recovery;
 mod rejected_input;
 mod render;
+#[allow(dead_code)] // Dormant until the render-resource ownership switch.
+mod render_resources;
 mod render_scope;
 mod section_owner;
 mod selection_metadata;

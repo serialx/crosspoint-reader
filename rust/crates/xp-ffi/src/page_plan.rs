@@ -97,13 +97,10 @@ impl Command {
         }
     }
 }
-#[repr(C)]
-pub struct Plan {
-    storage: *mut Command,
-    capacity_bytes: usize,
-    count: usize,
-    valid: u8,
-}
+#[path = "page_plan/storage.rs"]
+mod storage;
+pub(crate) use storage::Plan;
+
 impl Plan {
     pub(super) fn add(&mut self, target: &xp_core::glyph::GlyphTarget, rect: xp_core::glyph::Clip) {
         if self.count == 0 || self.count > self.capacity_bytes / size_of::<Command>() {

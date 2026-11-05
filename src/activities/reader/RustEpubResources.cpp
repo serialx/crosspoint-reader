@@ -80,6 +80,9 @@
 const XpParaAllocator* paragraphAllocator();
 
 namespace {
+static_assert(sizeof(FontCacheManager::PrewarmScope) == 2 * sizeof(uintptr_t));
+static_assert(alignof(FontCacheManager::PrewarmScope) == alignof(uintptr_t));
+
 static const GfxRenderer& sectionRenderer(void* raw) { return *static_cast<GfxRenderer*>(raw); }
 [[maybe_unused]] int32_t textAdvance(void* context, int32_t font, XpParaSpan text, uint8_t style, int8_t tracking) {
   return sectionRenderer(context).getTextAdvanceX(font, text.len ? reinterpret_cast<const char*>(text.data) : "",

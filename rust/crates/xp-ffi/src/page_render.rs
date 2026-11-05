@@ -2,6 +2,8 @@
 #[cfg(feature = "reader-strips")]
 #[path = "page_plan.rs"]
 mod page_plan;
+#[cfg(feature = "reader-strips")]
+pub(crate) use page_plan::Plan;
 #[cfg(feature = "strip-spike")]
 #[path = "strip_state.rs"]
 mod strip_state;

@@ -549,16 +549,10 @@ pub unsafe extern "C" fn xp_display_x3_default_config(
 }
 
 #[cfg(feature = "reader-strips")]
-#[repr(C)]
-pub struct DisplaySource {
-    pub struct_size: u32,
-    pub ctx: *mut c_void,
-    pub scratch: *mut u8,
-    pub capacity: u32,
-    pub rows: u16,
-    pub width: u16,
-    pub paint: Option<unsafe extern "C" fn(*mut c_void, *mut u8, u16, u16) -> u32>,
-}
+#[path = "display/source.rs"]
+mod source;
+#[cfg(feature = "reader-strips")]
+pub(crate) use source::DisplaySource;
 #[cfg(feature = "reader-strips")]
 impl xp_display::frame::Source for DisplaySource {
     fn rows(&self) -> u16 {

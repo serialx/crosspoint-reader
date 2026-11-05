@@ -97,4 +97,3 @@ typedef struct {
   uint32_t (*read)(void*, uint8_t query);
   uint32_t (*execute)(void*, const XpUiReaderRenderOp*);
 } XpUiReaderRenderServices;
-

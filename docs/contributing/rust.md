@@ -186,6 +186,12 @@ debug/error/info. Inflate allocation failures still use `inflate_oom_log`, which
 calls the cold native `InflateStream::logAllocationFailure` helper to format
 the message with native heap/PSRAM measurements.
 
+`render_resources/logging.rs` formats the reader's nine render and timing
+diagnostics with the `ERS` origin. Its separate non-inlined formatter uses a
+384-byte stack buffer and the same `log_enabled`/`log` leaf path. The
+[144-case parity test](../../test/reader_render_resources/README.md) freezes
+these messages against the parent formatter.
+
 This reader boundary does not change the rule for other modules: C++ owns their
 format strings and origin tags.
 When an event ends a Rust call, return a status or failure detail for C++ to log.

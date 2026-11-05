@@ -97,6 +97,7 @@ constexpr int QR_CODE_WIDTH = 198, QR_CODE_HEIGHT = 198;
 namespace QrUtils {
 bool encodeQrBitmap(const std::string&, uint8_t*, size_t, uint8_t&);
 void drawQrCode(const GfxRenderer&, const Rect&, const std::string&);
+void drawQrBytes(const GfxRenderer&, const Rect&, const uint8_t*, size_t);
 }  // namespace QrUtils
 // QR_LEAF
 

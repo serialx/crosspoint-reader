@@ -21,16 +21,19 @@ bool QrUtils::encodeQrBitmap(const std::string& text, uint8_t* bitmap, size_t ca
                              nullptr, encode);
 }
 void QrUtils::drawQrCode(const GfxRenderer& renderer, const Rect& bounds, const std::string& text) {
+  drawQrBytes(renderer, bounds, reinterpret_cast<const uint8_t*>(text.data()), text.size());
+}
+void QrUtils::drawQrBytes(const GfxRenderer& renderer, const Rect& bounds, const uint8_t* text, size_t textLength) {
   uint8_t version = 0;
   size_t length = 0;
-  const size_t bytes = xp_assets_qr_plan(reinterpret_cast<const uint8_t*>(text.data()), text.size(), &version, &length);
+  const size_t bytes = xp_assets_qr_plan(text, textLength, &version, &length);
   const auto bitmap = makeUniqueNoThrow<uint8_t[]>(bytes);
   if (!bitmap) {
     LOG_ERR("QR", "Failed to allocate QR bitmap (%u bytes)", static_cast<unsigned>(bytes));
     return;
   }
   uint8_t size = 0;
-  if (!encodeQrBitmap(text, bitmap.get(), bytes, size)) {
+  if (!xp_assets_qr_bitmap(text, textLength, bitmap.get(), bytes, &size, nullptr, encode)) {
     LOG_ERR("QR", "Text too large for QR Code version %d", version);
     return;
   }

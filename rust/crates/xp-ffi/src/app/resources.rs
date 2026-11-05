@@ -59,6 +59,22 @@ impl Text {
             .unwrap_or(&[])
     }
 
+    /// Reuse terminated row storage without allocating a separate indentation string.
+    pub fn assign_indented(&mut self, spaces: usize, text: &[u8]) -> Result<(), TryReserveError> {
+        if spaces == 0 && text.is_empty() {
+            self.bytes.clear();
+            return Ok(());
+        }
+        let needed = spaces.saturating_add(text.len()).saturating_add(1);
+        self.bytes
+            .try_reserve_exact(needed.saturating_sub(self.bytes.len()))?;
+        self.bytes.clear();
+        self.bytes.resize(spaces, b' ');
+        self.bytes.extend_from_slice(text);
+        self.bytes.push(0);
+        Ok(())
+    }
+
     pub fn wire(&self) -> abi::Text {
         if self.bytes.is_empty() {
             abi::Text::from_terminated(b"\0")

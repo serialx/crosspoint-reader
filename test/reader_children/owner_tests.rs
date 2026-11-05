@@ -43,6 +43,16 @@ fn items() -> crate::menu::Items {
         dictionary: true,
     })
 }
+
+#[test]
+fn empty_toc_fallback_needs_no_allocation_under_memory_pressure() {
+    let runtime = runtime();
+    let mut text = Text::default();
+    FAIL_NEXT.with(|flag| flag.set(true));
+    assert!(text.assign_indented(0, b"").is_ok());
+    assert!(owned::Percent::try_new(runtime, 50).is_none());
+    assert!(text.is_empty());
+}
 #[test]
 fn each_child_has_a_separate_stable_box_and_qr_moves_its_text() {
     let menu = owned::Menu::try_new(

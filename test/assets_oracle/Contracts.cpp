@@ -61,6 +61,19 @@ int main() {
   assert(QrUtils::encodeQrBitmap(text, bitmap.data() + 1, capacity, modules));
   assert(modules == 33 && bitmap.front() == 0xa5 && bitmap.back() == 0xa5);
   assert(asset_allocation_attempts() == allocations);
+  GfxRenderer ownedQr, borrowedQr;
+  const Rect bounds{10, 20, 300, 300};
+  QrUtils::drawQrCode(ownedQr, bounds, text);
+  const auto beforeBorrowed = asset_allocation_attempts();
+  QrUtils::drawQrBytes(borrowedQr, bounds, reinterpret_cast<const uint8_t*>(text.data()), text.size());
+  assert(borrowedQr.rectangles == ownedQr.rectangles);
+  assert(asset_allocation_attempts() == beforeBorrowed + 1);  // Only the transient bitmap.
+  borrowedQr.rectangles.clear();
+  const auto failure = std::to_string(asset_allocation_attempts());
+  assert(setenv("ASSET_FAIL_ALLOC", failure.c_str(), 1) == 0);
+  QrUtils::drawQrBytes(borrowedQr, bounds, reinterpret_cast<const uint8_t*>(text.data()), text.size());
+  assert(borrowedQr.rectangles.empty());
+  assert(unsetenv("ASSET_FAIL_ALLOC") == 0);
   std::array<uint8_t, 18> frame{};
   for (size_t i = 0; i < frame.size(); ++i) frame[i] = static_cast<uint8_t>(i * 19);
   Sink complete;

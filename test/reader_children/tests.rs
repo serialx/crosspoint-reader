@@ -14,7 +14,7 @@ struct Trace {
     events: Vec<(bool, usize)>,
 }
 thread_local! { static TRACE: RefCell<Trace> = RefCell::default(); }
-unsafe extern "C" fn allocate(domain: u8, bytes: usize) -> *mut u8 {
+pub(crate) unsafe extern "C" fn allocate(domain: u8, bytes: usize) -> *mut u8 {
     assert_eq!(domain, abi::MEMORY_DEFAULT);
     TRACE.with(|trace| {
         let mut trace = trace.borrow_mut();
@@ -30,7 +30,7 @@ unsafe extern "C" fn allocate(domain: u8, bytes: usize) -> *mut u8 {
         pointer
     })
 }
-unsafe extern "C" fn release(domain: u8, pointer: *mut u8) {
+pub(crate) unsafe extern "C" fn release(domain: u8, pointer: *mut u8) {
     assert_eq!(domain, abi::MEMORY_DEFAULT);
     TRACE.with(|trace| {
         let mut trace = trace.borrow_mut();
@@ -48,7 +48,7 @@ fn resources() -> &'static abi::Resources {
         ..test_resources::resources()
     })
 }
-fn reset(fail: usize) {
+pub(crate) fn reset(fail: usize) {
     TRACE.with(|trace| {
         assert!(trace.borrow().live.is_empty());
         *trace.borrow_mut() = Trace {
@@ -129,4 +129,8 @@ fn initial_command_failure_is_fallible_and_retry_keeps_the_native_capacity() {
     assert_eq!(commands.as_mut_slice().len(), 32);
     drop(commands);
     reset(0);
+}
+
+pub(crate) fn allocation_events() -> Vec<(bool, usize)> {
+    TRACE.with(|trace| trace.borrow().events.clone())
 }

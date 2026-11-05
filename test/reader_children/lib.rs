@@ -72,7 +72,28 @@ mod lifecycle_tests;
 mod menu;
 #[cfg(test)]
 mod menu_tests;
+#[path = "../../rust/crates/xp-ffi/src/app/epub/children/percent.rs"]
+mod percent_adapter;
+#[cfg(test)]
+mod percent_adapter_tests;
 #[cfg(test)]
 mod percent_scene_tests;
 #[cfg(test)]
 mod percent_tests;
+#[path = "../../rust/crates/xp-ffi/src/app/epub/children/physical.rs"]
+mod physical;
+#[path = "../../rust/crates/xp-ffi/src/app/epub/children/qr.rs"]
+mod qr;
+#[cfg(test)]
+mod qr_adapter_tests;
+
+#[path = "../../rust/crates/xp-ffi/src/app/epub/children/list.rs"]
+mod list;
+#[path = "../../rust/crates/xp-ffi/src/app/epub/children/menu_view.rs"]
+mod menu_view;
+
+#[path = "../../rust/crates/xp-ffi/src/app/epub/children/chapter_view.rs"]
+mod chapter_view;
+
+#[cfg(test)]
+mod list_adapter_tests;

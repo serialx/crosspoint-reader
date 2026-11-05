@@ -105,6 +105,26 @@ impl State {
         self.flash == Some((action, value))
     }
 
+    /// Resolve the SDK's contact index against the drawing generation.
+    pub fn view_state(&self, controls: &Controls) -> crate::utility::State {
+        let active = usize::try_from(self.active)
+            .ok()
+            .and_then(|index| controls.as_slice().get(index));
+        crate::utility::State {
+            kind: crate::utility::Screen::Interval as u8,
+            maximum: 100,
+            value: self.value,
+            active_action: active.map_or(0, |hit| hit.action),
+            active_value: active.map_or(0, |hit| hit.value),
+            flash_pending: match self.flash {
+                Some((STEP, -1)) => 1,
+                Some((STEP, 1)) => 2,
+                _ => 0,
+            },
+            ..Default::default()
+        }
+    }
+
     fn route(&mut self, input: Input, hits: &[Interaction]) -> Option<(u32, i32, Option<i32>)> {
         let pressed = input.touch_flags & model::TOUCH_PRESSED != 0;
         let released = input.touch_flags & model::TOUCH_RELEASED != 0;

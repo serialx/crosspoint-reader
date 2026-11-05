@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-  project(reader_children_tests CXX)
+  project(reader_children_tests C CXX)
   set(CMAKE_CXX_STANDARD 20)
   enable_testing()
   get_filename_component(REPO_ROOT "../.." ABSOLUTE)
@@ -53,3 +53,32 @@ target_include_directories(ReaderChapterNative PRIVATE ${REPO_ROOT}/lib/Memory
 add_test(NAME reader_chapter_native_parity
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare_chapters.py
     --native $<TARGET_FILE:ReaderChapterNative> --rust ${READER_CHILDREN_TARGET}/debug/chapter-oracle)
+
+if(NOT TARGET TextGolden)
+  add_subdirectory(${REPO_ROOT}/test/text_golden ${CMAKE_BINARY_DIR}/text_golden)
+endif()
+set(READER_PERCENT_DRAWING ${CMAKE_CURRENT_BINARY_DIR}/percent_drawing.cpp)
+add_custom_command(OUTPUT ${READER_PERCENT_DRAWING}
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_percent_drawing.py ${READER_PERCENT_DRAWING}
+  DEPENDS prepare_percent_drawing.py percent_drawing.cpp.in ../reader_lifecycle/extract.py
+    ${REPO_ROOT}/src/components/UiSliderDialog.h ${REPO_ROOT}/src/components/UiAppHelpers.h
+    ${REPO_ROOT}/src/components/UIThemeTokens.h
+    ${REPO_ROOT}/src/activities/reader/EpubReaderPercentSelectionActivity.cpp
+    ${REPO_ROOT}/src/activities/util/UtilityActivity.cpp
+    ${REPO_ROOT}/src/activities/reader/RustReaderDrawing.cpp
+    ${REPO_ROOT}/src/activities/reader/ReaderChromeListActivity.cpp
+  VERBATIM)
+get_target_property(READER_DRAWING_SOURCES TextGolden SOURCES)
+list(FILTER READER_DRAWING_SOURCES EXCLUDE REGEX "TextGolden.cpp$")
+set_source_files_properties(${CMAKE_BINARY_DIR}/text_golden/instrumented/RustUiRenderer.cpp PROPERTIES GENERATED TRUE)
+add_executable(ReaderPercentDrawing ${READER_PERCENT_DRAWING} ${READER_DRAWING_SOURCES}
+  ${CMAKE_BINARY_DIR}/text_golden/instrumented/RustUiRenderer.cpp
+  ${REPO_ROOT}/freeink-sdk/libs/ui/FreeInkUI/src/FreeInkUI.cpp)
+target_include_directories(ReaderPercentDrawing PRIVATE $<TARGET_PROPERTY:TextGolden,INCLUDE_DIRECTORIES>
+  ${REPO_ROOT}/freeink-sdk/libs/ui/FreeInkUI/include ${REPO_ROOT}/freeink-sdk/libs/assets/Icons/include ${REPO_ROOT}/test/text_golden)
+target_compile_definitions(ReaderPercentDrawing PRIVATE $<TARGET_PROPERTY:TextGolden,COMPILE_DEFINITIONS>)
+target_compile_options(ReaderPercentDrawing PRIVATE $<TARGET_PROPERTY:TextGolden,COMPILE_OPTIONS> -UNDEBUG)
+target_link_options(ReaderPercentDrawing PRIVATE $<TARGET_PROPERTY:TextGolden,LINK_OPTIONS>)
+target_link_libraries(ReaderPercentDrawing PRIVATE xp_ffi_host)
+add_dependencies(ReaderPercentDrawing TextGolden)
+add_test(NAME reader_percent_native_drawing COMMAND ReaderPercentDrawing)

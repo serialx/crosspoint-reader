@@ -1,6 +1,6 @@
 use xp_ui::{
     model::Metrics,
-    scene::{Arena, Command, Error, Rect},
+    scene::{Arena, Command, Error, Rect, TruncatingArena},
     utility::{self, Layout, Texts},
 };
 struct Fonts;
@@ -95,7 +95,7 @@ fn percent_command_overflow_reports_and_preserves_the_complete_interaction_gener
     let owner = crate::owned::Percent::try_new(crate::owner_tests::runtime(), 50).unwrap();
     let frame = unsafe { &mut *owner.frame.get() };
     let mut arena =
-        Arena::with_truncated_commands(&mut frame.commands, &mut frame.controls).unwrap();
+        TruncatingArena::with_hit_sink(&mut frame.commands, &mut frame.controls).unwrap();
     for index in 0..19 {
         arena
             .push(Command {
@@ -149,4 +149,74 @@ fn percent_command_overflow_reports_and_preserves_the_complete_interaction_gener
         strict.finish(Refresh::Fast, 1),
         Err(Error::Capacity)
     ));
+}
+
+#[test]
+fn truncation_never_publishes_without_a_diagnostic() {
+    use xp_ui::scene::Refresh;
+    let mut commands = [Command::default(); 1];
+    let mut controls = xp_ui::reader::percent::Controls::default();
+    let mut arena = TruncatingArena::with_hit_sink(&mut commands, &mut controls).unwrap();
+    arena.push(Command::default()).unwrap();
+    arena.push(Command::default()).unwrap();
+    assert!(matches!(
+        arena.finish(Refresh::Fast, 1),
+        Err(Error::Capacity)
+    ));
+}
+
+#[test]
+fn truncating_shared_slider_matches_the_strict_scene() {
+    use xp_ui::scene::Refresh;
+    let layout = Layout {
+        screen: Rect {
+            x: 0,
+            y: 0,
+            w: 480,
+            h: 800,
+        },
+        touch: 1,
+        popup_padding: 16,
+        popup_gap: 8,
+        popup_side_margin: 16,
+        selection_padding: 4,
+        ..Default::default()
+    };
+    let state = utility::State {
+        kind: utility::Screen::Interval as u8,
+        maximum: 100,
+        value: 50,
+        ..Default::default()
+    };
+    let mut strict_commands = [Command::default(); 18];
+    let mut truncated_commands = [Command::default(); 18];
+    let mut strict_controls = xp_ui::reader::percent::Controls::default();
+    let mut truncated_controls = xp_ui::reader::percent::Controls::default();
+    let mut strict = Arena::with_hit_sink(&mut strict_commands, &mut strict_controls).unwrap();
+    let mut truncated =
+        TruncatingArena::with_hit_sink(&mut truncated_commands, &mut truncated_controls).unwrap();
+    utility::view(
+        &mut strict,
+        &state,
+        &layout,
+        &mut Fonts,
+        &Fonts,
+        Default::default(),
+    )
+    .unwrap();
+    utility::view_with_sink(
+        &mut truncated,
+        &state,
+        &layout,
+        &mut Fonts,
+        &Fonts,
+        Default::default(),
+    )
+    .unwrap();
+    let strict = strict.finish(Refresh::Fast, 1).unwrap();
+    let truncated = truncated
+        .finish_reporting_overflow(Refresh::Fast, 1, |_| panic!("unexpected overflow"))
+        .unwrap();
+    assert_eq!(strict.commands, truncated.commands);
+    assert_eq!(strict_controls.as_slice(), truncated_controls.as_slice());
 }

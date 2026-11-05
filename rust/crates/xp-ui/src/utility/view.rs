@@ -1,7 +1,7 @@
 use super::state::*;
 use crate::{
     model::Metrics,
-    scene::{Arena, Command, Error, Interaction, Kind, Rect, Refresh},
+    scene::{Arena, Command, Error, Interaction, Kind, Rect, Refresh, SceneSink},
 };
 pub const TITLE: u32 = 1;
 pub const BODY: u32 = 2;
@@ -110,14 +110,14 @@ fn take(r: &mut Rect, h: i16, gap: i16) -> Rect {
     r.h -= used;
     out
 }
-struct View<'a, 'b> {
-    arena: &'a mut Arena<'b>,
+struct View<'a, S: SceneSink> {
+    arena: &'a mut S,
     layout: &'a Layout,
     state: &'a State,
     metrics: &'a mut dyn Metrics,
     texts: &'a dyn Texts,
 }
-impl View<'_, '_> {
+impl<S: SceneSink> View<'_, S> {
     #[inline(never)]
     fn fill(&mut self, r: Rect, paint: u8, radius: u8, corners: u8) -> Result<(), Error> {
         self.arena.push(Command {
@@ -822,6 +822,17 @@ impl View<'_, '_> {
 }
 pub fn view(
     arena: &mut Arena<'_>,
+    state: &State,
+    layout: &Layout,
+    metrics: &mut dyn Metrics,
+    texts: &dyn Texts,
+    previous: Feedback,
+) -> Result<(Feedback, Refresh), Error> {
+    view_with_sink(arena, state, layout, metrics, texts, previous)
+}
+
+pub fn view_with_sink<S: SceneSink>(
+    arena: &mut S,
     state: &State,
     layout: &Layout,
     metrics: &mut dyn Metrics,

@@ -118,7 +118,7 @@ pub unsafe extern "C" fn xp_epub_test_overlay_create_legacy_book(
     guarded.native = NonNull::new(seed.native);
     guarded.section =
         super::legacy_section::SectionSlot::legacy(seed.section, &legacy_book.section);
-    guarded.toolbar = NonNull::new(seed.toolbar);
+    guarded.toolbar = NonNull::new(seed.toolbar).map(super::super::children::ToolbarSlot::Legacy);
     guarded.overlay_popup = NonNull::new(seed.popup);
     owner.overlay_hooks = Some(OverlayHooks {
         context: seed.context,

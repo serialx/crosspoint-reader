@@ -1,5 +1,6 @@
 extern crate alloc;
 
+use super::children::{ToolbarSlot, ToolbarTarget};
 use super::session_section::{Handle, SectionSlot};
 use super::{
     app_abi, selection_metadata::SelectionMetadata, state::RenderFrame, EpubSession,
@@ -15,7 +16,7 @@ pub(super) struct Guarded {
     pub(super) page_metadata: super::page_owner::Metadata,
     pub(super) book: Option<NonNull<c_void>>,
     pub(super) section: Option<SectionSlot>,
-    pub(super) toolbar: Option<NonNull<c_void>>,
+    pub(super) toolbar: Option<ToolbarSlot>,
     pub(super) overlay_popup: Option<NonNull<c_void>>,
     pub(super) failure_popup: Option<NonNull<c_void>>,
     pub(super) end_options: Option<NonNull<c_void>>,
@@ -147,15 +148,16 @@ impl EpubSession {
         unsafe { (*self.guarded_ptr(access)).section.take() }
     }
 
-    pub(super) fn toolbar(&self, access: &ResourceAccess<'_>) -> Option<NonNull<c_void>> {
-        unsafe { (*self.guarded_ptr(access)).toolbar }
+    pub(super) fn toolbar(&self, access: &ResourceAccess<'_>) -> Option<ToolbarTarget> {
+        unsafe {
+            (*self.guarded_ptr(access))
+                .toolbar
+                .as_ref()
+                .map(ToolbarSlot::target)
+        }
     }
 
-    pub(super) fn set_toolbar(&self, access: &ResourceAccess<'_>, value: Option<NonNull<c_void>>) {
-        unsafe { (*self.guarded_ptr(access)).toolbar = value };
-    }
-
-    pub(super) fn take_toolbar(&self, access: &ResourceAccess<'_>) -> Option<NonNull<c_void>> {
+    pub(super) fn take_toolbar(&self, access: &ResourceAccess<'_>) -> Option<ToolbarSlot> {
         unsafe { (*self.guarded_ptr(access)).toolbar.take() }
     }
 
@@ -312,8 +314,27 @@ impl EpubSession {
         unsafe { core::ptr::addr_of!((*self.guarded.0.get()).bookmarks).read() }
     }
 
-    pub(super) fn loop_toolbar(&self) -> Option<NonNull<c_void>> {
-        unsafe { core::ptr::addr_of!((*self.guarded.0.get()).toolbar).read() }
+    pub(super) fn loop_toolbar(&self) -> Option<ToolbarTarget> {
+        unsafe {
+            (*self.guarded.0.get())
+                .toolbar
+                .as_ref()
+                .map(ToolbarSlot::target)
+        }
+    }
+
+    pub(super) fn install_toolbar(
+        &self,
+        access: &ResourceAccess<'_>,
+        value: ToolbarSlot,
+    ) -> ToolbarTarget {
+        let target = value.target();
+        unsafe {
+            let slot = &mut (*self.guarded_ptr(access)).toolbar;
+            assert!(slot.is_none());
+            *slot = Some(value);
+        }
+        target
     }
 
     pub(super) fn loop_overlay_popup(&self) -> Option<NonNull<c_void>> {

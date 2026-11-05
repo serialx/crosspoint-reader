@@ -34,7 +34,7 @@ PRODUCTION = {name: Path('crates/xp-ffi/src/app/epub') / (name + '.rs')
 MUTANTS = (
     ('frontlight-save-omitted', 'menu_more', 'unsafe { (self.runtime.settings_save)(&settings) };',
      'let _ = &settings;'),
-    ('cancelled-menu-confirmed', 'child_result', 'if !cancelled {', 'if true {'),
+    ('cancelled-menu-confirmed', 'child_result', '(!cancelled).then_some(menu.action)', 'Some(menu.action)'),
     ('text-not-filtered', 'overlay_actions', 'action != Action::Chapter as u8 && action != Action::Text as u8',
      'action != Action::Chapter as u8'),
 )

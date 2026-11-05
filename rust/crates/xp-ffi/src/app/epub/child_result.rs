@@ -1,17 +1,18 @@
 use super::{
     app_abi,
+    children::ReaderChildResult,
     state::{ChildIntent, Overlay},
     EpubSession, Text,
 };
 
 impl EpubSession {
-    fn menu_result(&self, result: &app_abi::XpAppMenuResult, cancelled: bool) {
-        if self.settings(false).orientation != result.orientation {
-            self.apply_orientation(result.orientation);
+    fn menu_result(&self, action: Option<i32>, orientation: u8, page_turn: u8) {
+        if self.settings(false).orientation != orientation {
+            self.apply_orientation(orientation);
         }
-        self.toggle_auto_page_turn(result.page_turn_option);
-        if !cancelled {
-            self.confirm_reader_menu(result.action, super::menu::MenuOrigin::ChildResult);
+        self.toggle_auto_page_turn(page_turn);
+        if let Some(action) = action {
+            self.confirm_reader_menu(action, super::menu::MenuOrigin::ChildResult);
         }
     }
 
@@ -27,15 +28,45 @@ impl EpubSession {
             self.request_update();
             return;
         };
+        self.apply_chapter_result(chapter.spine, anchor);
+    }
+
+    fn apply_chapter_result(&self, spine: i32, anchor: Text) {
         let access = self.lock_resources();
         self.clear_deferred();
         self.model(|state| {
-            state.current.spine = chapter.spine;
+            state.current.spine = spine;
             state.next_page = 0;
         });
         self.set_anchor(&access, anchor);
         self.drop_section(&access);
         self.request_update();
+    }
+
+    pub(in crate::app) fn deliver_reader_child(&self, result: ReaderChildResult) {
+        let intent = self.model(|state| core::mem::take(&mut state.child));
+        match (intent, result) {
+            (
+                ChildIntent::Menu,
+                ReaderChildResult::Menu {
+                    action,
+                    orientation,
+                    page_turn,
+                },
+            ) => {
+                self.menu_result(action.map(|action| action as i32), orientation, page_turn);
+            }
+            (ChildIntent::Chapter, ReaderChildResult::Chapter(Some(chapter))) => {
+                self.apply_chapter_result(chapter.spine, chapter.anchor);
+            }
+            (ChildIntent::Percent, ReaderChildResult::Percent(Some(value))) => {
+                self.jump_to_percent(i32::from(value));
+            }
+            (ChildIntent::Chapter, ReaderChildResult::Chapter(None))
+            | (ChildIntent::Percent, ReaderChildResult::Percent(None))
+            | (ChildIntent::Qr, ReaderChildResult::QrClosed) => self.open_reader_menu(),
+            _ => self.request_update(),
+        }
     }
 
     fn text_settings_result(&self, from_overlay: bool) {
@@ -46,7 +77,7 @@ impl EpubSession {
                 state.panel_index = 0;
             });
             if let Some(toolbar) = self.loop_toolbar() {
-                unsafe { (self.leaves.toolbar_begin)(toolbar.as_ptr()) };
+                toolbar.begin(self);
             }
             self.request_update();
         } else {
@@ -68,7 +99,12 @@ impl EpubSession {
             ChildIntent::None => {}
             ChildIntent::Menu => {
                 if let Some(result) = result.filter(|result| result.kind == app_abi::RESULT_MENU) {
-                    self.menu_result(&result.value.menu, cancelled);
+                    let menu = &result.value.menu;
+                    self.menu_result(
+                        (!cancelled).then_some(menu.action),
+                        menu.orientation,
+                        menu.page_turn_option,
+                    );
                 } else {
                     self.request_update();
                 }

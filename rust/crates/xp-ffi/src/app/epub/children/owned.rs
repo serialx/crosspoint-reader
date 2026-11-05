@@ -1,11 +1,12 @@
 extern crate alloc;
 
 use super::{chapters, child_result::ReaderChildResult, commands::Commands, menu::Items};
-use crate::app::{abi, resources::Text, sync::ModelCell};
+use crate::app::{abi, resources::Text, stable_owner::StableOwner, sync::ModelCell};
 use alloc::{alloc::alloc, boxed::Box};
 use core::{
     alloc::Layout,
     cell::UnsafeCell,
+    ffi::c_void,
     ptr::{self, NonNull},
 };
 use xp_ui::{
@@ -24,23 +25,47 @@ unsafe fn allocate<T>(initialize: impl FnOnce(*mut T)) -> Option<Box<T>> {
     Some(Box::from_raw(owner.as_ptr()))
 }
 
-pub(super) enum ReaderChild {
-    Menu(Box<Menu>),
-    Chapters(Box<Chapters>),
-    Percent(Box<Percent>),
-    Qr(Box<Qr>),
+pub(crate) enum ReaderChild {
+    Menu(StableOwner<Menu>),
+    Chapters(StableOwner<Chapters>),
+    Percent(StableOwner<Percent>),
+    Qr(StableOwner<Qr>),
 }
 
 impl ReaderChild {
+    pub(crate) fn target(&self) -> ChildTarget {
+        match self {
+            Self::Menu(owner) => ChildTarget::Menu(owner.pointer()),
+            Self::Chapters(owner) => ChildTarget::Chapters(owner.pointer()),
+            Self::Percent(owner) => ChildTarget::Percent(owner.pointer()),
+            Self::Qr(owner) => ChildTarget::Qr(owner.pointer()),
+        }
+    }
+
     // Application calls on the loop task before destruction under its render lock.
     pub(super) unsafe fn take_result(&self) -> Option<ReaderChildResult> {
+        unsafe { self.target().take_result() }
+    }
+}
+
+// Points into the stable boxes, never into the movable Application owner enum.
+#[derive(Clone, Copy)]
+pub(crate) enum ChildTarget {
+    Menu(NonNull<Menu>),
+    Chapters(NonNull<Chapters>),
+    Percent(NonNull<Percent>),
+    Qr(NonNull<Qr>),
+}
+
+impl ChildTarget {
+    pub(crate) unsafe fn take_result(self) -> Option<ReaderChildResult> {
         let result = match self {
-            Self::Menu(owner) => &owner.result,
-            Self::Chapters(owner) => &owner.result,
-            Self::Percent(owner) => &owner.result,
-            Self::Qr(owner) => &owner.result,
+            Self::Menu(owner) => unsafe { &owner.as_ref().result },
+            Self::Chapters(owner) => unsafe { &owner.as_ref().result },
+            Self::Percent(owner) => unsafe { &owner.as_ref().result },
+            Self::Qr(owner) => unsafe { &owner.as_ref().result },
         };
-        (*result.get()).take()
+        unsafe { (*result.get()).take() }
     }
 }
 
@@ -90,13 +115,25 @@ pub(super) struct MenuFrame {
     pub(super) list: ListFrame,
     pub(super) menu: menu::State,
 }
-pub(super) struct Menu {
+#[derive(Clone, Copy)]
+#[repr(u8)]
+pub(super) enum MenuOption {
+    Orientation,
+    AutoTurn,
+}
+pub(super) struct MenuPopup {
+    pub(super) handle: Option<NonNull<c_void>>,
+    pub(super) parent: *const c_void,
+    pub(super) option: MenuOption,
+}
+pub(crate) struct Menu {
     pub(super) model: ModelCell<MenuPublication>,
     pub(super) frame: UnsafeCell<MenuFrame>,
     pub(super) items: Items,
     pub(super) title: Text,
     pub(super) progress: Text,
     pub(super) result: UnsafeCell<Option<ReaderChildResult>>,
+    pub(super) popup: UnsafeCell<MenuPopup>,
 }
 impl Menu {
     pub(super) fn try_new(
@@ -122,6 +159,11 @@ impl Menu {
                 ptr::addr_of_mut!((*out).title).write(title);
                 ptr::addr_of_mut!((*out).progress).write(progress);
                 ptr::addr_of_mut!((*out).result).write(UnsafeCell::new(None));
+                ptr::addr_of_mut!((*out).popup).write(UnsafeCell::new(MenuPopup {
+                    handle: None,
+                    parent: core::ptr::null(),
+                    option: MenuOption::Orientation,
+                }));
             })
         }
     }
@@ -131,7 +173,7 @@ pub(super) struct ChapterFrame {
     pub(super) list: ListFrame,
     pub(super) window: chapters::Window,
 }
-pub(super) struct Chapters {
+pub(crate) struct Chapters {
     pub(super) model: ModelCell<ListPublication>,
     pub(super) frame: UnsafeCell<ChapterFrame>,
     pub(super) result: UnsafeCell<Option<ReaderChildResult>>,
@@ -154,13 +196,14 @@ impl Chapters {
 pub(super) struct PercentPublication {
     pub(super) state: percent::State,
     pub(super) controls: Option<percent::Controls>,
+    pub(super) edge_buttons: bool,
 }
 pub(super) struct PercentFrame {
     pub(super) commands: [Command; 18],
     pub(super) controls: percent::Controls,
     pub(super) layout: utility::Layout,
 }
-pub(super) struct Percent {
+pub(crate) struct Percent {
     pub(super) model: ModelCell<PercentPublication>,
     pub(super) frame: UnsafeCell<PercentFrame>,
     pub(super) result: UnsafeCell<Option<ReaderChildResult>>,
@@ -195,6 +238,7 @@ impl Percent {
                     PercentPublication {
                         state: percent::State::new(value),
                         controls: None,
+                        edge_buttons: false,
                     },
                     runtime,
                 ));
@@ -217,8 +261,14 @@ pub(super) struct QrFrame {
     pub(super) commands: Commands,
     pub(super) layout: utility::Layout,
 }
-pub(super) struct Qr {
-    pub(super) model: ModelCell<utility::State>,
+pub(super) struct QrPublication {
+    pub(super) state: utility::State,
+    pub(super) failed: bool,
+    pub(super) suppress_buttons: u32,
+    pub(super) suppress_contact: bool,
+}
+pub(crate) struct Qr {
+    pub(super) model: ModelCell<QrPublication>,
     pub(super) frame: UnsafeCell<QrFrame>,
     pub(super) payload: Text,
     pub(super) result: UnsafeCell<Option<ReaderChildResult>>,
@@ -228,9 +278,14 @@ impl Qr {
         unsafe {
             allocate(|out: *mut Self| {
                 ptr::addr_of_mut!((*out).model).write(ModelCell::new(
-                    utility::State {
-                        kind: utility::Screen::Qr as u8,
-                        ..Default::default()
+                    QrPublication {
+                        state: utility::State {
+                            kind: utility::Screen::Qr as u8,
+                            ..Default::default()
+                        },
+                        failed: false,
+                        suppress_buttons: 0,
+                        suppress_contact: false,
                     },
                     runtime,
                 ));
@@ -294,7 +349,7 @@ impl ToolbarFrame {
         (offset < self.count).then(|| &self.rows[usize::from(offset)])
     }
 }
-pub(super) struct Toolbar {
+pub(crate) struct Toolbar {
     pub(super) model: ModelCell<ToolbarPublication>,
     pub(super) frame: UnsafeCell<ToolbarFrame>,
 }

@@ -67,6 +67,9 @@ add_custom_command(OUTPUT ${READER_PERCENT_DRAWING}
     ${REPO_ROOT}/src/activities/util/UtilityActivity.cpp
     ${REPO_ROOT}/src/activities/reader/RustReaderDrawing.cpp
     ${REPO_ROOT}/src/activities/reader/ReaderChromeListActivity.cpp
+    ${REPO_ROOT}/src/components/themes/BaseTheme.cpp
+    ${REPO_ROOT}/src/components/themes/lyra/LyraTheme.cpp
+    ${REPO_ROOT}/src/components/themes/roundedraff/RoundedRaffTheme.cpp
   VERBATIM)
 get_target_property(READER_DRAWING_SOURCES TextGolden SOURCES)
 list(FILTER READER_DRAWING_SOURCES EXCLUDE REGEX "TextGolden.cpp$")
@@ -100,3 +103,9 @@ target_include_directories(ReaderChapterGuard PRIVATE ${REPO_ROOT}/lib/Memory
   ${REPO_ROOT}/test/reader_lifecycle ${REPO_ROOT}/test/ui_runtime
   ${REPO_ROOT}/test/chapter_html_slim_parser/stubs)
 add_test(NAME reader_chapter_resource_guard COMMAND ReaderChapterGuard ${CMAKE_CURRENT_BINARY_DIR}/guard-book-fixture)
+
+add_test(NAME reader_owned_app_children
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_owned_app.py --archive ${XP_FFI_HOST_ARCHIVE})
+
+add_test(NAME reader_toolbar_owned_parity
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_toolbar_parity.py --archive ${XP_FFI_HOST_ARCHIVE})

@@ -9,12 +9,12 @@ use xp_ui::{
     utility::{self, Texts},
 };
 
-struct Fixed<const N: usize> {
+pub(super) struct Fixed<const N: usize> {
     bytes: [u8; N],
     len: usize,
 }
 impl<const N: usize> Fixed<N> {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self {
             bytes: [0; N],
             len: 0,
@@ -25,7 +25,7 @@ impl<const N: usize> Fixed<N> {
         self.bytes[self.len..self.len + count].copy_from_slice(&bytes[..count]);
         self.len += count;
     }
-    fn wire(&self) -> abi::Text {
+    pub(super) fn wire(&self) -> abi::Text {
         abi::Text::from_terminated(&self.bytes[..=self.len])
     }
 }

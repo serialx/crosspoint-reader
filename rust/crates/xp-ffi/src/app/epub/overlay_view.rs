@@ -202,15 +202,20 @@ impl EpubSession {
     ) {
         let toolbar = self.toolbar(access).expect("overlay toolbar");
         let mut rows = Rows { access, mode };
-        if unsafe {
-            (self.leaves.toolbar_paint)(
-                toolbar.as_ptr(),
-                model,
-                row,
-                (&mut rows as *mut Rows<'_, '_>).cast(),
-            )
-        } != 0
-        {
+        let painted = match toolbar {
+            super::children::ToolbarTarget::Legacy(toolbar) => unsafe {
+                (self.leaves.toolbar_paint)(
+                    toolbar.as_ptr(),
+                    model,
+                    row,
+                    (&mut rows as *mut Rows<'_, '_>).cast(),
+                ) != 0
+            },
+            super::children::ToolbarTarget::Owned(toolbar) => unsafe {
+                self.paint_toolbar_target(access, toolbar, mode, model)
+            },
+        };
+        if painted {
             self.publish_reader_scene();
         } else {
             self.reject_reader_scene();

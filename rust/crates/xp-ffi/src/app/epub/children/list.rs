@@ -137,6 +137,8 @@ impl ListPublication {
             self.hits = frame.next_hits;
         } else {
             self.hits = hits::Layout::default();
+            self.suppress_buttons = u32::MAX;
+            self.suppress_contact = true;
             self.state.list.last_repeat = 0;
         }
     }

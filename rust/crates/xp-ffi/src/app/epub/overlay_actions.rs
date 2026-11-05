@@ -1,5 +1,5 @@
 use super::{abi, state::Overlay, EpubSession, ResourceAccess};
-use core::{mem::MaybeUninit, ptr::NonNull};
+use core::mem::MaybeUninit;
 use xp_ui::{
     model::{Input, BACK},
     reader::{input::Query, menu_parent::Action, render::Command},
@@ -230,22 +230,21 @@ impl EpubSession {
         let toolbar = if let Some(toolbar) = self.loop_toolbar() {
             toolbar
         } else {
-            let Some(toolbar) = NonNull::new(unsafe { (self.leaves.toolbar_open)() }) else {
+            let Some(toolbar) = super::children::ToolbarSlot::open(self) else {
                 self.request_update();
                 return;
             };
             let access = self.lock_resources();
             if self.model(|state| state.scene_gate.failed) {
-                unsafe { (self.leaves.toolbar_close)(toolbar.as_ptr()) };
+                toolbar.close(self);
                 drop(access);
                 self.request_update();
                 return;
             }
-            self.set_toolbar(&access, Some(toolbar));
-            toolbar
+            self.install_toolbar(&access, toolbar)
         };
         if matches!(previous, Overlay::Page) {
-            unsafe { (self.leaves.toolbar_begin)(toolbar.as_ptr()) };
+            toolbar.begin(self);
         }
         let cursor = self.mapped_query(Query::HasTouch) == 0;
         match target {
@@ -258,7 +257,7 @@ impl EpubSession {
                     return;
                 }
                 index = self.overlay_toc(&access);
-                unsafe { (self.leaves.toolbar_reset_navigation)(toolbar.as_ptr(), index, index) };
+                toolbar.reset(self, index, index);
             }
             Overlay::Text | Overlay::More => {
                 index = 0;
@@ -266,7 +265,7 @@ impl EpubSession {
                     self.request_update();
                     return;
                 }
-                unsafe { (self.leaves.toolbar_reset_navigation)(toolbar.as_ptr(), 0, 0) };
+                toolbar.reset(self, 0, 0);
             }
             Overlay::Page => {}
         }
@@ -312,7 +311,7 @@ impl EpubSession {
             // Cancellation still tears down a toolbar after its scene was rejected.
             let toolbar = self.take_toolbar(&access);
             if let Some(toolbar) = toolbar {
-                unsafe { (self.leaves.toolbar_close)(toolbar.as_ptr()) };
+                toolbar.close(self);
             }
         }
         let geometry = self.overlay_geometry();

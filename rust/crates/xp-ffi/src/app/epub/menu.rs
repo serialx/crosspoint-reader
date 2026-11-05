@@ -27,19 +27,18 @@ impl EpubSession {
             let toolbar = if let Some(toolbar) = self.loop_toolbar() {
                 toolbar
             } else {
-                let Some(toolbar) = NonNull::new(unsafe { (self.leaves.toolbar_open)() }) else {
+                let Some(toolbar) = super::children::ToolbarSlot::open(self) else {
                     self.request_update();
                     return;
                 };
                 let access = self.lock_resources();
                 if self.model(|state| state.scene_gate.failed) {
-                    unsafe { (self.leaves.toolbar_close)(toolbar.as_ptr()) };
+                    toolbar.close(self);
                     drop(access);
                     self.request_update();
                     return;
                 }
-                self.set_toolbar(&access, Some(toolbar));
-                toolbar
+                self.install_toolbar(&access, toolbar)
             };
             self.model(|state| {
                 state.overlay = Overlay::Toolbar;
@@ -47,7 +46,7 @@ impl EpubSession {
                 state.panel_hold_jumped = false;
                 state.panel_cursor = cursor;
             });
-            unsafe { (self.leaves.toolbar_begin)(toolbar.as_ptr()) };
+            toolbar.begin(self);
             {
                 let access = self.lock_resources();
                 self.discard_overlay_page(&access);
@@ -81,6 +80,10 @@ impl EpubSession {
                 bookmarks: u8::from(bookmarks),
                 clippings: u8::from(self.has_clippings()),
             };
+            if self.children_enabled() {
+                self.launch_owned_menu(&args);
+                return;
+            }
             self.launch_menu_child(
                 unsafe { (self.leaves.child_menu)(&args) },
                 ChildIntent::Menu,
@@ -110,6 +113,10 @@ impl EpubSession {
             toc
         };
         if let Some(book) = self.loop_book() {
+            if self.children_enabled() {
+                self.launch_owned_chapters(toc);
+                return;
+            }
             self.launch_menu_child(
                 unsafe {
                     (self.leaves.child_chapter)(super::session_book::facade(book.as_ptr()), toc)
@@ -128,6 +135,10 @@ impl EpubSession {
 
     fn open_percent(&self) {
         let percent = self.book_percent_for(self.chapter_position());
+        if self.children_enabled() {
+            self.launch_owned_percent(percent);
+            return;
+        }
         self.launch_menu_child(
             unsafe { (self.leaves.child_percent)(percent) },
             ChildIntent::Percent,
@@ -151,6 +162,10 @@ impl EpubSession {
             }
         };
         if let Some(text) = text.filter(|text| !text.bytes().is_empty()) {
+            if self.children_enabled() {
+                self.launch_owned_qr(text);
+                return;
+            }
             self.launch_menu_child(
                 unsafe { (self.leaves.child_qr)(text.wire()) },
                 ChildIntent::Qr,

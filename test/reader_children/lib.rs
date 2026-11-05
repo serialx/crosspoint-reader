@@ -16,7 +16,7 @@ mod result;
 #[path = "../../rust/crates/xp-ffi/src/app/test_resources.rs"]
 mod test_resources;
 mod app {
-    pub(crate) use super::{abi, resources, sync};
+    pub(crate) use super::{abi, resources, stable_owner, sync};
 }
 #[path = "../../rust/crates/xp-ffi/src/app/epub/children/commands.rs"]
 mod commands;
@@ -108,3 +108,14 @@ mod toolbar_view;
 
 #[cfg(test)]
 mod toolbar_scene_tests;
+
+#[path = "../../rust/crates/xp-ffi/src/app/epub/children/input.rs"]
+mod input;
+#[cfg(test)]
+mod input_tests;
+
+#[cfg(test)]
+mod menu_scene_tests;
+
+#[path = "../../rust/crates/xp-ffi/src/app/stable_owner.rs"]
+mod stable_owner;

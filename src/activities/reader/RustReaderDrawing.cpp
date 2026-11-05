@@ -2,6 +2,7 @@
 
 #include <FreeInkUIIcon.h>
 #include <GfxRenderer.h>
+#include <HalGPIO.h>
 
 #include "MappedInputManager.h"
 #include "ReaderChromeListActivity.h"
@@ -16,7 +17,7 @@ namespace {
 const char* text(XpAppText value) { return value.len ? reinterpret_cast<const char*>(value.data) : ""; }
 }  // namespace
 
-void sampleReaderUtilityLayout(GfxRenderer& renderer, const MappedInputManager& input, XpUiUtilityLayout& l) {
+bool sampleReaderUtilityLayout(GfxRenderer& renderer, const MappedInputManager& input, XpUiUtilityLayout& l) {
   const auto& m = UITheme::getInstance().getMetrics();
   auto target = makeUiTarget(renderer);
   const auto& t = refreshSharedUiThemeTokens(target);
@@ -54,6 +55,7 @@ void sampleReaderUtilityLayout(GfxRenderer& renderer, const MappedInputManager& 
   l.sheet_radius = m.sheetRadius;
   l.body_bold = m.listTitleBold;
   l.touch = input.hasTouch();
+  return gpio.hasEdgeSideButtons();
 }
 
 void sampleReaderChildTheme(GfxRenderer& renderer, XpUiReaderTheme& theme, const bool toolbar) {

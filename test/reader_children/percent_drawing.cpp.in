@@ -1,3 +1,6 @@
+#include <BoardConfig.h>
+#include "components/HeaderBackTapTarget.h"
+#include "components/icons/headerIcons.h"
 #include <FontCacheManager.h>
 #include <FontDecompressor.h>
 #include <FreeInkApp.h>
@@ -62,15 +65,29 @@ struct MappedInputManager {
   struct Labels { const char* btn1; const char* btn2; const char* btn3; const char* btn4; };
   Labels mapLabels(const char* a, const char* b, const char* c, const char* d) const { return {d,c,b,a}; }
 } mappedInput;
+struct {
+  bool edgeButtons = false;
+  bool hasEdgeSideButtons() const { return edgeButtons; }
+  bool hasTouch() const { return BoardConfig::touch; }
+  bool isUsbConnected() const { return false; }
+} gpio;
+struct { unsigned getBatteryPercentage() const { return 63; } } powerManager;
+struct CrossPointSettings { enum class HIDE_BATTERY_PERCENTAGE { HIDE_ALWAYS, SHOW }; };
+struct {
+  CrossPointSettings::HIDE_BATTERY_PERCENTAGE hideBatteryPercentage = CrossPointSettings::HIDE_BATTERY_PERCENTAGE::SHOW;
+  bool clockShowInHeader = false;
+  unsigned clockFormat = 0;
+} SETTINGS;
+struct { bool isAvailable() const { return false; } bool formatTime(char*, size_t, bool) const { return false; } } halClock;
+constexpr int batteryPercentSpacing = 4, cornerRadius = 6, kGuideFontId = SMALL_FONT_ID, kBottomRadius = 15;
+static unsigned nativeTheme;
+
 struct Gui {
   Rect header{};
   std::array<int,4> footerClip{};
   bool back = false;
-  void drawHeader(GfxRenderer&, Rect rect, const char*, const char* = nullptr, bool enabled = true) { header = rect; back = enabled; }
-  void drawButtonHints(GfxRenderer& r, const char* a, const char* b, const char* c, const char* d) {
-    assert(std::strcmp(a, "four") == 0 && std::strcmp(b, "three") == 0 && std::strcmp(c, "two") == 0 && std::strcmp(d, "one") == 0);
-    footerClip = r.getClipRect();
-  }
+  void drawHeader(GfxRenderer&, Rect, const char*, const char* = nullptr, bool = true);
+  void drawButtonHints(GfxRenderer&, const char*, const char*, const char*, const char*);
 } GUI;
 struct UiAppHost { using UiScreen = fui::Screen<24>; };
 using UiScreen = UiAppHost::UiScreen;
@@ -175,6 +192,8 @@ int main() {
   unsigned adapterCases = 0;
   static EpdFont small(&ubuntu_10_regular), smallBold(&ubuntu_10_bold), body(&ubuntu_12_regular),
       bodyBold(&ubuntu_12_bold), title(&notosans_18_regular), titleBold(&notosans_18_bold);
+  static EpdFont tiny(&ubuntu_8_regular);
+  renderer.insertFont(SMALL_FONT_ID, EpdFontFamily(&tiny));
   renderer.insertFont(UI_10_FONT_ID, EpdFontFamily(&small, &smallBold));
   renderer.insertFont(UI_12_FONT_ID, EpdFontFamily(&body, &bodyBold));
   renderer.insertFont(NOTOSANS_18_FONT_ID, EpdFontFamily(&title, &titleBold));
@@ -183,7 +202,7 @@ int main() {
   FontCacheManager cache(renderer.getFontMap(), renderer.getSdCardFonts(), renderer.getTtfFonts());
   cache.setFontDecompressor(&decompressor);
   renderer.setFontCacheManager(&cache);
-  // Physical contracts use the real renderer and SDK; only GUI callbacks are recorded.
+  // Native theme bodies and the real renderer/SDK supply the physical drawing.
   const XpAppText titleText{reinterpret_cast<const uint8_t*>("title"), 5};
   const XpAppText footerText[] = {{reinterpret_cast<const uint8_t*>("one"),3}, {reinterpret_cast<const uint8_t*>("two"),3}, {reinterpret_cast<const uint8_t*>("three"),5}, {reinterpret_cast<const uint8_t*>("four"),4}};
   const std::array<std::array<int,4>,4> expectedClip{{{10,20,120,240},{20,670,240,120},{350,540,120,240},{220,10,240,120}}};
@@ -214,6 +233,43 @@ int main() {
       assert(renderer.getClipRect() == savedClip);
     }
   }
+  unsigned chromeCases = 0;
+  for (nativeTheme = 0; nativeTheme < 3; ++nativeTheme) {
+    UITheme::getInstance().metrics = nativeTheme == 0 ? BaseMetrics::values : nativeTheme == 1 ? RoundedRaffMetrics::values : LyraMetrics::values;
+    for (bool inverted : {false,true}) for (int orientation = 0; orientation < 4; ++orientation)
+      for (bool touch : {false,true}) {
+        display.inverted = inverted; BoardConfig::touch = touch;
+        renderer.setOrientation(static_cast<GfxRenderer::Orientation>(orientation));
+        for (bool list : {false,true}) {
+          display.pixels.fill(0xa5); renderer.setClipRect(0,0,renderer.getScreenWidth(),renderer.getScreenHeight());
+          const Rect rect = list ? UITheme::getInstance().getHeaderRect(renderer, true, false) : Rect{0,0,renderer.getScreenWidth(),96};
+          GUI.drawHeader(renderer, rect, "Reader title");
+          const auto expected = display.pixels;
+          const std::array<int,4> back{HeaderBackTapTarget::x,HeaderBackTapTarget::y,HeaderBackTapTarget::w,HeaderBackTapTarget::h};
+          display.pixels.fill(0xa5);
+          const XpAppText title{reinterpret_cast<const uint8_t*>("Reader title"),12};
+          drawReaderHeader(renderer, {0,0,static_cast<int16_t>(renderer.getScreenWidth()),96}, title, list);
+          assert(display.pixels == expected);
+          assert((back == std::array<int,4>{HeaderBackTapTarget::x,HeaderBackTapTarget::y,HeaderBackTapTarget::w,HeaderBackTapTarget::h}));
+          ++chromeCases;
+        }
+        display.pixels.fill(0xa5); renderer.setClipRect(0,0,renderer.getScreenWidth(),renderer.getScreenHeight());
+        // UtilityActivity paints mapped hints after converting its scene clip to portrait.
+        UtilityActivity utility{renderer};
+        const auto nativePaint = utility.rustResources();
+        XpUiCommand footer{};
+        footer.resource = UtilityActivity::Footer;
+        nativePaint.resource(nativePaint.context, nullptr, &footer,
+                             {0,0,static_cast<int16_t>(renderer.getScreenWidth()),static_cast<int16_t>(renderer.getScreenHeight())});
+        const auto expected = display.pixels;
+        display.pixels.fill(0xa5);
+        drawReaderUtilityFooter(renderer, mappedInput, {0,0,static_cast<int16_t>(renderer.getScreenWidth()),static_cast<int16_t>(renderer.getScreenHeight())}, footerText);
+        assert(display.pixels == expected);
+        assert(renderer.getOrientation() == static_cast<GfxRenderer::Orientation>(orientation));
+        ++chromeCases;
+      }
+  }
+  std::printf("Native theme header/footer pixel and Back-target parity: %u cases\n", chromeCases);
   unsigned prewarmCalls = 0;
   prewarmReaderRows(renderer, UI_12_FONT_ID, &prewarmCalls, [](const void* p, uint32_t i) -> XpAppText {
     assert(i < 3);
@@ -239,7 +295,9 @@ int main() {
               fui::InteractionBuffer<24> nativeHits;
               EpubReaderPercentSelectionActivity native{value, target, mappedInput};
               auto drawNative = [&] {
-                fui::Frame<24> frame(target, target.deviceContext(), {}, nativeHits);
+                const auto device = target.deviceContext();
+                const fui::InputSnapshot frameInput{};
+                fui::Frame<24> frame(target, device, frameInput, nativeHits);
                 UiScreen screen(frame, tokens);
                 native.buildPercentScreen(screen);
               };
@@ -280,7 +338,10 @@ int main() {
               if (flash && action == ACTION_STEP) state.flash_pending = activeValue < 0 ? 1 : 2;
               const auto layout = sampleLayout(renderer, mappedInput);
               XpUiUtilityLayout physicalLayout{};
-              sampleReaderUtilityLayout(renderer, mappedInput, physicalLayout);
+              for (bool edgeButtons : {false, true}) {
+                gpio.edgeButtons = edgeButtons;
+                assert(sampleReaderUtilityLayout(renderer, mappedInput, physicalLayout) == edgeButtons);
+              }
               assert(std::memcmp(&physicalLayout, &layout, sizeof(layout)) == 0);
               XpUiReaderTheme originalTheme{}, childTheme{};
               sampleReaderChromeTheme(renderer, originalTheme, false);

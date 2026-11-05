@@ -13,6 +13,7 @@ void* xp_epub_test_child_book_open(const XpAppRuntime*, const XpAppResources*, c
 uint16_t xp_epub_test_child_book_render(void*, int32_t);
 uint16_t xp_epub_test_child_toolbar_render(void*, int32_t);
 void xp_epub_test_child_book_close(void*);
+uint8_t xp_epub_test_child_move_result(void*);
 }
 static int modelDepth, locks, unlocks, prewarms, clears, refreshes, buffersLive, emptyRows;
 static bool paintFails, destroying, toolbarPainting;
@@ -113,6 +114,7 @@ int main(int argc, char** argv) {
   paintFails = true;
   assert(xp_epub_test_child_toolbar_render(owner, 987) == 0);
   paintFails = false;
+  assert(xp_epub_test_child_move_result(owner));
   destroying = true;
   xp_epub_test_child_book_close(owner);
   assert((lifetime == std::vector<std::string>{"child-commands-free", "child-commands-free", "book-file-close", "unlock"}));

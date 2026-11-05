@@ -34,7 +34,7 @@ struct Visit {
     toolbar: Option<Box<Toolbar>>,
     physical: Physical,
 }
-unsafe extern "C" fn unused_layout(_: *mut xp_ui::utility::Layout) {
+unsafe extern "C" fn unused_layout(_: *mut xp_ui::utility::Layout) -> u8 {
     panic!("unexpected utility layout")
 }
 unsafe extern "C" fn unused_footer(_: Rect, _: *const abi::Text) {
@@ -171,4 +171,125 @@ pub unsafe extern "C" fn xp_epub_test_percent_render(
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_percent_close(raw: *mut c_void) {
     drop(unsafe { Box::from_raw(raw.cast::<Percent>()) });
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_child_move_result(raw: *mut c_void) -> u8 {
+    let visit = unsafe { &*raw.cast::<Visit>() };
+    let anchor = Text::copy(b"owned-anchor").unwrap();
+    let pointer = anchor.bytes().as_ptr();
+    visit
+        .parent
+        .model(|state| state.child = epub::state::ChildIntent::Chapter);
+    visit
+        .parent
+        .deliver_reader_child(super::child_result::ReaderChildResult::Chapter(Some(
+            super::child_result::ChapterSelection { spine: 7, anchor },
+        )));
+    let access = visit.parent.lock_resources();
+    let moved = visit.parent.anchor(&access);
+    assert_eq!(moved.data, pointer);
+    assert_eq!(unsafe { moved.bytes() }.unwrap(), b"owned-anchor");
+    assert!(visit.parent.model(|state| state.current.spine == 7
+        && state.next_page == 0
+        && matches!(state.child, epub::state::ChildIntent::None)));
+    1
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_child_result_anchor(raw: *const c_void) -> *const u8 {
+    let owner = unsafe { &*raw.cast::<super::owned::Chapters>() };
+    match unsafe { &*owner.result.get() } {
+        Some(super::child_result::ReaderChildResult::Chapter(Some(result))) => {
+            result.anchor.bytes().as_ptr()
+        }
+        _ => core::ptr::null(),
+    }
+}
+
+// Physical fixture rows exercise the real owner; parent row providers are covered
+// separately by the guarded book and App compositions.
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_toolbar_open(runtime: &'static abi::Runtime) -> *mut c_void {
+    Box::into_raw(Toolbar::try_new(runtime).unwrap()).cast()
+}
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_toolbar_close(raw: *mut c_void) {
+    drop(unsafe { Box::from_raw(raw.cast::<Toolbar>()) });
+}
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_toolbar_render(
+    raw: *mut c_void,
+    services: &'static abi::Resources,
+    physical: &Physical,
+    model: &epub::abi::XpEpubToolbarModel,
+    fail_row: i32,
+) -> u8 {
+    let text = |wire: abi::Text| {
+        (!wire.data.is_null()).then(|| unsafe { core::ffi::CStr::from_ptr(wire.data.cast()) })
+    };
+    let content = Content {
+        panel: model.panel != 0,
+        dense: model.dense != 0,
+        active_tool: model.active_tool,
+        progress_permille: model.progress_permille,
+        chapter: text(model.chapter),
+        page_info: text(model.page_info),
+        panel_title: text(model.panel_title),
+        count: model.item_count,
+        selected: model.selected,
+    };
+    let owner = unsafe { &*raw.cast::<Toolbar>() };
+    u8::from(
+        unsafe {
+            owner.render(services, physical, &content, &mut |index, row| {
+                if index == fail_row {
+                    return false;
+                }
+                row.toggle = index % 2 != 0;
+                row.checked = index % 3 == 0;
+                let label = [b'A' + (index % 26) as u8; 64];
+                let value = [b'a' + (index % 26) as u8; 32];
+                row.label
+                    .assign_parts(&[&b"    "[..(index % 5) as usize], &label])
+                    .is_ok()
+                    && row.value.assign(&value).is_ok()
+            })
+        }
+        .is_ok(),
+    )
+}
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_toolbar_observe(
+    raw: *mut c_void,
+    nav: *mut xp_ui::model::ListState,
+    hits: *mut xp_ui::reader_chrome::hits::Layout,
+) -> u8 {
+    unsafe { &*raw.cast::<Toolbar>() }.model.with(|model| {
+        unsafe {
+            nav.write(model.navigation);
+            hits.write(model.hits);
+        }
+        u8::from(model.ready)
+    })
+}
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_toolbar_reset(raw: *mut c_void, selected: i32, top: i32) {
+    unsafe { &*raw.cast::<Toolbar>() }.reset_navigation(selected, top);
+}
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_toolbar_scroll(
+    raw: *mut c_void,
+    delta: i32,
+    count: i32,
+) -> u8 {
+    u8::from(unsafe { &*raw.cast::<Toolbar>() }.scroll(delta, count))
+}
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_toolbar_route(
+    raw: *mut c_void,
+    runtime: &abi::Runtime,
+    input: &xp_ui::model::Input,
+) -> epub::abi::XpEpubRouted {
+    unsafe { &*raw.cast::<Toolbar>() }.route(runtime, || *input)
 }

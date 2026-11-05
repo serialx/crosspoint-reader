@@ -158,7 +158,7 @@ pub unsafe extern "C" fn xp_epub_test_menu_create_legacy_book(
     guarded.native = NonNull::new(seed.native);
     guarded.section =
         super::legacy_section::SectionSlot::legacy(seed.section, &legacy_book.section);
-    guarded.toolbar = NonNull::new(seed.toolbar);
+    guarded.toolbar = NonNull::new(seed.toolbar).map(super::super::children::ToolbarSlot::Legacy);
     guarded.overlay_popup = NonNull::new(seed.popup);
     guarded.bookmarks = NonNull::new(seed.bookmarks);
     assert!(seed.more_count <= 19);

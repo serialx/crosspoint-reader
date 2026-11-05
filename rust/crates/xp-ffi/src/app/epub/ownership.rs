@@ -72,7 +72,7 @@ impl EpubSession {
     fn close_owned_components(&self, access: &ResourceAccess<'_>) {
         assert!(self.active_frame(access).is_none());
         if let Some(toolbar) = self.take_toolbar(access) {
-            unsafe { (self.leaves.toolbar_close)(toolbar.as_ptr()) };
+            toolbar.close(self);
         }
         if let Some(popup) = self.take_failure_popup(access) {
             unsafe { (self.leaves.popup_close)(popup.as_ptr()) };

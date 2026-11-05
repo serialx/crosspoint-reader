@@ -103,7 +103,7 @@ pub unsafe extern "C" fn xp_app_test_install_epub_legacy_book(
     };
     owner.book_factory = super::super::session_book::Factory::Legacy(services);
     owner.legacy_pages.set(Some(&services.section.page));
-    app.replace(crate::app::Owner::Epub(owner));
+    app.replace(crate::app::Owner::Epub(owner.into()));
     1
 }
 

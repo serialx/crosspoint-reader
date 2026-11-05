@@ -17,9 +17,9 @@ def main():
     path = Path('crates/xp-ffi/src/app/epub/overlay_actions.rs')
     original = (ROOT / 'rust' / path).read_text()
     before = ('if self.model(|state| state.scene_gate.failed) {\n'
-              '                unsafe { (self.leaves.toolbar_close)(toolbar.as_ptr()) };')
+              '                toolbar.close(self);')
     after = ('if false {\n'
-             '                unsafe { (self.leaves.toolbar_close)(toolbar.as_ptr()) };')
+             '                toolbar.close(self);')
     assert original.count(before) == 1
     with tempfile.TemporaryDirectory(prefix='reader-overlay-install-') as directory:
         work = Path(directory)

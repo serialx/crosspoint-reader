@@ -4,9 +4,10 @@ use xp_ui::{model::Metrics, reader_chrome::list, scene::Rect, utility};
 
 // Dormant physical leaves, installed only when the native owners are retired.
 // Every pointer is borrowed synchronously under the parent's resource guard.
-pub(super) struct Physical {
+#[repr(C)]
+pub(crate) struct Physical {
     pub(super) list_theme: unsafe extern "C" fn(*mut list::Theme, u8),
-    pub(super) utility_layout: unsafe extern "C" fn(*mut utility::Layout),
+    pub(super) utility_layout: unsafe extern "C" fn(*mut utility::Layout) -> u8,
     pub(super) header: unsafe extern "C" fn(Rect, abi::Text, u8),
     pub(super) utility_footer: unsafe extern "C" fn(Rect, *const abi::Text),
     pub(super) qr: unsafe extern "C" fn(Rect, abi::Text),

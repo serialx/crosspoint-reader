@@ -11,7 +11,7 @@ mod build;
 mod child;
 mod child_result;
 #[allow(dead_code)]
-mod children;
+pub(super) mod children;
 mod clipping;
 mod guarded;
 mod idle;

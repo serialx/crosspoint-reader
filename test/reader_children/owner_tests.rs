@@ -6,6 +6,9 @@ use std::{
 };
 
 thread_local! { static FAIL_NEXT: Cell<bool> = const { Cell::new(false) }; }
+pub(crate) fn fail_next_allocation() {
+    FAIL_NEXT.with(|flag| flag.set(true));
+}
 struct Allocator;
 unsafe impl GlobalAlloc for Allocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
@@ -73,7 +76,7 @@ fn each_child_has_a_separate_stable_box_and_qr_moves_its_text() {
     assert_eq!(menu.model.with(|m| m.menu.orientation), 3);
     assert_eq!(percent.model.with(|m| m.state.value()), 0);
     let before = (&*percent as *const owned::Percent).addr();
-    let owner = owned::ReaderChild::Percent(percent);
+    let owner = owned::ReaderChild::Percent(percent.into());
     let owned::ReaderChild::Percent(percent) = owner else {
         unreachable!()
     };
@@ -169,7 +172,7 @@ fn chapter_owner_moves_result_once_before_destruction() {
             crate::child_result::ChapterSelection { spine: 17, anchor },
         )));
     }
-    let owner = owned::ReaderChild::Chapters(owner);
+    let owner = owned::ReaderChild::Chapters(owner.into());
     let result = unsafe { owner.take_result() }.unwrap();
     assert!(unsafe { owner.take_result() }.is_none());
     drop(owner);
@@ -219,4 +222,26 @@ fn toolbar_publication_cannot_overwrite_navigation_during_render() {
     owner.publish(&painted, Default::default());
     assert_eq!(owner.model.with(|m| m.navigation.top), 16);
     assert_eq!(owner.model.with(|m| m.navigation.selected), 20);
+}
+
+#[test]
+fn stable_owner_transfer_allocates_nothing_and_drops_once() {
+    struct Payload<'a>(&'a Cell<usize>);
+    impl Drop for Payload<'_> {
+        fn drop(&mut self) {
+            self.0.set(self.0.get() + 1);
+        }
+    }
+    let runtime = runtime();
+    let drops = Cell::new(0);
+    let boxed = Box::new(Payload(&drops));
+    fail_next_allocation();
+    let owner = crate::stable_owner::StableOwner::from(boxed);
+    let target = owner.pointer();
+    let moved = Some(owner);
+    assert_eq!(unsafe { target.as_ref() }.0.get(), 0);
+    drop(moved);
+    assert_eq!(drops.get(), 1);
+    // Transfer and destruction leave the injected failure for the next allocation.
+    assert!(owned::Percent::try_new(runtime, 0).is_none());
 }

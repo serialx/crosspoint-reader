@@ -5,5 +5,7 @@ struct ViewableInsets {
 };
 inline constexpr struct {
   ViewableInsets viewableInsets;
+  int headerOffsetY = 0;
+  int cornerRadius = 0;
 } ACTIVE{{0, 0, 0, 0}};
 }  // namespace BoardConfig

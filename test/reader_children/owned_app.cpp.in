@@ -1,0 +1,207 @@
+#include <xp_ui_utility.h>
+#include <xp_ui.h>
+extern "C" {
+struct OwnedChildDrawing {
+  void (*theme)(XpUiReaderTheme*, uint8_t);
+  uint8_t (*layout)(XpUiUtilityLayout*);
+  void (*header)(XpUiRect, XpAppText, uint8_t);
+  void (*footer)(XpUiRect, const XpAppText*);
+  void (*qr)(XpUiRect, XpAppText);
+  void (*icon)(uint32_t, XpUiRect, XpUiRect);
+  void (*clear)();
+  void (*prewarm)(int32_t, const void*, XpAppText (*)(const void*, uint32_t), uint32_t);
+};
+uint8_t xp_app_test_child_drawing(const OwnedChildDrawing*);
+void* xp_app_test_current_child(uint8_t*);
+void xp_app_test_activity_loop();
+const uint8_t* xp_epub_test_child_result_anchor(const void*);
+}
+static void* watchedChild;
+static bool childFreed, parentUnlocked, parentDelivered, observingPublication;
+static unsigned ownedReturns;
+static const uint8_t* anchorBeforeMove;
+static bool captureAnchor;
+static XpAppMappedSnapshot childInput;
+static std::vector<std::string> ownedOrder;
+extern "C" void observeRustFree(void* pointer) {
+  if (!watchedChild || pointer != watchedChild) return;
+  assert(f().renderDepth == 1 && f().modelDepth == 0 && !childFreed);
+  assert(xp_app_test_current_epub() == nullptr && xp_app_test_published_epub() == nullptr);
+  childFreed = true;
+  ownedOrder.push_back("destroy");
+}
+static const OwnedChildDrawing drawing{
+  [](XpUiReaderTheme* t, uint8_t toolbar) {
+    physical("child-theme", 1); assert(toolbar <= 1); *t = {};
+    t->screen = {0,0,528,792}; t->safe = {0,0,528,752}; t->row_min = 48;
+    t->row_gap = 4; t->row_inset = 8; t->row_padding = 4; t->header_height = 32;
+    t->scroll_width = 3;
+  },
+  [](XpUiUtilityLayout* l) -> uint8_t {
+    physical("child-layout", 1); *l = {}; l->screen = {0,0,528,792}; l->safe = {0,0,528,752};
+    l->top_padding = 8; l->header_height = 32; l->spacing = 8; l->body_font = 1;
+    return 0;
+  },
+  [](XpUiRect, XpAppText, uint8_t) { physical("child-header", 1); },
+  [](XpUiRect, const XpAppText*) { physical("child-footer", 1); },
+  [](XpUiRect, XpAppText value) { physical("child-qr", 1); assert(value.len); },
+  [](uint32_t, XpUiRect, XpUiRect) { physical("toolbar-icon", 1); },
+  [] { physical("child-clear-fonts", 1); },
+  [](int32_t, const void* context, XpAppText (*read)(const void*,uint32_t), uint32_t count) {
+    physical("child-prewarm", 1); assert(count <= 24);
+    for (uint32_t i = 0; i < count; ++i) assert(read(context, i).len);
+  }
+};
+static void bindOwnedChildren() {
+  runtime.frontlight_present = []() -> uint8_t { return 0; };
+  runtime.frontlight_state = []() -> uint8_t { return 0; };
+  runtime.touch_feedback = [](uint8_t) { physical("child-haptic"); };
+  runtime.loop_settings = [](XpAppSettings* out) { *out = {}; };
+  runtime.input_mapped_snapshot = [](uint8_t poll, uint8_t full, uint8_t consume, XpAppMappedSnapshot* out) {
+    assert(!poll && full && consume); *out = childInput;
+  };
+  leaves.render_restore_bw = [](uint8_t) { physical("toolbar-restore", 1); };
+  leaves.input_facts = [](XpEpubInputFacts* out) { *out = {}; };
+  leaves.input_snapshot = [](XpUiInput* out) { *out = childInput.input; };
+  leaves.toolbar_open = []() -> void* { assert(false && "native toolbar factory"); return nullptr; };
+  leaves.toolbar_paint = [](void*, const XpEpubToolbarModel*, XpEpubRowSource, void*) -> uint8_t { assert(false && "native toolbar paint"); return 0; };
+  resources.translate = [](uint16_t) -> XpAppText { return literal("translation"); };
+  resources.text_width = [](XpAppText text, int32_t, uint8_t) -> int32_t { physical("child-width", 1); return int(text.len * 8); };
+  resources.line_height = [](int32_t) -> int32_t { physical("child-line", 1); return 24; };
+  resources.text_box_height = [](XpAppText, XpAppTextLayout) -> int32_t { physical("child-height", 1); return 24; };
+  resources.text_draw = [](const XpUiCommand*, XpUiRect, XpAppText) { physical("child-text", 1); };
+  resources.footer_draw = [](const XpAppText*) { physical("child-footer", 1); };
+  resources.refresh = [](uint8_t) { physical("child-refresh", 1); };
+  resources.paint_scene = [](const XpUiScene* scene, const XpUiPaint* paint) -> uint8_t {
+    physical("child-paint", 1);
+    for (unsigned i = 0; i < scene->command_count; ++i) {
+      const auto& c = scene->commands[i];
+      if (c.kind == XP_UI_TEXT_HANDLE || c.kind == XP_UI_BITMAP || c.kind == XP_UI_PAGE) {
+        assert(paint->resource_valid(paint->context, c.resource, c.generation));
+        paint->resource(paint->context, nullptr, &c, {0,0,528,792});
+      }
+    }
+    return 1;
+  };
+  static auto beforeChange = runtime.ble_before_screen_change;
+  runtime.ble_before_screen_change = [](uint8_t reader) -> uint8_t {
+    if (watchedChild && captureAnchor && xp_app_test_pending_kind() == 2) {
+      anchorBeforeMove = xp_epub_test_child_result_anchor(watchedChild);
+      assert(anchorBeforeMove);
+    }
+    return beforeChange(reader);
+  };
+  static auto modelLock = runtime.model_lock;
+  runtime.model_lock = [] {
+    if (watchedChild && childFreed && parentUnlocked && !parentDelivered && !observingPublication) {
+      assert(f().renderDepth == 0 && xp_app_test_current_epub() == results.owner);
+      parentDelivered = true; ownedOrder.push_back("deliver");
+    }
+    modelLock();
+  };
+  static auto unlock = runtime.render_unlock;
+  runtime.render_unlock = [](void* token) {
+    const bool returning = watchedChild && childFreed && !parentUnlocked;
+    if (returning) {
+      assert(xp_app_test_current_epub() == results.owner && xp_app_test_parent_count() == 0);
+      observingPublication = true;
+      assert(xp_app_test_published_epub() == results.owner);
+      observingPublication = false;
+      ownedOrder.push_back("publish");
+    }
+    unlock(token);
+    if (returning) { parentUnlocked = true; ownedOrder.push_back("unlock"); }
+  };
+}
+static uint8_t childKind() {
+  uint8_t kind = 0;
+  assert(xp_app_test_current_child(&kind));
+  return kind;
+}
+static void paintChild() {
+  assert(xp_app_test_current_child(nullptr));
+  void* lock = runtime.render_lock(); XpAppRenderToken token{lock};
+  xp_app_render(&token); runtime.render_unlock(lock);
+}
+static void inputChild(uint32_t released) {
+  childInput = {}; childInput.input.now_ms = 100; childInput.input.released = released;
+  xp_app_test_activity_loop();
+}
+static void returnChild(uint32_t released, bool checkAnchor = false) {
+  watchedChild = xp_app_test_current_child(nullptr);
+  assert(watchedChild);
+  childFreed = parentUnlocked = parentDelivered = false; ownedOrder.clear();
+  captureAnchor = checkAnchor;
+  inputChild(released);
+  assert(childFreed && parentUnlocked && parentDelivered);
+  assert((ownedOrder == std::vector<std::string>{"destroy", "publish", "unlock", "deliver"}));
+  watchedChild = nullptr; ++ownedReturns;
+  if (checkAnchor) xp_epub_test_menu_anchor(results.owner, [](void*, XpAppText text) -> uint8_t {
+    assert(text.data == anchorBeforeMove && ::text(text) == "anchor"); return 1;
+  }, nullptr);
+}
+int main(int argc, char** argv) {
+  assert(argc == 3);
+  const std::string mode = argv[1]; const bool cancelled = std::strtoul(argv[2], nullptr, 10) != 0;
+  Fixture state; fixture = &state;
+  bind(); bindResultsLifecycle(); bindResultsPhysical(); bindProductionChildren();
+  bindReaderBook(); bindReaderResults(); BookStoreAdapters::bind(); bindOwnedChildren();
+  initialize(); assert(xp_app_test_child_drawing(&drawing));
+  enterCompositionReader();
+  if (mode == "text" || mode == "text-overlay") {
+    const bool overlay = mode == "text-overlay";
+    if (overlay) {
+      results.toolbarMode = true;
+      xp_epub_test_menu_open(results.owner);
+      assert(!xp_app_test_pending_kind());
+      paintOwner();
+      xp_epub_test_text_settings_open(results.owner, 1);
+    } else xp_epub_test_menu_confirm(results.owner, 2);
+    assert(xp_app_test_drain() && xp_app_test_current_legacy());
+    queuePop(ActivityResult{}, cancelled);
+    if (overlay) {
+      XpEpubTestMenuObservation observation{}; xp_epub_test_menu_observe(results.owner, &observation);
+      assert(observation.overlay == 3 && observation.has_toolbar && !observation.has_section);
+      assert(results.settingsSaved == 1 && !results.toolbar && results.toolbarBegins == 0);
+      paintOwner();
+      xp_epub_test_overlay_close(results.owner);
+    } else {
+      assert(childKind() == 1); paintChild(); returnChild(XP_UI_BACK);
+    }
+    closeToSleep();
+    assert(readerFiles.empty() && readerFacades.empty() && readerBuffers.empty());
+    assert(readerSectionOpens == readerSectionCloses && state.handles.empty());
+    assert(xp_test_live_allocations() == 1 && !state.renderDepth && !state.modelDepth);
+    std::printf("owned App %s cancelled=%u: retained TextSettings return restores menu/preview and releases toolbar\n", mode.c_str(), cancelled);
+    return 0;
+  }
+  if (mode == "menu") xp_epub_test_menu_open(results.owner);
+  else xp_epub_test_menu_confirm(results.owner, mode == "chapter" ? 0 : mode == "percent" ? 6 : 14);
+  assert(xp_app_test_pending_kind() == 1 && xp_app_test_drain());
+  assert(childKind() == (mode == "menu" ? 1 : mode == "chapter" ? 2 : mode == "percent" ? 3 : 4));
+  paintChild();
+  if (mode == "percent" && !cancelled) {
+    // The actual Percent input policy clamps repeated decrements at zero.
+    for (unsigned i = 0; i < 110; ++i) {
+      childInput = {}; childInput.input.now_ms = 100; childInput.input.pressed = XP_UI_LEFT;
+      xp_app_test_activity_loop();
+    }
+  }
+  returnChild(cancelled || mode == "qr" ? XP_UI_BACK : XP_UI_CONFIRM, mode == "chapter" && !cancelled);
+  if (mode == "menu" && !cancelled) {
+    assert(childKind() == 2); paintChild(); returnChild(XP_UI_BACK);
+  }
+  if (xp_app_test_current_child(nullptr)) {
+    assert(childKind() == 1); paintChild(); returnChild(XP_UI_BACK);
+  }
+  assert(xp_app_test_current_epub() == results.owner && !xp_epub_test_has_child(results.owner));
+  if (mode == "percent" && !cancelled) {
+    XpEpubTestMenuObservation observation{}; xp_epub_test_menu_observe(results.owner, &observation);
+    assert(observation.spine == 0 && observation.next_page == 0);
+  }
+  closeToSleep();
+  assert(readerFiles.empty() && readerFacades.empty() && readerBuffers.empty());
+  assert(readerSectionOpens == readerSectionCloses && state.handles.empty());
+  assert(xp_test_live_allocations() == 1 && !state.renderDepth && !state.modelDepth);
+  std::printf("owned App %s cancelled=%u: %u destroy/publish/unlock/deliver sequences; balanced real book and section\n", mode.c_str(), cancelled, ownedReturns);
+}

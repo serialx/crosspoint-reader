@@ -62,6 +62,37 @@ impl Texts for Drawing<'_> {
     }
 }
 impl Qr {
+    pub(super) fn input(&self, input: xp_ui::model::Input) -> super::input::Update {
+        use xp_ui::model::{Effect, EffectKind, BACK};
+        self.model.with(|model| {
+            let consumed = super::input::suppressed(
+                input,
+                model.failed,
+                &mut model.suppress_buttons,
+                &mut model.suppress_contact,
+            );
+            super::input::Update {
+                effect: if consumed {
+                    Effect {
+                        kind: if model.failed && input.released & BACK != 0 {
+                            EffectKind::Cancel as u8
+                        } else {
+                            EffectKind::None as u8
+                        },
+                        ..Default::default()
+                    }
+                } else {
+                    model
+                        .state
+                        .update(&input, None, &Default::default())
+                        .navigation
+                },
+                retry: model.failed,
+                haptic: false,
+            }
+        })
+    }
+
     /// Caller holds the render lifetime lock and parent's resource guard.
     pub(super) unsafe fn render(
         &self,
@@ -69,7 +100,24 @@ impl Qr {
         physical: &Physical,
         layout: utility::Layout,
     ) -> Result<u16, Error> {
-        let snapshot = self.model.with(|state| *state);
+        let result = unsafe { self.draw(services, physical, layout) };
+        self.model.with(|model| {
+            model.failed = result.is_err();
+            if model.failed {
+                model.suppress_buttons = u32::MAX;
+                model.suppress_contact = true;
+            }
+        });
+        result
+    }
+
+    unsafe fn draw(
+        &self,
+        services: &'static abi::Resources,
+        physical: &Physical,
+        layout: utility::Layout,
+    ) -> Result<u16, Error> {
+        let snapshot = self.model.with(|model| model.state);
         let frame = unsafe { &mut *self.frame.get() };
         frame.layout = layout;
         if !frame.commands.recover(services) {
@@ -111,7 +159,7 @@ impl Qr {
         if unsafe { (services.paint_scene)(&view, &paint) } == 0 {
             return Err(Error::Invalid);
         }
-        self.model.with(|state| state.publish(&snapshot));
+        self.model.with(|model| model.state.publish(&snapshot));
         unsafe { (services.refresh)(refresh as u8) };
         Ok(view.command_count)
     }

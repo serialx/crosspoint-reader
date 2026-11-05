@@ -1,5 +1,5 @@
 use super::{abi, state::Overlay, EpubSession, Text};
-use core::{ffi::c_void, mem::MaybeUninit, ptr::NonNull};
+use core::{ffi::c_void, mem::MaybeUninit};
 use xp_ui::{
     model::{BACK, CONFIRM, DOWN, LEFT, RIGHT, SWIPE_DOWN, SWIPE_UP, UP},
     reader::{
@@ -193,12 +193,17 @@ impl EpubSession {
         }
     }
 
-    fn page_overlay_rows(&self, toolbar: NonNull<c_void>, direction: i32, count: i32, rows: i32) {
+    fn page_overlay_rows(
+        &self,
+        toolbar: super::children::ToolbarTarget,
+        direction: i32,
+        count: i32,
+        rows: i32,
+    ) {
         if count <= 0 {
             return;
         }
-        let moved =
-            unsafe { (self.leaves.toolbar_scroll)(toolbar.as_ptr(), direction * rows, count) != 0 };
+        let moved = toolbar.scroll(self, direction * rows, count);
         if self.model(|state| state.panel_cursor) {
             self.model(|state| {
                 state.panel_index = (state.panel_index + direction * rows).clamp(0, count - 1)
@@ -231,11 +236,7 @@ impl EpubSession {
             }
             return;
         }
-        let mut routed = MaybeUninit::<abi::XpEpubRouted>::uninit();
-        unsafe {
-            (self.leaves.toolbar_route)(toolbar.as_ptr(), routed.as_mut_ptr());
-        }
-        let routed = unsafe { routed.assume_init() };
+        let routed = toolbar.route(self);
         if matches!(self.model(|state| state.overlay), Overlay::Toolbar) {
             match routed.event {
                 x if x == Event::Dismiss as u8 => {
@@ -309,7 +310,7 @@ impl EpubSession {
             Overlay::Text => TEXT_ROWS,
             _ => i32::from(self.loop_more_count()),
         };
-        let rows = unsafe { (self.leaves.toolbar_visible_rows)(toolbar.as_ptr()) }.max(1);
+        let rows = toolbar.visible_rows(self).max(1);
         match routed.event {
             x if x == Event::Dismiss as u8 => {
                 self.dismiss_overlay_panel();

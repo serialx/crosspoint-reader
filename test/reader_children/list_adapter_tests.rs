@@ -134,7 +134,7 @@ unsafe extern "C" fn prewarm(
         .collect();
     RECORD.with(|r| r.borrow_mut().prewarms.push(values));
 }
-unsafe extern "C" fn unused_layout(_: *mut utility::Layout) {
+unsafe extern "C" fn unused_layout(_: *mut utility::Layout) -> u8 {
     panic!("unused")
 }
 unsafe extern "C" fn unused_footer(_: Rect, _: *const abi::Text) {

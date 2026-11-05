@@ -83,7 +83,7 @@ unsafe extern "C" fn paint(scene: *const SceneView, paint: *const Paint) -> u8 {
 unsafe extern "C" fn list_theme(_: *mut list::Theme, _: u8) {
     panic!("unused")
 }
-unsafe extern "C" fn layout(_: *mut utility::Layout) {
+unsafe extern "C" fn layout(_: *mut utility::Layout) -> u8 {
     panic!("unused")
 }
 unsafe extern "C" fn icon(_: u32, _: Rect, _: Rect) {
@@ -187,5 +187,71 @@ fn qr_allocation_and_paint_failure_do_not_refresh_or_copy_payload() {
     assert_eq!(
         tests::allocation_events(),
         [(true, 128), (true, 128), (false, 128)]
+    );
+}
+
+#[test]
+fn failed_qr_paint_suppresses_old_release_after_recovery() {
+    use xp_ui::model::{EffectKind, Input, BACK, CONFIRM, TOUCH_HELD, TOUCH_RELEASED};
+    tests::reset(0);
+    let owner = Qr::try_new(
+        owner_tests::runtime(),
+        Text::copy(b"owned payload").unwrap(),
+    )
+    .unwrap();
+    RECORD.with(|r| {
+        *r.borrow_mut() = Record {
+            payload: owner.payload.bytes().as_ptr().addr(),
+            fail: true,
+            ..Default::default()
+        }
+    });
+    assert!(unsafe { owner.render(services(), &physical(), geometry()) }.is_err());
+    assert!(
+        owner
+            .input(Input {
+                held: CONFIRM,
+                touch_flags: TOUCH_HELD,
+                ..Default::default()
+            })
+            .retry
+    );
+    assert_eq!(
+        owner
+            .input(Input {
+                released: BACK,
+                ..Default::default()
+            })
+            .effect
+            .kind,
+        EffectKind::Cancel as u8
+    );
+    owner.input(Input {
+        held: CONFIRM,
+        touch_flags: TOUCH_HELD,
+        ..Default::default()
+    });
+    RECORD.with(|r| r.borrow_mut().fail = false);
+    assert!(unsafe { owner.render(services(), &physical(), geometry()) }.is_ok());
+    assert_eq!(
+        owner
+            .input(Input {
+                released: CONFIRM,
+                touch_flags: TOUCH_RELEASED,
+                ..Default::default()
+            })
+            .effect
+            .kind,
+        EffectKind::None as u8
+    );
+    assert_eq!(
+        owner
+            .input(Input {
+                released: CONFIRM,
+                ..Default::default()
+            })
+            .effect
+            .kind,
+        EffectKind::Cancel as u8
     );
 }

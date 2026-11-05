@@ -2145,7 +2145,7 @@ void GfxRenderer::usePagePlan(XpPagePlan* plan, XpPageRowBounds* bounds, size_t 
 }
 
 void GfxRenderer::copyStatusToStrip(int top, const bool sourceInverted) const {
-  if (!_stripActive) return;
+  if (!_stripActive || top >= getScreenHeight()) return;
   top = std::max(top, 0);
   int ax, ay, bx, by;
   rotateCoordinates(orientation, 0, top, &ax, &ay, panelWidth, panelHeight);

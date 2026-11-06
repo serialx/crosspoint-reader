@@ -13,7 +13,7 @@ mod facade;
 mod inflate;
 mod items;
 mod load;
-pub(super) mod log;
+pub(in crate::app) mod log;
 mod package;
 pub(super) use package::diagnostics::xml_error;
 mod txt;

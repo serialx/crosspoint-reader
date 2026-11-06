@@ -105,9 +105,11 @@ impl File for Handle {
     fn is_directory(&self) -> bool {
         unsafe { (self.io.xpc_test_directory)(self.value.as_ptr()) != 0 }
     }
-    fn next(&mut self) -> Option<Self> {
-        NonNull::new(unsafe { (self.io.xpc_test_next)(self.value.as_ptr()) })
-            .map(|value| Self { value, io: self.io })
+    fn next(&mut self) -> Result<Option<Self>, super::io::DirectoryError> {
+        Ok(
+            NonNull::new(unsafe { (self.io.xpc_test_next)(self.value.as_ptr()) })
+                .map(|value| Self { value, io: self.io }),
+        )
     }
     fn name(&self, out: &mut [u8]) -> usize {
         unsafe { (self.io.xpc_test_name)(self.value.as_ptr(), out.as_mut_ptr(), out.len()) }

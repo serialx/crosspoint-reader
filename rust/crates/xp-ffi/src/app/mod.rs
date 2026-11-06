@@ -4,6 +4,14 @@ mod abi;
 // Dormant until the clipping-store ownership switch.
 #[allow(dead_code)]
 mod clippings;
+#[path = "clippings/facade.rs"]
+mod clippings_facade;
+#[allow(dead_code)]
+#[path = "clippings/native.rs"]
+mod clippings_native;
+#[allow(dead_code)]
+#[path = "clippings/service.rs"]
+mod clippings_service;
 mod cover_cache;
 mod driver;
 mod epub;
@@ -108,6 +116,7 @@ struct Signals {
 }
 
 struct App {
+    clippings: clippings_facade::ClippingService,
     navigation: Application<Owner>,
     input: RefCell<HomeInput>,
     driver: Cell<driver::State>,
@@ -855,6 +864,7 @@ pub unsafe extern "C" fn xp_app_init(
     };
     let navigation = Application::new();
     let owner = App {
+        clippings: clippings_service::Service::new(ModelCell::new(false, runtime)),
         navigation,
         input: RefCell::new(HomeInput::default()),
         driver: Cell::new(driver::State::default()),

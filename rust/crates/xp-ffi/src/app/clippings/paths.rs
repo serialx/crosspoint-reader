@@ -46,6 +46,10 @@ impl<I: Io, const B: usize> Store<I, B> {
                 return false;
             };
             if self.io.exists(&sidecar) && !self.io.remove(&sidecar) {
+                self.error(
+                    format_args!("Failed deleting clipping state: "),
+                    &[&sidecar],
+                );
                 ok = false;
             }
         }
@@ -64,6 +68,10 @@ impl<I: Io, const B: usize> Store<I, B> {
             match phase {
                 Phase::Check => {
                     if self.io.exists(&new) {
+                        self.error(
+                            format_args!("Move would overwrite saved clippings: "),
+                            &[&new],
+                        );
                         return Err(());
                     }
                 }
@@ -73,6 +81,10 @@ impl<I: Io, const B: usize> Store<I, B> {
                         _ => (&old, &new),
                     };
                     if self.io.exists(src) && !self.io.rename(src, dst) {
+                        self.error(
+                            format_args!("Failed moving clipping state: "),
+                            &[src, b" -> ", dst],
+                        );
                         return Err(());
                     }
                 }
@@ -106,13 +118,14 @@ impl<I: Io, const B: usize> Store<I, B> {
         while depth > 0 {
             let directory = &mut workspace.stack[depth - 1];
             let file = directory.file.as_mut().ok_or(())?;
-            let Some(entry) = file.next() else {
+            let Some(entry) = file.next().map_err(|_| ())? else {
                 file.close();
                 depth -= 1;
                 continue;
             };
             let length = entry.name(&mut workspace.name);
             if length == 0 || length >= workspace.name.len() {
+                self.error(format_args!("Invalid name in folder move"), &[]);
                 return Err(());
             }
             let name = &workspace.name[..length];
@@ -139,6 +152,10 @@ impl<I: Io, const B: usize> Store<I, B> {
             ])?;
             if entry.is_directory() {
                 if depth == DEPTH {
+                    self.error(
+                        format_args!("Folder move exceeds directory depth limit"),
+                        &[],
+                    );
                     return Err(());
                 }
                 workspace.stack[depth] = Directory {
@@ -173,6 +190,7 @@ impl<I: Io, const B: usize> Store<I, B> {
             let Some(p) = core::ptr::NonNull::new(unsafe {
                 alloc::alloc::alloc(layout).cast::<Workspace<I::File>>()
             }) else {
+                self.error(format_args!("OOM: folder move work stack"), &[]);
                 return false;
             };
             Some(unsafe {
@@ -203,7 +221,12 @@ impl<I: Io, const B: usize> Store<I, B> {
         if run(Phase::Move).is_ok() && self.io.rename(from, to) {
             return true;
         }
-        let _ = run(Phase::Rollback);
+        if run(Phase::Rollback).is_err() {
+            self.error(
+                format_args!("Book move rollback failed: "),
+                &[from, b" -> ", to],
+            );
+        }
         false
     }
 }

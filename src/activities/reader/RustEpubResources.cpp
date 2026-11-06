@@ -1042,6 +1042,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
           [](const XpAppText* labels) { readerLookup::directionalHints(*target, *mapped, labels); },
       .child_dictionary_popup_layout = [](XpUiDictionaryPopup* out) { readerLookup::popupLayout(*target, out); },
       .child_wait_paint = [] { activityManager.requestUpdateAndWait(); },
+      .clipping_physical = &CLIPPING_PHYSICAL,
   };
   if (!sectionMetrics.context) sectionMetrics.context = target;
   return leaves;

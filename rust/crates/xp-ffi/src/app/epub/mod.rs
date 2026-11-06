@@ -4,7 +4,7 @@ extern crate alloc;
 pub(super) mod abi;
 mod base;
 mod book;
-mod book_owner;
+pub(super) mod book_owner;
 mod book_render;
 mod bookmarks;
 mod build;

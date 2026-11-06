@@ -65,20 +65,34 @@ impl<I: Io, const B: usize> Store<I, B> {
             || count > B * 16
             || replacement.is_some_and(|s| s.len() > TEXT_MAX)
         {
+            self.error(
+                format_args!("Refusing to write invalid or incompletely loaded clipping store"),
+                &[],
+            );
             return Err(());
         }
         let mut offsets = Vec::new();
-        offsets.try_reserve_exact(count).map_err(|_| ())?;
+        offsets
+            .try_reserve_exact(count)
+            .map_err(|_| self.error(format_args!("OOM: clipping text offsets"), &[]))?;
         offsets.resize(count, 0);
         self.io.mkdir(b"/.crosspoint");
         self.io.mkdir(b"/.crosspoint/clippings");
         let tmp = append(&[&self.path, b".tmp"])?;
         let backup = append(&[&self.path, b".bak"])?;
-        if !self.io.exists(&self.path)
-            && self.io.exists(&backup)
-            && !self.io.rename(&backup, &self.path)
-        {
-            return Err(());
+        if !self.io.exists(&self.path) && self.io.exists(&backup) {
+            if !self.io.rename(&backup, &self.path) {
+                self.error(
+                    format_args!("Failed to recover clipping backup: "),
+                    &[&backup],
+                );
+                return Err(());
+            }
+            self.io.log(
+                2,
+                format_args!("Recovered clipping backup: "),
+                &[&self.path],
+            );
         }
         if self.io.exists(&tmp) {
             self.io.remove(&tmp);
@@ -89,7 +103,12 @@ impl<I: Io, const B: usize> Store<I, B> {
         let has_source = self.io.exists(&self.path);
         let has_destination = self.io.exists(&self.path);
         let mut source = if has_source {
-            Some(self.io.open_read(&self.path).ok_or(())?)
+            Some(self.io.open_read(&self.path).ok_or_else(|| {
+                self.error(
+                    format_args!("Failed to open clipping source for rewrite: "),
+                    &[&self.path],
+                )
+            })?)
         } else {
             None
         };
@@ -97,31 +116,58 @@ impl<I: Io, const B: usize> Store<I, B> {
             if let Some(source) = &mut source {
                 source.close();
             }
+            self.error(
+                format_args!("Failed to open clipping temp file for write: "),
+                &[&tmp],
+            );
             return Err(());
         };
-        let wrote = (|| {
-            codec::write(&mut file, &[4])?;
-            codec::write(&mut file, &(count as u16).to_le_bytes())?;
-            codec::write_string(&mut file, &self.title)?;
-            codec::write_string(&mut file, &self.author)?;
-            codec::write_string(&mut file, &self.book)?;
+        let wrote: Result<()> = (|| {
+            (|| {
+                codec::write(&mut file, &[4])?;
+                codec::write(&mut file, &(count as u16).to_le_bytes())?;
+                codec::write_string(&mut file, &self.title)?;
+                codec::write_string(&mut file, &self.author)?;
+                codec::write_string(&mut file, &self.book)?;
+                Ok(())
+            })()
+            .map_err(|()| self.error(format_args!("Failed to write clipping header: "), &[&tmp]))?;
             for (i, offset) in offsets.iter_mut().enumerate() {
                 let row = change.row(self, i);
-                codec::write_record(&mut file, row)?;
+                codec::write_record(&mut file, row).map_err(|()| {
+                    self.error(
+                        format_args!("Failed to write clipping record {}: ", i),
+                        &[&self.path],
+                    )
+                })?;
                 let text = replacement.filter(|_| change.replaces(i, self.count));
                 let length = text.map_or(row.text_length as usize, |text| text.len().min(TEXT_MAX));
-                codec::write(&mut file, &(length as u16).to_le_bytes())?;
+                codec::write(&mut file, &(length as u16).to_le_bytes()).map_err(|()| {
+                    self.error(
+                        format_args!("Failed to write clipping text length {}: ", i),
+                        &[&tmp],
+                    )
+                })?;
                 let position = file.position();
                 if length > 0 {
-                    if let Some(text) = text {
-                        codec::write(&mut file, &text[..length])?;
-                    } else {
-                        let source = source.as_mut().ok_or(())?;
-                        if !source.seek(row.text_offset) {
-                            return Err(());
+                    (|| {
+                        if let Some(text) = text {
+                            codec::write(&mut file, &text[..length])?;
+                        } else {
+                            let source = source.as_mut().ok_or(())?;
+                            if !source.seek(row.text_offset) {
+                                return Err(());
+                            }
+                            copy_text(source, &mut file, length)?;
                         }
-                        copy_text(source, &mut file, length)?;
-                    }
+                        Ok(())
+                    })()
+                    .map_err(|()| {
+                        self.error(
+                            format_args!("Failed to write clipping text {}: ", i),
+                            &[&tmp],
+                        )
+                    })?;
                 }
                 *offset = position;
             }
@@ -139,10 +185,18 @@ impl<I: Io, const B: usize> Store<I, B> {
             return Err(());
         }
         if has_destination && !self.io.rename(&self.path, &backup) {
+            self.error(
+                format_args!("Failed to back up clipping file: "),
+                &[&self.path],
+            );
             self.io.remove(&tmp);
             return Err(());
         }
         if !self.io.rename(&tmp, &self.path) {
+            self.error(
+                format_args!("Failed to replace clipping file: "),
+                &[&self.path],
+            );
             self.io.remove(&tmp);
             if has_destination {
                 self.io.rename(&backup, &self.path);

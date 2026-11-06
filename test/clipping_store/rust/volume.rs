@@ -6,6 +6,25 @@ struct State {
     files: [Option<Vec<u8>>; 3],
     operations: usize,
     fail_write: bool,
+    log: Option<Log>,
+}
+struct Log {
+    bytes: [u8; 256],
+    length: usize,
+    severity: u8,
+}
+impl Log {
+    fn append(&mut self, bytes: &[u8]) {
+        let length = bytes.len().min(self.bytes.len() - self.length);
+        self.bytes[self.length..self.length + length].copy_from_slice(&bytes[..length]);
+        self.length += length;
+    }
+}
+impl core::fmt::Write for Log {
+    fn write_str(&mut self, text: &str) -> core::fmt::Result {
+        self.append(text.as_bytes());
+        Ok(())
+    }
 }
 #[derive(Clone)]
 pub struct Volume(Rc<RefCell<State>>);
@@ -36,6 +55,14 @@ impl Volume {
     }
     pub fn fail_write(&self) {
         self.0.borrow_mut().fail_write = true;
+    }
+    pub fn last_log(&self) -> (u8, String) {
+        let state = self.0.borrow();
+        let log = state.log.as_ref().unwrap();
+        (
+            log.severity,
+            String::from_utf8(log.bytes[..log.length].to_vec()).unwrap(),
+        )
     }
 }
 impl Io for Volume {
@@ -88,6 +115,19 @@ impl Io for Volume {
     }
     fn random(&self, out: &mut [u8]) {
         out.fill(1);
+    }
+    fn log(&self, severity: u8, arguments: core::fmt::Arguments<'_>, tail: &[&[u8]]) {
+        use core::fmt::Write;
+        let mut log = Log {
+            bytes: [0; 256],
+            length: 0,
+            severity,
+        };
+        log.write_fmt(arguments).unwrap();
+        for part in tail {
+            log.append(part);
+        }
+        self.0.borrow_mut().log = Some(log);
     }
 }
 impl File for Handle {
@@ -146,8 +186,8 @@ impl File for Handle {
     fn is_directory(&self) -> bool {
         false
     }
-    fn next(&mut self) -> Option<Self> {
-        None
+    fn next(&mut self) -> Result<Option<Self>, crate::clippings::io::DirectoryError> {
+        Ok(None)
     }
     fn name(&self, _: &mut [u8]) -> usize {
         0

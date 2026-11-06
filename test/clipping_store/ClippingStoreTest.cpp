@@ -1,6 +1,7 @@
 #include <ClippingStore.h>
 #include <HalStorage.h>
 #include <gtest/gtest.h>
+#include <xp_clippings.h>
 
 namespace {
 using Result = ClippingStore::AddResult;
@@ -13,6 +14,44 @@ std::string storePath() {
   return "";
 }
 }  // namespace
+
+TEST(ClippingFacade, DormantOwnerRejectsCallsAndInvalidBuffers) {
+  fake::reset();
+  const XpAppText empty{nullptr, 0};
+  const XpAppText invalid{nullptr, 1};
+  XpClippingRecord row{};
+  uint8_t text[4] = {1, 2, 3, 4};
+  uint8_t deletion[65] = {1};
+  uint32_t length = 99;
+  uint32_t offset = 0;
+  EXPECT_EQ(xp_clippings_p18_load(empty, empty, empty, empty), 0);
+  EXPECT_EQ(xp_clippings_p18_load(invalid, empty, empty, empty), 0);
+  xp_clippings_p18_unload();
+  EXPECT_EQ(xp_clippings_p18_count(), 0u);
+  EXPECT_EQ(xp_clippings_p18_copy_row(0, nullptr), 0);
+  EXPECT_EQ(xp_clippings_p18_copy_row(0, &row), 0);
+  EXPECT_EQ(xp_clippings_p18_read_text(0, text, sizeof(text), &length), 0);
+  EXPECT_EQ(length, 0u);
+  EXPECT_EQ(text[0], 1);
+  EXPECT_EQ(xp_clippings_p18_read_text(0, nullptr, 1, &length), 0);
+  EXPECT_EQ(xp_clippings_p18_read_text(0, nullptr, 0, &length), 0);
+  EXPECT_EQ(xp_clippings_p18_read_text(0, text, sizeof(text), nullptr), 0);
+  EXPECT_EQ(xp_clippings_p18_prepare_sync(), 0);
+  EXPECT_EQ(xp_clippings_p18_finish_uploads(), 0);
+  EXPECT_EQ(xp_clippings_p18_apply_remote(nullptr, empty, 0), 0);
+  EXPECT_EQ(xp_clippings_p18_apply_remote(&row, invalid, 0), 0);
+  EXPECT_EQ(xp_clippings_p18_apply_remote(&row, empty, 0), 0);
+  EXPECT_EQ(xp_clippings_p18_next_deletion(nullptr, deletion), 0);
+  EXPECT_EQ(xp_clippings_p18_next_deletion(&offset, nullptr), 0);
+  EXPECT_EQ(xp_clippings_p18_next_deletion(&offset, deletion), 0);
+  EXPECT_EQ(deletion[0], 0);
+  EXPECT_EQ(xp_clippings_p18_finish_deletions(), 0);
+  EXPECT_EQ(xp_clippings_p17_p18_move_book(empty, empty), 0);
+  EXPECT_EQ(xp_clippings_p17_p18_move_book(invalid, empty), 0);
+  EXPECT_EQ(xp_clippings_p17_p18_delete_for_path(empty, empty), 0);
+  EXPECT_EQ(xp_clippings_p17_p18_delete_for_path(invalid, empty), 0);
+  EXPECT_TRUE(fake::files.empty());
+}
 
 TEST(ClippingStore, FailedLoadCannotPublishOrOverwriteValidPrefix) {
   fake::reset();

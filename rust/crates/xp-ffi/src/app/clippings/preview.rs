@@ -96,9 +96,17 @@ impl<I: Io, const B: usize> Store<I, B> {
             *first = 0;
         }
         let Some(row) = self.row(index) else {
+            self.error(
+                format_args!("Invalid clipping preview index: {}", index),
+                &[],
+            );
             return false;
         };
         if out.is_empty() || self.path.is_empty() {
+            self.error(
+                format_args!("Invalid clipping preview index: {}", index),
+                &[],
+            );
             return false;
         }
         if row.text_length == 0 {
@@ -108,6 +116,10 @@ impl<I: Io, const B: usize> Store<I, B> {
             return false;
         };
         if !file.seek(row.text_offset) {
+            self.error(
+                format_args!("Failed to seek clipping preview at {}", row.text_offset),
+                &[],
+            );
             return false;
         }
         match read(&mut file, row.text_length as usize, out) {
@@ -116,6 +128,10 @@ impl<I: Io, const B: usize> Store<I, B> {
                 true
             }
             None => {
+                self.error(
+                    format_args!("Failed to read clipping preview at {}", row.text_offset),
+                    &[],
+                );
                 out[0] = 0;
                 false
             }

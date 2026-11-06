@@ -50,15 +50,34 @@ impl<I: Io, const BLOCKS: usize> Store<I, BLOCKS> {
     pub(super) fn read_file(&mut self) -> Result<()> {
         self.count = 0;
         let mut file = self.io.open_read(&self.path).ok_or(())?;
-        let version = read::<1>(&mut file)?[0];
-        if !(1..=4).contains(&version) {
-            return Err(());
-        }
-        let count = u16::from_le_bytes(read(&mut file)?) as usize;
-        let title = string(&mut file)?;
-        let author = string(&mut file)?;
-        let _stored_path = string(&mut file)?;
+        let (version, count, title, author, _stored_path) = (|| {
+            let version = read::<1>(&mut file)?[0];
+            if !(1..=4).contains(&version) {
+                return Err(());
+            }
+            let count = u16::from_le_bytes(read(&mut file)?) as usize;
+            Ok((
+                version,
+                count,
+                string(&mut file)?,
+                string(&mut file)?,
+                string(&mut file)?,
+            ))
+        })()
+        .map_err(|()| {
+            self.error(
+                format_args!("Failed to read clipping header: "),
+                &[&self.path],
+            )
+        })?;
         if count > BLOCKS * 16 {
+            self.error(
+                format_args!(
+                    "Clipping count {} exceeds max, file may be corrupt: ",
+                    count
+                ),
+                &[&self.path],
+            );
             return Err(());
         }
         if self.title.is_empty() {
@@ -67,40 +86,85 @@ impl<I: Io, const BLOCKS: usize> Store<I, BLOCKS> {
         if self.author.is_empty() {
             self.author = author;
         }
-        if !self.index.reserve(count) {
+        if !self.reserve(count) {
             return Err(());
         }
         for index in 0..count {
-            let mut row = Record {
-                spine: u16::from_le_bytes(read(&mut file)?),
-                start_page: u16::from_le_bytes(read(&mut file)?),
-                end_page: u16::from_le_bytes(read(&mut file)?),
-                page_count: u16::from_le_bytes(read(&mut file)?),
-                start_word: u16::from_le_bytes(read(&mut file)?),
-                end_word: u16::from_le_bytes(read(&mut file)?),
-                word_count: u16::from_le_bytes(read(&mut file)?),
-                paragraph: u16::from_le_bytes(read(&mut file)?),
-                timestamp: u32::from_le_bytes(read(&mut file)?),
-                ..Record::default()
-            };
+            let mut row = (|| {
+                Ok(Record {
+                    spine: u16::from_le_bytes(read(&mut file)?),
+                    start_page: u16::from_le_bytes(read(&mut file)?),
+                    end_page: u16::from_le_bytes(read(&mut file)?),
+                    page_count: u16::from_le_bytes(read(&mut file)?),
+                    start_word: u16::from_le_bytes(read(&mut file)?),
+                    end_word: u16::from_le_bytes(read(&mut file)?),
+                    word_count: u16::from_le_bytes(read(&mut file)?),
+                    paragraph: u16::from_le_bytes(read(&mut file)?),
+                    timestamp: u32::from_le_bytes(read(&mut file)?),
+                    ..Record::default()
+                })
+            })()
+            .map_err(|()| {
+                self.error(
+                    format_args!("Clipping file truncated at record {}: ", index),
+                    &[&self.path],
+                )
+            })?;
             if version >= 3 {
-                row.signature = u32::from_le_bytes(read(&mut file)?);
+                row.signature = u32::from_le_bytes(read(&mut file).map_err(|()| {
+                    self.error(
+                        format_args!(
+                            "Clipping file truncated at layout signature, record {}: ",
+                            index
+                        ),
+                        &[&self.path],
+                    )
+                })?);
             }
             if version >= 4 {
-                row.start_offset = u32::from_le_bytes(read(&mut file)?);
-                row.end_offset = u32::from_le_bytes(read(&mut file)?);
-                row.revision = u64::from_le_bytes(read(&mut file)?);
-                row.pending = read::<1>(&mut file)?[0];
-                row.id = read(&mut file)?;
+                (|| {
+                    row.start_offset = u32::from_le_bytes(read(&mut file)?);
+                    row.end_offset = u32::from_le_bytes(read(&mut file)?);
+                    row.revision = u64::from_le_bytes(read(&mut file)?);
+                    row.pending = read::<1>(&mut file)?[0];
+                    row.id = read(&mut file)?;
+                    Ok(())
+                })()
+                .map_err(|()| self.error(format_args!("Truncated clipping sync metadata"), &[]))?;
             }
             row.id[64] = 0;
-            row.chapter = read(&mut file)?;
+            row.chapter = read(&mut file).map_err(|()| {
+                self.error(
+                    format_args!(
+                        "Clipping file truncated at chapter title, record {}: ",
+                        index
+                    ),
+                    &[&self.path],
+                )
+            })?;
             row.chapter[47] = 0;
             let length = if version == 1 {
-                u32::from_le_bytes(read(&mut file)?)
+                u32::from_le_bytes(read(&mut file).map_err(|()| {
+                    self.error(
+                        format_args!("Clipping file truncated at text length, record {}: ", index),
+                        &[&self.path],
+                    )
+                })?)
             } else {
-                let length = u16::from_le_bytes(read(&mut file)?);
+                let length = u16::from_le_bytes(read(&mut file).map_err(|()| {
+                    self.error(
+                        format_args!("Clipping file truncated at text length, record {}: ", index),
+                        &[&self.path],
+                    )
+                })?);
                 if length as usize > TEXT_MAX {
+                    self.error(
+                        format_args!(
+                            "Clipping text length {} exceeds max, record {}: ",
+                            length, index
+                        ),
+                        &[&self.path],
+                    );
                     return Err(());
                 }
                 u32::from(length)
@@ -113,6 +177,10 @@ impl<I: Io, const BLOCKS: usize> Store<I, BLOCKS> {
                 i32::from(row.text_length) <= file.available()
             };
             if !fits || (length != 0 && !file.seek_relative(length)) {
+                self.error(
+                    format_args!("Clipping file truncated at text, record {}: ", index),
+                    &[&self.path],
+                );
                 return Err(());
             }
             *self.index.slot_mut(index) = row;

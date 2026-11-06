@@ -6,10 +6,18 @@ use super::{
     Store,
 };
 
-fn recover_tail(file: &mut impl File) -> bool {
+fn recover_tail(file: &mut impl File, io: &impl Io) -> bool {
     let size = file.size();
     let tail = size % 65;
-    tail == 0 || file.truncate(size - tail)
+    let ok = tail == 0 || file.truncate(size - tail);
+    if !ok {
+        io.log(
+            1,
+            format_args!("Failed to recover clipping deletion journal"),
+            &[],
+        );
+    }
+    ok
 }
 
 fn id(bytes: &[u8; 65]) -> &[u8] {
@@ -26,14 +34,24 @@ impl<I: Io, const B: usize> Store<I, B> {
                 return false;
             };
             let Some(mut journal) = self.io.open(&path, Mode::Append) else {
+                self.error(
+                    format_args!("Failed to open clipping deletion journal"),
+                    &[],
+                );
                 return false;
             };
-            if !recover_tail(&mut journal) {
+            if !recover_tail(&mut journal, &self.io) {
                 return false;
             }
             let original = journal.size();
             if journal.write(&self.index.slot(index).id) != 65 {
-                journal.truncate(original);
+                if !journal.truncate(original) {
+                    self.error(
+                        format_args!("Failed to roll back clipping deletion journal"),
+                        &[],
+                    );
+                }
+                self.error(format_args!("Failed to queue clipping deletion"), &[]);
                 return false;
             }
             journal.flush();
@@ -87,11 +105,16 @@ impl<I: Io, const B: usize> Store<I, B> {
         let Some(mut journal) = self.io.open(&path, Mode::ReadWrite) else {
             return false;
         };
-        if !recover_tail(&mut journal) || !(*offset).is_multiple_of(65) || !journal.seek(*offset) {
+        if !recover_tail(&mut journal, &self.io) {
+            return false;
+        }
+        if !(*offset).is_multiple_of(65) || !journal.seek(*offset) {
+            self.error(format_args!("Invalid clipping deletion journal"), &[]);
             return false;
         }
         while *offset < journal.size() {
             if journal.read(out) != 65 {
+                self.error(format_args!("Failed to read clipping deletion"), &[]);
                 return false;
             }
             *offset += 65;
@@ -108,7 +131,11 @@ impl<I: Io, const B: usize> Store<I, B> {
         let Ok(path) = append(&[&self.path, b".deleted"]) else {
             return false;
         };
-        !self.io.exists(&path) || self.io.remove(&path)
+        let ok = !self.io.exists(&path) || self.io.remove(&path);
+        if !ok {
+            self.error(format_args!("Failed to clear acknowledged deletions"), &[]);
+        }
+        ok
     }
 
     pub fn apply_remote(&mut self, row: Record, text: &[u8], deleted: bool) -> bool {
@@ -121,7 +148,8 @@ impl<I: Io, const B: usize> Store<I, B> {
                 if deleted {
                     return true;
                 }
-                if self.count >= B * 16 || !self.index.reserve(self.count + 1) {
+                if self.count >= B * 16 || !self.reserve(self.count + 1) {
+                    self.error(format_args!("Remote clipping exceeds local capacity"), &[]);
                     return false;
                 }
                 Change::Insert(row)

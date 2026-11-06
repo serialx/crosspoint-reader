@@ -63,6 +63,24 @@ fn append(parts: &[&[u8]]) -> Result<Vec<u8>> {
 }
 
 impl<I: Io, const BLOCKS: usize> Store<I, BLOCKS> {
+    fn error(&self, arguments: core::fmt::Arguments<'_>, tail: &[&[u8]]) {
+        self.io.log(1, arguments, tail);
+    }
+
+    fn reserve(&mut self, count: usize) -> bool {
+        if self.index.reserve(count) {
+            return true;
+        }
+        self.error(
+            format_args!(
+                "OOM: clipping block ({} bytes)",
+                PER_BLOCK * core::mem::size_of::<Record>()
+            ),
+            &[],
+        );
+        false
+    }
+
     pub fn try_new(io: I) -> Option<Box<Self>> {
         let pointer = NonNull::new(unsafe { alloc(Layout::new::<Self>()).cast::<Self>() })?;
         // No fallible step after allocation; initialize the header directly in its allocation.
@@ -95,6 +113,10 @@ impl<I: Io, const BLOCKS: usize> Store<I, BLOCKS> {
         self.count = 0;
         self.path.clear();
         if kind != b"epub" || book.is_empty() {
+            self.error(
+                format_args!("Invalid clipping book type or path: "),
+                &[kind],
+            );
             return false;
         }
         let loaded = (|| {
@@ -107,6 +129,7 @@ impl<I: Io, const BLOCKS: usize> Store<I, BLOCKS> {
                 && self.io.exists(&backup)
                 && !self.io.rename(&backup, &self.path)
             {
+                self.error(format_args!("Failed to recover clipping backup"), &[]);
                 return Err(());
             }
             if !self.io.exists(&self.path) {
@@ -139,9 +162,19 @@ impl<I: Io, const BLOCKS: usize> Store<I, BLOCKS> {
 
     pub fn add(&mut self, mut record: Record, chapter: &[u8], text: &[u8]) -> AddResult {
         if self.count >= BLOCKS * PER_BLOCK {
+            self.error(
+                format_args!("Clipping limit ({}) reached", BLOCKS * PER_BLOCK),
+                &[],
+            );
             return AddResult::LimitReached;
         }
-        if !self.loaded || text.len() > TEXT_MAX || !self.index.reserve(self.count + 1) {
+        if !self.loaded || text.len() > TEXT_MAX || !self.reserve(self.count + 1) {
+            self.error(
+                format_args!(
+                    "Cannot add clipping: invalid store, text length, or allocation failure"
+                ),
+                &[],
+            );
             return AddResult::SaveFailed;
         }
         record.page_count = record.page_count.max(1);
@@ -193,6 +226,10 @@ impl<I: Io, const BLOCKS: usize> Store<I, BLOCKS> {
             return false;
         };
         if !file.seek(row.text_offset) {
+            self.error(
+                format_args!("Failed to seek clipping text at {}: ", row.text_offset),
+                &[&self.path],
+            );
             return false;
         }
         if out.try_reserve_exact(row.text_length as usize).is_err() {
@@ -200,10 +237,42 @@ impl<I: Io, const BLOCKS: usize> Store<I, BLOCKS> {
         }
         out.resize(row.text_length as usize, 0);
         if file.read(out) != row.text_length as i32 {
+            self.error(
+                format_args!("Failed to read clipping text at {}: ", row.text_offset),
+                &[&self.path],
+            );
             out.clear();
             return false;
         }
         true
+    }
+
+    pub fn read_into(&self, index: usize, out: &mut [u8]) -> Option<usize> {
+        let row = self.row(index)?;
+        let length = row.text_length as usize;
+        let out = out.get_mut(..length)?;
+        if length == 0 {
+            return Some(0);
+        }
+        if self.path.is_empty() {
+            return None;
+        }
+        let mut file = self.io.open_read(&self.path)?;
+        if !file.seek(row.text_offset) {
+            self.error(
+                format_args!("Failed to seek clipping text at {}: ", row.text_offset),
+                &[&self.path],
+            );
+            return None;
+        }
+        if file.read(out) != length as i32 {
+            self.error(
+                format_args!("Failed to read clipping text at {}: ", row.text_offset),
+                &[&self.path],
+            );
+            return None;
+        }
+        Some(length)
     }
 
     fn store_path(&self, book: &[u8], kind: &[u8]) -> Result<Vec<u8>> {

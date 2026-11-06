@@ -22,7 +22,7 @@ pub(in crate::app::epub) fn with_bytes(
     }
 }
 
-pub(in crate::app::epub) fn with_tail(
+pub(in crate::app) fn with_tail(
     leaves: &XpEpubLeaves,
     severity: u8,
     origin: &[u8],

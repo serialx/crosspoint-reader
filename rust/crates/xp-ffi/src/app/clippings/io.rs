@@ -6,6 +6,8 @@ pub enum Mode {
     ReadWrite,
 }
 
+pub struct DirectoryError;
+
 pub trait File {
     fn read(&mut self, bytes: &mut [u8]) -> i32;
     fn write(&mut self, bytes: &[u8]) -> usize;
@@ -18,7 +20,7 @@ pub trait File {
     fn flush(&mut self);
     fn close(&mut self);
     fn is_directory(&self) -> bool;
-    fn next(&mut self) -> Option<Self>
+    fn next(&mut self) -> Result<Option<Self>, DirectoryError>
     where
         Self: Sized;
     fn name(&self, out: &mut [u8]) -> usize;
@@ -36,4 +38,5 @@ pub trait Io {
     fn path_hash(&self, path: &[u8]) -> u64;
     fn epoch_seconds(&self) -> i64;
     fn random(&self, out: &mut [u8]);
+    fn log(&self, _severity: u8, _arguments: core::fmt::Arguments<'_>, _tail: &[&[u8]]) {}
 }

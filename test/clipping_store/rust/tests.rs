@@ -2,6 +2,9 @@ extern crate alloc;
 
 #[path = "../../../rust/crates/xp-ffi/src/app/clippings/mod.rs"]
 pub mod clippings;
+#[path = "../../../rust/crates/xp-ffi/src/app/clippings/service.rs"]
+#[cfg(test)]
+mod service;
 
 #[cfg(test)]
 mod volume;
@@ -219,5 +222,90 @@ mod tests {
             assert_eq!(volume.source(), original);
         }
         assert!(successes > 0 && failures > 0);
+    }
+
+    #[test]
+    fn copy_out_text_uses_caller_storage_and_survives_owner_drop() {
+        let volume = Volume::new();
+        let mut store = Store::<_, 16>::try_new(volume.clone()).unwrap();
+        assert!(store.load(b"/a.epub", b"", b"", b"epub"));
+        assert_eq!(
+            store.add(Record::default(), b"", b"hello"),
+            AddResult::Added
+        );
+        let row = *store.row(0).unwrap();
+        let before = volume.operations();
+        let mut short = [99; 4];
+        assert_eq!(store.read_into(0, &mut short), None);
+        assert_eq!(short, [99; 4]);
+        assert_eq!(volume.operations(), before);
+        let mut output = [99; 7];
+        FAIL_AFTER.with(|n| n.set(Some(0)));
+        let result = store.read_into(0, &mut output);
+        FAIL_AFTER.with(|n| n.set(None));
+        assert_eq!(result, Some(5));
+        drop(store);
+        assert_eq!(row.text_length, 5);
+        assert_eq!(output, *b"hellocc");
+    }
+
+    #[test]
+    fn service_is_dormant_until_installed_and_rejects_reentry() {
+        struct Gate(std::cell::RefCell<bool>);
+        unsafe impl crate::service::Gate for Gate {
+            fn with<R>(&self, action: impl FnOnce(&mut bool) -> R) -> R {
+                action(&mut self.0.borrow_mut())
+            }
+        }
+        let service = crate::service::Service::new(Gate(std::cell::RefCell::new(false)));
+        assert_eq!(service.with(|_: &mut u32| 1), None);
+        assert!(!service.install(|| None));
+        assert!(service.install(|| Some(Box::new(42))));
+        assert!(service.install(|| panic!("owner must not be replaced")));
+        assert_eq!(
+            service.with(|owner| {
+                assert_eq!(service.with(|_| 0), None);
+                assert!(!service.install(|| panic!("busy creation")));
+                *owner += 1;
+                *owner
+            }),
+            Some(43)
+        );
+        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            service.with(|_| panic!("release the lease"));
+        }))
+        .is_err());
+        assert_eq!(service.with(|owner| *owner), Some(43));
+    }
+
+    #[test]
+    fn failure_logs_keep_native_severity_context_and_stage() {
+        let volume = Volume::new();
+        let mut store = Store::<_, 16>::try_new(volume.clone()).unwrap();
+        assert!(!store.load(b"/a.epub", b"", b"", b"bad"));
+        assert_eq!(
+            volume.last_log(),
+            (1, "Invalid clipping book type or path: bad".into())
+        );
+        assert!(store.load(b"/a.epub", b"", b"", b"epub"));
+        volume.fail_write();
+        assert_eq!(
+            store.add(Record::default(), b"", b"x"),
+            AddResult::SaveFailed
+        );
+        assert_eq!(
+            volume.last_log(),
+            (
+                1,
+                "Failed to write clipping header: /.crosspoint/clippings/epub_0.bin.tmp".into()
+            )
+        );
+        let mut preview = [0; 260];
+        let mut length = 99;
+        assert!(!store.preview(7, &mut preview, &mut length));
+        assert_eq!(
+            volume.last_log(),
+            (1, "Invalid clipping preview index: 7".into())
+        );
     }
 }

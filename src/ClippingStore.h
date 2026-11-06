@@ -109,3 +109,24 @@ class ClippingStore {
 };
 
 #define CLIPPINGS ClippingStore::getInstance()
+
+struct XpClippingPhysical;
+extern const XpClippingPhysical CLIPPING_PHYSICAL;
+
+// Dormant compatibility boundary; callers switch when Rust becomes the sole owner.
+class ClippingStoreFacade {
+ public:
+  static bool loadForBook(std::string_view path, std::string_view title, std::string_view author,
+                          std::string_view kind);
+  static void unload();
+  static size_t clippingCount();
+  static bool clippingAt(size_t index, Clipping& output);
+  static bool readClippingText(size_t index, std::string& output);
+  static bool prepareSync();
+  static bool finishUploads();
+  static bool applyRemote(const Clipping& clipping, const std::string& text, bool deleted);
+  static bool nextDeletion(uint32_t& offset, char (&id)[65]);
+  static bool finishDeletions();
+  static bool moveBook(const std::string& from, const std::string& to);
+  static bool deleteForFilePath(const std::string& path, const std::string& kind);
+};

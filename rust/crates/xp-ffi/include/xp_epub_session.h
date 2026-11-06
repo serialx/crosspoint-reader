@@ -1,6 +1,7 @@
 #pragma once
 #include "xp_app.h"
 #include "xp_book.h"
+#include "xp_clippings.h"
 #include "xp_display.h"
 #include "xp_ffi.h"
 #include "xp_ui_dictionary.h"
@@ -514,6 +515,7 @@ typedef struct XpEpubLeaves {
   void (*child_dictionary_popup_layout)(XpUiDictionaryPopup* out);
   // Existing ActivityManager render completion wait; call only without model/render/resource locks.
   void (*child_wait_paint)(void);
+  const XpClippingPhysical* clipping_physical;
 } XpEpubLeaves;
 
 #ifdef __cplusplus
@@ -557,7 +559,7 @@ XP_EPUB_ASSERT(offsetof(XpEpubRadio, note) == 4, "XpEpubRadio.note");
 XP_EPUB_ASSERT(sizeof(XpEpubPeer) == 82, "XpEpubPeer size");
 XP_EPUB_ASSERT(offsetof(XpEpubPeer, name) == 0, "XpEpubPeer.name");
 XP_EPUB_ASSERT(offsetof(XpEpubPeer, addr) == 64, "XpEpubPeer.addr");
-XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 173 * sizeof(void (*)(void)), "XpEpubLeaves size");
+XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 174 * sizeof(void (*)(void)), "XpEpubLeaves size");
 #define XP_EPUB_LEAF_OFFSET(field, index) \
   XP_EPUB_ASSERT(offsetof(XpEpubLeaves, field) == (index) * sizeof(void (*)(void)), "XpEpubLeaves." #field)
 XP_EPUB_LEAF_OFFSET(render_margins, 0);
@@ -733,6 +735,7 @@ XP_EPUB_LEAF_OFFSET(child_definition_drop, 169);
 XP_EPUB_LEAF_OFFSET(child_directional_hints, 170);
 XP_EPUB_LEAF_OFFSET(child_dictionary_popup_layout, 171);
 XP_EPUB_LEAF_OFFSET(child_wait_paint, 172);
+XP_EPUB_LEAF_OFFSET(clipping_physical, 173);
 #undef XP_EPUB_LEAF_OFFSET
 XP_EPUB_ASSERT(sizeof(XpEpubBookBorrow) == 6 * sizeof(void (*)(void)), "XpEpubBookBorrow size");
 XP_EPUB_ASSERT(offsetof(XpEpubBookBorrow, spine) == 0, "XpEpubBookBorrow.spine");

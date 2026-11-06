@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <vector>
 
+#include "../clipping_store/reader_fixture.h"
 #include "overlay_actions_session_fixture.h"
 
 extern "C" {
@@ -93,11 +94,6 @@ static const LegacyEpubLeaves leaves = [] {
     probes.push_back(Bookmarks);
     return (flags & 2) ? 3 : 0;
   };
-  table.physical.clippings_count = []() -> uint32_t {
-    leaf(0);
-    probes.push_back(Clippings);
-    return (flags & 4) ? 2 : 0;
-  };
   table.physical.input_facts = [](XpEpubInputFacts* out) {
     leaf(0);
     assert((flags & 8) && out);
@@ -161,6 +157,11 @@ static Output build(unsigned rejection = 0) {
   Output out;
   out.actions.fill(0xff);
   out.count = 0xff;
+  clipping_fixture::seedCount(owner, (flags & 4) ? 2 : 0, [](uint32_t count) {
+    leaf(0);
+    probes.push_back(Clippings);
+    assert(count == ((flags & 4) ? 2u : 0u));
+  });
   out.built = xp_epub_test_overlay_build_more(owner, &bookmarks, out.actions.data(), &out.count) != 0;
   leaf(0);
   assert(acquisitions == releases && out.count <= out.actions.size());

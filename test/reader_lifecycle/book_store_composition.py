@@ -9,7 +9,6 @@ def store_adapters(root):
 namespace BookStoreAdapters {
 static uint8_t (*load)(void*, XpAppText);
 static uint8_t (*save)(void*, XpAppText);
-static uint8_t (*clippings)(const XpAppBook*);
 static void (*recents)(const XpAppBook*);
 XpAppText wire(std::string_view value) {
   return {reinterpret_cast<const uint8_t*>(value.data()), value.size()};
@@ -24,14 +23,6 @@ struct BookmarkFile {
     return BookStoreAdapters::save(rows, wire(path));
   }
 };
-struct Clippings {
-  uint8_t loadForBook(std::string_view path, std::string_view title,
-                     std::string_view author, std::string_view format) {
-    assert(std::string(format) == "epub");
-    XpAppBook row{}; row.path = wire(path); row.title = wire(title); row.author = wire(author);
-    return clippings(&row);
-  }
-} CLIPPINGS;
 struct Recents {
   void addBook(std::string_view path, std::string_view title,
                std::string_view author, std::string_view cover) {
@@ -44,7 +35,7 @@ struct Recents {
     source += definition(native, 'std::string_view view(XpAppText value)') + '\n'
     source += ('void bind() {\n'
                'load = leaves.bookmarks_load; save = leaves.bookmarks_save;\n'
-               'clippings = leaves.clippings_load; recents = leaves.recents_add;\n')
-    for field in ('bookmarks_load', 'bookmarks_save', 'clippings_load', 'recents_add'):
+               'recents = leaves.recents_add;\n')
+    for field in ('bookmarks_load', 'bookmarks_save', 'recents_add'):
         source += f'leaves.{field} = {native_leaf(native, field)};\n'
     return source + '}\n} // namespace BookStoreAdapters\n'

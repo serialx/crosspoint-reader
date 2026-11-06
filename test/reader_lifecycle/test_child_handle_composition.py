@@ -169,7 +169,7 @@ struct SavedProgressPosition { std::string xpath; float percentage; };
     init = 'void bindProductionChildren() {\n'
     for leaf in CHILDREN:
         table = ('legacyBook.section.page' if leaf in ('footnote', 'dictionary', 'selection') else
-                 'legacyBook.children' if leaf in ('menu', 'chapter', 'percent', 'qr') else 'leaves')
+                 'legacyBook.children' if leaf in ('menu', 'chapter', 'percent', 'qr', 'clippings') else 'leaves')
         init += f'  {table}.child_{leaf} = {native_leaf(native, "child_" + leaf)};\n'
     init += '''  leaves.has_sync_credentials = []() -> uint8_t { return 0; };
   static auto readerLog = leaves.log;

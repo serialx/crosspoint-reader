@@ -1,4 +1,8 @@
 #include "child_session_fixture.h"
+#include "../clipping_store/reader_fixture.h"
+#include "../clipping_store/reader_storage.h"
+
+static bool clippingLogicalTrace = false;
 
 static XpAppText childText(const std::string& value) {
   return {reinterpret_cast<const uint8_t*>(value.data()), value.size()};
@@ -24,7 +28,9 @@ struct ChildSessionBridge {
   EpubReaderActivity& owner;
   void* rust = nullptr;
   std::optional<GfxRenderer::FrameBufferLoan> loan;
+  std::unique_ptr<clipping_fixture::StorageAdapter> clippingStorage;
   explicit ChildSessionBridge(EpubReaderActivity&);
+  void prepareClippings();
   ~ChildSessionBridge() {
     assert(!loan && activeChild == this && !lockDepth && !modelDepth);
     xp_epub_test_child_destroy(rust);
@@ -67,7 +73,18 @@ struct ChildSessionBridge {
       view.kind = XP_APP_RESULT_PROGRESS;
       view.value.progress.spine = progress->marker;
     }
+    const bool storing = !view.cancelled && view.kind == XP_APP_RESULT_CLIPPING &&
+        std::get<ClippingResult>(result.data).action == ClippingResult::Action::Clip;
+    if (storing) {
+      prepareClippings();
+      const size_t count = CLIPPINGS.result == ClippingStore::AddResult::LimitReached ? 256 : (CLIPPINGS.clips ? 2 : 0);
+      clipping_fixture::seedCount(rust, count, [](uint32_t value) {
+        assert(bool(value) == CLIPPINGS.hasClippings());
+      });
+      fake::failWrite = CLIPPINGS.result == ClippingStore::AddResult::SaveFailed ? 0 : -1;
+    }
     xp_epub_test_child_result(rust, &view);
+    if (storing) xp_epub_test_clipping_reset(rust);
     observe();
   }
   void push(void* raw) {
@@ -86,8 +103,17 @@ static void configureChildLeaves() {
   childResources = overlayUnexpectedResources();
   childRuntime.model_lock = [] { assert(!modelDepth); ++modelDepth; };
   childRuntime.model_unlock = [] { assert(modelDepth == 1); --modelDepth; };
-  childRuntime.render_lock = []() -> void* { return new RenderLock; };
-  childRuntime.render_unlock = [](void* lock) { delete static_cast<RenderLock*>(lock); };
+  childRuntime.render_lock = []() -> void* {
+    clippingLockEventsQuiet = clippingLogicalTrace;
+    auto* lock = new RenderLock;
+    clippingLockEventsQuiet = false;
+    return lock;
+  };
+  childRuntime.render_unlock = [](void* raw) {
+    clippingLockEventsQuiet = clippingLogicalTrace;
+    delete static_cast<RenderLock*>(raw);
+    clippingLockEventsQuiet = false;
+  };
   childRuntime.now_ms = millis;
   childLeaves.physical.settings_snapshot = [](uint8_t font, XpEpubSettings* out) {
     assert(!modelDepth && !font);
@@ -173,19 +199,6 @@ static void configureChildLeaves() {
     row.href = childText(notes[index].href);
     return sink(context, &row);
   };
-  childLeaves.physical.clippings_count = []() -> uint32_t { return CLIPPINGS.hasClippings(); };
-  childLeaves.physical.clippings_remove = [](uint32_t index) -> uint8_t {
-    assert(lockDepth == 1);
-    return CLIPPINGS.removeClippingAt(index);
-  };
-  childLeaves.physical.clippings_insert = [](const XpEpubClipInsert* row) -> uint8_t {
-    assert(lockDepth == 1);
-    const auto chapter = childString(row->chapter);
-    const auto& r = row->range;
-    return static_cast<uint8_t>(CLIPPINGS.addClipping(
-        r.spine, r.start_page, r.end_page, r.page_count, r.start_word, r.end_word, row->word_count,
-        chapter.c_str(), row->paragraph, childNativeText(row->text), r.signature, r.start_offset, r.end_offset));
-  };
   childLeaves.physical.clippings_export = [](XpAppText title, XpAppText author, XpAppText chapter, int32_t page,
                                     XpAppNativeText text) -> uint8_t {
     assert(!lockDepth);
@@ -223,7 +236,7 @@ static void configureChildLeaves() {
     if (!child) page.release();
     return child.release();
   };
-  childLeaves.physical.child_clippings = []() -> void* {
+  childLeaves.book.children.child_clippings = []() -> void* {
     assert(!lockDepth && !modelDepth);
     return makeUniqueNoThrow<EpubReaderClippingListActivity>(activeChild->owner.renderer,
                                                           activeChild->owner.mappedInput).release();
@@ -294,6 +307,10 @@ ChildSessionBridge::ChildSessionBridge(EpubReaderActivity& value) : owner(value)
   assert(!activeChild && !lockDepth && !modelDepth);
   activeChild = this;
   configureChildLeaves();
+  fake::reset();
+  clippingStorage = std::make_unique<clipping_fixture::StorageAdapter>(childLeaves.physical, childResources);
+  clippingStorage->quietLog = true;
+  clippingStorage->io = [] { assert(!lockDepth && !modelDepth); };
   const XpEpubTestChildSeed seed{
       this, owner.epub.get(), owner.section.get(), owner.currentSpineIndex,
       owner.section ? owner.section->currentPage : 0, owner.nextPageNumber, owner.cachedChapterTotalPageCount,
@@ -334,6 +351,47 @@ ChildSessionBridge::ChildSessionBridge(EpubReaderActivity& value) : owner(value)
       [](void*) { assert(false && "historical child fixture cannot finish"); }};
   rust = xp_epub_test_child_create_legacy_book(&seed,&childLeaves.physical, &childRuntime, &childResources, &childLeaves.book);
   assert(rust);
+  clippingStorage->quietLog = false;
+}
+
+void ChildSessionBridge::prepareClippings() {
+  fake::reset();
+  clippingStorage->quietLog = true;
+  clippingLogicalTrace = true;
+  clipping_fixture::seedCount(rust, 0);
+  assert(xp_epub_test_clipping_load(rust, childText("/fixture.epub")));
+  XpClippingRecord initial{}; initial.page_count = 1;
+  assert(xp_epub_test_clipping_insert(rust, &initial, childText(""), {childText(""), nullptr}) == 0);
+  clipping_fixture::seedCount(rust, CLIPPINGS.clips ? 2 : 0, [](uint32_t count) {
+    assert(bool(count) == CLIPPINGS.hasClippings());
+  });
+  xp_epub_test_clipping_transactions(rust,
+      [](uint8_t phase) {
+        if (phase) {
+          assert(!clippingLogicalTrace);
+          if (phase == 1) { assert(!lockDepth); ++lockDepth; event("lock"); --lockDepth; }
+          else { assert(phase == 2 && lockDepth == 1); }
+          clippingLogicalTrace = true; activeChild->clippingStorage->quietLog = true;
+        } else {
+          assert(clippingLogicalTrace && !lockDepth);
+          ++lockDepth; event("unlock"); --lockDepth;
+          clippingLogicalTrace = false; activeChild->clippingStorage->quietLog = false;
+        }
+      },
+      [](const XpClippingRecord* r, XpAppText title, XpAppNativeText text, uint8_t actual) {
+        assert(lockDepth == 1);
+        const auto chapter = childString(title);
+        const auto expected = CLIPPINGS.addClipping(r->spine, r->start_page, r->end_page, r->page_count,
+            r->start_word, r->end_word, r->word_count, chapter.c_str(), r->paragraph, childNativeText(text),
+            r->signature, r->start_offset, r->end_offset);
+        assert(actual == static_cast<uint8_t>(expected));
+      },
+      [](uint32_t index, uint8_t actual) {
+        assert(lockDepth == 1);
+        assert(actual == uint8_t(CLIPPINGS.removeClippingAt(index)));
+        activeChild->clippingStorage->quietLog = false;
+      });
+  clippingLogicalTrace = false; clippingStorage->quietLog = false;
 }
 
 void EpubReaderActivity::openDictionaryWordSelect() {
@@ -343,7 +401,11 @@ void EpubReaderActivity::openDictionaryWordSelect() {
 }
 void EpubReaderActivity::startClipSelection(int x, int y, ClipSelectionActivity::Mode mode) {
   assert(activeChild && &activeChild->owner == this);
+  const bool removing = x >= 0;
+  if (removing) activeChild->prepareClippings();
+  fake::failWrite = removeOk ? -1 : 0;
   xp_epub_test_child_selection(activeChild->rust, x, y, static_cast<uint8_t>(mode));
+  if (removing) xp_epub_test_clipping_reset(activeChild->rust);
   activeChild->observe();
 }
 void EpubReaderActivity::openFootnoteSelect(bool reopen) {
@@ -353,7 +415,9 @@ void EpubReaderActivity::openFootnoteSelect(bool reopen) {
 }
 void EpubReaderActivity::openClippings() {
   assert(activeChild && &activeChild->owner == this);
+  activeChild->prepareClippings();
   xp_epub_test_child_clippings(activeChild->rust);
+  xp_epub_test_clipping_reset(activeChild->rust);
   activeChild->observe();
 }
 bool EpubReaderActivity::launchKOReaderSync() {

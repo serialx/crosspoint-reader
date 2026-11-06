@@ -158,7 +158,7 @@ static const XpAppRuntime runtime = [] {
 static auto legacySection = unexpectedLegacySectionServices();
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 177 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 169 * sizeof(void (*)()));
   UNUSED_LEAF(render_margins);
   UNUSED_LEAF(render_geometry);
   UNUSED_LEAF(render_restore_bw);
@@ -223,7 +223,7 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(child_text_settings);
   UNUSED_LEAF(child_selection);
   UNUSED_LEAF(child_bookmarks);
-  UNUSED_LEAF(child_clippings);
+
   UNUSED_LEAF(child_wifi);
   UNUSED_LEAF(child_sync);
   UNUSED_LEAF(popup_open);
@@ -249,14 +249,9 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(bookmarks_row);
   UNUSED_LEAF(bookmarks_retain);
   UNUSED_LEAF(bookmarks_insert_front);
-  UNUSED_LEAF(clippings_load);
-  UNUSED_LEAF(clippings_unload);
-  UNUSED_LEAF(clippings_count);
-  UNUSED_LEAF(clippings_row);
-  UNUSED_LEAF(clippings_remove);
-  UNUSED_LEAF(clippings_insert);
+
   UNUSED_LEAF(clippings_export);
-  UNUSED_LEAF(clippings_move_book);
+
   UNUSED_LEAF(recents_remove);
   UNUSED_LEAF(recents_add);
   UNUSED_LEAF(recents_update_path);

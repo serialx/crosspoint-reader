@@ -1,3 +1,9 @@
+#include "clipping_store/reader_fixture.h"
+#include "clipping_store/reader_storage.h"
+#include "owner_tables.h"
+#include "reader_lifecycle/read_folder_session_fixture.h"
+static void* clippingReader;
+static unsigned clippingRenderDepth;
 #include <ArduinoJson.h>
 #include <ClippingStore.h>
 #include <HalMemory.h>
@@ -18,7 +24,7 @@ constexpr const char* book = "/book.epub";
 std::vector<uint8_t> framebuffer(52272);
 
 void reset() {
-  CLIPPINGS.unload();
+  ClippingStoreFacade::unload();
   fake::reset();
   fake::syncHeap = 68000;
   fake::syncBufferAllocated = false;
@@ -35,9 +41,18 @@ void released() {
   buildscratch::release(scratch);
 }
 void add(const std::string& text) {
-  assert(CLIPPINGS.loadForBook(book, "Book", "Author", "epub"));
-  assert(CLIPPINGS.addClipping(0, 0, 0, 1, 0, 0, 1, "Chapter", 0, text, 1, 0, 3) == ClippingStore::AddResult::Added);
-  CLIPPINGS.unload();
+  assert(ClippingStoreFacade::loadForBook(book, "Book", "Author", "epub"));
+  XpClippingRecord row{};
+  row.page_count = 1;
+  row.word_count = 1;
+  row.end_offset = 3;
+  row.pending = 1;
+  row.signature = 1;
+  const auto wire = [](const std::string& value) -> XpAppText {
+    return {reinterpret_cast<const uint8_t*>(value.data()), value.size()};
+  };
+  assert(xp_epub_test_clipping_insert(clippingReader, &row, wire("Chapter"), {wire(text), &text}) == 0);
+  ClippingStoreFacade::unload();
 }
 void maximumTextRoundTrip() {
   reset();
@@ -70,16 +85,38 @@ void maximumTextRoundTrip() {
   JsonDocument upload;
   assert(!deserializeJson(upload, fake::uploads.front()));
   assert(upload["items"][0]["text"].as<std::string>() == text);
-  assert(CLIPPINGS.loadForBook(book, "", "", "epub"));
-  assert(CLIPPINGS.clippingCount() == 2);
+  assert(ClippingStoreFacade::loadForBook(book, "", "", "epub"));
+  assert(ClippingStoreFacade::clippingCount() == 2);
   std::string stored;
-  assert(CLIPPINGS.readClippingText(1, stored));
+  assert(ClippingStoreFacade::readClippingText(1, stored));
   assert(stored == text);
-  CLIPPINGS.unload();
+  ClippingStoreFacade::unload();
 }
 }  // namespace
 
 int main() {
+  auto leaves = retirement_fixture::leavesDefaults();
+  auto runtime = retirement_fixture::modelRuntime();
+  auto resources = retirement_fixture::resourcesDefaults();
+  runtime.render_lock = []() -> void* {
+    assert(!clippingRenderDepth);
+    ++clippingRenderDepth;
+    return reinterpret_cast<void*>(1);
+  };
+  runtime.render_unlock = [](void*) {
+    assert(clippingRenderDepth == 1);
+    --clippingRenderDepth;
+  };
+  leaves.log_enabled = [](uint8_t) -> uint8_t { return 0; };
+  clipping_fixture::StorageAdapter storage(leaves, resources);
+  storage.quietLog = true;
+  XpAppLegacy legacy{};
+  XpAppPlatform platform{&legacy, &resources, &runtime, &leaves};
+  XpAppCompatibility compatibility{};
+  assert(xp_app_init(&platform, &compatibility) == XP_APP_OK);
+  clippingReader = xp_epub_test_read_folder_create(&leaves, &runtime, &resources);
+  assert(clippingReader);
+
   buildscratch::lend(framebuffer.data(), framebuffer.size());
   maximumTextRoundTrip();
   for (int failure = 0; failure < 3; ++failure) {
@@ -107,5 +144,7 @@ int main() {
   assert(!clippingSync::run(book, "hash"));  // Missing loan must fail safely.
   assert(fake::requests == 0);
 #endif
-  std::puts("Clipping sync tests passed");
+  xp_epub_test_read_folder_destroy(clippingReader);
+  assert(storage.files.empty() && !clippingRenderDepth && !retirement_fixture::modelDepth);
+  std::puts("Clipping sync tests passed through the real App store and native facade");
 }

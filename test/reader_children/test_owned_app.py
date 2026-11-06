@@ -35,7 +35,9 @@ def main():
             'number(bytes, 7, 2); number(bytes, longChapterFixture ? 1000 : 5, 2);')
         source = replace_once(source, 'view->toc_count == 5',
             'view->toc_count == (longChapterFixture ? 1000 : 5)')
-        source += (HERE / 'owned_app.cpp.in').read_text()
+        owned = (HERE / 'owned_app.cpp.in').read_text()
+        owned = owned.replace('int main(int argc, char** argv)', (HERE / 'owned_clipping.cpp.inc').read_text() + '\nint main(int argc, char** argv)', 1)
+        source += owned
         candidate = out / 'candidate.cpp'
         candidate.write_text(source)
         facade = out / 'facade.cpp'
@@ -49,7 +51,7 @@ def main():
             'extern "C" void observeRustFree(void*);\nextern "C" void heap_caps_free(void* ptr) { observeRustFree(ptr);'))
         command = [str(allocator) if arg == str(ROOT / 'test/cmake/xp_ffi_host.cpp') else arg for arg in command]
         subprocess.run(command, check=True)
-        for mode in ('chapter-timed', 'menu', 'chapter', 'percent', 'qr', 'text', 'text-overlay'):
+        for mode in ('chapter-timed', 'menu', 'chapter', 'percent', 'qr', 'text', 'text-overlay', 'clippings', 'clippings-nav', 'clippings-delete', 'clippings-passage', 'clippings-detail', 'clippings-detail-oom', 'clippings-oom'):
             for cancelled in ('0', '1'):
                 for debug in ('0', '1'):
                     result = subprocess.run([str(binary), mode, cancelled, debug], capture_output=True, text=True)

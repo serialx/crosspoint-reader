@@ -64,6 +64,15 @@ impl<S, G: Gate> Operation<'_, S, G> {
 }
 
 impl<S, G: Gate> Service<S, G> {
+    #[cfg(feature = "app-test")]
+    pub fn reset_fixture(&self) -> bool {
+        let Some(_lease) = self.lease(Phase::Exclusive) else {
+            return false;
+        };
+        unsafe { *self.owner.get() = None };
+        true
+    }
+
     pub fn new(busy: G) -> Self {
         Self {
             owner: UnsafeCell::new(None),

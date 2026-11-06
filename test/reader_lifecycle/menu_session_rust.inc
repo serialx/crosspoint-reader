@@ -1,3 +1,4 @@
+#include "../clipping_store/reader_fixture.h"
 #include "menu_session_fixture.h"
 #include <I18nKeys.h>
 #include <cstring>
@@ -204,7 +205,6 @@ static void configureMenuLeaves() {
     assert(!menuModelDepth && raw == &activeMenu->owner.cachedBookmarks);
     return activeMenu->owner.cachedBookmarks.size();
   };
-  menuLeaves.physical.clippings_count = []() -> uint32_t { assert(!menuModelDepth); return CLIPPINGS.hasClippings(); };
   menuLeaves.book.section.page.strip_release_idle = [](void* raw) -> uint8_t {
     assert(!menuModelDepth && lockDepth == 1 && raw == activeMenu);
     activeMenu->owner.stripBuffers.releaseIdle();
@@ -396,21 +396,33 @@ MenuSessionBridge::MenuSessionBridge(EpubReaderActivity& value) : owner(value) {
 
 void EpubReaderActivity::openReaderMenu() {
   assert(activeMenu && &activeMenu->owner == this);
+  clipping_fixture::seedCount(activeMenu->rust, CLIPPINGS.clips ? 1 : 0, [](uint32_t count) {
+    assert(!menuModelDepth); assert(count == uint32_t(CLIPPINGS.hasClippings()));
+  });
   xp_epub_test_menu_open(activeMenu->rust);
   activeMenu->observe();
 }
 void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction action) {
   assert(activeMenu && &activeMenu->owner == this);
+  clipping_fixture::seedCount(activeMenu->rust, CLIPPINGS.clips ? 1 : 0, [](uint32_t count) {
+    assert(!menuModelDepth); assert(count == uint32_t(CLIPPINGS.hasClippings()));
+  });
   xp_epub_test_menu_confirm(activeMenu->rust, static_cast<int32_t>(action));
   activeMenu->observe();
 }
 void EpubReaderActivity::buildMoreActions() {
   assert(activeMenu && &activeMenu->owner == this);
+  clipping_fixture::seedCount(activeMenu->rust, CLIPPINGS.clips ? 1 : 0, [](uint32_t count) {
+    assert(!menuModelDepth); assert(count == uint32_t(CLIPPINGS.hasClippings()));
+  });
   xp_epub_test_menu_build_more(activeMenu->rust);
   activeMenu->observe();
 }
 void EpubReaderActivity::activateMoreRow(int row) {
   assert(activeMenu && &activeMenu->owner == this);
+  clipping_fixture::seedCount(activeMenu->rust, CLIPPINGS.clips ? 1 : 0, [](uint32_t count) {
+    assert(!menuModelDepth); assert(count == uint32_t(CLIPPINGS.hasClippings()));
+  });
   xp_epub_test_menu_activate(activeMenu->rust, row);
   activeMenu->observe();
 }

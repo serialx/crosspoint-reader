@@ -205,7 +205,7 @@ static const XpAppRuntime& physicalRuntime() {
 static const LegacyEpubLeaves& physicalLeaves() {
   static const LegacyEpubLeaves value = [] {
     LegacyEpubLeaves table{};
-    static_assert(sizeof(XpEpubLeaves) == 177 * sizeof(void (*)()));
+    static_assert(sizeof(XpEpubLeaves) == 169 * sizeof(void (*)()));
     UNUSED_LEAF(physical.render_margins);
     UNUSED_LEAF(physical.render_geometry);
     UNUSED_LEAF(physical.render_restore_bw);
@@ -329,7 +329,7 @@ static const LegacyEpubLeaves& physicalLeaves() {
     UNUSED_LEAF(physical.child_text_settings);
     UNUSED_LEAF(physical.child_selection);
     UNUSED_LEAF(physical.child_bookmarks);
-    UNUSED_LEAF(physical.child_clippings);
+
     UNUSED_LEAF(book.children.child_qr);
     UNUSED_LEAF(physical.child_wifi);
     UNUSED_LEAF(physical.child_sync);
@@ -364,13 +364,9 @@ static const LegacyEpubLeaves& physicalLeaves() {
     UNUSED_LEAF(physical.bookmarks_retain);
     UNUSED_LEAF(physical.bookmarks_insert_front);
     UNUSED_LEAF(book.clippings_load);
-    UNUSED_LEAF(physical.clippings_unload);
-    UNUSED_LEAF(physical.clippings_count);
-    UNUSED_LEAF(physical.clippings_row);
-    UNUSED_LEAF(physical.clippings_remove);
-    UNUSED_LEAF(physical.clippings_insert);
+
     UNUSED_LEAF(physical.clippings_export);
-    UNUSED_LEAF(physical.clippings_move_book);
+
     UNUSED_LEAF(physical.recents_remove);
     UNUSED_LEAF(book.recents_add);
     UNUSED_LEAF(physical.recents_update_path);

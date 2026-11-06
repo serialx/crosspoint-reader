@@ -27,6 +27,7 @@ pub(in crate::app) struct LegacyChildren {
     pub toolbar_visible_rows: unsafe extern "C" fn(toolbar: *mut core::ffi::c_void) -> i32,
     pub toolbar_reset_navigation:
         unsafe extern "C" fn(toolbar: *mut core::ffi::c_void, selected: i32, top: i32),
+    pub child_clippings: Option<unsafe extern "C" fn() -> *mut c_void>,
 }
 
 #[no_mangle]
@@ -42,7 +43,8 @@ pub unsafe extern "C" fn xp_epub_test_legacy_children(
 
 const _: () = {
     let pointer = core::mem::size_of::<unsafe extern "C" fn()>();
-    assert!(core::mem::size_of::<LegacyChildren>() == 12 * pointer);
+    assert!(core::mem::size_of::<LegacyChildren>() == 13 * pointer);
+    assert!(core::mem::offset_of!(LegacyChildren, child_clippings) == 12 * pointer);
     assert!(core::mem::offset_of!(LegacyChildren, child_menu) == 0);
     assert!(core::mem::offset_of!(LegacyChildren, child_chapter) == pointer);
     assert!(core::mem::offset_of!(LegacyChildren, child_percent) == 2 * pointer);

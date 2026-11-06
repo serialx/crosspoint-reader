@@ -12,6 +12,7 @@ pub(super) struct Update {
 }
 
 impl ListPublication {
+    #[inline(never)]
     pub(super) fn input(
         &mut self,
         input: Input,
@@ -22,6 +23,7 @@ impl ListPublication {
         self.input_with_gesture(input, count, present, kind, false, None)
     }
 
+    #[inline(never)]
     pub(super) fn clipping_input(
         &mut self,
         input: Input,
@@ -39,6 +41,7 @@ impl ListPublication {
         )
     }
 
+    #[inline(always)]
     fn input_with_gesture(
         &mut self,
         mut input: Input,

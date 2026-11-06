@@ -34,7 +34,7 @@ void finishComposition() {
   assert(results.children.empty() && results.pages.empty() && results.born == results.dead);
   assert(!results.section && !results.toolbar && f().handles.empty());
   assert(!f().renderDepth && !f().modelDepth);
-  assert(xp_test_live_allocations() <= 1); // Only the App parent-vector capacity can remain.
+  assert(clipping_fixture::readerLiveAllocations() <= 1); // Only the App parent-vector capacity can remain.
 }
 void nativeFactoryFailure(const std::string& leaf, unsigned stage, unsigned pageCount) {
   const auto begin = results.born;

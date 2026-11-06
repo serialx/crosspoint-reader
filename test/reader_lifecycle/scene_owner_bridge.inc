@@ -1,3 +1,4 @@
+#include "../clipping_store/reader_fixture.h"
 // App owns construction/destruction; every entry below calls an ordinary method.
 #include "overlay_actions_session_fixture.h"
 extern "C" {
@@ -102,6 +103,7 @@ class EpubReaderActivity {
     appState.startAttempt();
     assert(install() == 1 && xp_app_test_current_epub());
     scene.owner = xp_app_test_current_epub();
+    clipping_fixture::seedCount(scene.owner, 0, [](uint32_t count) { sceneLeaf(); assert(count == 0); });
     // Real entry and full Page render load the Section; no resource pointer seed.
     { RenderLock access; assert(xp_epub_test_entry_gate_render(scene.owner)); }
     if (!sceneSectionLive() || scene.pageDrawn != 1 || scene.boundPage) {

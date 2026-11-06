@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include "../clipping_store/reader_fixture.h"
 
 namespace clipping_owner_adapter {
 static EpubReaderActivity* active;
@@ -147,7 +148,7 @@ static XpUiReaderRenderServices renderServices{
 static auto legacySection = unexpectedLegacySectionServices();
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 177 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 169 * sizeof(void (*)()));
   UNUSED_LEAF(render_margins);
   UNUSED_LEAF(render_geometry);
   UNUSED_LEAF(render_restore_bw);
@@ -212,7 +213,7 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(child_text_settings);
   UNUSED_LEAF(child_selection);
   UNUSED_LEAF(child_bookmarks);
-  UNUSED_LEAF(child_clippings);
+
   UNUSED_LEAF(child_wifi);
   UNUSED_LEAF(child_sync);
   UNUSED_LEAF(popup_open);
@@ -238,14 +239,9 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(bookmarks_row);
   UNUSED_LEAF(bookmarks_retain);
   UNUSED_LEAF(bookmarks_insert_front);
-  UNUSED_LEAF(clippings_load);
-  UNUSED_LEAF(clippings_unload);
-  UNUSED_LEAF(clippings_count);
-  UNUSED_LEAF(clippings_row);
-  UNUSED_LEAF(clippings_remove);
-  UNUSED_LEAF(clippings_insert);
+
   UNUSED_LEAF(clippings_export);
-  UNUSED_LEAF(clippings_move_book);
+
   UNUSED_LEAF(recents_remove);
   UNUSED_LEAF(recents_add);
   UNUSED_LEAF(recents_update_path);
@@ -384,12 +380,6 @@ static const XpEpubLeaves leaves = [] {
     return active->renderer.getTextAdvanceX(font, reinterpret_cast<const char*>(value.data),
       static_cast<EpdFontFamily::Style>(style), spacing);
   };
-  table.clippings_count = []() -> uint32_t { leaf(); ++countReads; return CLIPPINGS.clippingCount(); };
-  table.clippings_row = [](uint32_t index, XpEpubClip* out) {
-    leaf(); assert(out && index < CLIPPINGS.entries.size()); const auto& value = *CLIPPINGS.clippingAt(index);
-    *out = {value.spineIndex, value.startPage, value.endPage, value.pageCount,
-      value.startWordIndex, value.endWordIndex, value.layoutSignature, value.startOffset, value.endOffset};
-  };
   legacySection.page.render_services = [](void* root) -> const XpUiReaderRenderServices* {
     context(root); renderServices.context = root; return &renderServices;
   };
@@ -415,6 +405,20 @@ static const XpEpubLeaves leaves = [] {
   return table;
 }();
 #undef UNUSED_LEAF
+static void seedStore(void* owner) {
+  clipping_fixture::seed(owner, CLIPPINGS.entries.size(),
+      [](size_t index) { return &CLIPPINGS.entries[index]; },
+      [](uint32_t actual) { leaf(); ++countReads; assert(actual == CLIPPINGS.clippingCount()); },
+      [](uint32_t index, const XpClippingRecord* out) {
+        leaf(); assert(out && index < CLIPPINGS.entries.size()); const auto& value = *CLIPPINGS.clippingAt(index);
+        assert(out->spine == value.spineIndex && out->start_page == value.startPage &&
+               out->end_page == value.endPage && out->page_count == value.pageCount &&
+               out->start_word == value.startWordIndex && out->end_word == value.endWordIndex &&
+               out->signature == value.layoutSignature && out->start_offset == value.startOffset &&
+               out->end_offset == value.endOffset);
+      });
+}
+
 }  // namespace clipping_owner_adapter
 
 void EpubReaderActivity::initializeOwner(bool realFacts) {
@@ -450,6 +454,7 @@ EpubReaderActivity::~EpubReaderActivity() {
 int EpubReaderActivity::clippingAtPoint(const Page& value, int x, int y) const {
   using namespace clipping_owner_adapter;
   assert(active == this && owner && !activePage); Access access;
+  seedStore(owner);
   activePage = &value;
   const int result = xp_epub_test_clipping_hit(owner, const_cast<Page*>(&value), x, y);
   activePage = nullptr; return result;
@@ -457,6 +462,7 @@ int EpubReaderActivity::clippingAtPoint(const Page& value, int x, int y) const {
 void EpubReaderActivity::drawClippingHighlights(const Page& value, int font, int top, int left) const {
   using namespace clipping_owner_adapter;
   assert(active == this && owner && !activePage); Access access;
+  seedStore(owner);
   activePage = &value;
   xp_epub_test_clipping_draw(owner, const_cast<Page*>(&value), font, top, left);
   activePage = nullptr;
@@ -496,6 +502,7 @@ static int realFacts() {
       assert(actual == expected && specReads == 1); ++signatureCases;
       for (unsigned count : {0u, 1u, 2u, 9u}) {
         CLIPPINGS.entries.resize(count); countReads = 0;
+        seedStore(fixture.owner);
         assert(xp_epub_test_clipping_nonempty(fixture.owner) == uint8_t(count != 0));
         assert(countReads == 1); ++countCases;
       }

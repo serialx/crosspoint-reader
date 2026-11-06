@@ -35,5 +35,5 @@ void clearBookCache(const std::string& path) {
 bool removeBookFile(const std::string& path) {
   if (!Storage.remove(path.c_str())) return false;
   clearBookCache(path);
-  return ClippingStore::deleteForFilePath(path, "epub");
+  return ClippingStoreFacade::deleteForFilePath(path, "epub");
 }

@@ -125,6 +125,10 @@ struct App {
     legacy: &'static abi::Legacy,
     epub: &'static epub::abi::XpEpubLeaves,
     #[cfg(feature = "app-test")]
+    clipping_loaded_observer: Cell<Option<unsafe extern "C" fn(*const abi::Book, u8)>>,
+    #[cfg(feature = "app-test")]
+    clipping_unloaded_observer: Cell<Option<unsafe extern "C" fn()>>,
+    #[cfg(feature = "app-test")]
     legacy_entry_fixture: Cell<Option<&'static epub::LegacyBookServices>>,
     child_drawing: Option<&'static Physical>,
     resources: &'static abi::Resources,
@@ -888,6 +892,10 @@ pub unsafe extern "C" fn xp_app_init(
         ),
         widths: UnsafeCell::new(xp_ui::home::view::Widths::default()),
         #[cfg(feature = "app-test")]
+        clipping_loaded_observer: Cell::new(None),
+        #[cfg(feature = "app-test")]
+        clipping_unloaded_observer: Cell::new(None),
+        #[cfg(feature = "app-test")]
         legacy_entry_fixture: Cell::new(None),
         legacy,
         epub,
@@ -895,6 +903,15 @@ pub unsafe extern "C" fn xp_app_init(
         runtime,
         child_drawing: Some(&epub.child_drawing),
     };
+    if let Some(physical) = unsafe { epub.clipping_physical.as_ref() } {
+        owner.clippings.install(|| {
+            clippings_facade::NativeStore::try_new(clippings_native::Native {
+                leaves: epub,
+                resources,
+                physical,
+            })
+        });
+    }
     unsafe { *APP.0.get() = Some(owner) };
     *compatibility = abi::Compatibility {
         activity_facts: facts,

@@ -6,6 +6,7 @@ pub(super) mod legacy_children;
 pub(super) use book_render::BookRenderHooks;
 mod child;
 mod clipping;
+pub(super) mod clipping_store;
 pub(super) use child::ChildHooks;
 mod menu;
 pub(super) use menu::MenuHooks;

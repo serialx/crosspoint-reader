@@ -1,5 +1,6 @@
 use super::page_view::View;
 use super::{abi, app_abi, EpubSession, ResourceAccess};
+use crate::app::clippings::{record::Record, AddResult};
 use core::mem::MaybeUninit;
 
 const PAGE_LINE: u8 = 1;
@@ -158,7 +159,7 @@ impl EpubSession {
     }
 
     pub(super) fn has_clippings(&self) -> bool {
-        let nonempty = unsafe { (self.leaves.clippings_count)() } != 0;
+        let nonempty = self.clipping_count() != 0;
         #[cfg(feature = "app-test")]
         if let Some(hooks) = self.clipping_hooks {
             unsafe { (hooks.nonempty)(hooks.context, u8::from(nonempty)) };
@@ -166,12 +167,94 @@ impl EpubSession {
         nonempty
     }
 
-    fn clipping_row(&self, index: u32) -> abi::XpEpubClip {
-        let mut row = MaybeUninit::uninit();
-        unsafe {
-            (self.leaves.clippings_row)(index, row.as_mut_ptr());
-            row.assume_init()
+    pub(super) fn clipping_store(&self) -> Option<&crate::app::clippings_facade::ClippingService> {
+        #[cfg(feature = "app-test")]
+        if self.clipping_fixture.enabled.get() {
+            return Some(&self.clipping_fixture.service);
         }
+        crate::app::app().map(|app| &app.clippings)
+    }
+
+    pub(super) fn clipping_count(&self) -> u32 {
+        let count = self
+            .clipping_store()
+            .and_then(|service| service.read(|store| store.count() as u32))
+            .unwrap_or(0);
+        #[cfg(feature = "app-test")]
+        if let Some(observer) = self.clipping_fixture.count_observer.get() {
+            unsafe { observer(count) };
+        }
+        count
+    }
+
+    fn clipping_row(&self, index: u32) -> Record {
+        let row = self
+            .clipping_store()
+            .and_then(|service| service.read(|store| store.row(index as usize).copied()))
+            .flatten()
+            .unwrap_or_default();
+        #[cfg(feature = "app-test")]
+        if let Some(observer) = self.clipping_fixture.row_observer.get() {
+            unsafe { observer(index, &row) };
+        }
+        row
+    }
+
+    pub(super) fn remove_clipping(&self, index: u32) -> bool {
+        let Some(mut operation) = self.clipping_store().and_then(|store| store.operation()) else {
+            return false;
+        };
+        if !operation.read(|store| store.queue_remove(index as usize)) {
+            return false;
+        }
+        let pending = {
+            let _access = self.lock_resources();
+            operation.update(|store| store.prepare_remove(index as usize))
+        };
+        let Ok(written) =
+            pending.and_then(|pending| operation.read(|store| store.persist(pending, None)))
+        else {
+            return false;
+        };
+        let _access = self.lock_resources();
+        operation.update(|store| store.publish_clean(written));
+        true
+    }
+
+    #[inline(never)]
+    pub(super) fn insert_clipping(
+        &self,
+        record: Record,
+        chapter: app_abi::Text,
+        text: app_abi::XpAppNativeText,
+    ) -> AddResult {
+        #[cfg(feature = "app-test")]
+        let logical = super::test_support::clipping_store::LogicalTransaction::begin(self, 1);
+        let result = (|| {
+            let chapter = unsafe { chapter.bytes() }.unwrap_or_default();
+            let text = unsafe { text.bytes.bytes() }.unwrap_or_default();
+            let Some(mut operation) = self.clipping_store().and_then(|store| store.operation())
+            else {
+                return AddResult::SaveFailed;
+            };
+            let pending = {
+                let _access = self.lock_resources();
+                operation.update(|store| store.prepare_add(record, chapter, text))
+            };
+            let pending = match pending {
+                Ok(pending) => pending,
+                Err(result) => return result,
+            };
+            let Ok(written) = operation.read(|store| store.persist(pending, Some(text))) else {
+                return AddResult::SaveFailed;
+            };
+            let _access = self.lock_resources();
+            operation.update(|store| store.publish_clean(written));
+            AddResult::Added
+        })();
+        #[cfg(feature = "app-test")]
+        logical.inserted(&record, chapter, text, result as u8);
+        result
     }
 
     fn find_clipping(
@@ -183,7 +266,7 @@ impl EpubSession {
         signature: u32,
     ) -> Option<u32> {
         let mut index = 0;
-        while index < unsafe { (self.leaves.clippings_count)() } {
+        while index < self.clipping_count() {
             let row = self.clipping_row(index);
             let (spine, count) = self.model(|state| {
                 (
@@ -285,6 +368,7 @@ impl EpubSession {
         -1
     }
 
+    #[inline(never)]
     pub(super) fn draw_clipping_highlights(
         &self,
         access: &ResourceAccess<'_>,
@@ -307,7 +391,7 @@ impl EpubSession {
         }
         let mut chapter = 0u32;
         let mut index = 0;
-        while index < unsafe { (self.leaves.clippings_count)() } {
+        while index < self.clipping_count() {
             if i32::from(self.clipping_row(index).spine) == self.model(|state| state.current.spine)
             {
                 chapter += 1;

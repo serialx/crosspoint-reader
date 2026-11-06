@@ -102,6 +102,18 @@ impl<I: Io, const BLOCKS: usize> Store<I, BLOCKS> {
     pub fn count(&self) -> usize {
         self.count
     }
+
+    #[cfg(feature = "app-test")]
+    pub(crate) fn seed_metadata(&mut self, rows: &[Record]) -> bool {
+        if rows.len() > BLOCKS * PER_BLOCK || !self.index.reserve(rows.len()) {
+            return false;
+        }
+        for (index, row) in rows.iter().enumerate() {
+            *self.index.slot_mut(index) = *row;
+        }
+        self.count = rows.len();
+        true
+    }
     pub fn row(&self, index: usize) -> Option<&Record> {
         (index < self.count).then(|| self.index.slot(index))
     }
@@ -144,6 +156,16 @@ impl<I: Io, const BLOCKS: usize> Store<I, BLOCKS> {
             self.count = 0;
         }
         loaded
+    }
+
+    #[cfg(feature = "app-test")]
+    pub fn retained_string_capacities(&self) -> [usize; 4] {
+        [
+            self.book.capacity(),
+            self.title.capacity(),
+            self.author.capacity(),
+            self.path.capacity(),
+        ]
     }
 
     pub fn unload(&mut self) {

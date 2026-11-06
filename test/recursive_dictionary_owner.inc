@@ -19,6 +19,7 @@ extern "C" uint8_t xp_recursive_dictionary_result(const ActivityResult* original
     assert(recursiveState.handles.empty() && results.children.empty() && results.pages.empty());
     assert(!recursiveState.renderDepth && !recursiveState.modelDepth);
     recursiveState = Fixture{};
+    recursiveState.path = "/" + std::string(4090, 'p') + ".epub";
     results = Results{};
   }
   const size_t before = xp_test_live_allocations();

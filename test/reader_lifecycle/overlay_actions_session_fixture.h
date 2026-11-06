@@ -156,7 +156,7 @@ inline XpAppRuntime overlayUnexpectedRuntime() {
 
 inline XpEpubLeaves overlayUnexpectedLeaves() {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 177 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 169 * sizeof(void (*)()));
   table.render_margins = &OverlayUnexpected<decltype(table.render_margins)>::call;
   table.render_geometry = &OverlayUnexpected<decltype(table.render_geometry)>::call;
   table.render_restore_bw = &OverlayUnexpected<decltype(table.render_restore_bw)>::call;
@@ -220,7 +220,6 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.child_text_settings = &OverlayUnexpected<decltype(table.child_text_settings)>::call;
   table.child_selection = &OverlayUnexpected<decltype(table.child_selection)>::call;
   table.child_bookmarks = &OverlayUnexpected<decltype(table.child_bookmarks)>::call;
-  table.child_clippings = &OverlayUnexpected<decltype(table.child_clippings)>::call;
   table.child_wifi = &OverlayUnexpected<decltype(table.child_wifi)>::call;
   table.child_sync = &OverlayUnexpected<decltype(table.child_sync)>::call;
   table.popup_open = &OverlayUnexpected<decltype(table.popup_open)>::call;
@@ -246,14 +245,7 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.bookmarks_row = &OverlayUnexpected<decltype(table.bookmarks_row)>::call;
   table.bookmarks_retain = &OverlayUnexpected<decltype(table.bookmarks_retain)>::call;
   table.bookmarks_insert_front = &OverlayUnexpected<decltype(table.bookmarks_insert_front)>::call;
-  table.clippings_load = &OverlayUnexpected<decltype(table.clippings_load)>::call;
-  table.clippings_unload = &OverlayUnexpected<decltype(table.clippings_unload)>::call;
-  table.clippings_count = &OverlayUnexpected<decltype(table.clippings_count)>::call;
-  table.clippings_row = &OverlayUnexpected<decltype(table.clippings_row)>::call;
-  table.clippings_remove = &OverlayUnexpected<decltype(table.clippings_remove)>::call;
-  table.clippings_insert = &OverlayUnexpected<decltype(table.clippings_insert)>::call;
   table.clippings_export = &OverlayUnexpected<decltype(table.clippings_export)>::call;
-  table.clippings_move_book = &OverlayUnexpected<decltype(table.clippings_move_book)>::call;
   table.recents_remove = &OverlayUnexpected<decltype(table.recents_remove)>::call;
   table.recents_add = &OverlayUnexpected<decltype(table.recents_add)>::call;
   table.recents_update_path = &OverlayUnexpected<decltype(table.recents_update_path)>::call;
@@ -333,7 +325,6 @@ inline LegacyEpubLeaves overlayLegacyLeaves() {
   table.book.book_toc_for_spine = &OverlayUnexpected<decltype(table.book.book_toc_for_spine)>::call;
   table.book.bookmarks_load = &OverlayUnexpected<decltype(table.book.bookmarks_load)>::call;
   table.book.bookmarks_save = &OverlayUnexpected<decltype(table.book.bookmarks_save)>::call;
-  table.book.clippings_load = &OverlayUnexpected<decltype(table.book.clippings_load)>::call;
   table.book.recents_add = &OverlayUnexpected<decltype(table.book.recents_add)>::call;
   return table;
 }

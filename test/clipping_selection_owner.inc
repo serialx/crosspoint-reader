@@ -1,4 +1,5 @@
 #include "owner_tables.h"
+#include "clipping_store/reader_fixture.h"
 #include "clipping_owner_fixture.h"
 namespace retirement_selection {
 struct Context {
@@ -75,12 +76,6 @@ static XpEpubLeaves physicalLeaves() {
     return active->reader.renderer.getTextAdvanceX(font, reinterpret_cast<const char*>(value.data),
                                                   static_cast<EpdFontFamily::Style>(style), tracking);
   };
-  table.clippings_count = []() -> uint32_t { return CLIPPINGS.clippingCount(); };
-  table.clippings_row = [](uint32_t index, XpEpubClip* out) {
-    assert(out && index < CLIPPINGS.clippingCount()); const auto& row = *CLIPPINGS.clippingAt(index);
-    *out = {row.spineIndex, row.startPage, row.endPage, row.pageCount, row.startWordIndex, row.endWordIndex,
-            row.layoutSignature, row.startOffset, row.endOffset};
-  };
   legacySection.page.render_services = [](void* p) -> const XpUiReaderRenderServices* { assert(p == active); return &renderServices; };
   table.paint_pixel = [](int32_t x, int32_t y) { active->reader.renderer.drawPixel(x, y, false); };
   table.paint_dither = [](int32_t x, int32_t y, int32_t width, int32_t height) {
@@ -125,6 +120,7 @@ struct Owner {
     seed.signature = &Unexpected<decltype(seed.signature)>::call;
     seed.nonempty = &Unexpected<decltype(seed.nonempty)>::call;
     handle = xp_epub_test_clipping_create_legacy_section(&seed, &leaves, &runtime, &resources, &legacySection);
+    clipping_fixture::seed(handle, CLIPPINGS.clippingCount(), [](size_t i) { return CLIPPINGS.clippingAt(i); });
     assert(handle && context.publication == (reader.section ? 5u : 0u));
   }
   ~Owner() {

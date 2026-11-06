@@ -203,7 +203,23 @@ impl EpubSession {
             self.save_links(access);
         }
         self.drop_section(access);
-        unsafe { (self.leaves.clippings_unload)() };
+        if let Some(store) = self.clipping_store() {
+            store.with(|store| store.unload());
+        }
+        #[cfg(feature = "app-test")]
+        if let super::session_book::Factory::Legacy(services) = self.book_factory {
+            if let Some(unloaded) = services.clippings_unload {
+                unsafe { unloaded() };
+            }
+        }
+        #[cfg(feature = "app-test")]
+        if matches!(self.book_factory, super::session_book::Factory::Reader) {
+            if let Some(observe) =
+                crate::app::app().and_then(|app| app.clipping_unloaded_observer.get())
+            {
+                unsafe { observe() };
+            }
+        }
         let paths = if self.model(|state| state.move_to_read) {
             self.book(access).and_then(|book| {
                 let source = Text::receive(|sink, context| unsafe {

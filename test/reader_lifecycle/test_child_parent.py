@@ -157,8 +157,17 @@ def project(raw, strip):
     return b''.join(output), dict(counts)
 
 
+def logical_lock_fixture(source):
+    # Keep the real RenderLock/mutex hooks; silence only their historical trace
+    # while the named logical transaction emits its own begin/end observations.
+    return replace_once(source, 'static void event(const char* n, int a = 0, int b = 0) {',
+                        'static thread_local bool clippingLockEventsQuiet = false;\n'
+                        'static void event(const char* n, int a = 0, int b = 0) {\n'
+                        '  if (clippingLockEventsQuiet) return;')
+
+
 def transformed_fixture(template):
-    source = replace_once(template, '// CHILD_RESOURCES', '')
+    source = replace_once(logical_lock_fixture(template), '// CHILD_RESOURCES', '')
     source = replace_once(source, '// CHILD_METHODS', (HERE / 'child_session_rust.inc').read_text())
     return replace_once(source, '        switch (operation) {',
                         '        ChildSessionBridge childSession(o);\n        switch (operation) {')
@@ -217,7 +226,10 @@ def main():
     fixture_paths = [HERE / name for name in ('child_parent_oracle.cpp', 'child_session_rust.inc',
                                              'child_session_fixture.h', 'overlay_actions_session_fixture.h',
                                              'test_child_parent.py')]
-    fixture_paths.append(ROOT / 'rust/crates/xp-ffi/src/app/epub/test_support/child.rs')
+    fixture_paths += [ROOT / name for name in ('rust/crates/xp-ffi/src/app/epub/test_support/child.rs',
+        'rust/crates/xp-ffi/src/app/epub/test_support/clipping_store.rs',
+        'test/clipping_store/reader_fixture.h', 'test/clipping_store/reader_storage.h',
+        'test/library_builder/stubs/HalStorage.h', 'test/reader_lifecycle/legacy_children_fixture.h')]
     fixture_hashes = {str(path.relative_to(ROOT)): digest(path.read_bytes()) for path in fixture_paths}
     frozen = {strip: (HERE / f'child-parent-{strip}{"-release" if args.release_log else ""}.golden.gz').read_bytes()
               for strip in (0, 1)}
@@ -245,7 +257,7 @@ def main():
             def run(name, strip, archive=None):
                 binary = work / name
                 selected_flags = flags if archive is None else rust_link_flags(archive=str(archive))
-                subprocess.run(['c++', '-std=c++17', '-UNDEBUG', '-O0', '-fsanitize=address,undefined',
+                subprocess.run(['c++', '-std=c++20', '-UNDEBUG', '-O0', '-fsanitize=address,undefined',
                                 '-fno-sanitize-recover=all', f'-DXP_STRIP_RENDER={strip}',
                                 *(['-DCHILD_RELEASE_LOG'] if args.release_log else []),
                                 '-I', str(HERE), str(work / 'child.cpp'), *selected_flags, '-o', str(binary)], check=True)
@@ -271,7 +283,7 @@ def main():
                               projected_trace_lines=len(expected.splitlines()), actual_trace_sha256=digest(baseline.stdout),
                               projection_counts=projections, fixture_sha256=fixture_hashes,
                               candidate_source_sha256={name: digest(data) for name, data in source.items()},
-                              resource_contract='per-access Section scopes and full-call clipping insertion; owned Pages and child construction outside new scopes',
+                              resource_contract='per-access Section scopes; clipping logical transaction observer with independently verified split physical guards; owned Pages and child construction outside scopes',
                               policy_replacements=['historical bookmark', 'menu', 'applyProgress', 'flush', 'saveProgress',
                                                    'navigateHref', 'clippingAtPoint', 'replace', 'currentPosition',
                                                    'layoutSignature', 'discardOverlay', 'saveLinks', 'push', 'update'],

@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "../clipping_store/app_fixture.h"
 #include "legacy_book_fixture.h"
 #include "physical_defaults.h"
 
@@ -408,7 +409,7 @@ void bind() {
     f().physical("extractor-clear", f().extractor->generation);
     f().extractor = nullptr;
   };
-  leaves.clippings_unload = [] {
+  legacyBook.clippings_unload = [] {
     assert(f().renderDepth == 1 && f().clippings);
     ++f().unloadedClippings;
     f().physical("clippings-unload", f().clippings->generation);
@@ -422,9 +423,46 @@ void bind() {
 }
 
 void initialize() {
+  const auto beforeApp = xp_test_live_allocations();
+  if (clipping_fixture::appStoreRequested) {
+    fake::reset();
+    clipping_fixture::appStorage = std::make_unique<clipping_fixture::StorageAdapter>(leaves, resources);
+    static auto originalLog = clipping_fixture::appStorage->previous.log;
+    leaves.log = [](uint8_t level, XpAppText origin, XpAppText message) {
+      if (text(origin) == "CLIP") {
+        std::fprintf(stderr, "clipping storage: %.*s\n", int(message.len), message.data);
+        return;
+      }
+      originalLog(level, origin, message);
+    };
+    clipping_fixture::appStorage->io = [] { assert(!f().modelDepth); };
+    if (clipping_fixture::preserveBookHash)
+      leaves.native_path_hash = clipping_fixture::appStorage->previous.native_path_hash;
+    clipping_fixture::legacyLoad = legacyBook.clippings_load;
+    legacyBook.clippings_load = [](void* raw) -> uint8_t {
+      assert(xp_clippings_p18_load(wire(f().path), wire("Fixture"), wire("Author"), wire("epub")));
+      const auto loaded = clipping_fixture::legacyLoad(raw);
+      if (clipping_fixture::ready) clipping_fixture::ready(xp_app_test_current_epub());
+      return loaded;
+    };
+  }
   XpAppCompatibility compatibility{};
   assert(xp_app_init(&platform, &compatibility) == XP_APP_OK);
   assert(compatibility.activity_facts && compatibility.home_action && compatibility.screenshot_info);
+  if (clipping_fixture::appStoreRequested) {
+    // The singleton retains string capacities, as the native clear-on-unload did.
+    assert(xp_clippings_p18_load(wire(f().path), wire("Fixture"), wire("Author"), wire("epub")));
+    xp_clippings_p18_unload();
+    clipping_fixture::retainedStoreAllocations = xp_test_live_allocations() - beforeApp;
+    assert(clipping_fixture::retainedStoreAllocations == 5);  // Owner and four strings.
+    xp_app_test_clipping_observe(
+        [](const XpAppBook* row, uint8_t result) {
+          assert(result);
+          if (clipping_fixture::loaded) clipping_fixture::loaded(row, result);
+          if (clipping_fixture::ready) clipping_fixture::ready(xp_app_test_current_epub());
+        },
+        clipping_fixture::unloaded);
+  }
 }
 uint8_t install() { return xp_app_test_install_epub_legacy_book(wire(f().path), 0, &leaves, &legacyBook); }
 void adoptLegacy() {

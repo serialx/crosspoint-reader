@@ -374,7 +374,7 @@ query!(title, book_title, (sink: app_abi::TextSink, context: *mut c_void) -> u8)
 query!(author, book_author, (sink: app_abi::TextSink, context: *mut c_void) -> u8);
 query!(language, book_language, (sink: app_abi::TextSink, context: *mut c_void) -> u8);
 
-pub(super) unsafe fn load_clippings(raw: *mut c_void, leaves: &'static abi::XpEpubLeaves) -> bool {
+pub(super) unsafe fn load_clippings(raw: *mut c_void, _leaves: &'static abi::XpEpubLeaves) -> bool {
     #[cfg(feature = "app-test")]
     let raw = match unsafe { &*raw.cast::<Loaded>() } {
         Loaded::Reader(book) => book.as_ptr(),
@@ -383,7 +383,25 @@ pub(super) unsafe fn load_clippings(raw: *mut c_void, leaves: &'static abi::XpEp
         } => return unsafe { (services.clippings_load)(handle.as_ptr()) != 0 },
     };
     let value = unsafe { queries::book_view(raw) };
-    unsafe { (leaves.clippings_load)(&value) != 0 }
+    let Some(app) = crate::app::app() else {
+        return false;
+    };
+    let loaded = app
+        .clippings
+        .with(|store| {
+            store.load(
+                unsafe { value.path.bytes() }.unwrap_or_default(),
+                unsafe { value.title.bytes() }.unwrap_or_default(),
+                unsafe { value.author.bytes() }.unwrap_or_default(),
+                b"epub",
+            )
+        })
+        .unwrap_or(false);
+    #[cfg(feature = "app-test")]
+    if let Some(observe) = app.clipping_loaded_observer.get() {
+        unsafe { observe(&value, loaded as u8) };
+    }
+    loaded
 }
 
 pub(super) unsafe fn add_recent(raw: *mut c_void, leaves: &'static abi::XpEpubLeaves) {

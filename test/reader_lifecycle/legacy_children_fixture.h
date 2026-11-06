@@ -61,6 +61,7 @@ struct XpEpubLegacyChildren {
   uint8_t (*toolbar_scroll)(void* toolbar, int32_t delta, int32_t count);
   int32_t (*toolbar_visible_rows)(void* toolbar);
   void (*toolbar_reset_navigation)(void* toolbar, int32_t selected, int32_t top);
+  void* (*child_clippings)();
 };
 
 template <typename F>
@@ -87,7 +88,8 @@ inline XpEpubLegacyChildren unexpectedLegacyChildren() {
 }
 extern "C" void xp_epub_test_legacy_children(void*, const XpEpubLegacyChildren*);
 
-static_assert(sizeof(XpEpubLegacyChildren) == 12 * sizeof(void (*)()));
+static_assert(sizeof(XpEpubLegacyChildren) == 13 * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLegacyChildren, child_clippings) == 12 * sizeof(void (*)()));
 static_assert(offsetof(XpEpubLegacyChildren, child_menu) == 0 * sizeof(void (*)()));
 static_assert(offsetof(XpEpubLegacyChildren, child_chapter) == 1 * sizeof(void (*)()));
 static_assert(offsetof(XpEpubLegacyChildren, child_percent) == 2 * sizeof(void (*)()));

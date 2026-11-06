@@ -10,7 +10,10 @@ use xp_core::i18n::ids::{
 };
 use xp_ui::{
     ffi::{Paint, SceneView},
-    reader_chrome::list,
+    reader_chrome::{
+        list,
+        runtime::{RowSlot, ThemeMode},
+    },
     scene::{Command, Error, Kind, Rect, Refresh},
 };
 
@@ -30,7 +33,8 @@ impl ClippingRows<'_> {
         if !(1..list::HEADER).contains(&handle) {
             return None;
         }
-        self.window.row(((handle - 1) / 4) as i32)
+        let (index, _) = RowSlot::decode(handle)?;
+        self.window.row(i32::from(index))
     }
 }
 impl Rows for ClippingRows<'_> {
@@ -45,21 +49,23 @@ impl Rows for ClippingRows<'_> {
             return Some(unsafe { (self.services.translate)(key) });
         }
         let row = self.row_for(handle)?;
-        match (handle - 1) % 4 {
-            0 => Some(if row.chapter[0] == 0 {
+        match RowSlot::decode(handle)?.1 {
+            RowSlot::Label => Some(if row.chapter[0] == 0 {
                 unsafe { (self.services.translate)(STR_CLIPPINGS) }
             } else {
                 let end = row.chapter.iter().position(|byte| *byte == 0)?;
                 abi::Text::from_terminated(&row.chapter[..=end])
             }),
-            1 => Some(abi::Text::from_terminated(
+            RowSlot::Subtitle => Some(abi::Text::from_terminated(
                 &row.preview[..=row.preview_length],
             )),
             _ => None,
         }
     }
     fn valid(&self, handle: u32) -> bool {
-        self.text(handle).is_some() || self.row_for(handle).is_some() && (handle - 1) % 4 == 3
+        self.text(handle).is_some()
+            || self.row_for(handle).is_some()
+                && matches!(RowSlot::decode(handle), Some((_, RowSlot::Icon)))
     }
     fn header_list(&self) -> u8 {
         0
@@ -89,11 +95,10 @@ impl list::Resources for ClippingRows<'_> {
     }
     fn row(&mut self, index: u16) -> Result<list::Row, Error> {
         self.window.row(i32::from(index)).ok_or(Error::Invalid)?;
-        let base = u32::from(index) * 4;
         Ok(list::Row {
-            label: base + 1,
-            subtitle: base + 2,
-            icon: base + 4,
+            label: RowSlot::Label.encode(index),
+            subtitle: RowSlot::Subtitle.encode(index),
+            icon: RowSlot::Icon.encode(index),
             ..Default::default()
         })
     }
@@ -150,6 +155,7 @@ unsafe fn loading(services: &abi::Resources, screen: Rect) -> Result<(), Error> 
 }
 impl Clippings {
     /// The caller holds the render lifetime lock and a store operation lease.
+    #[inline(never)]
     pub(super) unsafe fn render(
         &self,
         services: &'static abi::Resources,
@@ -160,7 +166,11 @@ impl Clippings {
     ) -> Result<u16, Error> {
         let frame = unsafe { &mut *self.frame.get() };
         let snapshot = self.model.with(|model| model.state);
-        unsafe { (physical.list_theme)(&mut frame.list.theme, 0) };
+        if let Err(error) = unsafe { physical.sample_theme(&mut frame.list.theme, ThemeMode::List) }
+        {
+            self.model.with(|model| model.painted(&frame.list, false));
+            return Err(error);
+        }
         if frame.initial && count > 0 {
             if let Err(error) = unsafe { loading(services, frame.list.theme.screen) } {
                 self.model.with(|model| model.painted(&frame.list, false));
@@ -188,9 +198,9 @@ impl Clippings {
         };
         self.model
             .with(|model| model.painted(&frame.list, result.is_ok()));
-        if result.is_ok() {
-            unsafe { (services.refresh)(Refresh::Fast as u8) };
+        if let Ok(prepared) = result {
+            unsafe { (services.refresh)(prepared.refresh as u8) };
         }
-        result
+        result.map(|prepared| prepared.command_count)
     }
 }

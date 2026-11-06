@@ -97,8 +97,6 @@ impl EpubSession {
             ChildIntent::Chapter,
         );
     }
-    // Called when the native clipping owner is retired at the switch.
-    #[allow(dead_code)]
     pub(in crate::app::epub) fn launch_owned_clippings(&self) {
         self.push_owned_child(
             Clippings::try_new(self.runtime)

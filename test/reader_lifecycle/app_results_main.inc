@@ -516,7 +516,7 @@ int main(int argc, char** argv) {
     const std::vector<uint8_t> expected{2, 1, 0, 2, 0, 3, 0, 2, 0};
     assert(results.savedLinks == expected);
   } else assert(results.savedLinks.empty());
-  assert(xp_test_live_allocations() == (mode == "stack-failure" ? 0u : 1u)); // App retains its empty parent Vec capacity.
+  assert(clipping_fixture::readerLiveAllocations() == (mode == "stack-failure" ? 0u : 1u)); // App retains its empty parent Vec capacity.
   assert(results.born == results.dead && results.firstDeliveryLocks == results.returns);
   assert(results.borrowedChecks == 2 * results.returns);
   assert(results.sectionOpened == results.sectionClosed && state.handles.empty());

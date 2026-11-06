@@ -179,12 +179,6 @@ static void bindA1() {
   legacyBook.section.page.metadata_link = [](void* raw, uint16_t row, XpEpubLinkSink sink, void* context) -> uint8_t {
     sceneLeaf(1); ++a1MetadataReads; return a1NativeLink(raw, row, sink, context);
   };
-  leaves.clippings_count = []() -> uint32_t { sceneLeaf(); return 1; };
-  leaves.clippings_row = [](uint32_t row, XpEpubClip* out) {
-    sceneLeaf(1); assert(row == 0); *out = {};
-    out->spine = 1; out->page_count = 10; out->start_page = 2; out->end_page = 3;
-    out->start_word = out->end_word = 0; out->start_offset = 100; out->end_offset = 104;
-  };
   legacyBook.section.page.page_element = [](void* raw, uint16_t element, XpEpubElement* out) {
     sceneLeaf(1); assert(raw == scene.boundPage && livePages == 1 && element == 0);
     *out = {}; out->tag = 1; out->valid = 1; out->words = 1; out->x = 13; out->y = 17;
@@ -225,4 +219,18 @@ static void bindA1() {
   leaves.render_restore_bw = [](uint8_t resync) { sceneLeaf(1); assert(!resync); target->restoreBwBuffer(); };
   leaves.render_discard_bw = [] { sceneLeaf(1); a1Physical("discard", 0, 0, 0); };
   platform = {&legacy, &resources, &runtime, &leaves};
+}
+
+static void seedA1Clippings(void* owner) {
+  XpClippingRecord row{};
+  row.spine = 1; row.page_count = 10; row.start_page = 2; row.end_page = 3;
+  row.start_offset = 100; row.end_offset = 104;
+  assert(xp_epub_test_clipping_seed_metadata(owner, &row, 1,
+      [](uint32_t count) { sceneLeaf(); assert(count == 1); },
+      [](uint32_t index, const XpClippingRecord* actual) {
+        sceneLeaf(1); assert(index == 0 && actual->spine == 1 && actual->page_count == 10);
+        assert(actual->start_page == 2 && actual->end_page == 3);
+        assert(actual->start_word == 0 && actual->end_word == 0);
+        assert(actual->start_offset == 100 && actual->end_offset == 104);
+      }));
 }

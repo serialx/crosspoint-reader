@@ -76,11 +76,21 @@ without moving its fault arm. Original parent outcome checks and 22 mutants
 remain. Actual chapter/bookmark constructors and shared-pointer members exercise
 loan retention and release; native child widgets keep their separate tests.
 
-`book_store_composition.py` extracts the actual bookmark, clipping and recents
-adapters between ReaderBook/App and physical store observers. It proves adapter
-bytes and synchronous lifetimes, not actual store allocation or persistence
-peaks. The clipping and settings-store suites exercise the stores themselves;
-measure the full stores when assessing long-metadata allocation cost.
+`book_store_composition.py` extracts the actual bookmark and recents adapters.
+Clipping load, count, row lookup and insert now execute against the App-owned
+Rust store, backed by a physical file fake. Host-only observers retain historical
+load/unload and borrowed-result assertions; they cannot choose storage results.
+Result/child compositions use a 4,096-byte total book path and preserve the
+4,096-byte borrowed selection. Dedicated ownership/routing cases retain their
+original 4,102-byte path. `clipping_app_store_physical` independently proves that
+the real writer rejects a 4,102-byte path without creating a file.
+
+The native singleton cleared four strings on unload without releasing capacity.
+The real App fixture warms those strings before allocation baselines. Its named
+reader allocation domain excludes exactly the persistent store header and four
+strings, while preserving every original numeric teardown expectation. The
+physical store test separately reports capacities before/after unload. Operation
+peaks and target allocator overhead require the qualification measurements.
 
 Historical service fixtures live in `legacy_book_fixture.h` and Rust
 `test_support::{legacy_book,legacy_section}`, behind `app-test`. The Section
@@ -211,3 +221,14 @@ transient strings at the original boundary, before their caller continues.
 Both lifecycle fixtures assert that every completed loop/render/lifecycle run
 returns with zero render-lock depth; the full-loop fixture also tracks failed
 try-lock scopes. These assertions stay enabled in both logging configurations.
+
+
+The frozen read-folder policy trace uses the named private `LegacyReadFolder`
+adapter for its historical atomic move boundary. Its 100-case manifest and bytes
+stay unchanged. The separate `clipping_read_folder_physical_*` cases invoke the
+real App store and reader route without this adapter and assert exact rename,
+rollback, sidecar, cache and state ordering, bytes and handle release. Inherited
+key/rights failure leaves moved clipping files at the destination while restoring
+the book path; this behavior is explicitly tested rather than silently changed.
+The switch packet records six child fixture generations plus this separate seam
+so architecture review can assess the retained fixture layering.

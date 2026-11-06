@@ -294,7 +294,7 @@ const XpWebServices WebFileBridge::services = {
             case XP_WEB_REMOVE_BOOK:
               return removeBookFile(path);
             case XP_WEB_MOVE_BOOK:
-              return ClippingStore::moveBook(path, target);
+              return ClippingStoreFacade::moveBook(path, target);
             case XP_WEB_LIBRARY_BOOK:
               if (library::isLibraryBookFile(path)) library::markLibraryIndexDirty();
               return true;

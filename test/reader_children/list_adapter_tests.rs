@@ -483,7 +483,7 @@ fn clipping_list_draws_help_bookmarks_and_loading_once_and_reuses_previews() {
             .unwrap();
     }
     assert_eq!(reads, (0..8).collect::<Vec<_>>());
-    owner.model.with(|m| assert!(m.ready && !m.failed));
+    owner.model.with(|m| assert!(m.ready && !m.gate.failed()));
     RECORD.with(|r| {
         let r = r.borrow();
         assert_eq!(r.loading, 1);
@@ -508,7 +508,7 @@ fn clipping_list_draws_help_bookmarks_and_loading_once_and_reuses_previews() {
         })
     }
     .is_err());
-    owner.model.with(|m| assert!(!m.ready && m.failed));
+    owner.model.with(|m| assert!(!m.ready && m.gate.failed()));
 }
 #[test]
 fn clipping_list_empty_and_command_oom_have_no_preview_reads() {
@@ -529,7 +529,7 @@ fn clipping_list_empty_and_command_oom_have_no_preview_reads() {
         )
     }
     .is_err());
-    owner.model.with(|m| assert!(m.failed));
+    owner.model.with(|m| assert!(m.gate.failed()));
     unsafe {
         owner
             .render(

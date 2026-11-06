@@ -1,9 +1,7 @@
 #pragma once
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
-#include <memory>
 #include <string>
 #include <string_view>
 
@@ -47,73 +45,10 @@ struct Clipping {
 static_assert(sizeof(Clipping) == 168, "C3 clipping index layout used by the Rust ownership migration");
 #endif
 
-class ClippingStore {
- public:
-  enum class AddResult : uint8_t {
-    Added,
-    LimitReached,
-    SaveFailed,
-  };
-
-  static ClippingStore& getInstance() { return instance; }
-
-  bool loadForBook(std::string_view filePath, std::string_view title, std::string_view author,
-                   std::string_view bookType);
-  void unload();
-
-  AddResult addClipping(uint16_t spineIndex, uint16_t startPage, uint16_t endPage, uint16_t pageCount,
-                        uint16_t startWordIndex, uint16_t endWordIndex, uint16_t wordCount, const char* chapterTitle,
-                        uint16_t paragraphIndex, const std::string& text, uint32_t layoutSignature,
-                        uint32_t startOffset = UINT32_MAX, uint32_t endOffset = UINT32_MAX);
-  bool removeClippingAt(size_t index);
-  bool saveToFile();
-  bool prepareSync();
-  bool finishUploads();
-  bool applyRemote(const Clipping& clipping, const std::string& text, bool deleted);
-  bool nextDeletion(uint32_t& offset, char (&id)[65]) const;
-  bool finishDeletions();
-
-  bool hasClippings() const { return clippingSize != 0; }
-  size_t clippingCount() const { return clippingSize; }
-  const Clipping* clippingAt(size_t index) const;
-  bool readClippingPreview(size_t index, char* out, size_t outSize, size_t& outLength) const;
-  bool readClippingText(size_t index, std::string& out) const;
-  bool readClippingText(const Clipping& clipping, std::string& out) const;
-
-  static bool deleteForFilePath(const std::string& filePath, const std::string& bookType);
-  // Move a book or folder together with its clipping stores and deletion journals.
-  static bool moveBook(const std::string& from, const std::string& to);
-
- private:
-  static ClippingStore instance;
-
-  // Allocate only populated blocks; growing the index never duplicates existing records.
-  static constexpr size_t CLIPPINGS_PER_BLOCK = 16;
-  std::array<std::unique_ptr<Clipping[]>, (CLIPPING_MAX_PER_BOOK + CLIPPINGS_PER_BLOCK - 1) / CLIPPINGS_PER_BLOCK>
-      clippingBlocks;
-  Clipping& clippingRef(size_t index) {
-    return clippingBlocks[index / CLIPPINGS_PER_BLOCK][index % CLIPPINGS_PER_BLOCK];
-  }
-  size_t clippingSize = 0;
-  size_t clippingCapacity = 0;
-  bool loaded = false;
-  std::string bookFilePath;
-  std::string bookTitle;
-  std::string bookAuthor;
-  std::string storeFilePath;
-  bool dirty = false;
-
-  bool reserveClippings(size_t count);
-  bool readFromFile();
-  bool writeToFile(const std::string* replacementText = nullptr, size_t replacementIndex = SIZE_MAX);
-};
-
-#define CLIPPINGS ClippingStore::getInstance()
-
 struct XpClippingPhysical;
 extern const XpClippingPhysical CLIPPING_PHYSICAL;
 
-// Dormant compatibility boundary; callers switch when Rust becomes the sole owner.
+// Stateless copy-out boundary for native callers; retired in P17/P18.
 class ClippingStoreFacade {
  public:
   static bool loadForBook(std::string_view path, std::string_view title, std::string_view author,

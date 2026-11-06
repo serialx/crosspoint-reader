@@ -403,7 +403,7 @@ void bind() {
     f().physical("extractor-clear", f().extractor->generation);
     f().extractor = nullptr;
   };
-  leaves.clippings_unload = [] {
+  legacyBook.clippings_unload = [] {
     assert(f().renderDepth == 1 && f().clippings);
     ++f().unloadedClippings;
     f().physical("clippings-unload", f().clippings->generation);

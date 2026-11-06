@@ -9,6 +9,7 @@ import pathlib
 import struct
 import subprocess
 import sys
+from prepare_native import prepare
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
@@ -563,10 +564,12 @@ def collect_sources(arduinojson):
 
 def build(build_dir, arduinojson, archive, rust_owner=False):
     build_dir.mkdir(parents=True, exist_ok=True)
+    frozen = build_dir / 'native'
+    frozen_manifest = prepare(frozen)
     sdk = ROOT / 'freeink-sdk'
     assert subprocess.check_output(['git', '-C', str(sdk), 'rev-parse', 'HEAD'], text=True).strip() == SDK
     manifest = dict(head=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
-                    sdk=SDK, sources=collect_sources(arduinojson), extraction=[])
+                    sdk=SDK, sources=collect_sources(arduinojson), extraction=[], native_oracle=frozen_manifest)
     cpp = sdk / 'libs/hardware/SDCardManager/src/SDCardManager.cpp'
     header = sdk / 'libs/hardware/SDCardManager/include/SDCardManager.h'
     extractions = [
@@ -600,14 +603,14 @@ def build(build_dir, arduinojson, archive, rust_owner=False):
              '-DARDUINOJSON_STRING_LENGTH_SIZE=4']
     if rust_owner:
         flags.append('-DCLIPPING_RUST_ORACLE=1')
-    include = [HERE / 'stubs', build_dir, ROOT, ROOT / 'src', ROOT / 'lib', ROOT / 'lib/hal',
+    include = [HERE / 'stubs', frozen, frozen / 'src', build_dir, ROOT, ROOT / 'src', ROOT / 'lib', ROOT / 'lib/hal',
                ROOT / 'lib/Memory', ROOT / 'lib/Serialization', ROOT / 'lib/Utf8', ROOT / 'rust/crates/xp-ffi/include',
                arduinojson]
     common = ['c++', '-std=c++20', '-O2', '-ffp-contract=off', '-ffunction-sections', '-fdata-sections', *flags,
               *['-I' + str(path) for path in include]]
     units = [
         (ROOT / 'test/clipping_bytes/Oracle.cpp', []),
-        (ROOT / 'src/ClippingStore.cpp', ['-include', str(HERE / 'stubs/clip_clock.h')]),
+        (frozen / 'src/ClippingStore.cpp', ['-include', str(HERE / 'stubs/clip_clock.h')]),
         (ROOT / 'src/clippings/ClippingsManager.cpp', []),
         (ROOT / 'lib/Utf8/Utf8.cpp', []),
         (build_dir / 'SdkStorage.cpp', []),

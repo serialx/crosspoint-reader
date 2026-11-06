@@ -226,6 +226,7 @@ impl Clippings {
         }
     }
 
+    #[inline(never)]
     pub(super) unsafe fn input_clippings(
         &self,
         parent: &EpubSession,
@@ -263,9 +264,7 @@ impl Clippings {
             parent.request_update();
             return false;
         };
-        let suppressed = self
-            .model
-            .with(|model| model.failed || model.suppress_buttons != 0 || model.suppress_contact);
+        let suppressed = self.model.with(|model| model.gate.needs_input());
         let mut long_press = false;
         let mut long_touch = None;
         if !suppressed {

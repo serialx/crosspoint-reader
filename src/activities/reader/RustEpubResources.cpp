@@ -44,7 +44,6 @@
 #include "DictionaryDefinitionActivity.h"
 #include "EndOfBookOptions.h"
 #include "EpubReaderBookmarksActivity.h"
-#include "EpubReaderClippingListActivity.h"
 #include "EpubReaderUtils.h"
 #include "KOReaderCredentialStore.h"
 #include "KOReaderSyncActivity.h"
@@ -742,9 +741,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         return makeLegacyActivity<EpubReaderBookmarksActivity>(*target, *mapped, book(handle).book, owned(path))
             .release();
       },
-      .child_clippings = []() -> void* {
-        return makeLegacyActivity<EpubReaderClippingListActivity>(*target, *mapped).release();
-      },
       .child_wifi = []() -> void* { return makeLegacyActivity<WifiSelectionActivity>(*target, *mapped).release(); },
       .child_sync = [](XpAppText path, const XpEpubPosition* current, const XpEpubSavedProgress* saved,
                        XpAppText chapter, uint8_t eventsOnly) -> void* {
@@ -838,32 +834,9 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         bookmarkRows(handle).insert(bookmarkRows(handle).begin(), std::move(entry));
         return 1;
       },
-      .clippings_load = [](const XpAppBook* value) -> uint8_t {
-        return CLIPPINGS.loadForBook(view(value->path), view(value->title), view(value->author), "epub");
-      },
-      .clippings_unload = [] { CLIPPINGS.unload(); },
-      .clippings_count = []() -> uint32_t { return CLIPPINGS.clippingCount(); },
-      .clippings_row =
-          [](uint32_t index, XpEpubClip* out) {
-            const auto* row = CLIPPINGS.clippingAt(index);
-            assert(row);
-            *out = {row->spineIndex,   row->startPage,       row->endPage,     row->pageCount, row->startWordIndex,
-                    row->endWordIndex, row->layoutSignature, row->startOffset, row->endOffset};
-          },
-      .clippings_remove = [](uint32_t index) -> uint8_t { return CLIPPINGS.removeClippingAt(index); },
-      .clippings_insert = [](const XpEpubClipInsert* row) -> uint8_t {
-        const auto& range = row->range;
-        return static_cast<uint8_t>(
-            CLIPPINGS.addClipping(range.spine, range.start_page, range.end_page, range.page_count, range.start_word,
-                                  range.end_word, row->word_count, pathText(row->chapter), row->paragraph,
-                                  borrowed(row->text), range.signature, range.start_offset, range.end_offset));
-      },
       .clippings_export = [](XpAppText title, XpAppText author, XpAppText chapter, int32_t percent,
                              XpAppNativeText value) -> uint8_t {
         return ClippingsManager::saveClipping(owned(title), owned(author), owned(chapter), percent, borrowed(value));
-      },
-      .clippings_move_book = [](XpAppText from, XpAppText to) -> uint8_t {
-        return ClippingStore::moveBook(owned(from), owned(to));
       },
       .recents_remove = [](XpAppText path) -> uint8_t { return RECENT_BOOKS.removeByPath(owned(path)); },
       .recents_add =

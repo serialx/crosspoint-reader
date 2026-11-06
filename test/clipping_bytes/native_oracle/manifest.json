@@ -1,0 +1,15 @@
+{
+  "revision": "8389157f",
+  "files": [
+    {
+      "source": "src/ClippingStore.cpp",
+      "sha256": "a38ee2868b7d67a8c68c0eeba956d40824a398f5b1cea458b146612bb9ac612d",
+      "bytes": 27237
+    },
+    {
+      "source": "src/ClippingStore.h",
+      "sha256": "bb9fb9db315fadcc27be26edf96d061f9ff54653c088d80588ebefd417d3c64f",
+      "bytes": 3854
+    }
+  ]
+}

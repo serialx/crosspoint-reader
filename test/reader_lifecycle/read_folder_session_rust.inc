@@ -122,7 +122,7 @@ static const XpAppRuntime runtime = [] {
 
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 177 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 169 * sizeof(void (*)()));
   UNUSED_LEAF(render_margins);
   UNUSED_LEAF(render_geometry);
   UNUSED_LEAF(render_restore_bw);
@@ -187,7 +187,7 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(child_text_settings);
   UNUSED_LEAF(child_selection);
   UNUSED_LEAF(child_bookmarks);
-  UNUSED_LEAF(child_clippings);
+
   UNUSED_LEAF(child_wifi);
   UNUSED_LEAF(child_sync);
   UNUSED_LEAF(popup_open);
@@ -213,14 +213,9 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(bookmarks_row);
   UNUSED_LEAF(bookmarks_retain);
   UNUSED_LEAF(bookmarks_insert_front);
-  UNUSED_LEAF(clippings_load);
-  UNUSED_LEAF(clippings_unload);
-  UNUSED_LEAF(clippings_count);
-  UNUSED_LEAF(clippings_row);
-  UNUSED_LEAF(clippings_remove);
-  UNUSED_LEAF(clippings_insert);
+
   UNUSED_LEAF(clippings_export);
-  UNUSED_LEAF(clippings_move_book);
+
   UNUSED_LEAF(recents_remove);
   UNUSED_LEAF(recents_add);
   UNUSED_LEAF(recents_update_path);
@@ -309,10 +304,6 @@ static const XpEpubLeaves leaves = [] {
     leaf();
     return fixturePathHash(nativeText(path));
   };
-  table.clippings_move_book = [](XpAppText from, XpAppText to) -> uint8_t {
-    leaf();
-    return ClippingStore::moveBook(nativeText(from), nativeText(to));
-  };
   table.recents_update_path = [](XpAppText from, XpAppText to, XpAppText oldCache, XpAppText newCache) {
     leaf();
     RECENT_BOOKS.updatePath(nativeText(from), nativeText(to), nativeText(oldCache), nativeText(newCache));
@@ -347,6 +338,10 @@ struct Owner {
   void* value;
   Owner() : value(xp_epub_test_read_folder_create(&leaves, &runtime, &resources)) {
     assert(value);
+    static const XpEpubLegacyReadFolder legacy{[](XpAppText from, XpAppText to) -> uint8_t {
+      leaf(); return ClippingStore::moveBook(nativeText(from), nativeText(to));
+    }};
+    xp_epub_test_legacy_read_folder(value, &legacy);
     leaf();
   }
   ~Owner() {

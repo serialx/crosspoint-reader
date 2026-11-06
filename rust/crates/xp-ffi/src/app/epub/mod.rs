@@ -61,7 +61,11 @@ use state::{SectionFacts, State};
 
 pub(super) struct EpubSession {
     #[cfg(feature = "app-test")]
+    clipping_fixture: test_support::clipping_store::Fixture,
+    #[cfg(feature = "app-test")]
     legacy_children: core::cell::Cell<Option<test_support::legacy_children::LegacyChildren>>,
+    #[cfg(feature = "app-test")]
+    legacy_read_folder: core::cell::Cell<Option<test_support::read_folder::LegacyReadFolder>>,
     path: UnsafeCell<Text>,
     #[cfg(feature = "app-test")]
     book_factory: session_book::Factory,
@@ -179,6 +183,9 @@ impl EpubSession {
             #[cfg(feature = "app-test")]
             core::ptr::addr_of_mut!((*ptr).clipping_hooks).write(None);
             #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).clipping_fixture)
+                .write(test_support::clipping_store::Fixture::new(runtime));
+            #[cfg(feature = "app-test")]
             core::ptr::addr_of_mut!((*ptr).view_value_hooks).write(None);
             #[cfg(feature = "app-test")]
             core::ptr::addr_of_mut!((*ptr).render_hooks).write(None);
@@ -192,6 +199,8 @@ impl EpubSession {
             core::ptr::addr_of_mut!((*ptr).child_hooks).write(None);
             #[cfg(feature = "app-test")]
             core::ptr::addr_of_mut!((*ptr).legacy_children).write(core::cell::Cell::new(None));
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).legacy_read_folder).write(core::cell::Cell::new(None));
             #[cfg(feature = "app-test")]
             core::ptr::addr_of_mut!((*ptr).menu_hooks).write(None);
             #[cfg(feature = "app-test")]

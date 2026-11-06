@@ -21,7 +21,13 @@ unsafe impl Gate for ModelCell<Phase> {
 }
 
 fn with<R>(action: impl FnOnce(&mut NativeStore) -> R) -> Option<R> {
-    app()?.clippings.with(action)
+    let app = app()?;
+    let mut operation = app.clippings.operation()?;
+    let _guard = super::RenderGuard {
+        token: unsafe { (app.runtime.render_lock)() },
+        runtime: app.runtime,
+    };
+    Some(operation.update(action))
 }
 
 fn metadata<R>(action: impl FnOnce(&NativeStore) -> R) -> Option<R> {

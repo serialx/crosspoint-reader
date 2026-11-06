@@ -69,22 +69,27 @@ impl EpubSession {
                 self.dictionary_result(cancelled)
             }
             (ChildIntent::Clippings, ReaderChildResult::Clippings(Some(position))) => {
-                self.apply_progress(&app_abi::XpAppProgressResult {
-                    spine: position.spine,
-                    page: position.page,
-                    pages: 0,
-                    xpath: app_abi::Text::from_terminated(b"\0"),
-                    percentage: 0.0,
-                    offset: position.offset,
-                    has_saved_progress: 0,
-                    has_offset: 1,
-                });
+                self.apply_clipping_position(position.spine, position.page, position.offset);
             }
             (ChildIntent::Chapter, ReaderChildResult::Chapter(None))
             | (ChildIntent::Percent, ReaderChildResult::Percent(None))
             | (ChildIntent::Qr, ReaderChildResult::QrClosed) => self.open_reader_menu(),
             _ => self.request_update(),
         }
+    }
+
+    #[inline(never)]
+    fn apply_clipping_position(&self, spine: i32, page: i32, offset: u32) {
+        self.apply_progress(&app_abi::XpAppProgressResult {
+            spine,
+            page,
+            pages: 0,
+            xpath: app_abi::Text::from_terminated(b"\0"),
+            percentage: 0.0,
+            offset,
+            has_saved_progress: 0,
+            has_offset: 1,
+        });
     }
 
     fn text_settings_result(&self, from_overlay: bool) {

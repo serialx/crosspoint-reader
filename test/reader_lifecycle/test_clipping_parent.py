@@ -55,8 +55,8 @@ MUTANTS = (
         if unsafe { (self.leaves.log_enabled)(0) } != 0 {'''),
     ('real-signature-font-omitted', None, b'spec.font as u32,', b'0, /* deliberate font omission */'),
     ('real-count-singleton-empty', None,
-     b'let nonempty = unsafe { (self.leaves.clippings_count)() } != 0;',
-     b'let nonempty = unsafe { (self.leaves.clippings_count)() } > 1;'),
+     b'let nonempty = self.clipping_count() != 0;',
+     b'let nonempty = self.clipping_count() > 1;'),
 )
 
 

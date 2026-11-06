@@ -93,7 +93,7 @@ int main(int argc, char** argv) {
   static const auto runtime = appTestRuntime();
   static const auto resources = clippingResources();
   static XpEpubLeaves leaves{};
-  leaves.child_list_theme = [](XpUiReaderTheme* theme, uint8_t toolbar) { sampleReaderChildTheme(*target, *theme, toolbar); };
+  leaves.child_list_theme = [](XpUiReaderTheme* theme, XpUiReaderThemeFacts* facts, uint8_t toolbar) { sampleReaderChildTheme(*target, *theme, *facts, toolbar); };
   leaves.child_header = [](XpUiRect bounds, XpAppText text, uint8_t list) { drawReaderHeader(*target, bounds, text, list); };
   leaves.child_list_help = candidateHelp;
   leaves.child_list_bookmark_icon = candidateIcon;

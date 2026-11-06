@@ -12,7 +12,7 @@ sys.path.insert(0, str(HERE.parent / "reader_children"))
 from oracle_sources import native_text
 
 def composition(root):
-    source=facade_source(root)
+    source='#include "legacy_book_fixture.h"\n'+facade_source(root)
     native=native_text('src/activities/reader/RustEpubResources.cpp')
     ui=(HERE/'book_text_ui.cpp').read_text()
     header=native_text('src/activities/reader/ReaderToolbarUi.h')

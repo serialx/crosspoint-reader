@@ -25,7 +25,7 @@ struct AppFixtureUnexpected<R (*)(A...), Slot> {
 
 inline XpEpubLeaves unexpectedEpubLeaves() {
   XpEpubLeaves value{};
-  static_assert(sizeof(XpEpubLeaves) == 177 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 169 * sizeof(void (*)()));
   value.render_margins = &AppFixtureUnexpected<decltype(value.render_margins), 5>::call;
   value.render_geometry = &AppFixtureUnexpected<decltype(value.render_geometry), 6>::call;
   value.render_restore_bw = &AppFixtureUnexpected<decltype(value.render_restore_bw), 7>::call;
@@ -100,7 +100,6 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.child_text_settings = &AppFixtureUnexpected<decltype(value.child_text_settings), 116>::call;
   value.child_selection = &AppFixtureUnexpected<decltype(value.child_selection), 119>::call;
   value.child_bookmarks = &AppFixtureUnexpected<decltype(value.child_bookmarks), 120>::call;
-  value.child_clippings = &AppFixtureUnexpected<decltype(value.child_clippings), 121>::call;
   value.child_wifi = &AppFixtureUnexpected<decltype(value.child_wifi), 123>::call;
   value.child_sync = &AppFixtureUnexpected<decltype(value.child_sync), 124>::call;
   value.popup_open = &AppFixtureUnexpected<decltype(value.popup_open), 132>::call;
@@ -126,14 +125,7 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.bookmarks_row = &AppFixtureUnexpected<decltype(value.bookmarks_row), 152>::call;
   value.bookmarks_retain = &AppFixtureUnexpected<decltype(value.bookmarks_retain), 153>::call;
   value.bookmarks_insert_front = &AppFixtureUnexpected<decltype(value.bookmarks_insert_front), 154>::call;
-  value.clippings_load = &AppFixtureUnexpected<decltype(value.clippings_load), 155>::call;
-  value.clippings_unload = &AppFixtureUnexpected<decltype(value.clippings_unload), 156>::call;
-  value.clippings_count = &AppFixtureUnexpected<decltype(value.clippings_count), 157>::call;
-  value.clippings_row = &AppFixtureUnexpected<decltype(value.clippings_row), 158>::call;
-  value.clippings_remove = &AppFixtureUnexpected<decltype(value.clippings_remove), 159>::call;
-  value.clippings_insert = &AppFixtureUnexpected<decltype(value.clippings_insert), 160>::call;
   value.clippings_export = &AppFixtureUnexpected<decltype(value.clippings_export), 161>::call;
-  value.clippings_move_book = &AppFixtureUnexpected<decltype(value.clippings_move_book), 162>::call;
   value.recents_remove = &AppFixtureUnexpected<decltype(value.recents_remove), 163>::call;
   value.recents_add = &AppFixtureUnexpected<decltype(value.recents_add), 164>::call;
   value.recents_update_path = &AppFixtureUnexpected<decltype(value.recents_update_path), 165>::call;

@@ -102,7 +102,13 @@ def fixture(native):
     cases = (HERE / 'child_native_faults.cpp').read_text()
     cases = replace_once(cases, '// ACTUAL_OWNED_TEXT', definition(native, 'std::string owned(XpAppText value)'))
     for leaf in ('selection', 'dictionary', 'footnote', 'clippings', 'sync'):
-        cases = replace_once(cases, '/* ACTUAL_' + leaf.upper() + ' */', native_leaf(native, 'child_' + leaf))
+        if leaf == 'clippings':
+            sys.path.insert(0, str(ROOT / 'test/reader_children'))
+            from oracle_sources import native_text
+            selected = native_text('src/activities/reader/RustEpubResources.cpp')
+        else:
+            selected = native
+        cases = replace_once(cases, '/* ACTUAL_' + leaf.upper() + ' */', native_leaf(selected, 'child_' + leaf))
     cases = replace_once(cases, '/* ACTUAL_INSTALL_EXTRACTOR */', native_leaf(native, 'book_set_extractor'))
     cases = replace_once(cases, '// IMAGE_IO_ENUM', definition(image, 'enum class ImageIo') + ';')
     begin, end = '    case ImageIo::HasSource:', '    case ImageIo::SourceSize:'

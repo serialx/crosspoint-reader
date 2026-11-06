@@ -22,6 +22,20 @@ links the host `xp-ffi` archive built by CMake (`Serialization::tryReadString` a
 `ClippingsManager.cpp`, and substitutes only physical storage, logging and the
 clock. No store serializer, index rule or transaction path is stubbed.
 
+The native store source is frozen from `8389157f` as named `.txt` inputs in
+`native_oracle/`; `prepare_native.py` verifies their hashes before materializing
+them in the host build directory. The production Rust store consumes the same
+141-case corpus and unchanged golden.
+
+The related `reader_clipping_parent` trace maps the native fixture's `clip`
+event to each actual Rust `clipping_row` lookup. Metadata seeding reads fixture
+entries silently; an `app-test` observer emits the historical event after the
+Rust record copy. The first adaptation accidentally observed 5,282 seeding
+accesses instead of the 1,686 logical lookups. Its failed comparison is retained
+in the O5b evidence; assertions and goldens remain unchanged. The corrected
+debug trace must match all 4,151,887 bytes, and the observer must be absent from
+the default firmware ELF.
+
 The SDK is pinned to `6a573acd`. `run.py` extracts the exact `openFileForRead`,
 `open`, `mkdir`, `exists`, `remove` and `rename` bodies from that checkout and
 records each file hash, byte range and body hash in `manifest.json`. Fake physical
@@ -105,3 +119,14 @@ cross-block deletion failure and drop-once ownership. Run that crate under
 strict-provenance Miri for the Rust allocation/lifetime checks. These checks do
 not establish production synchronization, target stack/heap floors, physical
 FAT or power-loss behavior.
+
+The historical child-parent oracle retains its logical transaction lock events.
+An app-test-only observer maps the actual prepare-lock, unlocked persistence and
+publish-lock to that trace without selecting the operation result. Its delete
+scope includes the original failure notice, and two synthetic rows ensure hit
+index 1 reaches physical write-failure injection. The full traces, lock-depth
+annotations, borrowed text assertions and goldens remain unchanged. The separate
+`reader_clipping_store_interleaving` test installs no observer: it checks the
+actual mutex/I/O order, old metadata during paused writes, rejected concurrent
+storage access, atomic publication and clean teardown. Three compiled Rust
+mutants prove that prepare/publish guards and unlocked persistence are required.

@@ -46,6 +46,8 @@ static const XpUiReaderRenderServices resultRenderServices{
   }
 };
 void bindResultsPhysical() {
+  // Real persistence accepts at most 4096 bytes in the book-path header.
+  f().path = "/" + std::string(4090, 'p') + ".epub";
   runtime.now_ms = []() -> uint32_t { physical("clock"); return 100; };
   runtime.delay_ms = [](uint32_t ms) { borrowedUse("wifi-delay"); assert(ms == 30); };
   leaves.settings_snapshot = [](uint8_t resolve, XpEpubSettings* out) {
@@ -130,14 +132,27 @@ void bindResultsPhysical() {
   leaves.bookmarks_retain = [](void*, uint8_t (*)(void*, const XpEpubBookmark*), void*) -> uint32_t { borrowedUse("bookmark-retain"); return 0; };
   leaves.bookmarks_insert_front = [](void*, const XpEpubBookmark* row) -> uint8_t { borrowedUse("bookmark-insert"); assert(row && row->has_offset); ++results.bookmarkWrites; return 1; };
   legacyBook.bookmarks_save = [](void*, void*) -> uint8_t { borrowedUse("bookmark-save"); return 1; };
-  leaves.clippings_count = []() -> uint32_t { physical("clip-count"); return 1; };
-  leaves.clippings_row = [](uint32_t index, XpEpubClip* out) { physical("clip-row", 1); assert(index == 0); *out = {}; out->spine = 6; };
-  leaves.clippings_insert = [](const XpEpubClipInsert* row) -> uint8_t {
-    borrowedUse("clip-insert"); assert(f().renderDepth == 1 && row);
-    assert(row->text.bytes.data == results.borrowedText && row->text.bytes.len == 4096);
-    assert(row->text.native_string == &std::get<ClippingResult>(results.borrowed->data).text);
-    assert(row->word_count == 8 && row->paragraph == 7 && text(row->chapter) == "Chapter");
-    ++results.inserts; return 0;
+  clipping_fixture::appStoreRequested = true;
+  clipping_fixture::ready = [](void* owner) {
+    assert(owner);
+    XpClippingRecord initial{}; initial.spine = 6; initial.page_count = 1; initial.id[0] = 'a';
+    if (xp_clippings_p18_count() == 0)
+      assert(xp_epub_test_clipping_insert(owner, &initial, literal(""), {literal(""), nullptr}) == 0);
+    xp_epub_test_clipping_observe(owner,
+      [](uint32_t count) { physical("clip-count"); assert(count >= 1); },
+      [](uint32_t index, const XpClippingRecord* row) {
+        physical("clip-row", 1); assert(row);
+        if (row->spine == 6) { assert(index == 0); }
+        else { assert(row->word_count == 8 && row->paragraph == 7); }
+      });
+    xp_epub_test_clipping_transactions(owner, nullptr,
+      [](const XpClippingRecord* row, XpAppText chapter, XpAppNativeText value, uint8_t result) {
+        borrowedUse("clip-insert"); assert(f().renderDepth == 1 && row);
+        assert(value.bytes.data == results.borrowedText && value.bytes.len == 4096);
+        assert(value.native_string == &std::get<ClippingResult>(results.borrowed->data).text);
+        assert(row->word_count == 8 && row->paragraph == 7 && text(chapter) == "Chapter");
+        assert(result == 0); ++results.inserts;
+      }, nullptr);
   };
   leaves.clippings_export = [](XpAppText title, XpAppText author, XpAppText chapter, int32_t, XpAppNativeText value) -> uint8_t {
     borrowedUse("clip-export"); assert(!f().renderDepth && value.bytes.data == results.borrowedText);
@@ -195,7 +210,7 @@ void bindResultsPhysical() {
   legacyBook.children.child_percent = [](int32_t) -> void* { return child("percent"); };
   leaves.child_text_settings = []() -> void* { return child("text"); };
   leaves.child_bookmarks = [](void* book, XpAppText path) -> void* { assert(book == f().extractor && text(path) == f().path); return child("bookmarks"); };
-  leaves.child_clippings = []() -> void* { return child("clippings"); };
+  legacyBook.children.child_clippings = []() -> void* { return child("clippings"); };
   legacyBook.children.child_qr = [](XpAppText value) -> void* { assert(text(value) == "page words"); return child("qr"); };
   legacyBook.section.page.child_footnote = [](void* page, int32_t, int32_t) -> void* { return child("footnote", {static_cast<ResultPage*>(page)}); };
   legacyBook.section.page.child_selection = [](void** pages, uint8_t count, const XpEpubSelectionArgs*) -> void* {

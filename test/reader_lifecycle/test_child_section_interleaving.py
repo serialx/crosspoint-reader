@@ -84,7 +84,7 @@ def main():
             def run(name, archive=None):
                 link = flags if archive is None else rust_link_flags(archive=str(archive))
                 binary = work / name
-                subprocess.run(['c++', '-std=c++17', '-UNDEBUG', '-O0', '-pthread',
+                subprocess.run(['c++', '-std=c++20', '-UNDEBUG', '-O0', '-pthread',
                                 '-fsanitize=address,undefined', '-fno-sanitize-recover=all',
                                 '-DXP_STRIP_RENDER=0', '-I', str(HERE), str(source), *link, '-o', str(binary)], check=True)
                 return subprocess.run([str(binary)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)

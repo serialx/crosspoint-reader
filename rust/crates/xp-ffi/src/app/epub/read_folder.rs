@@ -18,6 +18,18 @@ fn decimal(mut value: u64, bytes: &mut [u8; 20]) -> &[u8] {
 }
 
 impl EpubSession {
+    fn move_clipping_store(&self, source: &Text, destination: &Text) -> bool {
+        #[cfg(feature = "app-test")]
+        if let Some(legacy) = self.legacy_read_folder.get() {
+            return unsafe { (legacy.move_book)(source.wire(), destination.wire()) != 0 };
+        }
+        self.clipping_store()
+            .and_then(|store| store.operation())
+            .is_some_and(|operation| {
+                operation.read(|store| store.move_book(source.bytes(), destination.bytes()))
+            })
+    }
+
     pub(super) fn read_folder_destination(&self, source: &Text) -> Option<Text> {
         #[cfg(feature = "app-test")]
         if let Some(hook) = self.lifetime_overrides {
@@ -96,7 +108,8 @@ impl EpubSession {
                 destination.bytes(),
             ],
         );
-        if unsafe { (self.leaves.clippings_move_book)(source.wire(), destination.wire()) } == 0 {
+        let moved = self.move_clipping_store(source, destination);
+        if !moved {
             self.loop_log_parts(
                 1,
                 &[b"Failed to move finished book and clippings to '/Read' folder"],

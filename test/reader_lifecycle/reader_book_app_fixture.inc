@@ -141,10 +141,19 @@ void bindReaderBook() {
     auto& marker = f().handle(raw, Kind::Bookmarks); assert(text(path) == f().path && !f().renderDepth);
     ++f().bookmarkLoads; f().physical("bookmarks-load", marker.generation, marker.id); return 1;
   };
-  leaves.clippings_load = [](const XpAppBook* row) -> uint8_t {
+  clipping_fixture::appStoreRequested = true;
+  clipping_fixture::preserveBookHash = true;
+  clipping_fixture::unloaded = [](void) {
+    assert(f().renderDepth == 1 && f().clippings);
+    ++f().unloadedClippings;
+    f().physical("clippings-unload", f().clippings->generation);
+    f().clippings = nullptr;
+  };
+  clipping_fixture::loaded = [](const XpAppBook* row, uint8_t loaded) {
+    assert(loaded);
     assert(row && text(row->path) == f().path && text(row->title) == "Fixture" && text(row->author) == "Author");
     assert(!f().clippings && f().extractor); f().clippings = f().extractor;
-    f().physical("clippings-load", f().extractor->generation, f().extractor->id); return 1;
+    f().physical("clippings-load", f().extractor->generation, f().extractor->id);
   };
 }
 }

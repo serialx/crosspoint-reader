@@ -73,6 +73,7 @@ pub struct LegacyBookServices {
     pub bookmarks_save:
         unsafe extern "C" fn(bookmarks: *mut core::ffi::c_void, book: *mut core::ffi::c_void) -> u8,
     pub clippings_load: unsafe extern "C" fn(book: *mut core::ffi::c_void) -> u8,
+    pub clippings_unload: Option<unsafe extern "C" fn()>,
     pub recents_add: unsafe extern "C" fn(book: *mut core::ffi::c_void),
     pub children: super::legacy_children::LegacyChildren,
 }

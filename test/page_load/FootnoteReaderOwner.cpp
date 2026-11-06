@@ -1,6 +1,7 @@
 #include <set>
 #include <string_view>
 
+#include "../clipping_store/reader_fixture.h"
 #include "FootnoteReader.h"
 #include "FrozenFootnoteSelector.h"
 #include "footnote_app_entry.inc"
@@ -559,10 +560,6 @@ void bindReader() {
     f().handle(raw, Kind::Bookmarks);
     return 0;
   };
-  leaves.clippings_count = []() -> uint32_t {
-    physical();
-    return 0;
-  };
   leaves.progress_save = [](void* raw, const XpEpubPosition*) -> uint8_t {
     book(raw);
     return 1;
@@ -744,6 +741,10 @@ EpubReaderActivity::EpubReaderActivity(FootnoteSection& s, GfxRenderer& r, Mappe
   assert(install() == 1);
   parent.owner = xp_app_test_current_epub();
   assert(parent.owner);
+  clipping_fixture::seedCount(parent.owner, 0, [](uint32_t count) {
+    physical();
+    assert(count == 0);
+  });
   // Earlier standalone selector frames have already been consumed.
   mappedInput.pressed = mappedInput.released = MappedInputManager::Button::None;
   completion = [](const ActivityResult& value) { popChild(value); };

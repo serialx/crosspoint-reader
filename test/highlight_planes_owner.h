@@ -1,5 +1,6 @@
 #pragma once
 #include "clipping_owner_fixture.h"
+#include "clipping_store/reader_fixture.h"
 #include "owner_tables.h"
 
 namespace retirement_planes {
@@ -95,11 +96,6 @@ inline void fill(GfxRenderer& renderer, int x, int y, int width, int height) {
     return active->width;
   };
   resources.line_height = [](int32_t) -> int32_t { return active->height; };
-  leaves.clippings_count = []() -> uint32_t { return 1; };
-  leaves.clippings_row = [](uint32_t i, XpEpubClip* out) {
-    assert(i == 0 && out);
-    *out = {0, 0, 0, 1, 0, 0, active->signature, 0, 1};
-  };
   renderServices = {};
   renderServices.context = &context;
   renderServices.read = [](void* p, uint8_t query) -> uint32_t {
@@ -139,6 +135,12 @@ inline void fill(GfxRenderer& renderer, int x, int y, int width, int height) {
   void* owner = xp_epub_test_clipping_create_legacy_section(&seed, &leaves, &runtime, &resources, &legacySection);
   assert(owner && publicationStep == 5);
   context.signature = xp_epub_test_clipping_signature(owner);
+  XpClippingRecord clipping{};
+  clipping.page_count = 1;
+  clipping.signature = context.signature;
+  clipping.end_offset = 1;
+  assert(xp_epub_test_clipping_seed_metadata(owner, &clipping, 1, nullptr,
+                                             [](uint32_t i, const XpClippingRecord* out) { assert(i == 0 && out); }));
   xp_epub_test_clipping_draw(owner, &context, 0, y, x);
   xp_epub_test_clipping_destroy(owner);
   assert(!context.section && !modelDepth);

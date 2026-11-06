@@ -61,7 +61,8 @@ static void installNativeChildren(EpubReaderActivity& owner) {
   childLeaves.book.section.page.child_selection = /* ACTUAL_SELECTION */;
   childLeaves.book.section.page.child_dictionary = /* ACTUAL_DICTIONARY */;
   childLeaves.book.section.page.child_footnote = /* ACTUAL_FOOTNOTE */;
-  childLeaves.physical.child_clippings = /* ACTUAL_CLIPPINGS */;
+  childLeaves.book.children.child_clippings = /* ACTUAL_CLIPPINGS */;
+  xp_epub_test_legacy_children(activeChild->rust, &childLeaves.book.children);
   childLeaves.physical.child_sync = /* ACTUAL_SYNC */;
   static const auto install = +/* ACTUAL_INSTALL_EXTRACTOR */;
   childLeaves.book.book_install_extractor = [](void* raw) {

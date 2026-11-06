@@ -130,7 +130,7 @@ impl EpubSession {
         let bookmarks = self.loop_bookmark_handle();
         let bookmarks = bookmarks
             .is_some_and(|handle| unsafe { (self.leaves.bookmarks_count)(handle.as_ptr()) != 0 });
-        let clippings = unsafe { (self.leaves.clippings_count)() != 0 };
+        let clippings = self.clipping_count() != 0;
         let (mut actions, count) = self.more_menu_items(footnotes, bookmarks, clippings);
         let mut retained = 0;
         for index in 0..count {

@@ -223,7 +223,7 @@ fn clipping_long_button_and_failed_gestures_preserve_native_suppression() {
         assert_eq!(update.effect.kind, xp_ui::reader_chrome::ACTIONS);
         assert_eq!(update.effect.value, 2);
         assert!(!update.long_haptic);
-        model.failed = true;
+        model.gate.reject();
         let held = Input {
             held: CONFIRM,
             touch_flags: TOUCH_HELD,
@@ -232,7 +232,7 @@ fn clipping_long_button_and_failed_gestures_preserve_native_suppression() {
         let update = model.clipping_input(held, 4, true, Some((0, 0)));
         assert!(update.retry);
         assert_eq!(update.effect.kind, EffectKind::None as u8);
-        model.failed = false;
+        model.gate.publish(true);
         let release = Input {
             released: CONFIRM,
             touch_flags: TOUCH_RELEASED,

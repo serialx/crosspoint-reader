@@ -38,6 +38,7 @@ int main() {
   assert(install() == 1);
   assertEntered();
   void* owner = xp_app_test_current_epub(); assert(owner); scene.owner = owner;
+  seedA1Clippings(owner);
   a1Render(owner);
   XpEpubTestProjectionObservation position{};
   xp_epub_test_projection_observe(owner, &position); assert(position.spine == 1 && position.page == 2);

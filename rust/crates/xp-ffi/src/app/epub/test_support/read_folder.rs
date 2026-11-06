@@ -4,6 +4,22 @@ use super::super::{abi, app_abi, read_folder, EpubSession, Text};
 use alloc::boxed::Box;
 use core::ffi::c_void;
 
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub(in crate::app::epub) struct LegacyReadFolder {
+    pub move_book: unsafe extern "C" fn(app_abi::Text, app_abi::Text) -> u8,
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_legacy_read_folder(
+    owner: *mut c_void,
+    legacy: *const LegacyReadFolder,
+) {
+    unsafe { &*owner.cast::<EpubSession>() }
+        .legacy_read_folder
+        .set(unsafe { legacy.as_ref() }.copied());
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_read_folder_create(
     leaves: *const abi::XpEpubLeaves,

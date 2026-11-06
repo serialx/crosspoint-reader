@@ -1,4 +1,17 @@
 #pragma once
+// Frozen clipping wire values for native reference inputs only.
+// Candidate clipping state is seeded into the actual Rust index.
+#include <xp_app.h>
+struct XpEpubClip {
+  uint16_t spine, start_page, end_page, page_count, start_word, end_word;
+  uint32_t signature, start_offset, end_offset;
+};
+struct XpEpubClipInsert {
+  XpEpubClip range;
+  uint16_t word_count, paragraph;
+  XpAppText chapter;
+  XpAppNativeText text;
+};
 #include <xp_epub_session.h>
 
 #include <cstdlib>
@@ -66,6 +79,7 @@ struct XpEpubLegacyBookServices {
   uint8_t (*bookmarks_load)(void* bookmarks, void* book);
   uint8_t (*bookmarks_save)(void* bookmarks, void* book);
   uint8_t (*clippings_load)(void* book);
+  void (*clippings_unload)();
   void (*recents_add)(void* book);
   XpEpubLegacyChildren children = unexpectedLegacyChildren();
 };
@@ -135,7 +149,6 @@ inline XpEpubLegacyBookServices unexpectedLegacyBookServices() {
   value.book_toc_for_spine = &LegacyBookUnexpected<decltype(value.book_toc_for_spine)>::call;
   value.bookmarks_load = &LegacyBookUnexpected<decltype(value.bookmarks_load)>::call;
   value.bookmarks_save = &LegacyBookUnexpected<decltype(value.bookmarks_save)>::call;
-  value.clippings_load = &LegacyBookUnexpected<decltype(value.clippings_load)>::call;
   value.recents_add = &LegacyBookUnexpected<decltype(value.recents_add)>::call;
   return value;
 }

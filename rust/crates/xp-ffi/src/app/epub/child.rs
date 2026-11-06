@@ -6,7 +6,6 @@ use super::{
     state::{ChildIntent, Notice, TimedNotice},
     EpubSession, ResourceAccess, Text,
 };
-use core::ptr::NonNull;
 
 pub(super) const SELECTION_CLIP: u8 = 0;
 const SELECTION_LOOKUP: u8 = 1;
@@ -136,7 +135,13 @@ impl EpubSession {
                 }
                 let index = self.clipping_at_point(&access, page.borrow(), x, y);
                 if index >= 0 {
-                    let removed = unsafe { (self.leaves.clippings_remove)(index as u32) != 0 };
+                    #[cfg(feature = "app-test")]
+                    let logical =
+                        super::test_support::clipping_store::LogicalTransaction::begin(self, 2);
+                    drop(access);
+                    let removed = self.remove_clipping(index as u32);
+                    #[cfg(feature = "app-test")]
+                    let _logical_notice_guard = logical.removed(index as u32, removed);
                     if !removed {
                         self.loop_log_formatted(
                             1,
@@ -225,6 +230,7 @@ impl EpubSession {
         self.section(access)
     }
 
+    #[inline(never)]
     pub(super) fn selection_result(
         &self,
         capture: SelectionCapture,
@@ -276,28 +282,21 @@ impl EpubSession {
                         .and_then(|_| self.section_paragraph(&access, start))
                         .unwrap_or(u16::MAX)
                 };
-                let row = abi::XpEpubClipInsert {
-                    range: abi::XpEpubClip {
-                        spine: capture.spine,
-                        start_page: start,
-                        end_page: end,
-                        page_count: capture.count,
-                        start_word: result.start_word,
-                        end_word: result.end_word,
-                        signature: capture.signature,
-                        start_offset: result.start_offset,
-                        end_offset: result.end_offset,
-                    },
+                let record = crate::app::clippings::record::Record {
+                    spine: capture.spine,
+                    start_page: start,
+                    end_page: end,
+                    page_count: capture.count,
+                    start_word: result.start_word,
+                    end_word: result.end_word,
+                    signature: capture.signature,
+                    start_offset: result.start_offset,
+                    end_offset: result.end_offset,
                     word_count: result.word_count,
                     paragraph,
-                    chapter: metadata.chapter(),
-                    text: result.text,
+                    ..Default::default()
                 };
-                let added = {
-                    let _access = self.lock_resources();
-                    // A confirmed result survives scene failure; the store has one loop writer.
-                    unsafe { (self.leaves.clippings_insert)(&row) }
-                };
+                let added = self.insert_clipping(record, metadata.chapter(), result.text) as u8;
                 let exported = added == 0
                     && unsafe {
                         (self.leaves.clippings_export)(
@@ -472,16 +471,24 @@ impl EpubSession {
             unsafe { (hooks.clippings)(hooks.context) };
             return;
         }
-        if unsafe { (self.leaves.clippings_count)() } == 0 {
+        if self.clipping_count() == 0 {
             self.request_update();
             return;
         }
-        let child = NonNull::new(unsafe { (self.leaves.child_clippings)() });
-        let Some(child) = child else {
-            self.loop_log_at(1, b"CLIP", &[b"OOM: clipping list"]);
+        #[cfg(feature = "app-test")]
+        if let Some(factory) = self
+            .legacy_children
+            .get()
+            .and_then(|legacy| legacy.child_clippings)
+        {
+            let Some(child) = core::ptr::NonNull::new(unsafe { factory() }) else {
+                self.loop_log_at(1, b"CLIP", &[b"OOM: clipping list"]);
+                return;
+            };
+            self.push_child(child, ChildIntent::Clippings);
             return;
-        };
-        self.push_child(child, ChildIntent::Clippings);
+        }
+        self.launch_owned_clippings();
     }
 
     pub(super) fn clippings_result(&self, progress: Option<&app_abi::XpAppProgressResult>) {

@@ -91,7 +91,6 @@ unused_leaves! {
     child_text_settings() -> *mut core::ffi::c_void;
     child_selection(_a0: *mut XpEpubOwnedPage, _a1: u8, _a2: *const XpEpubSelectionArgs) -> *mut core::ffi::c_void;
     child_bookmarks(_a0: *mut core::ffi::c_void, _a1: XpAppText) -> *mut core::ffi::c_void;
-    child_clippings() -> *mut core::ffi::c_void;
     child_wifi() -> *mut core::ffi::c_void;
     child_sync(_a0: XpAppText, _a1: *const XpEpubPosition, _a2: *const XpEpubSavedProgress, _a3: XpAppText, _a4: u8) -> *mut core::ffi::c_void;
     popup_open() -> *mut core::ffi::c_void;
@@ -117,14 +116,7 @@ unused_leaves! {
     bookmarks_row(_a0: *mut core::ffi::c_void, _a1: u32, _a2: XpEpubBookmarkSink, _a3: *mut core::ffi::c_void) -> u8;
     bookmarks_retain(_a0: *mut core::ffi::c_void, _a1: unsafe extern "C" fn(*mut core::ffi::c_void, *const XpEpubBookmark) -> u8, context: *mut core::ffi::c_void,) -> u32;
     bookmarks_insert_front(_a0: *mut core::ffi::c_void, _a1: *const XpEpubBookmark) -> u8;
-    clippings_load(_a0: *const app_abi::Book) -> u8;
-    clippings_unload() ;
-    clippings_count() -> u32;
-    clippings_row(_a0: u32, _a1: *mut XpEpubClip) ;
-    clippings_remove(_a0: u32) -> u8;
-    clippings_insert(_a0: *const XpEpubClipInsert) -> u8;
     clippings_export(_a0: XpAppText, _a1: XpAppText, _a2: XpAppText, _a3: i32, _a4: XpAppNativeText) -> u8;
-    clippings_move_book(_a0: XpAppText, _a1: XpAppText) -> u8;
     recents_remove(_a0: XpAppText) -> u8;
     recents_add(_a0: *const app_abi::Book) ;
     recents_update_path(_a0: XpAppText, _a1: XpAppText, _a2: XpAppText, _a3: XpAppText) ;

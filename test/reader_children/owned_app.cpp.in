@@ -77,7 +77,8 @@ static void bindOwnedChildren() {
         (value.find("EpubReaderMenu") != std::string::npos ||
          value.find("EpubReaderChapterSelection") != std::string::npos ||
          value.find("EpubReaderPercentSelection") != std::string::npos ||
-         value.find("QrDisplay") != std::string::npos)) {
+         value.find("QrDisplay") != std::string::npos ||
+         value.find("EpubReaderClippings") != std::string::npos)) {
       assert(childDebugEnabled && severity == 0);
       if (value.rfind("Entering activity: ", 0) == 0) {
         assert(activeChildMarker.empty());
@@ -259,9 +260,11 @@ int main(int argc, char** argv) {
   Fixture state; fixture = &state;
   bind(); bindResultsLifecycle(); bindResultsPhysical(); bindProductionChildren();
   bindReaderBook(); bindReaderResults(); BookStoreAdapters::bind(); bindOwnedChildren();
+  if (mode.starts_with("clippings")) bindOwnedClippings();
   initialize();
   enterCompositionReader();
   xp_epub_test_legacy_children(results.owner, nullptr);
+  if (mode.starts_with("clippings")) return runOwnedClippings(mode, cancelled);
   if (mode == "text" || mode == "text-overlay") {
     const bool overlay = mode == "text-overlay";
     if (overlay) {
@@ -285,7 +288,7 @@ int main(int argc, char** argv) {
     closeToSleep();
     assert(readerFiles.empty() && readerFacades.empty() && readerBuffers.empty());
     assert(readerSectionOpens == readerSectionCloses && state.handles.empty());
-    assert(xp_test_live_allocations() == 1 && !state.renderDepth && !state.modelDepth);
+    assert(clipping_fixture::readerLiveAllocations() == 1 && !state.renderDepth && !state.modelDepth);
     std::printf("owned App %s cancelled=%u: retained TextSettings return restores menu/preview and releases toolbar\n", mode.c_str(), cancelled);
     return 0;
   }
@@ -319,7 +322,7 @@ int main(int argc, char** argv) {
   closeToSleep();
   assert(readerFiles.empty() && readerFacades.empty() && readerBuffers.empty());
   assert(readerSectionOpens == readerSectionCloses && state.handles.empty());
-  assert(xp_test_live_allocations() == 1 && !state.renderDepth && !state.modelDepth);
+  assert(clipping_fixture::readerLiveAllocations() == 1 && !state.renderDepth && !state.modelDepth);
   assert(activeChildMarker.empty() && (childMarkerEntries != 0) == childDebugEnabled);
   std::printf("owned App %s cancelled=%u: %u destroy/publish/unlock/deliver sequences; balanced real book and section\n", mode.c_str(), cancelled, ownedReturns);
 }

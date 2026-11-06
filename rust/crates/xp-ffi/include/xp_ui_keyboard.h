@@ -1,4 +1,5 @@
 #pragma once
+#include "xp_app.h"
 #include "xp_ui.h"
 #ifdef __cplusplus
 extern "C" {
@@ -131,6 +132,35 @@ uint8_t xp_ui_keyboard_row(const XpUiKeyboardState*, const XpUiKeyboardLayouts*,
 // Use the immutable painted snapshot, not the live model. Failure leaves out unchanged.
 uint8_t xp_ui_keyboard_hit(const XpUiKeyboardState*, const XpUiKeyboardLayouts*, const XpUiKeyboardViewLayout*,
                            int16_t x, int16_t y, XpUiInteraction* out);
+
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Launch storage is borrowed until release_launch, never retained by a callback.
+typedef struct {
+  XpAppText title, initial;
+  size_t maximum;
+  uint8_t input_type;
+} XpAppKeyboardLaunch;
+// On acceptance the existing OwnedLegacyActivity transfers to the Rust owner.
+uint8_t xp_app_keyboard_push(void* activity);
+void xp_keyboard_launch(void* activity, XpAppKeyboardLaunch* out);
+void xp_keyboard_release_launch(void* activity);
+XpUiKeyboardLayouts xp_keyboard_layouts(void);
+XpUiKeyboardMetrics xp_keyboard_metrics(void* activity);
+// Optional outputs sample current theme/settings at each use.
+void xp_keyboard_snapshot(void* activity, XpUiKeyboardViewLayout* layout, uint16_t* configured, uint8_t* language);
+void xp_keyboard_text_lock(void* activity, uint8_t acquire);
+void xp_keyboard_draw_key(void* activity, const XpUiCommand* command, const XpUiKeyboardPaintKey* key, uint8_t layout,
+                          uint8_t symbols, uint8_t mode_abc);
+void xp_keyboard_chrome(void* activity, const XpUiCommand* command, XpUiRect clip, XpAppText title);
+// Called only after child destruction, parent publication and render unlock.
+void xp_keyboard_deliver(const XpAppLegacy* legacy, void* parent, XpAppText text, uint8_t cancelled);
 
 #ifdef __cplusplus
 }

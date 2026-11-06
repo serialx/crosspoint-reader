@@ -120,3 +120,20 @@ extern "C" void* xp_assets_platform_realloc(void* data, size_t bytes, uint32_t c
   return caps == 3 ? heap_caps_realloc(data, bytes, 0) : nullptr;
 }
 extern "C" void xp_assets_platform_free(void* data) { heap_caps_free(data); }
+
+// Suites without keyboard physical services must fail if they enter that route.
+#include <xp_ui_keyboard.h>
+extern "C" {
+__attribute__((weak)) void xp_keyboard_launch(void*, XpAppKeyboardLaunch*) { std::abort(); }
+__attribute__((weak)) void xp_keyboard_release_launch(void*) { std::abort(); }
+__attribute__((weak)) XpUiKeyboardLayouts xp_keyboard_layouts() { std::abort(); }
+__attribute__((weak)) XpUiKeyboardMetrics xp_keyboard_metrics(void*) { std::abort(); }
+__attribute__((weak)) void xp_keyboard_snapshot(void*, XpUiKeyboardViewLayout*, uint16_t*, uint8_t*) { std::abort(); }
+__attribute__((weak)) void xp_keyboard_text_lock(void*, uint8_t) { std::abort(); }
+__attribute__((weak)) void xp_keyboard_draw_key(void*, const XpUiCommand*, const XpUiKeyboardPaintKey*, uint8_t,
+                                                uint8_t, uint8_t) {
+  std::abort();
+}
+__attribute__((weak)) void xp_keyboard_chrome(void*, const XpUiCommand*, XpUiRect, XpAppText) { std::abort(); }
+__attribute__((weak)) void xp_keyboard_deliver(const XpAppLegacy*, void*, XpAppText, uint8_t) { std::abort(); }
+}

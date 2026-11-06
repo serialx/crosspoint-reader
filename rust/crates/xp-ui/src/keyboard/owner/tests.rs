@@ -627,3 +627,50 @@ impl Keyboard<Platform> {
         )
     }
 }
+
+#[test]
+fn deferred_entry_keeps_resources_empty_until_initialize() {
+    let facts = Rc::new(Facts::default());
+    let keyboard = Keyboard::try_shell(Platform(facts.clone())).unwrap();
+    assert!(!keyboard.has_result());
+    assert!(!keyboard.render());
+    keyboard.input(
+        Input {
+            released: model::BACK,
+            ..Input::default()
+        },
+        None,
+    );
+    assert!(!keyboard.has_result());
+    assert!(unsafe { keyboard.initialize(b"Title", b"initial", 0, 0) });
+    assert!(keyboard.render());
+    keyboard.input(Input::default(), None);
+    keyboard.input(
+        Input {
+            released: model::BACK,
+            ..Input::default()
+        },
+        None,
+    );
+    assert!(keyboard.has_result());
+    assert!(keyboard.take_result().unwrap().is_cancelled());
+    keyboard.exit();
+}
+
+#[test]
+fn deferred_entry_failure_can_exit_without_a_result_or_double_free() {
+    for fail_at in 0..2 {
+        let facts = Rc::new(Facts::default());
+        let keyboard = Keyboard::try_shell(Platform(facts.clone())).unwrap();
+        FAIL_AT.with(|f| f.set(fail_at));
+        assert!(!unsafe { keyboard.initialize(b"Title", b"initial", 0, 0) });
+        FAIL_AT.with(|f| f.set(usize::MAX));
+        assert!(!keyboard.has_result());
+        keyboard.exit();
+        drop(keyboard);
+        assert_eq!(
+            facts.errors.borrow().last(),
+            Some(&"Cannot allocate keyboard scene")
+        );
+    }
+}

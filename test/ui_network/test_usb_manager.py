@@ -8,7 +8,7 @@ import prepare
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-source = (HERE / 'usb_manager.cpp').read_text()
+source = '#include <xp_ui_keyboard.h>\n' + (HERE / 'usb_manager.cpp').read_text()
 methods = []
 for cls, filename, names in [
     ('UsbDriveActivity', 'network/UsbDriveActivity.cpp', ['onEnter', 'onExit', 'loop', 'render', 'rustSceneCurrent', 'run', 'service']),

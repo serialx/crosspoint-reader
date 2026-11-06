@@ -18,6 +18,7 @@ mod epub;
 mod home;
 mod home_books;
 mod home_text;
+mod keyboard;
 mod resources;
 mod result;
 mod stable_owner;
@@ -48,6 +49,7 @@ use xp_ui::{
 #[derive(Clone, Copy)]
 enum Target {
     Home(NonNull<home::Home>),
+    Keyboard(NonNull<keyboard::Keyboard>),
     Epub(NonNull<epub::EpubSession>),
     Legacy(NonNull<c_void>),
     Definition(NonNull<c_void>),
@@ -58,6 +60,7 @@ enum Target {
 }
 
 enum ActivityResult {
+    Keyboard(Option<keyboard::Result>),
     Legacy(*const abi::XpAppResultView),
     Child(Option<ReaderChildResult>),
 }
@@ -65,6 +68,7 @@ enum ActivityResult {
 enum Owner {
     Definition(Definition),
     Home(Box<home::Home>),
+    Keyboard(StableOwner<keyboard::Keyboard>),
     Epub(StableOwner<epub::EpubSession>),
     ReaderChild {
         child: ReaderChild,
@@ -83,6 +87,7 @@ impl Activity for Owner {
         match self {
             Self::Home(home) => Target::Home(NonNull::from(home.as_ref())),
             Self::Epub(epub) => Target::Epub(epub.pointer()),
+            Self::Keyboard(keyboard) => Target::Keyboard(keyboard.pointer()),
             Self::Legacy { object, .. } => Target::Legacy(*object),
             Self::Definition(viewer) => Target::Definition(viewer.handle()),
             Self::ReaderChild { child, parent } => Target::ReaderChild {
@@ -103,7 +108,7 @@ impl Drop for Owner {
             Self::Legacy {
                 object, services, ..
             } => unsafe { (services.destroy)(object.as_ptr()) },
-            Self::Home(_) | Self::ReaderChild { .. } | Self::Definition(_) => {}
+            Self::Home(_) | Self::Keyboard(_) | Self::ReaderChild { .. } | Self::Definition(_) => {}
         }
     }
 }
@@ -189,6 +194,7 @@ impl App {
             Target::Legacy(target) | Target::Definition(target) => Some(self.legacy_facts(target)),
             Target::Epub(epub) => Some(unsafe { epub.as_ref() }.app_facts(false)),
             Target::ReaderChild { child, .. } => Some(unsafe { child.facts() }),
+            Target::Keyboard(keyboard) => Some(keyboard::facts(unsafe { keyboard.as_ref() })),
             Target::Home(_) => None,
         }
     }
@@ -435,7 +441,7 @@ impl App {
 
     fn activity_loop(&self) {
         let full_buttons = match self.navigation.current() {
-            Some(Target::Home(_)) => true,
+            Some(Target::Home(_) | Target::Keyboard(_)) => true,
             Some(Target::ReaderChild { child, .. }) => !matches!(child, ChildTarget::Lookup(_)),
             _ => false,
         };
@@ -450,6 +456,7 @@ impl App {
                 }
                 Target::Epub(epub) => Some(unsafe { epub.as_ref() }.app_facts(false)),
                 Target::ReaderChild { child, .. } => Some(unsafe { child.facts() }),
+                Target::Keyboard(keyboard) => Some(keyboard::facts(unsafe { keyboard.as_ref() })),
                 Target::Home(_) => None,
             };
             if facts.is_some_and(|f| f.exclusive_storage != 0) {
@@ -467,7 +474,7 @@ impl App {
                         }
                         return;
                     }
-                    Target::Epub(_) => {
+                    Target::Epub(_) | Target::Keyboard(_) => {
                         self.go_home(0, false);
                         return;
                     }
@@ -511,6 +518,12 @@ impl App {
                     (self.legacy.r#loop)(target.as_ptr())
                 },
                 Target::Epub(epub) => unsafe { epub.as_ref() }.loop_reader(),
+                Target::Keyboard(keyboard) => {
+                    if keyboard::input(unsafe { keyboard.as_ref() }, frame.input) {
+                        self.input.borrow_mut().reset();
+                        self.navigation.queue(Transition::Pop);
+                    }
+                }
                 Target::ReaderChild { child, parent } => {
                     if unsafe { child.input(parent.as_ref(), frame.input, false) } {
                         self.input.borrow_mut().reset();
@@ -659,6 +672,11 @@ impl Services<Owner> for App {
     fn enter(&self, target: Target) {
         match target {
             Target::Home(home) => unsafe { home.as_ref() }.enter(),
+            Target::Keyboard(keyboard) => {
+                if !keyboard::enter(unsafe { keyboard.as_ref() }) {
+                    self.navigation.queue(Transition::Pop);
+                }
+            }
             Target::Epub(epub) => unsafe { epub.as_ref() }.enter(),
             Target::Legacy(target) | Target::Definition(target) => unsafe {
                 (self.legacy.enter)(target.as_ptr())
@@ -679,6 +697,7 @@ impl Services<Owner> for App {
     fn exit(&self, target: Target) {
         match target {
             Target::Home(home) => unsafe { home.as_ref() }.exit(),
+            Target::Keyboard(keyboard) => keyboard::exit(unsafe { keyboard.as_ref() }),
             Target::Epub(epub) => unsafe { epub.as_ref().exit_owned() },
             Target::Legacy(target) | Target::Definition(target) => unsafe {
                 (self.legacy.exit)(target.as_ptr())
@@ -711,6 +730,9 @@ impl Services<Owner> for App {
         }
         match target {
             Target::Home(_) | Target::Epub(_) => consume(ActivityResult::Legacy(core::ptr::null())),
+            Target::Keyboard(keyboard) => consume(ActivityResult::Keyboard(
+                unsafe { keyboard.as_ref() }.take_result(),
+            )),
             Target::Legacy(target) => invoke(self, target, |result| {
                 consume(ActivityResult::Legacy(result))
             }),
@@ -727,6 +749,9 @@ impl Services<Owner> for App {
     }
     fn deliver_result(&self, parent: Target, result: ActivityResult) {
         match (parent, result) {
+            (Target::Legacy(parent), ActivityResult::Keyboard(result)) => {
+                keyboard::deliver(self, parent, result)
+            }
             (Target::Epub(epub), ActivityResult::Legacy(result)) => unsafe {
                 epub.as_ref().child_result(result.as_ref())
             },
@@ -790,7 +815,7 @@ impl Services<Owner> for App {
             Target::Legacy(target) | Target::Definition(target) => unsafe {
                 (self.legacy.prepare_sleep)(target.as_ptr())
             },
-            Target::Home(_) | Target::ReaderChild { .. } => {}
+            Target::Home(_) | Target::Keyboard(_) | Target::ReaderChild { .. } => {}
         }
     }
 }
@@ -951,6 +976,7 @@ pub unsafe extern "C" fn xp_app_render(token: *mut abi::RenderToken) {
             true
         }
         Some(Target::Epub(epub)) => unsafe { epub.as_ref().render() },
+        Some(Target::Keyboard(keyboard)) => keyboard::render(unsafe { keyboard.as_ref() }),
         Some(Target::ReaderChild { child, parent }) => unsafe {
             child.render(
                 parent.as_ref(),
@@ -1042,7 +1068,7 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
                 },
                 Target::Epub(epub) => unsafe { epub.as_ref() }.app_facts(true),
                 Target::ReaderChild { child, .. } => unsafe { child.facts() },
-                Target::Home(_) => return abi::REJECTED,
+                Target::Home(_) | Target::Keyboard(_) => return abi::REJECTED,
             };
             if event.kind == abi::REMOTE_SHORTCUT {
                 if facts.reader == 0 || facts.remote_input == 0 || facts.input_over_page != 0 {
@@ -1060,7 +1086,7 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
                     Target::Legacy(_) | Target::Definition(_) => false,
                     Target::Epub(epub) => unsafe { epub.as_ref() }
                         .dispatch_remote_shortcut(unsafe { event.value.reader_menu } != 0),
-                    Target::Home(_) | Target::ReaderChild { .. } => false,
+                    Target::Home(_) | Target::Keyboard(_) | Target::ReaderChild { .. } => false,
                 }
             } else {
                 let turn = unsafe { event.value.remote_turn };
@@ -1085,7 +1111,7 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
                         },
                         Target::Epub(epub) => unsafe { epub.as_ref() }
                             .app_remote_turn(turn.forward != 0, turn.chapter != 0),
-                        Target::Home(_) | Target::ReaderChild { .. } => false,
+                        Target::Home(_) | Target::Keyboard(_) | Target::ReaderChild { .. } => false,
                     };
                     if turned {
                         app.request(false);
@@ -1255,3 +1281,6 @@ mod probe {
         }
     }
 }
+
+#[cfg(test)]
+mod keyboard_tests;

@@ -17,6 +17,8 @@ def main():
     allocators = '\n'.join('  value.' + name + ' = ' + native_leaf(app, name) + ';'
                            for name in ('buffer_allocate', 'buffer_release'))
     source = replace_once(source, '// ACTUAL_ALLOCATOR_LEAVES', allocators)
+    host = (ROOT / 'test/cmake/xp_ffi_host.cpp').read_text()
+    source += host[host.index('// Suites without keyboard physical services'):]
     output = Path(os.environ.get('XP_SECTION_RECORDS_EVIDENCE_DIR') or tempfile.mkdtemp(prefix='section-records-'))
     output.mkdir(parents=True, exist_ok=True)
     cpp = output / 'oracle.cpp'

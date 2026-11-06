@@ -19,6 +19,40 @@ ownership = (ROOT / 'src/activities/OwnedLegacyActivity.h').read_text()
 source = source.replace('// LEGACY_OWNER', ownership[ownership.index('struct OwnedLegacyActivity {'):])
 source = source.replace('// OWNED_TEXT', method(manager, 'std::string owned('))
 source = source.replace('// FILE_CONSTRUCTOR', method((ROOT/'src/activities/home/FileBrowserActivity.cpp').read_text(), 'FileBrowserActivity::FileBrowserActivity('))
+keyboard = (ROOT/'src/activities/util/KeyboardEntryActivity.cpp').read_text()
+projection = method(keyboard, 'void xp_keyboard_deliver(')
+check = r"""
+static void keyboardProjectionWitness(bool fail) {
+  static std::string expected(512, 'k');
+  static bool received = false;
+  XpAppLegacy legacy{};
+  legacy.deliver_result = [](void*, const void* value) {
+    const auto& result = *static_cast<const ActivityResult*>(value);
+    if (result.isCancelled) {
+      assert(std::holds_alternative<std::monostate>(result.data));
+    } else {
+      const auto& text = std::get<KeyboardResult>(result.data).text;
+      assert(text == expected);
+      if (!text.empty()) assert(text.data() != expected.data());
+    }
+    received = true;
+  };
+  keyboardAllocations = 0;
+  denyNative = fail;
+  xp_keyboard_deliver(&legacy, nullptr, {reinterpret_cast<const uint8_t*>(expected.data()), expected.size()}, 0);
+  assert(keyboardAllocations == 1);
+  assert(received);
+  expected.clear(); received = false; keyboardAllocations = 0;
+  xp_keyboard_deliver(&legacy, nullptr, {nullptr, 0}, 0); assert(received);
+  received = false;
+  xp_keyboard_deliver(&legacy, nullptr, {nullptr, 0}, 1); assert(received);
+  assert(keyboardAllocations == 0);
+}
+"""
+source = source.replace('void* operator new(size_t bytes) {',
+    'size_t keyboardAllocations = 0;\nvoid* operator new(size_t bytes) {\n  ++keyboardAllocations;')
+source = source.replace('int main(int argc, char** argv) {',
+    'extern "C" {\n'+projection+'\n}\n'+check+'\nint main(int argc, char** argv) {\n  keyboardProjectionWitness(argc > 1 && std::strcmp(argv[1], "keyboard-result-oom") == 0);')
 with tempfile.TemporaryDirectory() as tmp:
     out=Path(tmp); (out/'bridge.cpp').write_text(source)
     def compile_bridge(name, override=None):
@@ -32,6 +66,9 @@ with tempfile.TemporaryDirectory() as tmp:
 
     compile_bridge('bridge')
     if sys.argv[2]=='results':
+        failed_copy = subprocess.run([str(out/'bridge'), 'keyboard-result-oom'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        assert failed_copy.returncode == -signal.SIGABRT, failed_copy.returncode
+        print('keyboard projection: one nonempty copy, empty/cancel zero copies, denied copy aborts', flush=True)
         subprocess.run([str(out/'bridge')],check=True)
         header_path = ROOT / 'src/activities/ActivityResultView.h'
         production = header_path.read_bytes()

@@ -1,4 +1,4 @@
-//! Dormant keyboard lifetime. Physical leaves lend tables and pixels synchronously.
+//! Keyboard lifetime. Physical leaves lend tables and pixels synchronously.
 extern crate alloc;
 pub mod storage;
 use crate::{
@@ -211,8 +211,8 @@ impl<M: Memory> Result<M> {
 
 pub struct Keyboard<H: Host> {
     host: H,
-    title: Block<u8, H::Memory>,
-    layout: Layout,
+    title: UnsafeCell<Block<u8, H::Memory>>,
+    layout: UnsafeCell<Layout>,
     edit: UnsafeCell<Edit<H::Memory>>,
     published: UnsafeCell<Published>,
     render: UnsafeCell<Render<H::Memory>>,
@@ -226,33 +226,56 @@ impl<H: Host> Keyboard<H> {
         maximum: usize,
         input_type: u8,
     ) -> Option<Box<Self>> {
+        let owner = Self::try_shell(host)?;
+        if unsafe { owner.initialize(title, initial, maximum, input_type) } {
+            Some(owner)
+        } else {
+            None
+        }
+    }
+    pub fn try_shell(host: H) -> Option<Box<Self>> {
         let pointer = H::Memory::owner(Allocation::new::<Self>()).cast::<Self>();
         if pointer.is_null() {
             host.error("Cannot allocate keyboard scene", 0);
             return None;
         }
-        // Every field other than H is zero-valid POD or an empty Block. Initialize
-        // H in its final allocation; no large owner temporary or raw target escapes.
+        // Every other field is zero-valid POD or an empty Block.
         unsafe {
             ptr::addr_of_mut!((*pointer).host).write(host);
+            Some(Box::from_raw(pointer))
         }
-        let mut owner = unsafe { Box::from_raw(pointer) };
+    }
+    pub fn host(&self) -> &H {
+        &self.host
+    }
+    /// # Safety
+    /// Called once after shell creation, before loop input. Rendering may observe
+    /// the empty shell; TextLock excludes it until all entry fields are initialized.
+    pub unsafe fn initialize(
+        &self,
+        title: &[u8],
+        initial: &[u8],
+        maximum: usize,
+        input_type: u8,
+    ) -> bool {
+        let _guard = Guard::new(&self.host, Lock::Text);
+        let owned_title = unsafe { &mut *self.title.get() };
         if title.len() >= u32::MAX as usize
             || initial.len() >= u32::MAX as usize
             || maximum > u32::MAX as usize
-            || !owner.title.grow(title.len() as u32 + 1, 0)
+            || !owned_title.grow(title.len() as u32 + 1, 0)
         {
-            owner.host.error("Cannot allocate keyboard scene", 0);
-            return None;
+            self.host.error("Cannot allocate keyboard scene", 0);
+            return false;
         }
-        owner.title.as_mut_slice()[..title.len()].copy_from_slice(title);
-        let edit = owner.edit.get_mut();
+        owned_title.as_mut_slice()[..title.len()].copy_from_slice(title);
+        let edit = unsafe { &mut *self.edit.get() };
         if !edit.text.grow(initial.len() as u32 + 1, 0) {
-            owner.host.error("Cannot allocate keyboard scene", 0);
-            return None;
+            self.host.error("Cannot allocate keyboard scene", 0);
+            return false;
         }
         edit.text.as_mut_slice()[..initial.len()].copy_from_slice(initial);
-        let (configured, language) = owner.host.settings();
+        let (configured, language) = self.host.settings();
         edit.state = keyboard::init(
             initial.len() as u32,
             maximum as u32,
@@ -260,10 +283,10 @@ impl<H: Host> Keyboard<H> {
             keyboard::enabled(configured, language),
             language,
         );
-        owner.published.get_mut().interest = keyboard::interest(&edit.state);
-        owner.layout = owner.host.layout();
-        owner.host.request_update();
-        Some(owner)
+        unsafe { *self.layout.get() = self.host.layout() };
+        self.model(|p| p.interest = keyboard::interest(&edit.state));
+        self.host.request_update();
+        true
     }
     fn model<R>(&self, consume: impl FnOnce(&mut Published) -> R) -> R {
         let _guard = Guard::new(&self.host, Lock::Model);
@@ -355,7 +378,7 @@ impl<H: Host> Keyboard<H> {
                             state.mask(text, display.as_mut_slice());
                         }
                         // Loop reads only the immutable geometry initialized at entry.
-                        let layout = &self.layout;
+                        let layout = unsafe { &*self.layout.get() };
                         tapped = self
                             .host
                             .with_metrics(|metrics| {
@@ -495,10 +518,9 @@ impl<H: Host> Keyboard<H> {
                 render.raw.as_mut_slice()[..count].copy_from_slice(&edit.text.as_slice()[..count]);
                 break;
             }
-            let Some((commands, text)) = self
-                .host
-                .with_metrics(|metrics| render.build(&self.layout, layouts, metrics))
-            else {
+            let Some((commands, text)) = self.host.with_metrics(|metrics| {
+                render.build(unsafe { &*self.layout.get() }, layouts, metrics)
+            }) else {
                 self.reject();
                 self.host.error("Cannot build scene in %s", 0);
                 return false;
@@ -514,8 +536,8 @@ impl<H: Host> Keyboard<H> {
                 host: &self.host,
                 layouts,
                 state: &render.snapshot,
-                layout: &self.layout,
-                title: self.title.as_slice(),
+                layout: unsafe { &*self.layout.get() },
+                title: unsafe { &*self.title.get() }.as_slice(),
                 raw: render.raw.as_slice(),
                 display: render.display.as_slice(),
                 spans: render.spans.as_slice(),
@@ -533,13 +555,17 @@ impl<H: Host> Keyboard<H> {
                     p.previous = p.state;
                 }
                 p.state = render.snapshot;
-                p.layout = self.layout;
+                p.layout = unsafe { *self.layout.get() };
                 p.pending = true;
                 p.ready = true;
             });
             self.host.refresh();
             true
         })
+    }
+    pub fn has_result(&self) -> bool {
+        let _guard = Guard::new(&self.host, Lock::Text);
+        unsafe { (*self.edit.get()).result != 0 }
     }
     pub fn take_result(&self) -> Option<Result<H::Memory>> {
         let _guard = Guard::new(&self.host, Lock::Text);

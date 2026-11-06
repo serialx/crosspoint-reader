@@ -48,7 +48,7 @@ CHILDREN = {
 
 def fixture(native, owner, manager, historical=False):
     source = make_source(ROOT, HERE)
-    prefix = '#include <Memory.h>\n#include "util/ScreenshotInfo.h"\n#define LOG_ERR(...) ((void)0)\n'
+    prefix = '#include <xp_ui_keyboard.h>\n#include <Memory.h>\n#include "util/ScreenshotInfo.h"\n#define LOG_ERR(...) ((void)0)\n'
     prefix += '''
 static size_t failOuterAfter = SIZE_MAX, outerAttempt = 0;
 void* operator new(size_t bytes, const std::nothrow_t&) noexcept {

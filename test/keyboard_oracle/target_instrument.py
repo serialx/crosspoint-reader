@@ -14,8 +14,16 @@ def function(source, signature):
         end += 1
     return source[start:end]
 s = (root / 'src/activities/util/KeyboardEntryActivity.cpp').read_text()
-(out / 'keyboard-paint.inc').write_text('\n'.join(function(s, signature) for signature in [
-    'void KeyboardEntryActivity::paintKey(', 'void KeyboardEntryActivity::paintRow(', 'bool KeyboardEntryActivity::validText(',
+# Frozen policy expands rows/text; actual SDK painting still comes from production.
+frozen = (root / 'test/keyboard_oracle/native_oracle/KeyboardEntryActivity.cpp.txt').read_text()
+key = function(s, 'void KeyboardEntryActivity::paintKey(')
+body = key[key.index('{') + 1:]
+body = body.replace('modeAbc', '(arena->snapshot.symbols || (arena->snapshot.input_type == 2 && arena->snapshot.url_panel))')
+body = body.replace('ALL[layout]', 'ALL[arena->snapshot.layout]').replace('!symbols', '!arena->snapshot.symbols')
+old_key = function(frozen, 'void KeyboardEntryActivity::paintKey(')
+prefix = old_key[:old_key.index('  const fui::KeyboardKey key{')]
+(out / 'keyboard-paint.inc').write_text(prefix + body + '\n' + '\n'.join(function(frozen, signature) for signature in [
+    'void KeyboardEntryActivity::paintRow(', 'bool KeyboardEntryActivity::validText(',
     'void KeyboardEntryActivity::paintText(']))
 s = subprocess.check_output(['git', '-C', str(root), 'show',
     'ba6860d8:src/activities/util/KeyboardEntryActivity.cpp'], text=True)

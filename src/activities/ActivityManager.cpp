@@ -36,6 +36,7 @@
 #include "util/BmpViewerActivity.h"
 #include "util/FrontlightPanelActivity.h"
 #include "util/FullScreenMessageActivity.h"
+#include "util/KeyboardEntryActivity.h"
 
 static portMUX_TYPE activityManagerSpinlock = portMUX_INITIALIZER_UNLOCKED;
 static portMUX_TYPE appModelSpinlock = portMUX_INITIALIZER_UNLOCKED;
@@ -284,8 +285,13 @@ void ActivityManager::replaceActivity(std::unique_ptr<Activity>&& activity) {
   if (!send(event)) delete static_cast<OwnedLegacyActivity*>(event.value.adopt_replace);
 }
 void ActivityManager::pushActivity(std::unique_ptr<Activity>&& activity) {
+  const bool keyboard = activity && activity->name == "KeyboardEntry";
   auto owner = ownLegacy(std::move(activity));
   if (!owner) return;
+  if (keyboard) {
+    if (xp_app_keyboard_push(owner.get())) owner.release();
+    return;
+  }
   XpAppEvent event{.kind = XP_APP_ADOPT_PUSH};
   event.value.adopt_push = owner.release();
   if (!send(event)) delete static_cast<OwnedLegacyActivity*>(event.value.adopt_push);

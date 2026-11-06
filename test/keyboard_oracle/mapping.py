@@ -12,7 +12,7 @@ sdk = root / 'freeink-sdk/libs/ui/FreeInkUI'
 archive = Path(sys.argv[1])
 painter = function((root / 'src/activities/util/KeyboardEntryActivity.cpp').read_text(), 'void KeyboardEntryActivity::paintKey(')
 font = re.search(r'props.labelText.font =\s*(.*?);', painter, re.S)[1]
-font = font.replace('arena->snapshot.', 's.').replace('fui::GfxRendererTarget::FONT_SMALL', '0').replace('fui::GfxRendererTarget::FONT_BODY', '1')
+font = font.replace('ALL[layout]', 'ALL[s.layout]').replace('!symbols', '!s.symbols').replace('arena->snapshot.', 's.').replace('fui::GfxRendererTarget::FONT_SMALL', '0').replace('fui::GfxRendererTarget::FONT_BODY', '1')
 production = (root / 'test/keyboard_oracle/native_oracle/KeyboardLayoutSet.cpp.txt').read_text()
 source = bindings(root) + '\nint selectedFont(const XpUiKeyboardState& s) { return '+font+'; }\n' + '''
 #include <cassert>

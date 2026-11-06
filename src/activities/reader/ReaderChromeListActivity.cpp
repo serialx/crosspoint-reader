@@ -24,7 +24,10 @@ bool ReaderChromeCommands::reserve(uint16_t count) {
   return true;
 }
 
-bool ReaderChromeCommands::grow() { return capacity < 128 && reserve(std::min<uint16_t>(128, capacity + 16)); }
+bool ReaderChromeCommands::grow() {
+  const auto next = xp_ui_command_next_capacity(capacity, 0, 16, 128);
+  return next && reserve(next);
+}
 
 ReaderChromeListActivity::ReaderChromeListActivity(const char* name, GfxRenderer& renderer, MappedInputManager& input,
                                                    XpUiReaderListKind kind, uint16_t rowCapacity)

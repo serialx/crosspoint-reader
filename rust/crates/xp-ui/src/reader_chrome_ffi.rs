@@ -1,7 +1,8 @@
 //! Reader-only C wire boundary. The shared runtime remains ABI 2.
 use crate::reader_chrome::hits::Layout;
 use crate::reader_chrome::{
-    list::{self, Resources, Row, Screen, Theme},
+    list::{Resources, Row, Screen, Theme},
+    runtime::ListRequest,
     ListModel,
 };
 use crate::scene::Error;
@@ -226,63 +227,43 @@ pub unsafe extern "C" fn xp_ui_reader_list_view(
         rows: rows_copy,
         origin: rows,
     };
+    let commands = unsafe {
+        core::slice::from_raw_parts_mut(buffer.commands, usize::from(buffer.command_capacity))
+    };
+    let request = ListRequest {
+        snapshot: state,
+        kind,
+        theme,
+        count: rows_copy.count,
+        window_capacity: rows_copy.window_capacity,
+        generation: rows_copy.generation,
+    };
     let mut next = *state;
-    for pass in 0..list::FOLLOW_PASSES {
-        let commands = unsafe {
-            core::slice::from_raw_parts_mut(buffer.commands, usize::from(buffer.command_capacity))
-        };
-
-        let mut layout = Layout::new(
-            if kind == Screen::Panel { 6 } else { 1 },
-            resources.rows.generation,
-        );
-        let Ok(mut arena) = Arena::with_hit_sink(commands, &mut layout) else {
-            return 0;
-        };
-        let result = list::view(
-            &mut arena,
-            next.list,
-            kind,
-            *theme,
-            &mut resources,
-            rows_copy.count,
-            rows_copy.window_capacity,
-            rows_copy.generation,
-            next.revealed,
-        );
-        let list_next = match result {
-            Ok(value) => value,
-            Err(Error::Capacity) => return 2,
-            Err(_) => return 0,
-        };
-        next.list = list_next;
-        if kind.needs_follow_pass(&list_next, pass) {
-            continue;
-        }
-        if resources.unchanged().is_err() {
-            return 0;
-        }
-        let Ok(scene) = arena.finish(Refresh::Fast, rows_copy.generation) else {
-            return 0;
-        };
-        unsafe {
-            next_state.write(next);
-            output.write(SceneView {
-                commands: buffer.commands,
-                text: core::ptr::null(),
-                interactions: core::ptr::null(),
-                generation: rows_copy.generation,
-                command_count: scene.commands.len() as u16,
-                text_len: 0,
-                interaction_count: 0,
-                refresh: 1,
-                reserved: 0,
-            });
-            layout_output.write(layout);
-        }
-        return 1;
+    let mut layout = Layout::default();
+    let count = match request.prepare(commands, &mut resources, &mut next, &mut layout) {
+        Ok(count) => count,
+        Err(Error::Capacity) => return 2,
+        Err(_) => return 0,
+    };
+    if resources.unchanged().is_err() {
+        return 0;
     }
-    0
+    unsafe {
+        next_state.write(next);
+        output.write(SceneView {
+            commands: buffer.commands,
+            text: core::ptr::null(),
+            interactions: core::ptr::null(),
+            generation: rows_copy.generation,
+            command_count: count,
+            text_len: 0,
+            interaction_count: 0,
+            refresh: Refresh::Fast as u8,
+            reserved: 0,
+        });
+        layout_output.write(layout);
+    }
+    1
 }
 
 const _: () = {

@@ -50,7 +50,8 @@ impl Commands {
     }
 
     pub(crate) fn grow(&mut self, resources: &'static abi::Resources) -> bool {
-        self.capacity < self.limit && self.reserve(resources, (self.capacity + 16).min(self.limit))
+        xp_ui::runtime::next_capacity(self.capacity, 0, 16, self.limit)
+            .is_some_and(|capacity| self.reserve(resources, capacity))
     }
 
     pub(crate) fn as_mut_slice(&mut self) -> &mut [Command] {

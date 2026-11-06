@@ -7,8 +7,8 @@ use core::ffi::c_void;
 use xp_core::{glyph::GlyphTarget, i18n::ids::*};
 use xp_ui::{
     ffi::{Paint, SceneView},
-    reader_chrome::{self, hits, list},
-    scene::{Arena, Command, Error, Rect, Refresh},
+    reader_chrome::{self, hits, list, runtime::ListRequest},
+    scene::{Command, Error, Rect, Refresh},
 };
 
 pub(super) trait Rows: list::Resources {
@@ -111,51 +111,39 @@ impl ListFrame {
         if !self.commands.recover(services) {
             return Err(Error::Capacity);
         }
-        'capacity: loop {
-            self.next = snapshot;
-            for pass in 0..list::FOLLOW_PASSES {
-                self.next_hits = hits::Layout::new(1, 1);
-                let mut arena =
-                    Arena::with_hit_sink(self.commands.as_mut_slice(), &mut self.next_hits)?;
-                let result = list::view(
-                    &mut arena,
-                    self.next.list,
-                    kind,
-                    self.theme,
-                    rows,
-                    count,
-                    capacity,
-                    1,
-                    self.next.revealed,
-                );
-                self.next.list = match result {
-                    Ok(next) => next,
-                    Err(Error::Capacity) if self.commands.grow(services) => continue 'capacity,
-                    Err(error) => return Err(error),
-                };
-                if kind.needs_follow_pass(&self.next.list, pass) {
-                    continue;
-                }
-                let scene = arena.finish(Refresh::Fast, 1)?;
-                return Ok(scene.commands.len() as u16);
+        let request = ListRequest {
+            snapshot: &snapshot,
+            kind,
+            theme: &self.theme,
+            count,
+            window_capacity: capacity,
+            generation: 1,
+        };
+        loop {
+            match request.prepare(
+                self.commands.as_mut_slice(),
+                rows,
+                &mut self.next,
+                &mut self.next_hits,
+            ) {
+                Err(Error::Capacity) if self.commands.grow(services) => continue,
+                result => return result,
             }
-            return Err(Error::Invalid);
         }
     }
 }
 impl ListPublication {
     pub(super) fn painted(&mut self, frame: &ListFrame, success: bool) {
         self.ready = success;
-        self.failed = !success;
         if success {
+            self.gate.publish(true);
             self.state
                 .list
                 .publish(&frame.next.list, frame.consumed_scroll);
             self.hits = frame.next_hits;
         } else {
             self.hits = hits::Layout::default();
-            self.suppress_buttons = u32::MAX;
-            self.suppress_contact = true;
+            self.gate.reject();
             self.state.list.last_repeat = 0;
         }
     }

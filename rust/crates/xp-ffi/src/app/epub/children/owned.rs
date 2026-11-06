@@ -13,6 +13,7 @@ use xp_ui::{
     model::ListState,
     reader::percent,
     reader_chrome::{self, hits, list, menu, toolbar},
+    runtime::SceneGate,
     scene::Command,
     utility,
 };
@@ -73,9 +74,7 @@ pub(super) struct ListPublication {
     pub(super) state: reader_chrome::ListModel,
     pub(super) hits: hits::Layout,
     pub(super) ready: bool,
-    pub(super) failed: bool,
-    pub(super) suppress_buttons: u32,
-    pub(super) suppress_contact: bool,
+    pub(super) gate: SceneGate,
 }
 impl ListPublication {
     fn new(selected: i32) -> Self {
@@ -83,9 +82,7 @@ impl ListPublication {
             state: reader_chrome::ListModel::new(selected),
             hits: hits::Layout::default(),
             ready: false,
-            failed: false,
-            suppress_buttons: 0,
-            suppress_contact: false,
+            gate: SceneGate::default(),
         }
     }
 }
@@ -275,9 +272,7 @@ pub(super) struct QrFrame {
 }
 pub(super) struct QrPublication {
     pub(super) state: utility::State,
-    pub(super) failed: bool,
-    pub(super) suppress_buttons: u32,
-    pub(super) suppress_contact: bool,
+    pub(super) gate: SceneGate,
 }
 pub(crate) struct Qr {
     pub(super) model: ModelCell<QrPublication>,
@@ -295,9 +290,7 @@ impl Qr {
                             kind: utility::Screen::Qr as u8,
                             ..Default::default()
                         },
-                        failed: false,
-                        suppress_buttons: 0,
-                        suppress_contact: false,
+                        gate: SceneGate::default(),
                     },
                     runtime,
                 ));

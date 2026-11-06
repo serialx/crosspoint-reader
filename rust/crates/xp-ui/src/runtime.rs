@@ -26,6 +26,10 @@ impl SceneGate {
         self.failed != 0
     }
 
+    pub fn needs_input(&self) -> bool {
+        self.failed() || self.suppressed_buttons != 0 || self.suppressed_contact != 0
+    }
+
     pub fn reject(&mut self) {
         self.failed = 1;
         // Paint may recover before input observes rejection.

@@ -1,8 +1,7 @@
-"""Compare frozen native adapter/storage with the dormant production wire policy."""
+"""Compare frozen native policy with the active production adapter and storage."""
 from pathlib import Path
 import hashlib
 import json
-import os
 import subprocess
 import sys
 import tempfile
@@ -20,22 +19,6 @@ def replace_once(source, before, after):
     assert source.count(before) == 1, before
     return source.replace(before, after)
 
-def bridge_adapter(header, source):
-    header = replace_once(header, 'uint16_t suppressButtons = 0;\n  bool sceneFailed = false;\n  bool suppressContact = false;', 'XpUiSceneGate gate{};')
-    source = replace_once(source, 'current = rustSceneCurrent();', 'current = xp_ui_scene_gate_publish(&gate, rustSceneCurrent());')
-    source = replace_once(source, '      sceneFailed = false;\n', '')
-    start = source.index('  sceneFailed = true;', source.index('void RustActivityAdapter::rejectRustScene'))
-    end = source.index('  if (auto* publication', start)
-    source = source[:start] + '  xp_ui_scene_gate_reject(&gate);\n' + source[end:]
-    start = source.index('    failed = sceneFailed;', source.index('bool RustActivityAdapter::consumeRejectedInput'))
-    end = source.index('\n  }\n  if (failed)', start)
-    source = source[:start] + '''    const auto admission = xp_ui_scene_gate_input(&gate, &input);
-    consume = (admission & 1) != 0;
-    failed = (admission & 2) != 0;''' + source[end:]
-    for a, b in [('sceneFailed', 'gate.failed'), ('suppressButtons', 'gate.suppressed_buttons'), ('suppressContact', 'gate.suppressed_contact')]:
-        source = source.replace(a, b)
-    return header, source
-
 with tempfile.TemporaryDirectory() as directory:
     out = Path(directory)
     def build_run(name, sources):
@@ -48,27 +31,16 @@ with tempfile.TemporaryDirectory() as directory:
     header = (ORACLE/'RustActivityAdapter.h.txt').read_text()
     source = (ORACLE/'RustActivityAdapter.cpp.txt').read_text()
     for route in ['native', 'wire']:
-        h, cpp = bridge_adapter(header, source) if route == 'wire' else (header, source)
+        h, cpp = ((ROOT/'src/activities/RustActivityAdapter.h').read_text(),
+                  (ROOT/'src/activities/RustActivityAdapter.cpp').read_text()) if route == 'wire' else (header, source)
         (out/'RustActivityAdapter.h').write_text(h)
         (out/'RustActivityAdapter.cpp').write_text(cpp)
         build_run('adapter-'+route, [ROOT/'test/ui_runtime/adapter.cpp', out/'RustActivityAdapter.cpp'])
 
-    source_root = out / 'source'
-    for parent, excluded in [('', 'src'), ('src', 'activities'), ('src/activities', None)]:
-        target = source_root / parent
-        target.mkdir(parents=True, exist_ok=True)
-        for entry in (ROOT / parent).iterdir():
-            if entry.name == excluded or parent == 'src/activities' and entry.name in ['RustActivityAdapter.h', 'RustActivityAdapter.cpp']:
-                continue
-            (target / entry.name).symlink_to(entry)
-    h, cpp = bridge_adapter(header, source)
-    (source_root/'src/activities/RustActivityAdapter.h').write_text(h)
-    (source_root/'src/activities/RustActivityAdapter.cpp').write_text(cpp)
-    environment = dict(os.environ, XP_REJECTION_SOURCE_ROOT=str(source_root))
     for script in ['rejection_families.py', 'rejection_bypasses.py', 'rejection_keyboard.py',
                    'rejection_interleaving.py', 'gate_adoption.py', 'stale_publication.py', 'custom_gates.py']:
         subprocess.run([sys.executable, str(ROOT/'test/ui_runtime'/script), sys.argv[1]],
-                       env=environment, check=True, timeout=180)
+                       check=True, timeout=180)
 
     activity = (ROOT/'test/ui_runtime/stubs/Activity.h').read_text()
     activity = activity.replace('#include <string>', '#include <string>\n#include <vector>\ninline std::vector<std::string> testEvents;')
@@ -82,14 +54,20 @@ with tempfile.TemporaryDirectory() as directory:
     order = (ROOT/'test/ui_runtime/runtime_order.cpp.in').read_text().replace('@UPDATE_RENDER@', (ORACLE/'UpdateUiRender.txt').read_text())
     (out/'order.cpp').write_text(order)
     for route in ['native', 'wire']:
-        h, cpp = bridge_adapter(header, source) if route == 'wire' else (header, source)
+        h, cpp = ((ROOT/'src/activities/RustActivityAdapter.h').read_text(),
+                  (ROOT/'src/activities/RustActivityAdapter.cpp').read_text()) if route == 'wire' else (header, source)
         (out/'RustActivityAdapter.h').write_text(h)
         (out/'RustActivityAdapter.cpp').write_text(cpp)
         build_run('order-'+route, [out/'order.cpp', out/'RustActivityAdapter.cpp'])
 
     native = (ORACLE/'ReaderChromeCommands.txt').read_text()
-    shared = replace_once(native, 'capacity < 128 && reserve(std::min<uint16_t>(128, capacity + 16))',
-                          'capacity < 128 && reserve(xp_ui_command_next_capacity(capacity, capacity + 1, 16, 128))')
+    commands_header = (ROOT/'src/activities/reader/ReaderChromeListActivity.h').read_text()
+    start = commands_header.index('class ReaderChromeCommands {')
+    end = commands_header.index('\n};', start) + 3
+    commands_source = (ROOT/'src/activities/reader/ReaderChromeListActivity.cpp').read_text()
+    methods = commands_source[commands_source.index('bool ReaderChromeCommands::reserve'):
+                              commands_source.index('ReaderChromeListActivity::ReaderChromeListActivity')]
+    shared = commands_header[start:end] + '\n' + methods
     code = r'''
 #include <xp_ui.h>
 #include <algorithm>
@@ -128,7 +106,7 @@ template<class Commands> std::vector<unsigned> trace(unsigned initial, unsigned 
       fail = true;
       const auto next = std::min(128u, unsigned(old) + step);
       const bool grew = step == 16 ? commands.grow() : commands.reserve(
-          std::is_same_v<Commands, SharedCommands> ? xp_ui_command_next_capacity(old, old + 1, step, 128) : next);
+          std::is_same_v<Commands, SharedCommands> ? xp_ui_command_next_capacity(old, 0, step, 128) : next);
       assert(!grew && !commands.ready() && live == 0);
       assert(commands.buffer().command_capacity == 0 && requests.back() == next);
       fail = false;

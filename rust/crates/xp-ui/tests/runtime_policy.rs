@@ -10,8 +10,11 @@ use xp_ui::{
 #[test]
 fn recovery_before_input_preserves_held_controls_through_release() {
     let mut gate = SceneGate::default();
+    assert!(!gate.needs_input());
     gate.reject();
+    assert!(gate.needs_input());
     assert_eq!(gate.publish(true), Publication::Current);
+    assert!(gate.needs_input());
     for input in [
         Input {
             pressed: CONFIRM,
@@ -34,6 +37,7 @@ fn recovery_before_input_preserves_held_controls_through_release() {
         assert!(admission.consume);
         assert!(!admission.retry);
     }
+    assert!(!gate.needs_input());
     assert!(
         !gate
             .input(&Input {
@@ -273,7 +277,7 @@ fn theme() -> Theme {
 }
 
 #[test]
-fn typed_list_preparation_matches_unchanged_checked_ffi_for_every_screen() {
+fn typed_list_preparation_matches_checked_ffi_for_every_screen() {
     for kind in [
         Screen::Menu,
         Screen::Chapters,

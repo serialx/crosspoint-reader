@@ -1,6 +1,7 @@
 """Exercise the actual reader scratch owner with allocation failure injection."""
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -68,5 +69,6 @@ with tempfile.TemporaryDirectory() as directory:
     path = Path(directory)
     (path / 'commands.cpp').write_text(fixture + owner + methods + checks)
     subprocess.run(['c++', '-std=c++20', '-UNDEBUG', '-I' + str(ROOT / 'rust/crates/xp-ffi/include'),
-                    str(path / 'commands.cpp'), '-o', str(path / 'commands')], check=True)
+                    str(path / 'commands.cpp'), str(ROOT / 'test/cmake/xp_ffi_host.cpp'),
+                    sys.argv[1], '-o', str(path / 'commands')], check=True)
     subprocess.run([str(path / 'commands')], check=True)

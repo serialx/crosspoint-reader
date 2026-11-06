@@ -60,9 +60,7 @@ class RustActivityAdapter : public Activity {
   XpUiInput sampleRustInput() const;
 
  private:
-  uint16_t suppressButtons = 0;
-  bool sceneFailed = false;
-  bool suppressContact = false;
+  XpUiSceneGate gate{};
 
  protected:
   XpUiMetrics rustMetrics() const;

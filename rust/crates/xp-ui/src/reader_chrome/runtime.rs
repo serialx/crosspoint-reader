@@ -26,7 +26,7 @@ impl ListRequest<'_> {
         hits: &mut Layout,
     ) -> Result<u16, Error> {
         *next = *self.snapshot;
-        for pass in 0..9 {
+        for pass in 0..list::FOLLOW_PASSES {
             *hits = Layout::new(
                 if self.kind == Screen::Panel { 6 } else { 1 },
                 self.generation,
@@ -43,10 +43,7 @@ impl ListRequest<'_> {
                 self.generation,
                 next.revealed,
             )?;
-            if next.list.follow != 0
-                && pass < 8
-                && matches!(self.kind, Screen::Chapters | Screen::Clippings)
-            {
+            if self.kind.needs_follow_pass(&next.list, pass) {
                 continue;
             }
             let scene = arena.finish(Refresh::Fast, self.generation)?;

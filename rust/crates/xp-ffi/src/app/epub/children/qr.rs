@@ -65,16 +65,11 @@ impl Qr {
     pub(super) fn input(&self, input: xp_ui::model::Input) -> super::input::Update {
         use xp_ui::model::{Effect, EffectKind, BACK};
         self.model.with(|model| {
-            let consumed = super::input::suppressed(
-                input,
-                model.failed,
-                &mut model.suppress_buttons,
-                &mut model.suppress_contact,
-            );
+            let admission = model.gate.input(&input);
             super::input::Update {
-                effect: if consumed {
+                effect: if admission.consume {
                     Effect {
-                        kind: if model.failed && input.released & BACK != 0 {
+                        kind: if admission.retry && input.released & BACK != 0 {
                             EffectKind::Cancel as u8
                         } else {
                             EffectKind::None as u8
@@ -87,7 +82,7 @@ impl Qr {
                         .update(&input, None, &Default::default())
                         .navigation
                 },
-                retry: model.failed,
+                retry: admission.retry,
                 haptic: false,
             }
         })
@@ -105,10 +100,10 @@ impl Qr {
         sample(&mut frame.layout);
         let result = unsafe { self.draw(services, physical) };
         self.model.with(|model| {
-            model.failed = result.is_err();
-            if model.failed {
-                model.suppress_buttons = u32::MAX;
-                model.suppress_contact = true;
+            if result.is_err() {
+                model.gate.reject();
+            } else {
+                model.gate.publish(true);
             }
         });
         result

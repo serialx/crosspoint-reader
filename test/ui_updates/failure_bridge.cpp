@@ -44,8 +44,9 @@ class RustActivityAdapter {
   virtual void rustPublished() = 0;
   virtual void rustSceneFailed() = 0;
   XpUiPaint rustResources() { return {}; }
-  uint32_t suppressButtons = 0, lastHeld = 0;
-  bool sceneFailed = false, suppressContact = false, lastContact = false;
+  XpUiSceneGate gate{};
+  uint32_t lastHeld = 0;
+  bool lastContact = false;
   bool paintRustScene(const XpUiScene&, bool publish = true);
   void rejectRustScene();
   void publishRustScene(const XpUiScene&);
@@ -94,7 +95,7 @@ class UpdateUiActivity : public RustActivityAdapter {
     XpUiInput input{};
     input.pressed = pressed;
     input.released = released;
-    if (sceneFailed) {
+    if (gate.failed) {
       input.pressed &= XP_UI_BACK;
       input.released &= XP_UI_BACK;
     }
@@ -121,7 +122,7 @@ int main() {
       a.model.touch_active = 2;
       a.render({});
       assert(!a.publication.ready);
-      assert(a.sceneFailed);
+      assert(a.gate.failed);
       assert(a.model.list.active == -1 && a.model.list.pending_scroll == 0 && a.model.touch_active == 0);
       if (allocation) assert(a.commands.get() == original && a.capacity == 20);
       a.input(2, 2);
@@ -134,7 +135,7 @@ int main() {
       a.renderer.reject = false;
       failAllocation = false;
       a.render({});
-      assert(a.publication.ready && !a.sceneFailed && a.capacity == 48);
+      assert(a.publication.ready && !a.gate.failed && a.capacity == 48);
       a.input(0, 2);
       assert(a.actions == 1);
     }

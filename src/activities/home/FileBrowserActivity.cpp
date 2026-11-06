@@ -696,9 +696,9 @@ bool FileBrowserActivity::buildRustScene(XpUiScene& scene) {
     if (status == XP_UI_HOME_VIEW_OK) {
       return true;
     }
-    if (status != XP_UI_HOME_VIEW_CAPACITY || buffer.command_capacity >= 128 ||
-        !frame.commands.reserve(std::min<uint16_t>(128, buffer.command_capacity + 4)))
-      return false;
+    if (status != XP_UI_HOME_VIEW_CAPACITY) return false;
+    const auto next = xp_ui_command_next_capacity(buffer.command_capacity, 0, 4, 128);
+    if (!next || !frame.commands.reserve(next)) return false;
   }
 }
 

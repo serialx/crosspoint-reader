@@ -9,7 +9,7 @@ use xp_ui::{
 fn list_failure_consumes_held_inputs_through_release_but_allows_back() {
     let child = Chapters::try_new(owner_tests::runtime(), 2).unwrap();
     child.model.with(|model| {
-        model.failed = true;
+        model.gate.reject();
         let held = Input {
             held: CONFIRM,
             touch_flags: TOUCH_HELD,
@@ -18,7 +18,7 @@ fn list_failure_consumes_held_inputs_through_release_but_allows_back() {
         let update = model.input(held, 10, true, Screen::Chapters);
         assert_eq!(update.effect.kind, EffectKind::None as u8);
         assert!(update.retry);
-        model.failed = false;
+        model.gate.publish(true);
         model.ready = true;
         let release = Input {
             released: CONFIRM,
@@ -44,7 +44,7 @@ fn list_failure_consumes_held_inputs_through_release_but_allows_back() {
                 .kind,
             EffectKind::Activate as u8
         );
-        model.failed = true;
+        model.gate.reject();
         assert_eq!(
             model
                 .input(

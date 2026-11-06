@@ -63,7 +63,7 @@ void RustActivityAdapter::loop() {
   XpUiEffect effect{};
   {
     ModelLock lock(*this);
-    if (sceneFailed) return;
+    if (gate.failed) return;
     const auto interest = rustInterest(input.now_ms);
     if (!xp_ui_input_due(&interest, &input)) return;
     const auto* publication = rustPublication();
@@ -91,9 +91,8 @@ void RustActivityAdapter::publishRustScene(const XpUiScene& scene) {
   bool current;
   {
     ModelLock lock(*this);
-    current = rustSceneCurrent();
+    current = xp_ui_scene_gate_publish(&gate, rustSceneCurrent());
     if (current) {
-      sceneFailed = false;
       rustPublished();
       if (auto* publication = rustPublication()) {
         publication->scene = scene;
@@ -112,38 +111,28 @@ void RustActivityAdapter::publishRustScene(const XpUiScene& scene) {
 
 void RustActivityAdapter::rejectRustScene() {
   ModelLock lock(*this);
-  sceneFailed = true;
-  // Recovery can publish before the loop observes rejection. This may consume
-  // one fresh gesture; then retain only held gestures through their release.
-  suppressButtons = UINT16_MAX;
-  suppressContact = true;
+  xp_ui_scene_gate_reject(&gate);
   if (auto* publication = rustPublication()) publication->ready = false;
   rustSceneFailed();
 }
 
 bool RustActivityAdapter::rustSceneRejected() const {
   ModelLock lock(*const_cast<RustActivityAdapter*>(this));
-  return sceneFailed;
+  return gate.failed;
 }
 
 bool RustActivityAdapter::consumeRejectedInput() {
   {
     ModelLock lock(*this);
-    if (!sceneFailed && !suppressButtons && !suppressContact) return false;
+    if (!gate.failed && !gate.suppressed_buttons && !gate.suppressed_contact) return false;
   }
   const auto input = sampleRustInput();
   bool failed, consume;
   {
     ModelLock lock(*this);
-    failed = sceneFailed;
-    consume = failed || (suppressButtons & (input.pressed | input.released | input.held)) ||
-              (suppressContact && (input.touch_flags || input.swipe));
-    if (failed) {
-      suppressButtons |= input.held;
-      suppressContact |= (input.touch_flags & (XP_UI_TOUCH_PRESSED | XP_UI_TOUCH_HELD)) != 0;
-    }
-    suppressButtons &= input.held;
-    if (!(input.touch_flags & (XP_UI_TOUCH_PRESSED | XP_UI_TOUCH_HELD))) suppressContact = false;
+    const auto admission = xp_ui_scene_gate_input(&gate, &input);
+    consume = (admission & 1) != 0;
+    failed = (admission & 2) != 0;
   }
   if (failed) {
     requestUpdate();

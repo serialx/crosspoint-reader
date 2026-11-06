@@ -204,9 +204,7 @@ impl ChildTarget {
                 // Poll short holds through release instead of waiting for a display
                 // refresh and turning the stale held state into a page repeat.
                 let due = owner.model.with(|model| {
-                    model.failed
-                        || model.suppress_buttons != 0
-                        || model.suppress_contact
+                    model.gate.needs_input()
                         || model
                             .state
                             .interest(Screen::Chapters, input.now_ms)

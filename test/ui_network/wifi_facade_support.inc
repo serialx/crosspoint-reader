@@ -43,7 +43,7 @@ struct FakeBase {
  virtual XpUiPaint rustResources(){return{};}
  virtual void rustPublished(){};virtual void rustSceneFailed(){};
  struct Publication{XpUiScene scene{};bool ready=false;};
- bool sceneFailed=false,suppressContact=false,lastContact=false;uint16_t suppressButtons=0,lastHeld=0;
+ XpUiSceneGate gate{};bool lastContact=false;uint16_t lastHeld=0;
  virtual Publication* rustPublication(){return nullptr;}
  virtual bool rustSceneCurrent()const{return true;}
  virtual void cancelRejectedInput(const XpUiInput&){}

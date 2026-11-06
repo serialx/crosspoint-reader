@@ -138,7 +138,7 @@ Touch touchSnapshotFrom(const MappedInputManager& input) {
   return t;
 }
 struct RustActivityAdapter : Common {
-  bool sceneFailed = false;
+  XpUiSceneGate gate{};
   bool consumeRejectedInput() { return false; }
   bool rustSceneRejected() const { return false; }
   XpUiInput sampleRustInput() const;

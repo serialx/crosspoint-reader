@@ -237,7 +237,7 @@ fn menu_publishes_hits_without_overwriting_concurrent_navigation_and_rejects_fai
     .is_err());
     owner
         .model
-        .with(|m| assert!(!m.list.ready && m.list.failed));
+        .with(|m| assert!(!m.list.ready && m.list.gate.failed()));
     RECORD.with(|r| assert_eq!(r.borrow().refresh, 1));
 }
 #[test]
@@ -326,7 +326,7 @@ fn chapter_window_prewarm_and_failed_storage_publication() {
     };
     assert!(unsafe { owner.enter(services(), &physical()) });
     assert!(unsafe { owner.render(services(), &physical(), &mut book) }.is_err());
-    owner.model.with(|m| assert!(!m.ready && m.failed));
+    owner.model.with(|m| assert!(!m.ready && m.gate.failed()));
     RECORD.with(|r| {
         assert_eq!(r.borrow().clear, 1);
         assert_eq!(r.borrow().refresh, 0);

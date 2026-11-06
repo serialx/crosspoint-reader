@@ -171,7 +171,7 @@ XpUiEffect xp_ui_list_update(XpUiListState*, const XpUiInput*, uint16_t count, u
 uint8_t xp_ui_xtc_view(const XpUiListState*, const XpUiXtcLayout*, const XpUiMetrics*, const XpUiResources*,
                        const XpUiBuffer*, XpUiListState* next_state, XpUiScene*);
 
-// P17-R1 proposed temporary native compatibility; not an installed API.
+// Temporary native bridge for scene admission and command arena growth.
 // Zero-initialized per-visit POD. Rust owners call the same typed core directly.
 typedef struct {
   uint16_t suppressed_buttons;

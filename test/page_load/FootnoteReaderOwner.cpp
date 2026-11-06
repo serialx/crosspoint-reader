@@ -258,7 +258,7 @@ void bindLifecycle() {
       view.value.text = {reinterpret_cast<const uint8_t*>(note->href.data()), note->href.size()};
     }
     sink(context, &view);
-    // App destroys the dormant child, publishes the parent, unlocks, then delivers.
+    // App destroys the child, publishes the parent, unlocks, then delivers.
     assert(parent.destroyed && parent.unlocked && parent.delivered);
     physical(0);
     if (note)

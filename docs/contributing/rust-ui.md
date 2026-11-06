@@ -91,6 +91,11 @@ The reader oracle documentation describes the scope of each kind of test.
 | Definition entry | [`children/definition.rs`](../../rust/crates/xp-ffi/src/app/epub/children/definition.rs) owns stable inline storage for the native adapter and viewer | `RustReaderLookup.cpp` constructs and destroys the retained `DictionaryDefinitionActivity`; its HTML, Pages and fonts remain native |
 | TextSettings, Bookmarks, Clippings, Wi-Fi, sync and interactive selection | Retained native children use the legacy activity/result boundary | [`RustEpubResources.cpp`](../../src/activities/reader/RustEpubResources.cpp) retains their factories and services |
 
+The native viewer also serves `DetailsActivity`, `PluginCatalogActivity` and
+`EpubReaderClippingListActivity`. Interactive `ClipSelectionActivity` remains
+native: `RustEpubPage.h` opens it for reader selection, and
+`DictionaryDefinitionActivity` opens it for selection within the viewer.
+
 The definition target uses native lifecycle and rendering callbacks, but its
 allocation belongs to Rust. `Legacy.destroy` must never receive the inline
 handle. `Definition::drop` invokes the typed native destructor before

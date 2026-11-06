@@ -901,8 +901,10 @@ settings-preview Pages retain native ownership. See the
 [render-resource checks](../../test/reader_render_resources/README.md) for
 production compositions and the explicitly retained parent oracles.
 
-Footnote, dictionary-word and clipping selection children adopt Rust Pages
-through small native facades. Pending retains every owner until all fallible
+Only the retained ClipSelection child adopts Rust Pages through small native
+facades. Rust footnote and lookup owners hold their single reader Page directly:
+footnote copies its href while that Page is live, and lookup releases the Page
+before opening Definition. Pending retains every transferred owner until all fallible
 native construction succeeds; adoption then commits all owners without another
 allocation or callback. A borrowed facade never frees the arena; an adopted one
 calls the Rust destructor exactly once. Each transferred facade is 40 bytes on

@@ -165,3 +165,18 @@ impl LookupData {
         Ok(())
     }
 }
+
+impl LookupData {
+    // Keep screen-specific sampling and scratch out of the shared child frame.
+    #[inline(never)]
+    pub(super) unsafe fn activity_render(&self, parent: &crate::app::epub::EpubSession) -> bool {
+        let geometry = unsafe { (parent.runtime.display_geometry)() };
+        let screen = xp_ui::scene::Rect {
+            x: 0,
+            y: 0,
+            w: geometry.width as i16,
+            h: geometry.height as i16,
+        };
+        unsafe { self.render(parent.resources, parent.leaves, screen) }.is_ok()
+    }
+}

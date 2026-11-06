@@ -173,39 +173,8 @@ impl ChildTarget {
                     })
             }
             .is_ok(),
-            Self::Footnote(owner) => {
-                let geometry = unsafe { (parent.runtime.display_geometry)() };
-                let screen = xp_ui::scene::Rect {
-                    x: 0,
-                    y: 0,
-                    w: geometry.width as i16,
-                    h: geometry.height as i16,
-                };
-                unsafe {
-                    owner.as_ref().render(
-                        parent.resources,
-                        parent.leaves,
-                        screen,
-                        parent.settings(true).font,
-                    )
-                }
-                .is_ok()
-            }
-            Self::Lookup(owner) => {
-                let geometry = unsafe { (parent.runtime.display_geometry)() };
-                let screen = xp_ui::scene::Rect {
-                    x: 0,
-                    y: 0,
-                    w: geometry.width as i16,
-                    h: geometry.height as i16,
-                };
-                unsafe {
-                    owner
-                        .as_ref()
-                        .render(parent.resources, parent.leaves, screen)
-                }
-                .is_ok()
-            }
+            Self::Footnote(owner) => unsafe { owner.as_ref().activity_render(parent) },
+            Self::Lookup(owner) => unsafe { owner.as_ref().activity_render(parent) },
             Self::Qr(owner) => unsafe {
                 owner.as_ref().render(parent.resources, physical, |layout| {
                     (physical.utility_layout)(layout);
@@ -256,7 +225,7 @@ impl ChildTarget {
     ) -> bool {
         match self {
             Self::Menu(owner) => unsafe { owner.as_ref().input(parent, input, home_gesture) },
-            Self::Footnote(owner) => unsafe { owner.as_ref().activity_input(parent, input) },
+            Self::Footnote(owner) => unsafe { owner.as_ref().activity_input(parent, &input) },
             Self::Lookup(owner) => unsafe { owner.as_ref().activity_input(parent, input.now_ms) },
             Self::Chapters(owner) => {
                 let owner = unsafe { owner.as_ref() };

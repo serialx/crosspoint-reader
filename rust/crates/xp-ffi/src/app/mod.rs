@@ -585,6 +585,31 @@ impl App {
     }
 }
 
+impl App {
+    #[inline(never)]
+    fn definition_returned(&self, child: &ChildTarget, cancelled: bool) {
+        let ChildTarget::Lookup(lookup) = child else {
+            unreachable!()
+        };
+        unsafe { lookup.as_ref().definition_closed(cancelled) };
+        self.input.borrow_mut().reset();
+        self.navigation.queue(Transition::Pop);
+    }
+
+    #[inline(never)]
+    fn definition_install_failed(&self, child: &ChildTarget) {
+        let ChildTarget::Lookup(lookup) = child else {
+            unreachable!()
+        };
+        unsafe {
+            lookup
+                .as_ref()
+                .definition_install_failed((self.runtime.now_ms)())
+        };
+        self.request(false);
+    }
+}
+
 fn image_path(path: &[u8]) -> bool {
     [b".bmp".as_slice(), b".png", b".jpg", b".jpeg"]
         .iter()
@@ -694,14 +719,12 @@ impl Services<Owner> for App {
             },
             (
                 Target::ReaderChild {
-                    child: ChildTarget::Lookup(lookup),
+                    child: child @ ChildTarget::Lookup(_),
                     ..
                 },
                 ActivityResult::Child(Some(ReaderChildResult::DefinitionClosed { cancelled })),
             ) => {
-                unsafe { lookup.as_ref().definition_closed(cancelled) };
-                self.input.borrow_mut().reset();
-                self.navigation.queue(Transition::Pop);
+                self.definition_returned(&child, cancelled);
             }
             (
                 Target::Legacy(parent) | Target::Definition(parent),
@@ -727,16 +750,9 @@ impl Services<Owner> for App {
         match self.navigation.current() {
             Some(Target::Epub(epub)) => unsafe { epub.as_ref().child_install_failed() },
             Some(Target::ReaderChild {
-                child: ChildTarget::Lookup(lookup),
+                child: child @ ChildTarget::Lookup(_),
                 ..
-            }) => {
-                unsafe {
-                    lookup
-                        .as_ref()
-                        .definition_install_failed((self.runtime.now_ms)())
-                };
-                self.request(false);
-            }
+            }) => self.definition_install_failed(&child),
             _ => {}
         }
         unsafe { (self.runtime.diagnostic)(2, 1, 0) };

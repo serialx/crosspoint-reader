@@ -22,10 +22,12 @@ word text, source ranges, fonts, small caps, discretionary hyphens, focus data,
 ruby, block style, metadata, image geometry, and visible offsets. The facades
 read the same Rust-owned arena without a resolved-view allocation.
 
-`ReaderPageTransfer` exercises the real Rust `Pending` adapter and native
-footnote, dictionary, and clipping constructors/destructors. It includes the
-production child declarations and copies both clipping constructors unchanged
-at build time. Scheduling, activity-base behavior, popup UI, and font prewarm
+`ReaderPageTransfer` exercises the real Rust `Pending` adapter with frozen
+native footnote/dictionary constructors and live ClipSelection declarations.
+`prepare_selection_oracle.py` generates the historical footnote/dictionary
+transfer paths from hashed snapshots; only `epubPage::selection` is the current
+production child path. Both clipping constructors are copied unchanged at build
+time. Scheduling, activity-base behavior, popup UI, and font prewarm
 are named physical substitutes; virtual UI methods abort if called. The test
 does not construct a session or install a legacy Book, Section, or Page fixture.
 Unused physical leaves abort. Native Pages in this test come from the real
@@ -34,8 +36,8 @@ codec and serve only as comparison inputs and the dictionary borrowed-page case.
 For each child, faults cover every facade, wrapper, and child allocation, plus
 every Rust Page allocation in one-, two-, and three-Page transfers. Failed
 factories must leave all owners unchanged; successful factories must consume
-all owners without releasing an arena during construction. Destroying the
-actual native child releases each Rust allocation once. The dictionary viewer's
+all owners without releasing an arena during construction. Destroying each
+fixture child releases each Rust allocation once. The dictionary viewer's
 borrowed selection constructor must leave its native Pages alive. Existing
 vector and string allocations are not covered by nothrow fault injection.
 
@@ -44,8 +46,9 @@ trace in all three Page modes. Image admission uses the real ImageBlock code
 with host storage; image paths and sources retain their NUL terminators. Font
 ascent uses deterministic fixture metrics. These checks do not establish target
 pixels, input behavior, child timing, heap fragmentation, or runtime stack use.
-The adapters and transfer descriptors are active in firmware; the retired
-Page/metadata service table remains only in named app-test legacy oracles.
+Only the ClipSelection facade/transfer path remains active in firmware. The
+footnote/dictionary transfer paths and retired Page/metadata service table
+remain in named historical oracles.
 
 `ReaderPageTransfer` also composes the frozen parent frame with strips disabled.
 `ReaderPageFrameStrip` enables `XP_STRIP_RENDER` and the Rust `reader-strips`

@@ -224,12 +224,13 @@ impl Footnote {
 }
 
 impl Footnote {
+    #[inline(never)]
     pub(super) unsafe fn activity_input(
         &self,
         parent: &crate::app::epub::EpubSession,
-        input: Input,
+        input: &Input,
     ) -> bool {
-        let update = self.input(input);
+        let update = self.input(*input);
         if update.retry || update.effect.invalidate != 0 {
             parent.request_update();
         }
@@ -256,5 +257,28 @@ impl Footnote {
             *self.result.get() = Some(super::child_result::ReaderChildResult::Footnote(result))
         };
         true
+    }
+}
+
+impl Footnote {
+    // Keep screen-specific sampling and scratch out of the shared child frame.
+    #[inline(never)]
+    pub(super) unsafe fn activity_render(&self, parent: &crate::app::epub::EpubSession) -> bool {
+        let geometry = unsafe { (parent.runtime.display_geometry)() };
+        let screen = xp_ui::scene::Rect {
+            x: 0,
+            y: 0,
+            w: geometry.width as i16,
+            h: geometry.height as i16,
+        };
+        unsafe {
+            self.render(
+                parent.resources,
+                parent.leaves,
+                screen,
+                parent.settings(true).font,
+            )
+        }
+        .is_ok()
     }
 }

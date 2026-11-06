@@ -77,6 +77,7 @@ impl LookupData {
 }
 
 impl LookupData {
+    #[inline(never)]
     pub(super) unsafe fn activity_input(
         &self,
         parent: &crate::app::epub::EpubSession,

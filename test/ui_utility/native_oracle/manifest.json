@@ -1,0 +1,80 @@
+{
+  "revision": "838b382d9a21279fcfdd4875e53a754c0ee477e4",
+  "inputs": [
+    {
+      "file": "UtilityActivity.cpp.txt",
+      "source": "src/activities/util/UtilityActivity.cpp",
+      "bytes": 9649,
+      "sha256": "828d9e7f93b48ed4d25143f215b5ca1f8808582a489293798b1590930148b595",
+      "consumers": [
+        "native_sources.py",
+        "prepare_parents.py"
+      ]
+    },
+    {
+      "file": "UtilityActivity.h.txt",
+      "source": "src/activities/util/UtilityActivity.h",
+      "bytes": 2338,
+      "sha256": "b39b5af19a44ce7c2ddee01c462917f40b4305b5ba1c9c291cb2723a0ead3e1d",
+      "consumers": [
+        "native_sources.py"
+      ]
+    },
+    {
+      "file": "ConfirmationActivity.cpp.txt",
+      "source": "src/activities/util/ConfirmationActivity.cpp",
+      "bytes": 1254,
+      "sha256": "81cd54a1556d5403b67bf0c3e2cb577dd30481b19ac394c72d9dc70506e80810",
+      "consumers": [
+        "native_sources.py"
+      ]
+    },
+    {
+      "file": "ConfirmationActivity.h.txt",
+      "source": "src/activities/util/ConfirmationActivity.h",
+      "bytes": 484,
+      "sha256": "489b16e79991479b5b1954f33f03fe809f1666907e166425ce99c4b1b3533d35",
+      "consumers": [
+        "native_sources.py"
+      ]
+    },
+    {
+      "file": "IntervalSelectionActivity.cpp.txt",
+      "source": "src/activities/util/IntervalSelectionActivity.cpp",
+      "bytes": 3243,
+      "sha256": "d8f57cd7cc7e50a63c0f3ffb448e017b2b858c993fc43812626dcfbc7982c3d4",
+      "consumers": [
+        "native_sources.py",
+        "prepare_parents.py"
+      ]
+    },
+    {
+      "file": "IntervalSelectionActivity.h.txt",
+      "source": "src/activities/util/IntervalSelectionActivity.h",
+      "bytes": 1007,
+      "sha256": "1a7b81eea563c7e4b99d76a40668a43bf0bb49657b8b59bd27333883e672bcc6",
+      "consumers": [
+        "native_sources.py"
+      ]
+    },
+    {
+      "file": "FullScreenMessageActivity.cpp.txt",
+      "source": "src/activities/util/FullScreenMessageActivity.cpp",
+      "bytes": 1139,
+      "sha256": "9c2e8bed16da7ec2b25bfed62a0fd4d0e37f939c6de8242d611f45b3da7393d8",
+      "consumers": [
+        "native_sources.py"
+      ]
+    },
+    {
+      "file": "FullScreenMessageActivity.h.txt",
+      "source": "src/activities/util/FullScreenMessageActivity.h",
+      "bytes": 888,
+      "sha256": "4eaf35d58f248310c8b876345919df572595f051c30fe37eb461df3e4d745bf9",
+      "consumers": [
+        "native_sources.py"
+      ]
+    }
+  ],
+  "deletion": "Delete any input when its named parity/source-contract consumer is retired."
+}

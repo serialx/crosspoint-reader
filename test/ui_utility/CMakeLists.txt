@@ -33,3 +33,7 @@ target_include_directories(UiUtilityParents PRIVATE ${UTILITY_PARENT_COPY})
 target_link_libraries(UiUtilityParents PRIVATE xp_ffi_host)
 target_compile_options(UiUtilityParents PRIVATE -UNDEBUG)
 add_test(NAME ui_utility_parents COMMAND UiUtilityParents)
+
+add_test(NAME ui_utility_native_sources COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/native_sources.py)
+add_test(NAME ui_utility_owned COMMAND ${XP_FFI_CARGO} test --manifest-path ${REPO_ROOT}/rust/Cargo.toml
+  -p xp-ui --test utility_owned)

@@ -5,7 +5,8 @@ import shutil
 repo = Path(__file__).resolve().parents[2]
 out = Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
 def method(path, signature):
-    text = (repo/path).read_text(); start = text.index(signature); brace = text.index('{', start); level = 1; end = brace+1
+    source = repo/'test/ui_utility/native_oracle'/(Path(path).name+'.txt') if path.startswith('src/activities/util/') else repo/path
+    text = source.read_text(); start = text.index(signature); brace = text.index('{', start); level = 1; end = brace+1
     while level:
         level += (text[end] == '{') - (text[end] == '}'); end += 1
     return text[start:end]

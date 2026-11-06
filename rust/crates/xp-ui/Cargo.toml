@@ -19,3 +19,7 @@ path = "../../../test/dictionary_ui/rust_oracle.rs"
 [[example]]
 name = "dictionary_paint"
 path = "../../../test/dictionary_ui/rust_paint.rs"
+
+[[test]]
+name = "utility_owned"
+path = "../../../test/ui_utility/owned.rs"

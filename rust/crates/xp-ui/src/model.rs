@@ -274,23 +274,38 @@ pub fn message_view(
 ) -> Result<(), Error> {
     let height = metrics.line_height(font);
     let width = metrics.width(font, text, style);
+    let [clear, text_command] = message_commands(screen, font, style, text.len(), width, height)?;
+    arena.push(clear)?;
+    arena.text(text_command, text)
+}
+
+/// Two commands borrow the owner's existing terminated message text.
+pub fn message_commands(
+    screen: Rect,
+    font: i32,
+    style: u8,
+    text_len: usize,
+    width: i32,
+    height: i32,
+) -> Result<[Command; 2], Error> {
     let x =
         i16::try_from((i64::from(screen.w) - i64::from(width)) / 2).map_err(|_| Error::Invalid)?;
     let y =
         i16::try_from((i64::from(screen.h) - i64::from(height)) / 2).map_err(|_| Error::Invalid)?;
-    arena.push(Command {
-        kind: Kind::Clear as u8,
-        rect: screen,
-        paint: 1,
-        ..Command::default()
-    })?;
-    arena.text(
+    Ok([
         Command {
+            kind: Kind::Clear as u8,
+            rect: screen,
+            paint: 1,
+            ..Command::default()
+        },
+        Command {
+            kind: Kind::Text as u8,
             rect: Rect { x, y, w: 0, h: 0 },
             font,
             style,
+            text_len: u16::try_from(text_len).map_err(|_| Error::Capacity)?,
             ..Command::default()
         },
-        text,
-    )
+    ])
 }

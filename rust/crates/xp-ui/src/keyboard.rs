@@ -1,4 +1,6 @@
-//! Keyboard edits and input policy. Byte storage belongs to the activity.
+//! Keyboard edits and input policy, with a dormant owned lifetime.
+pub mod owner;
+
 use crate::model::{self, Effect as Navigation, EffectKind, Input, Interest};
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
@@ -945,7 +947,7 @@ pub unsafe extern "C" fn xp_ui_keyboard_interest(state: *const State) -> Interes
 }
 // SDK active contacts retain their flat interaction index across publication,
 // even when that index is temporarily outside the new page's key count.
-fn publish(s: &mut State, previous: &State, next: &State, layouts: &Layouts) {
+pub fn publish(s: &mut State, previous: &State, next: &State, layouts: &Layouts) {
     if s.active_index < 0 {
         if s.active_key == i16::MIN {
             return;

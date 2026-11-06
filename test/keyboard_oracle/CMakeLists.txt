@@ -22,7 +22,7 @@ target_link_libraries(KeyboardTarget PRIVATE xp_ffi_host)
 add_test(NAME keyboard_strip_target COMMAND KeyboardTarget)
 add_custom_command(OUTPUT ${KEYBOARD_INSTRUMENTED}/keyboard-allocation.inc ${KEYBOARD_INSTRUMENTED}/keyboard-arena.inc
  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/allocation_instrument.py ${REPO_ROOT} ${KEYBOARD_INSTRUMENTED}/keyboard-allocation.inc
- DEPENDS allocation_instrument.py ${REPO_ROOT}/src/activities/util/KeyboardEntryActivity.cpp ${REPO_ROOT}/src/activities/util/KeyboardEntryActivity.h VERBATIM)
+ DEPENDS allocation_instrument.py native_oracle/KeyboardEntryActivity.cpp.txt native_oracle/KeyboardEntryActivity.h.txt VERBATIM)
 add_executable(KeyboardAllocation Allocation.cpp ${KEYBOARD_INSTRUMENTED}/keyboard-allocation.inc)
 target_include_directories(KeyboardAllocation PRIVATE ${KEYBOARD_INSTRUMENTED})
 target_compile_options(KeyboardAllocation PRIVATE -UNDEBUG)
@@ -36,10 +36,11 @@ add_test(NAME keyboard_touch COMMAND KeyboardTouch)
 
 add_custom_command(OUTPUT ${KEYBOARD_INSTRUMENTED}/keyboard-layout-bindings.inc
  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/layout_instrument.py ${REPO_ROOT} ${KEYBOARD_INSTRUMENTED}/keyboard-layout-bindings.inc
- DEPENDS layout_instrument.py ${REPO_ROOT}/src/activities/util/KeyboardEntryActivity.cpp ${REPO_ROOT}/src/activities/util/KeyboardLayoutSet.h VERBATIM)
+ DEPENDS layout_instrument.py ${REPO_ROOT}/src/activities/util/KeyboardEntryActivity.cpp native_oracle/KeyboardLayoutSet.h.txt VERBATIM)
 foreach(target keyboard_abi KeyboardTarget KeyboardTouch)
  target_sources(${target} PRIVATE ${KEYBOARD_INSTRUMENTED}/keyboard-layout-bindings.inc)
  target_include_directories(${target} PRIVATE ${KEYBOARD_INSTRUMENTED} ${REPO_ROOT}/lib/I18n)
 endforeach()
 add_test(NAME keyboard_mapping COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/mapping.py ${XP_FFI_HOST_ARCHIVE})
 add_test(NAME keyboard_routed_input COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/routed_input.py ${XP_FFI_HOST_ARCHIVE})
+add_test(NAME keyboard_native_sources COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/native_sources.py)

@@ -2,7 +2,7 @@
 import pathlib
 import sys
 root, out = map(pathlib.Path, sys.argv[1:])
-s = (root / 'src/activities/util/KeyboardEntryActivity.cpp').read_text()
+s = (root / 'test/keyboard_oracle/native_oracle/KeyboardEntryActivity.cpp.txt').read_text()
 parts = []
 for signature in ['bool KeyboardEntryActivity::Bytes::grow(', 'XpUiEffect KeyboardEntryActivity::updateRust(', 'void KeyboardEntryActivity::applyRustEffect(', 'bool KeyboardEntryActivity::buildRustScene(', 'void KeyboardEntryActivity::rustPublished(', 'void KeyboardEntryActivity::loop(', 'void KeyboardEntryActivity::reconcileInput(']:
     start = s.index(signature)
@@ -15,7 +15,7 @@ for signature in ['bool KeyboardEntryActivity::Bytes::grow(', 'XpUiEffect Keyboa
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text('\n'.join(parts))
 
-h = (root / 'src/activities/util/KeyboardEntryActivity.h').read_text()
+h = (root / 'test/keyboard_oracle/native_oracle/KeyboardEntryActivity.h.txt').read_text()
 a = h.index('  struct Arena {')
 b = h.index('\n  };', a) + len('\n  };')
 (out.parent / 'keyboard-arena.inc').write_text(h[a:b])

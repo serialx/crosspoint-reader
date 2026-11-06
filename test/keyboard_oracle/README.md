@@ -68,3 +68,18 @@ point, now a gap. The SDK reads stale URL slot 42 and toggles back to letters;
 Rust clears the contact and stays on snippets. Both cases release while the
 shorter page is published. The Rust shorter-page unit test returns to the larger
 page before release, so it does not cover this fallback behavior.
+
+Dormant owner checks run with `cargo test --manifest-path rust/Cargo.toml -p xp-ui
+--lib keyboard::owner`. They exercise the production Rust owner, including every
+scene-capacity failure and retry, allocate-before-release ordering, edit failure,
+password scratch, held input suppression, stale contacts and owned result cleanup.
+The physical leaves in these tests use fixed metrics; `KeyboardTarget` continues
+to supply the complementary real-font/strip witness. Application installation and
+native result projection remain deferred until the shared app integration.
+
+The pre-owner allocation/reconciliation and layout-set inputs are frozen as named
+`.txt` data in `native_oracle/`, with revision, SDK, hash, byte count, consumer and
+retirement condition in `manifest.json`. The extraction scripts read this data;
+no snapshot is a firmware source or header include. `keyboard_native_sources`
+checks hashes and consumers. The historical ba6860d8/61c49287 expected transcripts
+are unchanged. Delete a snapshot when its named comparison no longer uses it.

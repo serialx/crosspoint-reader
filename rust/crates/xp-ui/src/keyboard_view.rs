@@ -403,9 +403,20 @@ pub unsafe extern "C" fn xp_ui_keyboard_row(
     else {
         return 0;
     };
-    if out.is_null() || capacity == 0 || capacity > 16 || row >= layouts.rows(s) as u8 {
+    if out.is_null() || capacity == 0 || capacity > 16 {
         return 0;
     }
+    row_keys(s, layouts, l, row, unsafe {
+        core::slice::from_raw_parts_mut(out, usize::from(capacity))
+    })
+}
+
+pub fn row_keys(s: &State, layouts: &Layouts, l: &Layout, row: u8, out: &mut [PlacedKey]) -> u8 {
+    if out.is_empty() || out.len() > 16 || row >= layouts.rows(s) as u8 {
+        return 0;
+    }
+    let capacity = out.len() as u8;
+    let out = out.as_mut_ptr();
     struct Output {
         row: u8,
         count: u8,
@@ -448,6 +459,7 @@ pub unsafe extern "C" fn xp_ui_keyboard_row(
         0
     }
 }
+
 /// # Safety
 /// Inputs refer to the immutable published snapshot; output is writable and
 /// disjoint. Failure leaves output untouched. Callbacks live through the call.
@@ -468,6 +480,15 @@ pub unsafe extern "C" fn xp_ui_keyboard_hit(
     ) else {
         return 0;
     };
+    if let Some(hit) = hit(s, layouts, l, x, y) {
+        *out = hit;
+        1
+    } else {
+        0
+    }
+}
+
+pub fn hit(s: &State, layouts: &Layouts, l: &Layout, x: i16, y: i16) -> Option<Interaction> {
     struct Hit {
         x: i16,
         y: i16,
@@ -497,13 +518,12 @@ pub unsafe extern "C" fn xp_ui_keyboard_hit(
         },
     );
     if result.is_ok() {
-        if let Some(found) = hit.found {
-            *out = found;
-            return 1;
-        }
+        hit.found
+    } else {
+        None
     }
-    0
 }
+
 fn line_end(text: &[u8], start: usize, width: i16, font: i32, m: &Metrics) -> usize {
     if m.measure(font, &text[start..], 1) <= i32::from(width) {
         return text.len();
@@ -1103,7 +1123,7 @@ pub struct PaintKey {
     pub label_present: u8,
     pub alternate_present: u8,
 }
-fn paint_key(s: &State, layouts: &Layouts, row: u8, col: u8) -> Option<PaintKey> {
+pub fn paint_key(s: &State, layouts: &Layouts, row: u8, col: u8) -> Option<PaintKey> {
     let k = layouts.key(s, row, col)?;
     if k.label.len() >= 16 || k.alternate.len() >= 8 {
         return None;

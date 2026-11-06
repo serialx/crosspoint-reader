@@ -113,7 +113,7 @@ impl ListFrame {
         }
         'capacity: loop {
             self.next = snapshot;
-            for pass in 0..9 {
+            for pass in 0..list::FOLLOW_PASSES {
                 self.next_hits = hits::Layout::new(1, 1);
                 let mut arena =
                     Arena::with_hit_sink(self.commands.as_mut_slice(), &mut self.next_hits)?;
@@ -133,7 +133,7 @@ impl ListFrame {
                     Err(Error::Capacity) if self.commands.grow(services) => continue 'capacity,
                     Err(error) => return Err(error),
                 };
-                if self.next.list.follow != 0 && pass < 8 && kind == list::Screen::Chapters {
+                if kind.needs_follow_pass(&self.next.list, pass) {
                     continue;
                 }
                 let scene = arena.finish(Refresh::Fast, 1)?;

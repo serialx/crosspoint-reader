@@ -66,7 +66,7 @@ use xp_ui::reader::percent;
 mod chapter_tests;
 #[path = "../../rust/crates/xp-ffi/src/app/epub/children/chapters.rs"]
 mod chapters;
-#[path = "../../rust/crates/xp-ffi/src/app/epub/children/result.rs"]
+#[path = "../../rust/crates/xp-ffi/src/app/epub/children/results.rs"]
 mod child_result;
 #[cfg(test)]
 mod lifecycle_tests;

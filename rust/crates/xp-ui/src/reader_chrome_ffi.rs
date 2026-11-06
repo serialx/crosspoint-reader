@@ -227,7 +227,7 @@ pub unsafe extern "C" fn xp_ui_reader_list_view(
         origin: rows,
     };
     let mut next = *state;
-    for pass in 0..9 {
+    for pass in 0..list::FOLLOW_PASSES {
         let commands = unsafe {
             core::slice::from_raw_parts_mut(buffer.commands, usize::from(buffer.command_capacity))
         };
@@ -256,8 +256,7 @@ pub unsafe extern "C" fn xp_ui_reader_list_view(
             Err(_) => return 0,
         };
         next.list = list_next;
-        if list_next.follow != 0 && pass < 8 && matches!(kind, Screen::Chapters | Screen::Clippings)
-        {
+        if kind.needs_follow_pass(&list_next, pass) {
             continue;
         }
         if resources.unchanged().is_err() {

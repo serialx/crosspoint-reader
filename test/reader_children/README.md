@@ -1,12 +1,12 @@
 # Reader children ownership tests
 
-These tests exercise the active Rust owners and the native reader child contracts during the ownership migration.
+These tests exercise the active Rust owners and the frozen native reader child contracts.
 
 - `reader_children_ownership` imports the production owner/storage/result modules. It checks fallible construction, bounded command and text storage, result movement, application destruction/publication order, percent input/publication and toolbar navigation. The shared percent view capacity test covers all four orientations, touch/buttons, every value 0–100, all control active states and tap-flash states. An overflow composition records a diagnostic, retains the first 18 commands and publishes the complete interaction table through the Percent owner.
 - `reader_percent_native_parity` compiles the frozen native percent loop and handlers, `ButtonNavigator`, and `UiAppHost` routing with the pinned SDK. It compares 2,568 input outcomes against Rust, including input injected during interaction-table construction. The synthetic control rectangles isolate routing; this test does not establish native drawing parity.
-- `reader_chapter_native_parity` composes the frozen native chapter-window method with the production Rust cache reader and physical file leaves. A generated 1,000-entry cache covers nine windows, two mid-window file-read failures, exact labels, prewarm and reuse. It compares those actual cache rows with the Rust bounded window. The complete child adapter/resource guard is covered by the CP2 composition below.
+- `reader_chapter_native_parity` composes the frozen native chapter-window method with the production Rust cache reader and physical file leaves. A generated 1,000-entry cache covers nine windows, two mid-window file-read failures, exact labels, prewarm and reuse. It compares those actual cache rows with the Rust bounded window. The complete child adapter/resource guard is covered by the App composition below.
 
-Native definitions are named, hashed snapshots under `native_oracle/`; `oracle_sources.py` reads them as text. Candidate code uses the live public headers. Historical callback tables and retired wire declarations live in explicit host-only fixtures. `reader_native_oracle_include_paths` rejects any snapshot path in compiler include arguments.
+Native definitions are named, hashed snapshots under `native_oracle/`; its README lists every consumer and the 97,080 bytes of retained source. `oracle_sources.py` reads them as text. Candidate code uses the live public headers. Historical callback tables and retired wire declarations live in explicit host-only fixtures. `reader_native_oracle_include_paths` rejects any snapshot path in compiler include arguments.
 
 The directory is also a standalone CMake project. Run it through the qualification toolkit's `ctest-parallel.py` with the current thirteen-test inventory, `--jobs 16`, and `NM=/opt/homebrew/opt/llvm/bin/llvm-nm`. The main host CMake tree includes the same tests.
 

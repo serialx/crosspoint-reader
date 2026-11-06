@@ -42,12 +42,6 @@
       "sha256": "d95b1c64921e7fd1990e11153baea4f960e25bd1bda386bbdcc17ab85f18a9e4"
     },
     {
-      "source": "src/activities/reader/QrDisplayActivity.cpp",
-      "snapshot": "src/activities/reader/QrDisplayActivity.cpp.txt",
-      "bytes": 828,
-      "sha256": "4d0058496931233d9e6e1a828e44320f0694a676e12c94c63a329e0fe339be66"
-    },
-    {
       "source": "src/activities/reader/QrDisplayActivity.h",
       "snapshot": "src/activities/reader/QrDisplayActivity.h.txt",
       "bytes": 581,
@@ -70,24 +64,6 @@
       "snapshot": "src/activities/reader/RustEpubResources.cpp.txt",
       "bytes": 56772,
       "sha256": "0f627bd8fab03d65b8e745cb6d57ee579e78c2a5c453f87ccc3e74a3dc6413f2"
-    },
-    {
-      "source": "rust/crates/xp-ffi/include/xp_epub_session.h",
-      "snapshot": "rust/crates/xp-ffi/include/xp_epub_session.h.txt",
-      "bytes": 32630,
-      "sha256": "5c41af214177882c3eb37942ac4df38ad73fdc4ea1c0fdc2ed0adab23d6bba85"
-    },
-    {
-      "source": "rust/crates/xp-ffi/include/xp_ui_reader.h",
-      "snapshot": "rust/crates/xp-ffi/include/xp_ui_reader.h.txt",
-      "bytes": 73463,
-      "sha256": "2fe23e1f09376addc9c6add82d7d36b1fb7e335b8e1fad3076c04505b89c0cf1"
-    },
-    {
-      "source": "rust/crates/xp-ffi/include/xp_ui_reader_chrome.h",
-      "snapshot": "rust/crates/xp-ffi/include/xp_ui_reader_chrome.h.txt",
-      "bytes": 13975,
-      "sha256": "5c03bef2e1c23d3acbec0a7f3b6279315fefd89872735ce30e7e557305f77074"
     }
   ],
   "retained_support_sources_at_freeze": [

@@ -11,6 +11,7 @@ pub const HELP: u32 = 0x8000_0004;
 pub const PROGRESS: u32 = 0x8000_0005;
 pub const TITLE: u32 = 0x8000_0006;
 pub const SUBTITLE: u32 = 0x8000_0007;
+pub const FOLLOW_PASSES: usize = 9;
 
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -23,6 +24,13 @@ pub enum Screen {
     Panel,
 }
 impl Screen {
+    #[inline]
+    pub fn needs_follow_pass(self, next: &ListState, pass: usize) -> bool {
+        next.follow != 0
+            && pass < FOLLOW_PASSES - 1
+            && matches!(self, Self::Chapters | Self::Clippings)
+    }
+
     pub fn from_byte(v: u8) -> Option<Self> {
         Some(match v {
             0 => Self::Chapters,

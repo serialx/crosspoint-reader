@@ -2,7 +2,7 @@ mod activity;
 mod chapter_book;
 mod chapter_view;
 mod chapters;
-#[path = "result.rs"]
+#[path = "results.rs"]
 mod child_result;
 mod commands;
 #[cfg(feature = "app-test")]

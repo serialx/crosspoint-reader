@@ -20,6 +20,8 @@ mod section_cache;
 #[path = "../../../rust/crates/xp-ffi/src/settings.rs"]
 mod settings;
 
+/// # Safety
+/// Nonempty input must point to `len` readable bytes for this call.
 pub unsafe extern "C" fn xp_crc32(data: *const u8, len: usize) -> u32 {
     let bytes = if len == 0 {
         &[]

@@ -157,7 +157,7 @@ impl Page {
     }
 
     #[cfg(feature = "app-test")]
-    fn from_bytes(
+    pub(super) fn from_bytes(
         resources: &'static app_abi::Resources,
         leaves: &XpEpubLeaves,
         bytes: &[u8],

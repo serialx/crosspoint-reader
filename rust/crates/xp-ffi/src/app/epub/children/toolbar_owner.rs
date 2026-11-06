@@ -211,4 +211,4 @@ impl EpubSession {
 }
 
 #[cfg(test)]
-mod tests;
+pub(in crate::app::epub::children) mod tests;

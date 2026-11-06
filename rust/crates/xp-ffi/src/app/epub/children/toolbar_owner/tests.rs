@@ -14,7 +14,7 @@ use xp_ui::{
     scene::Rect,
 };
 #[path = "test_leaves.rs"]
-mod test_leaves;
+pub(in crate::app::epub::children) mod test_leaves;
 
 #[derive(Clone, Copy, Default)]
 struct Allocations {
@@ -30,9 +30,16 @@ thread_local! {
     static PAINTS: Cell<usize> = const { Cell::new(0) };
     static INPUTS: Cell<usize> = const { Cell::new(0) };
 }
+thread_local! { static FAIL_ANY: Cell<bool> = const { Cell::new(false) }; }
+pub(in crate::app::epub::children) fn fail_next_allocation() {
+    FAIL_ANY.with(|v| v.set(true));
+}
 struct Allocator;
 unsafe impl GlobalAlloc for Allocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        if FAIL_ANY.try_with(|v| v.replace(false)).unwrap_or(false) {
+            return core::ptr::null_mut();
+        }
         let fail = if layout == Layout::new::<Toolbar>() {
             ALLOCATIONS
                 .try_with(|trace| {
@@ -194,7 +201,11 @@ unsafe extern "C" fn prewarm(
     panic!("prewarm")
 }
 fn render(target: ToolbarTarget, parent: &EpubSession) {
-    let ToolbarTarget::Owned(pointer) = target;
+    let pointer = match target {
+        ToolbarTarget::Owned(pointer) => pointer,
+        #[cfg(feature = "app-test")]
+        ToolbarTarget::Legacy(_) => panic!("owned toolbar test"),
+    };
     let physical = Physical {
         list_theme: theme,
         utility_layout: layout,

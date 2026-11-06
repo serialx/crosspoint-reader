@@ -452,7 +452,7 @@ static_assert(std::is_pointer_v<decltype(XpEpubLeaves::scratch_release)> &&
 static_assert(offsetof(XpEpubLeaves, inflate_oom_log) == 132 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::inflate_oom_log)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::inflate_oom_log)>>);
-static_assert(sizeof(XpEpubLeaves) == 163 * sizeof(void (*)()));
+static_assert(sizeof(XpEpubLeaves) == 175 * sizeof(void (*)()));
 static_assert(alignof(XpEpubLeaves) == alignof(void (*)()));
 static_assert(sizeof(XpAppResultView::kind) == 1);
 static_assert(sizeof(XpAppResultView::cancelled) == 1);

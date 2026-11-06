@@ -152,7 +152,7 @@ static XpUiReaderRenderServices renderServices{
 
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 163 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 175 * sizeof(void (*)()));
   UNUSED_LEAF(render_margins);
   UNUSED_LEAF(render_geometry);
   UNUSED_LEAF(render_restore_bw);
@@ -317,6 +317,18 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(child_toolbar_icon);
   UNUSED_LEAF(child_clear_fonts);
   UNUSED_LEAF(child_prewarm_rows);
+  UNUSED_LEAF(child_lookup_init);
+  UNUSED_LEAF(child_lookup_drop);
+  UNUSED_LEAF(child_lookup_open);
+  UNUSED_LEAF(child_lookup_index);
+  UNUSED_LEAF(child_lookup_find);
+  UNUSED_LEAF(child_lookup_discard);
+  UNUSED_LEAF(child_definition_lookup);
+  UNUSED_LEAF(child_definition_plain);
+  UNUSED_LEAF(child_definition_drop);
+  UNUSED_LEAF(child_directional_hints);
+  UNUSED_LEAF(child_dictionary_popup_layout);
+  UNUSED_LEAF(child_wait_paint);
   legacyRender.render_services = [](void* root) -> const XpUiReaderRenderServices* {
     locked(); assert(root == activeFixture); renderServices.context = root; return &renderServices;
   };

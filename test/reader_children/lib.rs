@@ -121,3 +121,10 @@ mod menu_scene_tests;
 
 #[path = "../../rust/crates/xp-ffi/src/app/stable_owner.rs"]
 mod stable_owner;
+
+#[path = "../../rust/crates/xp-ffi/src/app/epub/children/definition.rs"]
+mod definition;
+#[cfg(test)]
+mod definition_tests;
+#[path = "../../rust/crates/xp-ffi/src/app/epub/children/selection_physical.rs"]
+mod selection_physical;

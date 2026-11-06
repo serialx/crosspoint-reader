@@ -25,7 +25,7 @@ struct AppFixtureUnexpected<R (*)(A...), Slot> {
 
 inline XpEpubLeaves unexpectedEpubLeaves() {
   XpEpubLeaves value{};
-  static_assert(sizeof(XpEpubLeaves) == 163 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 175 * sizeof(void (*)()));
   value.render_margins = &AppFixtureUnexpected<decltype(value.render_margins), 5>::call;
   value.render_geometry = &AppFixtureUnexpected<decltype(value.render_geometry), 6>::call;
   value.render_restore_bw = &AppFixtureUnexpected<decltype(value.render_restore_bw), 7>::call;
@@ -189,6 +189,18 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.child_toolbar_icon = &AppFixtureUnexpected<decltype(value.child_toolbar_icon), 166>::call;
   value.child_clear_fonts = &AppFixtureUnexpected<decltype(value.child_clear_fonts), 166>::call;
   value.child_prewarm_rows = &AppFixtureUnexpected<decltype(value.child_prewarm_rows), 166>::call;
+  value.child_lookup_init = &AppFixtureUnexpected<decltype(value.child_lookup_init), 163>::call;
+  value.child_lookup_drop = &AppFixtureUnexpected<decltype(value.child_lookup_drop), 164>::call;
+  value.child_lookup_open = &AppFixtureUnexpected<decltype(value.child_lookup_open), 165>::call;
+  value.child_lookup_index = &AppFixtureUnexpected<decltype(value.child_lookup_index), 166>::call;
+  value.child_lookup_find = &AppFixtureUnexpected<decltype(value.child_lookup_find), 167>::call;
+  value.child_lookup_discard = &AppFixtureUnexpected<decltype(value.child_lookup_discard), 168>::call;
+  value.child_definition_lookup = &AppFixtureUnexpected<decltype(value.child_definition_lookup), 169>::call;
+  value.child_definition_plain = &AppFixtureUnexpected<decltype(value.child_definition_plain), 170>::call;
+  value.child_definition_drop = &AppFixtureUnexpected<decltype(value.child_definition_drop), 171>::call;
+  value.child_directional_hints = &AppFixtureUnexpected<decltype(value.child_directional_hints), 172>::call;
+  value.child_dictionary_popup_layout = &AppFixtureUnexpected<decltype(value.child_dictionary_popup_layout), 173>::call;
+  value.child_wait_paint = &AppFixtureUnexpected<decltype(value.child_wait_paint), 174>::call;
   return value;
 }
 

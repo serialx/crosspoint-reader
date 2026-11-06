@@ -39,6 +39,10 @@ add_test(NAME reader_children_ownership
   COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${READER_CHILDREN_TARGET}"
     ${READER_CHILDREN_CARGO} test --manifest-path ${CMAKE_CURRENT_SOURCE_DIR}/Cargo.toml
     --locked --offline --lib)
+add_test(NAME reader_selection_ownership
+  COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${READER_CHILDREN_TARGET}"
+    ${READER_CHILDREN_CARGO} test --manifest-path ${REPO_ROOT}/test/home_ui/app_owner/Cargo.toml
+    --features app-test --locked --offline --lib selection_tests)
 add_test(NAME reader_percent_native_parity
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare_percent.py
     --native $<TARGET_FILE:ReaderPercentNative> --rust ${READER_CHILDREN_TARGET}/debug/percent-oracle)

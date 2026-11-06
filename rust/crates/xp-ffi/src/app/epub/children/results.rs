@@ -16,4 +16,14 @@ pub(crate) enum ReaderChildResult {
     Chapter(Option<ChapterSelection>),
     Percent(Option<u8>),
     QrClosed,
+    #[allow(dead_code)] // Dormant until the O4b switch.
+    Footnote(Option<Text>),
+    #[allow(dead_code)]
+    LookupClosed {
+        cancelled: bool,
+    },
+    #[allow(dead_code)]
+    DefinitionClosed {
+        cancelled: bool,
+    },
 }

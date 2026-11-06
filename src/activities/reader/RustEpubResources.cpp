@@ -55,7 +55,9 @@
 #include "RecentBooksStore.h"
 #include "RustEpubPage.h"
 #include "RustReaderDrawing.h"
+#include "RustReaderLookup.h"
 #include "SilentRestart.h"
+#include "activities/ActivityManager.h"
 #include "activities/OwnedLegacyActivity.h"
 #include "activities/RenderLock.h"
 #include "activities/network/WifiSelectionActivity.h"
@@ -1030,6 +1032,24 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
           },
       .child_prewarm_rows = [](int32_t font, const void* context, XpEpubChildRowText row,
                                uint32_t count) { prewarmReaderRows(*target, font, context, row, count); },
+      .child_lookup_init = readerLookup::init,
+      .child_lookup_drop = readerLookup::drop,
+      .child_lookup_open = readerLookup::open,
+      .child_lookup_index = readerLookup::index,
+      .child_lookup_find = readerLookup::find,
+      .child_lookup_discard = readerLookup::discard,
+      .child_definition_lookup = [](XpEpubDefinitionStorage* storage, XpEpubLookupStorage* lookup) -> void* {
+        return readerLookup::definitionLookup(storage, lookup, *target, *mapped);
+      },
+      .child_definition_plain = [](XpEpubDefinitionStorage* storage, XpAppText title, uint32_t length,
+                                   XpEpubDefinitionFill fill, void* context) -> void* {
+        return readerLookup::definitionPlain(storage, title, length, fill, context, *target, *mapped);
+      },
+      .child_definition_drop = readerLookup::definitionDrop,
+      .child_directional_hints =
+          [](const XpAppText* labels) { readerLookup::directionalHints(*target, *mapped, labels); },
+      .child_dictionary_popup_layout = [](XpUiDictionaryPopup* out) { readerLookup::popupLayout(*target, out); },
+      .child_wait_paint = [] { activityManager.requestUpdateAndWait(); },
   };
   if (!sectionMetrics.context) sectionMetrics.context = target;
   return leaves;

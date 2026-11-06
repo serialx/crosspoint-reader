@@ -637,6 +637,7 @@ pub struct XpEpubLeaves {
     pub display_source: unsafe extern "C" fn(*mut crate::display_source::DisplaySource) -> u8,
     pub framebuffer_view: unsafe extern "C" fn(*mut u32) -> *mut u8,
     pub child_drawing: super::children::Physical,
+    pub child_selection_physical: super::children::selection_physical::Physical,
 }
 
 const _: () = {
@@ -658,7 +659,7 @@ const _: () = {
     );
     assert!(
         core::mem::size_of::<XpEpubLeaves>()
-            == 163 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 175 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
     assert!(
         core::mem::offset_of!(XpEpubLeaves, log)
@@ -961,3 +962,8 @@ const _: () = {
         core::mem::align_of::<XpEpubLeaves>() == core::mem::align_of::<unsafe extern "C" fn()>()
     );
 };
+
+const _: () = assert!(
+    core::mem::offset_of!(XpEpubLeaves, child_selection_physical)
+        == 163 * core::mem::size_of::<usize>()
+);

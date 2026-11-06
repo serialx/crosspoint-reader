@@ -10,7 +10,7 @@ macro_rules! unused_leaves {
             let _ = ($($arg,)*);
             panic!(concat!("unexpected EPUB leaf: ", stringify!($name)))
         })*
-        pub(super) fn leaves() -> XpEpubLeaves { XpEpubLeaves { $($name,)* child_drawing: super::Physical { list_theme: super::theme, utility_layout: super::layout, header: super::header, utility_footer: super::footer, qr: super::qr, toolbar_icon: super::icon, clear_fonts: super::lock, prewarm_rows: super::prewarm } } }
+        pub(in crate::app::epub::children) fn leaves() -> XpEpubLeaves { XpEpubLeaves { $($name,)* child_selection_physical: selection(), child_drawing: super::Physical { list_theme: super::theme, utility_layout: super::layout, header: super::header, utility_footer: super::footer, qr: super::qr, toolbar_icon: super::icon, clear_fonts: super::lock, prewarm_rows: super::prewarm } } }
     };
 }
 unused_leaves! {
@@ -169,4 +169,57 @@ unused_leaves! {
     image_read_window(_a0: *mut u8, _a1: u32) ;
     display_source(_a0: *mut crate::display_source::DisplaySource) -> u8;
     framebuffer_view(_a0: *mut u32) -> *mut u8;
+}
+
+use crate::app::epub::children::selection_physical::{
+    DefinitionFill, DefinitionStorage, LookupStorage, Physical as Selection,
+};
+unsafe extern "C" fn unused_init(_: *mut LookupStorage, _: XpAppText) {
+    panic!("lookup init");
+}
+unsafe extern "C" fn unused_drop(_: *mut LookupStorage) {
+    panic!("lookup drop");
+}
+unsafe extern "C" fn unused_result(_: *mut LookupStorage, _: *mut u8) -> u8 {
+    panic!("lookup operation");
+}
+unsafe extern "C" fn unused_lookup(
+    _: *mut DefinitionStorage,
+    _: *mut LookupStorage,
+) -> *mut core::ffi::c_void {
+    panic!("definition lookup");
+}
+unsafe extern "C" fn unused_plain(
+    _: *mut DefinitionStorage,
+    _: XpAppText,
+    _: u32,
+    _: DefinitionFill,
+    _: *mut core::ffi::c_void,
+) -> *mut core::ffi::c_void {
+    panic!("definition plain");
+}
+unsafe extern "C" fn unused_definition_drop(_: *mut DefinitionStorage) {
+    panic!("definition drop");
+}
+unsafe extern "C" fn unused_hints(_: *const XpAppText) {
+    panic!("directional hints");
+}
+unsafe extern "C" fn unused_layout(_: *mut xp_ui::dictionary::popup::Layout) {
+    panic!("popup layout");
+}
+pub(in crate::app::epub::children) fn selection() -> Selection {
+    Selection {
+        lookup_init: unused_init,
+        lookup_drop: unused_drop,
+        lookup_open: unused_result,
+        lookup_index: unused_result,
+        lookup_find: unused_result,
+        lookup_discard: unused_drop,
+        definition_lookup: unused_lookup,
+        definition_plain: unused_plain,
+        definition_drop: unused_definition_drop,
+        directional_hints: unused_hints,
+        dictionary_popup_layout: unused_layout,
+        wait_paint: super::lock,
+    }
 }

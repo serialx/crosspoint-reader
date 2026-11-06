@@ -19,7 +19,7 @@ typedef void (*ChildIcon)(uint32_t, XpUiRect, XpUiRect);
 typedef void (*ChildFonts)(void);
 typedef void (*ChildPrewarm)(int32_t, const void*, XpEpubChildRowText, uint32_t);
 
-CONTRACT(sizeof(XpEpubLeaves) == 163 * sizeof(void (*)(void)));
+CONTRACT(sizeof(XpEpubLeaves) == 175 * sizeof(void (*)(void)));
 CONTRACT(offsetof(XpEpubLeaves, child_list_theme) == 155 * sizeof(void (*)(void)));
 CONTRACT(offsetof(XpEpubLeaves, child_utility_layout) == 156 * sizeof(void (*)(void)));
 CONTRACT(offsetof(XpEpubLeaves, child_header) == 157 * sizeof(void (*)(void)));

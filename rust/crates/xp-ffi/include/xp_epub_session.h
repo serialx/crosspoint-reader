@@ -3,6 +3,7 @@
 #include "xp_book.h"
 #include "xp_display.h"
 #include "xp_ffi.h"
+#include "xp_ui_dictionary.h"
 #include "xp_ui_reader.h"
 #include "xp_ui_reader_chrome.h"
 #include "xp_ui_utility.h"
@@ -299,6 +300,17 @@ typedef struct {
 
 typedef XpAppText (*XpEpubChildRowText)(const void* context, uint32_t index);
 
+// Stable caller storage for retained native resources; construct after StableOwner adoption, before publication.
+// Native implementations assert size/alignment and never delete this storage.
+typedef struct {
+  uintptr_t words[90];
+} XpEpubLookupStorage;
+typedef struct {
+  uintptr_t words[111];
+} XpEpubDefinitionStorage;
+// Fill the final native string synchronously. The callback and context never escape.
+typedef uint8_t (*XpEpubDefinitionFill)(void* context, uint8_t* text, uint32_t length);
+
 typedef struct XpEpubLeaves {
   void (*render_margins)(int32_t* margins);
   void (*render_geometry)(XpEpubGeometry* out);
@@ -488,6 +500,22 @@ typedef struct XpEpubLeaves {
   void (*child_toolbar_icon)(uint32_t icon, XpUiRect rect, XpUiRect clip);
   void (*child_clear_fonts)(void);
   void (*child_prewarm_rows)(int32_t font, const void* context, XpEpubChildRowText text, uint32_t count);
+  // Dictionary operations preserve native engine results; Rust owns ordering and popup policy.
+  void (*child_lookup_init)(XpEpubLookupStorage* storage, XpAppText query);
+  void (*child_lookup_drop)(XpEpubLookupStorage* storage);
+  uint8_t (*child_lookup_open)(XpEpubLookupStorage* storage, uint8_t* needs_index);
+  uint8_t (*child_lookup_index)(XpEpubLookupStorage* storage, uint8_t* result);
+  uint8_t (*child_lookup_find)(XpEpubLookupStorage* storage, uint8_t* result);
+  void (*child_lookup_discard)(XpEpubLookupStorage* storage);
+  // Returned handles borrow the inline definition storage. Use existing Legacy services except destroy.
+  void* (*child_definition_lookup)(XpEpubDefinitionStorage* storage, XpEpubLookupStorage* lookup);
+  void* (*child_definition_plain)(XpEpubDefinitionStorage* storage, XpAppText title, uint32_t length,
+                                  XpEpubDefinitionFill fill, void* context);
+  void (*child_definition_drop)(XpEpubDefinitionStorage* storage);
+  void (*child_directional_hints)(const XpAppText labels[6]);
+  void (*child_dictionary_popup_layout)(XpUiDictionaryPopup* out);
+  // Existing ActivityManager render completion wait; call only without model/render/resource locks.
+  void (*child_wait_paint)(void);
 } XpEpubLeaves;
 
 #ifdef __cplusplus
@@ -531,7 +559,7 @@ XP_EPUB_ASSERT(offsetof(XpEpubRadio, note) == 4, "XpEpubRadio.note");
 XP_EPUB_ASSERT(sizeof(XpEpubPeer) == 82, "XpEpubPeer size");
 XP_EPUB_ASSERT(offsetof(XpEpubPeer, name) == 0, "XpEpubPeer.name");
 XP_EPUB_ASSERT(offsetof(XpEpubPeer, addr) == 64, "XpEpubPeer.addr");
-XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 163 * sizeof(void (*)(void)), "XpEpubLeaves size");
+XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 175 * sizeof(void (*)(void)), "XpEpubLeaves size");
 #define XP_EPUB_LEAF_OFFSET(field, index) \
   XP_EPUB_ASSERT(offsetof(XpEpubLeaves, field) == (index) * sizeof(void (*)(void)), "XpEpubLeaves." #field)
 XP_EPUB_LEAF_OFFSET(render_margins, 0);
@@ -697,6 +725,18 @@ XP_EPUB_LEAF_OFFSET(child_qr_draw, 159);
 XP_EPUB_LEAF_OFFSET(child_toolbar_icon, 160);
 XP_EPUB_LEAF_OFFSET(child_clear_fonts, 161);
 XP_EPUB_LEAF_OFFSET(child_prewarm_rows, 162);
+XP_EPUB_LEAF_OFFSET(child_lookup_init, 163);
+XP_EPUB_LEAF_OFFSET(child_lookup_drop, 164);
+XP_EPUB_LEAF_OFFSET(child_lookup_open, 165);
+XP_EPUB_LEAF_OFFSET(child_lookup_index, 166);
+XP_EPUB_LEAF_OFFSET(child_lookup_find, 167);
+XP_EPUB_LEAF_OFFSET(child_lookup_discard, 168);
+XP_EPUB_LEAF_OFFSET(child_definition_lookup, 169);
+XP_EPUB_LEAF_OFFSET(child_definition_plain, 170);
+XP_EPUB_LEAF_OFFSET(child_definition_drop, 171);
+XP_EPUB_LEAF_OFFSET(child_directional_hints, 172);
+XP_EPUB_LEAF_OFFSET(child_dictionary_popup_layout, 173);
+XP_EPUB_LEAF_OFFSET(child_wait_paint, 174);
 #undef XP_EPUB_LEAF_OFFSET
 XP_EPUB_ASSERT(sizeof(XpEpubBookBorrow) == 6 * sizeof(void (*)(void)), "XpEpubBookBorrow size");
 XP_EPUB_ASSERT(offsetof(XpEpubBookBorrow, spine) == 0, "XpEpubBookBorrow.spine");

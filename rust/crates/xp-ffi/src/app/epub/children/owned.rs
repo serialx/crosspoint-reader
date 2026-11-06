@@ -20,7 +20,7 @@ use xp_ui::{
 
 // Initialize fields directly so the largest child never occupies a task stack.
 // The initializer must initialize every field without failing or unwinding.
-unsafe fn allocate<T>(initialize: impl FnOnce(*mut T)) -> Option<Box<T>> {
+pub(super) unsafe fn allocate<T>(initialize: impl FnOnce(*mut T)) -> Option<Box<T>> {
     let owner = NonNull::new(alloc(Layout::new::<T>()).cast::<T>())?;
     initialize(owner.as_ptr());
     Some(Box::from_raw(owner.as_ptr()))

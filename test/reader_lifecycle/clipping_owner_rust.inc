@@ -147,7 +147,7 @@ static XpUiReaderRenderServices renderServices{
 static auto legacySection = unexpectedLegacySectionServices();
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 163 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 175 * sizeof(void (*)()));
   UNUSED_LEAF(render_margins);
   UNUSED_LEAF(render_geometry);
   UNUSED_LEAF(render_restore_bw);
@@ -312,6 +312,18 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(child_toolbar_icon);
   UNUSED_LEAF(child_clear_fonts);
   UNUSED_LEAF(child_prewarm_rows);
+  UNUSED_LEAF(child_lookup_init);
+  UNUSED_LEAF(child_lookup_drop);
+  UNUSED_LEAF(child_lookup_open);
+  UNUSED_LEAF(child_lookup_index);
+  UNUSED_LEAF(child_lookup_find);
+  UNUSED_LEAF(child_lookup_discard);
+  UNUSED_LEAF(child_definition_lookup);
+  UNUSED_LEAF(child_definition_plain);
+  UNUSED_LEAF(child_definition_drop);
+  UNUSED_LEAF(child_directional_hints);
+  UNUSED_LEAF(child_dictionary_popup_layout);
+  UNUSED_LEAF(child_wait_paint);
   legacySection.section_page_count = [](void* section) -> uint16_t { publication(section, 0); return liveSection->pageCount; };
   legacySection.section_estimated_pages = [](void* section) -> int32_t { publication(section, 1); return liveSection->pageCount; };
   legacySection.section_building = [](void* section) -> uint8_t { publication(section, 2); return 0; };

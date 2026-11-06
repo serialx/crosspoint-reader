@@ -1,6 +1,9 @@
 extern crate alloc;
 
 mod abi;
+// Dormant until the clipping-store ownership switch.
+#[allow(dead_code)]
+mod clippings;
 mod cover_cache;
 mod driver;
 mod epub;

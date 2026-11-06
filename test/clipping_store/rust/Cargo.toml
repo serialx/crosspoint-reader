@@ -1,0 +1,16 @@
+[package]
+name = "clipping-owner-tests"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[features]
+app-test = []
+
+[lib]
+path = "tests.rs"
+
+[dependencies]
+xp-core = { path = "../../../rust/crates/xp-core" }

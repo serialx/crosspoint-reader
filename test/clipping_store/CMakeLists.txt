@@ -5,3 +5,8 @@ foreach(target ClippingStoreTest ClippingStoreS3Test)
   gtest_discover_tests(${target} TEST_PREFIX "${target}.")
 endforeach()
 target_compile_definitions(ClippingStoreS3Test PRIVATE CONFIG_IDF_TARGET_ESP32S3=1)
+
+add_test(NAME clipping_owner_rust
+  COMMAND ${XP_FFI_CARGO} test --offline --locked
+    --manifest-path ${CMAKE_CURRENT_SOURCE_DIR}/rust/Cargo.toml
+    --target-dir ${CMAKE_CURRENT_BINARY_DIR}/rust-target)

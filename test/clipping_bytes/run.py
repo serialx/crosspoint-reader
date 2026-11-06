@@ -561,7 +561,7 @@ def collect_sources(arduinojson):
     return sources
 
 
-def build(build_dir, arduinojson, archive):
+def build(build_dir, arduinojson, archive, rust_owner=False):
     build_dir.mkdir(parents=True, exist_ok=True)
     sdk = ROOT / 'freeink-sdk'
     assert subprocess.check_output(['git', '-C', str(sdk), 'rev-parse', 'HEAD'], text=True).strip() == SDK
@@ -598,6 +598,8 @@ def build(build_dir, arduinojson, archive):
     flags = ['-DARDUINOJSON_ENABLE_ARDUINO_STRING=0', '-DARDUINOJSON_ENABLE_ARDUINO_STREAM=0',
              '-DARDUINOJSON_ENABLE_ARDUINO_PRINT=0', '-DARDUINOJSON_ENABLE_PROGMEM=0',
              '-DARDUINOJSON_STRING_LENGTH_SIZE=4']
+    if rust_owner:
+        flags.append('-DCLIPPING_RUST_ORACLE=1')
     include = [HERE / 'stubs', build_dir, ROOT, ROOT / 'src', ROOT / 'lib', ROOT / 'lib/hal',
                ROOT / 'lib/Memory', ROOT / 'lib/Serialization', ROOT / 'lib/Utf8', ROOT / 'rust/crates/xp-ffi/include',
                arduinojson]
@@ -611,6 +613,13 @@ def build(build_dir, arduinojson, archive):
         (build_dir / 'SdkStorage.cpp', []),
         (ROOT / 'test/cmake/xp_ffi_host.cpp', []),
     ]
+    if rust_owner:
+        units[1] = (HERE / 'RustStore.cpp', [])
+        manifest['owner'] = 'Rust app::clippings, physical HAL adapter only'
+        for source in sorted((ROOT / 'rust/crates/xp-ffi/src/app/clippings').glob('*.rs')):
+            manifest['sources'][str(source.relative_to(ROOT))] = sha(source.read_bytes())
+        for source in (HERE / 'RustStore.cpp', HERE / 'RustStore.h'):
+            manifest['sources'][str(source.relative_to(ROOT))] = sha(source.read_bytes())
     objects = []
     commands = []
     for source, extra in units:
@@ -705,34 +714,45 @@ def main():
     parser.add_argument('--golden', type=pathlib.Path, default=HERE / 'golden.json.gz')
     parser.add_argument('--capture-baseline', action='store_true')
     parser.add_argument('--negative-controls', action='store_true')
+    parser.add_argument('--rust-owner', action='store_true')
     args = parser.parse_args()
-    manifest, binary = build(args.build, args.arduinojson, args.archive)
+    if args.rust_owner and args.capture_baseline:
+        parser.error('Rust candidate cannot capture the native golden')
+    manifest, binary = build(args.build, args.arduinojson, args.archive, args.rust_owner)
 
-    stores = probe_store_paths(binary, [BOOK_A, BOOK_B, BOOK_C, BOOK_RENAMED, BOOK_RENAMED_ALPHA, BOOK_UNICODE,
-                                        BOOK_INVALID])
-    (args.build / 'stores.json').write_text(json.dumps({hexbytes(key): value.hex() for key, value in stores.items()},
-                                                       indent=2) + '\n')
-    manifest['store_paths'] = {hexbytes(key): value.hex() for key, value in stores.items()}
-    manifest['store_path_note'] = ('Derived by production from std::hash<std::string>; the values are host libc++ '
-                                   'hashes and do not prove the C3/S3 libstdc++ hash')
+    if args.rust_owner:
+        inputs = json.loads(gzip.decompress((HERE / 'inputs.json.gz').read_bytes()))
+        stores = {unhex(key): unhex(value) for key, value in inputs['stores'].items()}
+        canonical, synced = unhex(inputs['canonical']), unhex(inputs['synced'])
+        cases, checks = inputs['cases'], inputs['checks']
+        manifest['native_inputs_sha256'] = sha((HERE / 'inputs.json.gz').read_bytes())
+        manifest['native_input_head'] = inputs['native_head']
+    else:
+        stores = probe_store_paths(binary, [BOOK_A, BOOK_B, BOOK_C, BOOK_RENAMED, BOOK_RENAMED_ALPHA, BOOK_UNICODE,
+                                            BOOK_INVALID])
+        (args.build / 'stores.json').write_text(json.dumps({hexbytes(key): value.hex() for key, value in stores.items()},
+                                                           indent=2) + '\n')
+        manifest['store_paths'] = {hexbytes(key): value.hex() for key, value in stores.items()}
+        manifest['store_path_note'] = ('Derived by production from std::hash<std::string>; the values are host libc++ '
+                                       'hashes and do not prove the C3/S3 libstdc++ hash')
 
-    def build_store(name, ops):
-        row = run_oracle(binary, [case(name, [load(BOOK_A, b'Book A', b'Author A'), *ops])])[0]
-        blobs = [unhex(file['bytes']) for file in row['files'] if unhex(file['path']) == stores[BOOK_A]]
-        assert len(blobs) == 1, row['files']
-        return blobs[0]
+        def build_store(name, ops):
+            row = run_oracle(binary, [case(name, [load(BOOK_A, b'Book A', b'Author A'), *ops])])[0]
+            blobs = [unhex(file['bytes']) for file in row['files'] if unhex(file['path']) == stores[BOOK_A]]
+            assert len(blobs) == 1, row['files']
+            return blobs[0]
 
-    canonical = build_store('canonical', [add(b'alpha text'), add('가나다'.encode()), dict(op='sync')])
-    synced = build_store('synced', [add(b'alpha text'), add('가나다'.encode()), dict(op='sync'),
-                                    dict(op='uploads')])
-    synced_records = read_records(synced)
-    (args.build / 'canonical.bin').write_bytes(canonical)
-    (args.build / 'synced.bin').write_bytes(synced)
-    manifest['canonical_records'] = [dict(id=record['id'].hex(), revision=record['revision'],
-                                          pending=record['pending'], text=record['text'].hex())
-                                     for record in read_records(canonical)]
+        canonical = build_store('canonical', [add(b'alpha text'), add('가나다'.encode()), dict(op='sync')])
+        synced = build_store('synced', [add(b'alpha text'), add('가나다'.encode()), dict(op='sync'),
+                                        dict(op='uploads')])
+        synced_records = read_records(synced)
+        (args.build / 'canonical.bin').write_bytes(canonical)
+        (args.build / 'synced.bin').write_bytes(synced)
+        manifest['canonical_records'] = [dict(id=record['id'].hex(), revision=record['revision'],
+                                              pending=record['pending'], text=record['text'].hex())
+                                         for record in read_records(canonical)]
 
-    cases, checks = corpus(stores, canonical, synced, synced_records)
+        cases, checks = corpus(stores, canonical, synced, synced_records)
     manifest['corpus_sha256'] = sha(json.dumps(cases, sort_keys=True).encode())
     (args.build / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     (args.build / 'cases.json').write_text(json.dumps(cases, indent=2) + '\n')

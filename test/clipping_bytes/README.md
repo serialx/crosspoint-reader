@@ -80,3 +80,28 @@ Host-only substitutions and limits worth knowing before reading the golden:
   the old target was removed can leave no store, and failed cleanup can leave a
   temporary file. The test preserves those outcomes rather than asserting atomic
   replacement.
+# Dormant Rust owner comparison
+
+`clipping_bytes_rust` runs the same operation driver against the Rust store in
+`xp-ffi/src/app/clippings`. `RustStore.cpp` substitutes only the physical file
+operations, clock, randomness and native path hash. Its one-record copy and text
+buffer are test scaffolding, not the production facade or a heap measurement.
+The native `ClippingsManager` still supplies text export; that owner belongs to
+O5a.
+
+The candidate reads `inputs.json.gz`, captured from the verified native run at
+`8389157f`, rather than building migration inputs with its own writer. This
+synthetic archive contains the original cases, checks, paths and v4 input stores;
+its SHA-256 is
+`3430b1f6607e5e718c40ebf013e89f1b3346fead49b9c2eee2af5f896d5e64f2`.
+Expected results remain the original `golden.json.gz`. `--rust-owner` refuses
+`--capture-baseline`. No private book data is included.
+
+Run the candidate with the existing `run.py` command plus `--rust-owner`, using
+an `app-test` xp-ffi archive. Both CTests retain all 141 cases and the four
+negative controls. `clipping_owner_rust` separately tests owner/slab allocation
+failure, partial-load cleanup, offset allocation before filesystem changes,
+cross-block deletion failure and drop-once ownership. Run that crate under
+strict-provenance Miri for the Rust allocation/lifetime checks. These checks do
+not establish production synchronization, target stack/heap floors, physical
+FAT or power-loss behavior.

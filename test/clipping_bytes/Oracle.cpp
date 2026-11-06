@@ -14,6 +14,10 @@
 
 #include "src/ClippingStore.h"
 #include "src/clippings/ClippingsManager.h"
+#ifdef CLIPPING_RUST_ORACLE
+#include "RustStore.h"
+#define ClippingStore RustStore
+#endif
 
 namespace clip_test_clock {
 time_t now = 1700000000;

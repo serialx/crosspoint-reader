@@ -43,6 +43,10 @@ struct Clipping {
   char chapterTitle[CLIPPING_CHAPTER_TITLE_MAX] = {};
 };
 
+#if defined(CONFIG_IDF_TARGET_ESP32C3) && CONFIG_IDF_TARGET_ESP32C3
+static_assert(sizeof(Clipping) == 168, "C3 clipping index layout used by the Rust ownership migration");
+#endif
+
 class ClippingStore {
  public:
   enum class AddResult : uint8_t {

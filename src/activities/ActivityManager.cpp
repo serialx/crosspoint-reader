@@ -285,7 +285,7 @@ void ActivityManager::replaceActivity(std::unique_ptr<Activity>&& activity) {
   if (!send(event)) delete static_cast<OwnedLegacyActivity*>(event.value.adopt_replace);
 }
 void ActivityManager::pushActivity(std::unique_ptr<Activity>&& activity) {
-  // "KeyboardEntry" is reserved for KeyboardEntryActivity; its leaves downcast by this invariant.
+  // "KeyboardEntry" is reserved for KeyboardEntryActivity; the facade's leaves downcast using this invariant.
   const bool keyboard = activity && activity->name == "KeyboardEntry";
   auto owner = ownLegacy(std::move(activity));
   if (!owner) return;

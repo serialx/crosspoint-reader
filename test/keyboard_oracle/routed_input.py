@@ -1,4 +1,4 @@
-"""Compare original routing and current facade with real SDK layouts."""
+"""Compare original routing with frozen host orchestration over the live Rust model."""
 from pathlib import Path
 import re
 import subprocess
@@ -51,8 +51,8 @@ end = baseline.index('void KeyboardEntryActivity::loop()')
 s += baseline[start:end]
 s = s.replace('KeyboardEntryActivity', 'OriginalKeyboard')
 current = (root/'test/keyboard_oracle/Allocation.cpp').read_text().split('int main()')[0]
-# The input source, scheduler and result recipient are host leaves. Keyboard
-# loop/update/growth/result/publication bodies are the actual production methods.
+# Input, scheduling and result delivery are host leaves. The frozen pre-owner
+# orchestration calls the live Rust model; active owner coverage is separate.
 current = current.replace('  void loop() { ++baseLoops; }', '  void loop();')
 a = current.index('  struct Input {');b = current.index('  void loop();',a)
 current = current[:a]+'  MappedInputManager mappedInput;\n'+current[b:]

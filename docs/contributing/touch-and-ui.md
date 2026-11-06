@@ -2,7 +2,7 @@
 
 CrossPoint runs on touch devices (Seeed Sticky, M5Paper, M5Stack PaperMono, LilyGo T5, Xteink X4 Pro) alongside the button-only Xteink X3/X4. Every screen must work with both input styles.
 
-New screens use the [Rust UI runtime](rust-ui.md). Rust owns state, layout and input policy; the Rust application owns navigation. Legacy `RustActivityAdapter` facades retain resource bindings and publication for their screens. Home, the EPUB session and its Menu, Chapters, Percent and QR children have direct Rust owners; the session also owns Toolbar. Use the existing family host when it fits the screen. FreeInkUI still supplies shared resource painters and supports remaining C++ surfaces.
+New screens use the [Rust UI runtime](rust-ui.md). Rust owns state, layout and input policy; the Rust application owns navigation. Legacy `RustActivityAdapter` facades retain resource bindings and publication for their screens. Home, the keyboard, the EPUB session and its Menu, Chapters, Percent and QR children have direct Rust owners; the session also owns Toolbar. Use the existing family host when it fits the screen. FreeInkUI still supplies shared resource painters and supports remaining C++ surfaces.
 
 ## Picking the right host
 
@@ -47,7 +47,38 @@ All under `freeink-sdk/libs/ui/FreeInkUI/include/components/`:
 | Media | `book-card`, `cover-grid`, `cover-carousel`, `metric-card` |
 | Text | `text-field`, `text-area` |
 
-`KeyboardEntryActivity` uses `RustActivityAdapter`: Rust owns input, per-key holds, placement and hit testing against the published frame. The C++ resource binding uses a raw `fui::Frame` with no interactions only to paint one SDK key. See [the Rust UI guide](rust-ui.md) for that ownership boundary.
+### Keyboard ownership and launch compatibility
+
+`KeyboardEntryActivity` derives from `Activity` and supplies constructor
+compatibility and physical services to one Rust `StableOwner`. Rust owns editing,
+input, scene storage, publication and the moved text/cancel result. The native
+facade retains its static text semaphore and SDK/font drawing bindings. Its raw
+`fui::Frame` has no interactions and only paints one SDK key; it does not own the
+keyboard scene or input geometry.
+
+The thirteen constructor sites in these nine files still launch through
+`Activity::startActivityForResult`. `ActivityManager::pushActivity` adopts the
+facade into the Rust keyboard owner without pushing an extra child.
+
+| Caller | Constructor sites | Use |
+|---|---|---|
+| [FileBrowserActivity](../../src/activities/home/FileBrowserActivity.cpp) | 376 | Rename |
+| [LibraryListActivity](../../src/activities/library/LibraryListActivity.cpp) | 350 | Search |
+| [EpubReaderBookmarksActivity](../../src/activities/reader/EpubReaderBookmarksActivity.cpp) | 126 | Rename |
+| [WifiSelectionActivity](../../src/activities/network/WifiSelectionActivity.cpp) | 498 | SSID or credential entry |
+| [KOReaderSettingsActivity](../../src/activities/settings/KOReaderSettingsActivity.cpp) | 114 | Settings fields |
+| [CatalogActivity](../../src/activities/CatalogActivity.cpp) | 73 | Online catalog search |
+| [OpdsBookBrowserActivity](../../src/activities/browser/OpdsBookBrowserActivity.cpp) | 618 | LCP passphrase |
+| [OpdsSettingsActivity](../../src/activities/settings/OpdsSettingsActivity.cpp) | 102, 116, 129, 142, 160 | Server settings fields |
+| [OpdsServerListActivity](../../src/activities/settings/OpdsServerListActivity.cpp) | 130 | Download folder |
+
+O5a (Bookmarks) owns the first production Rust-parent integration: construction
+via `Legacy.create(Keyboard descriptor)` → `keyboard::create/push`; the result is
+delivered as a moved semantic result. It will add the borrowed launch descriptor
+and an outlined Bookmarks delivery arm without a new export. Until that consumer
+lands, Rust-parent lifetime and result coverage is a real-App host composition;
+O5a owns its first production emulator smoke. See the [Rust UI guide](rust-ui.md)
+and [keyboard witnesses](../../test/keyboard_oracle/README.md).
 
 ---
 

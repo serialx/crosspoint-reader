@@ -1,4 +1,4 @@
-"""Run production keyboard edits, cursor taps and rendering through the real gate."""
+"""Run frozen host keyboard orchestration over the live Rust model and adapter gate."""
 from pathlib import Path
 import os
 import subprocess

@@ -1,6 +1,6 @@
 # Keyboard behavior oracle
 
-`record.py` compiles the production keyboard state methods, URL tables,
+`record.py` compiles the original keyboard state methods, URL tables,
 layout-set policy and ButtonNavigator against the pinned SDK's real layouts.
 Only Activity, input, time and result delivery are replaced by host leaves.
 Text-point placement and rendering are excluded from this transcript runner.
@@ -28,9 +28,10 @@ a 10 KB zero-advance field. `KeyboardTarget` extracts the actual C++ resource
 painters and the original field renderer. It compares normal, full-field and
 long entries across four orientations, text/password/URL modes and cursor modes,
 and compares full-frame rendering with guarded 16-row bands. `KeyboardAllocation`
-extracts the frozen pre-owner allocation, update/retry and view-build methods; injected
-failures verify unchanged text/cursor, one log per failed held edit, no allocation
-under the model lock, and no published partial scene when paint scratch fails.
+extracts the frozen pre-owner allocation, update/retry and view-build methods;
+injected failures verify unchanged text/cursor, one log per failed held edit,
+no allocation under the model lock, and no published partial scene when paint
+scratch fails.
 It also checks that touch queries use the painted layout until the next frame
 is published, and that ordinary password key taps allocate no cursor scratch.
 Compact row resources use the same Rust geometry walker as the expanded golden
@@ -41,14 +42,15 @@ Run all keyboard checks with `ctest --test-dir build/test -R keyboard_ --output-
 pinned SDK TouchHoldRouter, including press/release priority, alternate keys,
 350/900 ms holds, slides, release slop, canceled swipes and timer wrap.
 
-`keyboard_mapping` extracts the live application table, SDK callbacks and
-painter font choice, and the frozen pre-owner start/next wrapper baseline. It checks both the pinned SDK IDs
-and deliberately permuted IDs against the real layout tables.
+`keyboard_mapping` extracts the live application table, SDK callbacks and painter
+font choice, and the frozen pre-owner start/next wrapper baseline. It checks both
+the pinned SDK IDs and deliberately permuted IDs against the real layout tables.
 
-`keyboard_routed_input` compares the original C++ with the frozen pre-owner
-orchestration through text bytes, cursor and returned results. Its 71 matching real-layout cases cover
-pending shift/language/URL changes, masked multi-byte and RTL field taps, and
-contacts spanning publication. It also checks the active key used for painting.
+`keyboard_routed_input` compares the original C++ with frozen pre-owner
+orchestration over the live Rust model through text bytes, cursor and returned
+results. Its 71 matching real-layout cases cover pending shift/language/URL
+changes, masked multi-byte and RTL field taps, and contacts spanning publication.
+It also checks the active key used for painting.
 Glyph advances are fixed host leaves; bidi is real, and native-font pixels remain
 covered by `KeyboardTarget`. The original stale-key fallback after a field tap
 and a second release without a new press is preserved explicitly; a fresh
@@ -69,20 +71,27 @@ Rust clears the contact and stays on snippets. Both cases release while the
 shorter page is published. The Rust shorter-page unit test returns to the larger
 page before release, so it does not cover this fallback behavior.
 
-Production owner checks run with `cargo test --manifest-path rust/Cargo.toml -p xp-ui
---lib keyboard::owner`. They exercise the production Rust owner, including every
-scene-capacity failure and retry, allocate-before-release ordering, edit failure,
-password scratch, held input suppression, stale contacts and owned result cleanup.
-The painter witnesses require the native 10 row-layout / 8 resource-validation calls
-per five-row frame on open and press, and reject stale generations and out-of-range
-commands without relying on shared prevalidation.
-The physical leaves in these tests use fixed metrics; `KeyboardTarget` continues
-to supply the complementary real-font/strip witness. The real-App composition in `rust/crates/xp-ffi/src/app/keyboard_tests.rs`
-checks active StableOwner installation, native projection, owned Rust-parent results,
-allocation failure and drop-once ordering. The contact-publication regressions in
-`rust/crates/xp-ui/src/keyboard/owner/tests.rs` exercise the production owner.
-These are the active ownership witnesses; the frozen allocation, routed-input and
-rejection suites remain baseline checks of the prior orchestration.
+Run the production-owner checks with:
+
+```sh
+cargo test --manifest-path rust/Cargo.toml -p xp-ui --lib keyboard::owner
+```
+
+They exercise every scene-capacity failure and retry, allocate-before-release
+ordering, edit failure, password scratch, held input suppression, stale contacts
+and owned result cleanup. The painter witnesses require the native 10 row layouts
+and 8 resource validations per five-row frame on open and press. They reject
+stale generations and out-of-range commands without relying on prevalidation.
+The physical leaves use fixed metrics; `KeyboardTarget` supplies the
+complementary real-font/strip witness.
+
+The real-App composition in `rust/crates/xp-ffi/src/app/keyboard_tests.rs` checks
+active StableOwner installation, native projection, owned Rust-parent results,
+allocation failure and drop-once ordering. Contact-publication regressions in
+`rust/crates/xp-ui/src/keyboard/owner/tests.rs` also exercise the production owner.
+These are the active ownership witnesses. The frozen allocation, routed-input
+and rejection suites remain baseline checks of prior orchestration over the live
+Rust model.
 
 The twelve retired control wrappers are enabled only for host tests through
 `legacy-keyboard-oracles`; their declarations live in `legacy_keyboard_wire.h`.

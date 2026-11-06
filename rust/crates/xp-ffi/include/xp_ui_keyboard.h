@@ -54,9 +54,12 @@ XpUiKeyboardLayouts xp_keyboard_layouts(void);
 XpUiKeyboardMetrics xp_keyboard_metrics(void* activity);
 // Optional outputs sample current theme/settings at each use.
 void xp_keyboard_snapshot(void* activity, XpUiKeyboardViewLayout* layout, uint16_t* configured, uint8_t* language);
+// Nonzero acquire locks TextLock; zero unlocks it. Acquire before ModelLock.
 void xp_keyboard_text_lock(void* activity, uint8_t acquire);
+// layout is a validated table id; symbols selects symbol-page styling; mode_abc selects the ABC label.
 void xp_keyboard_draw_key(void* activity, const XpUiCommand* command, const XpUiKeyboardPaintKey* key, uint8_t layout,
                           uint8_t symbols, uint8_t mode_abc);
+// Chrome resource ids: 1 header, 2 front hints, 3 side hints. Text is a call-scoped loan.
 void xp_keyboard_chrome(void* activity, const XpUiCommand* command, XpUiRect clip, XpAppText title);
 // Called only after child destruction, parent publication and render unlock.
 void xp_keyboard_deliver(const XpAppLegacy* legacy, void* parent, XpAppText text, uint8_t cancelled);

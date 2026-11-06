@@ -22,10 +22,14 @@ static const uint8_t* anchorBeforeMove;
 static bool captureAnchor;
 static XpAppMappedSnapshot childInput;
 static std::vector<std::string> ownedOrder;
+static bool childDebugEnabled;
+static std::string activeChildMarker;
+static unsigned childMarkerEntries;
 extern "C" void observeRustFree(void* pointer) {
   if (!watchedChild || pointer != watchedChild) return;
   assert(f().renderDepth == 1 && f().modelDepth == 0 && !childFreed);
   assert(xp_app_test_current_epub() == nullptr && xp_app_test_published_epub() == nullptr);
+  assert(activeChildMarker.empty());
   childFreed = true;
   ownedOrder.push_back("destroy");
 }
@@ -52,6 +56,33 @@ static const OwnedChildDrawing drawing{
   }
 };
 static void bindOwnedChildren() {
+  static auto previousLog = leaves.log;
+  static auto previousLogEnabled = leaves.log_enabled;
+  leaves.log_enabled = [](uint8_t severity) -> uint8_t {
+    return severity == 0 ? childDebugEnabled && xp_app_test_current_child(nullptr) != nullptr
+                         : previousLogEnabled(severity);
+  };
+  leaves.log = [](uint8_t severity, XpAppText origin, XpAppText message) {
+    const auto value = text(message);
+    if (text(origin) == "ACT" &&
+        (value.find("EpubReaderMenu") != std::string::npos ||
+         value.find("EpubReaderChapterSelection") != std::string::npos ||
+         value.find("EpubReaderPercentSelection") != std::string::npos ||
+         value.find("QrDisplay") != std::string::npos)) {
+      assert(childDebugEnabled && severity == 0);
+      if (value.rfind("Entering activity: ", 0) == 0) {
+        assert(activeChildMarker.empty());
+        activeChildMarker = value.substr(19);
+        ++childMarkerEntries;
+      } else {
+        assert(value == "Exiting activity: " + activeChildMarker && !activeChildMarker.empty());
+        assert(f().renderDepth == 1);
+        activeChildMarker.clear();
+      }
+      return;
+    }
+    previousLog(severity, origin, message);
+  };
   legacyBook.children = unexpectedLegacyChildren();
   leaves.child_list_theme = drawing.theme;
   leaves.child_utility_layout = drawing.layout;
@@ -147,8 +178,9 @@ static void returnChild(uint32_t released, bool checkAnchor = false) {
   }, nullptr);
 }
 int main(int argc, char** argv) {
-  assert(argc == 3);
+  assert(argc == 4);
   const std::string mode = argv[1]; const bool cancelled = std::strtoul(argv[2], nullptr, 10) != 0;
+  childDebugEnabled = std::strtoul(argv[3], nullptr, 10) != 0;
   Fixture state; fixture = &state;
   bind(); bindResultsLifecycle(); bindResultsPhysical(); bindProductionChildren();
   bindReaderBook(); bindReaderResults(); BookStoreAdapters::bind(); bindOwnedChildren();
@@ -186,6 +218,8 @@ int main(int argc, char** argv) {
   else xp_epub_test_menu_confirm(results.owner, mode == "chapter" ? 0 : mode == "percent" ? 6 : 14);
   assert(xp_app_test_pending_kind() == 1 && xp_app_test_drain());
   assert(childKind() == (mode == "menu" ? 1 : mode == "chapter" ? 2 : mode == "percent" ? 3 : 4));
+  const char* names[] = {"", "EpubReaderMenu", "EpubReaderChapterSelection", "EpubReaderPercentSelection", "QrDisplay"};
+  assert(activeChildMarker == (childDebugEnabled ? names[childKind()] : ""));
   paintChild();
   if (mode == "percent" && !cancelled) {
     // The actual Percent input policy clamps repeated decrements at zero.
@@ -210,5 +244,6 @@ int main(int argc, char** argv) {
   assert(readerFiles.empty() && readerFacades.empty() && readerBuffers.empty());
   assert(readerSectionOpens == readerSectionCloses && state.handles.empty());
   assert(xp_test_live_allocations() == 1 && !state.renderDepth && !state.modelDepth);
+  assert(activeChildMarker.empty() && (childMarkerEntries != 0) == childDebugEnabled);
   std::printf("owned App %s cancelled=%u: %u destroy/publish/unlock/deliver sequences; balanced real book and section\n", mode.c_str(), cancelled, ownedReturns);
 }

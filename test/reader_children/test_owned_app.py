@@ -39,11 +39,12 @@ def main():
         subprocess.run(command, check=True)
         for mode in ('menu', 'chapter', 'percent', 'qr', 'text', 'text-overlay'):
             for cancelled in ('0', '1'):
-                result = subprocess.run([str(binary), mode, cancelled], capture_output=True, text=True)
-                if result.returncode:
-                    print(result.stderr[-15000:])
-                    raise AssertionError((mode, cancelled, result.returncode))
-                print(result.stdout)
+                for debug in ('0', '1'):
+                    result = subprocess.run([str(binary), mode, cancelled, debug], capture_output=True, text=True)
+                    if result.returncode:
+                        print(result.stderr[-15000:])
+                        raise AssertionError((mode, cancelled, debug, result.returncode))
+                    print(result.stdout)
 
 
 if __name__ == '__main__':

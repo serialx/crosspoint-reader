@@ -18,6 +18,29 @@ use xp_ui::{
 };
 
 impl ChildTarget {
+    fn activity_log(self, parent: &EpubSession, entering: bool) {
+        if unsafe { (parent.leaves.log_enabled)(0) } == 0 {
+            return;
+        }
+        let message: &[u8] = match (self, entering) {
+            (Self::Menu(_), true) => b"Entering activity: EpubReaderMenu",
+            (Self::Menu(_), false) => b"Exiting activity: EpubReaderMenu",
+            (Self::Chapters(_), true) => b"Entering activity: EpubReaderChapterSelection",
+            (Self::Chapters(_), false) => b"Exiting activity: EpubReaderChapterSelection",
+            (Self::Percent(_), true) => b"Entering activity: EpubReaderPercentSelection",
+            (Self::Percent(_), false) => b"Exiting activity: EpubReaderPercentSelection",
+            (Self::Qr(_), true) => b"Entering activity: QrDisplay",
+            (Self::Qr(_), false) => b"Exiting activity: QrDisplay",
+        };
+        unsafe {
+            (parent.leaves.log)(
+                0,
+                crate::app::abi::Text::from_bytes(b"ACT"),
+                crate::app::abi::Text::from_bytes(message),
+            )
+        };
+    }
+
     pub(in crate::app) unsafe fn facts(self) -> crate::app::abi::LegacyFacts {
         crate::app::abi::LegacyFacts {
             kind: 255,
@@ -37,6 +60,7 @@ impl ChildTarget {
 
     /// Entry runs after publication; acquire the parent guard before touching scratch.
     pub(in crate::app) unsafe fn enter(self, parent: &EpubSession, physical: &Physical) -> bool {
+        self.activity_log(parent, true);
         let _access = parent.lock_resources();
         let ready = match self {
             Self::Menu(owner) => unsafe { &mut *owner.as_ref().frame.get() }
@@ -86,6 +110,7 @@ impl ChildTarget {
                 .with(|model| model.controls = None),
             Self::Qr(owner) => unsafe { &mut *owner.as_ref().frame.get() }.commands.clear(),
         }
+        self.activity_log(parent, false);
     }
 
     /// App's native render token protects the child and retained parent.

@@ -1020,7 +1020,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
                                  const XpAppText* labels) { drawReaderUtilityFooter(*target, *mapped, clip, labels); },
       .child_qr_draw =
           [](XpUiRect bounds, XpAppText payload) {
-            QrUtils::drawQrBytes(*target, {bounds.x, bounds.y, bounds.w, bounds.h}, payload.data, payload.len);
+            QrUtils::drawQrBytes(*target, Rect(bounds.x, bounds.y, bounds.w, bounds.h), payload.data, payload.len);
           },
       .child_toolbar_icon = [](uint32_t icon, XpUiRect bounds,
                                XpUiRect clip) { drawReaderToolbarIcon(*target, icon, bounds, clip); },

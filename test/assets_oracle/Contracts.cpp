@@ -10,6 +10,38 @@
 extern "C" size_t asset_allocation_attempts();
 extern "C" size_t asset_platform_live();
 extern "C" size_t asset_platform_largest();
+extern "C" size_t asset_live_bytes();
+extern "C" size_t asset_peak_bytes();
+extern "C" void asset_reset_peak();
+static size_t expectedDrawLive;
+void qrScratchLifetime() {
+  struct Case {
+    size_t payload, bitmap, peak;
+  };
+  for (const auto& item : {Case{1, 137, 496}, Case{115, 407, 1524}, Case{396, 1177, 4554}, Case{1067, 2347, 9096},
+                           Case{2953, 3917, 15276}}) {
+    const std::string text(item.payload, 'x');
+    GfxRenderer renderer;
+    expectedDrawLive = item.bitmap;
+    renderer.beforeFillRect = [] { assert(asset_live_bytes() == expectedDrawLive); };
+    const Rect bounds{0, 0, 300, 300};
+    assert(asset_live_bytes() == 0);
+    asset_reset_peak();
+    const auto before = asset_allocation_attempts();
+    QrUtils::drawQrCode(renderer, bounds, text);
+    assert(!renderer.rectangles.empty());
+    assert(asset_allocation_attempts() == before + 2);
+    assert(asset_peak_bytes() == item.peak && asset_live_bytes() == 0);
+    for (size_t failure = 0; failure < 2; ++failure) {
+      renderer.rectangles.clear();
+      const auto index = std::to_string(asset_allocation_attempts() + failure);
+      assert(setenv("ASSET_FAIL_ALLOC", index.c_str(), 1) == 0);
+      QrUtils::drawQrCode(renderer, bounds, text);
+      assert(renderer.rectangles.empty() && asset_live_bytes() == 0);
+      assert(unsetenv("ASSET_FAIL_ALLOC") == 0);
+    }
+  }
+}
 struct Sink {
   size_t calls = 0, fail = SIZE_MAX;
   std::vector<uint8_t> bytes;
@@ -47,6 +79,7 @@ void jpegPlatformBuffers() {
 }
 int main() {
   jpegPlatformBuffers();
+  qrScratchLifetime();
   std::string text = "https://crosspointreader.com";
   uint8_t version = 0;
   size_t payload = 0;
@@ -60,17 +93,22 @@ int main() {
   for (uint8_t value : bitmap) assert(value == 0xa5);
   assert(QrUtils::encodeQrBitmap(text, bitmap.data() + 1, capacity, modules));
   assert(modules == 33 && bitmap.front() == 0xa5 && bitmap.back() == 0xa5);
-  assert(asset_allocation_attempts() == allocations);
+  assert(asset_allocation_attempts() == allocations + 1);
   GfxRenderer ownedQr, borrowedQr;
   const Rect bounds{10, 20, 300, 300};
   QrUtils::drawQrCode(ownedQr, bounds, text);
   const auto beforeBorrowed = asset_allocation_attempts();
   QrUtils::drawQrBytes(borrowedQr, bounds, reinterpret_cast<const uint8_t*>(text.data()), text.size());
   assert(borrowedQr.rectangles == ownedQr.rectangles);
-  assert(asset_allocation_attempts() == beforeBorrowed + 1);  // Only the transient bitmap.
+  assert(asset_allocation_attempts() == beforeBorrowed + 2);  // Transient bitmap and encoder scratch.
   borrowedQr.rectangles.clear();
   const auto failure = std::to_string(asset_allocation_attempts());
   assert(setenv("ASSET_FAIL_ALLOC", failure.c_str(), 1) == 0);
+  QrUtils::drawQrBytes(borrowedQr, bounds, reinterpret_cast<const uint8_t*>(text.data()), text.size());
+  assert(borrowedQr.rectangles.empty());
+  assert(unsetenv("ASSET_FAIL_ALLOC") == 0);
+  const auto scratchFailure = std::to_string(asset_allocation_attempts() + 1);
+  assert(setenv("ASSET_FAIL_ALLOC", scratchFailure.c_str(), 1) == 0);
   QrUtils::drawQrBytes(borrowedQr, bounds, reinterpret_cast<const uint8_t*>(text.data()), text.size());
   assert(borrowedQr.rectangles.empty());
   assert(unsetenv("ASSET_FAIL_ALLOC") == 0);

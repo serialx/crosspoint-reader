@@ -6,10 +6,19 @@
 
 #include "Logging.h"
 namespace {
-bool encode(void*, const uint8_t* text, size_t len, uint8_t version, uint8_t* modules) {
+bool encode(void* context, const uint8_t* text, size_t len, uint8_t version, uint8_t* modules) {
+  const auto sizes = qrcode_getScratchSizes(version, ECC_LOW);
+  const size_t bytes = sizes.codewords + sizes.functionGrid + sizes.errorCorrection;
+  const auto scratch = makeUniqueNoThrow<uint8_t[]>(bytes);
+  if (!scratch) {
+    if (context) *static_cast<bool*>(context) = true;
+    LOG_ERR("QR", "Failed to allocate QR scratch (%u bytes)", static_cast<unsigned>(bytes));
+    return false;
+  }
   QRCode code;
-  return qrcode_initBytes(&code, modules, version, ECC_LOW, const_cast<uint8_t*>(text), static_cast<uint16_t>(len)) ==
-         0;
+  return qrcode_initBytes(&code, modules, version, ECC_LOW, const_cast<uint8_t*>(text), static_cast<uint16_t>(len),
+                          scratch.get(), scratch.get() + sizes.codewords,
+                          scratch.get() + sizes.codewords + sizes.functionGrid) == 0;
 }
 // cppcheck-suppress constParameterCallback // The Rust C ABI requires a mutable void context.
 void draw(void* context, int32_t x, int32_t y, int32_t size) {
@@ -33,8 +42,9 @@ void QrUtils::drawQrBytes(const GfxRenderer& renderer, const Rect& bounds, const
     return;
   }
   uint8_t size = 0;
-  if (!xp_assets_qr_bitmap(text, textLength, bitmap.get(), bytes, &size, nullptr, encode)) {
-    LOG_ERR("QR", "Text too large for QR Code version %d", version);
+  bool scratchAllocationFailed = false;
+  if (!xp_assets_qr_bitmap(text, textLength, bitmap.get(), bytes, &size, &scratchAllocationFailed, encode)) {
+    if (!scratchAllocationFailed) LOG_ERR("QR", "Text too large for QR Code version %d", version);
     return;
   }
   xp_assets_qr_draw(bitmap.get(), bytes, size, bounds.x, bounds.y, bounds.width, bounds.height,

@@ -16,6 +16,7 @@ class GfxRenderer {
   FontCacheManager fonts;
   std::vector<uint8_t> buffer = std::vector<uint8_t>(792 * 528 / 8, 0xa5);
   mutable std::vector<int> rectangles;
+  void (*beforeFillRect)() = nullptr;
   uint8_t* getWriteTarget() { return buffer.data(); }
   int getWriteOriginY() const { return 0; }
   int getWriteRows() const { return 528; }
@@ -35,6 +36,9 @@ class GfxRenderer {
   void restoreBwBuffer() {}
   void getOrientedViewableTRBL(int* a, int* b, int* c, int* d) { *a = *b = *c = *d = 0; }
   void drawRect(int, int, int, int, int, bool) {}
-  void fillRect(int x, int y, int w, int h, bool b) const { rectangles.insert(rectangles.end(), {x, y, w, h, int(b)}); }
+  void fillRect(int x, int y, int w, int h, bool b) const {
+    if (beforeFillRect) beforeFillRect();
+    rectangles.insert(rectangles.end(), {x, y, w, h, int(b)});
+  }
   void displayBuffer(HalDisplay::RefreshMode = HalDisplay::RefreshMode::HALF_REFRESH) {}
 };

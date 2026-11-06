@@ -81,11 +81,11 @@ add_custom_command(OUTPUT ${WEB_TARGET}
     ${REPO_ROOT}/src/util/QrUtils.cpp ${REPO_ROOT}/src/activities/network/CrossPointWebServerActivity.cpp
     ${REPO_ROOT}/src/activities/network/NetworkUiBinding.h ${REPO_ROOT}/src/activities/network/NetworkUiBinding.cpp)
 add_executable(NetworkWebTarget ${WEB_TARGET} ${NETWORK_RENDER_SOURCES}
-  ${REPO_ROOT}/.pio/libdeps/default/QRCode/src/qrcode.c)
+  ${REPO_ROOT}/lib/QRCode/src/qrcode.c)
 # QRCode 0.0.1 defines bool itself and predates the C23 keywords.
 set_target_properties(NetworkWebTarget PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED ON)
 target_include_directories(NetworkWebTarget PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
-  ${REPO_ROOT}/lib/Memory ${REPO_ROOT}/.pio/libdeps/default/QRCode/src
+  ${REPO_ROOT}/lib/Memory ${REPO_ROOT}/lib/QRCode/src
   ${REPO_ROOT}/test/text_golden $<TARGET_PROPERTY:UiSceneTarget,INCLUDE_DIRECTORIES>)
 target_compile_definitions(NetworkWebTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,COMPILE_DEFINITIONS>)
 target_compile_options(NetworkWebTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,COMPILE_OPTIONS> -UNDEBUG)

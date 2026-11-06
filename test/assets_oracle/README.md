@@ -1,6 +1,6 @@
 # Asset output oracle
 
-This suite freezes production JPEG-to-BMP conversion, screenshot BMP bytes, and QR rectangle output at CrossPoint `ba6860d8`. It uses the patched JPEGDEC and QRCode leaves from the firmware dependency directory. The image inputs are the existing public image corpus; no private inputs are stored here.
+This suite freezes production JPEG-to-BMP conversion, screenshot BMP bytes, and QR rectangle output at CrossPoint `ba6860d8`. It uses the patched JPEGDEC dependency and the local QRCode scratch-buffer fork. The image inputs are the existing public image corpus; no private inputs are stored here.
 
 ```sh
 cmake -S test/assets_oracle -B build/assets
@@ -32,3 +32,7 @@ fails each of its three native-size buffer requests, verifies zero live owners,
 and immediately retries. Native asset tests exercise the default-platform path
 used by X4 Pro; C3 retains its accepted internal path and is checked by the
 firmware/emulator acceptance workload.
+
+`QrModuleGoldens` checks 137 complete module buffers against ricmoo/QRCode 0.0.1 outputs frozen before the scratch-buffer change (source SHA-256 `c2abf543af0043409323e88e880490c5c1250befe98f6e1147eec22315f43152`). Cases cover all 40 byte-mode capacities, the production version boundaries, empty/numeric/alphanumeric input, embedded NUL and UTF-8 truncation at 2,953 bytes. The old encoder ran with its original VLAs on the host; its outputs, not the fork, define `qr/goldens.json.gz`.
+
+The optional `ASSET_REFERENCE_ROOT` allocation target uses the original encoder from that historical checkout. Set `ASSET_REFERENCE_QR_SOURCE_DIR` to a separate QRCode 0.0.1 source directory if the checkout has no dependency cache. Production tests use the local fork and do not require the registry dependency.

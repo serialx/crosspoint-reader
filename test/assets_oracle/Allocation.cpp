@@ -108,6 +108,9 @@ struct Report {
 };
 static Report report;
 extern "C" size_t asset_allocation_attempts() { return attempts; }
+extern "C" size_t asset_live_bytes() { return liveBytes; }
+extern "C" size_t asset_peak_bytes() { return peakBytes; }
+extern "C" void asset_reset_peak() { peakBytes = liveBytes; }
 
 extern "C" void asset_fail_platform_growth(size_t skip, size_t count) {
   growthSkip = skip;

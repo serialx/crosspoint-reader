@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 project(assets_oracle C CXX)
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set_source_files_properties(${REPO_ROOT}/lib/QRCode/src/qrcode.c PROPERTIES COMPILE_OPTIONS "-Werror=vla")
 get_filename_component(REPO_ROOT "../.." ABSOLUTE)
 set(DECODER_SOURCE_DIR "${REPO_ROOT}/.pio/libdeps/default" CACHE PATH "Patched firmware dependencies")
 include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
@@ -11,14 +14,14 @@ add_executable(assets_oracle Oracle.cpp
   ${REPO_ROOT}/src/util/ScreenshotUtil.cpp
   ${REPO_ROOT}/src/util/QrUtils.cpp
   ${DECODER_SOURCE_DIR}/JPEGDEC/src/JPEGDEC.cpp
-  ${DECODER_SOURCE_DIR}/QRCode/src/qrcode.c)
+  ${REPO_ROOT}/lib/QRCode/src/qrcode.c)
 target_compile_definitions(assets_oracle PRIVATE __LINUX__)
 target_include_directories(assets_oracle PRIVATE stubs
   ${REPO_ROOT}/test/image_golden/stubs
   ${REPO_ROOT}/test/chapter_html_slim_parser/stubs
   ${REPO_ROOT}/lib/JpegToBmpConverter ${REPO_ROOT}/lib/GfxRenderer
   ${REPO_ROOT}/lib/Memory ${REPO_ROOT}/lib/Utf8 ${REPO_ROOT}/src/util
-  ${DECODER_SOURCE_DIR}/JPEGDEC/src ${DECODER_SOURCE_DIR}/QRCode/src)
+  ${DECODER_SOURCE_DIR}/JPEGDEC/src ${REPO_ROOT}/lib/QRCode/src)
 target_link_libraries(assets_oracle PRIVATE xp_ffi_host)
 enable_testing()
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
@@ -42,7 +45,7 @@ target_include_directories(image_block_allocations PRIVATE ${ASSET_INCLUDES} ${R
 add_dependencies(image_block_allocations xp_ffi_host_build)
 target_link_libraries(image_block_allocations PRIVATE ${XP_FFI_HOST_ARCHIVE})
 add_test(NAME ImageCacheAllocations COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/contracts.py $<TARGET_FILE:image_block_allocations>)
-add_executable(asset_contracts Contracts.cpp Allocation.cpp ${REPO_ROOT}/src/util/QrUtils.cpp ${DECODER_SOURCE_DIR}/QRCode/src/qrcode.c)
+add_executable(asset_contracts Contracts.cpp Allocation.cpp ${REPO_ROOT}/src/util/QrUtils.cpp ${REPO_ROOT}/lib/QRCode/src/qrcode.c)
 target_include_directories(asset_contracts PRIVATE ${ASSET_INCLUDES} ${REPO_ROOT}/rust/crates/xp-ffi/include)
 add_dependencies(asset_contracts xp_ffi_host_build)
 target_link_libraries(asset_contracts PRIVATE ${XP_FFI_HOST_ARCHIVE})
@@ -50,13 +53,16 @@ add_test(NAME AssetBufferContracts COMMAND asset_contracts)
 target_compile_options(asset_contracts PRIVATE -UNDEBUG)
 set(ASSET_REFERENCE_ROOT "" CACHE PATH "Optional ba6860d8 export for resource measurements")
 if(ASSET_REFERENCE_ROOT)
+  set(ASSET_REFERENCE_QR_SOURCE_DIR "${ASSET_REFERENCE_ROOT}/.pio/libdeps/default/QRCode/src"
+    CACHE PATH "Original QRCode 0.0.1 source for the historical allocation reference")
   add_executable(asset_reference_allocations Oracle.cpp Allocation.cpp
     ${ASSET_REFERENCE_ROOT}/lib/JpegToBmpConverter/JpegToBmpConverter.cpp
     ${ASSET_REFERENCE_ROOT}/src/util/QrUtils.cpp ${ASSET_REFERENCE_ROOT}/src/util/ScreenshotUtil.cpp
     ${REPO_ROOT}/lib/GfxRenderer/BitmapHelpers.cpp ${REPO_ROOT}/lib/Utf8/Utf8.cpp
-    ${DECODER_SOURCE_DIR}/JPEGDEC/src/JPEGDEC.cpp ${DECODER_SOURCE_DIR}/QRCode/src/qrcode.c)
+    ${DECODER_SOURCE_DIR}/JPEGDEC/src/JPEGDEC.cpp ${ASSET_REFERENCE_QR_SOURCE_DIR}/qrcode.c)
   target_compile_definitions(asset_reference_allocations PRIVATE __LINUX__)
   target_include_directories(asset_reference_allocations PRIVATE ${ASSET_INCLUDES} ${REPO_ROOT}/rust/crates/xp-ffi/include)
+  target_include_directories(asset_reference_allocations BEFORE PRIVATE ${ASSET_REFERENCE_QR_SOURCE_DIR})
   add_dependencies(asset_reference_allocations xp_ffi_host_build)
   target_link_libraries(asset_reference_allocations PRIVATE ${XP_FFI_HOST_ARCHIVE})
 endif()
@@ -79,3 +85,11 @@ add_dependencies(image_asset_failures xp_ffi_host_build)
 target_link_libraries(image_asset_failures PRIVATE ${XP_FFI_HOST_ARCHIVE})
 add_test(NAME ImageAssetFailurePaths COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/image_failures.py $<TARGET_FILE:image_asset_failures>)
+
+add_executable(qr_bitmap qr/Bitmap.cpp ${REPO_ROOT}/src/util/QrUtils.cpp
+  ${REPO_ROOT}/lib/QRCode/src/qrcode.c)
+target_include_directories(qr_bitmap PRIVATE ${ASSET_INCLUDES})
+target_compile_options(qr_bitmap PRIVATE -UNDEBUG)
+target_link_libraries(qr_bitmap PRIVATE xp_ffi_host)
+add_test(NAME QrModuleGoldens COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/qr/check.py $<TARGET_FILE:qr_bitmap>)

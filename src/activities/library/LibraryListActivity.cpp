@@ -912,7 +912,9 @@ void LibraryListActivity::rustPublished() {
 
 void LibraryListActivity::paintHeader(const XpUiCommand& command) {
   const auto& theme = *sharedUiThemeCell().load(std::memory_order_acquire);
-  fui::HeaderProps header;
+  // Reinitialize in place so each paint starts fresh without a large stack temporary.
+  std::destroy_at(&headerScratch.props);
+  auto& header = *std::construct_at(&headerScratch.props);
   header.title = headerTitle();
   header.titleText = theme.titleText;
   header.titleText.align = theme.headerTitleAlign;
@@ -942,7 +944,8 @@ void LibraryListActivity::paintHeader(const XpUiCommand& command) {
   const auto band = BaseTheme::headerBand(renderer, {r.x, r.y, r.w, r.h}, header);
   const auto device = textTarget.deviceContext();
   const fui::InputSnapshot input{};
-  fui::InteractionBuffer<24> controls;
+  std::destroy_at(&headerScratch.controls);
+  auto& controls = *std::construct_at(&headerScratch.controls);
   fui::Frame<24> surface(textTarget, device, input, controls);
   paintUiHeader(surface, band, header);
   frame.headerCount = std::min<size_t>(controls.count(), 3);

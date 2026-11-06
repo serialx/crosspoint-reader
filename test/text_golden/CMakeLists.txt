@@ -57,3 +57,23 @@ target_compile_options(UiSceneTarget PRIVATE $<TARGET_PROPERTY:TextGolden,COMPIL
 target_link_options(UiSceneTarget PRIVATE $<TARGET_PROPERTY:TextGolden,LINK_OPTIONS>)
 target_link_libraries(UiSceneTarget PRIVATE xp_ffi_host)
 add_test(NAME UiSceneTarget COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/ui_scene_target.py $<TARGET_FILE:UiSceneTarget>)
+
+set(LIBRARY_HEADER_TEST ${REPO_ROOT}/test/ui_header)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/library_methods.inc
+  COMMAND ${Python3_EXECUTABLE} ${LIBRARY_HEADER_TEST}/library_methods.py ${REPO_ROOT}
+    ${CMAKE_CURRENT_BINARY_DIR}/library_methods.inc
+  DEPENDS ${LIBRARY_HEADER_TEST}/library_methods.py ${LIBRARY_HEADER_TEST}/native_oracle/library-paint-header.txt
+    ${REPO_ROOT}/src/activities/library/LibraryListActivity.cpp VERBATIM)
+add_executable(LibraryHeaderPixels ${LIBRARY_HEADER_TEST}/library_pixels.cpp ${TEXT_GOLDEN_SOURCES}
+  ${CMAKE_CURRENT_BINARY_DIR}/library_methods.inc ${REPO_ROOT}/src/components/UiHeader.cpp
+  ${REPO_ROOT}/freeink-sdk/libs/ui/FreeInkUI/src/FreeInkUI.cpp)
+target_include_directories(LibraryHeaderPixels PRIVATE $<TARGET_PROPERTY:TextGolden,INCLUDE_DIRECTORIES>
+  ${CMAKE_CURRENT_BINARY_DIR} ${REPO_ROOT}/freeink-sdk/libs/ui/FreeInkUI/include
+  ${REPO_ROOT}/freeink-sdk/libs/assets/Icons/include)
+target_compile_definitions(LibraryHeaderPixels PRIVATE $<TARGET_PROPERTY:TextGolden,COMPILE_DEFINITIONS>
+  LIBRARY_HEADER_FAULT_TEST=1)
+target_compile_options(LibraryHeaderPixels PRIVATE $<TARGET_PROPERTY:TextGolden,COMPILE_OPTIONS> -UNDEBUG)
+target_link_options(LibraryHeaderPixels PRIVATE $<TARGET_PROPERTY:TextGolden,LINK_OPTIONS>)
+target_link_libraries(LibraryHeaderPixels PRIVATE xp_ffi_host)
+add_test(NAME LibraryHeaderPixels COMMAND ${Python3_EXECUTABLE} ${LIBRARY_HEADER_TEST}/library_pixels.py
+  $<TARGET_FILE:LibraryHeaderPixels>)

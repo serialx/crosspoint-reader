@@ -1,0 +1,42 @@
+void LibraryListActivity::paintHeader(const XpUiCommand& command) {
+  const auto& theme = *sharedUiThemeCell().load(std::memory_order_acquire);
+  fui::HeaderProps header;
+  header.title = headerTitle();
+  header.titleText = theme.titleText;
+  header.titleText.align = theme.headerTitleAlign;
+  header.sidePadding = theme.headerSidePadding;
+  header.minTouchSize = theme.minTouchSize;
+  header.styles = theme.popup;
+  if (header.styles.normal.border.kind == fui::PaintKind::None && theme.headerUnderline > 0) {
+    header.styles.normal.border = fui::Paint::solid(fui::Color::Black);
+    header.styles.normal.borderWidth = theme.headerUnderline;
+  }
+  header.trailingStyles = fui::plainStyles(fui::Paint::solid(fui::Color::Black));
+  header.borderEdges = fui::EdgeBottom;
+  GUI.applyHeaderStatus(renderer, header);
+  if (command.style & 1) {
+    header.leadingIcon = fui::bitmapFromIcon(icon_header_back_32);
+    header.leadingAction = 6;
+  }
+  if (command.style & 2) {
+    header.trailingIcon = fui::bitmapFromIcon(icon_search_32);
+    header.trailingAction = 4;
+  }
+  if (command.style & 4) {
+    header.trailingAdjacentIcon = fui::bitmapFromIcon(icon_refresh_cw_32);
+    header.trailingAdjacentAction = 5;
+  }
+  const auto& r = command.rect;
+  const auto band = BaseTheme::headerBand(renderer, {r.x, r.y, r.w, r.h}, header);
+  const auto device = textTarget.deviceContext();
+  const fui::InputSnapshot input{};
+  fui::InteractionBuffer<24> controls;
+  fui::Frame<24> surface(textTarget, device, input, controls);
+  paintUiHeader(surface, band, header);
+  frame.headerCount = std::min<size_t>(controls.count(), 3);
+  for (uint8_t i = 0; i < frame.headerCount; ++i) {
+    const auto& c = controls.data()[i];
+    frame.headerControls[i] = {
+        {c.rect.x, c.rect.y, c.rect.width, c.rect.height}, c.value, static_cast<uint8_t>(c.action), {0, 0, 0}};
+  }
+}

@@ -181,4 +181,10 @@ class LibraryListActivity final : public RustActivityAdapter {
   // Row options modal (Recent long-press menu); owned here so it outlives the
   // touch event that opened it.
   OptionPopup optionPopup;
+
+  // Reused only while painting; keep header scratch off the render task stack.
+  struct HeaderScratch {
+    freeink::ui::HeaderProps props;
+    freeink::ui::InteractionBuffer<24> controls;
+  } headerScratch;
 };

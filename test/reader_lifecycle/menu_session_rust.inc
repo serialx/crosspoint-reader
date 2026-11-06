@@ -210,16 +210,16 @@ static void configureMenuLeaves() {
     activeMenu->owner.stripBuffers.releaseIdle();
     return 0;
   };
-  menuLeaves.physical.toolbar_open = []() -> void* {
+  menuLeaves.book.children.toolbar_open = []() -> void* {
     assert(!menuModelDepth && !lockDepth && !activeMenu->owner.toolbarUi);
     activeMenu->owner.toolbarUi = std::make_unique<ReaderToolbarUi>(activeMenu->owner.renderer);
     return activeMenu->owner.toolbarUi.get();
   };
-  menuLeaves.physical.toolbar_begin = [](void* raw) {
+  menuLeaves.book.children.toolbar_begin = [](void* raw) {
     assert(!menuModelDepth && raw == activeMenu->owner.toolbarUi.get());
     static_cast<ReaderToolbarUi*>(raw)->begin();
   };
-  menuLeaves.physical.toolbar_close = [](void* raw) {
+  menuLeaves.book.children.toolbar_close = [](void* raw) {
     assert(!menuModelDepth && lockDepth == 1 && raw == activeMenu->owner.toolbarUi.get());
     activeMenu->owner.toolbarUi.reset();
   };
@@ -238,14 +238,14 @@ static void configureMenuLeaves() {
         }};
     return &render;
   };
-  menuLeaves.physical.child_menu = [](const XpEpubMenuArgs* args) -> void* {
+  menuLeaves.book.children.child_menu = [](const XpEpubMenuArgs* args) -> void* {
     assert(!menuModelDepth && !lockDepth);
     return std::make_unique<EpubReaderMenuActivity>(
         activeMenu->owner.renderer, activeMenu->owner.mappedInput, menuString(args->title), args->display_page,
         args->pages, args->percent, args->orientation, args->footnotes != 0, args->bookmarks != 0,
         args->clippings != 0).release();
   };
-  menuLeaves.physical.child_chapter = [](void* raw, int32_t toc) -> void* {
+  menuLeaves.book.children.child_chapter = [](void* raw, int32_t toc) -> void* {
     assert(!menuModelDepth && !lockDepth && raw == activeMenu->owner.epub.get());
     return std::make_unique<EpubReaderChapterSelectionActivity>(activeMenu->owner.renderer, activeMenu->owner.mappedInput,
                                                                activeMenu->owner.epub, toc).release();
@@ -255,12 +255,12 @@ static void configureMenuLeaves() {
     return std::make_unique<TextSettingsActivity>(activeMenu->owner.renderer, activeMenu->owner.mappedInput,
                                                  &sdFontSystem.registry(), TextSettingsActivity::Tab::Family).release();
   };
-  menuLeaves.physical.child_percent = [](int32_t percent) -> void* {
+  menuLeaves.book.children.child_percent = [](int32_t percent) -> void* {
     assert(!menuModelDepth && !lockDepth);
     return std::make_unique<EpubReaderPercentSelectionActivity>(activeMenu->owner.renderer,
                                                                activeMenu->owner.mappedInput, percent).release();
   };
-  menuLeaves.physical.child_qr = [](XpAppText text) -> void* {
+  menuLeaves.book.children.child_qr = [](XpAppText text) -> void* {
     assert(!menuModelDepth && !lockDepth);
     return std::make_unique<QrDisplayActivity>(activeMenu->owner.renderer, activeMenu->owner.mappedInput,
                                               menuString(text)).release();

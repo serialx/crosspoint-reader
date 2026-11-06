@@ -74,6 +74,7 @@ pub struct LegacyBookServices {
         unsafe extern "C" fn(bookmarks: *mut core::ffi::c_void, book: *mut core::ffi::c_void) -> u8,
     pub clippings_load: unsafe extern "C" fn(book: *mut core::ffi::c_void) -> u8,
     pub recents_add: unsafe extern "C" fn(book: *mut core::ffi::c_void),
+    pub children: super::legacy_children::LegacyChildren,
 }
 
 // Only this named constructor opts an application fixture into synthetic books.
@@ -102,6 +103,7 @@ pub unsafe extern "C" fn xp_app_test_install_epub_legacy_book(
         return 0;
     };
     owner.book_factory = super::super::session_book::Factory::Legacy(services);
+    owner.legacy_children.set(Some(services.children));
     owner.legacy_pages.set(Some(&services.section.page));
     app.replace(crate::app::Owner::Epub(owner.into()));
     1
@@ -125,6 +127,7 @@ impl super::super::EpubSession {
             Some(&fixture.section.page),
         )?;
         owner.book_factory = super::super::session_book::Factory::Legacy(fixture);
+        owner.legacy_children.set(Some(fixture.children));
         Some(owner)
     }
     pub(in crate::app) fn try_owned_legacy_render(
@@ -134,8 +137,17 @@ impl super::super::EpubSession {
         runtime: &'static app_abi::Runtime,
         resources: &'static app_abi::Resources,
         fixture: &'static super::legacy_page::LegacyPageServices,
+        children: Option<super::legacy_children::LegacyChildren>,
     ) -> Option<Box<Self>> {
-        Self::try_owned_with_fixture(path, fast, leaves, runtime, resources, Some(fixture))
+        let owner =
+            Self::try_owned_with_fixture(path, fast, leaves, runtime, resources, Some(fixture))?;
+        owner.legacy_children.set(children);
+        Some(owner)
+    }
+    pub(in crate::app) fn legacy_child_fixture(
+        &self,
+    ) -> Option<super::legacy_children::LegacyChildren> {
+        self.legacy_children.get()
     }
     pub(in crate::app) fn legacy_page_fixture(
         &self,

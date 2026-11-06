@@ -173,9 +173,9 @@ void bindResultsPhysical() {
   static auto entryFonts = leaves.fonts_ensure_loaded;
   leaves.fonts_ensure_loaded = [] { if (!f().renderDepth) entryFonts(); else { borrowedUse("fonts-reload"); assert(f().renderDepth == 1); } };
   leaves.settings_save = [] { borrowedUse("settings-save"); ++results.settingsSaved; };
-  leaves.toolbar_open = []() -> void* { physical("toolbar-open", 0); assert(!results.toolbar); return results.toolbar = new ResultToolbar; };
-  leaves.toolbar_close = [](void* raw) { physical("toolbar-close", 1); assert(raw == results.toolbar); delete results.toolbar; results.toolbar = nullptr; };
-  leaves.toolbar_begin = [](void* raw) { physical("toolbar-begin", 0); assert(raw == results.toolbar); ++results.toolbar->begins; ++results.toolbarBegins; };
+  legacyBook.children.toolbar_open = []() -> void* { physical("toolbar-open", 0); assert(!results.toolbar); return results.toolbar = new ResultToolbar; };
+  legacyBook.children.toolbar_close = [](void* raw) { physical("toolbar-close", 1); assert(raw == results.toolbar); delete results.toolbar; results.toolbar = nullptr; };
+  legacyBook.children.toolbar_begin = [](void* raw) { physical("toolbar-begin", 0); assert(raw == results.toolbar); ++results.toolbar->begins; ++results.toolbarBegins; };
   leaves.popup_active = [](void* raw) -> uint8_t { physical("popup-active"); auto it = f().handles.find(raw); assert(it != f().handles.end());
     assert(it->second->kind == Kind::OverlayPopup || it->second->kind == Kind::FailurePopup); return 0; };
   leaves.popup_dismiss = [](void* raw) { physical("popup-dismiss", 0); f().handle(raw, Kind::OverlayPopup); };
@@ -190,13 +190,13 @@ void bindResultsPhysical() {
     };
     return &input;
   };
-  leaves.child_menu = [](const XpEpubMenuArgs* args) -> void* { assert(args && text(args->title) == "Fixture"); return child("menu"); };
-  leaves.child_chapter = [](void* book, int32_t toc) -> void* { assert(book == f().extractor && toc == 0); return child("chapter"); };
-  leaves.child_percent = [](int32_t) -> void* { return child("percent"); };
+  legacyBook.children.child_menu = [](const XpEpubMenuArgs* args) -> void* { assert(args && text(args->title) == "Fixture"); return child("menu"); };
+  legacyBook.children.child_chapter = [](void* book, int32_t toc) -> void* { assert(book == f().extractor && toc == 0); return child("chapter"); };
+  legacyBook.children.child_percent = [](int32_t) -> void* { return child("percent"); };
   leaves.child_text_settings = []() -> void* { return child("text"); };
   leaves.child_bookmarks = [](void* book, XpAppText path) -> void* { assert(book == f().extractor && text(path) == f().path); return child("bookmarks"); };
   leaves.child_clippings = []() -> void* { return child("clippings"); };
-  leaves.child_qr = [](XpAppText value) -> void* { assert(text(value) == "page words"); return child("qr"); };
+  legacyBook.children.child_qr = [](XpAppText value) -> void* { assert(text(value) == "page words"); return child("qr"); };
   legacyBook.section.page.child_footnote = [](void* page, int32_t, int32_t) -> void* { return child("footnote", {static_cast<ResultPage*>(page)}); };
   legacyBook.section.page.child_selection = [](void** pages, uint8_t count, const XpEpubSelectionArgs*) -> void* {
     assert(count > 0 && count <= 3); std::vector<ResultPage*> owned;

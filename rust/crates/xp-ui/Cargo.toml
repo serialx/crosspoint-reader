@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
+[features]
+legacy-reader-oracles = []
+
 [dependencies]
 embedded-graphics-core.workspace = true
 xp-core = { path = "../xp-core" }

@@ -9,6 +9,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 sys.path.insert(0, str(ROOT / 'test/reader_lifecycle'))
 from test_child_handle_composition import fixture, NATIVE, OWNER, MANAGER
+from oracle_sources import native_text
 from legacy_page_native import source as legacy_page_source
 from book_facade_composition import facade_bridge_source, compile_command
 from test_popup_resource import replace_once
@@ -20,7 +21,7 @@ def main():
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix='reader-owned-app-') as temporary:
         out = Path(temporary)
-        source = fixture(legacy_page_source(NATIVE.read_text()), OWNER.read_text(), MANAGER.read_text())
+        source = fixture(legacy_page_source(native_text(NATIVE)), OWNER.read_text(), MANAGER.read_text())
         source = source.split('int main(int argc, char** argv)', 1)[0]
         source += (HERE / 'owned_app.cpp.in').read_text()
         candidate = out / 'candidate.cpp'

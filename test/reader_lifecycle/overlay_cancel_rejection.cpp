@@ -66,7 +66,7 @@ static const LegacyEpubLeaves leaves = [] {
     unlocked("dismiss");
     popupActive = false;
   };
-  value.physical.toolbar_close = [](void* p) {
+  value.book.children.toolbar_close = [](void* p) {
     assert(p == &toolbar);
     locked("close");
   };

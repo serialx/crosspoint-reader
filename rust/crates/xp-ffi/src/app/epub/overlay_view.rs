@@ -1,8 +1,11 @@
 use super::session_section::Section as ReaderSection;
 use super::{abi, app_abi, state::Overlay, EpubSession, ResourceAccess};
-use core::{ffi::c_void, mem::MaybeUninit};
+#[cfg(feature = "app-test")]
+use core::ffi::c_void;
+use core::mem::MaybeUninit;
 use xp_core::i18n::ids;
 
+#[cfg(feature = "app-test")]
 #[derive(Clone, Copy)]
 enum RowPart {
     TextName,
@@ -10,6 +13,7 @@ enum RowPart {
     MoreName,
     MoreValue,
 }
+#[cfg(feature = "app-test")]
 struct Rows<'a, 'b> {
     access: &'a ResourceAccess<'b>,
     mode: Overlay,
@@ -39,6 +43,7 @@ fn number(out: &mut [u8], value: i32) -> usize {
     used
 }
 
+#[cfg(feature = "app-test")]
 unsafe extern "C" fn row(
     context: *mut c_void,
     index: i32,
@@ -80,6 +85,7 @@ impl EpubSession {
         self.current_chapter_title(access, consume)
     }
 
+    #[cfg(feature = "app-test")]
     fn overlay_row_text<R>(
         &self,
         access: &ResourceAccess<'_>,
@@ -109,6 +115,7 @@ impl EpubSession {
         Some(consume(value.wire()))
     }
 
+    #[cfg(feature = "app-test")]
     fn overlay_checkbox(&self, access: &ResourceAccess<'_>, mode: Overlay, index: i32) -> (u8, u8) {
         match mode {
             Overlay::Text if index == 4 => (1, u8::from(self.settings(false).focus_reading != 0)),
@@ -130,6 +137,7 @@ impl EpubSession {
         }
     }
 
+    #[cfg(feature = "app-test")]
     fn fill_overlay_row(
         &self,
         access: &ResourceAccess<'_>,
@@ -201,10 +209,16 @@ impl EpubSession {
         model: &abi::XpEpubToolbarModel,
     ) {
         let toolbar = self.toolbar(access).expect("overlay toolbar");
+        #[cfg(feature = "app-test")]
         let mut rows = Rows { access, mode };
         let painted = match toolbar {
+            #[cfg(feature = "app-test")]
             super::children::ToolbarTarget::Legacy(toolbar) => unsafe {
-                (self.leaves.toolbar_paint)(
+                (self
+                    .legacy_children
+                    .get()
+                    .expect("legacy toolbar fixture")
+                    .toolbar_paint)(
                     toolbar.as_ptr(),
                     model,
                     row,

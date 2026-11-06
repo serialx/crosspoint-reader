@@ -3,6 +3,7 @@
 
 #include <cstdlib>
 
+#include "legacy_children_fixture.h"
 #include "legacy_page_fixture.h"
 
 // Only historical synthetic session constructors accept these inputs.
@@ -66,6 +67,7 @@ struct XpEpubLegacyBookServices {
   uint8_t (*bookmarks_save)(void* bookmarks, void* book);
   uint8_t (*clippings_load)(void* book);
   void (*recents_add)(void* book);
+  XpEpubLegacyChildren children = unexpectedLegacyChildren();
 };
 struct LegacyEpubLeaves {
   XpEpubLeaves physical;

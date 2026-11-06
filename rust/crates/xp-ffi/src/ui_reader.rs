@@ -169,6 +169,7 @@ pub unsafe extern "C" fn xp_ui_reader_links_decode(
     )
 }
 
+#[cfg(feature = "app-test")]
 use xp_ui::model::ListState;
 use xp_ui::reader::input;
 /// # Safety
@@ -235,6 +236,8 @@ pub extern "C" fn xp_ui_reader_gesture(gesture: u8) -> u8 {
 }
 /// # Safety
 /// Non-null state points to an exclusively borrowed valid ListState for this call.
+// Retired native ABI, retained only for historical host oracles.
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn xp_ui_reader_toolbar_nav_reset(state: *mut ListState) {
@@ -244,6 +247,8 @@ pub unsafe extern "C" fn xp_ui_reader_toolbar_nav_reset(state: *mut ListState) {
 }
 /// # Safety
 /// Non-null state points to a readable valid ListState for this call.
+// Retired native ABI, retained only for historical host oracles.
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn xp_ui_reader_toolbar_page_rows(state: *const ListState) -> i32 {
@@ -251,6 +256,8 @@ pub unsafe extern "C" fn xp_ui_reader_toolbar_page_rows(state: *const ListState)
 }
 /// # Safety
 /// Non-null state points to an exclusively borrowed valid ListState for this call.
+// Retired native ABI, retained only for historical host oracles.
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn xp_ui_reader_toolbar_scroll(
@@ -265,6 +272,8 @@ pub unsafe extern "C" fn xp_ui_reader_toolbar_scroll(
 
 /// # Safety
 /// Non-null states are valid, aligned, disjoint, and exclusively borrowed for this call.
+// Retired native ABI, retained only for historical host oracles.
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn xp_ui_reader_toolbar_nav_publish(

@@ -81,6 +81,7 @@ pub unsafe extern "C" fn xp_epub_test_base_create_legacy_book(
         return core::ptr::null_mut();
     };
     owner.book_factory = super::super::session_book::Factory::Legacy(legacy_book);
+    owner.legacy_children.set(Some(legacy_book.children));
     owner.legacy_pages.set(Some(&legacy_book.section.page));
     let state = owner.state.get_mut();
     // Standalone composition intentionally renders after early enter failures.

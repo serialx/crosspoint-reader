@@ -11,7 +11,6 @@ struct OwnedChildDrawing {
   void (*clear)();
   void (*prewarm)(int32_t, const void*, XpAppText (*)(const void*, uint32_t), uint32_t);
 };
-uint8_t xp_app_test_child_drawing(const OwnedChildDrawing*);
 void* xp_app_test_current_child(uint8_t*);
 void xp_app_test_activity_loop();
 const uint8_t* xp_epub_test_child_result_anchor(const void*);
@@ -53,6 +52,15 @@ static const OwnedChildDrawing drawing{
   }
 };
 static void bindOwnedChildren() {
+  legacyBook.children = unexpectedLegacyChildren();
+  leaves.child_list_theme = drawing.theme;
+  leaves.child_utility_layout = drawing.layout;
+  leaves.child_header = drawing.header;
+  leaves.child_utility_footer = drawing.footer;
+  leaves.child_qr_draw = drawing.qr;
+  leaves.child_toolbar_icon = drawing.icon;
+  leaves.child_clear_fonts = drawing.clear;
+  leaves.child_prewarm_rows = drawing.prewarm;
   runtime.frontlight_present = []() -> uint8_t { return 0; };
   runtime.frontlight_state = []() -> uint8_t { return 0; };
   runtime.touch_feedback = [](uint8_t) { physical("child-haptic"); };
@@ -63,8 +71,6 @@ static void bindOwnedChildren() {
   leaves.render_restore_bw = [](uint8_t) { physical("toolbar-restore", 1); };
   leaves.input_facts = [](XpEpubInputFacts* out) { *out = {}; };
   leaves.input_snapshot = [](XpUiInput* out) { *out = childInput.input; };
-  leaves.toolbar_open = []() -> void* { assert(false && "native toolbar factory"); return nullptr; };
-  leaves.toolbar_paint = [](void*, const XpEpubToolbarModel*, XpEpubRowSource, void*) -> uint8_t { assert(false && "native toolbar paint"); return 0; };
   resources.translate = [](uint16_t) -> XpAppText { return literal("translation"); };
   resources.text_width = [](XpAppText text, int32_t, uint8_t) -> int32_t { physical("child-width", 1); return int(text.len * 8); };
   resources.line_height = [](int32_t) -> int32_t { physical("child-line", 1); return 24; };
@@ -146,8 +152,9 @@ int main(int argc, char** argv) {
   Fixture state; fixture = &state;
   bind(); bindResultsLifecycle(); bindResultsPhysical(); bindProductionChildren();
   bindReaderBook(); bindReaderResults(); BookStoreAdapters::bind(); bindOwnedChildren();
-  initialize(); assert(xp_app_test_child_drawing(&drawing));
+  initialize();
   enterCompositionReader();
+  xp_epub_test_legacy_children(results.owner, nullptr);
   if (mode == "text" || mode == "text-overlay") {
     const bool overlay = mode == "text-overlay";
     if (overlay) {

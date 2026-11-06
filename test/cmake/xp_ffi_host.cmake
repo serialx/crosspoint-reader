@@ -35,5 +35,6 @@ add_custom_target(xp_ffi_host_build
 add_library(xp_ffi_host INTERFACE)
 add_dependencies(xp_ffi_host xp_ffi_host_build)
 target_sources(xp_ffi_host INTERFACE ${CMAKE_CURRENT_LIST_DIR}/xp_ffi_host.cpp)
-target_include_directories(xp_ffi_host INTERFACE ${XP_FFI_HOST_WORKSPACE}/crates/xp-ffi/include)
+target_include_directories(xp_ffi_host INTERFACE ${XP_FFI_HOST_WORKSPACE}/crates/xp-ffi/include
+  ${XP_FFI_REPO_ROOT}/test/reader_lifecycle)
 target_link_libraries(xp_ffi_host INTERFACE ${XP_FFI_HOST_ARCHIVE})

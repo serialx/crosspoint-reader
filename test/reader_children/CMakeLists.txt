@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   project(reader_children_tests C CXX)
+  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
   set(CMAKE_CXX_STANDARD 20)
   enable_testing()
   get_filename_component(REPO_ROOT "../.." ABSOLUTE)
@@ -8,13 +9,21 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 endif()
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME reader_native_oracle_include_paths
+  COMMAND ${Python3_EXECUTABLE} ${REPO_ROOT}/test/cmake/check_native_oracle_includes.py
+    ${CMAKE_BINARY_DIR}/compile_commands.json)
+foreach(language c cpp)
+  add_executable(reader_child_leaf_abi_${language} leaf_contract.${language})
+  target_include_directories(reader_child_leaf_abi_${language} PRIVATE ${REPO_ROOT}/rust/crates/xp-ffi/include)
+  add_test(NAME reader_child_leaf_abi_${language} COMMAND reader_child_leaf_abi_${language})
+endforeach()
 find_program(READER_CHILDREN_CARGO cargo REQUIRED)
 set(READER_CHILDREN_TARGET "${CMAKE_CURRENT_BINARY_DIR}/cargo")
 set(READER_PERCENT_NATIVE "${CMAKE_CURRENT_BINARY_DIR}/percent_native.cpp")
 add_custom_command(OUTPUT ${READER_PERCENT_NATIVE}
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_percent.py ${READER_PERCENT_NATIVE}
   DEPENDS prepare_percent.py percent_native.cpp.in ../reader_lifecycle/extract.py
-    ${REPO_ROOT}/src/activities/reader/EpubReaderPercentSelectionActivity.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/native_oracle/src/activities/reader/EpubReaderPercentSelectionActivity.cpp.txt
     ${REPO_ROOT}/src/components/UiAppHost.cpp ${REPO_ROOT}/src/util/ButtonNavigator.cpp
   VERBATIM)
 add_executable(ReaderPercentNative ${READER_PERCENT_NATIVE}
@@ -39,7 +48,7 @@ add_custom_command(OUTPUT ${READER_CHAPTER_NATIVE}
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_chapters.py ${READER_CHAPTER_NATIVE}
   DEPENDS prepare_chapters.py chapter_native.cpp.in ../reader_lifecycle/book_cache_fixture.h
     ../reader_lifecycle/test_popup_resource.py
-    ${REPO_ROOT}/src/activities/reader/EpubReaderChapterSelectionActivity.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/native_oracle/src/activities/reader/EpubReaderChapterSelectionActivity.cpp.txt
     ${REPO_ROOT}/src/activities/reader/RustEpubResources.cpp
     ${REPO_ROOT}/lib/Epub/Epub/PackagePlatform.cpp
   VERBATIM)
@@ -63,7 +72,7 @@ add_custom_command(OUTPUT ${READER_PERCENT_DRAWING}
   DEPENDS prepare_percent_drawing.py percent_drawing.cpp.in ../reader_lifecycle/extract.py
     ${REPO_ROOT}/src/components/UiSliderDialog.h ${REPO_ROOT}/src/components/UiAppHelpers.h
     ${REPO_ROOT}/src/components/UIThemeTokens.h
-    ${REPO_ROOT}/src/activities/reader/EpubReaderPercentSelectionActivity.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/native_oracle/src/activities/reader/EpubReaderPercentSelectionActivity.cpp.txt
     ${REPO_ROOT}/src/activities/util/UtilityActivity.cpp
     ${REPO_ROOT}/src/activities/reader/RustReaderDrawing.cpp
     ${REPO_ROOT}/src/activities/reader/ReaderChromeListActivity.cpp

@@ -81,7 +81,31 @@ fn shared_percent_drawing_fits_eighteen_inline_commands() {
                         let scene = arena.finish(refresh, 1).unwrap();
                         assert!(scene.commands.len() <= 18);
                         assert_eq!(scene.commands.len(), if touch != 0 { 18 } else { 14 });
+                        let mut interval_commands = [Command::default(); 18];
+                        let mut interval_controls = xp_ui::reader::percent::Controls::default();
+                        let mut interval = TruncatingArena::with_hit_sink(
+                            &mut interval_commands,
+                            &mut interval_controls,
+                        )
+                        .unwrap();
+                        let (_, interval_refresh) = utility::interval_view(
+                            &mut interval,
+                            &state,
+                            &layout,
+                            &mut Fonts,
+                            &Fonts,
+                            Default::default(),
+                        )
+                        .unwrap();
+                        assert_eq!(interval_refresh, refresh);
+                        let interval = interval
+                            .finish_reporting_overflow(interval_refresh, 1, |_| {
+                                panic!("interval exceeded eighteen commands")
+                            })
+                            .unwrap();
+                        assert_eq!(interval.commands, scene.commands);
                         assert_eq!(controls.as_slice().len(), if touch != 0 { 5 } else { 2 });
+                        assert_eq!(interval_controls.as_slice(), controls.as_slice());
                     }
                 }
             }
@@ -204,7 +228,7 @@ fn truncating_shared_slider_matches_the_strict_scene() {
         Default::default(),
     )
     .unwrap();
-    utility::view_with_sink(
+    utility::interval_view(
         &mut truncated,
         &state,
         &layout,
@@ -219,4 +243,51 @@ fn truncating_shared_slider_matches_the_strict_scene() {
         .unwrap();
     assert_eq!(strict.commands, truncated.commands);
     assert_eq!(strict_controls.as_slice(), truncated_controls.as_slice());
+}
+
+#[test]
+fn interval_entry_rejects_other_screens_without_commands_or_hits() {
+    for kind in [
+        utility::Screen::Confirmation as u8,
+        utility::Screen::Details as u8,
+        utility::Screen::Qr as u8,
+        utility::Screen::Frontlight as u8,
+        255,
+    ] {
+        let screen = Rect {
+            x: 0,
+            y: 0,
+            w: 480,
+            h: 800,
+        };
+        let layout = Layout {
+            screen,
+            safe: screen,
+            ..Default::default()
+        };
+        let state = utility::State {
+            kind,
+            ..Default::default()
+        };
+        let mut commands = [Command::default(); 18];
+        let mut controls = xp_ui::reader::percent::Controls::default();
+        let mut arena = TruncatingArena::with_hit_sink(&mut commands, &mut controls).unwrap();
+        assert!(matches!(
+            utility::interval_view(
+                &mut arena,
+                &state,
+                &layout,
+                &mut Fonts,
+                &Fonts,
+                Default::default()
+            ),
+            Err(Error::Invalid)
+        ));
+        assert!(arena
+            .finish(xp_ui::scene::Refresh::None, 1)
+            .unwrap()
+            .commands
+            .is_empty());
+        assert!(controls.as_slice().is_empty());
+    }
 }

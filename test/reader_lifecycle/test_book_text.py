@@ -7,13 +7,16 @@ from test_popup_resource import definition, native_leaf, replace_once
 
 ROOT=Path(__file__).resolve().parents[2]
 HERE=Path(__file__).resolve().parent
+import sys
+sys.path.insert(0, str(HERE.parent / "reader_children"))
+from oracle_sources import native_text
 
 def composition(root):
     source=facade_source(root)
-    native=(root/'src/activities/reader/RustEpubResources.cpp').read_text()
+    native=native_text('src/activities/reader/RustEpubResources.cpp')
     ui=(HERE/'book_text_ui.cpp').read_text()
-    header=(root/'src/activities/reader/ReaderToolbarUi.h').read_text()
-    cpp=(root/'src/activities/reader/ReaderToolbarUi.cpp').read_text()
+    header=native_text('src/activities/reader/ReaderToolbarUi.h')
+    cpp=native_text('src/activities/reader/ReaderToolbarUi.cpp')
     commands=(root/'src/activities/reader/ReaderChromeListActivity.cpp').read_text()
     declarations=definition((root/'src/activities/reader/ReaderChromeListActivity.h').read_text(),'class ReaderChromeCommands {')+';\n'
     declarations+=definition(header,'class ReaderToolbarUi {').replace('freeink::ui::GfxRendererTarget','TextTarget')+';\n'

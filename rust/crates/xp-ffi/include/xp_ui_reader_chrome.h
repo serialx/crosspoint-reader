@@ -100,39 +100,6 @@ void xp_ui_reader_list_publish(XpUiReaderListState*, const XpUiReaderListState*,
 uint8_t xp_ui_reader_list_view(const XpUiReaderListState*, uint8_t kind, const XpUiReaderTheme*, const XpUiReaderRows*,
                                const XpUiBuffer*, XpUiReaderListState*, XpUiScene*, XpUiReaderHitLayout*);
 
-// Existing public MenuAction values used by the parent-facing facade.
-enum {
-  XP_UI_READER_MENU_NIGHT = 3,
-  XP_UI_READER_MENU_FRONTLIGHT = 4,
-  XP_UI_READER_MENU_BLUETOOTH = 5,
-  XP_UI_READER_MENU_AUTO_TURN = 7,
-  XP_UI_READER_MENU_ORIENTATION = 8,
-  XP_UI_READER_MENU_LAST_ACTION = 18
-};
-typedef struct {
-  uint8_t orientation, page_turn, reserved[2];
-} XpUiReaderMenuState;
-typedef struct {
-  int32_t action;
-  uint8_t orientation, page_turn, cancelled, effect;
-} XpUiReaderMenuResult;
-typedef enum {
-  XP_UI_READER_MENU_NONE,
-  XP_UI_READER_MENU_SHOW_ORIENTATION,
-  XP_UI_READER_MENU_SHOW_AUTO_TURN,
-  XP_UI_READER_MENU_TOGGLE_NIGHT,
-  XP_UI_READER_MENU_TOGGLE_BLUETOOTH,
-  XP_UI_READER_MENU_TOGGLE_FRONTLIGHT,
-  XP_UI_READER_MENU_FINISH,
-  XP_UI_READER_MENU_APPLY_ORIENTATION,
-  XP_UI_READER_MENU_REDRAW
-} XpUiReaderMenuEffect;
-enum { XP_UI_READER_MENU_CHOOSE_ORIENTATION, XP_UI_READER_MENU_CHOOSE_AUTO_TURN };
-void xp_ui_reader_menu_init(XpUiReaderMenuState*, uint8_t orientation);
-XpUiReaderMenuResult xp_ui_reader_menu_activate(const XpUiReaderMenuState*, int32_t action);
-XpUiReaderMenuResult xp_ui_reader_menu_choose(XpUiReaderMenuState*, uint8_t option, int32_t selection);
-XpUiReaderMenuResult xp_ui_reader_menu_cancel(const XpUiReaderMenuState*);
-
 typedef struct {
   int32_t selected;
   uint32_t last_move_ms;
@@ -145,22 +112,6 @@ uint8_t xp_ui_reader_footnote_view(XpUiRect screen, XpUiRect link, int16_t margi
                                    int32_t font, uint32_t number_handle, const XpUiBuffer*, XpUiRect* snapshot,
                                    XpUiScene*);
 
-typedef struct {
-  uint8_t panel, dense_rows, reserved[2];
-  int32_t active_tool, progress_permille;
-  uint32_t chapter_title, page_info, panel_title;
-} XpUiReaderToolbarModel;
-uint8_t xp_ui_reader_toolbar_view(const XpUiListState*, const XpUiReaderToolbarModel*, const XpUiReaderTheme*,
-                                  const XpUiReaderRows*, const XpUiBuffer*, XpUiListState*, XpUiScene*,
-                                  XpUiReaderHitLayout*);
-typedef struct {
-  int16_t active, last_drag_x;
-  uint8_t contact_held, reserved[3];
-} XpUiReaderToolbarInput;
-// Init with active=last_drag_x=-1, contact_held=0. Effect.kind is the unchanged
-// ReaderToolbarUi Event ID; invalidate reports routed, and scrub is release-only.
-XpUiEffect xp_ui_reader_toolbar_route(XpUiReaderToolbarInput*, const XpUiReaderHitLayout*, const XpUiInput*,
-                                      int32_t* permille);
 uint8_t xp_ui_reader_hit(const XpUiReaderHitLayout*, int16_t x, int16_t y, XpUiInteraction*);
 // Effect.kind is the existing EndOfBookOptions::Action ID (0..4).
 XpUiEffect xp_ui_reader_end_update(XpUiListState*, const XpUiInput*, uint16_t count, uint8_t use_press);
@@ -190,18 +141,6 @@ static_assert(offsetof(XpUiReaderHitLayout, reserved) == 182);
 // XP_UI_SCROLL must remain the last shared effect ID; keep these family IDs above it.
 static_assert(int(XP_UI_READER_ACTIONS) > int(XP_UI_SCROLL));
 static_assert(int(XP_UI_READER_DELETE) > int(XP_UI_READER_ACTIONS));
-static_assert(sizeof(XpUiReaderMenuState) == 4);
-static_assert(alignof(XpUiReaderMenuState) == 1);
-static_assert(offsetof(XpUiReaderMenuState, orientation) == 0);
-static_assert(offsetof(XpUiReaderMenuState, page_turn) == 1);
-static_assert(offsetof(XpUiReaderMenuState, reserved) == 2);
-static_assert(sizeof(XpUiReaderMenuResult) == 8);
-static_assert(alignof(XpUiReaderMenuResult) == 4);
-static_assert(offsetof(XpUiReaderMenuResult, action) == 0);
-static_assert(offsetof(XpUiReaderMenuResult, orientation) == 4);
-static_assert(offsetof(XpUiReaderMenuResult, page_turn) == 5);
-static_assert(offsetof(XpUiReaderMenuResult, cancelled) == 6);
-static_assert(offsetof(XpUiReaderMenuResult, effect) == 7);
 static_assert(sizeof(XpUiReaderListState) == 48);
 static_assert(alignof(XpUiReaderListState) == 4);
 static_assert(offsetof(XpUiReaderListState, list) == 0);
@@ -262,20 +201,4 @@ static_assert(offsetof(XpUiReaderRows, line_height) == sizeof(void*) * 5);
 static_assert(offsetof(XpUiReaderRows, count) == sizeof(void*) * 6 + 0);
 static_assert(offsetof(XpUiReaderRows, window_capacity) == sizeof(void*) * 6 + 2);
 static_assert(offsetof(XpUiReaderRows, generation) == sizeof(void*) * 6 + 4);
-static_assert(sizeof(XpUiReaderToolbarInput) == 8);
-static_assert(alignof(XpUiReaderToolbarInput) == 2);
-static_assert(offsetof(XpUiReaderToolbarInput, active) == 0);
-static_assert(offsetof(XpUiReaderToolbarInput, last_drag_x) == 2);
-static_assert(offsetof(XpUiReaderToolbarInput, contact_held) == 4);
-static_assert(offsetof(XpUiReaderToolbarInput, reserved) == 5);
-static_assert(sizeof(XpUiReaderToolbarModel) == 24);
-static_assert(alignof(XpUiReaderToolbarModel) == 4);
-static_assert(offsetof(XpUiReaderToolbarModel, panel) == 0);
-static_assert(offsetof(XpUiReaderToolbarModel, dense_rows) == 1);
-static_assert(offsetof(XpUiReaderToolbarModel, reserved) == 2);
-static_assert(offsetof(XpUiReaderToolbarModel, active_tool) == 4);
-static_assert(offsetof(XpUiReaderToolbarModel, progress_permille) == 8);
-static_assert(offsetof(XpUiReaderToolbarModel, chapter_title) == 12);
-static_assert(offsetof(XpUiReaderToolbarModel, page_info) == 16);
-static_assert(offsetof(XpUiReaderToolbarModel, panel_title) == 20);
 #endif

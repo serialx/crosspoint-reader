@@ -7,6 +7,8 @@ import tempfile
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
+sys.path.insert(0, str(ROOT / "test/reader_children"))
+from oracle_sources import native_text
 sys.path.insert(0, str(ROOT / 'test/reader_lifecycle'))
 from test_toolbar_resource import fixture, PATHS
 from test_popup_resource import replace_once
@@ -26,7 +28,7 @@ static std::vector<std::string> recordedTexts;
 class GfxRenderer {''')
     template = replace_once(template, '    ++texts;', '    ++texts;\n    recordedTexts.emplace_back(text);')
     template = replace_once(template, '    ++scenes;', '    ++scenes;\n    recordedCommands.assign(scene.commands, scene.commands + scene.command_count);')
-    source = fixture({path: (ROOT / path).read_text() for path in PATHS}, template)
+    source = fixture({path: native_text(path) for path in PATHS}, template)
     source += (HERE / 'toolbar_parity.cpp.in').read_text()
     with tempfile.TemporaryDirectory(prefix='reader-toolbar-parity-') as temporary:
         out = Path(temporary)

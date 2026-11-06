@@ -7,12 +7,14 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT / "test/reader_children"))
+from oracle_sources import native_text
 sys.path.insert(0, str(ROOT / 'test'))
 from rust_host import rust_link_flags
 
 frozen = (HERE / 'toolbar.cpp').read_text()
 frozen = frozen[:frozen.index('int main() {')]
-source = (ROOT / 'src/activities/reader/ReaderToolbarUi.cpp').read_text()
+source = native_text('src/activities/reader/ReaderToolbarUi.cpp')
 methods = source[source.index('const char* ReaderToolbarUi::text('):re.search(r'(?:void|bool) ReaderToolbarUi::render\(\)', source).start()]
 fixture = (HERE / 'toolbar_resources.cpp').read_text().replace('// RESOURCE_METHODS', methods)
 with tempfile.TemporaryDirectory() as directory:

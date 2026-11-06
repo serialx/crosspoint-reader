@@ -19,7 +19,7 @@ struct AppFixtureUnexpected<R (*)(A...), Slot> {
 
 inline XpEpubLeaves unexpectedEpubLeaves() {
   XpEpubLeaves value{};
-  static_assert(sizeof(XpEpubLeaves) == 167 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 163 * sizeof(void (*)()));
   value.render_margins = &AppFixtureUnexpected<decltype(value.render_margins), 5>::call;
   value.render_geometry = &AppFixtureUnexpected<decltype(value.render_geometry), 6>::call;
   value.render_restore_bw = &AppFixtureUnexpected<decltype(value.render_restore_bw), 7>::call;
@@ -91,25 +91,14 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.wifi_connected = &AppFixtureUnexpected<decltype(value.wifi_connected), 110>::call;
   value.wifi_disconnect = &AppFixtureUnexpected<decltype(value.wifi_disconnect), 111>::call;
   value.restart_reader = &AppFixtureUnexpected<decltype(value.restart_reader), 112>::call;
-  value.child_menu = &AppFixtureUnexpected<decltype(value.child_menu), 113>::call;
-  value.child_chapter = &AppFixtureUnexpected<decltype(value.child_chapter), 114>::call;
-  value.child_percent = &AppFixtureUnexpected<decltype(value.child_percent), 115>::call;
   value.child_text_settings = &AppFixtureUnexpected<decltype(value.child_text_settings), 116>::call;
   value.child_footnote = &AppFixtureUnexpected<decltype(value.child_footnote), 117>::call;
   value.child_dictionary = &AppFixtureUnexpected<decltype(value.child_dictionary), 118>::call;
   value.child_selection = &AppFixtureUnexpected<decltype(value.child_selection), 119>::call;
   value.child_bookmarks = &AppFixtureUnexpected<decltype(value.child_bookmarks), 120>::call;
   value.child_clippings = &AppFixtureUnexpected<decltype(value.child_clippings), 121>::call;
-  value.child_qr = &AppFixtureUnexpected<decltype(value.child_qr), 122>::call;
   value.child_wifi = &AppFixtureUnexpected<decltype(value.child_wifi), 123>::call;
   value.child_sync = &AppFixtureUnexpected<decltype(value.child_sync), 124>::call;
-  value.toolbar_open = &AppFixtureUnexpected<decltype(value.toolbar_open), 125>::call;
-  value.toolbar_close = &AppFixtureUnexpected<decltype(value.toolbar_close), 126>::call;
-  value.toolbar_begin = &AppFixtureUnexpected<decltype(value.toolbar_begin), 127>::call;
-  value.toolbar_paint = &AppFixtureUnexpected<decltype(value.toolbar_paint), 128>::call;
-  value.toolbar_route = &AppFixtureUnexpected<decltype(value.toolbar_route), 129>::call;
-  value.toolbar_scroll = &AppFixtureUnexpected<decltype(value.toolbar_scroll), 130>::call;
-  value.toolbar_visible_rows = &AppFixtureUnexpected<decltype(value.toolbar_visible_rows), 131>::call;
   value.popup_open = &AppFixtureUnexpected<decltype(value.popup_open), 132>::call;
   value.popup_close = &AppFixtureUnexpected<decltype(value.popup_close), 133>::call;
   value.popup_active = &AppFixtureUnexpected<decltype(value.popup_active), 134>::call;
@@ -158,7 +147,6 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.log = &AppFixtureUnexpected<decltype(value.log), 177>::call;
   value.font_text_advance = &AppFixtureUnexpected<decltype(value.font_text_advance), 182>::call;
   value.log_enabled = &AppFixtureUnexpected<decltype(value.log_enabled), 183>::call;
-  value.toolbar_reset_navigation = &AppFixtureUnexpected<decltype(value.toolbar_reset_navigation), 184>::call;
   value.input_snapshot = &AppFixtureUnexpected<decltype(value.input_snapshot), 185>::call;
   value.cache_lock = &AppFixtureUnexpected<decltype(value.cache_lock), 187>::call;
   value.cache_unlock = &AppFixtureUnexpected<decltype(value.cache_unlock), 188>::call;
@@ -187,6 +175,14 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.image_read_window = &AppFixtureUnexpected<decltype(value.image_read_window), 166>::call;
   value.display_source = &AppFixtureUnexpected<decltype(value.display_source), 166>::call;
   value.framebuffer_view = &AppFixtureUnexpected<decltype(value.framebuffer_view), 166>::call;
+  value.child_list_theme = &AppFixtureUnexpected<decltype(value.child_list_theme), 166>::call;
+  value.child_utility_layout = &AppFixtureUnexpected<decltype(value.child_utility_layout), 166>::call;
+  value.child_header = &AppFixtureUnexpected<decltype(value.child_header), 166>::call;
+  value.child_utility_footer = &AppFixtureUnexpected<decltype(value.child_utility_footer), 166>::call;
+  value.child_qr_draw = &AppFixtureUnexpected<decltype(value.child_qr_draw), 166>::call;
+  value.child_toolbar_icon = &AppFixtureUnexpected<decltype(value.child_toolbar_icon), 166>::call;
+  value.child_clear_fonts = &AppFixtureUnexpected<decltype(value.child_clear_fonts), 166>::call;
+  value.child_prewarm_rows = &AppFixtureUnexpected<decltype(value.child_prewarm_rows), 166>::call;
   return value;
 }
 

@@ -3,6 +3,8 @@
 #include <cassert>
 #include <cstdlib>
 #include <new>
+
+#include "../reader_lifecycle/legacy_reader_chrome_wire.h"
 static bool countAllocations = false;
 static unsigned allocations = 0;
 void* operator new(size_t size) {

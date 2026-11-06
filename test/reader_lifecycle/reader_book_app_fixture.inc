@@ -53,8 +53,10 @@ void assertReaderEntered() {
 }
 void bindReaderBook() {
   const auto pageFixture = legacyBook.section.page;
+  const auto childFixture = legacyBook.children;
   legacyBook = unexpectedLegacyBookServices();
   legacyBook.section.page = pageFixture;
+  legacyBook.children = childFixture;
   leaves.native_path_hash = [](XpAppText path) -> uint64_t { assert(text(path) == f().path); return 42; };
   resources.path_exists = [](XpAppText path) -> uint8_t {
     const auto value = text(path);

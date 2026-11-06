@@ -88,6 +88,7 @@ impl RowText<'_> {
             Self::Number { bytes, len } => &bytes[..*len],
         }
     }
+    #[cfg(feature = "app-test")]
     pub(super) fn wire(&self) -> app_abi::Text {
         app_abi::Text::from_bytes(self.bytes())
     }

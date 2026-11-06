@@ -8,6 +8,8 @@
 #include <mutex>
 #include <type_traits>
 
+#include "legacy_reader_chrome_wire.h"
+
 static_assert(
     std::is_same_v<decltype(&xp_ui_reader_toolbar_nav_publish), void (*)(XpUiListState*, const XpUiListState*)>);
 static_assert(sizeof(XpUiListState::navigation_revision) == 4);

@@ -33,7 +33,7 @@ static const LegacyEpubLeaves leaves = [] {
   table.physical.popup_dismiss = [](void* popup) {
     unlocked(); sync(); assert(popup == &active->overlayPopup); active->overlayPopup.dismiss();
   };
-  table.physical.toolbar_close = [](void* toolbar) {
+  table.book.children.toolbar_close = [](void* toolbar) {
     locked(); sync(); assert(toolbar && toolbar == active->toolbarUi.get()); active->toolbarUi.reset();
   };
   table.physical.render_geometry = [](XpEpubGeometry* out) {

@@ -471,6 +471,8 @@ pub unsafe extern "C" fn xp_ui_reader_end_update(
 /// Descriptors and arrays are live/aligned and callback data remains borrowed
 /// for this call. Writable arrays and outputs are exclusive and disjoint from
 /// descriptors. Scratch may change on failure; outputs do not.
+// Retired native ABI, retained only for historical host oracles.
+#[cfg(any(test, feature = "legacy-reader-oracles"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_reader_toolbar_view(
     state: *const crate::model::ListState,
@@ -572,6 +574,8 @@ pub unsafe extern "C" fn xp_ui_reader_toolbar_view(
 /// # Safety
 /// State and permille are exclusive writable values. Layout/input are readable,
 /// aligned and disjoint from the outputs.
+// Retired native ABI, retained only for historical host oracles.
+#[cfg(any(test, feature = "legacy-reader-oracles"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_reader_toolbar_route(
     state: *mut reader_chrome::toolbar::Contact,
@@ -633,6 +637,8 @@ const _: () = {
 
 /// # Safety
 /// A non-null state is writable, live and aligned.
+// Retired native ABI, retained only for historical host oracles.
+#[cfg(any(test, feature = "legacy-reader-oracles"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_reader_menu_init(
     state: *mut reader_chrome::menu::State,
@@ -644,6 +650,8 @@ pub unsafe extern "C" fn xp_ui_reader_menu_init(
 }
 /// # Safety
 /// A non-null state is readable, live and aligned.
+// Retired native ABI, retained only for historical host oracles.
+#[cfg(any(test, feature = "legacy-reader-oracles"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_reader_menu_activate(
     state: *const reader_chrome::menu::State,
@@ -656,6 +664,8 @@ pub unsafe extern "C" fn xp_ui_reader_menu_activate(
 }
 /// # Safety
 /// A non-null state is writable, live and aligned.
+// Retired native ABI, retained only for historical host oracles.
+#[cfg(any(test, feature = "legacy-reader-oracles"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_reader_menu_choose(
     state: *mut reader_chrome::menu::State,
@@ -669,6 +679,8 @@ pub unsafe extern "C" fn xp_ui_reader_menu_choose(
 }
 /// # Safety
 /// A non-null state is readable, live and aligned.
+// Retired native ABI, retained only for historical host oracles.
+#[cfg(any(test, feature = "legacy-reader-oracles"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_reader_menu_cancel(
     state: *const reader_chrome::menu::State,

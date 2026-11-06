@@ -10,7 +10,7 @@ macro_rules! unused_leaves {
             let _ = ($($arg,)*);
             panic!(concat!("unexpected EPUB leaf: ", stringify!($name)))
         })*
-        pub(super) fn leaves() -> XpEpubLeaves { XpEpubLeaves { $($name,)* } }
+        pub(super) fn leaves() -> XpEpubLeaves { XpEpubLeaves { $($name,)* child_drawing: super::Physical { list_theme: super::theme, utility_layout: super::layout, header: super::header, utility_footer: super::footer, qr: super::qr, toolbar_icon: super::icon, clear_fonts: super::lock, prewarm_rows: super::prewarm } } }
     };
 }
 unused_leaves! {
@@ -85,25 +85,14 @@ unused_leaves! {
     wifi_connected() -> u8;
     wifi_disconnect(_a0: u8) ;
     restart_reader() ;
-    child_menu(_a0: *const XpEpubMenuArgs) -> *mut core::ffi::c_void;
-    child_chapter(_a0: *mut core::ffi::c_void, _a1: i32) -> *mut core::ffi::c_void;
-    child_percent(_a0: i32) -> *mut core::ffi::c_void;
     child_text_settings() -> *mut core::ffi::c_void;
     child_footnote(_a0: *mut XpEpubOwnedPage, _a1: i32, _a2: i32) -> *mut core::ffi::c_void;
     child_dictionary(_a0: *mut XpEpubOwnedPage, _a1: i32, _a2: i32, _a3: XpAppText) -> *mut core::ffi::c_void;
     child_selection(_a0: *mut XpEpubOwnedPage, _a1: u8, _a2: *const XpEpubSelectionArgs) -> *mut core::ffi::c_void;
     child_bookmarks(_a0: *mut core::ffi::c_void, _a1: XpAppText) -> *mut core::ffi::c_void;
     child_clippings() -> *mut core::ffi::c_void;
-    child_qr(_a0: XpAppText) -> *mut core::ffi::c_void;
     child_wifi() -> *mut core::ffi::c_void;
     child_sync(_a0: XpAppText, _a1: *const XpEpubPosition, _a2: *const XpEpubSavedProgress, _a3: XpAppText, _a4: u8) -> *mut core::ffi::c_void;
-    toolbar_open() -> *mut core::ffi::c_void;
-    toolbar_close(_a0: *mut core::ffi::c_void) ;
-    toolbar_begin(_a0: *mut core::ffi::c_void) ;
-    toolbar_paint(_a0: *mut core::ffi::c_void, _a1: *const XpEpubToolbarModel, _a2: XpEpubRowSource, _a3: *mut core::ffi::c_void) -> u8;
-    toolbar_route(_a0: *mut core::ffi::c_void, _a1: *mut XpEpubRouted) ;
-    toolbar_scroll(_a0: *mut core::ffi::c_void, _a1: i32, _a2: i32) -> u8;
-    toolbar_visible_rows(_a0: *mut core::ffi::c_void) -> i32;
     popup_open() -> *mut core::ffi::c_void;
     popup_close(_a0: *mut core::ffi::c_void) ;
     popup_active(_a0: *mut core::ffi::c_void) -> u8;
@@ -152,7 +141,6 @@ unused_leaves! {
     log(_a0: u8, _a1: XpAppText, _a2: XpAppText) ;
     font_text_advance(_a0: XpAppText, _a1: i32, _a2: u8, _a3: i8) -> i32;
     log_enabled(_a0: u8) -> u8;
-    toolbar_reset_navigation(_a0: *mut core::ffi::c_void, _a1: i32, _a2: i32) ;
     input_snapshot(_a0: *mut xp_ui::model::Input) ;
     cache_lock() ;
     cache_unlock() ;

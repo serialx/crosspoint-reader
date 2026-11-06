@@ -14,6 +14,9 @@
 #include <new>
 #include <string>
 
+#include "legacy_children_fixture.h"
+#include "legacy_reader_chrome_wire.h"
+
 static bool countAllocations = false;
 static size_t allocationAttempts = 0;
 void* operator new(size_t size) {

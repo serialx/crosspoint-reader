@@ -42,7 +42,7 @@ impl ReaderChild {
         }
     }
 
-    // Application calls on the loop task before destruction under its render lock.
+    #[cfg(test)]
     pub(super) unsafe fn take_result(&self) -> Option<ReaderChildResult> {
         unsafe { self.target().take_result() }
     }

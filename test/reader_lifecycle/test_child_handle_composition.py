@@ -21,6 +21,8 @@ from book_app_composition import actual_child_source, historical_selection_sourc
 from child_handle_mutants import mutants, SANITIZER, PAGE_LIFETIME, INVALID_DOWNCAST
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "test/reader_children"))
+from oracle_sources import native_text, oracle_path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / 'test'))
 from rust_host import rust_link_flags
@@ -72,11 +74,11 @@ void* operator new(size_t bytes, const std::nothrow_t&) noexcept {
     classes = []
     retained_constructors = []
     for leaf, (name, directory, kind) in CHILDREN.items():
-        header = (ROOT / 'src/activities' / directory / (name + '.h')).read_text()
+        header = native_text(Path('src/activities') / directory / (name + '.h'))
         base = re.search(r'class ' + name + r' final : public (\w+)', header).group(1)
         extra = 'enum class Tab { Family };' if leaf == 'text_settings' else ''
         if leaf in ('chapter', 'bookmarks') and not historical:
-            constructor = block((ROOT / 'src/activities' / directory / (name + '.cpp')).read_text(), name + '::' + name + '(')
+            constructor = block(native_text(Path('src/activities') / directory / (name + '.cpp')), name + '::' + name + '(')
             declaration = header[header.index('explicit ' + name + '('):]
             declaration = declaration[:declaration.index(';') + 1]
             retained = ('std::shared_ptr<Epub> epub; int currentTocIndex = 0; static constexpr int TOC_WINDOW = 24;'
@@ -166,7 +168,8 @@ struct SavedProgressPosition { std::string xpath; float percentage; };
     physical("sleep-render", 1); assert(token && token->lock);''')
     init = 'void bindProductionChildren() {\n'
     for leaf in CHILDREN:
-        table = 'legacyBook.section.page' if leaf in ('footnote', 'dictionary', 'selection') else 'leaves'
+        table = ('legacyBook.section.page' if leaf in ('footnote', 'dictionary', 'selection') else
+                 'legacyBook.children' if leaf in ('menu', 'chapter', 'percent', 'qr') else 'leaves')
         init += f'  {table}.child_{leaf} = {native_leaf(native, "child_" + leaf)};\n'
     init += '''  leaves.has_sync_credentials = []() -> uint8_t { return 0; };
   static auto readerLog = leaves.log;
@@ -243,9 +246,10 @@ def main():
         inputs.update(facade_inputs(ROOT))
         inputs.update(ROOT/'src/activities'/directory/(name+'.h') for name,directory,_ in CHILDREN.values())
         inputs.update(ROOT/'src/activities/reader'/(name+'.cpp') for name in ('EpubReaderChapterSelectionActivity','EpubReaderBookmarksActivity'))
+        inputs = {oracle_path(p) for p in inputs}
         hashes = {str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(inputs)}
         (out/'inputs.json').write_text(json.dumps(dict(files=hashes,archive_sha256=hashlib.sha256(args.archive.read_bytes()).hexdigest()),indent=2)+'\n')
-        native, owner, manager = legacy_page_source(NATIVE.read_text()), OWNER.read_text(), MANAGER.read_text()
+        native, owner, manager = legacy_page_source(native_text(NATIVE)), OWNER.read_text(), MANAGER.read_text()
         candidate = fixture(native, owner, manager)
         source = out / 'candidate.cpp'; source.write_text(candidate)
         binary = Path(tmp) / 'candidate'

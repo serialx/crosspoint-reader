@@ -1,58 +1,67 @@
+#[cfg(feature = "app-test")]
+use core::ffi::c_void;
 extern crate alloc;
 
 use super::{owned::Toolbar, toolbar_view::Content};
 use crate::app::epub::{abi, state::Overlay, EpubSession, ResourceAccess};
 use crate::app::stable_owner::StableOwner;
-use core::{
-    ffi::{c_void, CStr},
-    mem::MaybeUninit,
-    ptr::NonNull,
-};
+use core::{ffi::CStr, mem::MaybeUninit, ptr::NonNull};
 use xp_ui::{
     model::{Input, TOUCH_RELEASED},
     reader_chrome::toolbar::Contact,
 };
 
 pub(in crate::app::epub) enum ToolbarSlot {
+    #[cfg(feature = "app-test")]
     Legacy(NonNull<c_void>),
     Owned(StableOwner<Toolbar>),
 }
 #[derive(Clone, Copy)]
 pub(in crate::app::epub) enum ToolbarTarget {
+    #[cfg(feature = "app-test")]
     Legacy(NonNull<c_void>),
     Owned(NonNull<Toolbar>),
 }
 impl ToolbarSlot {
     pub(in crate::app::epub) fn open(parent: &EpubSession) -> Option<Self> {
-        if parent.children_enabled() {
-            Toolbar::try_new(parent.runtime).map(|owner| Self::Owned(owner.into()))
-        } else {
-            NonNull::new(unsafe { (parent.leaves.toolbar_open)() }).map(Self::Legacy)
+        #[cfg(feature = "app-test")]
+        if let Some(legacy) = parent.legacy_children.get() {
+            return NonNull::new(unsafe { (legacy.toolbar_open)() }).map(Self::Legacy);
         }
+        Toolbar::try_new(parent.runtime).map(|owner| Self::Owned(owner.into()))
     }
+
     pub(in crate::app::epub) fn target(&self) -> ToolbarTarget {
         match self {
+            #[cfg(feature = "app-test")]
             Self::Legacy(p) => ToolbarTarget::Legacy(*p),
             Self::Owned(owner) => ToolbarTarget::Owned(owner.pointer()),
         }
     }
-    pub(in crate::app::epub) fn close(self, parent: &EpubSession) {
+    pub(in crate::app::epub) fn close(self, _parent: &EpubSession) {
+        #[cfg(feature = "app-test")]
         if let Self::Legacy(p) = self {
-            unsafe { (parent.leaves.toolbar_close)(p.as_ptr()) };
+            unsafe {
+                (_parent
+                    .legacy_children
+                    .get()
+                    .expect("legacy toolbar fixture")
+                    .toolbar_close)(p.as_ptr())
+            };
         }
     }
 }
 impl ToolbarTarget {
-    #[cfg(feature = "app-test")]
-    pub(in crate::app::epub) fn as_ptr(self) -> *mut c_void {
+    pub(in crate::app::epub) fn begin(self, _parent: &EpubSession) {
         match self {
-            Self::Legacy(p) => p.as_ptr(),
-            Self::Owned(p) => p.as_ptr().cast(),
-        }
-    }
-    pub(in crate::app::epub) fn begin(self, parent: &EpubSession) {
-        match self {
-            Self::Legacy(p) => unsafe { (parent.leaves.toolbar_begin)(p.as_ptr()) },
+            #[cfg(feature = "app-test")]
+            Self::Legacy(p) => unsafe {
+                (_parent
+                    .legacy_children
+                    .get()
+                    .expect("legacy toolbar fixture")
+                    .toolbar_begin)(p.as_ptr())
+            },
             Self::Owned(p) => unsafe { p.as_ref() }.model.with(|model| {
                 model.ready = false;
                 model.contact = Contact::default();
@@ -60,34 +69,62 @@ impl ToolbarTarget {
             }),
         }
     }
-    pub(in crate::app::epub) fn reset(self, parent: &EpubSession, selected: i32, top: i32) {
+    pub(in crate::app::epub) fn reset(self, _parent: &EpubSession, selected: i32, top: i32) {
         match self {
+            #[cfg(feature = "app-test")]
             Self::Legacy(p) => unsafe {
-                (parent.leaves.toolbar_reset_navigation)(p.as_ptr(), selected, top)
+                (_parent
+                    .legacy_children
+                    .get()
+                    .expect("legacy toolbar fixture")
+                    .toolbar_reset_navigation)(p.as_ptr(), selected, top)
             },
             Self::Owned(p) => unsafe { p.as_ref() }.reset_navigation(selected, top),
         }
     }
-    pub(in crate::app::epub) fn scroll(self, parent: &EpubSession, delta: i32, count: i32) -> bool {
+    pub(in crate::app::epub) fn scroll(
+        self,
+        _parent: &EpubSession,
+        delta: i32,
+        count: i32,
+    ) -> bool {
         match self {
+            #[cfg(feature = "app-test")]
             Self::Legacy(p) => unsafe {
-                (parent.leaves.toolbar_scroll)(p.as_ptr(), delta, count) != 0
+                (_parent
+                    .legacy_children
+                    .get()
+                    .expect("legacy toolbar fixture")
+                    .toolbar_scroll)(p.as_ptr(), delta, count)
+                    != 0
             },
             Self::Owned(p) => unsafe { p.as_ref() }.scroll(delta, count),
         }
     }
-    pub(in crate::app::epub) fn visible_rows(self, parent: &EpubSession) -> i32 {
+    pub(in crate::app::epub) fn visible_rows(self, _parent: &EpubSession) -> i32 {
         match self {
-            Self::Legacy(p) => unsafe { (parent.leaves.toolbar_visible_rows)(p.as_ptr()) },
+            #[cfg(feature = "app-test")]
+            Self::Legacy(p) => unsafe {
+                (_parent
+                    .legacy_children
+                    .get()
+                    .expect("legacy toolbar fixture")
+                    .toolbar_visible_rows)(p.as_ptr())
+            },
             Self::Owned(p) => unsafe { p.as_ref() }.visible_rows(),
         }
     }
     pub(in crate::app::epub) fn route(self, parent: &EpubSession) -> abi::XpEpubRouted {
         match self {
+            #[cfg(feature = "app-test")]
             Self::Legacy(p) => {
                 let mut out = MaybeUninit::uninit();
                 unsafe {
-                    (parent.leaves.toolbar_route)(p.as_ptr(), out.as_mut_ptr());
+                    (parent
+                        .legacy_children
+                        .get()
+                        .expect("legacy toolbar fixture")
+                        .toolbar_route)(p.as_ptr(), out.as_mut_ptr());
                     out.assume_init()
                 }
             }

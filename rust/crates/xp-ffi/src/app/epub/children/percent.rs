@@ -207,7 +207,7 @@ impl Percent {
             frame.controls = Controls::default();
             let mut arena =
                 TruncatingArena::with_hit_sink(&mut frame.commands, &mut frame.controls)?;
-            let (_, refresh) = utility::view_with_sink(
+            let (_, refresh) = utility::interval_view(
                 &mut arena,
                 &state,
                 &frame.layout,

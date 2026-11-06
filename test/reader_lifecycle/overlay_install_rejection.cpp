@@ -46,17 +46,17 @@ static const XpUiReaderInputServices input{nullptr, nullptr,
                                            nullptr};
 static const LegacyEpubLeaves leaves = [] {
   auto value = overlayLegacyLeaves();
-  value.physical.toolbar_open = []() -> void* {
+  value.book.children.toolbar_open = []() -> void* {
     assert(!renderDepth && !modelDepth);
     ++opened;
     return new int(7);
   };
-  value.physical.toolbar_close = [](void* p) {
+  value.book.children.toolbar_close = [](void* p) {
     assert(renderDepth == 1 && !modelDepth);
     ++closed;
     delete static_cast<int*>(p);
   };
-  value.physical.toolbar_begin = [](void*) { assert(!renderDepth && !modelDepth); };
+  value.book.children.toolbar_begin = [](void*) { assert(!renderDepth && !modelDepth); };
   value.physical.input_services = [] { return &input; };
   return value;
 }();

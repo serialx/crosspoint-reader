@@ -162,10 +162,10 @@ static void bindScenePhysical() {
     } else entryLog(severity, origin, message);  // Actual MEM/ACT/ERS entry and exit messages.
   };
   // Lifecycle uses the inherited physical file/book/component tables unchanged.
-  leaves.toolbar_open = []() -> void* { sceneLeaf(0); assert(!scene.toolbar); return scene.toolbar = new ReaderToolbarUi(*target); };
-  leaves.toolbar_close = [](void* raw) { sceneLeaf(1); assert(raw == scene.toolbar); delete scene.toolbar; scene.toolbar = nullptr; };
-  leaves.toolbar_begin = [](void* raw) { sceneLeaf(); assert(raw == scene.toolbar); scene.toolbar->begin(); };
-  leaves.toolbar_paint = [](void* raw, const XpEpubToolbarModel* model, XpEpubRowSource rows, void* context) -> uint8_t {
+  legacyBook.children.toolbar_open = []() -> void* { sceneLeaf(0); assert(!scene.toolbar); return scene.toolbar = new ReaderToolbarUi(*target); };
+  legacyBook.children.toolbar_close = [](void* raw) { sceneLeaf(1); assert(raw == scene.toolbar); delete scene.toolbar; scene.toolbar = nullptr; };
+  legacyBook.children.toolbar_begin = [](void* raw) { sceneLeaf(); assert(raw == scene.toolbar); scene.toolbar->begin(); };
+  legacyBook.children.toolbar_paint = [](void* raw, const XpEpubToolbarModel* model, XpEpubRowSource rows, void* context) -> uint8_t {
     sceneLeaf(1); assert(raw == scene.toolbar);
     if (!scene.explicitBuild) ++scene.redrawn;
     const uint8_t result = sceneNativePaint(raw, model, rows, context);
@@ -173,13 +173,13 @@ static void bindScenePhysical() {
     assert(!scene.toolbar->model_.rowFill && !scene.toolbar->model_.rowFillContext);
     return result;
   };
-  leaves.toolbar_route = [](void* raw, XpEpubRouted* out) {
+  legacyBook.children.toolbar_route = [](void* raw, XpEpubRouted* out) {
     sceneLeaf(0); ++scene.routes; if (scene.dispatchInjections) ++scene.afterFailureRoutes;
     sceneNativeRoute(raw, out);
   };
-  leaves.toolbar_scroll = sceneNativeScroll;
-  leaves.toolbar_visible_rows = sceneNativeVisible;
-  leaves.toolbar_reset_navigation = sceneNativeReset;
+  legacyBook.children.toolbar_scroll = sceneNativeScroll;
+  legacyBook.children.toolbar_visible_rows = sceneNativeVisible;
+  legacyBook.children.toolbar_reset_navigation = sceneNativeReset;
   leaves.popup_active = [](void* raw) -> uint8_t {
     sceneLeaf(); auto it = f().handles.find(raw); assert(it != f().handles.end());
     assert(it->second->kind == Kind::OverlayPopup || it->second->kind == Kind::FailurePopup);

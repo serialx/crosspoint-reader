@@ -1,3 +1,5 @@
+#include "legacy_children_fixture.h"
+#include "legacy_reader_chrome_wire.h"
 // Physical drawing target for the shipping toolbar composition.
 #include <FreeInkApp.h>
 #include <FreeInkUIIcon.h>

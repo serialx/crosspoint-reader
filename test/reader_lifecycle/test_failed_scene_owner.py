@@ -14,6 +14,8 @@ import sys
 import tempfile
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent / "reader_children"))
+from oracle_sources import native_text, oracle_path
 PRODUCTION = Path('crates/xp-ffi/src/app/epub/loop_owner.rs')
 
 
@@ -74,8 +76,8 @@ def fixture_source(root, definition, native_leaf):
     original = (oracle / 'failed_scene.cpp').read_text()
     prefix = original[:original.index('class ReaderActivity :')]
     prefix = once(prefix, '#include "RustActivityAdapter.h"', '#include "Activity.h"')
-    toolbar = (root / 'src/activities/reader/ReaderToolbarUi.cpp').read_text()
-    header = (root / 'src/activities/reader/ReaderToolbarUi.h').read_text()
+    toolbar = native_text('src/activities/reader/ReaderToolbarUi.cpp')
+    header = native_text('src/activities/reader/ReaderToolbarUi.h')
     header = re.sub(r'^#include.*\n|^#pragma once\n', '', header, flags=re.M)
     header = header.replace(' private:', ' public:')
     commands = (root / 'src/activities/reader/ReaderChromeListActivity.h').read_text()
@@ -90,7 +92,7 @@ def fixture_source(root, definition, native_leaf):
     scaffold = (oracle / 'app_owned_epub.cpp').read_text().split('int main(int argc, char** argv) {', 1)[0]
     scaffold += '\nvoid sceneLockDepthChanged(unsigned depth) { if (fixture) fixture->renderDepth=int(depth); }\n'
     bridge = (HERE / 'scene_owner_bridge.inc').read_text()
-    native = (root / 'src/activities/reader/RustEpubResources.cpp').read_text()
+    native = native_text('src/activities/reader/RustEpubResources.cpp')
     bridge = once(bridge, '// ACTUAL_PATH_TEXT', definition(native, 'const char* pathText(XpAppText value)') + '\n' +
                   definition(native, 'std::string_view view(XpAppText value)'))
     memory = (root / 'lib/Memory/Memory.h').read_text()
@@ -168,6 +170,7 @@ def main():
                root / 'test/ui_runtime/stubs/components/UiAppHelpers.h', root / 'lib/Memory/Memory.h']
     sources += [HERE / name for name in ('scene_owner_bridge.inc', 'scene_physical_bindings.inc')]
     sources += [Path(__file__).resolve()]
+    sources = [oracle_path(path) for path in sources]
     hashes = {str(path): digest(path.read_bytes()) for path in sources}
     cases = [('first', 'builder', 'prepaint')]
     cases += [(stage, failure, guarantee) for stage in ('first', 'open', 'setting')

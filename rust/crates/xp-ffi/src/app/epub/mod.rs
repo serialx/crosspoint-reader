@@ -10,7 +10,6 @@ mod bookmarks;
 mod build;
 mod child;
 mod child_result;
-#[allow(dead_code)]
 pub(super) mod children;
 mod clipping;
 mod guarded;
@@ -61,6 +60,8 @@ use guarded::GuardedCell;
 use state::{SectionFacts, State};
 
 pub(super) struct EpubSession {
+    #[cfg(feature = "app-test")]
+    legacy_children: core::cell::Cell<Option<test_support::legacy_children::LegacyChildren>>,
     path: UnsafeCell<Text>,
     #[cfg(feature = "app-test")]
     book_factory: session_book::Factory,
@@ -189,6 +190,8 @@ impl EpubSession {
             core::ptr::addr_of_mut!((*ptr).book_render_hooks).write(None);
             #[cfg(feature = "app-test")]
             core::ptr::addr_of_mut!((*ptr).child_hooks).write(None);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).legacy_children).write(core::cell::Cell::new(None));
             #[cfg(feature = "app-test")]
             core::ptr::addr_of_mut!((*ptr).menu_hooks).write(None);
             #[cfg(feature = "app-test")]

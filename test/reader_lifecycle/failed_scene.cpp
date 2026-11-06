@@ -14,6 +14,7 @@
 
 #include "RustActivityAdapter.h"
 #include "components/UiAppHelpers.h"
+#include "legacy_reader_chrome_wire.h"
 
 void* operator new(size_t n) {
   assert(criticalDepth == 0);

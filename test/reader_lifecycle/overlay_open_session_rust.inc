@@ -36,15 +36,15 @@ static XpUiReaderRenderServices renderServices = {
 };
 static const LegacyEpubLeaves leaves = [] {
   auto table = overlayLegacyLeaves();
-  table.physical.toolbar_open = []() -> void* {
+  table.book.children.toolbar_open = []() -> void* {
     unlocked(); assert(!active->toolbarUi);
     active->toolbarUi = std::make_unique<ReaderToolbarUi>(active->renderer);
     return active->toolbarUi.get();
   };
-  table.physical.toolbar_begin = [](void* toolbar) {
+  table.book.children.toolbar_begin = [](void* toolbar) {
     unlocked(); assert(toolbar == active->toolbarUi.get()); active->toolbarUi->begin();
   };
-  table.physical.toolbar_reset_navigation = [](void* toolbar, int32_t index, int32_t top) {
+  table.book.children.toolbar_reset_navigation = [](void* toolbar, int32_t index, int32_t top) {
     leaf(); assert(toolbar == active->toolbarUi.get());
     active->toolbarUi->resetNavigation(index, top);
   };

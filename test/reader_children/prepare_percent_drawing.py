@@ -1,4 +1,4 @@
-"""Compose the current Percent drawing methods with the real renderer and SDK."""
+"""Compose the frozen Percent drawing methods with the real renderer and SDK."""
 from pathlib import Path
 import sys
 import re
@@ -7,10 +7,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "reader_lifecycle")
 from extract import definition
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "test/reader_children"))
+from oracle_sources import native_text
 
 
 def read(name):
-    return (ROOT / name).read_text()
+    return native_text(name)
 
 
 slider = read("src/components/UiSliderDialog.h")

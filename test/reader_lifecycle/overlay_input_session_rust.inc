@@ -123,21 +123,21 @@ static void configureOverlayInputLeaves() {
     assert(!lockDepth);
     return overlayInputOwner().mappedInput.isPressed(inputButton(index));
   };
-  overlayInputLeaves.physical.toolbar_route = [](void* raw, XpEpubRouted* out) {
+  overlayInputLeaves.book.children.toolbar_route = [](void* raw, XpEpubRouted* out) {
     auto& owner = overlayInputOwner();
     assert(!lockDepth && raw == owner.toolbarUi.get());
     const auto routed = owner.toolbarUi->route(owner.mappedInput);
     *out = {routed.value, routed.permille, routed.x, routed.y, static_cast<uint8_t>(routed.event), uint8_t(routed.routed)};
   };
-  overlayInputLeaves.physical.toolbar_visible_rows = [](void* raw) -> int32_t {
+  overlayInputLeaves.book.children.toolbar_visible_rows = [](void* raw) -> int32_t {
     auto& owner = overlayInputOwner(); assert(!lockDepth && raw == owner.toolbarUi.get());
     return owner.toolbarUi->visibleRows();
   };
-  overlayInputLeaves.physical.toolbar_scroll = [](void* raw, int32_t delta, int32_t count) -> uint8_t {
+  overlayInputLeaves.book.children.toolbar_scroll = [](void* raw, int32_t delta, int32_t count) -> uint8_t {
     auto& owner = overlayInputOwner(); assert(!lockDepth && raw == owner.toolbarUi.get());
     return owner.toolbarUi->nav().scrollBy(delta, count);
   };
-  overlayInputLeaves.physical.toolbar_begin = [](void* raw) {
+  overlayInputLeaves.book.children.toolbar_begin = [](void* raw) {
     auto& owner = overlayInputOwner(); assert(!lockDepth && raw == owner.toolbarUi.get());
     owner.toolbarUi->begin();
   };

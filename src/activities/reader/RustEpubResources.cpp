@@ -44,21 +44,17 @@
 #include "DictionaryWordSelectActivity.h"
 #include "EndOfBookOptions.h"
 #include "EpubReaderBookmarksActivity.h"
-#include "EpubReaderChapterSelectionActivity.h"
 #include "EpubReaderClippingListActivity.h"
 #include "EpubReaderFootnoteSelectActivity.h"
-#include "EpubReaderMenuActivity.h"
-#include "EpubReaderPercentSelectionActivity.h"
 #include "EpubReaderUtils.h"
 #include "KOReaderCredentialStore.h"
 #include "KOReaderSyncActivity.h"
 #include "MappedInputManager.h"
-#include "QrDisplayActivity.h"
 #include "ReaderFontSizes.h"
-#include "ReaderToolbarUi.h"
 #include "ReaderUtils.h"
 #include "RecentBooksStore.h"
 #include "RustEpubPage.h"
+#include "RustReaderDrawing.h"
 #include "SilentRestart.h"
 #include "activities/OwnedLegacyActivity.h"
 #include "activities/RenderLock.h"
@@ -72,6 +68,7 @@
 #include "util/BookmarkFile.h"
 #include "util/HomeButtonInput.h"
 #include "util/PluginEvents.h"
+#include "util/QrUtils.h"
 #include "util/SlideSwitch.h"
 
 const XpParaAllocator* paragraphAllocator();
@@ -330,40 +327,12 @@ static_assert(CrossPointSettings::PARAGRAPH_ALIGNMENT_COUNT == 5);
 static_assert(CrossPointSettings::ORIENTATION_COUNT == 4);
 static_assert(CrossPointSettings::FONT_FAMILY_COUNT == 1);
 static_assert(CrossPointSettings::READER_MENU_TOOLBAR == 1);
-// Native toolbar events cross the typed routed-result leaf.
-static_assert(static_cast<uint8_t>(ReaderToolbarUi::Event::None) == 0);
-static_assert(static_cast<uint8_t>(ReaderToolbarUi::Event::Dismiss) == 1);
-static_assert(static_cast<uint8_t>(ReaderToolbarUi::Event::Tool) == 2);
-static_assert(static_cast<uint8_t>(ReaderToolbarUi::Event::PrevChapter) == 3);
-static_assert(static_cast<uint8_t>(ReaderToolbarUi::Event::NextChapter) == 4);
-static_assert(static_cast<uint8_t>(ReaderToolbarUi::Event::Scrub) == 5);
-static_assert(static_cast<uint8_t>(ReaderToolbarUi::Event::Row) == 6);
 // Raw mapped directions are translated to shared XpUiSwipe by ReaderUtils.
 static_assert(static_cast<uint8_t>(MappedInputManager::SwipeDir::None) == 0);
 static_assert(static_cast<uint8_t>(MappedInputManager::SwipeDir::Left) == 1);
 static_assert(static_cast<uint8_t>(MappedInputManager::SwipeDir::Right) == 2);
 static_assert(static_cast<uint8_t>(MappedInputManager::SwipeDir::Up) == 3);
 static_assert(static_cast<uint8_t>(MappedInputManager::SwipeDir::Down) == 4);
-// Native child results carry these MenuAction values to Rust.
-static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::SELECT_CHAPTER) == 0);
-static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::FOOTNOTES) == 1);
-static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::TEXT_SETTINGS) == 2);
-static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::NIGHT_MODE) == 3);
-static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::FRONTLIGHT) == 4);
-static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::BLUETOOTH) == 5);
-static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::GO_TO_PERCENT) == 6);
-static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::AUTO_PAGE_TURN) == 7);
-static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::ROTATE_SCREEN) == 8);
-static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::BOOKMARKS) == 9);
-static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::SAVE_CLIPPING) == 10);
-static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::VIEW_CLIPPINGS) == 11);
-static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::TOGGLE_BOOKMARK) == 12);
-static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::SCREENSHOT) == 13);
-static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::DISPLAY_QR) == 14);
-static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::GO_HOME) == 15);
-static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::SYNC) == 16);
-static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::DELETE_CACHE) == 17);
-static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::DICTIONARY) == 18);
 
 XpAppText text(const std::string& value) { return {reinterpret_cast<const uint8_t*>(value.data()), value.size()}; }
 XpAppText text(const char* value) { return {reinterpret_cast<const uint8_t*>(value), strlen(value)}; }
@@ -759,19 +728,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .wifi_connected = []() -> uint8_t { return WiFi.status() == WL_CONNECTED; },
       .wifi_disconnect = [](uint8_t off) { WiFi.disconnect(off != 0); },
       .restart_reader = [] { silentRestartToReader(); },
-      .child_menu = [](const XpEpubMenuArgs* args) -> void* {
-        return makeLegacyActivity<EpubReaderMenuActivity>(
-                   *target, *mapped, owned(args->title), args->display_page, args->pages, args->percent,
-                   args->orientation, args->footnotes != 0, args->bookmarks != 0, args->clippings != 0)
-            .release();
-      },
-      .child_chapter = [](void* handle, int32_t toc) -> void* {
-        return makeLegacyActivity<EpubReaderChapterSelectionActivity>(*target, *mapped, book(handle).book, toc)
-            .release();
-      },
-      .child_percent = [](int32_t percent) -> void* {
-        return makeLegacyActivity<EpubReaderPercentSelectionActivity>(*target, *mapped, percent).release();
-      },
       .child_text_settings = []() -> void* {
         return makeLegacyActivity<TextSettingsActivity>(*target, *mapped, &sdFontSystem.registry(),
                                                         TextSettingsActivity::Tab::Family)
@@ -793,9 +749,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .child_clippings = []() -> void* {
         return makeLegacyActivity<EpubReaderClippingListActivity>(*target, *mapped).release();
       },
-      .child_qr = [](XpAppText payload) -> void* {
-        return makeLegacyActivity<QrDisplayActivity>(*target, *mapped, owned(payload)).release();
-      },
       .child_wifi = []() -> void* { return makeLegacyActivity<WifiSelectionActivity>(*target, *mapped).release(); },
       .child_sync = [](XpAppText path, const XpEpubPosition* current, const XpEpubSavedProgress* saved,
                        XpAppText chapter, uint8_t eventsOnly) -> void* {
@@ -803,64 +756,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
                                                         SavedProgressPosition{owned(saved->xpath), saved->percentage},
                                                         owned(chapter), eventsOnly != 0)
             .release();
-      },
-      .toolbar_open = []() -> void* { return makeUniqueNoThrow<ReaderToolbarUi>(*target).release(); },
-      .toolbar_close = [](void* handle) { delete static_cast<ReaderToolbarUi*>(handle); },
-      .toolbar_begin = [](void* handle) { static_cast<ReaderToolbarUi*>(handle)->begin(); },
-      .toolbar_paint = [](void* handle, const XpEpubToolbarModel* source, XpEpubRowSource rows,
-                          void* context) -> uint8_t {
-        auto& toolbar = *static_cast<ReaderToolbarUi*>(handle);
-        struct RowSource {
-          XpEpubRowSource rows;
-          void* context;
-        } rowSource{rows, context};
-        ReaderToolbarUi::Model model;
-        model.chapterTitle = source->chapter.data ? pathText(source->chapter) : nullptr;
-        model.pageInfo = source->page_info.data ? pathText(source->page_info) : nullptr;
-        model.panelTitle = source->panel_title.data ? pathText(source->panel_title) : nullptr;
-        model.progressPermille = source->progress_permille;
-        model.itemCount = source->item_count;
-        model.selectedIndex = source->selected;
-        model.activeTool = source->active_tool;
-        model.panel = source->panel != 0;
-        model.denseRows = source->dense != 0;
-        model.rowFillContext = &rowSource;
-        model.rowFill = [](void* raw, int index, std::string& label, std::string& value,
-                           ReaderToolbarUi::RowFlags& flags) -> bool {
-          const auto& source = *static_cast<const RowSource*>(raw);
-          struct Output {
-            std::string& label;
-            std::string& value;
-            ReaderToolbarUi::RowFlags& flags;
-            bool copied = false;
-          } output{label, value, flags};
-          const auto copy = [](void* raw, const XpEpubToolbarRow* row) -> uint8_t {
-            auto& out = *static_cast<Output*>(raw);
-            assert(!out.copied);
-            out.label.assign(row->label_spaces, ' ');
-            out.label.append(view(row->label));
-            out.value.assign(view(row->value));
-            out.flags = {row->toggle != 0, row->checked != 0};
-            out.copied = true;
-            return true;
-          };
-          return source.rows && source.rows(source.context, index, copy, &output) && output.copied;
-        };
-        toolbar.setModel(model);
-        ScopedCleanup clearModel{[&toolbar] { toolbar.setModel({}); }};
-        return toolbar.render();
-      },
-      .toolbar_route =
-          [](void* handle, XpEpubRouted* out) {
-            const auto routed = static_cast<ReaderToolbarUi*>(handle)->route(*mapped);
-            *out = {routed.value, routed.permille, routed.x, routed.y, static_cast<uint8_t>(routed.event),
-                    routed.routed};
-          },
-      .toolbar_scroll = [](void* handle, int32_t delta, int32_t count) -> uint8_t {
-        return static_cast<ReaderToolbarUi*>(handle)->scrollNavigation(delta, count);
-      },
-      .toolbar_visible_rows = [](void* handle) -> int32_t {
-        return static_cast<ReaderToolbarUi*>(handle)->visibleRows();
       },
       .popup_open = []() -> void* { return makeUniqueNoThrow<OptionPopup>().release(); },
       .popup_close = [](void* handle) { delete static_cast<OptionPopup*>(handle); },
@@ -1046,10 +941,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         return 0;
 #endif
       },
-      .toolbar_reset_navigation =
-          [](void* handle, int32_t selected, int32_t top) {
-            static_cast<ReaderToolbarUi*>(handle)->resetNavigation(selected, top);
-          },
       .input_snapshot = [](XpUiInput* out) { *out = rustInputSnapshot(*mapped); },
       .cache_lock = [] { BookMetadataCache::lockReadCursor(); },
       .cache_unlock = [] { BookMetadataCache::unlockReadCursor(); },
@@ -1118,6 +1009,27 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .image_read_window = physicalImageWindow,
       .display_source = physicalDisplaySource,
       .framebuffer_view = [](uint32_t* bytes) -> uint8_t* { return physicalFramebuffer(*target, bytes); },
+      .child_list_theme = [](XpUiReaderTheme* theme,
+                             uint8_t toolbar) { sampleReaderChildTheme(*target, *theme, toolbar != 0); },
+      .child_utility_layout = [](XpUiUtilityLayout* layout) -> uint8_t {
+        return sampleReaderUtilityLayout(*target, *mapped, *layout);
+      },
+      .child_header = [](XpUiRect bounds, XpAppText title,
+                         uint8_t list) { drawReaderHeader(*target, bounds, title, list != 0); },
+      .child_utility_footer = [](XpUiRect clip,
+                                 const XpAppText* labels) { drawReaderUtilityFooter(*target, *mapped, clip, labels); },
+      .child_qr_draw =
+          [](XpUiRect bounds, XpAppText payload) {
+            QrUtils::drawQrBytes(*target, {bounds.x, bounds.y, bounds.w, bounds.h}, payload.data, payload.len);
+          },
+      .child_toolbar_icon = [](uint32_t icon, XpUiRect bounds,
+                               XpUiRect clip) { drawReaderToolbarIcon(*target, icon, bounds, clip); },
+      .child_clear_fonts =
+          [] {
+            if (auto* cache = target->getFontCacheManager()) cache->clearCache();
+          },
+      .child_prewarm_rows = [](int32_t font, const void* context, XpEpubChildRowText row,
+                               uint32_t count) { prewarmReaderRows(*target, font, context, row, count); },
   };
   if (!sectionMetrics.context) sectionMetrics.context = target;
   return leaves;

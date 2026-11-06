@@ -1,6 +1,7 @@
 use super::super::physical::Physical;
 use super::*;
 use crate::app::{abi as app_abi, stable_owner::StableOwner, test_resources};
+use core::ffi::c_void;
 use std::{
     alloc::{GlobalAlloc, Layout, System},
     cell::Cell,
@@ -184,9 +185,7 @@ unsafe extern "C" fn prewarm(
     panic!("prewarm")
 }
 fn render(target: ToolbarTarget, parent: &EpubSession) {
-    let ToolbarTarget::Owned(pointer) = target else {
-        panic!("owned target")
-    };
+    let ToolbarTarget::Owned(pointer) = target;
     let physical = Physical {
         list_theme: theme,
         utility_layout: layout,

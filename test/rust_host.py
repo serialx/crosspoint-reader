@@ -16,4 +16,5 @@ def rust_link_flags(archive=None):
                         '--release', '--locked'], check=True)
         archive = str(target / 'release/libxp_ffi.a')
     return ['-I', str(ROOT / 'rust/crates/xp-ffi/include'),
+            '-I', str(ROOT / 'test/reader_lifecycle'),
             str(ROOT / 'test/cmake/xp_ffi_host.cpp'), archive]

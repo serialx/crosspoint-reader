@@ -3,6 +3,8 @@
 #include <cassert>
 #include <cstring>
 
+#include "../reader_lifecycle/legacy_reader_chrome_wire.h"
+
 int main() {
   XpUiReaderMenuState state{};
   xp_ui_reader_menu_init(&state, 3);

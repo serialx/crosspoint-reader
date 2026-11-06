@@ -205,7 +205,7 @@ static const XpAppRuntime& physicalRuntime() {
 static const LegacyEpubLeaves& physicalLeaves() {
   static const LegacyEpubLeaves value = [] {
     LegacyEpubLeaves table{};
-    static_assert(sizeof(XpEpubLeaves) == 167 * sizeof(void (*)()));
+    static_assert(sizeof(XpEpubLeaves) == 163 * sizeof(void (*)()));
     UNUSED_LEAF(physical.render_margins);
     UNUSED_LEAF(physical.render_geometry);
     UNUSED_LEAF(physical.render_restore_bw);
@@ -323,25 +323,25 @@ static const LegacyEpubLeaves& physicalLeaves() {
     UNUSED_LEAF(physical.wifi_connected);
     UNUSED_LEAF(physical.wifi_disconnect);
     UNUSED_LEAF(physical.restart_reader);
-    UNUSED_LEAF(physical.child_menu);
-    UNUSED_LEAF(physical.child_chapter);
-    UNUSED_LEAF(physical.child_percent);
+    UNUSED_LEAF(book.children.child_menu);
+    UNUSED_LEAF(book.children.child_chapter);
+    UNUSED_LEAF(book.children.child_percent);
     UNUSED_LEAF(physical.child_text_settings);
     UNUSED_LEAF(physical.child_footnote);
     UNUSED_LEAF(physical.child_dictionary);
     UNUSED_LEAF(physical.child_selection);
     UNUSED_LEAF(physical.child_bookmarks);
     UNUSED_LEAF(physical.child_clippings);
-    UNUSED_LEAF(physical.child_qr);
+    UNUSED_LEAF(book.children.child_qr);
     UNUSED_LEAF(physical.child_wifi);
     UNUSED_LEAF(physical.child_sync);
-    UNUSED_LEAF(physical.toolbar_open);
-    UNUSED_LEAF(physical.toolbar_close);
-    UNUSED_LEAF(physical.toolbar_begin);
-    UNUSED_LEAF(physical.toolbar_paint);
-    UNUSED_LEAF(physical.toolbar_route);
-    UNUSED_LEAF(physical.toolbar_scroll);
-    UNUSED_LEAF(physical.toolbar_visible_rows);
+    UNUSED_LEAF(book.children.toolbar_open);
+    UNUSED_LEAF(book.children.toolbar_close);
+    UNUSED_LEAF(book.children.toolbar_begin);
+    UNUSED_LEAF(book.children.toolbar_paint);
+    UNUSED_LEAF(book.children.toolbar_route);
+    UNUSED_LEAF(book.children.toolbar_scroll);
+    UNUSED_LEAF(book.children.toolbar_visible_rows);
     UNUSED_LEAF(physical.popup_open);
     UNUSED_LEAF(physical.popup_close);
     UNUSED_LEAF(physical.popup_active);
@@ -394,7 +394,7 @@ static const LegacyEpubLeaves& physicalLeaves() {
     UNUSED_LEAF(book.section.page.page_line_ruby_shift);
     UNUSED_LEAF(physical.font_text_advance);
     UNUSED_LEAF(physical.log_enabled);
-    UNUSED_LEAF(physical.toolbar_reset_navigation);
+    UNUSED_LEAF(book.children.toolbar_reset_navigation);
     UNUSED_LEAF(physical.input_snapshot);
     UNUSED_LEAF(book.section.page.page_render);
     UNUSED_LEAF(physical.protection_open);
@@ -433,6 +433,14 @@ static const LegacyEpubLeaves& physicalLeaves() {
     UNUSED_LEAF(physical.image_read_window);
     UNUSED_LEAF(physical.display_source);
     UNUSED_LEAF(physical.framebuffer_view);
+    UNUSED_LEAF(physical.child_list_theme);
+    UNUSED_LEAF(physical.child_utility_layout);
+    UNUSED_LEAF(physical.child_header);
+    UNUSED_LEAF(physical.child_utility_footer);
+    UNUSED_LEAF(physical.child_qr_draw);
+    UNUSED_LEAF(physical.child_toolbar_icon);
+    UNUSED_LEAF(physical.child_clear_fonts);
+    UNUSED_LEAF(physical.child_prewarm_rows);
     table.physical.trusted_now = []() -> int64_t {
       physical();
       return active->epoch.load();

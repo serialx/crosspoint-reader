@@ -7,6 +7,8 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "test/reader_children"))
+from oracle_sources import native_text
 SOURCE = Path(os.environ.get('XP_READER_GATE_SOURCE', ROOT))
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -17,7 +19,7 @@ from rust_host import rust_link_flags
 revision = os.environ.get('XP_READER_GATE_REVISION')
 def read(path):
     return (subprocess.check_output(['git', 'show', revision + ':' + path], cwd=ROOT, text=True)
-            if revision else (SOURCE / path).read_text())
+            if revision else native_text(path) if "ReaderToolbarUi" in path else (SOURCE / path).read_text())
 toolbar = read('src/activities/reader/ReaderToolbarUi.cpp')
 parent = read('src/activities/reader/EpubReaderActivity.cpp')
 header = read('src/activities/reader/ReaderToolbarUi.h')

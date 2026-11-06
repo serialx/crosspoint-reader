@@ -66,7 +66,7 @@ static const LegacyEpubLeaves ownerLeaves = [] {
     std::memset(temporary, '!', sizeof(temporary));
     return result;
   };
-  table.physical.toolbar_paint = [](void* raw, const XpEpubToolbarModel* model, XpEpubRowSource rows,
+  table.book.children.toolbar_paint = [](void* raw, const XpEpubToolbarModel* model, XpEpubRowSource rows,
                             void* context) -> uint8_t {
     ownerPhysical(); assert(raw == ownerToolbar && model && rows && context);
     assert(model->panel == 1 && model->dense == 0 && model->item_count == 30 && model->selected == 5);

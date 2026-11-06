@@ -14,10 +14,6 @@ use xp_core::i18n::ids;
 use xp_ui::app::Transition;
 
 impl EpubSession {
-    pub(in crate::app::epub) fn children_enabled(&self) -> bool {
-        crate::app::app().is_some_and(|app| app.child_drawing.is_some())
-    }
-
     fn push_owned_child(&self, child: Option<ReaderChild>, intent: ChildIntent) {
         let Some(child) = child else {
             self.request_update();

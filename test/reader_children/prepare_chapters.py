@@ -4,6 +4,8 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
+sys.path.insert(0, str(ROOT / "test/reader_children"))
+from oracle_sources import native_text
 sys.path.insert(0, str(HERE.parent / 'reader_lifecycle'))
 from test_popup_resource import definition, native_leaf, replace_once
 
@@ -18,7 +20,7 @@ source = replace_once(source, '// ACTUAL_MUTEX_METHODS', '\n'.join(definition(pa
 source = replace_once(source, '// ACTUAL_LEAVES', '\n'.join(
     'value.' + name + ' = ' + native_leaf(native, name) + ';' for name in (
         'file_open_read', 'file_read', 'file_close', 'file_seek', 'file_size', 'cache_lock', 'cache_unlock')))
-window = (ROOT / 'src/activities/reader/EpubReaderChapterSelectionActivity.cpp').read_text()
+window = native_text('src/activities/reader/EpubReaderChapterSelectionActivity.cpp')
 if len(sys.argv) > 2 and sys.argv[2] == 'guard':
     source += (HERE / 'chapter_native.cpp.in').read_text().split('struct Epub {', 1)[0]
     source += (HERE / 'chapter_guard.cpp.in').read_text()

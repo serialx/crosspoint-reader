@@ -28,6 +28,7 @@ def exercise(args, evidence):
     sys.path.insert(0, str(here))
     from rust_host import rust_link_flags
     import test_toolbar_resource as resource
+    from oracle_sources import oracle_path
     env = dict(os.environ, XP_TEST_RUST_ARCHIVE=str(archive), PYTHONDONTWRITEBYTECODE='1')
     paths = {root / path for path in resource.PATHS}
     paths.update(here / name for name in (
@@ -41,6 +42,7 @@ def exercise(args, evidence):
     paths.update(root / name for name in ('rust/Cargo.toml', 'rust/Cargo.lock',
                                         'rust/crates/xp-ffi/src/app/abi.rs',
                                         'rust/crates/xp-ffi/src/app/result.rs'))
+    paths = {oracle_path(path) for path in paths}
     source_bytes = {path: path.read_bytes() for path in sorted(paths)}
     draft_paths = [Path(__file__).resolve(), draft / 'toolbar_owner_publication.inc']
     draft_bytes = {path: path.read_bytes() for path in draft_paths}
@@ -91,7 +93,7 @@ def exercise(args, evidence):
         # Unchanged threaded component, revision-wrap, null-pointer, C ABI and spelling-drift tests.
         shared = execute('shared-component', [sys.executable, here / 'test_toolbar_publication.py'])
         assert shared.returncode == 0, ('shared component failed', shared.returncode)
-        sources = {path: source_bytes[root / path].decode() for path in resource.PATHS}
+        sources = {path: source_bytes[oracle_path(root / path)].decode() for path in resource.PATHS}
         original_template = source_bytes[here / 'toolbar_resource_oracle.cpp'].decode()
         template = once(original_template, 'int main() {', 'static void resource_contract_main() {')
         template = once(template, 'class GfxRenderer {',

@@ -131,18 +131,6 @@ uint8_t xp_ui_reader_back(const XpUiReaderInputServices*, uint8_t back_short_bro
 uint8_t xp_ui_reader_gesture(uint8_t persisted_gesture);
 /* Read-only byte-span scan, O(length); call outside ModelLock. Null tag returns false. */
 
-/* ReaderToolbarUi replaces ListNav with the existing XpUiListState. These keep
- * the old immediate viewport scroll/clamp and pageRows fallback exactly. */
-void xp_ui_reader_toolbar_nav_reset(XpUiListState*);
-int32_t xp_ui_reader_toolbar_page_rows(const XpUiListState*);
-uint8_t xp_ui_reader_toolbar_scroll(XpUiListState*, int32_t delta, int32_t count);
-// POD-only, synchronous, O(1), allocation-free and without logging. Null pointers are ignored.
-// The parent holds its short model lock. Snapshot before layout; publish after successful paint.
-// Both states must be disjoint. A reset/scroll increments the 32-bit navigation_revision modulo
-// 2^32; publication accepts selected/top and row counts only if the revision still matches.
-// Exactly 2^32 changes during one layout can produce a false match; this wrap case is accepted.
-void xp_ui_reader_toolbar_nav_publish(XpUiListState* state, const XpUiListState* painted);
-
 typedef enum {
   XP_UI_READER_REFRESH_MANUAL = 1,
   XP_UI_READER_REFRESH_COUNTER_ONLY = 2,

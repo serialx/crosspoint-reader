@@ -156,7 +156,7 @@ inline XpAppRuntime overlayUnexpectedRuntime() {
 
 inline XpEpubLeaves overlayUnexpectedLeaves() {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 167 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 163 * sizeof(void (*)()));
   table.render_margins = &OverlayUnexpected<decltype(table.render_margins)>::call;
   table.render_geometry = &OverlayUnexpected<decltype(table.render_geometry)>::call;
   table.render_restore_bw = &OverlayUnexpected<decltype(table.render_restore_bw)>::call;
@@ -217,25 +217,14 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.wifi_connected = &OverlayUnexpected<decltype(table.wifi_connected)>::call;
   table.wifi_disconnect = &OverlayUnexpected<decltype(table.wifi_disconnect)>::call;
   table.restart_reader = &OverlayUnexpected<decltype(table.restart_reader)>::call;
-  table.child_menu = &OverlayUnexpected<decltype(table.child_menu)>::call;
-  table.child_chapter = &OverlayUnexpected<decltype(table.child_chapter)>::call;
-  table.child_percent = &OverlayUnexpected<decltype(table.child_percent)>::call;
   table.child_text_settings = &OverlayUnexpected<decltype(table.child_text_settings)>::call;
   table.child_footnote = &OverlayUnexpected<decltype(table.child_footnote)>::call;
   table.child_dictionary = &OverlayUnexpected<decltype(table.child_dictionary)>::call;
   table.child_selection = &OverlayUnexpected<decltype(table.child_selection)>::call;
   table.child_bookmarks = &OverlayUnexpected<decltype(table.child_bookmarks)>::call;
   table.child_clippings = &OverlayUnexpected<decltype(table.child_clippings)>::call;
-  table.child_qr = &OverlayUnexpected<decltype(table.child_qr)>::call;
   table.child_wifi = &OverlayUnexpected<decltype(table.child_wifi)>::call;
   table.child_sync = &OverlayUnexpected<decltype(table.child_sync)>::call;
-  table.toolbar_open = &OverlayUnexpected<decltype(table.toolbar_open)>::call;
-  table.toolbar_close = &OverlayUnexpected<decltype(table.toolbar_close)>::call;
-  table.toolbar_begin = &OverlayUnexpected<decltype(table.toolbar_begin)>::call;
-  table.toolbar_paint = &OverlayUnexpected<decltype(table.toolbar_paint)>::call;
-  table.toolbar_route = &OverlayUnexpected<decltype(table.toolbar_route)>::call;
-  table.toolbar_scroll = &OverlayUnexpected<decltype(table.toolbar_scroll)>::call;
-  table.toolbar_visible_rows = &OverlayUnexpected<decltype(table.toolbar_visible_rows)>::call;
   table.popup_open = &OverlayUnexpected<decltype(table.popup_open)>::call;
   table.popup_close = &OverlayUnexpected<decltype(table.popup_close)>::call;
   table.popup_active = &OverlayUnexpected<decltype(table.popup_active)>::call;
@@ -284,7 +273,6 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.log = &OverlayUnexpected<decltype(table.log)>::call;
   table.font_text_advance = &OverlayUnexpected<decltype(table.font_text_advance)>::call;
   table.log_enabled = &OverlayUnexpected<decltype(table.log_enabled)>::call;
-  table.toolbar_reset_navigation = &OverlayUnexpected<decltype(table.toolbar_reset_navigation)>::call;
   table.input_snapshot = &OverlayUnexpected<decltype(table.input_snapshot)>::call;
   table.protection_open = &OverlayUnexpected<decltype(table.protection_open)>::call;
   table.protection_close = &OverlayUnexpected<decltype(table.protection_close)>::call;

@@ -80,14 +80,12 @@ impl EpubSession {
                 bookmarks: u8::from(bookmarks),
                 clippings: u8::from(self.has_clippings()),
             };
-            if self.children_enabled() {
-                self.launch_owned_menu(&args);
+            #[cfg(feature = "app-test")]
+            if let Some(legacy) = self.legacy_children.get() {
+                self.launch_menu_child(unsafe { (legacy.child_menu)(&args) }, ChildIntent::Menu);
                 return;
             }
-            self.launch_menu_child(
-                unsafe { (self.leaves.child_menu)(&args) },
-                ChildIntent::Menu,
-            );
+            self.launch_owned_menu(&args);
         });
     }
 
@@ -112,17 +110,18 @@ impl EpubSession {
             self.drop_section(&access);
             toc
         };
-        if let Some(book) = self.loop_book() {
-            if self.children_enabled() {
-                self.launch_owned_chapters(toc);
+        if let Some(_book) = self.loop_book() {
+            #[cfg(feature = "app-test")]
+            if let Some(legacy) = self.legacy_children.get() {
+                self.launch_menu_child(
+                    unsafe {
+                        (legacy.child_chapter)(super::session_book::facade(_book.as_ptr()), toc)
+                    },
+                    ChildIntent::Chapter,
+                );
                 return;
             }
-            self.launch_menu_child(
-                unsafe {
-                    (self.leaves.child_chapter)(super::session_book::facade(book.as_ptr()), toc)
-                },
-                ChildIntent::Chapter,
-            );
+            self.launch_owned_chapters(toc);
         }
     }
 
@@ -135,14 +134,15 @@ impl EpubSession {
 
     fn open_percent(&self) {
         let percent = self.book_percent_for(self.chapter_position());
-        if self.children_enabled() {
-            self.launch_owned_percent(percent);
+        #[cfg(feature = "app-test")]
+        if let Some(legacy) = self.legacy_children.get() {
+            self.launch_menu_child(
+                unsafe { (legacy.child_percent)(percent) },
+                ChildIntent::Percent,
+            );
             return;
         }
-        self.launch_menu_child(
-            unsafe { (self.leaves.child_percent)(percent) },
-            ChildIntent::Percent,
-        );
+        self.launch_owned_percent(percent);
     }
 
     fn open_qr(&self) {
@@ -162,14 +162,12 @@ impl EpubSession {
             }
         };
         if let Some(text) = text.filter(|text| !text.bytes().is_empty()) {
-            if self.children_enabled() {
-                self.launch_owned_qr(text);
+            #[cfg(feature = "app-test")]
+            if let Some(legacy) = self.legacy_children.get() {
+                self.launch_menu_child(unsafe { (legacy.child_qr)(text.wire()) }, ChildIntent::Qr);
                 return;
             }
-            self.launch_menu_child(
-                unsafe { (self.leaves.child_qr)(text.wire()) },
-                ChildIntent::Qr,
-            );
+            self.launch_owned_qr(text);
         } else {
             self.request_update();
         }

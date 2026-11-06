@@ -9,6 +9,8 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "test/reader_children"))
+from oracle_sources import native_text, native_bytes
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from extract import definition
@@ -30,8 +32,8 @@ def replace_once(source, before, after):
 
 
 def main():
-    native = (ROOT / NATIVE).read_bytes()
-    header = (ROOT / HEADER).read_bytes()
+    native = native_bytes(NATIVE)
+    header = native_bytes(HEADER)
     method = definition(native.decode(), 'void EpubReaderMenuActivity::buildMenuItems(')
     action_enum = definition(header.decode(), 'enum class MenuAction') + ';'
     capacity = re.findall(r'static constexpr size_t MAX_MENU_ITEMS = [0-9]+;', header.decode())
@@ -104,7 +106,7 @@ def main():
             }), flush=True)
     finally:
         assert production_file.read_bytes() == production, 'real production source changed'
-        assert (ROOT / NATIVE).read_bytes() == native and (ROOT / HEADER).read_bytes() == header
+        assert native_bytes(NATIVE) == native and native_bytes(HEADER) == header
     print('more actions: actual native order and both gate interleavings passed; actual Rust mutant rejected')
 
 

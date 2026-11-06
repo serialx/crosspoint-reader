@@ -121,7 +121,7 @@ static const XpAppRuntime runtime = [] {
 static auto legacyPage = unexpectedLegacyPageServices();
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 167 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 163 * sizeof(void (*)()));
   UNUSED_LEAF(render_margins);
   UNUSED_LEAF(render_geometry);
   UNUSED_LEAF(render_restore_bw);
@@ -183,25 +183,14 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(wifi_connected);
   UNUSED_LEAF(wifi_disconnect);
   UNUSED_LEAF(restart_reader);
-  UNUSED_LEAF(child_menu);
-  UNUSED_LEAF(child_chapter);
-  UNUSED_LEAF(child_percent);
   UNUSED_LEAF(child_text_settings);
   UNUSED_LEAF(child_footnote);
   UNUSED_LEAF(child_dictionary);
   UNUSED_LEAF(child_selection);
   UNUSED_LEAF(child_bookmarks);
   UNUSED_LEAF(child_clippings);
-  UNUSED_LEAF(child_qr);
   UNUSED_LEAF(child_wifi);
   UNUSED_LEAF(child_sync);
-  UNUSED_LEAF(toolbar_open);
-  UNUSED_LEAF(toolbar_close);
-  UNUSED_LEAF(toolbar_begin);
-  UNUSED_LEAF(toolbar_paint);
-  UNUSED_LEAF(toolbar_route);
-  UNUSED_LEAF(toolbar_scroll);
-  UNUSED_LEAF(toolbar_visible_rows);
   UNUSED_LEAF(popup_open);
   UNUSED_LEAF(popup_close);
   UNUSED_LEAF(popup_active);
@@ -251,7 +240,6 @@ static const XpEpubLeaves leaves = [] {
 
   UNUSED_LEAF(font_text_advance);
   UNUSED_LEAF(log_enabled);
-  UNUSED_LEAF(toolbar_reset_navigation);
   UNUSED_LEAF(input_snapshot);
 
   UNUSED_LEAF(protection_open);
@@ -290,6 +278,14 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(image_read_window);
   UNUSED_LEAF(display_source);
   UNUSED_LEAF(framebuffer_view);
+  UNUSED_LEAF(child_list_theme);
+  UNUSED_LEAF(child_utility_layout);
+  UNUSED_LEAF(child_header);
+  UNUSED_LEAF(child_utility_footer);
+  UNUSED_LEAF(child_qr_draw);
+  UNUSED_LEAF(child_toolbar_icon);
+  UNUSED_LEAF(child_clear_fonts);
+  UNUSED_LEAF(child_prewarm_rows);
   legacyPage.metadata_links = [](void* native) -> uint16_t {
     leaf();
     assert(native);

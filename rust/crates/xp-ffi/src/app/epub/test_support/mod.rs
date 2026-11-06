@@ -2,6 +2,7 @@ mod base;
 mod book_owner;
 mod book_render;
 pub(super) mod legacy_book;
+pub(super) mod legacy_children;
 pub(super) use book_render::BookRenderHooks;
 mod child;
 mod clipping;

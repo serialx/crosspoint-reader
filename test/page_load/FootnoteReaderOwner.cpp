@@ -547,7 +547,7 @@ void bindReader() {
                      parent.fixture->renderer, parent.fixture->mappedInput, std::unique_ptr<Page>(page), left, top),
                  true);
   };
-  leaves.child_menu = [](const XpEpubMenuArgs* args) -> void* {
+  legacyBook.children.child_menu = [](const XpEpubMenuArgs* args) -> void* {
     physical(0);
     assert(args && text(args->title) == "Fixture");
     parent.menuFootnotes = args->footnotes != 0;

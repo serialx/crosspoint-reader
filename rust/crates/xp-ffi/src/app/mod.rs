@@ -231,6 +231,7 @@ impl App {
                             self.runtime,
                             self.resources,
                             &fixture.section.page,
+                            Some(fixture.children),
                         )
                         .map(StableOwner::from)
                         .map(Owner::Epub);
@@ -257,6 +258,7 @@ impl App {
                                 self.runtime,
                                 self.resources,
                                 fixture,
+                                previous.legacy_child_fixture(),
                             )
                             .map(StableOwner::from)
                             .map(Owner::Epub);
@@ -807,7 +809,7 @@ pub unsafe extern "C" fn xp_app_init(
         epub,
         resources,
         runtime,
-        child_drawing: None,
+        child_drawing: Some(&epub.child_drawing),
     };
     unsafe { *APP.0.get() = Some(owner) };
     *compatibility = abi::Compatibility {

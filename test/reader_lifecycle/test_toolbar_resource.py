@@ -18,6 +18,8 @@ import tempfile
 from test_popup_resource import definition, native_leaf, replace_once
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "test/reader_children"))
+from oracle_sources import native_text
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / 'test'))
 from rust_host import rust_link_flags
@@ -102,7 +104,7 @@ def run_case(output, name, sources, template, compiler, link_flags, failure=None
 
 
 def exercise(output, compiler, archive):
-    sources = {path: (ROOT / path).read_text() for path in PATHS}
+    sources = {path: native_text(path) for path in PATHS}
     template = (HERE / 'toolbar_resource_oracle.cpp').read_text()
     link_flags = rust_link_flags(archive=archive)
     archive_path = Path(link_flags[-1]).resolve()

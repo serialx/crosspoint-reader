@@ -2,6 +2,7 @@
 #include <initializer_list>
 
 #include "components/lists/list.h"
+#include "legacy_reader_chrome_wire.h"
 #if READER_NAV_RUST
 #include <xp_ui_reader.h>
 #endif

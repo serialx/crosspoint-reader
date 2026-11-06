@@ -62,6 +62,12 @@ impl EpubSession {
             (ChildIntent::Percent, ReaderChildResult::Percent(Some(value))) => {
                 self.jump_to_percent(i32::from(value));
             }
+            (ChildIntent::Footnote { reopen_menu }, ReaderChildResult::Footnote(href)) => {
+                self.footnote_result(reopen_menu, href.as_ref().map(Text::bytes));
+            }
+            (ChildIntent::Dictionary, ReaderChildResult::LookupClosed { cancelled }) => {
+                self.dictionary_result(cancelled)
+            }
             (ChildIntent::Chapter, ReaderChildResult::Chapter(None))
             | (ChildIntent::Percent, ReaderChildResult::Percent(None))
             | (ChildIntent::Qr, ReaderChildResult::QrClosed) => self.open_reader_menu(),

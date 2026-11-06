@@ -2,7 +2,7 @@
 #include <string_view>
 
 #include "FootnoteReader.h"
-#include "activities/reader/EpubReaderFootnoteSelectActivity.h"
+#include "FrozenFootnoteSelector.h"
 #include "footnote_app_entry.inc"
 
 struct NavigationObservation {

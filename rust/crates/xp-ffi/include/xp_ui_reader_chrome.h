@@ -109,18 +109,6 @@ void xp_ui_reader_list_publish(XpUiReaderListState*, const XpUiReaderListState*,
 uint8_t xp_ui_reader_list_view(const XpUiReaderListState*, uint8_t kind, const XpUiReaderTheme*, const XpUiReaderRows*,
                                const XpUiBuffer*, XpUiReaderListState*, XpUiScene*, XpUiReaderHitLayout*);
 
-typedef struct {
-  int32_t selected;
-  uint32_t last_move_ms;
-} XpUiReaderFootnoteState;
-XpUiInterest xp_ui_reader_footnote_interest(const XpUiReaderFootnoteState*, uint32_t now_ms);
-XpUiEffect xp_ui_reader_footnote_update(XpUiReaderFootnoteState*, const XpUiInput*, uint16_t count);
-// Geometry is logical, including the original top/left clipping before the
-// framebuffer snapshot service. That service retains its existing 4096 B cap.
-uint8_t xp_ui_reader_footnote_view(XpUiRect screen, XpUiRect link, int16_t margin_left, int16_t margin_top,
-                                   int32_t font, uint32_t number_handle, const XpUiBuffer*, XpUiRect* snapshot,
-                                   XpUiScene*);
-
 uint8_t xp_ui_reader_hit(const XpUiReaderHitLayout*, int16_t x, int16_t y, XpUiInteraction*);
 // Effect.kind is the existing EndOfBookOptions::Action ID (0..4).
 XpUiEffect xp_ui_reader_end_update(XpUiListState*, const XpUiInput*, uint16_t count, uint8_t use_press);
@@ -200,10 +188,6 @@ static_assert(offsetof(XpUiReaderRow, icon) == 12);
 static_assert(offsetof(XpUiReaderRow, toggle) == 16);
 static_assert(offsetof(XpUiReaderRow, checked) == 17);
 static_assert(offsetof(XpUiReaderRow, reserved) == 18);
-static_assert(sizeof(XpUiReaderFootnoteState) == 8);
-static_assert(alignof(XpUiReaderFootnoteState) == 4);
-static_assert(offsetof(XpUiReaderFootnoteState, selected) == 0);
-static_assert(offsetof(XpUiReaderFootnoteState, last_move_ms) == 4);
 static_assert(sizeof(XpUiReaderRows) == sizeof(void*) * 6 + 8);
 static_assert(alignof(XpUiReaderRows) == alignof(void*));
 static_assert(offsetof(XpUiReaderRows, context) == sizeof(void*) * 0);

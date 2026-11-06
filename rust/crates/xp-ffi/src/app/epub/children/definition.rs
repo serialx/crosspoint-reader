@@ -65,7 +65,7 @@ impl Definition {
         let handle = unsafe { (physical.definition_lookup)(owner.storage.get(), lookup) };
         Self::constructed(owner, physical, handle)
     }
-    pub(super) fn handle(&self) -> NonNull<c_void> {
+    pub(crate) fn handle(&self) -> NonNull<c_void> {
         debug_assert!(unsafe { (*self.destroy.get()).is_some() });
         NonNull::new(self.storage.get().cast()).expect("inline definition")
     }

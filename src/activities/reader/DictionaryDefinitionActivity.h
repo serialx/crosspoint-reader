@@ -85,7 +85,7 @@ class DictionaryDefinitionActivity final : public RustActivityAdapter {
 
   struct LookupState {
     explicit LookupState(Dictionary& dictionary) : dictionary(dictionary) {}
-    Dictionary& dictionary;  // Owned by the retained DictionaryWordSelectActivity parent.
+    Dictionary& dictionary;  // Owned by the retained Rust lookup parent.
     std::array<HistoryEntry, 16> history;
     size_t depth = 0;
     std::string query;

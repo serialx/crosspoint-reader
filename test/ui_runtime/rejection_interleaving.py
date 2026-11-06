@@ -6,11 +6,13 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "test/reader_children"))
+from oracle_sources import native_text
 SOURCE = Path(os.environ.get("XP_REJECTION_SOURCE_ROOT", ROOT))
 
 
 def method(path, signature):
-    source = (SOURCE / path).read_text()
+    source = (SOURCE / path).read_text() if (SOURCE / path).is_file() else native_text(path)
     start = source.index(signature)
     end = source.index("{", start) + 1
     depth = 1
@@ -20,7 +22,7 @@ def method(path, signature):
     return source[start:end]
 
 
-code = r'''
+code = '#include "' + str(ROOT / "test/reader_children/selection_legacy_wire.h") + '"\n' + r'''
 #include "RustActivityAdapter.h"
 #include <xp_ui_settings.h>
 #include <xp_ui_reader_chrome.h>

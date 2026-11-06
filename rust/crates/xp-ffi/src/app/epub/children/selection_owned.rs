@@ -23,10 +23,8 @@ use xp_ui::{
 #[repr(C)]
 pub(super) struct FootnotePublication {
     pub(super) state: FootnoteState,
-    pub(super) failed: bool,
     pub(super) ready: bool,
-    pub(super) suppress_contact: bool,
-    pub(super) suppress_buttons: u32,
+    pub(super) gate: xp_ui::runtime::SceneGate,
 }
 #[repr(C)]
 pub(super) struct FootnoteFrame {
@@ -37,7 +35,7 @@ pub(super) struct FootnoteFrame {
     pub(super) rendering_selected: i32,
 }
 #[repr(C)]
-pub(super) struct Footnote {
+pub(crate) struct Footnote {
     pub(super) model: ModelCell<FootnotePublication>,
     pub(super) frame: UnsafeCell<FootnoteFrame>,
     pub(super) page: Page,
@@ -63,10 +61,8 @@ impl Footnote {
                 ptr::addr_of_mut!((*out).model).write(ModelCell::new(
                     FootnotePublication {
                         state: FootnoteState::default(),
-                        failed: false,
                         ready: false,
-                        suppress_contact: false,
-                        suppress_buttons: 0,
+                        gate: xp_ui::runtime::SceneGate::default(),
                     },
                     runtime,
                 ));
@@ -130,7 +126,7 @@ pub(super) struct LookupFrame {
     pub(super) prewarm: [usize; 2],
 }
 #[repr(C)]
-pub(super) struct LookupData {
+pub(crate) struct LookupData {
     pub(super) model: ModelCell<LookupPublication>,
     pub(super) frame: UnsafeCell<LookupFrame>,
     pub(super) page: UnsafeCell<Option<Page>>,
@@ -140,7 +136,7 @@ pub(super) struct LookupData {
     destroy: UnsafeCell<Option<unsafe extern "C" fn(*mut LookupStorage)>>,
     pub(super) result: UnsafeCell<Option<ReaderChildResult>>,
 }
-pub(super) struct Lookup(StableOwner<LookupData>);
+pub(crate) struct Lookup(StableOwner<LookupData>);
 impl core::ops::Deref for Lookup {
     type Target = LookupData;
     fn deref(&self) -> &LookupData {

@@ -33,11 +33,15 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
   ${REPO_ROOT}/test/reader_render_resources/parent_frame.inc
   ${REPO_ROOT}/test/reader_lifecycle/test_popup_resource.py
   ${REPO_ROOT}/test/section_golden/stubs/GfxRenderer.h)
+execute_process(COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_selection_oracle.py
+  ${CMAKE_CURRENT_BINARY_DIR} COMMAND_ERROR_IS_FATAL ANY)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS prepare_selection_oracle.py
+  ${REPO_ROOT}/test/reader_children/native_oracle/manifest.json)
 add_executable(ReaderPageTransfer PageTransfer.cpp ${READER_PAGE_SOURCES}
   ${CMAKE_CURRENT_BINARY_DIR}/ClipConstructors.cpp ${CMAKE_CURRENT_BINARY_DIR}/PageFrame.cpp)
 target_include_directories(ReaderPageTransfer PRIVATE
   ${REPO_ROOT}/test ${REPO_ROOT}/test/reader_lifecycle/native_render
-  ${CMAKE_CURRENT_BINARY_DIR}/physical ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/transfer_stubs
+  ${CMAKE_CURRENT_BINARY_DIR}/physical ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/transfer_stubs
   ${CMAKE_CURRENT_SOURCE_DIR}/stubs ${PAGE_CODEC_INCLUDES} ${REPO_ROOT}/test/ui_runtime)
 target_compile_definitions(ReaderPageTransfer PRIVATE XP_EPUB_PAGE_OWNER_TEST=1)
 target_compile_options(ReaderPageTransfer PRIVATE -UNDEBUG)
@@ -51,7 +55,7 @@ if(XP_FFI_HOST_FEATURES MATCHES "(^|,)reader-strips(,|$)")
     ${CMAKE_CURRENT_BINARY_DIR}/ClipConstructors.cpp ${CMAKE_CURRENT_BINARY_DIR}/PageFrame.cpp)
   target_include_directories(ReaderPageFrameStrip PRIVATE
     ${REPO_ROOT}/test ${REPO_ROOT}/test/reader_lifecycle/native_render
-    ${CMAKE_CURRENT_BINARY_DIR}/physical ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/transfer_stubs
+    ${CMAKE_CURRENT_BINARY_DIR}/physical ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/transfer_stubs
     ${CMAKE_CURRENT_SOURCE_DIR}/stubs ${PAGE_CODEC_INCLUDES} ${REPO_ROOT}/test/ui_runtime)
   target_compile_definitions(ReaderPageFrameStrip PRIVATE XP_EPUB_PAGE_OWNER_TEST=1 XP_STRIP_RENDER=1)
   target_compile_options(ReaderPageFrameStrip PRIVATE -UNDEBUG)

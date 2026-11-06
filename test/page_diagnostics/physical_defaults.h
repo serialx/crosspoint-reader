@@ -25,7 +25,7 @@ struct AppFixtureUnexpected<R (*)(A...), Slot> {
 
 inline XpEpubLeaves unexpectedEpubLeaves() {
   XpEpubLeaves value{};
-  static_assert(sizeof(XpEpubLeaves) == 175 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 173 * sizeof(void (*)()));
   value.render_margins = &AppFixtureUnexpected<decltype(value.render_margins), 5>::call;
   value.render_geometry = &AppFixtureUnexpected<decltype(value.render_geometry), 6>::call;
   value.render_restore_bw = &AppFixtureUnexpected<decltype(value.render_restore_bw), 7>::call;
@@ -98,8 +98,6 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.wifi_disconnect = &AppFixtureUnexpected<decltype(value.wifi_disconnect), 111>::call;
   value.restart_reader = &AppFixtureUnexpected<decltype(value.restart_reader), 112>::call;
   value.child_text_settings = &AppFixtureUnexpected<decltype(value.child_text_settings), 116>::call;
-  value.child_footnote = &AppFixtureUnexpected<decltype(value.child_footnote), 117>::call;
-  value.child_dictionary = &AppFixtureUnexpected<decltype(value.child_dictionary), 118>::call;
   value.child_selection = &AppFixtureUnexpected<decltype(value.child_selection), 119>::call;
   value.child_bookmarks = &AppFixtureUnexpected<decltype(value.child_bookmarks), 120>::call;
   value.child_clippings = &AppFixtureUnexpected<decltype(value.child_clippings), 121>::call;

@@ -106,10 +106,12 @@ forward!(
     ) -> u8,
     definition_view
 );
+#[cfg(feature = "app-test")]
 forward!(
     xp_ui_lookup_init(state: *mut popup::Lookup) -> (),
     lookup_init
 );
+#[cfg(feature = "app-test")]
 forward!(
     xp_ui_lookup_view(
         state: *const popup::Lookup,
@@ -119,6 +121,7 @@ forward!(
     ) -> u8,
     lookup_view
 );
+#[cfg(feature = "app-test")]
 forward!(
     xp_ui_lookup_result(
         state: *mut popup::Lookup,
@@ -130,6 +133,7 @@ forward!(
     ) -> (),
     lookup_result
 );
+#[cfg(feature = "app-test")]
 forward!(
     xp_ui_lookup_expired(state: *const popup::Lookup, now: u32) -> u8,
     lookup_expired

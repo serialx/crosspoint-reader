@@ -6,6 +6,16 @@ mod epub {
     pub mod abi {
         pub enum XpEpubLeaves {}
     }
+    // This crate exercises the four O4a children. Real Page/selection owners run
+    // in reader_selection_ownership, which compiles the complete App instead.
+    pub mod page_owner {
+        pub(crate) struct Page;
+        impl Page {
+            pub(crate) fn view(&self) -> xp_core::page::Page<'_> {
+                panic!("selection requires the real App composition")
+            }
+        }
+    }
 }
 #[path = "../../rust/crates/xp-ffi/src/app/abi.rs"]
 mod abi;
@@ -18,7 +28,7 @@ mod test_resources;
 mod app {
     #[cfg(test)]
     pub(crate) use super::test_resources;
-    pub(crate) use super::{abi, resources, stable_owner, sync};
+    pub(crate) use super::{abi, epub, resources, stable_owner, sync};
 }
 #[path = "../../rust/crates/xp-ffi/src/app/epub/children/commands.rs"]
 mod commands;
@@ -26,6 +36,8 @@ mod commands;
 mod owned;
 #[cfg(test)]
 mod owner_tests;
+#[path = "../../rust/crates/xp-ffi/src/app/epub/children/selection_owned.rs"]
+mod selection_owned;
 #[path = "../../rust/crates/xp-ffi/src/app/sync.rs"]
 mod sync;
 

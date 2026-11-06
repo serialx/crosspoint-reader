@@ -54,12 +54,7 @@ impl LookupData {
                 self.model.with(|model| model.awaiting_detail = true);
                 Attempt::Detail(viewer)
             } else {
-                let now = now();
-                self.model.with(|model| {
-                    model.state.popup = 3;
-                    model.state.message = popup::LOW_MEMORY;
-                    model.state.since = now;
-                });
+                self.definition_install_failed(now());
                 Attempt::Popup {
                     allocation_failed: true,
                 }
@@ -78,5 +73,76 @@ impl LookupData {
         // Match the two native attempt-local strings' destruction, including OOM.
         unsafe { (physical.lookup_discard)(self.native.get()) };
         outcome
+    }
+}
+
+impl LookupData {
+    pub(super) unsafe fn activity_input(
+        &self,
+        parent: &crate::app::epub::EpubSession,
+        now: u32,
+    ) -> bool {
+        let (pending, failed, expired) = self.model.with(|model| {
+            (
+                model.state.pending != 0,
+                model.failed,
+                model.state.expired(now),
+            )
+        });
+        if failed {
+            parent.request_update();
+        }
+        if pending {
+            let attempt = unsafe {
+                self.perform(
+                    &parent.leaves.child_selection_physical,
+                    || (parent.runtime.now_ms)(),
+                    || {
+                        let _access = parent.lock_resources();
+                        self.release_page();
+                    },
+                )
+            };
+            match attempt {
+                Attempt::Detail(viewer) => parent.push_definition(viewer),
+                Attempt::Popup { allocation_failed } => {
+                    if allocation_failed {
+                        unsafe {
+                            (parent.leaves.log)(
+                                1,
+                                crate::app::abi::Text::from_bytes(b"DICT"),
+                                crate::app::abi::Text::from_bytes(b"OOM: definition activity"),
+                            )
+                        };
+                    }
+                    parent.request_update();
+                }
+            }
+            return false;
+        }
+        if expired {
+            unsafe {
+                *self.result.get() =
+                    Some(super::child_result::ReaderChildResult::LookupClosed { cancelled: false })
+            };
+        }
+        expired
+    }
+
+    pub(in crate::app) fn definition_install_failed(&self, now: u32) {
+        self.model.with(|model| {
+            model.awaiting_detail = false;
+            model.state.popup = 3;
+            model.state.message = popup::LOW_MEMORY;
+            model.state.since = now;
+        });
+    }
+
+    pub(in crate::app) unsafe fn definition_closed(&self, cancelled: bool) {
+        self.model.with(|model| model.awaiting_detail = false);
+        unsafe {
+            *self.result.get() =
+                Some(super::child_result::ReaderChildResult::LookupClosed { cancelled })
+        };
     }
 }

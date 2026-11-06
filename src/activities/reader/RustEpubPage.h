@@ -5,8 +5,6 @@
 #include <xp_epub_session.h>
 
 #include "ClipSelectionActivity.h"
-#include "DictionaryWordSelectActivity.h"
-#include "EpubReaderFootnoteSelectActivity.h"
 #include "activities/OwnedLegacyActivity.h"
 
 namespace epubPage {
@@ -21,30 +19,6 @@ inline std::unique_ptr<Page> facade(const XpEpubOwnedPage& source) {
 inline void adopt(Page& page, XpEpubOwnedPage& source) {
   page.adopt(source.owner, source.destroy);
   source.owner = nullptr;
-}
-
-inline void* footnote(GfxRenderer& renderer, MappedInputManager& input, XpEpubOwnedPage& source, int32_t left,
-                      int32_t top) {
-  auto page = facade(source);
-  if (!page) return nullptr;
-  auto* borrowed = page.get();
-  auto child = makeLegacyActivity<EpubReaderFootnoteSelectActivity>(renderer, input, std::move(page), left, top);
-  if (!child) return nullptr;
-  adopt(*borrowed, source);
-  return child.release();
-}
-
-inline void* dictionary(GfxRenderer& renderer, MappedInputManager& input, XpEpubOwnedPage& source, int32_t left,
-                        int32_t top, XpAppText initial) {
-  auto page = facade(source);
-  if (!page) return nullptr;
-  auto* borrowed = page.get();
-  std::string text = initial.len ? std::string(reinterpret_cast<const char*>(initial.data), initial.len) : "";
-  auto child =
-      makeLegacyActivity<DictionaryWordSelectActivity>(renderer, input, std::move(page), left, top, std::move(text));
-  if (!child) return nullptr;
-  adopt(*borrowed, source);
-  return child.release();
 }
 
 inline void* selection(GfxRenderer& renderer, MappedInputManager& input, XpEpubOwnedPage* sources, uint8_t count,

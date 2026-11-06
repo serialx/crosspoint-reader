@@ -22,7 +22,7 @@ use core::{
     ffi::c_void,
     ptr::NonNull,
 };
-use epub::children::{ChildTarget, Physical, ReaderChild, ReaderChildResult};
+use epub::children::{ChildTarget, Definition, Physical, ReaderChild, ReaderChildResult};
 use stable_owner::StableOwner;
 use sync::ModelCell;
 use xp_ui::{
@@ -39,6 +39,7 @@ enum Target {
     Home(NonNull<home::Home>),
     Epub(NonNull<epub::EpubSession>),
     Legacy(NonNull<c_void>),
+    Definition(NonNull<c_void>),
     ReaderChild {
         child: ChildTarget,
         parent: NonNull<epub::EpubSession>,
@@ -51,6 +52,7 @@ enum ActivityResult {
 }
 
 enum Owner {
+    Definition(Definition),
     Home(Box<home::Home>),
     Epub(StableOwner<epub::EpubSession>),
     ReaderChild {
@@ -71,6 +73,7 @@ impl Activity for Owner {
             Self::Home(home) => Target::Home(NonNull::from(home.as_ref())),
             Self::Epub(epub) => Target::Epub(epub.pointer()),
             Self::Legacy { object, .. } => Target::Legacy(*object),
+            Self::Definition(viewer) => Target::Definition(viewer.handle()),
             Self::ReaderChild { child, parent } => Target::ReaderChild {
                 child: child.target(),
                 parent: *parent,
@@ -89,7 +92,7 @@ impl Drop for Owner {
             Self::Legacy {
                 object, services, ..
             } => unsafe { (services.destroy)(object.as_ptr()) },
-            Self::Home(_) | Self::ReaderChild { .. } => {}
+            Self::Home(_) | Self::ReaderChild { .. } | Self::Definition(_) => {}
         }
     }
 }
@@ -158,7 +161,7 @@ impl App {
     fn skip_delay(&self) -> bool {
         match self.navigation.current() {
             Some(Target::Epub(epub)) => unsafe { epub.as_ref() }.skip_loop_delay(),
-            Some(Target::Legacy(target)) => unsafe {
+            Some(Target::Legacy(target) | Target::Definition(target)) => unsafe {
                 (self.legacy.facts)(target.as_ptr(), 1, 0).skip_delay != 0
             },
             _ => false,
@@ -167,7 +170,7 @@ impl App {
 
     fn target_facts(&self) -> Option<abi::LegacyFacts> {
         match self.navigation.current()? {
-            Target::Legacy(target) => Some(self.legacy_facts(target)),
+            Target::Legacy(target) | Target::Definition(target) => Some(self.legacy_facts(target)),
             Target::Epub(epub) => Some(unsafe { epub.as_ref() }.app_facts(false)),
             Target::ReaderChild { child, .. } => Some(unsafe { child.facts() }),
             Target::Home(_) => None,
@@ -415,23 +418,26 @@ impl App {
     }
 
     fn activity_loop(&self) {
-        let full_buttons = matches!(
-            self.navigation.current(),
-            Some(Target::Home(_) | Target::ReaderChild { .. })
-        );
+        let full_buttons = match self.navigation.current() {
+            Some(Target::Home(_)) => true,
+            Some(Target::ReaderChild { child, .. }) => !matches!(child, ChildTarget::Lookup(_)),
+            _ => false,
+        };
         let frame = self.snapshot(false, full_buttons, true);
         if frame.suppressed_release != 0 {
             return;
         }
         if let Some(target) = self.navigation.current() {
             let facts = match target {
-                Target::Legacy(target) => Some(self.legacy_facts(target)),
+                Target::Legacy(target) | Target::Definition(target) => {
+                    Some(self.legacy_facts(target))
+                }
                 Target::Epub(epub) => Some(unsafe { epub.as_ref() }.app_facts(false)),
                 Target::ReaderChild { child, .. } => Some(unsafe { child.facts() }),
                 Target::Home(_) => None,
             };
             if facts.is_some_and(|f| f.exclusive_storage != 0) {
-                if let Target::Legacy(target) = target {
+                if let Target::Legacy(target) | Target::Definition(target) = target {
                     unsafe { (self.legacy.r#loop)(target.as_ptr()) };
                 }
                 self.flush_update();
@@ -439,7 +445,7 @@ impl App {
             }
             if frame.home_gesture != 0 {
                 match target {
-                    Target::Legacy(target) => {
+                    Target::Legacy(target) | Target::Definition(target) => {
                         if unsafe { (self.legacy.home_gesture)(target.as_ptr()) } == 0 {
                             self.go_home(0, false);
                         }
@@ -485,7 +491,9 @@ impl App {
                 return;
             }
             match target {
-                Target::Legacy(target) => unsafe { (self.legacy.r#loop)(target.as_ptr()) },
+                Target::Legacy(target) | Target::Definition(target) => unsafe {
+                    (self.legacy.r#loop)(target.as_ptr())
+                },
                 Target::Epub(epub) => unsafe { epub.as_ref() }.loop_reader(),
                 Target::ReaderChild { child, parent } => {
                     if unsafe { child.input(parent.as_ref(), frame.input, false) } {
@@ -569,7 +577,7 @@ impl App {
     fn forced_refresh(&self) -> bool {
         match self.navigation.current() {
             Some(Target::Epub(epub)) => unsafe { epub.as_ref() }.force_refresh(),
-            Some(Target::Legacy(target)) => unsafe {
+            Some(Target::Legacy(target) | Target::Definition(target)) => unsafe {
                 (self.legacy.forced_refresh)(target.as_ptr()) != 0
             },
             _ => false,
@@ -611,7 +619,9 @@ impl Services<Owner> for App {
         match target {
             Target::Home(home) => unsafe { home.as_ref() }.enter(),
             Target::Epub(epub) => unsafe { epub.as_ref() }.enter(),
-            Target::Legacy(target) => unsafe { (self.legacy.enter)(target.as_ptr()) },
+            Target::Legacy(target) | Target::Definition(target) => unsafe {
+                (self.legacy.enter)(target.as_ptr())
+            },
             Target::ReaderChild { child, parent } => {
                 let ready = unsafe {
                     child.enter(
@@ -629,7 +639,9 @@ impl Services<Owner> for App {
         match target {
             Target::Home(home) => unsafe { home.as_ref() }.exit(),
             Target::Epub(epub) => unsafe { epub.as_ref().exit_owned() },
-            Target::Legacy(target) => unsafe { (self.legacy.exit)(target.as_ptr()) },
+            Target::Legacy(target) | Target::Definition(target) => unsafe {
+                (self.legacy.exit)(target.as_ptr())
+            },
             Target::ReaderChild { child, parent } => unsafe { child.exit(parent.as_ref()) },
         }
     }
@@ -661,6 +673,12 @@ impl Services<Owner> for App {
             Target::Legacy(target) => invoke(self, target, |result| {
                 consume(ActivityResult::Legacy(result))
             }),
+            Target::Definition(target) => invoke(self, target, |result| {
+                let cancelled = unsafe { result.as_ref() }.is_none_or(|view| view.cancelled != 0);
+                consume(ActivityResult::Child(Some(
+                    ReaderChildResult::DefinitionClosed { cancelled },
+                )))
+            }),
             Target::ReaderChild { child, .. } => {
                 consume(ActivityResult::Child(unsafe { child.take_result() }))
             }
@@ -674,7 +692,21 @@ impl Services<Owner> for App {
             (Target::Epub(epub), ActivityResult::Child(Some(result))) => unsafe {
                 epub.as_ref().deliver_reader_child(result)
             },
-            (Target::Legacy(parent), ActivityResult::Legacy(result)) => {
+            (
+                Target::ReaderChild {
+                    child: ChildTarget::Lookup(lookup),
+                    ..
+                },
+                ActivityResult::Child(Some(ReaderChildResult::DefinitionClosed { cancelled })),
+            ) => {
+                unsafe { lookup.as_ref().definition_closed(cancelled) };
+                self.input.borrow_mut().reset();
+                self.navigation.queue(Transition::Pop);
+            }
+            (
+                Target::Legacy(parent) | Target::Definition(parent),
+                ActivityResult::Legacy(result),
+            ) => {
                 let original =
                     unsafe { result.as_ref() }.map_or(core::ptr::null(), |view| view.original);
                 unsafe { (self.legacy.deliver_result)(parent.as_ptr(), original) };
@@ -692,15 +724,29 @@ impl Services<Owner> for App {
         unsafe { (self.runtime.diagnostic)(9, 0, 0) };
     }
     fn stack_allocation_failed(&self) {
-        if let Some(Target::Epub(epub)) = self.navigation.current() {
-            unsafe { epub.as_ref().child_install_failed() };
+        match self.navigation.current() {
+            Some(Target::Epub(epub)) => unsafe { epub.as_ref().child_install_failed() },
+            Some(Target::ReaderChild {
+                child: ChildTarget::Lookup(lookup),
+                ..
+            }) => {
+                unsafe {
+                    lookup
+                        .as_ref()
+                        .definition_install_failed((self.runtime.now_ms)())
+                };
+                self.request(false);
+            }
+            _ => {}
         }
         unsafe { (self.runtime.diagnostic)(2, 1, 0) };
     }
     fn prepare_sleep(&self, target: Target) {
         match target {
             Target::Epub(epub) => unsafe { epub.as_ref() }.flush_session(),
-            Target::Legacy(target) => unsafe { (self.legacy.prepare_sleep)(target.as_ptr()) },
+            Target::Legacy(target) | Target::Definition(target) => unsafe {
+                (self.legacy.prepare_sleep)(target.as_ptr())
+            },
             Target::Home(_) | Target::ReaderChild { .. } => {}
         }
     }
@@ -741,7 +787,7 @@ unsafe extern "C" fn home_action() -> u8 {
 unsafe extern "C" fn screenshot_info(sink: abi::ScreenshotSink, context: *mut c_void) {
     if let Some(app) = app() {
         match app.navigation.current() {
-            Some(Target::Legacy(target)) => {
+            Some(Target::Legacy(target) | Target::Definition(target)) => {
                 unsafe { (app.legacy.screenshot_info)(target.as_ptr(), sink, context) };
                 return;
             }
@@ -840,7 +886,7 @@ pub unsafe extern "C" fn xp_app_render(token: *mut abi::RenderToken) {
         Some(Target::Home(home)) => {
             unsafe { home.as_ref().render(&mut *app.widths.get()) }.is_some()
         }
-        Some(Target::Legacy(target)) => {
+        Some(Target::Legacy(target) | Target::Definition(target)) => {
             unsafe { (app.legacy.render)(target.as_ptr(), token) };
             true
         }
@@ -931,7 +977,9 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
                 return abi::REJECTED;
             };
             let facts = match target {
-                Target::Legacy(target) => unsafe { (app.legacy.facts)(target.as_ptr(), 0, 1) },
+                Target::Legacy(target) | Target::Definition(target) => unsafe {
+                    (app.legacy.facts)(target.as_ptr(), 0, 1)
+                },
                 Target::Epub(epub) => unsafe { epub.as_ref() }.app_facts(true),
                 Target::ReaderChild { child, .. } => unsafe { child.facts() },
                 Target::Home(_) => return abi::REJECTED,
@@ -949,7 +997,7 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
                     runtime: app.runtime,
                 });
                 match target {
-                    Target::Legacy(_) => false,
+                    Target::Legacy(_) | Target::Definition(_) => false,
                     Target::Epub(epub) => unsafe { epub.as_ref() }
                         .dispatch_remote_shortcut(unsafe { event.value.reader_menu } != 0),
                     Target::Home(_) | Target::ReaderChild { .. } => false,
@@ -971,7 +1019,7 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
                         runtime: app.runtime,
                     });
                     let turned = match target {
-                        Target::Legacy(target) => unsafe {
+                        Target::Legacy(target) | Target::Definition(target) => unsafe {
                             (app.legacy.reader_turn)(target.as_ptr(), turn.forward, turn.chapter)
                                 != 0
                         },
@@ -1057,6 +1105,8 @@ mod probe {
             ChildTarget::Chapters(p) => (2, p.as_ptr().cast()),
             ChildTarget::Percent(p) => (3, p.as_ptr().cast()),
             ChildTarget::Qr(p) => (4, p.as_ptr().cast()),
+            ChildTarget::Footnote(p) => (5, p.as_ptr().cast()),
+            ChildTarget::Lookup(p) => (6, p.as_ptr().cast()),
         };
         if let Some(kind) = unsafe { kind.as_mut() } {
             *kind = tag;
@@ -1118,7 +1168,7 @@ mod probe {
     #[no_mangle]
     pub extern "C" fn xp_app_test_current_legacy() -> *mut c_void {
         match app().and_then(|app| app.navigation.current()) {
-            Some(Target::Legacy(target)) => target.as_ptr(),
+            Some(Target::Legacy(target) | Target::Definition(target)) => target.as_ptr(),
             _ => core::ptr::null_mut(),
         }
     }

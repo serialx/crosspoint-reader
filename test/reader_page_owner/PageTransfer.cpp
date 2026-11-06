@@ -9,6 +9,7 @@
 
 #include "../reader_lifecycle/physical_defaults.h"
 #include "FrameChecks.h"
+#include "FrozenSelectionTransfer.h"
 #include "PageViews.h"
 #include "activities/reader/RustEpubPage.h"
 
@@ -197,12 +198,12 @@ void* factory(XpEpubOwnedPage* pages, uint8_t count, void* raw) {
   switch (request.kind) {
     case 0:
       assert(count == 1);
-      result = epubPage::footnote(renderer, input, pages[0], 7, 11);
+      result = frozenSelectionTransfer::footnote(renderer, input, pages[0], 7, 11);
       break;
     case 1: {
       assert(count == 1);
       const uint8_t word[] = {'w', 'o', 'r', 'd'};
-      result = epubPage::dictionary(renderer, input, pages[0], 7, 11, {word, sizeof(word)});
+      result = frozenSelectionTransfer::dictionary(renderer, input, pages[0], 7, 11, {word, sizeof(word)});
       break;
     }
     case 2: {

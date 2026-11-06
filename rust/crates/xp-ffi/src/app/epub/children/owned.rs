@@ -1,6 +1,12 @@
 extern crate alloc;
 
-use super::{chapters, child_result::ReaderChildResult, commands::Commands, menu::Items};
+use super::{
+    chapters,
+    child_result::ReaderChildResult,
+    commands::Commands,
+    menu::Items,
+    selection_owned::{Footnote, Lookup, LookupData},
+};
 use crate::app::{abi, resources::Text, stable_owner::StableOwner, sync::ModelCell};
 use alloc::{alloc::alloc, boxed::Box};
 use core::{
@@ -31,6 +37,8 @@ pub(crate) enum ReaderChild {
     Chapters(StableOwner<Chapters>),
     Percent(StableOwner<Percent>),
     Qr(StableOwner<Qr>),
+    Footnote(StableOwner<Footnote>),
+    Lookup(Lookup),
 }
 
 impl ReaderChild {
@@ -40,6 +48,8 @@ impl ReaderChild {
             Self::Chapters(owner) => ChildTarget::Chapters(owner.pointer()),
             Self::Percent(owner) => ChildTarget::Percent(owner.pointer()),
             Self::Qr(owner) => ChildTarget::Qr(owner.pointer()),
+            Self::Footnote(owner) => ChildTarget::Footnote(owner.pointer()),
+            Self::Lookup(owner) => ChildTarget::Lookup(owner.pointer()),
         }
     }
 
@@ -56,6 +66,8 @@ pub(crate) enum ChildTarget {
     Chapters(NonNull<Chapters>),
     Percent(NonNull<Percent>),
     Qr(NonNull<Qr>),
+    Footnote(NonNull<Footnote>),
+    Lookup(NonNull<LookupData>),
 }
 
 impl ChildTarget {
@@ -65,6 +77,8 @@ impl ChildTarget {
             Self::Chapters(owner) => unsafe { &owner.as_ref().result },
             Self::Percent(owner) => unsafe { &owner.as_ref().result },
             Self::Qr(owner) => unsafe { &owner.as_ref().result },
+            Self::Footnote(owner) => unsafe { &owner.as_ref().result },
+            Self::Lookup(owner) => unsafe { &owner.as_ref().result },
         };
         unsafe { (*result.get()).take() }
     }

@@ -5,10 +5,12 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "test/reader_children"))
+from oracle_sources import native_text
 
 
 def method(path, signature):
-    source = (ROOT / path).read_text()
+    source = native_text(path)
     start = source.index(signature)
     end = source.index('{', start) + 1
     depth = 1
@@ -18,7 +20,7 @@ def method(path, signature):
     return source[start:end]
 
 
-code = r'''
+code = '#include "' + str(ROOT / "test/reader_children/selection_legacy_wire.h") + '"\n' + r'''
 #include "RustActivityAdapter.h"
 #include "components/UiAppHelpers.h"
 #include <xp_ui_boot.h>

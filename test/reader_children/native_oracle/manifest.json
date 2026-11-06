@@ -64,6 +64,41 @@
       "snapshot": "src/activities/reader/RustEpubResources.cpp.txt",
       "bytes": 56772,
       "sha256": "0f627bd8fab03d65b8e745cb6d57ee579e78c2a5c453f87ccc3e74a3dc6413f2"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderFootnoteSelectActivity.cpp",
+      "snapshot": "src/activities/reader/EpubReaderFootnoteSelectActivity.cpp.txt",
+      "bytes": 5254,
+      "sha256": "5f109b7279efab8c779eb1cc58767d57dad35ec3d140bfd22ef5333af008380f",
+      "frozen_at_commit": "658497375577a64899f0aa29a621ed36755cef6c"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderFootnoteSelectActivity.h",
+      "snapshot": "src/activities/reader/EpubReaderFootnoteSelectActivity.h.txt",
+      "bytes": 2200,
+      "sha256": "41526de1853d7b0f3f8f9092fd4b37e80b50d03c992dfe024c1e40ea80936275",
+      "frozen_at_commit": "658497375577a64899f0aa29a621ed36755cef6c"
+    },
+    {
+      "source": "src/activities/reader/DictionaryWordSelectActivity.cpp",
+      "snapshot": "src/activities/reader/DictionaryWordSelectActivity.cpp.txt",
+      "bytes": 5003,
+      "sha256": "b10a2e5e6e6a0dc1abf7cd0affdda03d1fa04385a980ad5eec7ab9976be397c4",
+      "frozen_at_commit": "658497375577a64899f0aa29a621ed36755cef6c"
+    },
+    {
+      "source": "src/activities/reader/DictionaryWordSelectActivity.h",
+      "snapshot": "src/activities/reader/DictionaryWordSelectActivity.h.txt",
+      "bytes": 1707,
+      "sha256": "2a3d51fb666a465861bb76d43539848e4ea164224f6ba97b9d631dd13c71bb90",
+      "frozen_at_commit": "658497375577a64899f0aa29a621ed36755cef6c"
+    },
+    {
+      "source": "src/activities/reader/RustEpubPage.h",
+      "snapshot": "src/activities/reader/RustEpubPage.h.txt",
+      "bytes": 3819,
+      "sha256": "85a687f60dfc4dd3dd88ce696c8361ce1abfe37554f794cfe40459d2d8a45a21",
+      "frozen_at_commit": "658497375577a64899f0aa29a621ed36755cef6c"
     }
   ],
   "retained_support_sources_at_freeze": [

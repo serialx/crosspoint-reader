@@ -156,7 +156,7 @@ inline XpAppRuntime overlayUnexpectedRuntime() {
 
 inline XpEpubLeaves overlayUnexpectedLeaves() {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 175 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 173 * sizeof(void (*)()));
   table.render_margins = &OverlayUnexpected<decltype(table.render_margins)>::call;
   table.render_geometry = &OverlayUnexpected<decltype(table.render_geometry)>::call;
   table.render_restore_bw = &OverlayUnexpected<decltype(table.render_restore_bw)>::call;
@@ -218,8 +218,6 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.wifi_disconnect = &OverlayUnexpected<decltype(table.wifi_disconnect)>::call;
   table.restart_reader = &OverlayUnexpected<decltype(table.restart_reader)>::call;
   table.child_text_settings = &OverlayUnexpected<decltype(table.child_text_settings)>::call;
-  table.child_footnote = &OverlayUnexpected<decltype(table.child_footnote)>::call;
-  table.child_dictionary = &OverlayUnexpected<decltype(table.child_dictionary)>::call;
   table.child_selection = &OverlayUnexpected<decltype(table.child_selection)>::call;
   table.child_bookmarks = &OverlayUnexpected<decltype(table.child_bookmarks)>::call;
   table.child_clippings = &OverlayUnexpected<decltype(table.child_clippings)>::call;

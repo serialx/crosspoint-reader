@@ -342,21 +342,33 @@ impl EpubSession {
         let mut margins = [0; 4];
         unsafe { (self.leaves.render_margins)(margins.as_mut_ptr()) };
         let margin = i32::from(self.settings(false).screen_margin);
-        let mut pending = Pending::new([Some(page), None, None]);
-        let child = pending.launch(
-            self.leaves,
-            Factory::Dictionary {
-                left: margins[3] + margin,
-                top: margins[0] + margin,
-                initial,
-            },
-        );
-        let Some(child) = child else {
+        let offsets = [margins[3] + margin, margins[0] + margin];
+        #[cfg(feature = "app-test")]
+        let page = match page {
+            Page::Reader(page) => page,
+            page @ Page::Legacy(_) => {
+                let mut pending = Pending::new([Some(page), None, None]);
+                let child = pending.launch(
+                    self.leaves,
+                    Factory::Dictionary {
+                        left: margins[3] + margin,
+                        top: margins[0] + margin,
+                        initial,
+                    },
+                );
+                let Some(child) = child else {
+                    self.loop_log_at(1, b"CLIP", &[b"OOM: dictionary lookup activity"]);
+                    self.request_update();
+                    return;
+                };
+                self.push_child(child, ChildIntent::Dictionary);
+                return;
+            }
+        };
+        if !self.launch_owned_lookup(page, offsets, initial) {
             self.loop_log_at(1, b"CLIP", &[b"OOM: dictionary lookup activity"]);
             self.request_update();
-            return;
-        };
-        self.push_child(child, ChildIntent::Dictionary);
+        }
     }
 
     pub(super) fn dictionary_result(&self, cancelled: bool) {
@@ -411,19 +423,34 @@ impl EpubSession {
                 let mut margins = [0; 4];
                 unsafe { (self.leaves.render_margins)(margins.as_mut_ptr()) };
                 let margin = i32::from(self.settings(false).screen_margin);
-                let mut pending = Pending::new([Some(page), None, None]);
-                let child = pending.launch(
-                    self.leaves,
-                    Factory::Footnote {
-                        left: margins[3] + margin,
-                        top: margins[0] + margin,
-                    },
-                );
-                let Some(child) = child else {
-                    self.loop_log_at(1, b"ERA", &[b"OOM: EpubReaderFootnoteSelectActivity"]);
-                    return;
+                let offsets = [margins[3] + margin, margins[0] + margin];
+                #[cfg(feature = "app-test")]
+                let page = match page {
+                    Page::Reader(page) => page,
+                    page @ Page::Legacy(_) => {
+                        let mut pending = Pending::new([Some(page), None, None]);
+                        let child = pending.launch(
+                            self.leaves,
+                            Factory::Footnote {
+                                left: margins[3] + margin,
+                                top: margins[0] + margin,
+                            },
+                        );
+                        let Some(child) = child else {
+                            self.loop_log_at(
+                                1,
+                                b"ERA",
+                                &[b"OOM: EpubReaderFootnoteSelectActivity"],
+                            );
+                            return;
+                        };
+                        self.push_child(child, ChildIntent::Footnote { reopen_menu });
+                        return;
+                    }
                 };
-                self.push_child(child, ChildIntent::Footnote { reopen_menu });
+                if !self.launch_owned_footnote(page, offsets, reopen_menu) {
+                    self.loop_log_at(1, b"ERA", &[b"OOM: EpubReaderFootnoteSelectActivity"]);
+                }
             }
         }
     }

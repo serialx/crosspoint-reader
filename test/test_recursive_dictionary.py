@@ -12,6 +12,8 @@ import tempfile
 ADAPTER = Path(__file__).resolve().parent
 ROOT = Path(__import__("os").environ.get("XP_RETIREMENT_REPO", ADAPTER.parent)).resolve()
 sys.path.insert(0, str(ROOT / "test"))
+sys.path.insert(0, str(ROOT / "test/reader_children"))
+from oracle_sources import native_text
 from rust_host import rust_link_flags
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / "test/reader_lifecycle"))
@@ -74,7 +76,7 @@ back_handler = input_prefix + r'''
   applyNavigation(effect, x, y);
 '''
 methods += "\n" + navigation
-lookup_source = (ROOT / "src/activities/reader/DictionaryWordSelectActivity.cpp").read_text()
+lookup_source = native_text("src/activities/reader/DictionaryWordSelectActivity.cpp")
 definition_result = block(lookup_source, "[this](const ActivityResult& result)")
 parent_adapter = ADAPTER / 'recursive_dictionary_owner.inc'
 if not parent_adapter.is_file():
@@ -86,6 +88,11 @@ reader_constants = "\n".join(re.findall(
     r"^constexpr unsigned long (?:GO_HOME_MS|GO_BACK_OR_HOME_MS) = [^;]+;",
     (ROOT / "src/activities/reader/ReaderUtils.h").read_text(), re.MULTILINE))
 reader_constants = re.sub(r'^constexpr ', '[[maybe_unused]] constexpr ', reader_constants, flags=re.MULTILINE)
+inline_source = (ROOT / 'src/activities/reader/RustReaderLookup.cpp').read_text()
+inline_entry = '\n'.join(block(inline_source, signature, signature.startswith('struct ')) for signature in (
+    'struct Definition {', 'Definition* construct(', 'void* definitionPlain(', 'void definitionDrop('
+))
+constructor = header[header.index('  explicit DictionaryDefinitionActivity('):header.index('  bool enableLookup(')]
 harness = r'''
 #include <algorithm>
 #include <xp_ui_reader.h>
@@ -101,6 +108,8 @@ harness = r'''
 #include <vector>
 #include <BidiUtils.h>
 #include <xp_ui_dictionary.h>
+#include <xp_epub_session.h>
+#include <new>
 #include <Utf8.h>
 #include <Memory.h>
 #include "activities/ActivityResult.h"
@@ -263,13 +272,20 @@ bool buildDictionaryHtmlPages(Renderer& renderer, const std::string&, uint16_t, 
   return true;
 }
 std::string htmlToPlainText(const std::string& text, char) { return text; }
-struct DictionaryDefinitionActivity {
+using GfxRenderer = Renderer;
+struct RustActivityAdapter {
+  RustActivityAdapter() = default;
+  RustActivityAdapter(const char*, GfxRenderer&, MappedInputManager&) {}
+};
+struct DictionaryDefinitionActivity : RustActivityAdapter {
+  DictionaryDefinitionActivity() = default;
+''' + constructor + r'''
   struct PlainSelectionLine;
 ''' + structs + r'''
   Renderer renderer;
   MappedInputManager mappedInput;
-  bool htmlDefinition = false;
   Definition content;
+  bool htmlDefinition = false;
   std::unique_ptr<LookupState> lookup;
   StrId message{};
   unsigned long messageTime = 0;
@@ -308,7 +324,47 @@ struct DictionaryDefinitionActivity {
   void startSelection(int x = -1, int y = -1);
 };
 ''' + methods + reader_owner + r'''
+struct OwnedLegacyActivity {
+  std::unique_ptr<DictionaryDefinitionActivity> activity;
+};
+namespace readerLookup {
+''' + inline_entry + r'''
+}
+void plainEntry() {
+  GfxRenderer renderer;
+  MappedInputManager input;
+  const std::string original(4097, 'a');
+  const char title[] = "clipping";
+  struct Fill {const std::string* original; uint8_t* target = nullptr; bool fail = false;} fill{&original};
+  const auto copy = [](void* context, uint8_t* target, uint32_t size) -> uint8_t {
+    auto& state = *static_cast<Fill*>(context);
+    assert(size == state.original->size());
+    state.target = target;
+    std::memcpy(target, state.original->data(), size);
+    return !state.fail;
+  };
+  XpEpubDefinitionStorage storage{};
+  auto* adapter = static_cast<OwnedLegacyActivity*>(readerLookup::definitionPlain(
+      &storage, {reinterpret_cast<const uint8_t*>(title), sizeof(title)-1}, original.size(), copy,
+      &fill, renderer, input));
+  assert(adapter && reinterpret_cast<void*>(adapter) == &storage);
+  auto& view = *adapter->activity;
+  assert(view.content.text == original && view.content.headword == title && !view.htmlDefinition);
+  assert(reinterpret_cast<const uint8_t*>(view.content.text.data()) == fill.target);
+  assert(view.prepareDefinition(view.content));
+  DictionaryDefinitionActivity native(renderer, input, title, original, false);
+  assert(native.prepareDefinition(native.content));
+  assert(view.content.lines.size() == native.content.lines.size());
+  for (size_t i=0; i<view.content.lines.size(); ++i) {
+    const auto a=view.content.lines[i], b=native.content.lines[i];
+    assert(a.start==b.start && a.len==b.len && a.bold==b.bold);
+  }
+  readerLookup::definitionDrop(&storage);
+  fill.fail=true;
+  assert(!readerLookup::definitionPlain(&storage, {}, original.size(), copy, &fill, renderer, input));
+}
 int main() {
+  plainEntry();
   Dictionary dictionary;
   dictionary.entries = {{10, "first entry one two three four five six"}, {20, "other definition"}};
   DictionaryDefinitionActivity view;
@@ -641,6 +697,9 @@ owner_sources = [
     ROOT / 'src/activities/ActivityResultView.h',
     ROOT / 'rust/crates/xp-ffi/src/app/epub/child.rs',
     ROOT / 'rust/crates/xp-ffi/src/app/epub/child_result.rs',
+    ROOT / 'src/activities/reader/RustReaderLookup.cpp',
+    ROOT / 'src/activities/reader/DictionaryDefinitionActivity.h',
+    ROOT / 'src/activities/reader/DictionaryDefinitionActivity.cpp',
     parent_adapter, Path(__file__),
 ]
 owner_hashes = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in owner_sources}

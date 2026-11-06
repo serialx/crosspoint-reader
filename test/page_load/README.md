@@ -32,7 +32,7 @@ partial-cache read path; it does not simulate interrupted writes or hardware
 storage failures. Pixel, clipping, dictionary, and whole-book behavior remain
 covered by their existing suites and the paired emulator workloads.
 
-`PageFootnoteSelect` compiles the production selector and reader metadata input
+`PageFootnoteSelect` compiles the named frozen native selector and reader metadata input
 scopes with a test-only `RenderLock` ownership oracle. Metadata reads, scratch
 record decoding, selection access and result construction require the lock;
 navigation and child creation require it to be released. Recursive acquisition
@@ -44,3 +44,8 @@ The test clears metadata immediately after unlock to check that single-note
 and touch-link navigation own their href, checks both menu availability paths,
 and exercises selection, Confirm, Power and Back. It is a deterministic ownership
 check, not a threaded scheduler or physical-device concurrency test.
+
+O4b retires the native selector. Its hashed source is read through
+`reader_children/oracle_sources.py` and generated as `FrozenFootnoteSelector.h`;
+no historical header directory enters the include path. The active Rust owner and
+real Page loans are covered by `reader_selection_ownership`.

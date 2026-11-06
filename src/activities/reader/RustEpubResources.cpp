@@ -41,11 +41,9 @@
 #include "ClippingStore.h"
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
-#include "DictionaryWordSelectActivity.h"
 #include "EndOfBookOptions.h"
 #include "EpubReaderBookmarksActivity.h"
 #include "EpubReaderClippingListActivity.h"
-#include "EpubReaderFootnoteSelectActivity.h"
 #include "EpubReaderUtils.h"
 #include "KOReaderCredentialStore.h"
 #include "KOReaderSyncActivity.h"
@@ -734,12 +732,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         return makeLegacyActivity<TextSettingsActivity>(*target, *mapped, &sdFontSystem.registry(),
                                                         TextSettingsActivity::Tab::Family)
             .release();
-      },
-      .child_footnote = [](XpEpubOwnedPage* page, int32_t left, int32_t top) -> void* {
-        return epubPage::footnote(*target, *mapped, *page, left, top);
-      },
-      .child_dictionary = [](XpEpubOwnedPage* page, int32_t left, int32_t top, XpAppText initial) -> void* {
-        return epubPage::dictionary(*target, *mapped, *page, left, top, initial);
       },
       .child_selection = [](XpEpubOwnedPage* pages, uint8_t count, const XpEpubSelectionArgs* args) -> void* {
         return epubPage::selection(*target, *mapped, pages, count, *args);

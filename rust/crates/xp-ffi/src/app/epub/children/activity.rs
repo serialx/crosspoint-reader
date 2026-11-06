@@ -31,6 +31,10 @@ impl ChildTarget {
             (Self::Percent(_), false) => b"Exiting activity: EpubReaderPercentSelection",
             (Self::Qr(_), true) => b"Entering activity: QrDisplay",
             (Self::Qr(_), false) => b"Exiting activity: QrDisplay",
+            (Self::Footnote(_), true) => b"Entering activity: EpubReaderFootnoteSelect",
+            (Self::Footnote(_), false) => b"Exiting activity: EpubReaderFootnoteSelect",
+            (Self::Lookup(_), true) => b"Entering activity: DictionaryWordSelect",
+            (Self::Lookup(_), false) => b"Exiting activity: DictionaryWordSelect",
         };
         unsafe {
             (parent.leaves.log)(
@@ -78,6 +82,11 @@ impl ChildTarget {
             Self::Qr(owner) => unsafe { &mut *owner.as_ref().frame.get() }
                 .commands
                 .recover(parent.resources),
+            Self::Footnote(owner) => {
+                unsafe { owner.as_ref().enter(parent.resources) };
+                true
+            }
+            Self::Lookup(_) => true,
         };
         if !ready {
             unsafe { self.cancel() };
@@ -109,6 +118,14 @@ impl ChildTarget {
                 .model
                 .with(|model| model.controls = None),
             Self::Qr(owner) => unsafe { &mut *owner.as_ref().frame.get() }.commands.clear(),
+            Self::Footnote(owner) => {
+                let owner = unsafe { owner.as_ref() };
+                owner.model.with(|model| model.ready = false);
+                unsafe { (*owner.frame.get()).snapshot.take() };
+            }
+            Self::Lookup(owner) => unsafe { owner.as_ref() }
+                .model
+                .with(|model| model.ready = false),
         }
         self.activity_log(parent, false);
     }
@@ -156,6 +173,39 @@ impl ChildTarget {
                     })
             }
             .is_ok(),
+            Self::Footnote(owner) => {
+                let geometry = unsafe { (parent.runtime.display_geometry)() };
+                let screen = xp_ui::scene::Rect {
+                    x: 0,
+                    y: 0,
+                    w: geometry.width as i16,
+                    h: geometry.height as i16,
+                };
+                unsafe {
+                    owner.as_ref().render(
+                        parent.resources,
+                        parent.leaves,
+                        screen,
+                        parent.settings(true).font,
+                    )
+                }
+                .is_ok()
+            }
+            Self::Lookup(owner) => {
+                let geometry = unsafe { (parent.runtime.display_geometry)() };
+                let screen = xp_ui::scene::Rect {
+                    x: 0,
+                    y: 0,
+                    w: geometry.width as i16,
+                    h: geometry.height as i16,
+                };
+                unsafe {
+                    owner
+                        .as_ref()
+                        .render(parent.resources, parent.leaves, screen)
+                }
+                .is_ok()
+            }
             Self::Qr(owner) => unsafe {
                 owner.as_ref().render(parent.resources, physical, |layout| {
                     (physical.utility_layout)(layout);
@@ -188,6 +238,13 @@ impl ChildTarget {
             Self::Qr(owner) => unsafe {
                 *owner.as_ref().result.get() = Some(ReaderChildResult::QrClosed);
             },
+            Self::Footnote(owner) => unsafe {
+                *owner.as_ref().result.get() = Some(ReaderChildResult::Footnote(None))
+            },
+            Self::Lookup(owner) => unsafe {
+                *owner.as_ref().result.get() =
+                    Some(ReaderChildResult::LookupClosed { cancelled: true })
+            },
         }
     }
 
@@ -199,6 +256,8 @@ impl ChildTarget {
     ) -> bool {
         match self {
             Self::Menu(owner) => unsafe { owner.as_ref().input(parent, input, home_gesture) },
+            Self::Footnote(owner) => unsafe { owner.as_ref().activity_input(parent, input) },
+            Self::Lookup(owner) => unsafe { owner.as_ref().activity_input(parent, input.now_ms) },
             Self::Chapters(owner) => {
                 let owner = unsafe { owner.as_ref() };
                 // Poll short holds through release instead of waiting for a display

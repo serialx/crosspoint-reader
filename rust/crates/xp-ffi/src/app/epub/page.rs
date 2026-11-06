@@ -1,15 +1,19 @@
+use super::abi;
+#[cfg(feature = "app-test")]
+use super::app_abi;
 #[cfg(not(feature = "app-test"))]
 pub(super) use super::page_owner::{Page, Pending};
 #[cfg(feature = "app-test")]
 pub(super) use super::test_support::legacy_page::{Page, Pending};
-use super::{abi, app_abi};
 use core::{ffi::c_void, ptr::NonNull};
 
 pub(super) enum Factory<'a> {
+    #[cfg(feature = "app-test")]
     Footnote {
         left: i32,
         top: i32,
     },
+    #[cfg(feature = "app-test")]
     Dictionary {
         left: i32,
         top: i32,
@@ -27,9 +31,9 @@ impl super::page_owner::Pending {
         let (records, count) = self.records();
         let child = unsafe {
             match factory {
-                Factory::Footnote { left, top } => (leaves.child_footnote)(records, left, top),
-                Factory::Dictionary { left, top, initial } => {
-                    (leaves.child_dictionary)(records, left, top, initial)
+                #[cfg(feature = "app-test")]
+                Factory::Footnote { .. } | Factory::Dictionary { .. } => {
+                    panic!("real Page must use the Rust selection owner")
                 }
                 Factory::Selection(args) => (leaves.child_selection)(records, count, args),
             }

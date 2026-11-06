@@ -2,7 +2,7 @@
 #include <iostream>
 
 #include "FootnoteReader.h"
-#include "activities/reader/EpubReaderFootnoteSelectActivity.h"
+#include "FrozenFootnoteSelector.h"
 static void require(bool ok, const char* message) {
   if (!ok) {
     std::cerr << message << '\n';

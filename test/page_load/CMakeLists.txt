@@ -39,18 +39,19 @@ target_link_libraries(FootnoteSelect PRIVATE crosspoint_test_common xp_ffi_host)
 add_test(NAME PageFootnoteSelect COMMAND FootnoteSelect)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
-add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/FootnoteReader.cpp
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/FrozenFootnoteSelector.h
+    ${CMAKE_CURRENT_BINARY_DIR}/FootnoteReader.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/FootnoteSelector.cpp
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_footnote_entry.py
     ${CMAKE_CURRENT_SOURCE_DIR}/FootnoteReaderOwner.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/FootnoteReader.cpp
-    ${REPO_ROOT}/src/activities/reader/EpubReaderFootnoteSelectActivity.cpp
+    ${REPO_ROOT}/test/reader_children/native_oracle/src/activities/reader/EpubReaderFootnoteSelectActivity.cpp.txt
     ${CMAKE_CURRENT_BINARY_DIR}/FootnoteSelector.cpp
   DEPENDS extract_footnote_entry.py ${CMAKE_CURRENT_SOURCE_DIR}/FootnoteReaderOwner.cpp
-    ${REPO_ROOT}/src/activities/reader/EpubReaderFootnoteSelectActivity.cpp
+    ${REPO_ROOT}/test/reader_children/native_oracle/src/activities/reader/EpubReaderFootnoteSelectActivity.cpp.txt
   VERBATIM)
 target_sources(FootnoteSelect PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/FootnoteReader.cpp)
-target_include_directories(FootnoteSelect PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(FootnoteSelect PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 target_compile_definitions(FootnoteSelect PRIVATE XP_FOOTNOTE_SELECT_TEST=1)
 
 # The physical owner fixture uses assertions for callable contract checks.

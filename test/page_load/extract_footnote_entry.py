@@ -16,12 +16,16 @@ for retired in ('xp_ui_reader_child(', 'xp_ui_reader_loop_run(', 'xp_ui_reader_m
     assert retired not in entry, retired
 reader_out.write_text(entry)
 
-selector = selector_path.read_text()
-selector = ('#include <xp_ui_reader_chrome.h>\n'
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "reader_children"))
+from oracle_sources import native_text
+selector = native_text("src/activities/reader/EpubReaderFootnoteSelectActivity.cpp")
+header_out = selector_out.with_name("FrozenFootnoteSelector.h")
+header_out.write_text('#include "' + str(Path(__file__).resolve().parents[1] / "reader_children/selection_legacy_wire.h") + '"\n' + native_text("src/activities/reader/EpubReaderFootnoteSelectActivity.h"))
+selector = ('#include "FrozenFootnoteSelector.h"\n'
             '#define xp_ui_reader_footnote_view(...) (!renderer.failFootnoteBuild && xp_ui_reader_footnote_view(__VA_ARGS__))\n'
             + selector)
 selector = selector.replace('#include "EpubReaderFootnoteSelectActivity.h"',
-                            '#include "activities/reader/EpubReaderFootnoteSelectActivity.h"')
+                            '#include "FrozenFootnoteSelector.h"')
 for accessor in ('footnote', 'link'):
     selector = selector.replace('page->' + accessor + '(',
                                 '(RenderLock::requireHeld(), page)->' + accessor + '(')

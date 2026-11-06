@@ -120,27 +120,6 @@ XpUiRect xp_ui_definition_body(const XpUiDefinitionLayout*);
 uint8_t xp_ui_definition_view(const XpUiDefinitionState*, const XpUiDefinitionLayout*, const XpUiBuffer*, XpUiScene*);
 
 typedef struct {
-  uint32_t since;
-  uint16_t message;
-  uint8_t pending, popup;
-} XpUiLookupState;
-enum {
-  XP_UI_DICT_LOOKING_UP,
-  XP_UI_DICT_INDEXING,
-  XP_UI_DICT_NOT_FOUND,
-  XP_UI_DICT_LOW_MEMORY,
-  XP_UI_DICT_READ_FAILED,
-  XP_UI_DICT_DECOMPRESS_ERROR,
-  XP_UI_DICT_ERROR
-};
-void xp_ui_lookup_init(XpUiLookupState*);
-uint8_t xp_ui_lookup_view(const XpUiLookupState*, XpUiRect screen, const XpUiBuffer*, XpUiScene*);
-// Lookup/index codes are the existing Dictionary enums. Message codes map to
-// the existing Rust-backed translations in the facade. Success returns popup=None; failures keep their 1500 ms timer.
-void xp_ui_lookup_result(XpUiLookupState*, uint8_t opened, uint8_t index_result, uint8_t lookup_result, uint8_t found,
-                         uint32_t now_ms);
-uint8_t xp_ui_lookup_expired(const XpUiLookupState*, uint32_t now_ms);
-typedef struct {
   XpUiRect screen;
   int32_t font;
   int16_t margin_x, margin_y, frame, radius, text_y;
@@ -268,12 +247,6 @@ static_assert(offsetof(XpUiDefinitionLayout, side_hints_width) == 26);
 static_assert(offsetof(XpUiDefinitionLayout, orientation) == 28);
 static_assert(offsetof(XpUiDefinitionLayout, touch_controls) == 29);
 static_assert(offsetof(XpUiDefinitionLayout, reserved) == 30);
-static_assert(sizeof(XpUiLookupState) == 8);
-static_assert(alignof(XpUiLookupState) == 4);
-static_assert(offsetof(XpUiLookupState, since) == 0);
-static_assert(offsetof(XpUiLookupState, message) == 4);
-static_assert(offsetof(XpUiLookupState, pending) == 6);
-static_assert(offsetof(XpUiLookupState, popup) == 7);
 static_assert(sizeof(XpUiDictionaryPopup) == 32);
 static_assert(alignof(XpUiDictionaryPopup) == 4);
 static_assert(offsetof(XpUiDictionaryPopup, screen) == 0);

@@ -41,16 +41,11 @@ impl Footnote {
 
     pub(super) fn input(&self, input: Input) -> super::input::Update {
         self.model.with(|model| {
-            let consumed = super::input::suppressed(
-                input,
-                model.failed,
-                &mut model.suppress_buttons,
-                &mut model.suppress_contact,
-            );
+            let admission = model.gate.input(&input);
             super::input::Update {
-                effect: if consumed {
+                effect: if admission.consume {
                     Effect {
-                        kind: if model.failed && input.released & BACK != 0 {
+                        kind: if admission.retry && input.released & BACK != 0 {
                             EffectKind::Cancel as u8
                         } else {
                             EffectKind::None as u8
@@ -60,7 +55,7 @@ impl Footnote {
                 } else {
                     model.state.update(input, self.count)
                 },
-                retry: model.failed,
+                retry: admission.retry,
                 haptic: false,
             }
         })
@@ -79,11 +74,11 @@ impl Footnote {
         };
         let result = unsafe { self.draw(services, leaves, screen, font) };
         self.model.with(|model| {
-            model.failed = result.is_err();
             model.ready = result.is_ok();
-            if model.failed {
-                model.suppress_buttons = u32::MAX;
-                model.suppress_contact = true;
+            if result.is_err() {
+                model.gate.reject();
+            } else {
+                model.gate.publish(true);
             }
         });
         result
@@ -120,10 +115,7 @@ impl Footnote {
             // A failed differential snapshot follows native full-page repaint.
             let differential = unsafe { self.highlight(services, leaves, screen, font) };
             if differential.is_err() {
-                self.model.with(|model| {
-                    model.suppress_buttons = u32::MAX;
-                    model.suppress_contact = true;
-                });
+                self.model.with(|model| model.gate.reject());
             }
             if differential.unwrap_or(false) {
                 unsafe {
@@ -228,5 +220,41 @@ impl Footnote {
             return Err(Error::Invalid);
         }
         Ok(saved)
+    }
+}
+
+impl Footnote {
+    pub(super) unsafe fn activity_input(
+        &self,
+        parent: &crate::app::epub::EpubSession,
+        input: Input,
+    ) -> bool {
+        let update = self.input(input);
+        if update.retry || update.effect.invalidate != 0 {
+            parent.request_update();
+        }
+        let result = match update.effect.kind {
+            kind if kind == EffectKind::Cancel as u8 => None,
+            kind if kind == EffectKind::Activate as u8 => {
+                let _access = parent.lock_resources();
+                if self.model.with(|model| model.gate.failed()) {
+                    parent.request_update();
+                    return false;
+                }
+                if self.count == 0 {
+                    return false;
+                }
+                let Some(href) = self.selection(update.effect.value as usize) else {
+                    parent.request_update();
+                    return false;
+                };
+                Some(href)
+            }
+            _ => return false,
+        };
+        unsafe {
+            *self.result.get() = Some(super::child_result::ReaderChildResult::Footnote(result))
+        };
+        true
     }
 }

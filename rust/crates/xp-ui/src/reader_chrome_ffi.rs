@@ -5,12 +5,16 @@ use crate::reader_chrome::{
     runtime::{ListRequest, ThemeFacts, ThemeMode},
     ListModel,
 };
+#[cfg(any(test, feature = "legacy-reader-oracles"))]
+use crate::scene::Arena;
 use crate::scene::Error;
+#[cfg(feature = "legacy-reader-oracles")]
+use crate::scene::{Rect, MAX_HITS};
 use crate::{
     ffi::{Buffer, SceneView},
     model::{Effect, Input, Interest},
     reader_chrome::{self, FootnoteState},
-    scene::{Arena, Rect, Refresh, MAX_COMMAND_BYTES, MAX_HITS},
+    scene::{Refresh, MAX_COMMAND_BYTES},
 };
 use core::ffi::c_void;
 
@@ -294,6 +298,7 @@ const _: () = {
 
 /// # Safety
 /// A non-null state points to an aligned, readable screen state for this call.
+#[cfg(feature = "legacy-reader-oracles")]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_reader_footnote_interest(
     state: *const FootnoteState,
@@ -304,6 +309,7 @@ pub unsafe extern "C" fn xp_ui_reader_footnote_interest(
 
 /// # Safety
 /// State is writable and input is readable, live, aligned and disjoint.
+#[cfg(feature = "legacy-reader-oracles")]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_reader_footnote_update(
     state: *mut FootnoteState,
@@ -319,6 +325,7 @@ pub unsafe extern "C" fn xp_ui_reader_footnote_update(
 /// # Safety
 /// Descriptors and output are live and aligned. Buffer arrays are exclusive
 /// and disjoint from every descriptor. Outputs remain unchanged on failure.
+#[cfg(feature = "legacy-reader-oracles")]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_reader_footnote_view(
     screen: Rect,

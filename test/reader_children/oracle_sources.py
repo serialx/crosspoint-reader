@@ -1,4 +1,4 @@
-"""Read the named, hashed native inputs retired by O4a; never use them as headers."""
+"""Read the named, hashed native inputs retired by the reader ownership moves; never use them as headers."""
 import hashlib
 import json
 from pathlib import Path

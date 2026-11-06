@@ -114,3 +114,74 @@ impl EpubSession {
         );
     }
 }
+
+impl EpubSession {
+    pub(super) fn push_definition(&self, viewer: super::definition::Definition) {
+        let app = crate::app::app().expect("application initialized");
+        app.input.borrow_mut().reset();
+        app.navigation
+            .queue(Transition::Push(Owner::Definition(viewer)));
+    }
+
+    // Lane B replaces its temporary factory with this entry at integration.
+    #[allow(dead_code)]
+    pub(in crate::app) unsafe fn launch_plain_definition(
+        &self,
+        title: crate::app::abi::Text,
+        length: u32,
+        fill: super::selection_physical::DefinitionFill,
+        context: *mut core::ffi::c_void,
+    ) -> bool {
+        let Some(viewer) = (unsafe {
+            super::definition::Definition::try_plain(
+                &self.leaves.child_selection_physical,
+                title,
+                length,
+                fill,
+                context,
+            )
+        }) else {
+            return false;
+        };
+        self.push_definition(viewer);
+        true
+    }
+}
+
+impl EpubSession {
+    pub(in crate::app::epub) fn launch_owned_footnote(
+        &self,
+        page: super::super::page_owner::Page,
+        margins: [i32; 2],
+        reopen_menu: bool,
+    ) -> bool {
+        let Some(child) = super::selection_owned::Footnote::try_new(self.runtime, page, margins)
+        else {
+            return false;
+        };
+        self.push_owned_child(
+            Some(ReaderChild::Footnote(child)),
+            ChildIntent::Footnote { reopen_menu },
+        );
+        true
+    }
+    pub(in crate::app::epub) fn launch_owned_lookup(
+        &self,
+        page: super::super::page_owner::Page,
+        margins: [i32; 2],
+        initial: crate::app::abi::Text,
+    ) -> bool {
+        let Some(child) = super::selection_owned::Lookup::try_new(
+            self.runtime,
+            page,
+            margins,
+            self.settings(true).font,
+            &self.leaves.child_selection_physical,
+            initial,
+        ) else {
+            return false;
+        };
+        self.push_owned_child(Some(ReaderChild::Lookup(child)), ChildIntent::Dictionary);
+        true
+    }
+}

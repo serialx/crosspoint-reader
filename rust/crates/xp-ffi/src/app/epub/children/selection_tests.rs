@@ -647,3 +647,6 @@ fn footnote_snapshot_oom_keeps_full_page_fallback() {
         });
     }
 }
+
+#[path = "selection_app_tests.rs"]
+mod app_stack;

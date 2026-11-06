@@ -86,8 +86,6 @@ unused_leaves! {
     wifi_disconnect(_a0: u8) ;
     restart_reader() ;
     child_text_settings() -> *mut core::ffi::c_void;
-    child_footnote(_a0: *mut XpEpubOwnedPage, _a1: i32, _a2: i32) -> *mut core::ffi::c_void;
-    child_dictionary(_a0: *mut XpEpubOwnedPage, _a1: i32, _a2: i32, _a3: XpAppText) -> *mut core::ffi::c_void;
     child_selection(_a0: *mut XpEpubOwnedPage, _a1: u8, _a2: *const XpEpubSelectionArgs) -> *mut core::ffi::c_void;
     child_bookmarks(_a0: *mut core::ffi::c_void, _a1: XpAppText) -> *mut core::ffi::c_void;
     child_clippings() -> *mut core::ffi::c_void;

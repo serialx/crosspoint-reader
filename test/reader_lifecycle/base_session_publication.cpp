@@ -205,7 +205,7 @@ static const XpAppRuntime& physicalRuntime() {
 static const LegacyEpubLeaves& physicalLeaves() {
   static const LegacyEpubLeaves value = [] {
     LegacyEpubLeaves table{};
-    static_assert(sizeof(XpEpubLeaves) == 175 * sizeof(void (*)()));
+    static_assert(sizeof(XpEpubLeaves) == 173 * sizeof(void (*)()));
     UNUSED_LEAF(physical.render_margins);
     UNUSED_LEAF(physical.render_geometry);
     UNUSED_LEAF(physical.render_restore_bw);
@@ -327,8 +327,6 @@ static const LegacyEpubLeaves& physicalLeaves() {
     UNUSED_LEAF(book.children.child_chapter);
     UNUSED_LEAF(book.children.child_percent);
     UNUSED_LEAF(physical.child_text_settings);
-    UNUSED_LEAF(physical.child_footnote);
-    UNUSED_LEAF(physical.child_dictionary);
     UNUSED_LEAF(physical.child_selection);
     UNUSED_LEAF(physical.child_bookmarks);
     UNUSED_LEAF(physical.child_clippings);

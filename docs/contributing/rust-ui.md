@@ -89,7 +89,8 @@ The reader oracle documentation describes the scope of each kind of test.
 | Toolbar | `children/toolbar_owner.rs` and `children/toolbar_view.rs` own the session's toolbar slot, row window and publication | The same drawing leaves supply metrics, icons and painting |
 | Footnote and dictionary lookup | `children/selection_owned.rs` owns one reader Page while it is needed, plus inline commands and an owned result; footnote returns an href to reader history | Typed leaves in [`RustReaderLookup.cpp`](../../src/activities/reader/RustReaderLookup.cpp) supply dictionary operations, hint mapping and popup metrics |
 | Definition entry | [`children/definition.rs`](../../rust/crates/xp-ffi/src/app/epub/children/definition.rs) owns stable inline storage for the native adapter and viewer | `RustReaderLookup.cpp` constructs and destroys the retained `DictionaryDefinitionActivity`; its HTML, Pages and fonts remain native |
-| TextSettings, Bookmarks, Clippings, Wi-Fi, sync and interactive selection | Retained native children use the legacy activity/result boundary | [`RustEpubResources.cpp`](../../src/activities/reader/RustEpubResources.cpp) retains their factories and services |
+| Clippings | `children/clipping_activity.rs` owns the list and its eight-row preview window; App owns the session-independent clipping store | Storage and drawing leaves; the temporary detail factory retires with O4b |
+| TextSettings, Bookmarks, Wi-Fi, sync and interactive selection | Retained native children use the legacy activity/result boundary | [`RustEpubResources.cpp`](../../src/activities/reader/RustEpubResources.cpp) retains their factories and services |
 
 The native viewer also serves `DetailsActivity`, `PluginCatalogActivity` and
 `EpubReaderClippingListActivity`. Interactive `ClipSelectionActivity` remains
@@ -117,8 +118,7 @@ synchronously. Clipping-list integration must replace its temporary
 the two lanes meet; adding the entry alone does not retire the retained viewer
 or the clipping list's temporary route.
 
-`ReaderChromeListActivity` remains for `EpubReaderBookmarksActivity` and
-`EpubReaderClippingListActivity`. FileBrowser, Library and TextSettings instead
+`ReaderChromeListActivity` remains for `EpubReaderBookmarksActivity`. FileBrowser, Library and TextSettings instead
 use `RustActivityAdapter`; they still use `ReaderChromeCommands` and the theme
 sampler. `UtilityActivity` remains for `ConfirmationActivity`, `DetailsActivity`,
 `IntervalSelectionActivity` and `FrontlightPanelActivity`. Removing the reader
@@ -126,6 +126,26 @@ QR and Percent classes does not retire either shared base or the sampler.
 
 The scene contracts below apply to scene-based activities. The reader uses the
 [policy boundary](#reader-policy-boundary) described separately.
+
+## Clipping store compatibility boundary
+
+App owns one fallible clipping-store allocation, independent of the reader session.
+Rust owns the index, file codecs and persistence; `ClippingStoreFacade` only copies
+records and text into caller storage. Native consumers retire as follows:
+
+| Native caller | Facade entry | Retirement |
+| --- | --- | --- |
+| ClippingSync | Load, unload, count, row, text and sync transactions | P18 |
+| FileBrowser | Move and delete through BookCacheUtils | P17-L2 |
+| LibraryListActivity | `removeBookFile` → BookCacheUtils → `deleteForFilePath` | P17-L1 |
+| WebDAV and web file jobs | Move and delete | P18 |
+
+The C3 sync activity holds the render lock while lending its framebuffer. Facade
+mutations query `render_owned_by_current_task_retire_p18`: they borrow that
+caller's protection or acquire and release their own guard. A different task's
+lock is never borrowed. The store operation lease remains required in either
+case. Metadata and storage-only facade entries retain their separate service
+access rules. The query retires with the last P18 facade consumer.
 
 ## Storage and publication
 
@@ -219,9 +239,8 @@ and spacing choices in Rust; the retained native sampler calls
 `xp_ui_reader_theme_compose`. Toolbar keeps its own safe rectangle and row
 minimum. The 12-byte facts value is local preparation storage, with no settings
 cache. `UITheme`, its SDK storage and physical header/footer/font services remain
-in use. Bookmarks and Clippings still retain their native row-resource codecs
-until their ownership ports retire those consumers; owned Menu and Chapters use
-the typed `RowSlot` codec. Physical refresh timing and resource-release order stay at each
+in use. Bookmarks retains its native row-resource codec until O5a retires that
+consumer; owned Menu, Chapters and Clippings use the typed `RowSlot` codec. Physical refresh timing and resource-release order stay at each
 caller, including UpdateUi's release-text-before-publication sequence.
 
 The wire bridges are temporary Phase 18 compatibility seams:
@@ -230,7 +249,7 @@ The wire bridges are temporary Phase 18 compatibility seams:
 retire. Rust owners already call the typed functions directly. Keep the common
 commands and sampler in `ReaderChromeListActivity.{cpp,h}` while FileBrowser,
 Library, TextSettings or EndOfBookOptions still use them; retiring native
-Bookmarks and Clippings alone does not remove those consumers. Keep reader/XTC
+Bookmarks alone does not remove those consumers. Keep reader/XTC
 exports and physical drawing services for as long as their callers remain.
 
 ## Drawing and resources

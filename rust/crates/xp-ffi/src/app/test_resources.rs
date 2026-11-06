@@ -314,6 +314,10 @@ unsafe extern "C" fn runtime_notify_render() {
     panic!("unexpected runtime callback: notify_render")
 }
 
+unsafe extern "C" fn runtime_render_owned_by_current_task_retire_p18() -> u8 {
+    0
+}
+
 pub fn runtime() -> Runtime {
     Runtime {
         input_mapped_snapshot: runtime_input_mapped_snapshot,
@@ -349,5 +353,6 @@ pub fn runtime() -> Runtime {
         model_lock: runtime_model_lock,
         model_unlock: runtime_model_unlock,
         notify_render: runtime_notify_render,
+        render_owned_by_current_task_retire_p18: runtime_render_owned_by_current_task_retire_p18,
     }
 }

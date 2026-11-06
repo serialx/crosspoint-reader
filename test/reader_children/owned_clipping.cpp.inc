@@ -1,10 +1,24 @@
+static bool clippingOomExpected;
+static unsigned clippingOomLogs;
 static bool clippingPopup, clippingLong, clippingDetailFailure;
 static int clippingChoice = -1;
 static void (*clippingChoose)(void*, int32_t);
 static void* clippingChoiceContext;
 static unsigned clippingLoads, clippingDetailCreates;
 static std::string clippingDetailText, clippingDetailTitle;
+namespace {
+static bool observeOwnedClippingLog(uint8_t level, XpAppText origin, XpAppText message) {
+  if (!clippingOomExpected) return false;
+  assert(level == 1 && origin.len == 4 && !std::memcmp(origin.data, "CLIP", 4));
+  assert(message.len == 18 && !std::memcmp(message.data, "OOM: clipping list", 18));
+  ++clippingOomLogs;
+  return true;
+}
+}  // namespace
 static void bindOwnedClippings() {
+  static auto priorUpdate = runtime.notify_render;
+  runtime.notify_render = [] { assert(!clippingOomExpected); priorUpdate(); };
+
   static auto open = leaves.popup_open;
   leaves.popup_open = []() -> void* {
     if (f().componentAttempt < 4) return open();
@@ -79,9 +93,12 @@ static int runOwnedClippings(const std::string& mode, bool cancelled) {
   }
   if (mode == "clippings-oom") {
     const auto live = xp_test_live_allocations();
+    clippingOomExpected = true;
     xp_test_fail_allocation_after(0);
     xp_epub_test_menu_confirm(results.owner, 11);
     xp_test_fail_allocation_after(SIZE_MAX);
+    clippingOomExpected = false;
+    assert(clippingOomLogs == 1);
     assert(!xp_app_test_current_child(nullptr) && !xp_app_test_pending_kind());
     assert(xp_app_test_current_epub() == results.owner && xp_test_live_allocations() == live);
   } else {

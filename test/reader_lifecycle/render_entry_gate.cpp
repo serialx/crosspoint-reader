@@ -170,7 +170,8 @@ static const XpAppResources& physicalResources() {
 static const XpAppRuntime& physicalRuntime() {
   static const XpAppRuntime value = [] {
     XpAppRuntime table{};
-    static_assert(sizeof(XpAppRuntime) == 33 * sizeof(void (*)()));
+    static_assert(sizeof(XpAppRuntime) == 34 * sizeof(void (*)()));
+    table.render_owned_by_current_task_retire_p18 = []() -> uint8_t { return 0; };
     UNUSED_LEAF(input_mapped_snapshot);
     UNUSED_LEAF(input_shared_power_mode);
     UNUSED_LEAF(input_power_confirm);

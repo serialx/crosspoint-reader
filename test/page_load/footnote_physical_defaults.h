@@ -269,7 +269,8 @@ inline XpAppResources unexpectedAppResources() {
 
 inline XpAppRuntime unexpectedAppRuntime() {
   XpAppRuntime value{};
-  static_assert(sizeof(XpAppRuntime) == 33 * sizeof(void (*)()));
+  static_assert(sizeof(XpAppRuntime) == 34 * sizeof(void (*)()));
+  value.render_owned_by_current_task_retire_p18 = []() -> uint8_t { return 0; };
   value.input_mapped_snapshot = &AppFixtureUnexpected<decltype(value.input_mapped_snapshot), 3000>::call;
   value.input_shared_power_mode = &AppFixtureUnexpected<decltype(value.input_shared_power_mode), 3001>::call;
   value.input_power_confirm = &AppFixtureUnexpected<decltype(value.input_power_confirm), 3002>::call;

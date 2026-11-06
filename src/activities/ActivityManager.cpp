@@ -216,6 +216,9 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
     const auto mutex = activityManager.renderingMutex;
     return xSemaphoreTake(mutex, 0) == pdTRUE ? mutex : nullptr;
   };
+  runtime.render_owned_by_current_task_retire_p18 = []() -> uint8_t {
+    return xSemaphoreGetMutexHolder(activityManager.renderingMutex) == xTaskGetCurrentTaskHandle();
+  };
   runtime.render_unlock = [](void* lock) { xSemaphoreGive(static_cast<SemaphoreHandle_t>(lock)); };
   runtime.model_lock = [] { taskENTER_CRITICAL(&appModelSpinlock); };
   runtime.model_unlock = [] { taskEXIT_CRITICAL(&appModelSpinlock); };

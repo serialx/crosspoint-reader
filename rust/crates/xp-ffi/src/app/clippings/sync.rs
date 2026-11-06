@@ -56,6 +56,10 @@ impl<I: Io, const B: usize> Store<I, B> {
                 return false;
             };
             if !recover_tail(&mut journal, &self.io) {
+                self.error(
+                    format_args!("Failed to open clipping deletion journal"),
+                    &[],
+                );
                 return false;
             }
             let original = journal.size();

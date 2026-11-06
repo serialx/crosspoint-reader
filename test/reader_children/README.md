@@ -49,3 +49,10 @@ owner/result transfer tests run in the Rust ownership suite and under Miri.
 Production app/store integration and the temporary O4b detail return are checked
 at the ownership switch; the dormant drawing test does not claim to exercise
 those routes.
+
+The owned-App clipping allocation-failure case observes the production log at the
+fixture's final installed logging leaf, after its storage adapter is initialized.
+It requires severity 1, tag `CLIP`, exactly `OOM: clipping list`, one event, and no
+render update before returning to the retained reader. The original ownership and
+allocation-count assertions remain. This observer is compiled only into the host
+composition; it is not an app-test export or shipping callback.

@@ -70,7 +70,7 @@ impl<I: Io, const B: usize> Store<I, B> {
                     if self.io.exists(&new) {
                         self.error(
                             format_args!("Move would overwrite saved clippings: "),
-                            &[&new],
+                            &[to],
                         );
                         return Err(());
                     }

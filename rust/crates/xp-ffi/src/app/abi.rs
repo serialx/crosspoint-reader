@@ -549,7 +549,16 @@ pub struct Runtime {
     pub model_lock: unsafe extern "C" fn(),
     pub model_unlock: unsafe extern "C" fn(),
     pub notify_render: unsafe extern "C" fn(),
+    pub render_owned_by_current_task_retire_p18: unsafe extern "C" fn() -> u8,
 }
+
+const _: () = {
+    assert!(core::mem::size_of::<Runtime>() == 34 * core::mem::size_of::<usize>());
+    assert!(
+        core::mem::offset_of!(Runtime, render_owned_by_current_task_retire_p18)
+            == 33 * core::mem::size_of::<usize>()
+    );
+};
 
 #[repr(C)]
 #[derive(Clone, Copy)]

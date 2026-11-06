@@ -117,7 +117,8 @@ inline XpAppResources overlayUnexpectedResources() {
 
 inline XpAppRuntime overlayUnexpectedRuntime() {
   XpAppRuntime table{};
-  static_assert(sizeof(XpAppRuntime) == 33 * sizeof(void (*)()));
+  static_assert(sizeof(XpAppRuntime) == 34 * sizeof(void (*)()));
+  table.render_owned_by_current_task_retire_p18 = []() -> uint8_t { return 0; };
   table.input_mapped_snapshot = &OverlayUnexpected<decltype(table.input_mapped_snapshot)>::call;
   table.input_shared_power_mode = &OverlayUnexpected<decltype(table.input_shared_power_mode)>::call;
   table.input_power_confirm = &OverlayUnexpected<decltype(table.input_power_confirm)>::call;

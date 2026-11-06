@@ -7,7 +7,10 @@ struct State {
     operations: usize,
     fail_write: bool,
     write_probe: Option<Box<dyn FnOnce()>>,
-    log: Option<Log>,
+    logs: [Option<Log>; 4],
+    collision_suffix: Option<Vec<u8>>,
+    fail_truncate: bool,
+    fail_journal_open: bool,
 }
 struct Log {
     bytes: [u8; 256],
@@ -65,9 +68,35 @@ impl Volume {
     pub fn probe_next_write(&self, probe: impl FnOnce() + 'static) {
         self.0.borrow_mut().write_probe = Some(Box::new(probe));
     }
+    pub fn collision(&self, suffix: &[u8]) {
+        self.0.borrow_mut().collision_suffix = Some(suffix.to_vec());
+    }
+    pub fn broken_journal(&self, open: bool) {
+        let mut state = self.0.borrow_mut();
+        state.files[3] = Some(vec![0]);
+        state.fail_truncate = true;
+        state.fail_journal_open = open;
+    }
+    pub fn clear_logs(&self) {
+        self.0.borrow_mut().logs = Default::default();
+    }
+    pub fn logs(&self) -> Vec<(u8, String)> {
+        self.0
+            .borrow()
+            .logs
+            .iter()
+            .flatten()
+            .map(|log| {
+                (
+                    log.severity,
+                    String::from_utf8(log.bytes[..log.length].to_vec()).unwrap(),
+                )
+            })
+            .collect()
+    }
     pub fn last_log(&self) -> (u8, String) {
         let state = self.0.borrow();
-        let log = state.log.as_ref().unwrap();
+        let log = state.logs.last().unwrap().as_ref().unwrap();
         (
             log.severity,
             String::from_utf8(log.bytes[..log.length].to_vec()).unwrap(),
@@ -80,6 +109,9 @@ impl Io for Volume {
         let file = slot(path);
         let mut state = self.0.borrow_mut();
         state.operations += 1;
+        if file == 3 && state.fail_journal_open {
+            return None;
+        }
         if matches!(mode, Mode::Rewrite)
             || (matches!(mode, Mode::Append) && state.files[file].is_none())
         {
@@ -101,6 +133,14 @@ impl Io for Volume {
         self.open(path, Mode::Read)
     }
     fn exists(&self, path: &[u8]) -> bool {
+        if path == b"/target.epub" {
+            return false;
+        }
+        if let Some(suffix) = &self.0.borrow().collision_suffix {
+            if let Some(tail) = path.strip_prefix(b"/.crosspoint/clippings/epub_1.bin") {
+                return tail == suffix;
+            }
+        }
         self.0.borrow().files[slot(path)].is_some()
     }
     fn mkdir(&self, _: &[u8]) {
@@ -123,8 +163,8 @@ impl Io for Volume {
         state.files[slot(to)] = Some(file);
         true
     }
-    fn path_hash(&self, _: &[u8]) -> u64 {
-        0
+    fn path_hash(&self, path: &[u8]) -> u64 {
+        u64::from(path == b"/target.epub")
     }
     fn epoch_seconds(&self) -> i64 {
         1700000000
@@ -143,7 +183,9 @@ impl Io for Volume {
         for part in tail {
             log.append(part);
         }
-        self.0.borrow_mut().log = Some(log);
+        let mut state = self.0.borrow_mut();
+        state.logs.rotate_left(1);
+        state.logs[3] = Some(log);
     }
 }
 impl File for Handle {
@@ -195,6 +237,9 @@ impl File for Handle {
             .len() as u32
     }
     fn truncate(&mut self, size: u32) -> bool {
+        if self.volume.0.borrow().fail_truncate {
+            return false;
+        }
         self.volume.0.borrow_mut().files[self.file]
             .as_mut()
             .unwrap()

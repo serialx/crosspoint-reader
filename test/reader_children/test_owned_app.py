@@ -35,6 +35,10 @@ def main():
             'number(bytes, 7, 2); number(bytes, longChapterFixture ? 1000 : 5, 2);')
         source = replace_once(source, 'view->toc_count == 5',
             'view->toc_count == (longChapterFixture ? 1000 : 5)')
+        source = replace_once(source, 'void initialize() {',
+            'static bool observeOwnedClippingLog(uint8_t, XpAppText, XpAppText);\nvoid initialize() {')
+        source = replace_once(source, '      if (text(origin) == "CLIP") {\n        std::fprintf',
+            '      if (text(origin) == "CLIP") {\n        if (observeOwnedClippingLog(level, origin, message)) return;\n        std::fprintf')
         owned = (HERE / 'owned_app.cpp.in').read_text()
         owned = owned.replace('int main(int argc, char** argv)', (HERE / 'owned_clipping.cpp.inc').read_text() + '\nint main(int argc, char** argv)', 1)
         source += owned

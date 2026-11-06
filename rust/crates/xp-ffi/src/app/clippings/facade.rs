@@ -23,9 +23,14 @@ unsafe impl Gate for ModelCell<Phase> {
 fn with<R>(action: impl FnOnce(&mut NativeStore) -> R) -> Option<R> {
     let app = app()?;
     let mut operation = app.clippings.operation()?;
-    let _guard = super::RenderGuard {
-        token: unsafe { (app.runtime.render_lock)() },
-        runtime: app.runtime,
+    // Native C3 sync holds this task's guard across its framebuffer loan.
+    let _guard = if unsafe { (app.runtime.render_owned_by_current_task_retire_p18)() } != 0 {
+        None
+    } else {
+        Some(super::RenderGuard {
+            token: unsafe { (app.runtime.render_lock)() },
+            runtime: app.runtime,
+        })
     };
     Some(operation.update(action))
 }

@@ -373,6 +373,7 @@ typedef struct {
   void (*model_lock)(void);
   void (*model_unlock)(void);
   void (*notify_render)(void);
+  uint8_t (*render_owned_by_current_task_retire_p18)(void);
 } XpAppRuntime;
 struct XpEpubLeaves;
 typedef struct {
@@ -396,7 +397,8 @@ static_assert(sizeof(XpAppBook) == 8 * sizeof(void*));
 static_assert(sizeof(XpAppLegacy) == 14 * sizeof(void*));
 static_assert(sizeof(XpAppCompatibility) == 3 * sizeof(void*));
 static_assert(sizeof(XpAppResources) == 46 * sizeof(void*));
-static_assert(sizeof(XpAppRuntime) == 33 * sizeof(void*));
+static_assert(sizeof(XpAppRuntime) == 34 * sizeof(void*));
+static_assert(offsetof(XpAppRuntime, render_owned_by_current_task_retire_p18) == 33 * sizeof(void*));
 static_assert(sizeof(XpAppPlatform) == 4 * sizeof(void*));
 static_assert(offsetof(XpAppEvent, kind) == 0);
 static_assert(sizeof(XpAppSettings) == 28);

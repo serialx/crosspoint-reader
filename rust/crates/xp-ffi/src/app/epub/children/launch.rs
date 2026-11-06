@@ -98,10 +98,12 @@ impl EpubSession {
         );
     }
     pub(in crate::app::epub) fn launch_owned_clippings(&self) {
+        let Some(owner) = Clippings::try_new(self.runtime) else {
+            self.loop_log_at(1, b"CLIP", &[b"OOM: clipping list"]);
+            return;
+        };
         self.push_owned_child(
-            Clippings::try_new(self.runtime)
-                .map(StableOwner::from)
-                .map(ReaderChild::Clippings),
+            Some(ReaderChild::Clippings(StableOwner::from(owner))),
             ChildIntent::Clippings,
         );
     }

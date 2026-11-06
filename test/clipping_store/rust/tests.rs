@@ -471,4 +471,44 @@ mod tests {
             (1, "Invalid clipping preview index: 7".into())
         );
     }
+    #[test]
+    fn collision_and_journal_logs_preserve_native_order() {
+        for suffix in [b"".as_slice(), b".bak".as_slice()] {
+            let volume = Volume::new();
+            let mut store = Store::<_, 16>::try_new(volume.clone()).unwrap();
+            assert!(store.load(b"/a.epub", b"", b"", b"epub"));
+            assert_eq!(store.add(Record::default(), b"", b"x"), AddResult::Added);
+            volume.collision(suffix);
+            volume.clear_logs();
+            assert!(!store.move_book(b"/a.epub", b"/target.epub"));
+            assert_eq!(
+                volume.logs(),
+                vec![(
+                    1,
+                    "Move would overwrite saved clippings: /target.epub".into()
+                )]
+            );
+        }
+        for open_failure in [false, true] {
+            let volume = Volume::new();
+            let mut store = Store::<_, 16>::try_new(volume.clone()).unwrap();
+            assert!(store.load(b"/a.epub", b"", b"", b"epub"));
+            let mut record = Record::default();
+            record.id[0] = b'a';
+            assert_eq!(store.add(record, b"", b"x"), AddResult::Added);
+            let before = volume.source();
+            volume.broken_journal(open_failure);
+            volume.clear_logs();
+            assert!(!store.remove(0));
+            let mut expected = Vec::new();
+            if !open_failure {
+                expected.push((1, "Failed to recover clipping deletion journal".into()));
+            }
+            expected.push((1, "Failed to open clipping deletion journal".into()));
+            assert_eq!(volume.logs(), expected);
+            assert_eq!(store.count(), 1);
+            assert_eq!(volume.source(), before);
+            assert_eq!(volume.journal(), Some(vec![0]));
+        }
+    }
 }

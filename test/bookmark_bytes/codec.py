@@ -19,7 +19,7 @@ def main():
         command = ['cargo', '--offline', '--locked', '--manifest-path',
                    str(HERE / 'rust/Cargo.toml'), '--target-dir', str(args.build)]
         subprocess.run([command[0], 'build', *command[1:], '--bin', 'bookmark-codec'], check=True)
-        subprocess.run([command[0], 'test', *command[1:], '--lib'], check=True)
+        subprocess.run([command[0], 'test', *command[1:], '--features', 'app-test', '--lib'], check=True)
         args.binary = args.build / 'debug/bookmark-codec'
     golden = json.loads((HERE / 'golden.json').read_text())
     cases, wire, expected = [], [], []

@@ -3,9 +3,16 @@ extern crate alloc;
 use alloc::vec::Vec;
 mod decode;
 mod encode;
+pub mod export;
+#[cfg(feature = "app-test")]
+mod export_host;
+#[cfg(feature = "app-test")]
+pub mod host;
 mod json;
+pub mod mutations;
 mod number;
 mod parse_number;
+pub mod persistence;
 pub use decode::{decode, Name};
 pub use encode::encode;
 

@@ -138,7 +138,10 @@ def main():
     parser.add_argument('--golden', type=pathlib.Path, default=HERE/'golden.json')
     parser.add_argument('--capture-baseline', action='store_true')
     parser.add_argument('--negative-controls', action='store_true')
+    parser.add_argument('--rust-owner', action='store_true')
     args = parser.parse_args()
+    if args.rust_owner and args.capture_baseline:
+        parser.error('Rust candidate cannot capture the native golden')
     args.build.mkdir(parents=True, exist_ok=True)
     sdk = ROOT/'freeink-sdk'
     assert subprocess.check_output(['git', '-C', str(sdk), 'rev-parse', 'HEAD'], text=True).strip() == SDK
@@ -151,6 +154,12 @@ def main():
                     sdk=SDK, sources={str(p.relative_to(ROOT)):sha(p.read_bytes()) for p in sources},
                     extraction=[], arduinojson={str(p.relative_to(args.arduinojson)):sha(p.read_bytes())
                                               for p in sorted(args.arduinojson.rglob('*')) if p.is_file()})
+    if args.rust_owner:
+        manifest['owner'] = 'Rust app::bookmarks, extracted whole SDK transactions'
+        for source in sorted((ROOT/'rust/crates/xp-ffi/src/app/bookmarks').glob('*.rs')):
+            manifest['sources'][str(source.relative_to(ROOT))] = sha(source.read_bytes())
+        for source in [HERE/'RustRecords.h', HERE/'RustRecords.cpp']:
+            manifest['sources'][str(source.relative_to(ROOT))] = sha(source.read_bytes())
     cpp = sdk/'libs/hardware/SDCardManager/src/SDCardManager.cpp'
     header = sdk/'libs/hardware/SDCardManager/include/SDCardManager.h'
     for source, signatures, output in [
@@ -178,11 +187,13 @@ def main():
     flags = ['-DARDUINOJSON_ENABLE_ARDUINO_STRING=1', '-DARDUINOJSON_ENABLE_ARDUINO_STREAM=0',
              '-DARDUINOJSON_ENABLE_ARDUINO_PRINT=0', '-DARDUINOJSON_ENABLE_PROGMEM=0',
              '-DARDUINOJSON_SIZEOF_POINTER=4']
+    if args.rust_owner:
+        flags.append('-DBOOKMARK_RUST_ORACLE=1')
     include = [HERE/'stubs', args.build, ROOT, ROOT/'src', ROOT/'lib/Serialization',
                ROOT/'rust/crates/xp-ffi/include', args.arduinojson]
     cmd = ['c++', '-std=c++20', '-O2', '-ffp-contract=off', '-ffunction-sections', '-fdata-sections', *flags,
            *['-I'+str(p) for p in include], str(HERE/'Oracle.cpp'),
-           str(ROOT/'src/util/BookmarkFile.cpp'), str(ROOT/'src/util/BookmarkUtil.cpp'),
+           str(HERE/'RustRecords.cpp' if args.rust_owner else ROOT/'src/util/BookmarkFile.cpp'), str(ROOT/'src/util/BookmarkUtil.cpp'),
            str(ROOT/'lib/Serialization/PersistableStore.cpp'), str(args.build/'SdkStorage.cpp'),
            str(ROOT/'test/cmake/xp_ffi_host.cpp'), str(args.archive),
            '-Wl,-dead_strip' if sys.platform == 'darwin' else '-Wl,--gc-sections', '-o', str(args.build/'oracle')]

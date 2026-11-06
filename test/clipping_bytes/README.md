@@ -101,8 +101,10 @@ Host-only substitutions and limits worth knowing before reading the golden:
 `xp-ffi/src/app/clippings`. `RustStore.cpp` substitutes only the physical file
 operations, clock, randomness and native path hash. Its one-record copy and text
 buffer are test scaffolding, not the production facade or a heap measurement.
-The native `ClippingsManager` still supplies text export; that owner belongs to
-O5a.
+This target retains the native `ClippingsManager` export. The separate
+`clipping_bytes_rust_export` target adds `--rust-export` and uses O5a's dormant
+Rust writer through physical file and calendar callbacks. It runs all 141 cases
+against the same frozen inputs and golden; no production export is activated.
 
 The candidate reads `inputs.json.gz`, captured from the verified native run at
 `8389157f`, rather than building migration inputs with its own writer. This
@@ -113,8 +115,9 @@ Expected results remain the original `golden.json.gz`. `--rust-owner` refuses
 `--capture-baseline`. No private book data is included.
 
 Run the candidate with the existing `run.py` command plus `--rust-owner`, using
-an `app-test` xp-ffi archive. Both CTests retain all 141 cases and the four
-negative controls. `clipping_owner_rust` separately tests owner/slab allocation
+an `app-test` xp-ffi archive. All three CTests retain all 141 cases and the four
+store negative controls, plus two export controls that corrupt output text and
+the formatted date. `clipping_owner_rust` separately tests owner/slab allocation
 failure, partial-load cleanup, offset allocation before filesystem changes,
 cross-block deletion failure and drop-once ownership. Run that crate under
 strict-provenance Miri for the Rust allocation/lifetime checks. These checks do

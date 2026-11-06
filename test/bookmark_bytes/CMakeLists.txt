@@ -5,6 +5,12 @@ add_test(NAME bookmark_bytes_codec
 find_path(BOOKMARK_TEST_ARDUINOJSON ArduinoJson.h
   HINTS ${REPO_ROOT}/.pio/libdeps/default/ArduinoJson/src)
 if(BOOKMARK_TEST_ARDUINOJSON)
+  add_test(NAME bookmark_bytes_rust
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py
+      --build ${CMAKE_CURRENT_BINARY_DIR}/rust-oracle
+      --arduinojson ${BOOKMARK_TEST_ARDUINOJSON}
+      --archive ${XP_FFI_HOST_ARCHIVE}
+      --rust-owner --negative-controls)
   add_test(NAME bookmark_bytes_oracle
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py
       --build ${CMAKE_CURRENT_BINARY_DIR}/oracle

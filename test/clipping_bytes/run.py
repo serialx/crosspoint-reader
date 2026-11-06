@@ -562,7 +562,7 @@ def collect_sources(arduinojson):
     return sources
 
 
-def build(build_dir, arduinojson, archive, rust_owner=False):
+def build(build_dir, arduinojson, archive, rust_owner=False, rust_export=False):
     build_dir.mkdir(parents=True, exist_ok=True)
     frozen = build_dir / 'native'
     frozen_manifest = prepare(frozen)
@@ -623,6 +623,12 @@ def build(build_dir, arduinojson, archive, rust_owner=False):
             manifest['sources'][str(source.relative_to(ROOT))] = sha(source.read_bytes())
         for source in (HERE / 'RustStore.cpp', HERE / 'RustStore.h'):
             manifest['sources'][str(source.relative_to(ROOT))] = sha(source.read_bytes())
+    if rust_export:
+        units[2] = (HERE / 'RustExport.cpp', [])
+        manifest['export_owner'] = 'Rust app::bookmarks::export, physical HAL adapter only'
+        for source in sorted((ROOT / 'rust/crates/xp-ffi/src/app/bookmarks').glob('*.rs')):
+            manifest['sources'][str(source.relative_to(ROOT))] = sha(source.read_bytes())
+        manifest['sources']['test/clipping_bytes/RustExport.cpp'] = sha((HERE / 'RustExport.cpp').read_bytes())
     objects = []
     commands = []
     for source, extra in units:
@@ -697,6 +703,8 @@ def check_negative_controls(actual, expected, store):
         'missing-tombstone': ('delete-with-id', lambda row: drop_tombstone(row, store + b'.deleted')),
         'truncation-length': ('write-one', lambda row: set_u16(
             row, store, v4_parts(unhex(find_file(row, store)['bytes'])) + 154, 2)),
+        'export-byte': ('export-new', lambda row: mutate_file(row, b'/My Clippings.txt', b'Book A', b'Book B')),
+        'export-date': ('export-new', lambda row: mutate_file(row, b'/My Clippings.txt', b'05:32 PM', b'17:32 PM')),
     }
     for label, (name, mutate) in controls.items():
         mutant = copy.deepcopy(actual)
@@ -718,12 +726,13 @@ def main():
     parser.add_argument('--capture-baseline', action='store_true')
     parser.add_argument('--negative-controls', action='store_true')
     parser.add_argument('--rust-owner', action='store_true')
+    parser.add_argument('--rust-export', action='store_true')
     args = parser.parse_args()
-    if args.rust_owner and args.capture_baseline:
+    if (args.rust_owner or args.rust_export) and args.capture_baseline:
         parser.error('Rust candidate cannot capture the native golden')
-    manifest, binary = build(args.build, args.arduinojson, args.archive, args.rust_owner)
+    manifest, binary = build(args.build, args.arduinojson, args.archive, args.rust_owner, args.rust_export)
 
-    if args.rust_owner:
+    if args.rust_owner or args.rust_export:
         inputs = json.loads(gzip.decompress((HERE / 'inputs.json.gz').read_bytes()))
         stores = {unhex(key): unhex(value) for key, value in inputs['stores'].items()}
         canonical, synced = unhex(inputs['canonical']), unhex(inputs['synced'])

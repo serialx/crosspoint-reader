@@ -6,6 +6,12 @@ publish = false
 
 [workspace]
 
+[features]
+app-test = []
+
+[dependencies]
+xp-core = { path = "../../../rust/crates/xp-core" }
+
 [lib]
 path = "tests.rs"
 

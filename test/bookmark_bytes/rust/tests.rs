@@ -1,5 +1,14 @@
 #[path = "../../../rust/crates/xp-ffi/src/app/bookmarks/mod.rs"]
 pub mod bookmarks;
+#[path = "../../../rust/crates/xp-ffi/src/app/clippings/io.rs"]
+pub mod clipping_io;
+mod clippings {
+    pub use crate::clipping_io as io;
+}
+#[cfg(test)]
+mod export_tests;
+#[cfg(test)]
+mod persistence_tests;
 
 #[cfg(test)]
 mod tests {
@@ -108,5 +117,45 @@ mod tests {
             decode::<Vec<u8>>(br#""\u12"#),
             Err(Error::IncompleteInput)
         ));
+    }
+
+    #[test]
+    fn growth_denial_preserves_existing_rows_then_front_insert_moves_them() {
+        use super::bookmarks::mutations;
+        let mut rows = decode::<Vec<u8>>(TWO).unwrap();
+        rows.shrink_to_fit();
+        assert_eq!(rows.len(), rows.capacity());
+        let live_before = LIVE_BYTES.with(Cell::get);
+        let row = decode::<Vec<u8>>(br#"{"bookmarks":[{"name":"new"}]}"#)
+            .unwrap()
+            .remove(0);
+        FAIL_AT.with(|n| n.set(Some(0)));
+        let result = mutations::insert_front(&mut rows, row);
+        FAIL_AT.with(|n| n.set(None));
+        assert_eq!(result, Err(Error::Allocation));
+        assert_eq!(LIVE_BYTES.with(Cell::get), live_before);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].xpath, b"first");
+        let row = decode::<Vec<u8>>(br#"{"bookmarks":[{"name":"new"}]}"#)
+            .unwrap()
+            .remove(0);
+        mutations::insert_front(&mut rows, row).unwrap();
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].name, b"new");
+        assert_eq!(rows[1].xpath, b"first");
+        assert_eq!(rows[2].xpath, b"second");
+        assert_eq!(mutations::retain(&mut rows, |row| row.xpath != b"first"), 1);
+        assert_eq!(rows[1].xpath, b"second");
+    }
+
+    #[test]
+    fn export_allocation_denial_has_no_partial_buffer_or_leak() {
+        let before = LIVE_BYTES.with(Cell::get);
+        FAIL_AT.with(|n| n.set(Some(0)));
+        let result =
+            super::bookmarks::export::bytes(b"title", b"author", b"chapter", 7, b"text", None);
+        FAIL_AT.with(|n| n.set(None));
+        assert_eq!(result, Err(Error::Allocation));
+        assert_eq!(LIVE_BYTES.with(Cell::get), before);
     }
 }

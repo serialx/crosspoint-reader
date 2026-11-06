@@ -4,15 +4,33 @@
 It compares 43 save cases against raw D0 file bytes and 73 load cases against
 exact record bytes, float bits, defaults and optional offsets. It also denies
 each record/field allocation in turn and checks partial-record cleanup; the
-writer has one checked allocation after its exact-size pass. The native oracle
-below still owns full path, I/O ordering and storage-failure coverage until the
-Rust file adapter is connected. Codec parity alone is not full persistence parity.
+writer has one checked allocation after its exact-size pass. `bookmark_bytes_rust`
+also runs all 134 D0 cases through Rust path and persistence policy, using the
+same extracted whole SDK transactions as the native oracle. Every path, byte,
+operation, return value and remaining file must match the unchanged golden.
+The physical production leaves remain unbound until the owner switch.
 
 Run it with `ctest --test-dir build/test -R '^bookmark_bytes_codec$'
 --output-on-failure`. The standalone crate uses the production codec sources,
 without linking native storage. Its generic final name storage permits the R2
 keyboard result block to become the record's name directly at the later switch;
 the current dormant fixture uses a byte vector. No keyboard owner is activated.
+
+The standalone tests cover checked record growth, move-only rename rollback,
+delete failure, read-buffer loans, export-handle teardown and ordered diagnostic
+calls. Run all 16 with `cargo test --offline --manifest-path
+test/bookmark_bytes/rust/Cargo.toml --features app-test --lib`; use the same
+arguments with `cargo +nightly miri test` and
+`MIRIFLAGS=-Zmiri-strict-provenance` for the Rust lifetime checks.
+
+The read adapter borrows one SDK String directly into the decoder's final
+record storage. The write adapter consumes prepared bytes after record loans
+end. Native HAL must hold the existing StorageLock across each whole SDK
+transaction. The host adapter's String copy and one-record dump view are fixture
+scaffolding; they are neither production representations nor heap measurements.
+The byte oracle disables logging; the standalone tests check Rust diagnostic
+strings, severity and ordering separately. Physical SDK raw diagnostics and
+lock scope still require the production adapter's switch checks.
 
 `bookmark_bytes_oracle` compares the native bookmark serializer, parser, path rules,
 and storage failure outcomes with frozen synthetic fixtures from firmware source

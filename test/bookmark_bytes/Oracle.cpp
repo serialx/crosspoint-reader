@@ -7,6 +7,9 @@
 
 #include "src/util/BookmarkFile.h"
 #include "src/util/BookmarkUtil.h"
+#ifdef BOOKMARK_RUST_ORACLE
+#include "RustRecords.h"
+#endif
 
 static_assert(ARDUINOJSON_VERSION_MAJOR == 7 && ARDUINOJSON_VERSION_MINOR == 4 && ARDUINOJSON_VERSION_REVISION == 2);
 static_assert(sizeof(float) == 4 && std::numeric_limits<float>::is_iec559);
@@ -49,9 +52,17 @@ int main() {
     writeLimit = input["write_limit"] | SIZE_MAX;
     readLimit = input["read_limit"] | SIZE_MAX;
     const std::string bookPath = unhex(input["path"] | "");
+#ifdef BOOKMARK_RUST_ORACLE
+    const std::string path = RustRecords::path(bookPath);
+#else
     const std::string path = BookmarkUtil::getBookmarkPath(bookPath);
+#endif
     for (JsonObject f : input["files"].as<JsonArray>()) files[unhex(f["path"])] = unhex(f["bytes"]);
+#ifdef BOOKMARK_RUST_ORACLE
+    RustRecords records;
+#else
     std::vector<BookmarkEntry> records;
+#endif
     for (JsonObject r : input["records"].as<JsonArray>()) {
       BookmarkEntry b{};
       b.xpath = unhex(r["xpath"] | "");
@@ -66,7 +77,11 @@ int main() {
       records.push_back(b);
     }
     const bool load = std::string(input["action"] | "save") == "load";
+#ifdef BOOKMARK_RUST_ORACLE
+    const bool ok = load ? records.load(bookPath) : records.save(bookPath);
+#else
     const bool ok = load ? BookmarkFile::load(bookPath, records) : BookmarkFile::save(bookPath, records);
+#endif
     JsonDocument output;
     output["ok"] = ok;
     output["path"] = hex(path);
@@ -79,7 +94,8 @@ int main() {
     auto ops = output["io"].to<JsonArray>();
     for (const auto& op : io) ops.add(op);
     auto rows = output["records"].to<JsonArray>();
-    for (const auto& b : records) {
+    for (size_t index = 0; index < records.size(); ++index) {
+      const auto& b = records[index];
       auto r = rows.add<JsonObject>();
       r["xpath"] = hex(b.xpath);
       r["summary"] = hex(b.summary);

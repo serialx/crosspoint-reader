@@ -15,6 +15,18 @@ impl<T> ModelCell<T> {
         }
     }
 
+    /// # Safety
+    /// `out` is writable, uninitialized storage. `initialize` must initialize
+    /// every field of T without failing or unwinding.
+    pub unsafe fn initialize(
+        out: *mut Self,
+        runtime: &'static abi::Runtime,
+        initialize: impl FnOnce(*mut T),
+    ) {
+        initialize(core::ptr::addr_of_mut!((*out).value).cast::<T>());
+        core::ptr::addr_of_mut!((*out).runtime).write(runtime);
+    }
+
     pub fn with<R>(&self, apply: impl FnOnce(&mut T) -> R) -> R {
         struct Guard(&'static abi::Runtime);
         impl Drop for Guard {

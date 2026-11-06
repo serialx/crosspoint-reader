@@ -32,6 +32,19 @@ impl Layout {
             ..Self::default()
         }
     }
+    pub fn reset(&mut self, row_action: u8, generation: u32) {
+        self.first_row = Rect::default();
+        self.first_index = 0;
+        self.gap = 0;
+        self.row_count = 0;
+        self.row_action = row_action;
+        self.heights.fill(0);
+        self.controls.fill(Control::default());
+        self.generation = generation;
+        self.control_count = 0;
+        self.uniform = 1;
+        self.reserved = [0; 2];
+    }
     pub fn valid(&self) -> bool {
         self.row_count <= 24
             && self.control_count <= 7

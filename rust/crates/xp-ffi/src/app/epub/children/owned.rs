@@ -96,13 +96,11 @@ pub(super) struct ListPublication {
     pub(super) gate: SceneGate,
 }
 impl ListPublication {
-    fn new(selected: i32) -> Self {
-        Self {
-            state: reader_chrome::ListModel::new(selected),
-            hits: hits::Layout::default(),
-            ready: false,
-            gate: SceneGate::default(),
-        }
+    unsafe fn initialize(out: *mut Self, selected: i32) {
+        ptr::addr_of_mut!((*out).state).write(reader_chrome::ListModel::new(selected));
+        ptr::addr_of_mut!((*out).hits).write(hits::Layout::default());
+        ptr::addr_of_mut!((*out).ready).write(false);
+        ptr::addr_of_mut!((*out).gate).write(SceneGate::default());
     }
 }
 
@@ -161,13 +159,14 @@ impl Menu {
     ) -> Option<Box<Self>> {
         unsafe {
             allocate(|out: *mut Self| {
-                ptr::addr_of_mut!((*out).model).write(ModelCell::new(
-                    MenuPublication {
-                        list: ListPublication::new(0),
-                        menu: menu::State::new(orientation),
-                    },
+                ModelCell::initialize(
+                    ptr::addr_of_mut!((*out).model),
                     runtime,
-                ));
+                    |model| {
+                        ListPublication::initialize(ptr::addr_of_mut!((*model).list), 0);
+                        ptr::addr_of_mut!((*model).menu).write(menu::State::new(orientation));
+                    },
+                );
                 let frame = ptr::addr_of_mut!((*out).frame).cast::<MenuFrame>();
                 ListFrame::initialize(ptr::addr_of_mut!((*frame).list), 48);
                 ptr::addr_of_mut!((*frame).menu).write(menu::State::new(orientation));
@@ -198,8 +197,9 @@ impl Chapters {
     pub(super) fn try_new(runtime: &'static abi::Runtime, selected: i32) -> Option<Box<Self>> {
         unsafe {
             allocate(|out: *mut Self| {
-                ptr::addr_of_mut!((*out).model)
-                    .write(ModelCell::new(ListPublication::new(selected), runtime));
+                ModelCell::initialize(ptr::addr_of_mut!((*out).model), runtime, |model| {
+                    ListPublication::initialize(model, selected);
+                });
                 let frame = ptr::addr_of_mut!((*out).frame).cast::<ChapterFrame>();
                 ListFrame::initialize(ptr::addr_of_mut!((*frame).list), 32);
                 chapters::Window::initialize(ptr::addr_of_mut!((*frame).window));
@@ -236,8 +236,9 @@ impl Clippings {
     pub(super) fn try_new(runtime: &'static abi::Runtime) -> Option<Box<Self>> {
         unsafe {
             allocate(|out: *mut Self| {
-                ptr::addr_of_mut!((*out).model)
-                    .write(ModelCell::new(ListPublication::new(0), runtime));
+                ModelCell::initialize(ptr::addr_of_mut!((*out).model), runtime, |model| {
+                    ListPublication::initialize(model, 0);
+                });
                 let frame = ptr::addr_of_mut!((*out).frame).cast::<ClippingFrame>();
                 ListFrame::initialize(ptr::addr_of_mut!((*frame).list), 32);
                 clipping_window::Window::initialize(ptr::addr_of_mut!((*frame).window));

@@ -33,7 +33,7 @@ impl ListRequest<'_> {
     ) -> Result<PreparedList, Error> {
         *next = *self.snapshot;
         for pass in 0..list::FOLLOW_PASSES {
-            *hits = Layout::new(
+            hits.reset(
                 if self.kind == Screen::Panel { 6 } else { 1 },
                 self.generation,
             );

@@ -14,6 +14,9 @@ macro_rules! unused_leaves {
     };
 }
 unused_leaves! {
+    child_list_help(bounds: xp_ui::scene::Rect, text: XpAppText);
+    child_list_bookmark_icon(bounds: xp_ui::scene::Rect, clip: xp_ui::scene::Rect, paint: u8);
+    child_plain_text_detail_retire_o4b(title: XpAppText, length: u32, fill: unsafe extern "C" fn(*mut core::ffi::c_void, *mut u8, u32) -> u8, context: *mut core::ffi::c_void) -> *mut core::ffi::c_void;
     render_margins(_a0: *mut i32) ;
     render_geometry(_a0: *mut XpEpubGeometry) ;
     render_restore_bw(_a0: u8) ;

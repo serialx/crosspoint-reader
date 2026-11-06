@@ -110,7 +110,7 @@ inline XpAppRuntime runtimeDefaults() {
 
 inline XpEpubLeaves leavesDefaults() {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 174 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 177 * sizeof(void (*)()));
   UNUSED_LEAF(render_margins);
   UNUSED_LEAF(render_geometry);
   UNUSED_LEAF(render_restore_bw);

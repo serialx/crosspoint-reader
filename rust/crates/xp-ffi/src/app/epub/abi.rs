@@ -628,6 +628,14 @@ pub struct XpEpubLeaves {
     pub child_drawing: super::children::Physical,
     pub child_selection_physical: super::children::selection_physical::Physical,
     pub clipping_physical: *const crate::app::clippings_native::Physical,
+    pub child_list_help: unsafe extern "C" fn(xp_ui::scene::Rect, XpAppText),
+    pub child_list_bookmark_icon: unsafe extern "C" fn(xp_ui::scene::Rect, xp_ui::scene::Rect, u8),
+    pub child_plain_text_detail_retire_o4b: unsafe extern "C" fn(
+        XpAppText,
+        u32,
+        unsafe extern "C" fn(*mut core::ffi::c_void, *mut u8, u32) -> u8,
+        *mut core::ffi::c_void,
+    ) -> *mut core::ffi::c_void,
 }
 
 const _: () = {
@@ -649,7 +657,7 @@ const _: () = {
     );
     assert!(
         core::mem::size_of::<XpEpubLeaves>()
-            == 174 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 177 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
     assert!(
         core::mem::offset_of!(XpEpubLeaves, log)
@@ -947,6 +955,10 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, framebuffer_view) == 152 * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, child_drawing) == 153 * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, clipping_physical) == 173 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, child_list_help) == 174 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, child_list_bookmark_icon) == 175 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, child_plain_text_detail_retire_o4b) == 176 * pointer);
+
     assert!(
         core::mem::align_of::<XpEpubLeaves>() == core::mem::align_of::<unsafe extern "C" fn()>()
     );

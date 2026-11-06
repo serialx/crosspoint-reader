@@ -156,7 +156,7 @@ inline XpAppRuntime overlayUnexpectedRuntime() {
 
 inline XpEpubLeaves overlayUnexpectedLeaves() {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 174 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 177 * sizeof(void (*)()));
   table.render_margins = &OverlayUnexpected<decltype(table.render_margins)>::call;
   table.render_geometry = &OverlayUnexpected<decltype(table.render_geometry)>::call;
   table.render_restore_bw = &OverlayUnexpected<decltype(table.render_restore_bw)>::call;

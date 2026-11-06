@@ -41,6 +41,7 @@
 #include "ClippingStore.h"
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
+#include "DictionaryDefinitionActivity.h"
 #include "EndOfBookOptions.h"
 #include "EpubReaderBookmarksActivity.h"
 #include "EpubReaderClippingListActivity.h"
@@ -64,6 +65,7 @@
 #include "components/OptionPopup.h"
 #include "components/RustInputSnapshot.h"
 #include "components/UITheme.h"
+#include "components/UiAppHelpers.h"
 #include "fontIds.h"
 #include "util/BookmarkFile.h"
 #include "util/HomeButtonInput.h"
@@ -1043,6 +1045,28 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .child_dictionary_popup_layout = [](XpUiDictionaryPopup* out) { readerLookup::popupLayout(*target, out); },
       .child_wait_paint = [] { activityManager.requestUpdateAndWait(); },
       .clipping_physical = &CLIPPING_PHYSICAL,
+      .child_list_help =
+          [](XpUiRect bounds, XpAppText text) {
+            GUI.drawHelpText(*target, Rect(bounds.x, bounds.y, bounds.w, bounds.h), pathText(text));
+          },
+      .child_list_bookmark_icon =
+          [](XpUiRect bounds, XpUiRect clip, uint8_t paint) {
+            namespace fui = freeink::ui;
+            const auto bitmap = listIconFor(UIIcon::Bookmark, 32);
+            const auto previous = target->getClipRect();
+            target->setClipRect(clip.x, clip.y, clip.w, clip.h);
+            auto canvas = makeUiTarget(*target);
+            canvas.bitmap({bounds.x, bounds.y, bounds.w, bounds.h}, bitmap, fui::BitmapMode::Contain,
+                          fui::Paint::solid(paint == 1 ? fui::Color::White : fui::Color::Black));
+            target->setClipRect(previous[0], previous[1], previous[2], previous[3]);
+          },
+      .child_plain_text_detail_retire_o4b = [](XpAppText title, uint32_t length, XpEpubDetailFillRetireO4b fill,
+                                               void* context) -> void* {
+        std::string definition(length, '\0');
+        if (!fill(context, reinterpret_cast<uint8_t*>(definition.data()), length)) return nullptr;
+        return makeLegacyActivity<DictionaryDefinitionActivity>(*target, *mapped, owned(title), std::move(definition))
+            .release();
+      },
   };
   if (!sectionMetrics.context) sectionMetrics.context = target;
   return leaves;

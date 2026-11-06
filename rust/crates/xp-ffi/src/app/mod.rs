@@ -864,7 +864,10 @@ pub unsafe extern "C" fn xp_app_init(
     };
     let navigation = Application::new();
     let owner = App {
-        clippings: clippings_service::Service::new(ModelCell::new(false, runtime)),
+        clippings: clippings_service::Service::new(ModelCell::new(
+            clippings_service::Phase::Idle,
+            runtime,
+        )),
         navigation,
         input: RefCell::new(HomeInput::default()),
         driver: Cell::new(driver::State::default()),

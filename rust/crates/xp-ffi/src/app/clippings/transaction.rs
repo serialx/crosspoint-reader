@@ -15,6 +15,16 @@ pub(super) enum Change {
     Remove(usize),
 }
 
+pub(crate) struct Pending {
+    change: Change,
+    offsets: Vec<u32>,
+}
+
+pub(crate) struct Written {
+    change: Change,
+    offsets: Vec<u32>,
+}
+
 impl Change {
     fn count(&self, current: usize) -> usize {
         match self {
@@ -54,8 +64,11 @@ fn copy_text(source: &mut impl File, destination: &mut impl File, mut length: us
 }
 
 impl<I: Io, const B: usize> Store<I, B> {
-    // Persistence sees an immutable committed index plus one pending record operation.
-    fn persist(&self, change: &Change, replacement: Option<&[u8]>) -> Result<Vec<u32>> {
+    pub(super) fn prepare_write(
+        &self,
+        change: Change,
+        replacement: Option<&[u8]>,
+    ) -> Result<Pending> {
         let count = change.count(self.count);
         if !self.loaded
             || self.path.is_empty()
@@ -76,6 +89,16 @@ impl<I: Io, const B: usize> Store<I, B> {
             .try_reserve_exact(count)
             .map_err(|_| self.error(format_args!("OOM: clipping text offsets"), &[]))?;
         offsets.resize(count, 0);
+        Ok(Pending { change, offsets })
+    }
+
+    // The operation lease retains this immutable committed index through physical I/O.
+    pub(crate) fn persist(&self, pending: Pending, replacement: Option<&[u8]>) -> Result<Written> {
+        let Pending {
+            change,
+            mut offsets,
+        } = pending;
+        let count = offsets.len();
         self.io.mkdir(b"/.crosspoint");
         self.io.mkdir(b"/.crosspoint/clippings");
         let tmp = append(&[&self.path, b".tmp"])?;
@@ -206,11 +229,23 @@ impl<I: Io, const B: usize> Store<I, B> {
         if has_destination && self.io.exists(&backup) {
             self.io.remove(&backup);
         }
-        Ok(offsets)
+        Ok(Written { change, offsets })
     }
 
     pub(super) fn rewrite(&mut self, change: Change, replacement: Option<&[u8]>) -> Result<()> {
-        let offsets = self.persist(&change, replacement)?;
+        let pending = self.prepare_write(change, replacement)?;
+        let written = self.persist(pending, replacement)?;
+        self.publish(written);
+        Ok(())
+    }
+
+    pub(crate) fn publish_clean(&mut self, written: Written) {
+        self.publish(written);
+        self.dirty = false;
+    }
+
+    fn publish(&mut self, written: Written) {
+        let Written { change, offsets } = written;
         match change {
             Change::None => {}
             Change::Insert(row) => {
@@ -230,6 +265,5 @@ impl<I: Io, const B: usize> Store<I, B> {
         for (i, offset) in offsets.into_iter().enumerate() {
             self.index.slot_mut(i).text_offset = offset;
         }
-        Ok(())
     }
 }

@@ -21,6 +21,16 @@ mod tests {
     use std::alloc::{GlobalAlloc, Layout, System};
     use std::cell::Cell;
 
+    struct Gate(std::cell::RefCell<crate::service::Phase>);
+    unsafe impl crate::service::Gate for Gate {
+        fn with<R>(&self, action: impl FnOnce(&mut crate::service::Phase) -> R) -> R {
+            action(&mut self.0.borrow_mut())
+        }
+    }
+    fn service<S>() -> crate::service::Service<S, Gate> {
+        crate::service::Service::new(Gate(std::cell::RefCell::new(crate::service::Phase::Idle)))
+    }
+
     thread_local! {
         static FAIL_AFTER: Cell<Option<usize>> = const { Cell::new(None) };
         static LIVE: Cell<isize> = const { Cell::new(0) };
@@ -251,13 +261,7 @@ mod tests {
 
     #[test]
     fn service_is_dormant_until_installed_and_rejects_reentry() {
-        struct Gate(std::cell::RefCell<bool>);
-        unsafe impl crate::service::Gate for Gate {
-            fn with<R>(&self, action: impl FnOnce(&mut bool) -> R) -> R {
-                action(&mut self.0.borrow_mut())
-            }
-        }
-        let service = crate::service::Service::new(Gate(std::cell::RefCell::new(false)));
+        let service = service();
         assert_eq!(service.with(|_: &mut u32| 1), None);
         assert!(!service.install(|| None));
         assert!(service.install(|| Some(Box::new(42))));
@@ -276,6 +280,165 @@ mod tests {
         }))
         .is_err());
         assert_eq!(service.with(|owner| *owner), Some(43));
+    }
+
+    #[test]
+    fn persistence_shares_committed_metadata_but_excludes_other_operations() {
+        let service = service();
+        assert!(service.install(|| Some(Box::new(7u32))));
+        let mut operation = service.operation().unwrap();
+        let pending = operation.update(|owner| {
+            assert_eq!(service.read(|value| *value), None);
+            assert_eq!(*owner, 7);
+            9
+        });
+        operation.read(|committed| {
+            assert_eq!(*committed, 7);
+            assert_eq!(service.read(|value| *value), Some(7));
+            assert!(service.operation().is_none());
+            assert_eq!(service.with(|_| 1), None);
+            assert!(!service.install(|| panic!("second owner")));
+        });
+        operation.update(|owner| {
+            assert_eq!(service.read(|value| *value), None);
+            *owner = pending;
+        });
+        assert_eq!(service.read(|value| *value), Some(9));
+        drop(operation);
+        assert_eq!(service.with(|value| *value), Some(9));
+    }
+
+    #[test]
+    fn phase_failure_releases_exclusion_without_replacing_the_owner() {
+        let service = service();
+        assert!(service.install(|| Some(Box::new(7u32))));
+        let mut operation = service.operation().unwrap();
+        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            operation.update(|_| panic!("prepare failed"));
+        }))
+        .is_err());
+        assert_eq!(service.read(|value| *value), Some(7));
+        assert!(service.operation().is_none());
+        drop(operation);
+        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            service.operation().unwrap().read(|_| panic!("I/O failed"));
+        }))
+        .is_err());
+        assert_eq!(service.with(|value| *value), Some(7));
+    }
+
+    #[test]
+    fn actual_persistence_exposes_old_metadata_until_publication() {
+        for fail in [false, true] {
+            let volume = Volume::new();
+            let service = std::rc::Rc::new(service());
+            assert!(service.install(|| Store::<_, 16>::try_new(volume.clone())));
+            service.with(|store| {
+                assert!(store.load(b"/a.epub", b"", b"", b"epub"));
+                assert_eq!(
+                    store.add(Record::default(), b"old", b"one"),
+                    AddResult::Added
+                );
+            });
+            let old = service.read(|store| *store.row(0).unwrap()).unwrap();
+            let old_bytes = volume.source();
+            let weak = std::rc::Rc::downgrade(&service);
+            let called = std::rc::Rc::new(Cell::new(false));
+            let probe_called = called.clone();
+            volume.probe_next_write(move || {
+                let service = weak.upgrade().unwrap();
+                assert_eq!(service.read(|store| store.count()), Some(1));
+                assert_eq!(service.read(|store| *store.row(0).unwrap()), Some(old));
+                assert!(service.operation().is_none());
+                probe_called.set(true);
+            });
+            if fail {
+                volume.fail_write();
+            }
+            let mut operation = service.operation().unwrap();
+            let pending = operation
+                .update(|store| store.prepare_add(Record::default(), b"new", b"two"))
+                .unwrap();
+            let written = operation.read(|store| store.persist(pending, Some(b"two")));
+            assert!(called.get());
+            assert_eq!(service.read(|store| store.count()), Some(1));
+            assert_eq!(service.read(|store| *store.row(0).unwrap()), Some(old));
+            if fail {
+                assert!(written.is_err());
+                assert_eq!(volume.source(), old_bytes);
+            } else {
+                operation.update(|store| store.publish_clean(written.unwrap()));
+                assert_eq!(service.read(|store| store.count()), Some(2));
+                let mut text = [0; 3];
+                assert_eq!(
+                    operation.read(|store| store.read_into(1, &mut text)),
+                    Some(3)
+                );
+                assert_eq!(&text, b"two");
+            }
+            drop(operation);
+            assert!(service.operation().is_some());
+        }
+    }
+
+    #[test]
+    fn delete_phases_preserve_journal_order_and_failure_dirty_state() {
+        for failure in 0..4 {
+            let volume = Volume::new();
+            let service = service();
+            assert!(service.install(|| Store::<_, 16>::try_new(volume.clone())));
+            service.with(|store| {
+                assert!(store.load(b"/a.epub", b"", b"", b"epub"));
+                let mut record = Record::default();
+                record.id[0] = b'a';
+                assert_eq!(store.add(record, b"old", b"one"), AddResult::Added);
+                assert_eq!(
+                    store.add(Record::default(), b"new", b"two"),
+                    AddResult::Added
+                );
+            });
+            let old_bytes = volume.source();
+            let mut operation = service.operation().unwrap();
+            if failure == 1 {
+                volume.fail_write();
+            }
+            let queued = operation.read(|store| store.queue_remove(0));
+            assert_eq!(queued, failure != 1);
+            if queued {
+                assert_eq!(volume.journal().unwrap().len(), 65);
+                if failure == 2 {
+                    FAIL_AFTER.with(|n| n.set(Some(0)));
+                }
+                let pending = operation.update(|store| store.prepare_remove(0));
+                FAIL_AFTER.with(|n| n.set(None));
+                assert_eq!(pending.is_ok(), failure != 2);
+                if let Ok(pending) = pending {
+                    if failure == 3 {
+                        volume.fail_write();
+                    }
+                    let written = operation.read(|store| store.persist(pending, None));
+                    assert_eq!(service.read(|store| store.count()), Some(2));
+                    assert_eq!(written.is_ok(), failure != 3);
+                    if let Ok(written) = written {
+                        operation.update(|store| store.publish_clean(written));
+                    }
+                }
+            } else {
+                assert_eq!(volume.journal(), Some(Vec::new()));
+            }
+            assert_eq!(
+                service.read(|store| store.count()),
+                Some(if failure == 0 { 1 } else { 2 })
+            );
+            if failure != 0 {
+                assert_eq!(volume.source(), old_bytes);
+            }
+            drop(operation);
+            let before = volume.operations();
+            assert_eq!(service.with(|store| store.save()), Some(true));
+            // Only failure after journal success leaves native dirty state set.
+            assert_eq!(volume.operations() > before, failure == 2 || failure == 3);
+        }
     }
 
     #[test]

@@ -160,13 +160,30 @@ impl<I: Io, const BLOCKS: usize> Store<I, BLOCKS> {
         self.dirty = false;
     }
 
-    pub fn add(&mut self, mut record: Record, chapter: &[u8], text: &[u8]) -> AddResult {
+    pub fn add(&mut self, record: Record, chapter: &[u8], text: &[u8]) -> AddResult {
+        let pending = match self.prepare_add(record, chapter, text) {
+            Ok(pending) => pending,
+            Err(result) => return result,
+        };
+        let Ok(written) = self.persist(pending, Some(text)) else {
+            return AddResult::SaveFailed;
+        };
+        self.publish_clean(written);
+        AddResult::Added
+    }
+
+    pub(crate) fn prepare_add(
+        &mut self,
+        mut record: Record,
+        chapter: &[u8],
+        text: &[u8],
+    ) -> core::result::Result<transaction::Pending, AddResult> {
         if self.count >= BLOCKS * PER_BLOCK {
             self.error(
                 format_args!("Clipping limit ({}) reached", BLOCKS * PER_BLOCK),
                 &[],
             );
-            return AddResult::LimitReached;
+            return Err(AddResult::LimitReached);
         }
         if !self.loaded || text.len() > TEXT_MAX || !self.reserve(self.count + 1) {
             self.error(
@@ -175,7 +192,7 @@ impl<I: Io, const BLOCKS: usize> Store<I, BLOCKS> {
                 ),
                 &[],
             );
-            return AddResult::SaveFailed;
+            return Err(AddResult::SaveFailed);
         }
         record.page_count = record.page_count.max(1);
         let now = self.io.epoch_seconds();
@@ -190,11 +207,8 @@ impl<I: Io, const BLOCKS: usize> Store<I, BLOCKS> {
         record.chapter[..end].copy_from_slice(&chapter[..end]);
         record.text_length = text.len() as u16;
         self.dirty = true;
-        if self.rewrite(Change::Insert(record), Some(text)).is_err() {
-            return AddResult::SaveFailed;
-        }
-        self.dirty = false;
-        AddResult::Added
+        self.prepare_write(Change::Insert(record), Some(text))
+            .map_err(|()| AddResult::SaveFailed)
     }
 
     pub fn save(&mut self) -> bool {

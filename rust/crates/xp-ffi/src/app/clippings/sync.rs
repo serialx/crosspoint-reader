@@ -26,6 +26,21 @@ fn id(bytes: &[u8; 65]) -> &[u8] {
 
 impl<I: Io, const B: usize> Store<I, B> {
     pub fn remove(&mut self, index: usize) -> bool {
+        if !self.queue_remove(index) {
+            return false;
+        }
+        let Ok(pending) = self.prepare_remove(index) else {
+            return false;
+        };
+        let Ok(written) = self.persist(pending, None) else {
+            return false;
+        };
+        self.publish_clean(written);
+        true
+    }
+
+    // Journal I/O precedes dirty state and offset allocation, including on failure.
+    pub(crate) fn queue_remove(&self, index: usize) -> bool {
         if !self.loaded || index >= self.count {
             return false;
         }
@@ -56,12 +71,18 @@ impl<I: Io, const B: usize> Store<I, B> {
             }
             journal.flush();
         }
-        self.dirty = true;
-        if self.rewrite(Change::Remove(index), None).is_err() {
-            return false;
-        }
-        self.dirty = false;
         true
+    }
+
+    pub(crate) fn prepare_remove(
+        &mut self,
+        index: usize,
+    ) -> super::Result<super::transaction::Pending> {
+        if !self.loaded || index >= self.count {
+            return Err(());
+        }
+        self.dirty = true;
+        self.prepare_write(Change::Remove(index), None)
     }
 
     pub fn prepare_sync(&mut self) -> bool {

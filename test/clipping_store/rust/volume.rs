@@ -3,9 +3,10 @@ use std::{cell::RefCell, rc::Rc};
 
 #[derive(Default)]
 struct State {
-    files: [Option<Vec<u8>>; 3],
+    files: [Option<Vec<u8>>; 4],
     operations: usize,
     fail_write: bool,
+    write_probe: Option<Box<dyn FnOnce()>>,
     log: Option<Log>,
 }
 struct Log {
@@ -39,6 +40,8 @@ fn slot(path: &[u8]) -> usize {
         1
     } else if path.ends_with(b".bak") {
         2
+    } else if path.ends_with(b".deleted") {
+        3
     } else {
         0
     }
@@ -50,11 +53,17 @@ impl Volume {
     pub fn source(&self) -> Option<Vec<u8>> {
         self.0.borrow().files[0].clone()
     }
+    pub fn journal(&self) -> Option<Vec<u8>> {
+        self.0.borrow().files[3].clone()
+    }
     pub fn operations(&self) -> usize {
         self.0.borrow().operations
     }
     pub fn fail_write(&self) {
         self.0.borrow_mut().fail_write = true;
+    }
+    pub fn probe_next_write(&self, probe: impl FnOnce() + 'static) {
+        self.0.borrow_mut().write_probe = Some(Box::new(probe));
     }
     pub fn last_log(&self) -> (u8, String) {
         let state = self.0.borrow();
@@ -71,14 +80,21 @@ impl Io for Volume {
         let file = slot(path);
         let mut state = self.0.borrow_mut();
         state.operations += 1;
-        if matches!(mode, Mode::Rewrite) {
+        if matches!(mode, Mode::Rewrite)
+            || (matches!(mode, Mode::Append) && state.files[file].is_none())
+        {
             state.files[file] = Some(Vec::new());
         }
-        state.files[file].as_ref()?;
+        let bytes = state.files[file].as_ref()?;
+        let position = if matches!(mode, Mode::Append) {
+            bytes.len()
+        } else {
+            0
+        };
         Some(Handle {
             volume: self.clone(),
             file,
-            position: 0,
+            position,
         })
     }
     fn open_read(&self, path: &[u8]) -> Option<Handle> {
@@ -140,6 +156,10 @@ impl File for Handle {
         count as i32
     }
     fn write(&mut self, input: &[u8]) -> usize {
+        let probe = self.volume.0.borrow_mut().write_probe.take();
+        if let Some(probe) = probe {
+            probe();
+        }
         let mut state = self.volume.0.borrow_mut();
         state.operations += 1;
         if state.fail_write {

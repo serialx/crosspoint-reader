@@ -1,0 +1,32 @@
+extern crate alloc;
+
+use alloc::vec::Vec;
+mod decode;
+mod encode;
+mod json;
+mod number;
+mod parse_number;
+pub use decode::{decode, Name};
+pub use encode::encode;
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Error {
+    Allocation,
+    NameTooLong,
+    Size,
+    InvalidInput,
+    IncompleteInput,
+    EmptyInput,
+    TooDeep,
+}
+
+pub struct Record<N> {
+    pub xpath: Vec<u8>,
+    pub summary: Vec<u8>,
+    pub name: N,
+    pub percentage: f32,
+    pub spine: u16,
+    pub page_count: u16,
+    pub page: u16,
+    pub visible_offset: Option<u32>,
+}

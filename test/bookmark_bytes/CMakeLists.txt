@@ -1,4 +1,7 @@
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME bookmark_bytes_codec
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/codec.py
+    --build ${CMAKE_CURRENT_BINARY_DIR}/codec)
 find_path(BOOKMARK_TEST_ARDUINOJSON ArduinoJson.h
   HINTS ${REPO_ROOT}/.pio/libdeps/default/ArduinoJson/src)
 if(BOOKMARK_TEST_ARDUINOJSON)

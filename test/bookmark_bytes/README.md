@@ -1,5 +1,19 @@
 # Production bookmark byte oracle
 
+`bookmark_bytes_codec` exercises the dormant P16-O5a Rust record codec directly.
+It compares 43 save cases against raw D0 file bytes and 73 load cases against
+exact record bytes, float bits, defaults and optional offsets. It also denies
+each record/field allocation in turn and checks partial-record cleanup; the
+writer has one checked allocation after its exact-size pass. The native oracle
+below still owns full path, I/O ordering and storage-failure coverage until the
+Rust file adapter is connected. Codec parity alone is not full persistence parity.
+
+Run it with `ctest --test-dir build/test -R '^bookmark_bytes_codec$'
+--output-on-failure`. The standalone crate uses the production codec sources,
+without linking native storage. Its generic final name storage permits the R2
+keyboard result block to become the record's name directly at the later switch;
+the current dormant fixture uses a byte vector. No keyboard owner is activated.
+
 `bookmark_bytes_oracle` compares the native bookmark serializer, parser, path rules,
 and storage failure outcomes with frozen synthetic fixtures from firmware source
 `2543f2a4`. Future bookmark implementations must consume `golden.json`; they must

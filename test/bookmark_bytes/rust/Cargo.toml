@@ -1,0 +1,14 @@
+[package]
+name = "bookmark-owner-tests"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[lib]
+path = "tests.rs"
+
+[[bin]]
+name = "bookmark-codec"
+path = "main.rs"

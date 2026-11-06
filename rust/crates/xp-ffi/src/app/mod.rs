@@ -1,6 +1,9 @@
 extern crate alloc;
 
 mod abi;
+// Dormant until the bookmark ownership switch on the R2-integrated parent.
+#[allow(dead_code, unused_imports)]
+mod bookmarks;
 // App-owned clipping storage shared by reader and retiring native callers.
 #[allow(dead_code)]
 mod clippings;

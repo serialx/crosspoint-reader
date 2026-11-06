@@ -706,8 +706,9 @@ fn checked_view_rejects_incomplete_or_changed_resources_without_publication() {
         fail_row: false,
         change_generation: false,
     };
+    let context = core::ptr::addr_of_mut!(context);
     let mut rows = Rows {
-        context: (&mut context as *mut Context).cast(),
+        context: context.cast(),
         window: Some(window),
         row: Some(row),
         text_width: Some(width),
@@ -717,8 +718,9 @@ fn checked_view_rejects_incomplete_or_changed_resources_without_publication() {
         window_capacity: 8,
         generation: 1,
     };
-    context.descriptor = &mut rows;
-    core::hint::black_box(&context);
+    let rows = core::ptr::addr_of_mut!(rows);
+    // Mutate through the same raw loans retained by the callbacks.
+    unsafe { (*context).descriptor = rows };
     let mut commands = [Command::default(); 128];
     let mut hits = [Interaction::default(); 24];
     let mut buffer = Buffer {
@@ -755,18 +757,19 @@ fn checked_view_rejects_incomplete_or_changed_resources_without_publication() {
     };
     let mut layout = Layout::new(1, 99);
     for failure in 0..6 {
-        rows.row = if failure == 0 { None } else { Some(row) };
-        context.fail_row = failure == 1;
-        context.change_generation = failure == 3;
-        core::hint::black_box(&context);
-        rows.window_capacity = if failure == 2 {
-            65
-        } else if failure == 5 {
-            25
-        } else {
-            8
-        };
-        rows.count = if failure == 5 { 25 } else { 20 };
+        unsafe {
+            (*rows).row = if failure == 0 { None } else { Some(row) };
+            (*context).fail_row = failure == 1;
+            (*context).change_generation = failure == 3;
+            (*rows).window_capacity = if failure == 2 {
+                65
+            } else if failure == 5 {
+                25
+            } else {
+                8
+            };
+            (*rows).count = if failure == 5 { 25 } else { 20 };
+        }
         buffer.command_capacity = if failure == 4 { 1 } else { 128 };
         assert_eq!(
             unsafe {
@@ -774,7 +777,7 @@ fn checked_view_rejects_incomplete_or_changed_resources_without_publication() {
                     &state,
                     Screen::Chapters as u8,
                     &theme,
-                    core::ptr::addr_of!(rows),
+                    rows,
                     &buffer,
                     &mut next,
                     &mut output,
@@ -788,10 +791,11 @@ fn checked_view_rejects_incomplete_or_changed_resources_without_publication() {
         assert_eq!(output.command_count, 42);
         assert_eq!(layout.generation, 99);
     }
-    context.fail_row = false;
-    context.change_generation = false;
-    core::hint::black_box(&context);
-    rows.window_capacity = 8;
+    unsafe {
+        (*context).fail_row = false;
+        (*context).change_generation = false;
+        (*rows).window_capacity = 8;
+    }
     buffer.command_capacity = 128;
     assert_eq!(
         unsafe {
@@ -799,7 +803,7 @@ fn checked_view_rejects_incomplete_or_changed_resources_without_publication() {
                 &state,
                 Screen::Chapters as u8,
                 &theme,
-                core::ptr::addr_of!(rows),
+                rows,
                 &buffer,
                 &mut next,
                 &mut output,
@@ -808,7 +812,7 @@ fn checked_view_rejects_incomplete_or_changed_resources_without_publication() {
         },
         1
     );
-    assert_eq!(output.generation, rows.generation);
+    assert_eq!(output.generation, unsafe { (*rows).generation });
     assert!(output.command_count > 0);
     // The existing popup/delete callbacks may restore a selection after shrinking the source.
     unsafe { xp_ui_reader_list_select(&mut next, 19, 3) };

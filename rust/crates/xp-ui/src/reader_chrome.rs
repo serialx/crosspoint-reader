@@ -8,6 +8,7 @@ use crate::{
 pub mod hits;
 pub mod list;
 pub mod menu;
+pub mod runtime;
 #[cfg(test)]
 mod tests;
 pub mod toolbar;

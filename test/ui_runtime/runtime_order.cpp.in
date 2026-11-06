@@ -1,0 +1,82 @@
+#include "RustActivityAdapter.h"
+#include <cassert>
+#include <vector>
+
+class UpdateUiActivity : public RustActivityAdapter {
+ public:
+  using RustActivityAdapter::RustActivityAdapter;
+  struct ResourceLock {
+    explicit ResourceLock(UpdateUiActivity&) { testEvents.push_back("lock"); }
+    ~ResourceLock() { testEvents.push_back("unlock"); }
+  };
+  bool buildOk = true;
+  bool current = true;
+  void render(RenderLock&&) override;
+  bool buildRustScene(XpUiScene& scene) override {
+    testEvents.push_back("build");
+    scene.refresh = XP_UI_FAST;
+    return buildOk;
+  }
+  void releaseText() { testEvents.push_back("release"); }
+  void rustPublished() override { testEvents.push_back("publish"); }
+  void rustSceneFailed() override { testEvents.push_back("reject"); }
+  bool rustSceneCurrent() const override { return current; }
+};
+
+@UPDATE_RENDER@
+
+class HitActivity : public RustActivityAdapter {
+ public:
+  using RustActivityAdapter::RustActivityAdapter;
+  Publication publication;
+  XpUiInteraction hit{{0, 0, 100, 100}, 1, 7, 1, 1, 0};
+  Publication* rustPublication() override { return &publication; }
+  bool buildRustScene(XpUiScene& scene) override {
+    scene = {nullptr, nullptr, &hit, 1, 0, 0, 1, XP_UI_FAST, 0};
+    return true;
+  }
+  XpUiInterest rustInterest(uint32_t) const override {
+    XpUiInterest interest{};
+    interest.touch_flags = XP_UI_TOUCH_RELEASED;
+    return interest;
+  }
+  XpUiEffect updateRust(const XpUiInput& input) override {
+    return {input.value, static_cast<uint8_t>(input.action == 1 ? XP_UI_ACTIVATE : XP_UI_EFFECT_NONE), 0, {}};
+  }
+  void applyRustEffect(const XpUiEffect& effect) override {
+    assert(effect.kind == XP_UI_ACTIVATE && effect.value == 7);
+    testEvents.push_back("effect");
+  }
+};
+
+int main() {
+  GfxRenderer renderer;
+  renderer.finishRefresh = true;
+  MappedInputManager input;
+  UpdateUiActivity update("update", renderer, input);
+  update.render(RenderLock{});
+  assert((testEvents == std::vector<std::string>{"lock", "build", "paint", "release", "publish", "unlock", "refresh"}));
+  testEvents.clear();
+  renderer.paintOk = false;
+  update.render(RenderLock{});
+  assert((testEvents == std::vector<std::string>{"lock", "build", "paint", "release", "reject", "unlock"}));
+  testEvents.clear();
+  update.buildOk = false;
+  update.render(RenderLock{});
+  assert((testEvents == std::vector<std::string>{"lock", "build", "release", "reject", "unlock"}));
+  testEvents.clear();
+  update.buildOk = renderer.paintOk = true;
+  update.current = false;
+  update.render(RenderLock{});
+  assert((testEvents == std::vector<std::string>{"lock", "build", "paint", "release", "unlock", "refresh"}));
+  HitActivity hit("hit", renderer, input);
+  hit.render(RenderLock{});
+  testEvents.clear();
+  input.touchFlags = XP_UI_TOUCH_RELEASED;
+  hit.loop();
+  assert((testEvents == std::vector<std::string>{"haptic", "effect"}));
+  testEvents.clear();
+  input.touchFlags = 0;
+  hit.loop();
+  assert(testEvents.empty());
+}

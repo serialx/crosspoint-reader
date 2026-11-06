@@ -171,6 +171,22 @@ XpUiEffect xp_ui_list_update(XpUiListState*, const XpUiInput*, uint16_t count, u
 uint8_t xp_ui_xtc_view(const XpUiListState*, const XpUiXtcLayout*, const XpUiMetrics*, const XpUiResources*,
                        const XpUiBuffer*, XpUiListState* next_state, XpUiScene*);
 
+// P17-R1 proposed temporary native compatibility; not an installed API.
+// Zero-initialized per-visit POD. Rust owners call the same typed core directly.
+typedef struct {
+  uint16_t suppressed_buttons;
+  uint8_t failed;
+  uint8_t suppressed_contact;
+} XpUiSceneGate;
+void xp_ui_scene_gate_reject(XpUiSceneGate* gate);
+// Returns ready (1) or stale/repaint (0); stale publication is not rejection.
+uint8_t xp_ui_scene_gate_publish(XpUiSceneGate* gate, uint8_t current);
+// Bit 0: consume; bit 1: retry and run the screen-specific failed cancel rule.
+uint8_t xp_ui_scene_gate_input(XpUiSceneGate* gate, const XpUiInput* input);
+// List arenas only. Initial capacity and release/retain ordering stay at the caller.
+// Returns zero on overflow or an unsatisfied bound; step is screen-specific.
+uint16_t xp_ui_command_next_capacity(uint16_t current, uint16_t minimum, uint16_t step, uint16_t limit);
+
 #ifdef __cplusplus
 }
 static_assert(sizeof(XpUiCommand) == 32);

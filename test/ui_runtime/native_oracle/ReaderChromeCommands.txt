@@ -1,0 +1,29 @@
+class ReaderChromeCommands {
+ public:
+  bool reserve(uint16_t count);
+  bool grow();
+  bool recover() { return capacity && reserve(capacity); }
+  void reset() {
+    commands.reset();
+    capacity = 0;
+  }
+  bool ready() const { return commands != nullptr; }
+  XpUiBuffer buffer() const { return {commands.get(), nullptr, static_cast<uint16_t>(commands ? capacity : 0), 0}; }
+
+ private:
+  std::unique_ptr<XpUiCommand[]> commands;
+  uint16_t capacity = 0;
+};
+bool ReaderChromeCommands::reserve(uint16_t count) {
+  if (commands && count <= capacity) return true;
+  if (count > 128) return false;
+  commands.reset();
+  capacity = std::max(count, capacity);
+  commands = makeUniqueNoThrow<XpUiCommand[]>(capacity);
+  if (!commands) {
+    LOG_ERR("RUI", "Cannot allocate %u command bytes", static_cast<unsigned>(capacity * sizeof(XpUiCommand)));
+    return false;
+  }
+  return true;
+}
+bool ReaderChromeCommands::grow() { return capacity < 128 && reserve(std::min<uint16_t>(128, capacity + 16)); }

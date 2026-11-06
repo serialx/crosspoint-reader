@@ -1,0 +1,152 @@
+{
+  "schema": 1,
+  "baseline_commit": "8389157f693eff753259d08bc92624663458ab97",
+  "frozen_at_commit": "e209b1b5c34d38abfa5370f9accbb9ca42b5b3df",
+  "sdk_commit": "6a573acd0562e45e4ce96837e0c2aebada219760",
+  "purpose": "Named native oracle inputs captured before O4a deletes production owners and their ABI; public repository source only. Snapshots match both baseline_commit and frozen_at_commit byte-for-byte.",
+  "snapshots": [
+    {
+      "source": "src/activities/reader/EpubReaderMenuActivity.cpp",
+      "snapshot": "src/activities/reader/EpubReaderMenuActivity.cpp.txt",
+      "bytes": 9273,
+      "sha256": "1f162163a8316899fc0bdef7a04cbb5d972fe8971b4b2c41f6268a5dceebdd3e"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderMenuActivity.h",
+      "snapshot": "src/activities/reader/EpubReaderMenuActivity.h.txt",
+      "bytes": 2957,
+      "sha256": "620190ae2da1162358c47cc22307c7c3061c333a54550102284176222d18503b"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderChapterSelectionActivity.cpp",
+      "snapshot": "src/activities/reader/EpubReaderChapterSelectionActivity.cpp.txt",
+      "bytes": 3882,
+      "sha256": "c331c332af62f69c6810c97ab2c6434ae5dc94170c8aba0fe09a3aada3c4b0df"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderChapterSelectionActivity.h",
+      "snapshot": "src/activities/reader/EpubReaderChapterSelectionActivity.h.txt",
+      "bytes": 1190,
+      "sha256": "0341615f43415b50d5bbba444426ab59f55053e2add9eb7da1f62a142bf8a1c3"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderPercentSelectionActivity.cpp",
+      "snapshot": "src/activities/reader/EpubReaderPercentSelectionActivity.cpp.txt",
+      "bytes": 7468,
+      "sha256": "4b45eb5746c150d9dc79f052f8cffd345aca852fd100ed0ed6c65527459f3954"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderPercentSelectionActivity.h",
+      "snapshot": "src/activities/reader/EpubReaderPercentSelectionActivity.h.txt",
+      "bytes": 1624,
+      "sha256": "d95b1c64921e7fd1990e11153baea4f960e25bd1bda386bbdcc17ab85f18a9e4"
+    },
+    {
+      "source": "src/activities/reader/QrDisplayActivity.cpp",
+      "snapshot": "src/activities/reader/QrDisplayActivity.cpp.txt",
+      "bytes": 828,
+      "sha256": "4d0058496931233d9e6e1a828e44320f0694a676e12c94c63a329e0fe339be66"
+    },
+    {
+      "source": "src/activities/reader/QrDisplayActivity.h",
+      "snapshot": "src/activities/reader/QrDisplayActivity.h.txt",
+      "bytes": 581,
+      "sha256": "3cffe64be5b21b88895431044fd800e3c6421ad20859c3ddea6e4c7e5be59699"
+    },
+    {
+      "source": "src/activities/reader/ReaderToolbarUi.cpp",
+      "snapshot": "src/activities/reader/ReaderToolbarUi.cpp.txt",
+      "bytes": 10056,
+      "sha256": "6a04769995a813816798a964175d7fdaa4ee7b5031c25932e808a2e959d78e8d"
+    },
+    {
+      "source": "src/activities/reader/ReaderToolbarUi.h",
+      "snapshot": "src/activities/reader/ReaderToolbarUi.h.txt",
+      "bytes": 3277,
+      "sha256": "609fa01b29e58a245f27dfb08f377064bbcdef2920b2147b99abc89ad183e2fb"
+    },
+    {
+      "source": "src/activities/reader/RustEpubResources.cpp",
+      "snapshot": "src/activities/reader/RustEpubResources.cpp.txt",
+      "bytes": 56772,
+      "sha256": "0f627bd8fab03d65b8e745cb6d57ee579e78c2a5c453f87ccc3e74a3dc6413f2"
+    },
+    {
+      "source": "rust/crates/xp-ffi/include/xp_epub_session.h",
+      "snapshot": "rust/crates/xp-ffi/include/xp_epub_session.h.txt",
+      "bytes": 32630,
+      "sha256": "5c41af214177882c3eb37942ac4df38ad73fdc4ea1c0fdc2ed0adab23d6bba85"
+    },
+    {
+      "source": "rust/crates/xp-ffi/include/xp_ui_reader.h",
+      "snapshot": "rust/crates/xp-ffi/include/xp_ui_reader.h.txt",
+      "bytes": 73463,
+      "sha256": "2fe23e1f09376addc9c6add82d7d36b1fb7e335b8e1fad3076c04505b89c0cf1"
+    },
+    {
+      "source": "rust/crates/xp-ffi/include/xp_ui_reader_chrome.h",
+      "snapshot": "rust/crates/xp-ffi/include/xp_ui_reader_chrome.h.txt",
+      "bytes": 13975,
+      "sha256": "5c03bef2e1c23d3acbec0a7f3b6279315fefd89872735ce30e7e557305f77074"
+    }
+  ],
+  "retained_support_sources_at_freeze": [
+    {
+      "source": "src/activities/reader/ReaderChromeListActivity.cpp",
+      "sha256": "041754e4f87ea946f446ea6a31c721b4eb6cb140a9de72b5105bd3e64bf24790"
+    },
+    {
+      "source": "src/activities/reader/ReaderChromeListActivity.h",
+      "sha256": "97d5a26d841e65e440e0a8660be977515e991ed3e8d77c653428ddb83da32315"
+    },
+    {
+      "source": "src/activities/util/UtilityActivity.cpp",
+      "sha256": "828d9e7f93b48ed4d25143f215b5ca1f8808582a489293798b1590930148b595"
+    },
+    {
+      "source": "src/components/UiSliderDialog.h",
+      "sha256": "dccc6a8c197f7598e00e0d57d3c6d3d96fa25e1ac880f6b047b987dea9f6a0bf"
+    },
+    {
+      "source": "src/components/UiAppHelpers.h",
+      "sha256": "cbad3b5e89b8982888ba3729b3dd3b685a1bb764b6e9e51ac47ec92fc6d97b61"
+    },
+    {
+      "source": "src/components/UIThemeTokens.h",
+      "sha256": "b361cf8c113ddd719938d8007693b8e3efa5ca658bf875dea2b171da5f6b100a"
+    },
+    {
+      "source": "src/components/UiAppHost.cpp",
+      "sha256": "2f032c9d62e0b06f67991d73e842e1dca5586dcc9a6c3381fcee2d7533ad5c03"
+    },
+    {
+      "source": "src/util/ButtonNavigator.cpp",
+      "sha256": "339e0db49084256129ec3ff0ef41aa2266daed85ed6350df68c97e80151e18fe"
+    },
+    {
+      "source": "src/components/themes/BaseTheme.cpp",
+      "sha256": "3bd5ef4a7dcd5baf3d9ba41d281a2f040565a6081e082b1a7a16cd1c06bae103"
+    },
+    {
+      "source": "src/components/themes/lyra/LyraTheme.cpp",
+      "sha256": "c022ea55014cdb728c17cc52ea70b1a1227eac1f68fed7316d1a37bcc6f30668"
+    },
+    {
+      "source": "src/components/themes/roundedraff/RoundedRaffTheme.cpp",
+      "sha256": "2cfcd243827a94506665df353050c41e76ede372fa54b38f13fa8422aff34206"
+    },
+    {
+      "source": "src/activities/reader/RustReaderDrawing.cpp",
+      "sha256": "e64da8fc1b3560f1f2e3c6ccdd973733b2992b03cf82340dd49b08192be281f2"
+    },
+    {
+      "source": "lib/Epub/Epub/PackagePlatform.cpp",
+      "sha256": "eb1d07d9c28442d561f85171e25db3aec3213cf07c9f812fa22ff6b71ae711da"
+    },
+    {
+      "source": "lib/Memory/Memory.h",
+      "sha256": "36a3287ace388ee3ae8c40b161d2ae3674519c3a8b01611ca54b565b41896353"
+    }
+  ],
+  "support_note": "Retained production dependencies are recorded here, not duplicated. RustReaderDrawing is the candidate-side physical adapter; other entries supply native/shared physical behavior. Future oracle adapters must declare which side each input serves."
+}

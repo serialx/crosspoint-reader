@@ -272,9 +272,9 @@ inline bool removeBookFile(const char* p) {
   host::trace.push_back(std::string("removeBook:") + p);
   return Storage.remove(p);
 }
-namespace ClippingStore {
+namespace ClippingStoreFacade {
 inline bool moveBook(const char* from, const char* to) { return Storage.replaceFile(from, to); }
-}  // namespace ClippingStore
+}  // namespace ClippingStoreFacade
 namespace library {
 inline bool isLibraryBookFile(const std::string& p) {
   return p.ends_with(".epub") || p.ends_with(".txt") || p.ends_with(".md") || p.ends_with(".xtc") ||

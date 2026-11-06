@@ -12,5 +12,5 @@ fonts = []
 for source in sorted((Path(__file__).resolve().parents[1] / 'text_golden/fonts').glob('*.cpfont.gz')):
     dest = a.work_dir / source.stem
     dest.write_bytes(gzip.decompress(source.read_bytes()))
-    fonts.append(str(dest))
-subprocess.run([a.binary, *fonts], check=True)
+    fonts.append(dest.name)
+subprocess.run([str(Path(a.binary).resolve()), *fonts], cwd=a.work_dir, check=True)

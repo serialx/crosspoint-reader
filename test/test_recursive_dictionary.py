@@ -35,7 +35,6 @@ def block(source, signature, semicolon=False):
 
 
 methods = "\n".join(block(viewer, signature) for signature in (
-    "__attribute__((noinline)) void DefinitionQuery::assignNative",
     "bool DictionaryDefinitionActivity::prepareDefinition",
     "bool DictionaryDefinitionActivity::layoutHtmlPages",
     "int DictionaryDefinitionActivity::measureSpan",
@@ -46,7 +45,14 @@ methods = "\n".join(block(viewer, signature) for signature in (
     "void DictionaryDefinitionActivity::navigateDefinition",
     "bool DictionaryDefinitionActivity::buildPlainSelectionPages",
     "void DictionaryDefinitionActivity::startSelection",
+    "XpDefinitionSelection DictionaryDefinitionActivity::prepareSelectionResult",
+    "uint8_t DictionaryDefinitionActivity::acceptSelectionResult",
 ))
+# The small widget fixture hands native launches to its local child slot; real App
+# ownership and publication are exercised by definition_transfer/composition.py.
+methods = methods.replace("void DictionaryDefinitionActivity::startSelection(const int x, const int y) {",
+                          "void DictionaryDefinitionActivity::startSelection(const int x, const int y) {\n  widgetViewer = this;")
+methods = methods.replace("xp_app_event(&event)", "widgetEvent(&event)")
 structs = "\n".join(block(header, f"struct {name} {{", True) for name in (
     "Line", "BodyArea", "Definition", "HistoryEntry", "LookupState"
 ))
@@ -279,6 +285,13 @@ struct RustActivityAdapter {
   RustActivityAdapter() = default;
   RustActivityAdapter(const char*, GfxRenderer&, MappedInputManager&) {}
 };
+struct DictionaryDefinitionActivity;
+static DictionaryDefinitionActivity* widgetViewer;
+struct SelectionOwner { std::unique_ptr<ClipSelectionActivity> activity; };
+static auto ownLegacy(std::unique_ptr<ClipSelectionActivity> child) {
+  return std::make_unique<SelectionOwner>(SelectionOwner{std::move(child)});
+}
+static XpAppEventResult widgetEvent(const XpAppEvent*);
 struct DictionaryDefinitionActivity : RustActivityAdapter {
   DictionaryDefinitionActivity() = default;
 ''' + constructor + r'''
@@ -324,7 +337,16 @@ struct DictionaryDefinitionActivity : RustActivityAdapter {
   bool restoreCurrentDefinition(bool);
   bool buildPlainSelectionPages();
   void startSelection(int x = -1, int y = -1);
+  XpDefinitionSelection prepareSelectionResult(const ActivityResult&);
+  uint8_t acceptSelectionResult(XpDefinitionSelection);
 };
+static XpAppEventResult widgetEvent(const XpAppEvent* event) {
+  assert(event->kind == XP_APP_ADOPT_PUSH && widgetViewer);
+  auto* owner = static_cast<SelectionOwner*>(event->value.adopt_push);
+  widgetViewer->child = std::move(owner->activity);
+  delete owner;
+  return XP_APP_ACCEPTED;
+}
 ''' + methods + reader_owner + r'''
 struct OwnedLegacyActivity {
   std::unique_ptr<DictionaryDefinitionActivity> activity;
@@ -441,7 +463,7 @@ int main() {
   selected.text = "alias";
   view.child.reset();
   const unsigned reads = dictionary.reads;
-  view.callback(ActivityResult{std::move(selected)});
+  assert(view.acceptSelectionResult(view.prepareSelectionResult(ActivityResult{std::move(selected)})));
   assert(view.lookup->depth == 16 && view.lookup->pendingWord.empty() && dictionary.reads == reads);
   assert(view.message == StrId::STR_DICT_HISTORY_FULL);
   for (int i = 0; i < 16; ++i) view.navigateDefinition(true);

@@ -24,10 +24,11 @@ def source():
         'SELECTION': block(selector, 'struct Selection {') + ';',
         'STRUCTS': '\n'.join(block(header, 'struct ' + name + ' {') + ';' for name in ['Line', 'BodyArea', 'Definition', 'HistoryEntry', 'LookupState']),
         'OWNED_NATIVE_DECLARATION': block(owner, 'struct OwnedLegacyActivity {') + ';',
+        'OWNED_NATIVE_FACTORY': block(owner, 'inline std::unique_ptr<OwnedLegacyActivity> ownLegacy'),
         'NATIVE_ACTIVITY_GETTER': block(owner, 'Activity* nativeActivity(const void* object)'),
         'PREPARATION': block(viewer, 'XpDefinitionSelection DictionaryDefinitionActivity::prepareSelectionResult').replace('  if (lookup->depth', '  record("decision");\n  if (lookup->depth'),
         'ACCEPTANCE': block(viewer, 'uint8_t DictionaryDefinitionActivity::acceptSelectionResult'),
-        'START_SELECTION': block(viewer, '__attribute__((noinline)) void DefinitionQuery::assignNative') + '\n' + block(viewer, 'void DictionaryDefinitionActivity::startSelection'),
+        'START_SELECTION': block(viewer, 'void DictionaryDefinitionActivity::startSelection').replace('xp_app_event(&event)', 'selectionEvent(&event)'),
         'FAILED_INSTALL': block(viewer, 'void DictionaryDefinitionActivity::selectionInstallFailed'),
         'BRIDGE': block(manager, '[](void* child, XpDefinitionPop pop, XpDefinitionSelectionSink sink, void* context)').replace('auto result =', 'ResultLifetime lifetime;\n            auto result =').replace('void* parent =', 'record("native-take");\n            void* parent ='),
         'NATIVE_ACCEPT': block(manager, '[](void* parent, XpDefinitionSelection result)'),
@@ -56,7 +57,7 @@ def main():
     if result.returncode:
         print(result.stderr[-6000:]); raise SystemExit(result.returncode)
     cases = [('success', length, depth, cancelled) for length in [0, 1, 15, 4096] for depth in [15,16] for cancelled in [0,1]]
-    cases += [(mode, 4096, 15, 0) for mode in ['heap','allocation','decline','decline-sink','retained-failure','reenter-pop','child-allocation','stack-failure','home-current','home-retained','reenter']]
+    cases += [(mode, 4096, 15, 0) for mode in ['wrapper-allocation','adoption-failure','heap','allocation','decline','decline-sink','retained-failure','reenter-pop','child-allocation','stack-failure','home-current','home-retained','reenter']]
     cases.append(('retained-reuse', 1, 15, 0))
     records = []
     for case in cases:

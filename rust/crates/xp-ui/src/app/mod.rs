@@ -191,8 +191,7 @@ impl<A: Activity> Application<A> {
             return;
         };
         let visit = self.next_visit();
-        let parent = self.navigation.borrow().parents.last().map(A::target);
-        if services.definition_selection_route(target, parent) {
+        if self.is_definition_selection(services, target) {
             self.pop_definition_selection(services, target, guard, visit);
             return;
         }
@@ -215,6 +214,12 @@ impl<A: Activity> Application<A> {
                 self.replace(home, services);
             }
         });
+    }
+
+    #[inline(never)]
+    fn is_definition_selection(&self, services: &impl Services<A>, child: A::Target) -> bool {
+        let parent = self.navigation.borrow().parents.last().map(A::target);
+        services.definition_selection_route(child, parent)
     }
 
     #[inline(never)]

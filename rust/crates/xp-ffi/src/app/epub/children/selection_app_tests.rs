@@ -164,7 +164,7 @@ fn app_fixture() -> app::App {
 
 #[test]
 fn actual_app_three_deep_selection_return_destroys_before_delivery() {
-    selection_return_test(false);
+    selection_return_test(true);
 }
 #[test]
 fn definition_owned_result_actual_app_destroys_and_publishes_before_transfer() {
@@ -173,7 +173,6 @@ fn definition_owned_result_actual_app_destroys_and_publishes_before_transfer() {
 fn selection_return_test(typed: bool) {
     static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _serial = SERIAL.lock().unwrap();
-    app::DEFINITION_SELECTION_TEST.store(typed, core::sync::atomic::Ordering::Relaxed);
     for cancelled in [0, 1, 2] {
         let app = app_fixture();
         let parent: StableOwner<app::epub::EpubSession> =
@@ -302,7 +301,6 @@ fn selection_return_test(typed: bool) {
             assert_eq!(events[drop + 1], "unlock");
         });
     }
-    app::DEFINITION_SELECTION_TEST.store(false, core::sync::atomic::Ordering::Relaxed);
 }
 
 #[test]

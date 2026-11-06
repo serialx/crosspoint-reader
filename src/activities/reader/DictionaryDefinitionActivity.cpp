@@ -18,6 +18,7 @@
 #include "DictionaryUiBindings.h"
 #include "HapticFeedback.h"
 #include "ReaderUtils.h"
+#include "activities/OwnedLegacyActivity.h"
 #include "components/HeaderBackTapTarget.h"
 #include "components/UITheme.h"
 #include "util/DictHtmlPages.h"
@@ -561,9 +562,6 @@ bool DictionaryDefinitionActivity::buildPlainSelectionPages() {
   return true;
 }
 
-// Keep variant assignment scratch out of the native result callback.
-__attribute__((noinline)) void DefinitionQuery::assignNative(const std::string& text) { value = text; }
-
 void DictionaryDefinitionActivity::startSelection(const int x, const int y) {
   RenderLock lock;
   if (rustSceneRejected()) {
@@ -597,26 +595,21 @@ void DictionaryDefinitionActivity::startSelection(const int x, const int y) {
     showMessage(StrId::STR_DICT_LOW_MEMORY);
     return;
   }
-  startActivityForResult(std::move(selection), [this](const ActivityResult& result) {
-    RenderLock lock;
+  auto owner = ownLegacy(std::move(selection));
+  if (!owner) {
     lookup->selectionPages.clear();
-    if (result.isCancelled) return;
-    const auto& selected = std::get<ClippingResult>(result.data);
-    content.currentPage = content.selectionPage + selected.endPageOffset;
-    content.selection = {selected.startPageOffset, selected.endPageOffset, selected.startWordIndex,
-                         selected.endWordIndex, true};
-    if (lookup->depth == lookup->history.size()) {
-      showMessage(StrId::STR_DICT_HISTORY_FULL);
-      return;
-    }
-    const auto heap = HalMemory::getDefaultHeap();
-    if (heap.largestBlockBytes < selected.text.size() + 1 || heap.freeBytes < selected.text.size() + HEAP_HEADROOM) {
-      LOG_ERR("DICT", "Low heap for lookup text (%u bytes)", static_cast<unsigned>(selected.text.size() + 1));
-      showMessage(StrId::STR_DICT_LOW_MEMORY);
-      return;
-    }
-    lookup->pendingWord.assignNative(selected.text);
-  });
+    showMessage(StrId::STR_DICT_LOW_MEMORY);
+    return;
+  }
+  XpAppEvent event{.kind = XP_APP_ADOPT_PUSH};
+  event.value.adopt_push = owner.get();
+  if (xp_app_event(&event) == XP_APP_ACCEPTED) {
+    owner.release();
+  } else {
+    owner.reset();
+    lookup->selectionPages.clear();
+    showMessage(StrId::STR_DICT_LOW_MEMORY);
+  }
 }
 
 // Called under the bridge's RenderLock, after child destruction and publication.

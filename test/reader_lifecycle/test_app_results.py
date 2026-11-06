@@ -138,7 +138,9 @@ def main():
                     '            if let Some(parent) = parent { services.deliver_result(parent, result); }\n            drop(guard);\n            if let Some(_parent) = parent {')
                 mutations = [
                     ('delivery-before-unlock', ui, early, 'menu', 'APP_RESULT_BEFORE_UNLOCK'),
-                    ('no-parent-publication', ui, once(ui_source, '            services.publish(parent, visit);', '            let _ = visit;'), 'menu', 'APP_RESULT_NOT_PUBLISHED'),
+                    ('no-parent-publication', ui, once(ui_source,
+                        '            services.publish(parent, visit);\n            drop(guard);\n            if let Some(parent) = parent {',
+                        '            let _ = visit;\n            drop(guard);\n            if let Some(parent) = parent {'), 'menu', 'APP_RESULT_NOT_PUBLISHED'),
                     ('retained-result-intent', child, once((root / 'rust' / child).read_text(), 'let intent = self.model(|state| core::mem::take(&mut state.child));\n        let cancelled', 'let intent = self.model(|state| state.child);\n        let cancelled'), 'menu', 'APP_RESULT_INTENT_RETAINED'),
                     ('retained-stack-intent', owner, once((root / 'rust' / owner).read_text(), '        self.model(|state| state.child = super::state::ChildIntent::None);', ''), 'stack-failure', 'APP_STACK_INTENT_RETAINED'),
                     ('wrong-reopen-destination', recovery, once((root / 'rust' / recovery).read_text(),

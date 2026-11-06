@@ -782,15 +782,10 @@ impl Services<Owner> for App {
         }
     }
     fn definition_selection_route(&self, child: Target, parent: Option<Target>) -> bool {
-        #[cfg(feature = "app-test")]
-        let enabled = DEFINITION_SELECTION_TEST.load(core::sync::atomic::Ordering::Relaxed);
-        #[cfg(not(feature = "app-test"))]
-        let enabled = false;
-        enabled
-            && matches!(
-                (child, parent),
-                (Target::Legacy(_), Some(Target::Definition(_)))
-            )
+        matches!(
+            (child, parent),
+            (Target::Legacy(_), Some(Target::Definition(_)))
+        )
     }
     #[inline(never)]
     fn with_definition_selection_result(
@@ -822,15 +817,11 @@ impl Services<Owner> for App {
         }
     }
     fn failed_push_dropped(&self) {
-        if self.definition_selection_route(
-            Target::Legacy(NonNull::dangling()),
-            self.navigation.current(),
-        ) {
-            if let Some(Target::Definition(parent)) = self.navigation.current() {
-                unsafe { (self.legacy.definition_selection_install_failed)(parent.as_ptr()) };
-            }
+        if let Some(Target::Definition(parent)) = self.navigation.current() {
+            unsafe { (self.legacy.definition_selection_install_failed)(parent.as_ptr()) };
         }
     }
+
     fn home(&self) -> Option<Owner> {
         self.new_home(0, false)
     }
@@ -1200,17 +1191,9 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
 
 // Host-oracle entry points. Firmware builds never enable app-test.
 #[cfg(feature = "app-test")]
-static DEFINITION_SELECTION_TEST: core::sync::atomic::AtomicBool =
-    core::sync::atomic::AtomicBool::new(false);
-
-#[cfg(feature = "app-test")]
 mod probe {
     use super::*;
 
-    #[no_mangle]
-    pub extern "C" fn xp_app_test_definition_transfer(enabled: u8) {
-        DEFINITION_SELECTION_TEST.store(enabled != 0, core::sync::atomic::Ordering::Relaxed);
-    }
     #[no_mangle]
     pub unsafe extern "C" fn xp_app_test_install_definition(
         title: abi::Text,

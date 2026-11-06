@@ -12,6 +12,7 @@ struct ClippingDetailNative {
 };
 static_assert(sizeof(ClippingDetailNative) <= sizeof(XpEpubDefinitionStorage));
 static void* clippingDetailHandle;
+static bool clippingNestedDelivered, clippingNestedCancelled;
 static std::string clippingDetailText, clippingDetailTitle;
 namespace {
 static bool observeOwnedClippingLog(uint8_t level, XpAppText origin, XpAppText message) {
@@ -182,21 +183,36 @@ static int runOwnedClippings(const std::string& mode, bool cancelled) {
         assert(xp_app_test_current_legacy() && !xp_app_test_current_child(nullptr));
         auto* detail = xp_app_test_current_legacy();
         if (mode == "clippings-detail") {
-          bool delivered = false;
-          nativeActivity(detail)->startActivityForResult(
-              makeUniqueNoThrow<ClipSelectionActivity>(renderer, input, std::vector<std::unique_ptr<Page>>{},
-                  0, 0, 0, 0, ClipSelectionActivity::Mode::Clip),
-              [&](const ActivityResult& result) { assert(result.isCancelled == cancelled); delivered = true; });
+          clippingNestedDelivered = false;
+          clippingNestedCancelled = cancelled;
+          auto child = ownLegacy(makeUniqueNoThrow<ClipSelectionActivity>(renderer, input,
+              std::vector<std::unique_ptr<Page>>{}, 0, 0, 0, 0, ClipSelectionActivity::Mode::Clip));
+          XpAppEvent push{}; push.kind = XP_APP_ADOPT_PUSH; push.value.adopt_push = child.get();
+          assert(xp_app_event(&push) == XP_APP_ACCEPTED); child.release();
           assert(xp_app_test_drain());
           auto* selection = xp_app_test_current_legacy();
           assert(selection && selection != detail && clippingDetailDrops == 0);
           nativeActivity(selection)->result.isCancelled = cancelled;
-          const auto withResult = legacy.with_result;
-          legacy.with_result = production_with_result;
+          // This fixture's viewer is a physical fake; the native transfer is covered separately.
+          legacy.with_definition_selection_result = [](void* raw, XpDefinitionPop pop,
+              XpDefinitionSelectionSink sink, void* context) {
+            auto result = std::move(nativeActivity(raw)->result);
+            assert(result.isCancelled == clippingNestedCancelled);
+            auto* parent = pop(context);
+            assert(parent == clippingDetailHandle && !f().renderDepth && !results.children.count(raw));
+            XpDefinitionSelection owned{};
+            owned.status = result.isCancelled ? XP_DEFINITION_SELECTION_CANCELLED : XP_DEFINITION_SELECTION_SELECTED;
+            assert(sink(context, parent, owned));
+          };
+          legacy.deliver_definition_selection_result = [](void* parent, XpDefinitionSelection result) -> uint8_t {
+            assert(parent == clippingDetailHandle && !result.text.data);
+            assert((result.status == XP_DEFINITION_SELECTION_CANCELLED) == clippingNestedCancelled);
+            clippingNestedDelivered = true;
+            return 1;
+          };
           XpAppEvent selectionPop{}; selectionPop.kind = XP_APP_POP;
           assert(xp_app_event(&selectionPop) == XP_APP_ACCEPTED && xp_app_test_drain());
-          legacy.with_result = withResult;
-          assert(delivered && xp_app_test_current_legacy() == detail && clippingDetailDrops == 0);
+          assert(clippingNestedDelivered && xp_app_test_current_legacy() == detail && clippingDetailDrops == 0);
         }
         XpAppEvent event{}; event.kind = XP_APP_POP;
         nativeActivity(xp_app_test_current_legacy())->result.isCancelled = cancelled;

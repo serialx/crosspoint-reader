@@ -15,7 +15,6 @@
 #include "activities/ActivityResult.h"
 
 extern "C" {
-void xp_app_test_definition_transfer(uint8_t);
 uint8_t xp_app_test_install_definition(XpAppText, uint32_t, XpEpubDefinitionFill, void*);
 uint8_t xp_app_test_drain();
 void* xp_app_test_published_legacy();
@@ -60,14 +59,21 @@ struct Page {
   ~Page() { assert(!childLive); --pages; record("page-release"); }
 };
 struct Dictionary {};
-struct ClipSelectionActivity {
-// SELECTION
-  template<class... Args> explicit ClipSelectionActivity(Args&&...) { assert(false); }
+struct Activity {
+  ActivityResult result;
+  virtual ~Activity() = default;
 };
-static bool rejectChild;
+struct ClipSelectionActivity : Activity {
+// SELECTION
+  template<class... Args> explicit ClipSelectionActivity(Args&&...) { assert(pages); childLive = true; }
+  ~ClipSelectionActivity() override { assert(pages); childLive = false; record("child-drop"); }
+};
+static bool rejectChild, rejectWrapper, rejectAdoption;
+static size_t wrapperSize;
 static unsigned childAllocationFailures;
 void* operator new(size_t bytes, const std::nothrow_t&) noexcept {
   if (rejectChild && bytes == sizeof(ClipSelectionActivity)) { ++childAllocationFailures; return nullptr; }
+  if (rejectWrapper && bytes == wrapperSize) return nullptr;
   return ::operator new(bytes);
 }
 enum class StrId { STR_DICT_HISTORY_FULL, STR_DICT_LOW_MEMORY };
@@ -79,12 +85,12 @@ struct HalMemory {
 constexpr size_t HEAP_HEADROOM = 8192;
 constexpr size_t SELECTION_PAGE_WINDOW = 3;
 #define LOG_ERR(...) record("low-heap-log")
-struct Activity {
-  ActivityResult result;
-  virtual ~Activity() = default;
-};
 // OWNED_NATIVE_DECLARATION
+// OWNED_NATIVE_FACTORY
 // NATIVE_ACTIVITY_GETTER
+static XpAppEventResult selectionEvent(const XpAppEvent* event) {
+  return rejectAdoption ? XP_APP_REJECTED : xp_app_event(event);
+}
 struct DictionaryDefinitionActivity : Activity {
 // STRUCTS
   Definition content;
@@ -101,7 +107,6 @@ struct DictionaryDefinitionActivity : Activity {
   BodyArea bodyArea() const { return {0, 0, 20, 20}; }
   bool buildPlainSelectionPages() { return true; }
   void startSelection(int x = -1, int y = -1);
-  void startActivityForResult(std::unique_ptr<ClipSelectionActivity>, ActivityResultHandler) { assert(false); }
   ~DictionaryDefinitionActivity() override { assert(!childLive); record("definition-drop"); }
 };
 // PREPARATION
@@ -109,10 +114,6 @@ struct DictionaryDefinitionActivity : Activity {
 // START_SELECTION
 // FAILED_INSTALL
 static Dictionary dictionary;
-struct Child : Activity {
-  Child() { assert(pages); childLive = true; }
-  ~Child() override { assert(pages); childLive = false; record("child-drop"); }
-};
 struct ResultLifetime { ~ResultLifetime() { record("native-result-drop"); } };
 static XpAppLegacy legacy = appTestLegacy();
 static XpAppResources resources = appTestResources();
@@ -181,7 +182,6 @@ static void configure() {
   };
   XpAppPlatform platform{&legacy, &resources, &runtime, &epub};
   assert(xp_app_init(&platform, &compatibility) == XP_APP_OK);
-  xp_app_test_definition_transfer(1);
 }
 int main(int argc, char** argv) {
   assert(argc == 5);
@@ -198,6 +198,7 @@ int main(int argc, char** argv) {
   auto* parent = static_cast<DictionaryDefinitionActivity*>(nativeActivity(parentHandle));
   parent->lookup->depth = depth;
   parent->content.selectionPage = 4;
+  parent->content.selection.valid = true;
   const char* retainedPointer = nullptr;
   if (mode == "retained-failure" || mode == "retained-reuse") {
     RenderLock lock;
@@ -208,6 +209,18 @@ int main(int argc, char** argv) {
     parent->lookup->pendingWord = std::move(retained);
   }
   parent->lookup->selectionPages.push_back(std::make_unique<Page>());
+  if (mode == "wrapper-allocation" || mode == "adoption-failure") {
+    wrapperSize = sizeof(OwnedLegacyActivity);
+    rejectWrapper = mode == "wrapper-allocation"; rejectAdoption = !rejectWrapper; tracing = true;
+    parent->startSelection();
+    rejectWrapper = rejectAdoption = tracing = false;
+    assert(!childLive && !pages && !allocated);
+    assert(parent->messages == 1 && parent->message == StrId::STR_DICT_LOW_MEMORY);
+    auto expected = std::vector<std::string>{"child-drop", "page-release", "message"};
+    if (mode == "wrapper-allocation") expected.insert(expected.begin(), "low-heap-log");
+    assert(events == expected);
+    home(); return 0;
+  }
   if (mode == "child-allocation") {
     rejectChild = true; tracing = true;
     parent->startSelection();
@@ -235,15 +248,8 @@ int main(int argc, char** argv) {
     parent = static_cast<DictionaryDefinitionActivity*>(nativeActivity(parentHandle));
     parent->lookup->selectionPages.push_back(std::make_unique<Page>());
   }
-  auto child = std::make_unique<Child>();
-  ClippingResult selected;
-  selected.text = std::string(length, 'x');
-  selected.startPageOffset = 1; selected.endPageOffset = 2;
-  selected.startWordIndex = 3; selected.endWordIndex = 4;
-  child->result = ActivityResult(std::move(selected)); child->result.isCancelled = cancelled;
-  auto* childHandle = new OwnedLegacyActivity(std::move(child));
-  XpAppEvent push{.kind = XP_APP_ADOPT_PUSH}; push.value.adopt_push = childHandle;
-  assert(xp_app_event(&push) == XP_APP_ACCEPTED);
+  parent->startSelection();
+  assert(xp_app_test_pending_kind() == 1);
   if (mode == "stack-failure") xp_test_fail_allocation_after(0);
   tracing = mode == "stack-failure";
   assert(xp_app_test_drain());
@@ -259,7 +265,14 @@ int main(int argc, char** argv) {
     tracing = true; home(); tracing = false;
     assert(!pages && !childLive && !allocated); return 0;
   }
-  assert(xp_app_test_current_legacy() == childHandle);
+  auto* childHandle = xp_app_test_current_legacy();
+  assert(childHandle && childHandle != parentHandle);
+  ClippingResult selected;
+  selected.text = std::string(length, 'x');
+  selected.startPageOffset = 1; selected.endPageOffset = 2;
+  selected.startWordIndex = 3; selected.endWordIndex = 4;
+  nativeActivity(childHandle)->result = ActivityResult(std::move(selected));
+  nativeActivity(childHandle)->result.isCancelled = cancelled;
   if (mode == "heap") HalMemory::heap = {length, length};
   rejectText = mode == "allocation" || mode == "retained-failure";
   decline = mode == "decline";

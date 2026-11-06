@@ -99,5 +99,4 @@ class DefinitionQuery {
     if (auto* text = std::get_if<OwnedSelectionText>(&value)) return std::move(*text);
     return {};
   }
-  void assignNative(const std::string& text);
 };

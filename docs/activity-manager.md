@@ -76,7 +76,7 @@ Main task -> xp_app_loop -> Rust Application
 
 ## Migration Checklist
 
-Scene-based owners share admission and list preparation through
+Reader-list owners share admission and list preparation through
 `xp_ui::runtime::SceneGate`, `next_capacity` and
 `reader_chrome::runtime::ListRequest`. Native activities reach the gate and
 capacity policy through `xp_ui.h`; Rust owners call the typed functions directly.
@@ -85,14 +85,26 @@ storage. A failed scene suppresses activation until recovery and held-input
 release; a stale successful scene requests repaint. Custom cancellation remains
 the screen's responsibility.
 
+Gate mutation requires the caller's model lock; the gate provides no
+synchronization. After any render, resource or text lock wait following
+admission, check the gate again before acting: rendering may have rejected the
+scene during the wait.
+
 List preparation does not paint or publish. Grow storage using the screen's
 existing capacity sequence, releasing the old buffer before allocation and
 retaining the request for a failed-allocation retry. Paint a completed scene,
 release temporary resource loans in the caller's required order, then publish
 under the model lock and perform the caller's refresh. Do not move scene scratch
 into shared application dispatch or standardize refresh order across families.
+This storage and preparation protocol is for reader lists. Keyboard allocates
+replacement buffers before releasing old ones; keyboard and utility dialogs do
+not use `ListRequest`.
 See [Shared scene and list policy](contributing/rust-ui.md#shared-scene-and-list-policy)
 for the native and owned callers, theme sampling and retained native consumers.
+In Phase 18, retire `xp_ui_scene_gate_*`, `xp_ui_command_next_capacity` and
+`xp_ui_reader_theme_compose` only after their last actual native callers retire.
+Keep the common commands/sampler file while FileBrowser, Library, TextSettings
+or EndOfBookOptions uses it, even after native Bookmarks and Clippings retire.
 
 ### 1. Change Base Class
 

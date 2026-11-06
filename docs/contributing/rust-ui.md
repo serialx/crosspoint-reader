@@ -154,6 +154,13 @@ but keeps held controls suppressed through release. Stale publication requests
 another paint without marking a successful frame as failed. Callers retain their
 own Back and custom cancellation behavior, model locks and resource lifetimes.
 
+Mutate the gate under the caller's model lock; the gate does not synchronize
+access itself. If an action waits for a render, resource or text lock after
+admission, recheck admission after that wait, before acting. A render may reject
+the scene during the wait. Native callers use `rustSceneRejected()`; owned
+Chapters evaluates `ListPublication::input` under its model lock after resource
+access, so its gate sees any intervening rejection.
+
 `runtime::next_capacity` computes the next list command capacity; it does not
 allocate. Native `ReaderChromeCommands` and owned `children::Commands` release
 the old allocation before growing and retain the requested capacity even if
@@ -163,7 +170,9 @@ ReaderChrome chooses its initial capacity by screen, including 40 for Bookmarks.
 These list buffers stop at 128 commands. Settings keeps its separate initial
 8/16/24/32/48 choices and unclamped +16 retry loop: starts at 8 or 24 reach 120
 and reject 136, without a 128-command attempt. Keyboard
-retains its independent doubling buffers and the scene's 8 KiB command ceiling.
+retains its independent doubling buffers, allocates replacements before releasing
+the old buffers, and keeps the scene's 8 KiB command ceiling. Keyboard and utility
+dialogs do not use reader-list preparation.
 
 `reader_chrome::runtime::ListRequest::prepare` borrows a model snapshot, theme,
 resources and owner scratch. It applies the existing nine-pass follow rule and
@@ -186,6 +195,15 @@ in use. Bookmarks and Clippings still retain their native row-resource codecs
 until their ownership ports retire those consumers; owned Menu and Chapters use
 the typed `RowSlot` codec. Physical refresh timing and resource-release order stay at each
 caller, including UpdateUi's release-text-before-publication sequence.
+
+The wire bridges are temporary Phase 18 compatibility seams:
+`xp_ui_scene_gate_*`, `xp_ui_command_next_capacity` and
+`xp_ui_reader_theme_compose` retire only when their last actual native callers
+retire. Rust owners already call the typed functions directly. Keep the common
+commands and sampler in `ReaderChromeListActivity.{cpp,h}` while FileBrowser,
+Library, TextSettings or EndOfBookOptions still use them; retiring native
+Bookmarks and Clippings alone does not remove those consumers. Keep reader/XTC
+exports and physical drawing services for as long as their callers remain.
 
 ## Drawing and resources
 

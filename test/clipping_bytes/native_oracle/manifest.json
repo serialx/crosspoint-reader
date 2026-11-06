@@ -11,5 +11,35 @@
       "sha256": "bb9fb9db315fadcc27be26edf96d061f9ff54653c088d80588ebefd417d3c64f",
       "bytes": 3854
     }
+  ],
+  "snapshots": [
+    {
+      "source": "src/clippings/ClippingsManager.cpp",
+      "bytes": 2980,
+      "sha256": "7f7aa8d12f1c6ef5a318227fc44f18ea62a533bd8e473c7fc9dd7d447eeaa4fd",
+      "consumers": [
+        "test/clipping_bytes/run.py",
+        "test/clipping_bytes/Oracle.cpp"
+      ],
+      "contract": "Native export byte/failure reference through generated translation unit",
+      "retirement": "Remove only after all listed consumers are gone or independently equivalent coverage replaces their exact contract; no candidate-derived golden.",
+      "snapshot": "src/clippings/ClippingsManager.cpp.txt",
+      "frozen_at_commit": "dff2b732e59400cd4d8533ba8e55d15c6c230bcc",
+      "task": "P16-O5a"
+    },
+    {
+      "source": "src/clippings/ClippingsManager.h",
+      "bytes": 334,
+      "sha256": "259c29eb663366a5ce66eb96afc6eb11f2e485bb52998ae83538ec3c7369039f",
+      "consumers": [
+        "test/clipping_bytes/run.py",
+        "test/clipping_bytes/Oracle.cpp"
+      ],
+      "contract": "Export declaration and native constant, combined into generated fixture",
+      "retirement": "Remove only after all listed consumers are gone or independently equivalent coverage replaces their exact contract; no candidate-derived golden.",
+      "snapshot": "src/clippings/ClippingsManager.h.txt",
+      "frozen_at_commit": "dff2b732e59400cd4d8533ba8e55d15c6c230bcc",
+      "task": "P16-O5a"
+    }
   ]
 }

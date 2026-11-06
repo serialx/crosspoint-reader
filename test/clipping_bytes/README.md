@@ -150,3 +150,18 @@ direct result, borrowing, ordered-log and storage assertions exist. Its text
 export migration alone does not retire the native store-byte reference. See the
 [reader snapshot ledger](../reader_children/native_oracle/README.md) for the
 other retained reader inputs and their provenance.
+
+### P16-O5a export freeze
+
+`native_oracle/manifest.json` also records the two Kindle export snapshots from
+`dff2b732`: `ClippingsManager.cpp.txt` (2,980 B) and
+`ClippingsManager.h.txt` (334 B). Together with the existing store pair, this
+folder retains four snapshots and 34,405 B. The export entries use `snapshots`;
+the existing store materializer continues to consume only `files`.
+
+The export oracle still compiles the live manager during this freeze checkpoint.
+Before its retirement, `run.py` and `Oracle.cpp` will consume these hash-checked
+sources through a generated translation unit, without adding a frozen header
+include path. The 141-case frozen corpus and its failure expectations remain
+unchanged. Retire the pair only after equivalent independent export byte and
+failure coverage replaces these consumers.

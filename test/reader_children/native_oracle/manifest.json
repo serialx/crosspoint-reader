@@ -3,7 +3,7 @@
   "baseline_commit": "8389157f693eff753259d08bc92624663458ab97",
   "frozen_at_commit": "e209b1b5c34d38abfa5370f9accbb9ca42b5b3df",
   "sdk_commit": "6a573acd0562e45e4ce96837e0c2aebada219760",
-  "purpose": "Named native oracle inputs captured before O4a/O5b delete production owners and their ABI; public repository source only. O5b entries record their own frozen_at_commit; baseline source bytes remain exact.",
+  "purpose": "Named native oracle inputs captured before O4a/O5b delete production owners and their ABI; public repository source only. O5b entries record their own frozen_at_commit; baseline source bytes remain exact. O5a entries capture Bookmarks and the native list base at dff2b732.",
   "snapshots": [
     {
       "source": "src/activities/reader/EpubReaderMenuActivity.cpp",
@@ -115,6 +115,63 @@
       "sha256": "cca5540cc7c85024b7446471da0852cbd16be11b3efbf92a8b97529956c3452e",
       "task": "P16-O5b",
       "frozen_at_commit": "235062b3"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderBookmarksActivity.cpp",
+      "bytes": 8232,
+      "sha256": "ca32d1e08c0a4ad5d68cac538787af53a586bf4102b68ac6a2f98cdfb9331245",
+      "consumers": [
+        "planned test/reader_children/prepare_bookmarks.py",
+        "test/reader_lifecycle/test_child_handle_composition.py",
+        "test/reader_children/test_owned_app.py"
+      ],
+      "contract": "Independent action/drawing behavior plus historical constructor",
+      "retirement": "Remove only after all listed consumers are gone or independently equivalent coverage replaces their exact contract; no candidate-derived golden.",
+      "snapshot": "src/activities/reader/EpubReaderBookmarksActivity.cpp.txt",
+      "frozen_at_commit": "dff2b732e59400cd4d8533ba8e55d15c6c230bcc",
+      "task": "P16-O5a"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderBookmarksActivity.h",
+      "bytes": 2448,
+      "sha256": "c16b595bda64fab473a9821c86dffd6f8494dc9624d248306eaf902ee9c6f311",
+      "consumers": [
+        "planned test/reader_children/prepare_bookmarks.py",
+        "test/reader_lifecycle/test_child_handle_composition.py",
+        "test/reader_children/test_owned_app.py"
+      ],
+      "contract": "Native owner declarations; historical factory scaffolding retires independently of parity",
+      "retirement": "Remove only after all listed consumers are gone or independently equivalent coverage replaces their exact contract; no candidate-derived golden.",
+      "snapshot": "src/activities/reader/EpubReaderBookmarksActivity.h.txt",
+      "frozen_at_commit": "dff2b732e59400cd4d8533ba8e55d15c6c230bcc",
+      "task": "P16-O5a"
+    },
+    {
+      "source": "src/activities/reader/ReaderChromeListActivity.cpp",
+      "bytes": 12337,
+      "sha256": "19b0fde88965450aade25b785b14e0d9821d69f319a45e0574d84141b479cf6f",
+      "consumers": [
+        "planned test/reader_children/prepare_bookmarks.py",
+        "test/reader_chrome/test_bookmark_input.py"
+      ],
+      "contract": "Retiring native list semantics and resource bindings; live shared commands/sampler remain",
+      "retirement": "Remove only after all listed consumers are gone or independently equivalent coverage replaces their exact contract; no candidate-derived golden.",
+      "snapshot": "src/activities/reader/ReaderChromeListActivity.cpp.txt",
+      "frozen_at_commit": "dff2b732e59400cd4d8533ba8e55d15c6c230bcc",
+      "task": "P16-O5a"
+    },
+    {
+      "source": "src/activities/reader/ReaderChromeListActivity.h",
+      "bytes": 3396,
+      "sha256": "97d5a26d841e65e440e0a8660be977515e991ed3e8d77c653428ddb83da32315",
+      "consumers": [
+        "planned test/reader_children/prepare_bookmarks.py"
+      ],
+      "contract": "Scaffold declaration/layout inputs for independent native drawing fixture",
+      "retirement": "Remove only after all listed consumers are gone or independently equivalent coverage replaces their exact contract; no candidate-derived golden.",
+      "snapshot": "src/activities/reader/ReaderChromeListActivity.h.txt",
+      "frozen_at_commit": "dff2b732e59400cd4d8533ba8e55d15c6c230bcc",
+      "task": "P16-O5a"
     }
   ],
   "retained_support_sources_at_freeze": [

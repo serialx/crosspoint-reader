@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "baseline_commit": "2543f2a4ef2b092bb01483c5941f12008e2490ca",
+  "sdk_commit": "6a573acd0562e45e4ce96837e0c2aebada219760",
+  "purpose": "Native bookmark sources frozen before P16-O5a; immutable public-source references for the D0 golden corpus.",
+  "snapshots": [
+    {
+      "source": "src/util/BookmarkFile.cpp",
+      "bytes": 2831,
+      "sha256": "283bd46f444466e7c252382bd5a206ce23b730aa888615479e05c3388f93a565",
+      "consumers": [
+        "test/bookmark_bytes/run.py",
+        "test/bookmark_bytes/Oracle.cpp"
+      ],
+      "contract": "Complete native load/save implementation, generated only into the test build directory",
+      "retirement": "Remove only after all listed consumers are gone or independently equivalent coverage replaces their exact contract; no candidate-derived golden.",
+      "snapshot": "src/util/BookmarkFile.cpp.txt",
+      "frozen_at_commit": "dff2b732e59400cd4d8533ba8e55d15c6c230bcc",
+      "task": "P16-O5a"
+    },
+    {
+      "source": "src/util/BookmarkFile.h",
+      "bytes": 672,
+      "sha256": "3ebba33f83aa7d02f26dc1683a7fe38c60a73efa1a1e2e819a8925dd6ade2da8",
+      "consumers": [
+        "test/bookmark_bytes/run.py"
+      ],
+      "contract": "Extract declarations into generated native oracle translation unit; do not shadow live header paths",
+      "retirement": "Remove only after all listed consumers are gone or independently equivalent coverage replaces their exact contract; no candidate-derived golden.",
+      "snapshot": "src/util/BookmarkFile.h.txt",
+      "frozen_at_commit": "dff2b732e59400cd4d8533ba8e55d15c6c230bcc",
+      "task": "P16-O5a"
+    },
+    {
+      "source": "src/BookmarkEntry.h",
+      "bytes": 1090,
+      "sha256": "5c355f53005aebbbf8266174b0cd6a165577932c41133d185e19379fab01d104",
+      "consumers": [
+        "test/bookmark_bytes/run.py",
+        "test/bookmark_bytes/Oracle.cpp",
+        "test/reader_lifecycle/bookmark_parent_oracle.cpp"
+      ],
+      "contract": "Historical native record declaration, combined into generated fixtures",
+      "retirement": "Remove only after all listed consumers are gone or independently equivalent coverage replaces their exact contract; no candidate-derived golden.",
+      "snapshot": "src/BookmarkEntry.h.txt",
+      "frozen_at_commit": "dff2b732e59400cd4d8533ba8e55d15c6c230bcc",
+      "task": "P16-O5a"
+    }
+  ]
+}

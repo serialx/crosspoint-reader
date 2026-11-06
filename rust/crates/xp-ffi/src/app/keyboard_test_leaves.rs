@@ -18,6 +18,8 @@ fonts_prewarm_finish_scan: unsafe { core::mem::transmute::<unsafe extern "C" fn(
 fonts_prewarm_drop: unsafe { core::mem::transmute::<unsafe extern "C" fn(*mut core::ffi::c_void), _>(fonts_prewarm_drop) },
 log: super::log,
 render_physical_operation: unsafe { core::mem::transmute::<unsafe extern "C" fn(*const core::ffi::c_void) -> u32, _>(render_physical_operation) },
+clipping_physical: core::ptr::null(),
+child_selection_physical: unsafe { core::mem::transmute::<SelectionWire, _>(selection()) },
 child_drawing: unsafe { core::mem::transmute::<PhysicalWire, _>(PhysicalWire { theme,layout,header,footer,qr,icon,clear,prewarm }) },
 } }
     };
@@ -94,11 +96,10 @@ unused_leaves! {
     wifi_disconnect(_a0: u8) ;
     restart_reader() ;
     child_text_settings() -> *mut core::ffi::c_void;
-    child_footnote(_a0: *mut XpEpubOwnedPage, _a1: i32, _a2: i32) -> *mut core::ffi::c_void;
-    child_dictionary(_a0: *mut XpEpubOwnedPage, _a1: i32, _a2: i32, _a3: XpAppText) -> *mut core::ffi::c_void;
     child_selection(_a0: *mut XpEpubOwnedPage, _a1: u8, _a2: *const XpEpubSelectionArgs) -> *mut core::ffi::c_void;
     child_bookmarks(_a0: *mut core::ffi::c_void, _a1: XpAppText) -> *mut core::ffi::c_void;
-    child_clippings() -> *mut core::ffi::c_void;
+    child_list_help(_a0: xp_ui::scene::Rect, _a1: XpAppText);
+    child_list_bookmark_icon(_a0: xp_ui::scene::Rect, _a1: xp_ui::scene::Rect, _a2: u8);
     child_wifi() -> *mut core::ffi::c_void;
     child_sync(_a0: XpAppText, _a1: *const XpEpubPosition, _a2: *const XpEpubSavedProgress, _a3: XpAppText, _a4: u8) -> *mut core::ffi::c_void;
     popup_open() -> *mut core::ffi::c_void;
@@ -124,14 +125,7 @@ unused_leaves! {
     bookmarks_row(_a0: *mut core::ffi::c_void, _a1: u32, _a2: XpEpubBookmarkSink, _a3: *mut core::ffi::c_void) -> u8;
     bookmarks_retain(_a0: *mut core::ffi::c_void, _a1: unsafe extern "C" fn(*mut core::ffi::c_void, *const XpEpubBookmark) -> u8, context: *mut core::ffi::c_void,) -> u32;
     bookmarks_insert_front(_a0: *mut core::ffi::c_void, _a1: *const XpEpubBookmark) -> u8;
-    clippings_load(_a0: *const app_abi::Book) -> u8;
-    clippings_unload() ;
-    clippings_count() -> u32;
-    clippings_row(_a0: u32, _a1: *mut XpEpubClip) ;
-    clippings_remove(_a0: u32) -> u8;
-    clippings_insert(_a0: *const XpEpubClipInsert) -> u8;
     clippings_export(_a0: XpAppText, _a1: XpAppText, _a2: XpAppText, _a3: i32, _a4: XpAppNativeText) -> u8;
-    clippings_move_book(_a0: XpAppText, _a1: XpAppText) -> u8;
     recents_remove(_a0: XpAppText) -> u8;
     recents_add(_a0: *const app_abi::Book) ;
     recents_update_path(_a0: XpAppText, _a1: XpAppText, _a2: XpAppText, _a3: XpAppText) ;
@@ -245,4 +239,80 @@ unsafe extern "C" fn fonts_prewarm_drop(_a0: *mut core::ffi::c_void) {
 }
 unsafe extern "C" fn render_physical_operation(_a0: *const core::ffi::c_void) -> u32 {
     panic!("opaque EPUB leaf");
+}
+
+// Mirrors the private selection C ABI; every callback rejects unexpected use.
+type DefinitionFill = unsafe extern "C" fn(*mut core::ffi::c_void, *mut u8, u32) -> u8;
+#[repr(C)]
+struct SelectionWire {
+    lookup_init: unsafe extern "C" fn(*mut core::ffi::c_void, XpAppText),
+    lookup_drop: unsafe extern "C" fn(*mut core::ffi::c_void),
+    lookup_open: unsafe extern "C" fn(*mut core::ffi::c_void, *mut u8) -> u8,
+    lookup_index: unsafe extern "C" fn(*mut core::ffi::c_void, *mut u8) -> u8,
+    lookup_find: unsafe extern "C" fn(*mut core::ffi::c_void, *mut u8) -> u8,
+    lookup_discard: unsafe extern "C" fn(*mut core::ffi::c_void),
+    definition_lookup: unsafe extern "C" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+    ) -> *mut core::ffi::c_void,
+    definition_plain: unsafe extern "C" fn(
+        *mut core::ffi::c_void,
+        XpAppText,
+        u32,
+        DefinitionFill,
+        *mut core::ffi::c_void,
+    ) -> *mut core::ffi::c_void,
+    definition_drop: unsafe extern "C" fn(*mut core::ffi::c_void),
+    directional_hints: unsafe extern "C" fn(*const XpAppText),
+    dictionary_popup_layout: unsafe extern "C" fn(*mut xp_ui::dictionary::popup::Layout),
+    wait_paint: unsafe extern "C" fn(),
+}
+unsafe extern "C" fn unused_init(_: *mut core::ffi::c_void, _: XpAppText) {
+    panic!("lookup init");
+}
+unsafe extern "C" fn unused_drop(_: *mut core::ffi::c_void) {
+    panic!("lookup drop");
+}
+unsafe extern "C" fn unused_result(_: *mut core::ffi::c_void, _: *mut u8) -> u8 {
+    panic!("lookup operation");
+}
+unsafe extern "C" fn unused_lookup(
+    _: *mut core::ffi::c_void,
+    _: *mut core::ffi::c_void,
+) -> *mut core::ffi::c_void {
+    panic!("definition lookup");
+}
+unsafe extern "C" fn unused_plain(
+    _: *mut core::ffi::c_void,
+    _: XpAppText,
+    _: u32,
+    _: DefinitionFill,
+    _: *mut core::ffi::c_void,
+) -> *mut core::ffi::c_void {
+    panic!("definition plain");
+}
+unsafe extern "C" fn unused_definition_drop(_: *mut core::ffi::c_void) {
+    panic!("definition drop");
+}
+unsafe extern "C" fn unused_hints(_: *const XpAppText) {
+    panic!("directional hints");
+}
+unsafe extern "C" fn unused_layout(_: *mut xp_ui::dictionary::popup::Layout) {
+    panic!("popup layout");
+}
+const fn selection() -> SelectionWire {
+    SelectionWire {
+        lookup_init: unused_init,
+        lookup_drop: unused_drop,
+        lookup_open: unused_result,
+        lookup_index: unused_result,
+        lookup_find: unused_result,
+        lookup_discard: unused_drop,
+        definition_lookup: unused_lookup,
+        definition_plain: unused_plain,
+        definition_drop: unused_definition_drop,
+        directional_hints: unused_hints,
+        dictionary_popup_layout: unused_layout,
+        wait_paint: clear,
+    }
 }

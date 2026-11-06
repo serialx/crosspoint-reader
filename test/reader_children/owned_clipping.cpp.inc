@@ -1,13 +1,26 @@
-static bool clippingOomExpected;
+static bool clippingOomExpected, clippingDetailOomExpected, clippingReadFailure;
+static unsigned clippingDetailOomLogs, clippingDetailFills;
 static unsigned clippingOomLogs;
-static bool clippingPopup, clippingLong, clippingDetailFailure;
+static bool clippingPopup, clippingLong, clippingDetailFailure, clippingStackFailure;
 static int clippingChoice = -1;
 static void (*clippingChoose)(void*, int32_t);
 static void* clippingChoiceContext;
-static unsigned clippingLoads, clippingDetailCreates;
+static unsigned clippingLoads, clippingDetailCreates, clippingDetailDrops;
+struct ClippingDetailNative {
+  OwnedLegacyActivity adapter{nullptr};
+  alignas(Activity) unsigned char viewer[sizeof(Activity)];
+};
+static_assert(sizeof(ClippingDetailNative) <= sizeof(XpEpubDefinitionStorage));
+static void* clippingDetailHandle;
 static std::string clippingDetailText, clippingDetailTitle;
 namespace {
 static bool observeOwnedClippingLog(uint8_t level, XpAppText origin, XpAppText message) {
+  if (clippingDetailOomExpected) {
+    assert(level == 1 && text(origin) == "CLIP" &&
+           text(message) == "Failed to allocate clipping detail activity");
+    ++clippingDetailOomLogs;
+    return true;
+  }
   if (!clippingOomExpected) return false;
   assert(level == 1 && origin.len == 4 && !std::memcmp(origin.data, "CLIP", 4));
   assert(message.len == 18 && !std::memcmp(message.data, "OOM: clipping list", 18));
@@ -58,16 +71,39 @@ static void bindOwnedClippings() {
     };
     return &service;
   };
-  leaves.child_plain_text_detail_retire_o4b = [](XpAppText title, uint32_t length,
-      XpEpubDetailFillRetireO4b fill, void* context) -> void* {
+  leaves.child_definition_plain = [](XpEpubDefinitionStorage* storage, XpAppText title, uint32_t length,
+      XpEpubDefinitionFill fill, void* context) -> void* {
     assert(!f().renderDepth && !f().modelDepth);
     clippingDetailTitle = text(title);
     clippingDetailText.assign(length, '\0');
-    assert(fill(context, reinterpret_cast<uint8_t*>(clippingDetailText.data()), length));
+    ++clippingDetailFills;
+    if (clippingReadFailure) fake::failRead = 0;
+    const bool filled = fill(context, reinterpret_cast<uint8_t*>(clippingDetailText.data()), length);
+    fake::failRead = -1;
+    assert(filled == !clippingReadFailure);
+    if (!filled) return nullptr;
     if (clippingDetailFailure) return nullptr;
+    auto* owner = new (storage) ClippingDetailNative;
+    owner->adapter.activity.reset(new (owner->viewer) Activity("clipping-detail"));
     ++clippingDetailCreates;
-    return makeLegacyActivity<Activity>("clipping-detail").release();
+    clippingDetailHandle = storage;
+    assert(results.children.insert(storage).second);
+    if (clippingStackFailure) xp_test_fail_allocation_after(0);
+    return &owner->adapter;
   };
+  leaves.child_definition_drop = [](XpEpubDefinitionStorage* storage) {
+    assert(!f().modelDepth && clippingDetailHandle == storage);
+    assert(f().renderDepth == (nativeActivity(storage)->entered ? 1 : 0));
+    assert(results.children.erase(storage) == 1);
+    auto* owner = reinterpret_cast<ClippingDetailNative*>(storage);
+    auto* viewer = owner->adapter.activity.release();
+    std::destroy_at(viewer);
+    std::destroy_at(owner);
+    clippingDetailHandle = nullptr;
+    ++clippingDetailDrops;
+  };
+  static auto destroy = legacy.destroy;
+  legacy.destroy = [](void* raw) { assert(raw != clippingDetailHandle); destroy(raw); };
   static auto withResult = legacy.with_result;
   legacy.with_result = [](void* raw, XpAppResultSink sink, void* context) {
     if (results.children.count(raw) && nativeActivity(raw)->kind == "clipping-detail") production_with_result(raw, sink, context);
@@ -104,7 +140,7 @@ static int runOwnedClippings(const std::string& mode, bool cancelled) {
   } else {
     xp_epub_test_menu_confirm(results.owner, 11);
     assert(xp_app_test_pending_kind() == 1 && xp_app_test_drain());
-    assert(childKind() == 5); auto* list = xp_app_test_current_child(nullptr);
+    assert(childKind() == 7); auto* list = xp_app_test_current_child(nullptr);
     paintChild(); assert(clippingLoads == 1);
     if (mode == "clippings-nav") {
       for (unsigned i = 0; i < 10; ++i) { nextClipping(); paintChild(); }
@@ -120,19 +156,90 @@ static int runOwnedClippings(const std::string& mode, bool cancelled) {
       inputChild(XP_UI_CONFIRM); assert(clippingPopup); clippingChoice = 1; returnChild(0);
     } else if (mode == "clippings-detail" || mode == "clippings-detail-oom" || mode == "clippings-nav") {
       if (mode != "clippings-nav") { nextClipping(); paintChild(); }
+      if (mode == "clippings-detail") {
+        inputChild(XP_UI_CONFIRM); assert(clippingPopup); clippingChoice = 0;
+        const auto live = xp_test_live_allocations();
+        clippingDetailOomExpected = true;
+        xp_test_fail_allocation_after(0); inputChild(0); xp_test_fail_allocation_after(SIZE_MAX);
+        clippingDetailOomExpected = false;
+        assert(clippingDetailOomLogs == 1 && clippingDetailFills == 0);
+        assert(xp_app_test_current_child(nullptr) == list && !xp_app_test_pending_kind());
+        assert(xp_test_live_allocations() == live);
+        paintChild();
+        clippingReadFailure = true;
+        inputChild(XP_UI_CONFIRM); assert(clippingPopup); clippingChoice = 0; inputChild(0);
+        clippingReadFailure = false;
+        assert(clippingDetailFills == 1 && clippingDetailOomLogs == 1 && !clippingDetailCreates);
+        assert(xp_app_test_current_child(nullptr) == list && !xp_app_test_pending_kind());
+        assert(xp_test_live_allocations() == live);
+        paintChild();
+      }
       clippingDetailFailure = mode == "clippings-detail-oom";
       inputChild(XP_UI_CONFIRM); assert(clippingPopup); clippingChoice = 0; inputChild(0);
       assert(clippingDetailText == std::string(4096, 's'));
       assert(clippingDetailTitle == (mode == "clippings-nav" ? "Chapter 9" : "Chapter 0"));
       if (!clippingDetailFailure) {
         assert(xp_app_test_current_legacy() && !xp_app_test_current_child(nullptr));
+        auto* detail = xp_app_test_current_legacy();
+        if (mode == "clippings-detail") {
+          bool delivered = false;
+          nativeActivity(detail)->startActivityForResult(
+              makeUniqueNoThrow<ClipSelectionActivity>(renderer, input, std::vector<std::unique_ptr<Page>>{},
+                  0, 0, 0, 0, ClipSelectionActivity::Mode::Clip),
+              [&](const ActivityResult& result) { assert(result.isCancelled == cancelled); delivered = true; });
+          assert(xp_app_test_drain());
+          auto* selection = xp_app_test_current_legacy();
+          assert(selection && selection != detail && clippingDetailDrops == 0);
+          nativeActivity(selection)->result.isCancelled = cancelled;
+          const auto withResult = legacy.with_result;
+          legacy.with_result = production_with_result;
+          XpAppEvent selectionPop{}; selectionPop.kind = XP_APP_POP;
+          assert(xp_app_event(&selectionPop) == XP_APP_ACCEPTED && xp_app_test_drain());
+          legacy.with_result = withResult;
+          assert(delivered && xp_app_test_current_legacy() == detail && clippingDetailDrops == 0);
+        }
         XpAppEvent event{}; event.kind = XP_APP_POP;
         nativeActivity(xp_app_test_current_legacy())->result.isCancelled = cancelled;
         assert(xp_app_event(&event) == XP_APP_ACCEPTED && xp_app_test_drain());
         assert(xp_app_test_current_child(nullptr) == list && xp_app_test_parent_count() == 1);
-        assert(!xp_app_test_current_legacy() && clippingDetailCreates == 1);
+        assert(!xp_app_test_current_legacy() && clippingDetailCreates == 1 && clippingDetailDrops == 1);
+        if (mode == "clippings-detail") {
+          for (unsigned visit = 2; visit <= 3; ++visit) {
+            paintChild();
+            inputChild(XP_UI_CONFIRM); assert(clippingPopup); clippingChoice = 0; inputChild(0);
+            assert(xp_app_test_current_legacy() && clippingDetailCreates == visit);
+            nativeActivity(xp_app_test_current_legacy())->result.isCancelled = cancelled;
+            assert(xp_app_event(&event) == XP_APP_ACCEPTED && xp_app_test_drain());
+            assert(xp_app_test_current_child(nullptr) == list && clippingDetailDrops == visit);
+          }
+        }
       } else assert(xp_app_test_current_child(nullptr) == list && !clippingDetailCreates);
       paintChild(); assert(clippingLoads == 1);
+      if (mode == "clippings-detail") {
+        const bool debug = childDebugEnabled;
+        childDebugEnabled = false;
+        for (unsigned depth = 2; depth <= 4; ++depth) {
+          xp_epub_test_menu_confirm(results.owner, 11);
+          assert(xp_app_test_drain() && xp_app_test_parent_count() == depth);
+          paintChild();
+        }
+        auto* retained = xp_app_test_current_child(nullptr);
+        const auto creates = clippingDetailCreates, drops = clippingDetailDrops;
+        const auto live = xp_test_live_allocations();
+        clippingStackFailure = true; results.allocatingStack = true;
+        inputChild(XP_UI_CONFIRM); assert(clippingPopup); clippingChoice = 0; inputChild(0);
+        assert(xp_test_allocation_attempts() == 1);
+        xp_test_fail_allocation_after(SIZE_MAX); clippingStackFailure = false; results.allocatingStack = false;
+        assert(xp_app_test_current_child(nullptr) == retained && xp_app_test_parent_count() == 4);
+        assert(!xp_app_test_pending_kind() && clippingDetailCreates == creates + 1 && clippingDetailDrops == drops + 1);
+        assert(xp_test_live_allocations() == live);
+        paintChild();
+        XpAppEvent pop{}; pop.kind = XP_APP_POP;
+        for (unsigned depth = 4; depth > 1; --depth)
+          assert(xp_app_event(&pop) == XP_APP_ACCEPTED && xp_app_test_drain());
+        assert(xp_app_test_current_child(nullptr) == list && xp_app_test_parent_count() == 1);
+        childDebugEnabled = debug;
+      }
       returnChild(XP_UI_BACK);
     } else returnChild(XP_UI_BACK);
     assert(xp_app_test_current_epub() == results.owner && !xp_epub_test_has_child(results.owner));

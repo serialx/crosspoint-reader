@@ -216,6 +216,9 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
     const auto mutex = activityManager.renderingMutex;
     return xSemaphoreTake(mutex, 0) == pdTRUE ? mutex : nullptr;
   };
+  // True only for this task's guard, which the synchronous facade caller retains.
+  // The facade keeps its operation lease and releases only a guard it acquired.
+  // Remove this query after the last P18 facade consumer retires.
   runtime.render_owned_by_current_task_retire_p18 = []() -> uint8_t {
     return xSemaphoreGetMutexHolder(activityManager.renderingMutex) == xTaskGetCurrentTaskHandle();
   };

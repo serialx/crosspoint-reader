@@ -3,10 +3,10 @@ extern crate alloc;
 use super::{
     chapters,
     child_result::ReaderChildResult,
+    clipping_window,
     commands::Commands,
     menu::Items,
     selection_owned::{Footnote, Lookup, LookupData},
-    clipping_window,
 };
 use crate::app::{abi, resources::Text, stable_owner::StableOwner, sync::ModelCell};
 use alloc::{alloc::alloc, boxed::Box};
@@ -231,7 +231,6 @@ pub(super) struct ClippingPopup {
     pub(super) option: ClippingOption,
     pub(super) choice: Option<i32>,
     pub(super) confirming_delete: bool,
-    pub(super) detail_retire_o4b: bool,
 }
 impl Clippings {
     pub(super) fn try_new(runtime: &'static abi::Runtime) -> Option<Box<Self>> {
@@ -250,7 +249,6 @@ impl Clippings {
                     option: ClippingOption::Open,
                     choice: None,
                     confirming_delete: false,
-                    detail_retire_o4b: false,
                 }));
             })
         }

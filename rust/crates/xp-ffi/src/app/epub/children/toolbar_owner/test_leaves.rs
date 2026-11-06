@@ -10,13 +10,12 @@ macro_rules! unused_leaves {
             let _ = ($($arg,)*);
             panic!(concat!("unexpected EPUB leaf: ", stringify!($name)))
         })*
-        pub(in crate::app::epub::children) fn leaves() -> XpEpubLeaves { XpEpubLeaves { $($name,)* clipping_physical: core::ptr::null(), child_selection_physical: selection(), child_drawing: super::Physical { list_theme: super::theme, utility_layout: super::layout, header: super::header, utility_footer: super::footer, qr: super::qr, toolbar_icon: super::icon, clear_fonts: super::lock, prewarm_rows: super::prewarm } } }
+        pub(in crate::app::epub::children) const fn leaves() -> XpEpubLeaves { XpEpubLeaves { $($name,)* clipping_physical: core::ptr::null(), child_selection_physical: selection(), child_drawing: super::Physical { list_theme: super::theme, utility_layout: super::layout, header: super::header, utility_footer: super::footer, qr: super::qr, toolbar_icon: super::icon, clear_fonts: super::lock, prewarm_rows: super::prewarm } } }
     };
 }
 unused_leaves! {
     child_list_help(bounds: xp_ui::scene::Rect, text: XpAppText);
     child_list_bookmark_icon(bounds: xp_ui::scene::Rect, clip: xp_ui::scene::Rect, paint: u8);
-    child_plain_text_detail_retire_o4b(title: XpAppText, length: u32, fill: unsafe extern "C" fn(*mut core::ffi::c_void, *mut u8, u32) -> u8, context: *mut core::ffi::c_void) -> *mut core::ffi::c_void;
     render_margins(_a0: *mut i32) ;
     render_geometry(_a0: *mut XpEpubGeometry) ;
     render_restore_bw(_a0: u8) ;
@@ -200,7 +199,7 @@ unsafe extern "C" fn unused_hints(_: *const XpAppText) {
 unsafe extern "C" fn unused_layout(_: *mut xp_ui::dictionary::popup::Layout) {
     panic!("popup layout");
 }
-pub(in crate::app::epub::children) fn selection() -> Selection {
+pub(in crate::app::epub::children) const fn selection() -> Selection {
     Selection {
         lookup_init: unused_init,
         lookup_drop: unused_drop,

@@ -281,7 +281,6 @@ typedef struct {
 
 typedef XpAppText (*XpEpubChildRowText)(const void* context, uint32_t index);
 // Synchronously fill the native detail owner's final text allocation; retires in O4b.
-typedef uint8_t (*XpEpubDetailFillRetireO4b)(void* context, uint8_t* text, uint32_t length);
 
 // Stable caller storage for retained native resources; construct after StableOwner adoption, before publication.
 // Native implementations assert size/alignment and never delete this storage.
@@ -492,8 +491,6 @@ typedef struct XpEpubLeaves {
   const XpClippingPhysical* clipping_physical;
   void (*child_list_help)(XpUiRect bounds, XpAppText text);
   void (*child_list_bookmark_icon)(XpUiRect bounds, XpUiRect clip, uint8_t paint);
-  void* (*child_plain_text_detail_retire_o4b)(XpAppText title, uint32_t length, XpEpubDetailFillRetireO4b fill,
-                                              void* context);
 } XpEpubLeaves;
 
 #ifdef __cplusplus
@@ -537,7 +534,7 @@ XP_EPUB_ASSERT(offsetof(XpEpubRadio, note) == 4, "XpEpubRadio.note");
 XP_EPUB_ASSERT(sizeof(XpEpubPeer) == 82, "XpEpubPeer size");
 XP_EPUB_ASSERT(offsetof(XpEpubPeer, name) == 0, "XpEpubPeer.name");
 XP_EPUB_ASSERT(offsetof(XpEpubPeer, addr) == 64, "XpEpubPeer.addr");
-XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 169 * sizeof(void (*)(void)), "XpEpubLeaves size");
+XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 168 * sizeof(void (*)(void)), "XpEpubLeaves size");
 #define XP_EPUB_LEAF_OFFSET(field, index) \
   XP_EPUB_ASSERT(offsetof(XpEpubLeaves, field) == (index) * sizeof(void (*)(void)), "XpEpubLeaves." #field)
 XP_EPUB_LEAF_OFFSET(render_margins, 0);
@@ -641,11 +638,6 @@ XP_EPUB_LEAF_OFFSET(bookmarks_row, 96);
 XP_EPUB_LEAF_OFFSET(bookmarks_retain, 97);
 XP_EPUB_LEAF_OFFSET(bookmarks_insert_front, 98);
 
-
-
-
-
-
 XP_EPUB_LEAF_OFFSET(clippings_export, 99);
 
 XP_EPUB_LEAF_OFFSET(recents_remove, 100);
@@ -716,7 +708,6 @@ XP_EPUB_LEAF_OFFSET(child_wait_paint, 164);
 XP_EPUB_LEAF_OFFSET(clipping_physical, 165);
 XP_EPUB_LEAF_OFFSET(child_list_help, 166);
 XP_EPUB_LEAF_OFFSET(child_list_bookmark_icon, 167);
-XP_EPUB_LEAF_OFFSET(child_plain_text_detail_retire_o4b, 168);
 #undef XP_EPUB_LEAF_OFFSET
 XP_EPUB_ASSERT(sizeof(XpEpubBookBorrow) == 6 * sizeof(void (*)(void)), "XpEpubBookBorrow size");
 XP_EPUB_ASSERT(offsetof(XpEpubBookBorrow, spine) == 0, "XpEpubBookBorrow.spine");

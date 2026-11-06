@@ -1,9 +1,10 @@
 # Native reader child oracle inputs
 
-These 15 immutable snapshots contain 115,063 bytes of public source. The first
+These 17 immutable snapshots contain 122,622 bytes of public source. The first
 ten come from `8389157f`, verified again at `e209b1b5`; the five footnote,
 lookup and Page-transfer inputs were frozen at `65849737` before their native
-owners were deleted.
+owners were deleted. The two clipping-list snapshots were frozen at `235062b3`
+for O5b; their provenance is recorded on their manifest entries.
 `manifest.json` records each original path, byte count and SHA-256, plus the
 pinned SDK and supporting sources. `oracle_sources.py` checks the hash when
 a test reads a snapshot. Maintaining these retired sources is a test cost;
@@ -25,6 +26,8 @@ Paths below are under `src/activities/reader/`. Each consumer is a CTest name.
 | `EpubReaderFootnoteSelectActivity.cpp.txt`, `EpubReaderFootnoteSelectActivity.h.txt` | `PageFootnoteSelect`, `ReaderPageTransfer`: native footnote entry, selection and href return; `reader_child_handle_composition`, `ui_runtime_rejection_interleaving`, `ui_runtime_rejection_families`: native shell and input rejection |
 | `DictionaryWordSelectActivity.cpp.txt`, `DictionaryWordSelectActivity.h.txt` | `recursive_dictionary`, `reader_child_handle_composition`, `ui_runtime_rejection_composites`: lookup sequence, Page release, definition launch and rejection |
 | `RustEpubPage.h.txt` | `ReaderPageTransfer`: retired footnote and dictionary factories and their ownership transfer |
+| `EpubReaderClippingListActivity.cpp.txt` | `reader_clipping_native_drawing`: native list drawing extracted by `prepare_clipping_drawing.py`; retain until equivalent independent drawing coverage replaces it |
+| `EpubReaderClippingListActivity.h.txt` | `reader_clipping_native_drawing`: ROW_WINDOW; `reader_child_handle_composition` and `reader_owned_app_children`: historical declaration through `test_child_handle_composition.py` and its imported fixture in `test_owned_app.py`; delete only after both drawing and historical consumers retire |
 
 `reader_selection_ownership` separately compiles the current App and Rust owners
 to check result delivery, nested native selection, destruction order and the
@@ -56,3 +59,10 @@ snapshots must never enter an include path or shadow candidate headers;
 `reader_native_oracle_include_paths` enforces this for the CMake compile
 commands. Do not regenerate snapshots or goldens from candidate output to
 make a comparison pass. This directory adds no firmware source or ABI.
+
+The clipping-list pair occupies 7,559 B (6,094 B implementation, 1,465 B header).
+The two store snapshots and their independent byte/failure consumers are listed
+in [the clipping byte ledger](../../clipping_bytes/README.md#snapshot-maintenance).
+Together the four clipping snapshots retain 38,650 B. O5a owns removal of the
+obsolete historical factory adapters after equivalent direct owner assertions
+exist; that does not retire independent drawing or store-byte references.

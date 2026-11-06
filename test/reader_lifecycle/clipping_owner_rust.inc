@@ -149,7 +149,7 @@ static XpUiReaderRenderServices renderServices{
 static auto legacySection = unexpectedLegacySectionServices();
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 169 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 168 * sizeof(void (*)()));
   UNUSED_LEAF(render_margins);
   UNUSED_LEAF(render_geometry);
   UNUSED_LEAF(render_restore_bw);

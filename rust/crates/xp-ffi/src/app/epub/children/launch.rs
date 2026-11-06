@@ -134,8 +134,6 @@ impl EpubSession {
             .queue(Transition::Push(Owner::Definition(viewer)));
     }
 
-    // Lane B replaces its temporary factory with this entry at integration.
-    #[allow(dead_code)]
     pub(in crate::app) unsafe fn launch_plain_definition(
         &self,
         title: crate::app::abi::Text,

@@ -1,7 +1,7 @@
 extern crate alloc;
 
 mod abi;
-// Dormant until the clipping-store ownership switch.
+// App-owned clipping storage shared by reader and retiring native callers.
 #[allow(dead_code)]
 mod clippings;
 #[path = "clippings/facade.rs"]
@@ -750,9 +750,13 @@ impl Services<Owner> for App {
                     unsafe { result.as_ref() }.map_or(core::ptr::null(), |view| view.original);
                 unsafe { (self.legacy.deliver_result)(parent.as_ptr(), original) };
             }
-            (Target::ReaderChild { child, parent }, ActivityResult::Legacy(_)) => unsafe {
-                child.clipping_detail_return_retire_o4b(parent.as_ref());
-            },
+            (
+                Target::ReaderChild {
+                    child: ChildTarget::Clippings(_),
+                    ..
+                },
+                ActivityResult::Child(Some(ReaderChildResult::DefinitionClosed { .. })),
+            ) => self.request(false),
             _ => {}
         }
     }
@@ -772,10 +776,11 @@ impl Services<Owner> for App {
                 child: child @ ChildTarget::Lookup(_),
                 ..
             }) => self.definition_install_failed(&child),
+            Some(Target::ReaderChild {
+                child: ChildTarget::Clippings(_),
+                ..
+            }) => self.request(false),
             _ => {}
-        }
-        if let Some(Target::ReaderChild { child, parent }) = self.navigation.current() {
-            unsafe { child.clipping_detail_return_retire_o4b(parent.as_ref()) };
         }
         unsafe { (self.runtime.diagnostic)(2, 1, 0) };
     }

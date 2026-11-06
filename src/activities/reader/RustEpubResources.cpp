@@ -41,7 +41,6 @@
 #include "ClippingStore.h"
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
-#include "DictionaryDefinitionActivity.h"
 #include "EndOfBookOptions.h"
 #include "EpubReaderBookmarksActivity.h"
 #include "EpubReaderUtils.h"
@@ -1033,13 +1032,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
                           fui::Paint::solid(paint == 1 ? fui::Color::White : fui::Color::Black));
             target->setClipRect(previous[0], previous[1], previous[2], previous[3]);
           },
-      .child_plain_text_detail_retire_o4b = [](XpAppText title, uint32_t length, XpEpubDetailFillRetireO4b fill,
-                                               void* context) -> void* {
-        std::string definition(length, '\0');
-        if (!fill(context, reinterpret_cast<uint8_t*>(definition.data()), length)) return nullptr;
-        return makeLegacyActivity<DictionaryDefinitionActivity>(*target, *mapped, owned(title), std::move(definition))
-            .release();
-      },
+
   };
   if (!sectionMetrics.context) sectionMetrics.context = target;
   return leaves;

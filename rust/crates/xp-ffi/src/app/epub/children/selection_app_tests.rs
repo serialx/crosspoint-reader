@@ -97,7 +97,10 @@ unsafe extern "C" fn drop_definition(p: *mut children::selection_physical::Defin
 fn app_fixture() -> app::App {
     static RUNTIME: OnceLock<wire::Runtime> = OnceLock::new();
     static RESOURCES: OnceLock<wire::Resources> = OnceLock::new();
-    static LEAVES: OnceLock<abi::XpEpubLeaves> = OnceLock::new();
+    const LEAVES: abi::XpEpubLeaves = abi::XpEpubLeaves {
+        log_enabled: quiet,
+        ..test_leaves::leaves()
+    };
     static LEGACY: wire::Legacy = wire::Legacy {
         create: no_create,
         destroy,
@@ -126,11 +129,14 @@ fn app_fixture() -> app::App {
         header_back_clear: empty,
         ..test_resources::runtime()
     });
-    let leaves = LEAVES.get_or_init(|| abi::XpEpubLeaves {
-        log_enabled: quiet,
-        ..test_leaves::leaves()
-    });
+    let leaves = &LEAVES;
     app::App {
+        clippings: app::clippings_facade::ClippingService::new(ModelCell::new(
+            app::clippings_service::Phase::Idle,
+            runtime,
+        )),
+        clipping_loaded_observer: Cell::new(None),
+        clipping_unloaded_observer: Cell::new(None),
         navigation: Application::new(),
         input: RefCell::new(Default::default()),
         driver: Cell::new(Default::default()),

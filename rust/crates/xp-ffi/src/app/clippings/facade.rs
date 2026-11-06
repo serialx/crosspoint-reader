@@ -23,7 +23,9 @@ unsafe impl Gate for ModelCell<Phase> {
 fn with<R>(action: impl FnOnce(&mut NativeStore) -> R) -> Option<R> {
     let app = app()?;
     let mut operation = app.clippings.operation()?;
-    // Native C3 sync holds this task's guard across its framebuffer loan.
+    // True means this task owns the mutex, not merely that it is busy. The caller
+    // retains that guard; keep the operation lease and release only our own guard.
+    // The query retires after the last P18 facade consumer.
     let _guard = if unsafe { (app.runtime.render_owned_by_current_task_retire_p18)() } != 0 {
         None
     } else {

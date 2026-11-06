@@ -89,11 +89,11 @@ The reader oracle documentation describes the scope of each kind of test.
 | Toolbar | `children/toolbar_owner.rs` and `children/toolbar_view.rs` own the session's toolbar slot, row window and publication | The same drawing leaves supply metrics, icons and painting |
 | Footnote and dictionary lookup | `children/selection_owned.rs` owns one reader Page while it is needed, plus inline commands and an owned result; footnote returns an href to reader history | Typed leaves in [`RustReaderLookup.cpp`](../../src/activities/reader/RustReaderLookup.cpp) supply dictionary operations, hint mapping and popup metrics |
 | Definition entry | [`children/definition.rs`](../../rust/crates/xp-ffi/src/app/epub/children/definition.rs) owns stable inline storage for the native adapter and viewer | `RustReaderLookup.cpp` constructs and destroys the retained `DictionaryDefinitionActivity`; its HTML, Pages and fonts remain native |
-| Clippings | `children/clipping_activity.rs` owns the list and its eight-row preview window; App owns the session-independent clipping store | Storage and drawing leaves; the temporary detail factory retires with O4b |
+| Clippings | `children/clipping_activity.rs` owns the list and its eight-row preview window; App owns the session-independent clipping store | Storage and drawing leaves; the owned plain-text Definition entry opens details |
 | TextSettings, Bookmarks, Wi-Fi, sync and interactive selection | Retained native children use the legacy activity/result boundary | [`RustEpubResources.cpp`](../../src/activities/reader/RustEpubResources.cpp) retains their factories and services |
 
 The native viewer also serves `DetailsActivity`, `PluginCatalogActivity` and
-`EpubReaderClippingListActivity`. Interactive `ClipSelectionActivity` remains
+the Rust-owned clipping list. Interactive `ClipSelectionActivity` remains
 native: `RustEpubPage.h` opens it for reader selection, and
 `DictionaryDefinitionActivity` opens it for selection within the viewer.
 
@@ -113,10 +113,11 @@ completion returns to the reader through the normal destroy, publish, unlock
 and deliver sequence. Footnote hrefs use the reader's existing history.
 
 The Rust-owned plain-text definition entry fills the viewer's final string
-synchronously. Clipping-list integration must replace its temporary
-`child_plain_text_detail_retire_o4b` factory and return arm with this entry when
-the two lanes meet; adding the entry alone does not retire the retained viewer
-or the clipping list's temporary route.
+synchronously under the clipping store operation lease. The list retains its
+owner while Definition is open. Closing or cancelling the viewer delivers
+`DefinitionClosed` and redraws that same list; a rejected Definition push drops
+the pending viewer before redraw. The inline handle never passes through
+`Legacy.destroy`.
 
 `ReaderChromeListActivity` remains for `EpubReaderBookmarksActivity`. FileBrowser, Library and TextSettings instead
 use `RustActivityAdapter`; they still use `ReaderChromeCommands` and the theme
@@ -130,13 +131,14 @@ The scene contracts below apply to scene-based activities. The reader uses the
 ## Clipping store compatibility boundary
 
 App owns one fallible clipping-store allocation, independent of the reader session.
-Rust owns the index, file codecs and persistence; `ClippingStoreFacade` only copies
-records and text into caller storage. Native consumers retire as follows:
+Rust owns the index, file codecs and persistence; the stateless
+`ClippingStoreFacade` forwards native operations to that owner and copies records
+and text into caller storage. Native consumers retire as follows:
 
 | Native caller | Facade entry | Retirement |
 | --- | --- | --- |
 | ClippingSync | Load, unload, count, row, text and sync transactions | P18 |
-| FileBrowser | Move and delete through BookCacheUtils | P17-L2 |
+| FileBrowser | Direct `ClippingStoreFacade::moveBook`; delete through BookCacheUtils | P17-L2 |
 | LibraryListActivity | `removeBookFile` → BookCacheUtils → `deleteForFilePath` | P17-L1 |
 | WebDAV and web file jobs | Move and delete | P18 |
 

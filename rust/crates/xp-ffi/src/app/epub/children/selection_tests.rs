@@ -48,13 +48,13 @@ fn page() -> Page {
 }
 fn page_bytes(bytes: &[u8]) -> Page {
     static RESOURCES: OnceLock<app_abi::Resources> = OnceLock::new();
-    static LEAVES: OnceLock<abi::XpEpubLeaves> = OnceLock::new();
+    const LEAVES: abi::XpEpubLeaves = test_leaves::leaves();
     let r = RESOURCES.get_or_init(|| app_abi::Resources {
         buffer_allocate: allocate,
         buffer_release: release,
         ..test_resources::resources()
     });
-    Page::from_bytes(r, LEAVES.get_or_init(test_leaves::leaves), bytes, 0).unwrap()
+    Page::from_bytes(r, &LEAVES, bytes, 0).unwrap()
 }
 
 #[test]

@@ -1,6 +1,6 @@
 use super::{
     clipping_view::Details,
-    owned::{ChildTarget, Clippings, Fixed},
+    owned::{Clippings, Fixed},
     physical::Physical,
 };
 use crate::app::{abi, epub::EpubSession};
@@ -73,17 +73,5 @@ impl Clippings {
             )
             .is_ok()
         })
-    }
-}
-impl ChildTarget {
-    // O4b replaces this arm with the owned plain-text detail return.
-    pub(in crate::app) unsafe fn clipping_detail_return_retire_o4b(self, parent: &EpubSession) {
-        if let Self::Clippings(owner) = self {
-            let popup = unsafe { &mut *owner.as_ref().popup.get() };
-            if popup.detail_retire_o4b {
-                popup.detail_retire_o4b = false;
-                parent.request_update();
-            }
-        }
     }
 }

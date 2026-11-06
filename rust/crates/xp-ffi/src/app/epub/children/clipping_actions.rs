@@ -7,7 +7,6 @@ use crate::app::{abi, clippings_facade::NativeStore, epub::EpubSession};
 use core::{ffi::c_void, fmt::Write, mem::MaybeUninit, ptr::NonNull};
 use xp_core::i18n::ids;
 use xp_ui::{
-    app::Transition,
     model::{EffectKind, Input, CONFIRM},
     reader::input::ButtonQuery,
     reader_chrome::{list::Screen, ACTIONS},
@@ -38,9 +37,11 @@ struct DetailRead<'a> {
     store: &'a NativeStore,
     index: usize,
     read_ok: bool,
+    fill_attempted: bool,
 }
 unsafe extern "C" fn fill_detail(context: *mut c_void, output: *mut u8, length: u32) -> u8 {
     let source = unsafe { &mut *context.cast::<DetailRead<'_>>() };
+    source.fill_attempted = true;
     let bytes = if length == 0 {
         &mut []
     } else {
@@ -154,7 +155,7 @@ impl Clippings {
             parent.request_update();
             return;
         };
-        let object = operation.read(|store| {
+        operation.read(|store| {
             let row = store.row(index)?;
             let title = if row.chapter[0] == 0 {
                 unsafe { (parent.resources.translate)(ids::STR_CLIPPINGS) }
@@ -167,16 +168,17 @@ impl Clippings {
                 store,
                 index,
                 read_ok: false,
+                fill_attempted: false,
             };
-            let pointer = unsafe {
-                (parent.leaves.child_plain_text_detail_retire_o4b)(
+            let launched = unsafe {
+                parent.launch_plain_definition(
                     title,
                     u32::from(row.text_length),
                     fill_detail,
                     (&mut source as *mut DetailRead<'_>).cast(),
                 )
             };
-            if pointer.is_null() && source.read_ok {
+            if !launched && (!source.fill_attempted || source.read_ok) {
                 unsafe {
                     (parent.leaves.log)(
                         1,
@@ -185,13 +187,8 @@ impl Clippings {
                     )
                 };
             }
-            app.adopt(pointer)
+            Some(())
         });
-        if let Some(object) = object {
-            unsafe { (*self.popup.get()).detail_retire_o4b = true };
-            app.input.borrow_mut().reset();
-            app.navigation.queue(Transition::Push(object));
-        }
     }
 
     unsafe fn choose_clipping(&self, parent: &EpubSession, choice: i32) {

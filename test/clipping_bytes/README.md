@@ -94,7 +94,8 @@ Host-only substitutions and limits worth knowing before reading the golden:
   the old target was removed can leave no store, and failed cleanup can leave a
   temporary file. The test preserves those outcomes rather than asserting atomic
   replacement.
-# Dormant Rust owner comparison
+
+## Rust owner comparison
 
 `clipping_bytes_rust` runs the same operation driver against the Rust store in
 `xp-ffi/src/app/clippings`. `RustStore.cpp` substitutes only the physical file
@@ -130,3 +131,22 @@ annotations, borrowed text assertions and goldens remain unchanged. The separate
 actual mutex/I/O order, old metadata during paused writes, rejected concurrent
 storage access, atomic publication and clean teardown. Three compiled Rust
 mutants prove that prepare/publish guards and unlocked persistence are required.
+
+## Snapshot maintenance
+
+These four clipping snapshots remain independent references after the owner port.
+Keep their bytes and goldens unchanged; delete a snapshot only when its last
+consumer has equivalent independent coverage.
+
+| Snapshot | Bytes | Consumers and deletion condition |
+| --- | ---: | --- |
+| `native_oracle/src/ClippingStore.cpp.txt` | 27,237 | `prepare_native.py`, `run.py`, and the native target in `test/clipping_store/CMakeLists.txt`; retain while the independent native byte/failure reference is used |
+| `native_oracle/src/ClippingStore.h.txt` | 3,854 | The same materialization and native-store targets; retire with their last native-store reference, preserving frozen expected bytes and controls |
+| `../reader_children/native_oracle/src/activities/reader/EpubReaderClippingListActivity.cpp.txt` | 6,094 | `prepare_clipping_drawing.py` supplies native drawing; retain until independent equivalent coverage replaces it |
+| `../reader_children/native_oracle/src/activities/reader/EpubReaderClippingListActivity.h.txt` | 1,465 | Drawing ROW_WINDOW plus historical declarations in `test_child_handle_composition.py`, imported by `test_owned_app.py`; both drawing and historical consumers must retire before deletion |
+
+Total: 38,650 B. O5a owns historical factory-adapter retirement after equivalent
+direct result, borrowing, ordered-log and storage assertions exist. Its text
+export migration alone does not retire the native store-byte reference. See the
+[reader snapshot ledger](../reader_children/native_oracle/README.md) for the
+other retained reader inputs and their provenance.

@@ -6,7 +6,7 @@ These tests exercise the active Rust owners and the frozen native reader child c
 - `reader_percent_native_parity` compiles the frozen native percent loop and handlers, `ButtonNavigator`, and `UiAppHost` routing with the pinned SDK. It compares 2,568 input outcomes against Rust, including input injected during interaction-table construction. The synthetic control rectangles isolate routing; this test does not establish native drawing parity.
 - `reader_chapter_native_parity` composes the frozen native chapter-window method with the production Rust cache reader and physical file leaves. A generated 1,000-entry cache covers nine windows, two mid-window file-read failures, exact labels, prewarm and reuse. It compares those actual cache rows with the Rust bounded window. The complete child adapter/resource guard is covered by the App composition below.
 
-Native definitions are named, hashed snapshots under `native_oracle/`; its README lists every consumer and 15 snapshots / 115,063 bytes of retained source. `oracle_sources.py` reads them as text. Candidate code uses the live public headers. Historical callback tables and retired wire declarations live in explicit host-only fixtures. `reader_native_oracle_include_paths` rejects any snapshot path in compiler include arguments.
+Native definitions are named, hashed snapshots under `native_oracle/`; its README lists every consumer and 17 snapshots / 122,622 bytes of retained source. `oracle_sources.py` reads them as text. Candidate code uses the live public headers. Historical callback tables and retired wire declarations live in explicit host-only fixtures. `reader_native_oracle_include_paths` rejects any snapshot path in compiler include arguments.
 
 Run the standalone CMake project from the repository root with CMake, a C/C++ compiler, Python and the pinned Rust toolchain installed. The child test Cargo invocations use `--offline`, so their dependencies must be available locally; the shared host archive build uses `--locked` without `--offline`.
 
@@ -46,9 +46,9 @@ extraction inputs only and never enter compiler include paths.
 
 Clipping window, allocation failure, scene publication, long gestures and stable
 owner/result transfer tests run in the Rust ownership suite and under Miri.
-Production app/store integration and the temporary O4b detail return are checked
-at the ownership switch; the dormant drawing test does not claim to exercise
-those routes.
+The owned-App composition checks the real store and the clipping list's
+plain-text Definition entry, retained-parent return and allocation failures.
+The drawing test independently checks pixels; it does not exercise App routing.
 
 The owned-App clipping allocation-failure case observes the production log at the
 fixture's final installed logging leaf, after its storage adapter is initialized.

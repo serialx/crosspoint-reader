@@ -169,7 +169,7 @@ static XpAppRuntime runtimeDefaults() {
 
 static LegacyEpubLeaves leavesDefaults() {
   LegacyEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 169 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 168 * sizeof(void (*)()));
   UNUSED_LEAF(physical.render_margins);
   UNUSED_LEAF(physical.render_geometry);
   UNUSED_LEAF(physical.render_restore_bw);

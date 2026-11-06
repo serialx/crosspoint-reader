@@ -5,16 +5,16 @@ use crate::reader_chrome::{
     runtime::{ListRequest, ThemeFacts, ThemeMode},
     ListModel,
 };
-#[cfg(any(test, feature = "legacy-reader-oracles"))]
-use crate::scene::Arena;
 use crate::scene::Error;
+#[cfg(any(test, feature = "legacy-reader-oracles"))]
+use crate::scene::{Arena, Refresh};
 #[cfg(feature = "legacy-reader-oracles")]
 use crate::scene::{Rect, MAX_HITS};
 use crate::{
     ffi::{Buffer, SceneView},
     model::{Effect, Input, Interest},
     reader_chrome::{self, FootnoteState},
-    scene::{Refresh, MAX_COMMAND_BYTES},
+    scene::MAX_COMMAND_BYTES,
 };
 use core::ffi::c_void;
 

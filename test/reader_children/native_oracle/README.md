@@ -1,7 +1,9 @@
 # Native reader child oracle inputs
 
-These ten immutable snapshots contain 97,080 bytes of public source from
-`8389157f`, verified again at `e209b1b5` before the native owners were deleted.
+These 15 immutable snapshots contain 115,063 bytes of public source. The first
+ten come from `8389157f`, verified again at `e209b1b5`; the five footnote,
+lookup and Page-transfer inputs were frozen at `65849737` before their native
+owners were deleted.
 `manifest.json` records each original path, byte count and SHA-256, plus the
 pinned SDK and supporting sources. `oracle_sources.py` checks the hash when
 a test reads a snapshot. Maintaining these retired sources is a test cost;
@@ -20,6 +22,15 @@ Paths below are under `src/activities/reader/`. Each consumer is a CTest name.
 | `QrDisplayActivity.h.txt` | `reader_child_handle_composition`, `reader_owned_app_children`: child declaration |
 | `ReaderToolbarUi.cpp.txt`, `ReaderToolbarUi.h.txt` | `reader_toolbar_resource`, `reader_toolbar_owned_parity`, `reader_toolbar_publication`, `reader_failed_scene`, `reader_book_text_consumers`: resource, drawing and publication fixtures; `reader_chrome_toolbar_resources` also reads the implementation |
 | `RustEpubResources.cpp.txt` | `reader_child_handle_composition`, `reader_owned_app_children`, `reader_toolbar_resource`, `reader_toolbar_owned_parity`, `reader_toolbar_publication`, `reader_failed_scene`, `reader_book_text_consumers`: historical factory and Toolbar leaves |
+| `EpubReaderFootnoteSelectActivity.cpp.txt`, `EpubReaderFootnoteSelectActivity.h.txt` | `PageFootnoteSelect`, `ReaderPageTransfer`: native footnote entry, selection and href return; `reader_child_handle_composition`, `ui_runtime_rejection_interleaving`: native shell and input rejection |
+| `DictionaryWordSelectActivity.cpp.txt`, `DictionaryWordSelectActivity.h.txt` | `recursive_dictionary`, `reader_child_handle_composition`, `ui_runtime_rejection_families`, `ui_runtime_rejection_composites`: lookup sequence, Page release, definition launch and rejection |
+| `RustEpubPage.h.txt` | `ReaderPageTransfer`: retired footnote and dictionary factories and their ownership transfer |
+
+`reader_selection_ownership` separately compiles the current App and Rust owners
+to check result delivery, nested native selection, destruction order and failed
+stack growth. It does not regenerate or read a native snapshot; its native
+viewer boundary is a host witness. The Page-transfer and recursive dictionary
+fixtures provide the native comparisons alongside that composition test.
 
 The unused QR implementation and three retired ABI header snapshots were
 removed after the switch, saving 120,896 bytes. Candidate compositions read

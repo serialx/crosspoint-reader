@@ -87,7 +87,30 @@ The reader oracle documentation describes the scope of each kind of test.
 | --- | --- | --- |
 | Menu, Chapters, Percent and QR | [`epub/children/`](../../rust/crates/xp-ffi/src/app/epub/children/) owns each child; Application retains its EPUB parent and delivers owned results | [`RustReaderDrawing.cpp`](../../src/activities/reader/RustReaderDrawing.cpp) supplies theme/layout, header/footer and font services; the QR leaf in `RustEpubResources.cpp` calls `QrUtils::drawQrBytes` |
 | Toolbar | `children/toolbar_owner.rs` and `children/toolbar_view.rs` own the session's toolbar slot, row window and publication | The same drawing leaves supply metrics, icons and painting |
-| TextSettings, Bookmarks, Clippings, Wi-Fi, sync, footnote, dictionary and selection | Retained native children use the legacy activity/result boundary | [`RustEpubResources.cpp`](../../src/activities/reader/RustEpubResources.cpp) retains their factories and services |
+| Footnote and dictionary lookup | `children/selection_owned.rs` owns one reader Page while it is needed, plus inline commands and an owned result; footnote returns an href to reader history | Typed leaves in [`RustReaderLookup.cpp`](../../src/activities/reader/RustReaderLookup.cpp) supply dictionary operations, hint mapping and popup metrics |
+| Definition entry | [`children/definition.rs`](../../rust/crates/xp-ffi/src/app/epub/children/definition.rs) owns stable inline storage for the native adapter and viewer | `RustReaderLookup.cpp` constructs and destroys the retained `DictionaryDefinitionActivity`; its HTML, Pages and fonts remain native |
+| TextSettings, Bookmarks, Clippings, Wi-Fi, sync and interactive selection | Retained native children use the legacy activity/result boundary | [`RustEpubResources.cpp`](../../src/activities/reader/RustEpubResources.cpp) retains their factories and services |
+
+The definition target uses native lifecycle and rendering callbacks, but its
+allocation belongs to Rust. `Legacy.destroy` must never receive the inline
+handle. `Definition::drop` invokes the typed native destructor before
+`StableOwner` reconstructs and frees its Box. The native adapter releases its
+borrowed activity pointer before destruction, so it cannot delete the inline
+viewer.
+
+Lookup releases its background reader Page before opening the definition.
+Application retains the lookup owner, including its Dictionary, until the
+definition and any viewer-opened `ClipSelectionActivity` have exited. Selection
+borrows the viewer's native Pages; those Pages remain alive through selection
+result delivery. Definition completion becomes an owned result, then lookup
+completion returns to the reader through the normal destroy, publish, unlock
+and deliver sequence. Footnote hrefs use the reader's existing history.
+
+The Rust-owned plain-text definition entry fills the viewer's final string
+synchronously. Clipping-list integration must replace its temporary
+`child_plain_text_detail_retire_o4b` factory and return arm with this entry when
+the two lanes meet; adding the entry alone does not retire the retained viewer
+or the clipping list's temporary route.
 
 `ReaderChromeListActivity` remains for `EpubReaderBookmarksActivity` and
 `EpubReaderClippingListActivity`. FileBrowser, Library and TextSettings instead
@@ -297,9 +320,10 @@ in `rust/crates/xp-ffi/include/xp_epub_session.h`. The session owns its loaded
 incremental Chapter build resources. The native `Epub` facade lends the same
 book to retained native child and sync consumers. Rust's `page_owner` owns reader
 Pages and Page metadata. C++ retains dictionary/preview Pages, borrowed/transferred
-Page facades for the three native Page consumers, the remaining native child
+Page facades for retained native consumers, the remaining native child
 screens and physical leaves, including file implementations, stores and
-font/display services. Rust owns Menu, Chapters, Percent, QR and Toolbar; native
+font/display services. Rust owns Menu, Chapters, Percent, QR, Toolbar, Footnote
+and Lookup, plus the native-backed Definition entry; native
 drawing leaves supply their theme metrics, font preparation and painting. Rust
 owns the inline render frame, prewarm storage, plane/scratch buffers
 and optional strip storage, including source/plan loans and cleanup. Physical

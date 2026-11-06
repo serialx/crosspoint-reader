@@ -10,6 +10,9 @@ mod epub {
     // in reader_selection_ownership, which compiles the complete App instead.
     pub mod page_owner {
         pub(crate) struct Page;
+        impl Drop for Page {
+            fn drop(&mut self) {}
+        }
         impl Page {
             pub(crate) fn view(&self) -> xp_core::page::Page<'_> {
                 panic!("selection requires the real App composition")
@@ -28,7 +31,7 @@ mod test_resources;
 mod app {
     #[cfg(test)]
     pub(crate) use super::test_resources;
-    pub(crate) use super::{abi, epub, resources, stable_owner, sync};
+    pub(crate) use super::{abi, bookmarks, epub, resources, stable_owner, sync};
 }
 #[path = "../../rust/crates/xp-ffi/src/app/epub/children/commands.rs"]
 mod commands;
@@ -146,3 +149,18 @@ mod clipping_window;
 mod clipping_window_tests;
 #[path = "../../rust/crates/xp-ffi/src/app/epub/children/clipping_view.rs"]
 mod clipping_view;
+
+#[path = "../../rust/crates/xp-ffi/src/app/bookmarks/mod.rs"]
+mod bookmarks;
+#[path = "../../rust/crates/xp-ffi/src/app/clippings/io.rs"]
+pub(crate) mod clipping_io;
+mod clippings { pub(crate) use crate::clipping_io as io; }
+#[path = "../../rust/crates/xp-ffi/src/app/epub/children/bookmark_owned.rs"]
+mod bookmark_owned;
+#[path = "../../rust/crates/xp-ffi/src/app/epub/children/bookmark_window.rs"]
+mod bookmark_window;
+#[cfg(test)]
+mod bookmark_tests;
+
+#[path = "../../rust/crates/xp-ffi/src/app/epub/children/bookmark_view.rs"]
+mod bookmark_view;

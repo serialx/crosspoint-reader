@@ -10,6 +10,12 @@ pub struct Text {
     bytes: Vec<u8>,
 }
 
+impl AsRef<[u8]> for Text {
+    fn as_ref(&self) -> &[u8] {
+        self.bytes()
+    }
+}
+
 impl Text {
     /// Fill initialized text bytes without exposing the trailing NUL to the reader.
     pub fn read(length: usize, fill: impl FnOnce(&mut [u8])) -> Result<Self, TryReserveError> {

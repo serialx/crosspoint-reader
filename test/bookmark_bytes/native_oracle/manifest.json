@@ -38,7 +38,8 @@
       "consumers": [
         "test/bookmark_bytes/run.py",
         "test/bookmark_bytes/Oracle.cpp",
-        "test/reader_lifecycle/bookmark_parent_oracle.cpp"
+        "test/reader_lifecycle/bookmark_parent_oracle.cpp",
+        "test/reader_children/prepare_bookmark_drawing.py"
       ],
       "contract": "Historical native record declaration, combined into generated fixtures",
       "retirement": "Remove only after all listed consumers are gone or independently equivalent coverage replaces their exact contract; no candidate-derived golden.",

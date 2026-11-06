@@ -20,7 +20,7 @@ impl ListPublication {
         present: bool,
         kind: Screen,
     ) -> Update {
-        self.input_with_gesture(input, count, present, kind, false, None)
+        self.input_with_gesture(input, count, present, kind, false, None, None)
     }
 
     #[inline(never)]
@@ -38,10 +38,33 @@ impl ListPublication {
             Screen::Clippings,
             long_press,
             long_touch,
+            None,
+        )
+    }
+
+    #[inline(never)]
+    #[allow(dead_code)]
+    pub(super) fn bookmark_input(
+        &mut self,
+        input: Input,
+        count: u16,
+        long_press: bool,
+        long_touch: Option<(i16, i16)>,
+        swipe_touch: Option<(i16, i16)>,
+    ) -> Update {
+        self.input_with_gesture(
+            input,
+            count,
+            true,
+            Screen::Bookmarks,
+            long_press,
+            long_touch,
+            swipe_touch,
         )
     }
 
     #[inline(always)]
+    #[allow(clippy::too_many_arguments)]
     fn input_with_gesture(
         &mut self,
         mut input: Input,
@@ -50,6 +73,7 @@ impl ListPublication {
         kind: Screen,
         mut long_press: bool,
         long_touch: Option<(i16, i16)>,
+        swipe_touch: Option<(i16, i16)>,
     ) -> Update {
         let admission = self.gate.input(&input);
         if admission.consume {
@@ -84,9 +108,18 @@ impl ListPublication {
                 }
             }
         }
+        let swipe_row =
+            if self.ready && kind == Screen::Bookmarks && input.swipe == xp_ui::model::SWIPE_LEFT {
+                swipe_touch
+                    .and_then(|(x, y)| self.hits.hit(x, y))
+                    .filter(|hit| hit.action == 1)
+                    .map_or(-1, |hit| hit.value)
+            } else {
+                -1
+            };
         let effect = self
             .state
-            .update(input, count, present, kind, long_press, -1);
+            .update(input, count, present, kind, long_press, swipe_row);
         Update {
             effect,
             retry: false,

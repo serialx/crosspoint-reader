@@ -1,4 +1,5 @@
 use bookmark_owner_tests::bookmarks::{decode, encode, Record};
+use bookmark_owner_tests::Text;
 use std::io::{self, BufRead};
 
 fn bytes(text: &str) -> Vec<u8> {
@@ -21,7 +22,7 @@ fn main() {
                     print!("ok");
                     for row in rows {
                         print!(";");
-                        for field in [&row.xpath, &row.summary, &row.name] {
+                        for field in [row.xpath.bytes(), row.summary.bytes(), &row.name] {
                             for byte in field {
                                 print!("{byte:02x}");
                             }
@@ -60,8 +61,8 @@ fn main() {
         let fields: Vec<_> = line.split('\t').collect();
         assert_eq!(fields.len(), 8);
         records.push(Record {
-            xpath: bytes(fields[0]),
-            summary: bytes(fields[1]),
+            xpath: Text::copy(&bytes(fields[0])).unwrap(),
+            summary: Text::copy(&bytes(fields[1])).unwrap(),
             name: bytes(fields[2]),
             percentage: f32::from_bits(fields[3].parse().unwrap()),
             spine: fields[4].parse().unwrap(),

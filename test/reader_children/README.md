@@ -56,3 +56,32 @@ It requires severity 1, tag `CLIP`, exactly `OOM: clipping list`, one event, and
 render update before returning to the retained reader. The original ownership and
 allocation-count assertions remain. This observer is compiled only into the host
 composition; it is not an app-test export or shipping callback.
+
+## Dormant bookmark owner
+
+`reader_bookmark_native_drawing` compares the Rust Bookmarks scene and final
+record labels with hash-checked native bookmark/list definitions, using the real
+renderer, fonts and SDK. Its 1,440 cases cover three themes, two polarities, four
+orientations, touch/buttons, five list sizes, three selections and swipe reveal.
+The four negative controls alter help placement, icon paint, icon placement and
+the trash bitmap. CP1 supplies the approved kind-aware physical callback only
+in the fixture; CP2 binds the generalized production leaf and must rerun both
+bookmark and clipping pixels.
+
+The production owner allocates once in place, retains a 24-row subtitle window,
+and borrows the reader's one record list only during a call. XPath and summary
+use existing terminated Text storage; names use final storage supplied by their
+type. It starts at 40 commands, grows by16 to128 and reuses that arena. C3 layout
+is936 B for the child (native1516),300 B for the subtitle window and56 B per
+record (native88); this is object layout, not a measured peak heap reduction.
+
+The Rust tests cover owner and result allocation failure, incomplete subtitle
+publication, terminated labels, empty footer, stale swipe rows, held-release
+consumption and resource rejection. They compose the actual Bookmarks owner,
+StableOwner and Application engine with a synthetic parent to test failed
+parent-vector reservation, pending replacement, cancellation and moved-result
+ordering. This is not yet the shipping App/EpubSession/keyboard composition.
+Run strict-provenance Miri with the `bookmark` filter in this crate; the separate
+`bookmark_host` filter in `test/home_ui/app_owner` checks the synchronous raw TOC
+callback into final subtitle storage. Real Page/TOC/reader integration, popup
+semantics and the moved keyboard Block remain CP2 work.

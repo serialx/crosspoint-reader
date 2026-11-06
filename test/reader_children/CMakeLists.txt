@@ -159,3 +159,37 @@ add_test(NAME reader_clipping_native_drawing COMMAND ReaderClippingDrawing)
 
 add_test(NAME reader_clipping_drawing_negative_controls
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/check_clipping_drawing_controls.py $<TARGET_FILE:ReaderClippingDrawing>)
+
+set(READER_BOOKMARK_DRAWING ${CMAKE_CURRENT_BINARY_DIR}/bookmark_drawing.cpp)
+add_custom_command(OUTPUT ${READER_BOOKMARK_DRAWING}
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_bookmark_drawing.py ${READER_BOOKMARK_DRAWING}
+  DEPENDS prepare_bookmark_drawing.py bookmark_drawing.cpp.in prepare_percent_drawing.py percent_drawing.cpp.in
+    oracle_sources.py native_oracle/manifest.json
+    ../bookmark_bytes/native_oracle/manifest.json ../bookmark_bytes/native_oracle/src/BookmarkEntry.h.txt
+    native_oracle/src/activities/reader/EpubReaderBookmarksActivity.cpp.txt
+    native_oracle/src/activities/reader/EpubReaderBookmarksActivity.h.txt
+    ${CMAKE_CURRENT_SOURCE_DIR}/native_oracle/src/activities/reader/ReaderChromeListActivity.cpp.txt
+    ${CMAKE_CURRENT_SOURCE_DIR}/native_oracle/src/activities/reader/ReaderChromeListActivity.h.txt
+    ${REPO_ROOT}/src/activities/reader/RustEpubResources.cpp
+    ${REPO_ROOT}/src/activities/reader/RustReaderDrawing.cpp
+    ${REPO_ROOT}/src/activities/util/UtilityActivity.cpp
+    ${REPO_ROOT}/src/components/UiAppHelpers.h ${REPO_ROOT}/src/components/UiSliderDialog.h
+    ${REPO_ROOT}/src/components/UIThemeTokens.h ${READER_DRAWING_TRANSLATIONS}
+    ${REPO_ROOT}/src/components/themes/BaseTheme.cpp
+    ${REPO_ROOT}/src/components/themes/lyra/LyraTheme.cpp
+    ${REPO_ROOT}/src/components/themes/roundedraff/RoundedRaffTheme.cpp
+  VERBATIM)
+add_executable(ReaderBookmarkDrawing ${READER_BOOKMARK_DRAWING} ${READER_DRAWING_SOURCES}
+  ${CMAKE_BINARY_DIR}/text_golden/instrumented/RustUiRenderer.cpp
+  ${REPO_ROOT}/freeink-sdk/libs/ui/FreeInkUI/src/FreeInkUI.cpp)
+target_include_directories(ReaderBookmarkDrawing PRIVATE $<TARGET_PROPERTY:ReaderPercentDrawing,INCLUDE_DIRECTORIES>)
+target_compile_definitions(ReaderBookmarkDrawing PRIVATE $<TARGET_PROPERTY:ReaderPercentDrawing,COMPILE_DEFINITIONS>
+  TEST_DISPLAY_WIDTH=792 TEST_DISPLAY_HEIGHT=528)
+target_compile_options(ReaderBookmarkDrawing PRIVATE $<TARGET_PROPERTY:ReaderPercentDrawing,COMPILE_OPTIONS>)
+target_link_options(ReaderBookmarkDrawing PRIVATE $<TARGET_PROPERTY:ReaderPercentDrawing,LINK_OPTIONS>)
+target_link_libraries(ReaderBookmarkDrawing PRIVATE xp_ffi_host)
+add_dependencies(ReaderBookmarkDrawing TextGolden)
+add_test(NAME reader_bookmark_native_drawing COMMAND ReaderBookmarkDrawing)
+
+add_test(NAME reader_bookmark_drawing_negative_controls
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/check_bookmark_drawing_controls.py $<TARGET_FILE:ReaderBookmarkDrawing>)

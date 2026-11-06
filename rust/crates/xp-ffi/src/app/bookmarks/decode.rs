@@ -1,13 +1,18 @@
 use super::alloc::vec::Vec;
 use super::{
     json::{self, Kind, Parser, Value},
-    parse_number, Error, Record,
+    parse_number, Error, Record, Text,
 };
 
 // The final name storage supplies its own allocator. R2's moved keyboard block
 // can implement this directly; no conversion to Vec or alternate name cache.
 pub trait Name: AsRef<[u8]> + Sized {
     fn read(length: usize, fill: impl FnOnce(&mut [u8])) -> Result<Self, Error>;
+}
+impl Name for Text {
+    fn read(length: usize, fill: impl FnOnce(&mut [u8])) -> Result<Self, Error> {
+        Text::read(length, fill).map_err(|_| Error::Allocation)
+    }
 }
 impl Name for Vec<u8> {
     fn read(length: usize, fill: impl FnOnce(&mut [u8])) -> Result<Self, Error> {

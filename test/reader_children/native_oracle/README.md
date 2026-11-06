@@ -71,9 +71,9 @@ The four P16-O5a snapshots were captured at `dff2b732` (26,413 B):
 `EpubReaderBookmarksActivity.{cpp,h}.txt` and
 `ReaderChromeListActivity.{cpp,h}.txt`. They preserve bookmark actions, drawing,
 long-press/delete behavior and row/resource pairing. Existing historical child
-fixtures read the bookmark pair through `oracle_sources.py`. The planned
-`prepare_bookmarks.py` drawing/action fixture and `reader_chrome` input adaptation
-will consume the list base before its production retirement. Those consumers
-are preparation work, not a completed parity claim. Each entry records the
+fixtures read the bookmark pair through `oracle_sources.py`. The `prepare_bookmark_drawing.py` fixture consumes the frozen bookmark methods,
+inline getters and list base for native pixel comparison. The retained
+`reader_chrome` fixture covers native input behavior; production App integration
+and full action/keyboard parity remain switch work. Each entry records the
 consumer and retirement condition. The constructor's 24 is the row window;
 the native command arena starts at 40, grows by 16 and caps at 128.

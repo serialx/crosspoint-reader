@@ -1,6 +1,6 @@
 extern crate alloc;
 
-use alloc::vec::Vec;
+use super::resources::Text;
 mod decode;
 mod encode;
 pub mod export;
@@ -28,8 +28,8 @@ pub enum Error {
 }
 
 pub struct Record<N> {
-    pub xpath: Vec<u8>,
-    pub summary: Vec<u8>,
+    pub xpath: Text,
+    pub summary: Text,
     pub name: N,
     pub percentage: f32,
     pub spine: u16,

@@ -23,6 +23,8 @@ struct Record {
     clear: usize,
     help: usize,
     bookmarks: usize,
+    deletes: usize,
+    footer_select: Vec<u8>,
     loading: usize,
     prewarms: Vec<Vec<Vec<u8>>>,
     refresh: usize,
@@ -51,7 +53,9 @@ unsafe extern "C" fn line(_: i32) -> i32 {
 unsafe extern "C" fn text(_: *const xp_ui::scene::Command, _: Rect, value: abi::Text) {
     RECORD.with(|r| r.borrow_mut().texts.push(value.bytes().unwrap().to_vec()));
 }
-unsafe extern "C" fn footer(_: *const abi::Text) {}
+unsafe extern "C" fn footer(labels: *const abi::Text) {
+    RECORD.with(|r| r.borrow_mut().footer_select = (*labels.add(1)).bytes().unwrap().to_vec());
+}
 unsafe extern "C" fn refresh(mode: u8) {
     assert_eq!(mode, xp_ui::scene::Refresh::Fast as u8);
     RECORD.with(|r| r.borrow_mut().refresh += 1);
@@ -548,4 +552,79 @@ fn clipping_list_empty_and_command_oom_have_no_preview_reads() {
         assert_eq!(r.bookmarks, 0);
         assert_eq!(r.help, 0);
     });
+}
+
+unsafe extern "C" fn bookmark_icon(kind: u8, _: Rect, _: Rect, _: u8) {
+    RECORD.with(|r| match kind {
+        0 => r.borrow_mut().bookmarks += 1,
+        1 => r.borrow_mut().deletes += 1,
+        _ => panic!("icon kind"),
+    });
+}
+struct BookmarkToc {
+    calls: usize,
+    fail: bool,
+}
+impl crate::bookmark_window::Toc for BookmarkToc {
+    fn subtitle(&mut self, _: u16, prefix: &[u8], out: &mut Text) -> bool {
+        self.calls += 1;
+        !self.fail && out.assign_parts(&[prefix, b"TOC title"]).is_ok()
+    }
+}
+#[test]
+fn bookmarks_borrow_final_labels_and_publish_only_complete_scenes() {
+    use crate::{bookmark_owned::Bookmarks, bookmark_view::Details, bookmarks::decode};
+    tests::reset(0);
+    RECORD.with(|r| *r.borrow_mut() = Record::default());
+    let owner = Bookmarks::try_new(owner_tests::runtime()).unwrap();
+    let mut rows = decode::<Text>(br#"{"bookmarks":[{"summary":"summary","percentage":0.5},{"name":"renamed","summary":"hidden","pc":10,"pp":2}]}"#).unwrap();
+    let details = Details {
+        help: clipping_help,
+        icon: bookmark_icon,
+    };
+    let mut toc = BookmarkToc {
+        calls: 0,
+        fail: false,
+    };
+    assert!(unsafe { owner.enter(services()) });
+    unsafe {
+        owner
+            .render(services(), &physical(), &details, &rows, &mut toc)
+            .unwrap()
+    };
+    owner.model.with(|m| assert!(m.ready));
+    RECORD.with(|r| {
+        let r = r.borrow();
+        assert!(r.texts.iter().any(|t| t == b"summary"));
+        assert!(r.texts.iter().any(|t| t == b"renamed"));
+        assert!(r.texts.iter().any(|t| t == b"50% - TOC title"));
+        assert!(!r.texts.iter().any(|t| t == b"hidden"));
+        assert_eq!((r.help, r.bookmarks), (1, 2));
+        assert!(!r.footer_select.is_empty());
+    });
+    let reads = toc.calls;
+    owner.model.with(|m| m.state.revealed = 1);
+    RECORD.with(|r| r.borrow_mut().touch = 1);
+    unsafe {
+        owner
+            .render(services(), &physical(), &details, &rows, &mut toc)
+            .unwrap()
+    };
+    assert_eq!(toc.calls, reads);
+    RECORD.with(|r| assert_eq!(r.borrow().deletes, 1));
+    toc.fail = true;
+    unsafe { owner.invalidate() };
+    assert!(unsafe { owner.render(services(), &physical(), &details, &rows, &mut toc) }.is_err());
+    owner.model.with(|m| assert!(!m.ready && m.gate.failed()));
+    rows.clear();
+    unsafe { owner.invalidate() };
+    unsafe {
+        owner
+            .render(services(), &physical(), &details, &rows, &mut toc)
+            .unwrap()
+    };
+    RECORD.with(|r| assert!(r.borrow().footer_select.is_empty()));
+    unsafe { owner.exit(|_| panic!("no popup")) };
+    owner.model.with(|m| assert!(!m.ready));
+    assert!(unsafe { (*owner.frame.get()).list.commands.as_mut_slice() }.is_empty());
 }

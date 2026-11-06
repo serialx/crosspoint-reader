@@ -6,6 +6,9 @@ publish = false
 
 [workspace]
 
+[features]
+app-test = []
+
 [dependencies]
 xp-ui = { path = "../../rust/crates/xp-ui" }
 xp-core = { path = "../../rust/crates/xp-core" }

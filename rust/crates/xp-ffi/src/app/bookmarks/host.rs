@@ -2,7 +2,7 @@
 use super::{
     alloc::{boxed::Box, vec::Vec},
     persistence::{self, Storage},
-    Name, Record,
+    Name, Record, Text,
 };
 use core::{ffi::c_void, slice};
 
@@ -119,8 +119,10 @@ pub unsafe extern "C" fn xp_bookmarks_test_push(owner: &mut Owner, row: &Row) ->
     }
     let build = || -> Result<Record<Vec<u8>>, super::Error> {
         Ok(Record {
-            xpath: copy(unsafe { row.xpath.bytes() })?,
-            summary: copy(unsafe { row.summary.bytes() })?,
+            xpath: Text::copy(unsafe { row.xpath.bytes() })
+                .map_err(|_| super::Error::Allocation)?,
+            summary: Text::copy(unsafe { row.summary.bytes() })
+                .map_err(|_| super::Error::Allocation)?,
             name: copy(unsafe { row.name.bytes() })?,
             percentage: row.percentage,
             spine: row.spine,
@@ -148,8 +150,8 @@ pub extern "C" fn xp_bookmarks_test_row(owner: &Owner, index: usize, out: &mut R
         return 0;
     };
     *out = Row {
-        xpath: Bytes::from(&row.xpath),
-        summary: Bytes::from(&row.summary),
+        xpath: Bytes::from(row.xpath.bytes()),
+        summary: Bytes::from(row.summary.bytes()),
         name: Bytes::from(&row.name),
         percentage: row.percentage,
         spine: row.spine,

@@ -72,7 +72,7 @@ fn qr_command_block_cannot_grow_beyond_its_four_native_commands() {
 
 #[test]
 fn native_command_starts_growth_cap_and_repaint_reuse() {
-    for start in [48, 32, 24] {
+    for start in [48, 40, 32, 24] {
         reset(0);
         let mut commands = Commands::new(start);
         assert!(commands.recover(resources()));

@@ -74,7 +74,7 @@ impl Storage for Volume {
 fn loaded_fields_survive_the_sdk_buffer_and_read_loan() {
     let io = Volume::new(br#"{"bookmarks":[{"xpath":"p","summary":"s","name":"named","vo":0}]}"#);
     let rows = persistence::read::<Vec<u8>>(&io, b"/a.epub").unwrap();
-    assert_eq!(rows[0].xpath, b"p");
+    assert_eq!(rows[0].xpath.bytes(), b"p");
     assert_eq!(rows[0].name, b"named");
     assert_eq!(rows[0].visible_offset, Some(0));
     assert!(io.body.borrow().iter().all(|b| *b == 0));

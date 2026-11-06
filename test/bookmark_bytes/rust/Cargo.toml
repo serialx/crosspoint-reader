@@ -11,6 +11,7 @@ app-test = []
 
 [dependencies]
 xp-core = { path = "../../../rust/crates/xp-core" }
+xp-ui = { path = "../../../rust/crates/xp-ui" }
 
 [lib]
 path = "tests.rs"

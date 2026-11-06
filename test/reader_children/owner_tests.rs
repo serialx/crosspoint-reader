@@ -5,13 +5,26 @@ use std::{
     sync::OnceLock,
 };
 
-thread_local! { static FAIL_NEXT: Cell<bool> = const { Cell::new(false) }; }
+thread_local! {
+    static FAIL_NEXT: Cell<bool> = const { Cell::new(false) };
+    static COUNT_ALLOCATIONS: Cell<Option<usize>> = const { Cell::new(None) };
+}
+pub(crate) fn count_allocations<T>(call: impl FnOnce() -> T) -> (T, usize) {
+    COUNT_ALLOCATIONS.with(|n| n.set(Some(0)));
+    let value = call();
+    (value, COUNT_ALLOCATIONS.with(|n| n.take().unwrap()))
+}
 pub(crate) fn fail_next_allocation() {
     FAIL_NEXT.with(|flag| flag.set(true));
 }
 struct Allocator;
 unsafe impl GlobalAlloc for Allocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let _ = COUNT_ALLOCATIONS.try_with(|n| {
+            if let Some(count) = n.get() {
+                n.set(Some(count + 1));
+            }
+        });
         if FAIL_NEXT
             .try_with(|flag| flag.replace(false))
             .unwrap_or(false)

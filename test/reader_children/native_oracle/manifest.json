@@ -121,7 +121,7 @@
       "bytes": 8232,
       "sha256": "ca32d1e08c0a4ad5d68cac538787af53a586bf4102b68ac6a2f98cdfb9331245",
       "consumers": [
-        "planned test/reader_children/prepare_bookmarks.py",
+        "test/reader_children/prepare_bookmark_drawing.py",
         "test/reader_lifecycle/test_child_handle_composition.py",
         "test/reader_children/test_owned_app.py"
       ],
@@ -136,7 +136,7 @@
       "bytes": 2448,
       "sha256": "c16b595bda64fab473a9821c86dffd6f8494dc9624d248306eaf902ee9c6f311",
       "consumers": [
-        "planned test/reader_children/prepare_bookmarks.py",
+        "test/reader_children/prepare_bookmark_drawing.py",
         "test/reader_lifecycle/test_child_handle_composition.py",
         "test/reader_children/test_owned_app.py"
       ],
@@ -151,7 +151,7 @@
       "bytes": 12337,
       "sha256": "19b0fde88965450aade25b785b14e0d9821d69f319a45e0574d84141b479cf6f",
       "consumers": [
-        "planned test/reader_children/prepare_bookmarks.py",
+        "test/reader_children/prepare_bookmark_drawing.py",
         "test/reader_chrome/test_bookmark_input.py"
       ],
       "contract": "Retiring native list semantics and resource bindings; live shared commands/sampler remain",
@@ -165,7 +165,7 @@
       "bytes": 3396,
       "sha256": "97d5a26d841e65e440e0a8660be977515e991ed3e8d77c653428ddb83da32315",
       "consumers": [
-        "planned test/reader_children/prepare_bookmarks.py"
+        "test/reader_children/prepare_bookmark_drawing.py"
       ],
       "contract": "Scaffold declaration/layout inputs for independent native drawing fixture",
       "retirement": "Remove only after all listed consumers are gone or independently equivalent coverage replaces their exact contract; no candidate-derived golden.",

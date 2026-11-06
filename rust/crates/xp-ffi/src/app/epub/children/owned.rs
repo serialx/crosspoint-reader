@@ -96,7 +96,7 @@ pub(super) struct ListPublication {
     pub(super) gate: SceneGate,
 }
 impl ListPublication {
-    unsafe fn initialize(out: *mut Self, selected: i32) {
+    pub(super) unsafe fn initialize(out: *mut Self, selected: i32) {
         ptr::addr_of_mut!((*out).state).write(reader_chrome::ListModel::new(selected));
         ptr::addr_of_mut!((*out).hits).write(hits::Layout::default());
         ptr::addr_of_mut!((*out).ready).write(false);
@@ -112,7 +112,7 @@ pub(super) struct ListFrame {
     pub(super) consumed_scroll: i32,
 }
 impl ListFrame {
-    unsafe fn initialize(out: *mut Self, start: u16) {
+    pub(super) unsafe fn initialize(out: *mut Self, start: u16) {
         ptr::addr_of_mut!((*out).commands).write(Commands::new(start));
         ptr::addr_of_mut!((*out).theme).write(list::Theme::default());
         ptr::addr_of_mut!((*out).next).write(reader_chrome::ListModel::new(0));

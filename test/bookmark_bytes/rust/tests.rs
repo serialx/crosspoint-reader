@@ -1,3 +1,18 @@
+#[allow(dead_code)]
+#[path = "../../../rust/crates/xp-ffi/src/app/abi.rs"]
+mod abi;
+#[allow(dead_code)]
+#[path = "../../../rust/crates/xp-ffi/src/app/resources.rs"]
+mod resources;
+pub use resources::Text;
+#[allow(dead_code)]
+#[path = "../../../rust/crates/xp-ffi/src/app/result.rs"]
+mod result;
+mod epub {
+    pub mod abi {
+        pub enum XpEpubLeaves {}
+    }
+}
 #[path = "../../../rust/crates/xp-ffi/src/app/bookmarks/mod.rs"]
 pub mod bookmarks;
 #[path = "../../../rust/crates/xp-ffi/src/app/clippings/io.rs"]
@@ -60,6 +75,18 @@ mod tests {
     const TWO: &[u8] = br#"{"bookmarks":[{"xpath":"first","summary":"summary","name":"name","vo":0},{"xpath":"second","name":"last","vo":null}]}"#;
 
     #[test]
+    fn record_labels_are_terminated_in_their_final_storage() {
+        let rows = decode::<Vec<u8>>(TWO).unwrap();
+        for row in &rows {
+            for text in [&row.xpath, &row.summary] {
+                let wire = text.wire();
+                assert_eq!(unsafe { *wire.data.add(wire.len) }, 0);
+                assert_eq!(unsafe { wire.bytes() }.unwrap(), text.bytes());
+            }
+        }
+    }
+
+    #[test]
     fn failed_record_and_text_allocations_release_every_partial_record() {
         let rows = decode::<Vec<u8>>(TWO).unwrap();
         assert_eq!(rows.len(), 2);
@@ -94,7 +121,7 @@ mod tests {
         ATTEMPTS.with(|n| n.set(0));
         let output = encode(&rows).unwrap();
         assert_eq!(ATTEMPTS.with(Cell::get), 1);
-        assert_eq!(rows[0].xpath, b"first");
+        assert_eq!(rows[0].xpath.bytes(), b"first");
         assert_eq!(rows[1].name, b"last");
         assert!(output.starts_with(b"{\"bookmarks\":["));
     }
@@ -135,17 +162,20 @@ mod tests {
         assert_eq!(result, Err(Error::Allocation));
         assert_eq!(LIVE_BYTES.with(Cell::get), live_before);
         assert_eq!(rows.len(), 2);
-        assert_eq!(rows[0].xpath, b"first");
+        assert_eq!(rows[0].xpath.bytes(), b"first");
         let row = decode::<Vec<u8>>(br#"{"bookmarks":[{"name":"new"}]}"#)
             .unwrap()
             .remove(0);
         mutations::insert_front(&mut rows, row).unwrap();
         assert_eq!(rows.len(), 3);
         assert_eq!(rows[0].name, b"new");
-        assert_eq!(rows[1].xpath, b"first");
-        assert_eq!(rows[2].xpath, b"second");
-        assert_eq!(mutations::retain(&mut rows, |row| row.xpath != b"first"), 1);
-        assert_eq!(rows[1].xpath, b"second");
+        assert_eq!(rows[1].xpath.bytes(), b"first");
+        assert_eq!(rows[2].xpath.bytes(), b"second");
+        assert_eq!(
+            mutations::retain(&mut rows, |row| row.xpath.bytes() != b"first"),
+            1
+        );
+        assert_eq!(rows[1].xpath.bytes(), b"second");
     }
 
     #[test]

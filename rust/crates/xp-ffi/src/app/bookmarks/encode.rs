@@ -11,8 +11,9 @@ pub fn encode<N: AsRef<[u8]>>(records: &[Record<N>]) -> Result<Vec<u8>, Error> {
         }
         let strings = row
             .xpath
+            .bytes()
             .len()
-            .checked_add(row.summary.len())
+            .checked_add(row.summary.bytes().len())
             .and_then(|n| n.checked_add(row.name.as_ref().len()))
             .and_then(|n| n.checked_mul(6))
             .and_then(|n| n.checked_add(192))
@@ -53,11 +54,11 @@ fn visit<N: AsRef<[u8]>>(
             emit(b",")?;
         }
         emit(b"{\"xpath\":")?;
-        string(&row.xpath, emit)?;
+        string(row.xpath.bytes(), emit)?;
         emit(b",\"percentage\":")?;
         emit(number::float(row.percentage, &mut buffer))?;
         emit(b",\"summary\":")?;
-        string(&row.summary, emit)?;
+        string(row.summary.bytes(), emit)?;
         if !row.name.as_ref().is_empty() {
             emit(b",\"name\":")?;
             string(row.name.as_ref(), emit)?;

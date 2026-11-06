@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "ClipSelectionActivity.h"
+#include "DefinitionQuery.h"
 #include "activities/RustActivityAdapter.h"
 #include "util/Dictionary.h"
 
@@ -34,6 +35,10 @@ class DictionaryDefinitionActivity final : public RustActivityAdapter {
   void onExit() override;
   void loop() override;
   void render(RenderLock&&) override;
+
+  XpDefinitionSelection prepareSelectionResult(const ActivityResult& result);
+  uint8_t acceptSelectionResult(XpDefinitionSelection result);
+  void selectionInstallFailed();
 
  private:
   // One wrapped display line: a byte span of `definition`. Wrapping keeps
@@ -76,7 +81,7 @@ class DictionaryDefinitionActivity final : public RustActivityAdapter {
 
   // Replay the original query: the displayed headword may be a stem or synonym.
   struct HistoryEntry {
-    std::string query;
+    DefinitionQuery query;
     int page = 0;
     int selectionPage = 0;
     ClipSelectionActivity::Selection selection;
@@ -88,8 +93,8 @@ class DictionaryDefinitionActivity final : public RustActivityAdapter {
     Dictionary& dictionary;  // Owned by the retained Rust lookup parent.
     std::array<HistoryEntry, 16> history;
     size_t depth = 0;
-    std::string query;
-    std::string pendingWord;
+    DefinitionQuery query;
+    DefinitionQuery pendingWord;
     std::vector<std::unique_ptr<Page>> selectionPages;
   };
 

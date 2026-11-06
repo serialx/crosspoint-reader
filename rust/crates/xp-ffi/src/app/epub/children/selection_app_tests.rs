@@ -116,6 +116,9 @@ fn app_fixture() -> app::App {
         forced_refresh: no_action,
         reader_turn: no_turn,
         screenshot_info: no_screenshot,
+        with_definition_selection_result: no_selection,
+        deliver_definition_selection_result: no_selection_delivery,
+        definition_selection_install_failed: native_event,
     };
     let runtime = RUNTIME.get_or_init(|| wire::Runtime {
         render_lock,
@@ -161,6 +164,16 @@ fn app_fixture() -> app::App {
 
 #[test]
 fn actual_app_three_deep_selection_return_destroys_before_delivery() {
+    selection_return_test(false);
+}
+#[test]
+fn definition_owned_result_actual_app_destroys_and_publishes_before_transfer() {
+    selection_return_test(true);
+}
+fn selection_return_test(typed: bool) {
+    static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _serial = SERIAL.lock().unwrap();
+    app::DEFINITION_SELECTION_TEST.store(typed, core::sync::atomic::Ordering::Relaxed);
     for cancelled in [0, 1, 2] {
         let app = app_fixture();
         let parent: StableOwner<app::epub::EpubSession> =
@@ -244,9 +257,30 @@ fn actual_app_three_deep_selection_return_destroys_before_delivery() {
             CALLS.with(|v| assert_eq!(&*v.borrow(), &["clip-drop", "definition-drop", "unlock"]));
             continue;
         }
+        CANCELLED.with(|v| v.set(cancelled));
         app.navigation.queue(Transition::Pop);
         app.navigation.drain(&app);
-        CALLS.with(|v| assert_eq!(&*v.borrow(), &["clip-drop", "unlock", "clip-deliver"]));
+        CALLS.with(|v| {
+            if typed {
+                let mut expected = vec![
+                    "native-take",
+                    "clip-drop",
+                    "unlock",
+                    "selection-pages-release",
+                ];
+                if cancelled == 0 {
+                    expected.push("text-allocation");
+                }
+                expected.push("clip-deliver");
+                if cancelled == 0 {
+                    expected.push("text-free");
+                }
+                expected.push("native-result-drop");
+                assert_eq!(*v.borrow(), expected);
+            } else {
+                assert_eq!(&*v.borrow(), &["clip-drop", "unlock", "clip-deliver"]);
+            }
+        });
         assert_eq!(app.navigation.parent_count(), 2);
         CANCELLED.with(|v| v.set(cancelled));
         // The real definition result is copied before its inline native storage drops.
@@ -268,6 +302,7 @@ fn actual_app_three_deep_selection_return_destroys_before_delivery() {
             assert_eq!(events[drop + 1], "unlock");
         });
     }
+    app::DEFINITION_SELECTION_TEST.store(false, core::sync::atomic::Ordering::Relaxed);
 }
 
 #[test]
@@ -313,4 +348,63 @@ fn failed_definition_stack_growth_returns_to_timed_low_memory() {
         assert!(!m.state.expired(1599));
         assert!(m.state.expired(1600));
     });
+}
+
+// Native witnesses for strict Miri; native C++ strings and Page clearing are
+// independently exercised by test/definition_transfer/composition.py.
+unsafe extern "C" fn no_selection(
+    child: *mut c_void,
+    pop: wire::DefinitionPop,
+    sink: wire::DefinitionSelectionSink,
+    context: *mut c_void,
+) {
+    let expected_parent = unsafe { *child.cast::<*mut c_void>() };
+    call("native-take");
+    let parent = unsafe { pop(context) };
+    assert_eq!(parent, expected_parent);
+    CLIP_LIVE.with(|v| assert!(!v.get()));
+    LOCKED.with(|v| assert!(!v.get()));
+    call("selection-pages-release");
+    let mut result: wire::DefinitionSelection = unsafe { core::mem::zeroed() };
+    if CANCELLED.with(Cell::get) == 0 {
+        call("text-allocation");
+        let data = unsafe { std::alloc::alloc(std::alloc::Layout::array::<u8>(5).unwrap()) };
+        assert!(!data.is_null());
+        unsafe { core::ptr::copy_nonoverlapping(b"word\0".as_ptr(), data, 5) };
+        result.text = wire::DefinitionOwnedText {
+            data,
+            len: 4,
+            capacity: 5,
+            release: Some(selection_release),
+        };
+        result.status = 1;
+    }
+    assert_eq!(unsafe { sink(context, parent, result) }, 1);
+    call("native-result-drop");
+}
+unsafe extern "C" fn selection_release(data: *mut u8, capacity: u32) {
+    assert_eq!(capacity, 5);
+    call("text-free");
+    unsafe {
+        std::alloc::dealloc(
+            data,
+            std::alloc::Layout::array::<u8>(capacity as usize).unwrap(),
+        )
+    };
+}
+unsafe extern "C" fn no_selection_delivery(
+    parent: *mut c_void,
+    result: wire::DefinitionSelection,
+) -> u8 {
+    let lookup = unsafe { (*parent.cast::<DefinitionLoan>()).lookup };
+    assert_eq!(unsafe { (*lookup.cast::<Native>()).pointer }, lookup);
+    call("clip-deliver");
+    if let Some(release) = result.text.release {
+        assert_eq!(
+            unsafe { core::slice::from_raw_parts(result.text.data, 5) },
+            b"word\0"
+        );
+        unsafe { release(result.text.data, result.text.capacity) };
+    }
+    1
 }

@@ -781,6 +781,56 @@ impl Services<Owner> for App {
             _ => {}
         }
     }
+    fn definition_selection_route(&self, child: Target, parent: Option<Target>) -> bool {
+        #[cfg(feature = "app-test")]
+        let enabled = DEFINITION_SELECTION_TEST.load(core::sync::atomic::Ordering::Relaxed);
+        #[cfg(not(feature = "app-test"))]
+        let enabled = false;
+        enabled
+            && matches!(
+                (child, parent),
+                (Target::Legacy(_), Some(Target::Definition(_)))
+            )
+    }
+    #[inline(never)]
+    fn with_definition_selection_result(
+        &self,
+        child: Target,
+        pop: impl FnOnce() -> Option<Target>,
+    ) {
+        let Target::Legacy(child) = child else {
+            unreachable!()
+        };
+        let visit = self.navigation.visit();
+        unsafe {
+            Definition::with_selection_result(
+                child,
+                self.legacy.with_definition_selection_result,
+                || match pop() {
+                    Some(Target::Definition(parent)) => Some(parent),
+                    _ => None,
+                },
+                |parent, result| {
+                    if self.navigation.visit() == visit
+                        && matches!(self.navigation.current(),
+                        Some(Target::Definition(current)) if current == parent)
+                    {
+                        result.deliver(parent, self.legacy.deliver_definition_selection_result);
+                    }
+                },
+            );
+        }
+    }
+    fn failed_push_dropped(&self) {
+        if self.definition_selection_route(
+            Target::Legacy(NonNull::dangling()),
+            self.navigation.current(),
+        ) {
+            if let Some(Target::Definition(parent)) = self.navigation.current() {
+                unsafe { (self.legacy.definition_selection_install_failed)(parent.as_ptr()) };
+            }
+        }
+    }
     fn home(&self) -> Option<Owner> {
         self.new_home(0, false)
     }
@@ -1150,8 +1200,44 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
 
 // Host-oracle entry points. Firmware builds never enable app-test.
 #[cfg(feature = "app-test")]
+static DEFINITION_SELECTION_TEST: core::sync::atomic::AtomicBool =
+    core::sync::atomic::AtomicBool::new(false);
+
+#[cfg(feature = "app-test")]
 mod probe {
     use super::*;
+
+    #[no_mangle]
+    pub extern "C" fn xp_app_test_definition_transfer(enabled: u8) {
+        DEFINITION_SELECTION_TEST.store(enabled != 0, core::sync::atomic::Ordering::Relaxed);
+    }
+    #[no_mangle]
+    pub unsafe extern "C" fn xp_app_test_install_definition(
+        title: abi::Text,
+        length: u32,
+        fill: unsafe extern "C" fn(*mut c_void, *mut u8, u32) -> u8,
+        context: *mut c_void,
+    ) -> u8 {
+        let Some(app) = app() else { return 0 };
+        let physical = &app.epub.child_selection_physical;
+        let Some(owner) =
+            (unsafe { Definition::try_plain(physical, title, length, fill, context) })
+        else {
+            return 0;
+        };
+        app.navigation
+            .queue(Transition::Push(Owner::Definition(owner)));
+        1
+    }
+    #[no_mangle]
+    pub extern "C" fn xp_app_test_published_legacy() -> *mut c_void {
+        app().map_or(core::ptr::null_mut(), |app| {
+            app.signals.with(|signals| match signals.target {
+                Some(Target::Definition(pointer) | Target::Legacy(pointer)) => pointer.as_ptr(),
+                _ => core::ptr::null_mut(),
+            })
+        })
+    }
 
     // Fixture installs physical leaves before any activity or render task exists.
     #[no_mangle]

@@ -35,6 +35,7 @@ def block(source, signature, semicolon=False):
 
 
 methods = "\n".join(block(viewer, signature) for signature in (
+    "__attribute__((noinline)) void DefinitionQuery::assignNative",
     "bool DictionaryDefinitionActivity::prepareDefinition",
     "bool DictionaryDefinitionActivity::layoutHtmlPages",
     "int DictionaryDefinitionActivity::measureSpan",
@@ -113,6 +114,7 @@ harness = r'''
 #include <Utf8.h>
 #include <Memory.h>
 #include "activities/ActivityResult.h"
+#include "activities/reader/DefinitionQuery.h"
 #include "components/HeaderBackTapTarget.h"
 #define LOG_ERR(...) ((void)0)
 template<typename... Args> void logDebug(Args&&...) {}

@@ -212,6 +212,30 @@ typedef struct {
   uint8_t kind, reader, remote_input, prevent_sleep, exclusive_storage, skip_delay, input_over_page;
 } XpAppLegacyFacts;
 
+// Definition selection transfer. No native ActivityResult or string address crosses.
+typedef void (*XpDefinitionTextRelease)(uint8_t* data, uint32_t capacity);
+typedef struct {
+  uint8_t* data;
+  uint32_t len, capacity;
+  XpDefinitionTextRelease release;
+} XpDefinitionOwnedText;
+enum {
+  XP_DEFINITION_SELECTION_CANCELLED,
+  XP_DEFINITION_SELECTION_SELECTED,
+  XP_DEFINITION_SELECTION_DEPTH_FULL,
+  XP_DEFINITION_SELECTION_LOW_MEMORY
+};
+typedef struct {
+  XpDefinitionOwnedText text;
+  uint16_t start_page, end_page, start_word, end_word;
+  uint8_t status;
+  uint8_t reserved[3];
+} XpDefinitionSelection;
+// Pop returns the restored Definition adapter, or null if delivery is no longer valid.
+typedef void* (*XpDefinitionPop)(void* context);
+// One means ownership consumed; zero leaves the native guard responsible for text.
+typedef uint8_t (*XpDefinitionSelectionSink)(void* context, void* parent, XpDefinitionSelection result);
+
 // The token borrows the existing C++ RenderLock and power scope for one render call.
 typedef struct {
   void* lock;
@@ -231,6 +255,10 @@ typedef struct {
   uint8_t (*forced_refresh)(void* activity);
   uint8_t (*reader_turn)(void* activity, uint8_t forward, uint8_t chapter);
   void (*screenshot_info)(const void* activity, XpAppScreenshotSink sink, void* context);
+  void (*with_definition_selection_result)(void* child, XpDefinitionPop pop, XpDefinitionSelectionSink sink,
+                                           void* context);
+  uint8_t (*deliver_definition_selection_result)(void* parent, XpDefinitionSelection result);
+  void (*definition_selection_install_failed)(void* parent);
 } XpAppLegacy;
 
 // Manager compatibility retires with the last native screen; mapping stays native.
@@ -394,7 +422,7 @@ static_assert(sizeof(XpAppText) == 2 * sizeof(void*));
 static_assert(offsetof(XpAppText, len) == sizeof(void*));
 static_assert(sizeof(XpAppPoint) == 8);
 static_assert(sizeof(XpAppBook) == 8 * sizeof(void*));
-static_assert(sizeof(XpAppLegacy) == 14 * sizeof(void*));
+static_assert(sizeof(XpAppLegacy) == 17 * sizeof(void*));
 static_assert(sizeof(XpAppCompatibility) == 3 * sizeof(void*));
 static_assert(sizeof(XpAppResources) == 46 * sizeof(void*));
 static_assert(sizeof(XpAppRuntime) == 34 * sizeof(void*));

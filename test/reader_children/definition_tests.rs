@@ -168,3 +168,128 @@ unsafe extern "C" fn unused_layout(_: *mut xp_ui::dictionary::popup::Layout) {
 unsafe extern "C" fn unused_wait() {
     unreachable!()
 }
+
+thread_local! {
+    static TRANSFER_LOG: std::cell::RefCell<Vec<&'static str>> = const { std::cell::RefCell::new(Vec::new()) };
+    static TRANSFER_LENGTH: Cell<usize> = const { Cell::new(0) };
+}
+fn transfer_event(event: &'static str) {
+    TRANSFER_LOG.with(|log| log.borrow_mut().push(event));
+}
+unsafe extern "C" fn release_transfer(data: *mut u8, capacity: u32) {
+    transfer_event("free");
+    unsafe {
+        std::alloc::dealloc(
+            data,
+            std::alloc::Layout::array::<u8>(capacity as usize).unwrap(),
+        )
+    };
+}
+// A labeled native witness: C++ string lifetime is covered by the C++ composition.
+unsafe extern "C" fn transfer_bridge(
+    child: *mut c_void,
+    pop: abi::DefinitionPop,
+    sink: abi::DefinitionSelectionSink,
+    context: *mut c_void,
+) {
+    assert_eq!(
+        unsafe { (*child.cast::<Native>()).self_pointer.cast::<c_void>() },
+        child
+    );
+    transfer_event("take");
+    let parent = unsafe { pop(context) };
+    transfer_event("release-pages");
+    if !parent.is_null() {
+        let length = TRANSFER_LENGTH.with(Cell::get);
+        let mut text = abi::DefinitionOwnedText {
+            data: ptr::null_mut(),
+            len: 0,
+            capacity: 0,
+            release: None,
+        };
+        if length != 0 {
+            transfer_event("allocate");
+            let data =
+                unsafe { std::alloc::alloc(std::alloc::Layout::array::<u8>(length + 1).unwrap()) };
+            assert!(!data.is_null());
+            unsafe {
+                ptr::write_bytes(data, b'x', length);
+                data.add(length).write(0);
+            }
+            text = abi::DefinitionOwnedText {
+                data,
+                len: length as u32,
+                capacity: (length + 1) as u32,
+                release: Some(release_transfer),
+            };
+        }
+        let data = text.data;
+        let capacity = text.capacity;
+        let result = abi::DefinitionSelection {
+            text,
+            start_page: 1,
+            end_page: 2,
+            start_word: 3,
+            end_word: 4,
+            status: 1,
+            reserved: [0; 3],
+        };
+        if unsafe { sink(context, parent, result) } == 0 && !data.is_null() {
+            unsafe { release_transfer(data, capacity) };
+        }
+    }
+    transfer_event("native-result-drop");
+}
+#[test]
+fn definition_transfer_owns_text_after_child_destruction_and_frees_once() {
+    for length in [0, 1, 15, 4096] {
+        TRANSFER_LOG.with(|log| log.borrow_mut().clear());
+        TRANSFER_LENGTH.with(|v| v.set(length));
+        let mut state = Fill {
+            drops: Cell::new(0),
+            fail: false,
+            calls: Cell::new(0),
+        };
+        let owner = unsafe {
+            Definition::try_plain(
+                &physical(),
+                abi::Text::from_bytes(b"title"),
+                5,
+                fill,
+                (&mut state as *mut Fill).cast(),
+            )
+        }
+        .unwrap();
+        let target = owner.handle();
+        let parent = Box::new(Cell::new(0));
+        let parent_target = core::ptr::NonNull::from(parent.as_ref()).cast();
+        unsafe {
+            Definition::with_selection_result(
+                target,
+                transfer_bridge,
+                || {
+                    drop(owner);
+                    transfer_event("child-drop");
+                    Some(parent_target)
+                },
+                |target, result| {
+                    assert_eq!(state.drops.get(), 1);
+                    assert_eq!(target, parent_target);
+                    transfer_event("rust-move");
+                    drop(parent); // The continuation may destroy its parent as well as the child.
+                    drop(result);
+                },
+            );
+        }
+        let mut expected = vec!["take", "child-drop", "release-pages"];
+        if length != 0 {
+            expected.push("allocate");
+        }
+        expected.push("rust-move");
+        if length != 0 {
+            expected.push("free");
+        }
+        expected.push("native-result-drop");
+        TRANSFER_LOG.with(|log| assert_eq!(*log.borrow(), expected));
+    }
+}

@@ -57,6 +57,17 @@ pub trait Services<A: Activity> {
     fn exit(&self, target: A::Target);
     fn with_result(&self, target: A::Target, consume: impl FnOnce(Self::Result));
     fn deliver_result(&self, parent: A::Target, result: Self::Result);
+    fn definition_selection_route(&self, _child: A::Target, _parent: Option<A::Target>) -> bool {
+        false
+    }
+    fn with_definition_selection_result(
+        &self,
+        _child: A::Target,
+        _pop: impl FnOnce() -> Option<A::Target>,
+    ) {
+        unreachable!("Definition selection route not implemented")
+    }
+    fn failed_push_dropped(&self) {}
     fn home(&self) -> Option<A>;
     fn request_update(&self);
     fn missing_pop(&self);
@@ -180,6 +191,11 @@ impl<A: Activity> Application<A> {
             return;
         };
         let visit = self.next_visit();
+        let parent = self.navigation.borrow().parents.last().map(A::target);
+        if services.definition_selection_route(target, parent) {
+            self.pop_definition_selection(services, target, guard, visit);
+            return;
+        }
         services.with_result(target, |result| {
             self.exit_current(services);
             let parent = {
@@ -201,12 +217,42 @@ impl<A: Activity> Application<A> {
         });
     }
 
+    #[inline(never)]
+    fn pop_definition_selection<S: Services<A>>(
+        &self,
+        services: &S,
+        target: A::Target,
+        guard: S::RenderGuard,
+        visit: u32,
+    ) {
+        services.with_definition_selection_result(target, || {
+            self.exit_current(services);
+            let parent = {
+                let mut navigation = self.navigation.borrow_mut();
+                navigation.current = navigation.parents.pop();
+                navigation.current.as_ref().map(A::target)
+            };
+            services.publish(parent, visit);
+            drop(guard);
+            (self.visit() == visit).then(|| self.current()).flatten()
+        });
+        if self.visit() == visit
+            && self.current().is_some()
+            && self.pending_kind() == TransitionKind::None
+        {
+            services.request_update();
+        }
+    }
+
     fn install(&self, activity: A, push: bool, services: &impl Services<A>) {
         let guard = services.render_lock();
         if push {
             let reserved = self.navigation.borrow_mut().parents.try_reserve(1).is_ok();
             if !reserved {
                 services.stack_allocation_failed();
+                drop(guard);
+                drop(activity);
+                services.failed_push_dropped();
                 return;
             }
             {

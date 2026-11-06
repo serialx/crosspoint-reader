@@ -190,7 +190,7 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
 
 inline XpAppLegacy unexpectedAppLegacy() {
   auto value = appTestLegacy();
-  static_assert(sizeof(XpAppLegacy) == 14 * sizeof(void (*)()));
+  static_assert(sizeof(XpAppLegacy) == 17 * sizeof(void (*)()));
   value.create = &AppFixtureUnexpected<decltype(value.create), 1000>::call;
   value.destroy = &AppFixtureUnexpected<decltype(value.destroy), 1001>::call;
   value.enter = &AppFixtureUnexpected<decltype(value.enter), 1002>::call;

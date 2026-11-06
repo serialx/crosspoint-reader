@@ -292,6 +292,29 @@ pub struct RenderToken {
     pub lock: *mut core::ffi::c_void,
 }
 
+use core::ffi::c_void;
+pub type DefinitionTextRelease = unsafe extern "C" fn(*mut u8, u32);
+#[repr(C)]
+pub struct DefinitionOwnedText {
+    pub data: *mut u8,
+    pub len: u32,
+    pub capacity: u32,
+    pub release: Option<DefinitionTextRelease>,
+}
+#[repr(C)]
+pub struct DefinitionSelection {
+    pub text: DefinitionOwnedText,
+    pub start_page: u16,
+    pub end_page: u16,
+    pub start_word: u16,
+    pub end_word: u16,
+    pub status: u8,
+    pub reserved: [u8; 3],
+}
+pub type DefinitionPop = unsafe extern "C" fn(*mut c_void) -> *mut c_void;
+pub type DefinitionSelectionSink =
+    unsafe extern "C" fn(*mut c_void, *mut c_void, DefinitionSelection) -> u8;
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Legacy {
@@ -311,6 +334,11 @@ pub struct Legacy {
     pub reader_turn: unsafe extern "C" fn(*mut core::ffi::c_void, u8, u8) -> u8,
     pub screenshot_info:
         unsafe extern "C" fn(*const core::ffi::c_void, ScreenshotSink, *mut core::ffi::c_void),
+    pub with_definition_selection_result:
+        unsafe extern "C" fn(*mut c_void, DefinitionPop, DefinitionSelectionSink, *mut c_void),
+    pub deliver_definition_selection_result:
+        unsafe extern "C" fn(*mut c_void, DefinitionSelection) -> u8,
+    pub definition_selection_install_failed: unsafe extern "C" fn(*mut c_void),
 }
 
 #[repr(C)]

@@ -561,6 +561,9 @@ bool DictionaryDefinitionActivity::buildPlainSelectionPages() {
   return true;
 }
 
+// Keep variant assignment scratch out of the native result callback.
+__attribute__((noinline)) void DefinitionQuery::assignNative(const std::string& text) { value = text; }
+
 void DictionaryDefinitionActivity::startSelection(const int x, const int y) {
   RenderLock lock;
   if (rustSceneRejected()) {
@@ -612,8 +615,62 @@ void DictionaryDefinitionActivity::startSelection(const int x, const int y) {
       showMessage(StrId::STR_DICT_LOW_MEMORY);
       return;
     }
-    lookup->pendingWord = selected.text;
+    lookup->pendingWord.assignNative(selected.text);
   });
+}
+
+// Called under the bridge's RenderLock, after child destruction and publication.
+XpDefinitionSelection DictionaryDefinitionActivity::prepareSelectionResult(const ActivityResult& result) {
+  XpDefinitionSelection out{};
+  lookup->selectionPages.clear();
+  if (result.isCancelled) return out;
+  const auto& selected = std::get<ClippingResult>(result.data);
+  out.start_page = selected.startPageOffset;
+  out.end_page = selected.endPageOffset;
+  out.start_word = selected.startWordIndex;
+  out.end_word = selected.endWordIndex;
+  content.currentPage = content.selectionPage + selected.endPageOffset;
+  content.selection = {selected.startPageOffset, selected.endPageOffset, selected.startWordIndex, selected.endWordIndex,
+                       true};
+  if (lookup->depth == lookup->history.size()) {
+    out.status = XP_DEFINITION_SELECTION_DEPTH_FULL;
+    showMessage(StrId::STR_DICT_HISTORY_FULL);
+    return out;
+  }
+  const auto lowMemory = [&]() {
+    out.status = XP_DEFINITION_SELECTION_LOW_MEMORY;
+    LOG_ERR("DICT", "Low heap for lookup text (%u bytes)", static_cast<unsigned>(selected.text.size() + 1));
+    showMessage(StrId::STR_DICT_LOW_MEMORY);
+  };
+  const auto heap = HalMemory::getDefaultHeap();
+  if (heap.largestBlockBytes < selected.text.size() + 1 || heap.freeBytes < selected.text.size() + HEAP_HEADROOM) {
+    lowMemory();
+    return out;
+  }
+  const bool retained = lookup->pendingWord.ownsBlock();
+  auto text = lookup->pendingWord.takeOwned();
+  if (!text.assign(selected.text)) {
+    if (retained) lookup->pendingWord = std::move(text);
+    lowMemory();
+    return out;
+  }
+  out.status = XP_DEFINITION_SELECTION_SELECTED;
+  out.text = text.release();
+  return out;
+}
+
+uint8_t DictionaryDefinitionActivity::acceptSelectionResult(XpDefinitionSelection result) {
+  if (!lookup) return 0;
+  if (result.status == XP_DEFINITION_SELECTION_SELECTED) {
+    lookup->pendingWord = OwnedSelectionText(result.text);
+  }
+  return 1;
+}
+
+void DictionaryDefinitionActivity::selectionInstallFailed() {
+  RenderLock lock;
+  lookup->selectionPages.clear();
+  showMessage(StrId::STR_DICT_LOW_MEMORY);
 }
 
 void DictionaryDefinitionActivity::loop() {

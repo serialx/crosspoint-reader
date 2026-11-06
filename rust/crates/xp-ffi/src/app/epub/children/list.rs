@@ -16,6 +16,15 @@ use xp_ui::{
 
 pub(super) trait Rows: list::Resources {
     fn text(&self, handle: u32) -> Option<abi::Text>;
+    fn valid(&self, handle: u32) -> bool {
+        self.text(handle).is_some()
+    }
+    fn header_list(&self) -> u8 {
+        1
+    }
+    fn paint_special(&self, _: &Command, _: Rect) -> bool {
+        false
+    }
 }
 struct Drawing<'a> {
     rows: &'a mut dyn Rows,
@@ -25,7 +34,7 @@ struct Drawing<'a> {
 impl Drawing<'_> {
     unsafe extern "C" fn valid(context: *mut c_void, handle: u32, generation: u32) -> u8 {
         let this = unsafe { &*context.cast::<Self>() };
-        u8::from(generation == 1 && (handle == list::FOOTER || this.rows.text(handle).is_some()))
+        u8::from(generation == 1 && (handle == list::FOOTER || this.rows.valid(handle)))
     }
     unsafe extern "C" fn paint(
         context: *mut c_void,
@@ -35,10 +44,13 @@ impl Drawing<'_> {
     ) {
         let this = unsafe { &*context.cast::<Self>() };
         let command = unsafe { &*command };
+        if this.rows.paint_special(command, clip) {
+            return;
+        }
         match command.resource {
             list::HEADER => {
                 if let Some(title) = this.rows.text(list::HEADER) {
-                    unsafe { (this.physical.header)(command.rect, title, 1) };
+                    unsafe { (this.physical.header)(command.rect, title, this.rows.header_list()) };
                 }
             }
             list::FOOTER => {

@@ -303,3 +303,51 @@ pub unsafe extern "C" fn xp_epub_test_toolbar_route(
 ) -> epub::abi::XpEpubRouted {
     unsafe { &*raw.cast::<Toolbar>() }.route(runtime, || *input)
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_clipping_open(runtime: &'static abi::Runtime) -> *mut c_void {
+    Box::into_raw(super::owned::Clippings::try_new(runtime).unwrap()).cast()
+}
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_clipping_close(raw: *mut c_void) {
+    drop(unsafe { Box::from_raw(raw.cast::<super::owned::Clippings>()) });
+}
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_clipping_render(
+    raw: *mut c_void,
+    services: &'static abi::Resources,
+    leaves: &'static epub::abi::XpEpubLeaves,
+    count: u16,
+    selected: i32,
+    row: unsafe extern "C" fn(i32, *mut abi::Text, *mut abi::Text),
+    output: *mut xp_ui::reader_chrome::ListModel,
+) -> u16 {
+    let owner = unsafe { &*raw.cast::<super::owned::Clippings>() };
+    owner.model.with(|model| model.state.list.select(selected));
+    let result = unsafe {
+        owner.render(
+            services,
+            &leaves.child_drawing,
+            &super::clipping_view::Details {
+                help: leaves.child_list_help,
+                bookmark: leaves.child_list_bookmark_icon,
+            },
+            count,
+            &mut |index, item| {
+                let mut chapter = abi::Text::from_terminated(b"\0");
+                let mut preview = chapter;
+                row(index, &mut chapter, &mut preview);
+                let chapter = chapter.bytes().unwrap();
+                let preview = preview.bytes().unwrap();
+                assert!(chapter.len() < item.chapter.len() && preview.len() < item.preview.len());
+                item.chapter[..chapter.len()].copy_from_slice(chapter);
+                item.preview[..preview.len()].copy_from_slice(preview);
+                item.preview[preview.len()] = 0;
+                item.preview_length = preview.len();
+            },
+        )
+    }
+    .unwrap();
+    unsafe { output.write(owner.model.with(|model| model.state)) };
+    result
+}

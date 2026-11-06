@@ -223,3 +223,43 @@ fn stable_owner_transfer_allocates_nothing_and_drops_once() {
     // Transfer and destruction leave the injected failure for the next allocation.
     assert!(owned::Percent::try_new(runtime, 0).is_none());
 }
+
+#[test]
+fn clipping_owner_is_fallible_and_starts_with_an_unpublished_empty_window() {
+    let runtime = runtime();
+    fail_next_allocation();
+    assert!(owned::Clippings::try_new(runtime).is_none());
+    let owner = owned::Clippings::try_new(runtime).unwrap();
+    let frame = unsafe { &*owner.frame.get() };
+    assert!(frame.initial);
+    assert!(frame.window.row(0).is_none());
+    owner
+        .model
+        .with(|m| assert!(!m.ready && m.state.list.selected == 0));
+}
+
+#[test]
+fn clipping_child_target_and_result_survive_owner_transfer() {
+    use crate::child_result::{ClippingPosition, ReaderChildResult};
+    let owner = owned::Clippings::try_new(runtime()).unwrap();
+    unsafe {
+        *owner.result.get() = Some(ReaderChildResult::Clippings(Some(ClippingPosition {
+            spine: 2,
+            page: 9,
+            offset: 4096,
+        })));
+    }
+    let owner = owned::ReaderChild::Clippings(owner.into());
+    let target = owner.target();
+    let moved = Some(owner);
+    let Some(ReaderChildResult::Clippings(Some(position))) = (unsafe { target.take_result() })
+    else {
+        panic!("clipping result")
+    };
+    assert!(unsafe { target.take_result() }.is_none());
+    drop(moved);
+    assert_eq!(
+        (position.spine, position.page, position.offset),
+        (2, 9, 4096)
+    );
+}

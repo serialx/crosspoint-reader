@@ -1,7 +1,7 @@
 use super::{
     menu::{Flags, Items},
     owned::Fixed,
-    owned::{Chapters, Menu, Percent, Qr, ReaderChild},
+    owned::{Chapters, Clippings, Menu, Percent, Qr, ReaderChild},
 };
 use crate::app::{
     epub::{abi, state::ChildIntent, EpubSession},
@@ -97,6 +97,17 @@ impl EpubSession {
             ChildIntent::Chapter,
         );
     }
+    // Called when the native clipping owner is retired at the switch.
+    #[allow(dead_code)]
+    pub(in crate::app::epub) fn launch_owned_clippings(&self) {
+        self.push_owned_child(
+            Clippings::try_new(self.runtime)
+                .map(StableOwner::from)
+                .map(ReaderChild::Clippings),
+            ChildIntent::Clippings,
+        );
+    }
+
     pub(in crate::app::epub) fn launch_owned_percent(&self, value: i32) {
         self.push_owned_child(
             Percent::try_new(self.runtime, value)

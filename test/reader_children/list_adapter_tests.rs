@@ -21,6 +21,9 @@ use xp_ui::{
 #[derive(Default)]
 struct Record {
     clear: usize,
+    help: usize,
+    bookmarks: usize,
+    loading: usize,
     prewarms: Vec<Vec<Vec<u8>>>,
     refresh: usize,
     fail_paint: bool,
@@ -418,4 +421,131 @@ fn chapter_window_prewarm_and_failed_storage_publication() {
     }
     assert!(book.reads.len() > reads);
     RECORD.with(|r| println!("Chapter exercised host command peak: {}", r.borrow().peak));
+}
+
+unsafe extern "C" fn clipping_header(_: Rect, _: abi::Text, list: u8) {
+    assert_eq!(list, 0);
+}
+unsafe extern "C" fn clipping_help(_: Rect, text: abi::Text) {
+    assert_eq!(text.bytes().unwrap(), b"translated label");
+    RECORD.with(|r| r.borrow_mut().help += 1);
+}
+unsafe extern "C" fn clipping_bookmark(bounds: Rect, clip: Rect, paint: u8) {
+    assert!(bounds.w > 0 && bounds.h > 0);
+    assert!(clip.w > 0 && clip.h > 0);
+    assert!(paint <= 1);
+    RECORD.with(|r| r.borrow_mut().bookmarks += 1);
+}
+unsafe extern "C" fn clipping_loading(_: abi::Text) -> Rect {
+    RECORD.with(|r| r.borrow_mut().loading += 1);
+    Rect::default()
+}
+fn clipping_services() -> &'static abi::Resources {
+    static SERVICES: OnceLock<abi::Resources> = OnceLock::new();
+    SERVICES.get_or_init(|| abi::Resources {
+        popup_draw: clipping_loading,
+        ..*services()
+    })
+}
+fn clipping_details() -> crate::clipping_view::Details {
+    crate::clipping_view::Details {
+        help: clipping_help,
+        bookmark: clipping_bookmark,
+    }
+}
+#[test]
+fn clipping_list_draws_help_bookmarks_and_loading_once_and_reuses_previews() {
+    tests::reset(0);
+    RECORD.with(|r| *r.borrow_mut() = Record::default());
+    let owner = crate::owned::Clippings::try_new(owner_tests::runtime()).unwrap();
+    let physical = Physical {
+        header: clipping_header,
+        ..physical()
+    };
+    let details = clipping_details();
+    let mut reads = Vec::new();
+    unsafe {
+        owner
+            .render(
+                clipping_services(),
+                &physical,
+                &details,
+                8,
+                &mut |index, row| {
+                    reads.push(index);
+                    if index != 0 {
+                        row.chapter[..2].copy_from_slice(b"K\0");
+                    }
+                    row.preview[..8].copy_from_slice(b"preview\0");
+                    row.preview_length = 7;
+                },
+            )
+            .unwrap();
+    }
+    assert_eq!(reads, (0..8).collect::<Vec<_>>());
+    owner.model.with(|m| assert!(m.ready && !m.failed));
+    RECORD.with(|r| {
+        let r = r.borrow();
+        assert_eq!(r.loading, 1);
+        assert_eq!(r.help, 1);
+        assert!(r.bookmarks > 0);
+        assert!(r.texts.iter().any(|text| text == b"preview"));
+        assert_eq!(r.clear, 0);
+        assert!(r.prewarms.is_empty());
+    });
+    unsafe {
+        owner
+            .render(clipping_services(), &physical, &details, 8, &mut |_, _| {
+                panic!("cached row")
+            })
+            .unwrap();
+    }
+    RECORD.with(|r| assert_eq!(r.borrow().loading, 1));
+    RECORD.with(|r| r.borrow_mut().fail_paint = true);
+    assert!(unsafe {
+        owner.render(clipping_services(), &physical, &details, 8, &mut |_, _| {
+            panic!("cached row")
+        })
+    }
+    .is_err());
+    owner.model.with(|m| assert!(!m.ready && m.failed));
+}
+#[test]
+fn clipping_list_empty_and_command_oom_have_no_preview_reads() {
+    tests::reset(1);
+    RECORD.with(|r| *r.borrow_mut() = Record::default());
+    let owner = crate::owned::Clippings::try_new(owner_tests::runtime()).unwrap();
+    let physical = Physical {
+        header: clipping_header,
+        ..physical()
+    };
+    assert!(unsafe {
+        owner.render(
+            clipping_services(),
+            &physical,
+            &clipping_details(),
+            0,
+            &mut |_, _| panic!("empty"),
+        )
+    }
+    .is_err());
+    owner.model.with(|m| assert!(m.failed));
+    unsafe {
+        owner
+            .render(
+                clipping_services(),
+                &physical,
+                &clipping_details(),
+                0,
+                &mut |_, _| panic!("empty"),
+            )
+            .unwrap();
+    }
+    owner.model.with(|m| assert!(m.ready));
+    RECORD.with(|r| {
+        let r = r.borrow();
+        assert_eq!(r.loading, 0);
+        assert_eq!(r.bookmarks, 0);
+        assert_eq!(r.help, 0);
+    });
 }

@@ -27,6 +27,8 @@ impl ChildTarget {
             (Self::Menu(_), false) => b"Exiting activity: EpubReaderMenu",
             (Self::Chapters(_), true) => b"Entering activity: EpubReaderChapterSelection",
             (Self::Chapters(_), false) => b"Exiting activity: EpubReaderChapterSelection",
+            (Self::Clippings(_), true) => b"Entering activity: EpubReaderClippings",
+            (Self::Clippings(_), false) => b"Exiting activity: EpubReaderClippings",
             (Self::Percent(_), true) => b"Entering activity: EpubReaderPercentSelection",
             (Self::Percent(_), false) => b"Exiting activity: EpubReaderPercentSelection",
             (Self::Qr(_), true) => b"Entering activity: QrDisplay",
@@ -72,6 +74,7 @@ impl ChildTarget {
                 .commands
                 .recover(parent.resources),
             Self::Chapters(owner) => unsafe { owner.as_ref().enter(parent.resources, physical) },
+            Self::Clippings(owner) => unsafe { owner.as_ref().enter_clippings(parent) },
             Self::Percent(owner) => {
                 let owner = unsafe { owner.as_ref() };
                 let frame = unsafe { &mut *owner.frame.get() };
@@ -114,6 +117,7 @@ impl ChildTarget {
                 owner.model.with(|model| model.ready = false);
                 unsafe { &mut *owner.frame.get() }.list.commands.clear();
             }
+            Self::Clippings(owner) => unsafe { owner.as_ref().exit_clippings(parent) },
             Self::Percent(owner) => unsafe { owner.as_ref() }
                 .model
                 .with(|model| model.controls = None),
@@ -165,6 +169,7 @@ impl ChildTarget {
                     .render(parent.resources, physical, &mut GuardedBook(&access))
             }
             .is_ok(),
+            Self::Clippings(owner) => unsafe { owner.as_ref().render_clippings(parent, physical) },
             Self::Percent(owner) => unsafe {
                 owner
                     .as_ref()
@@ -200,6 +205,9 @@ impl ChildTarget {
             }
             Self::Chapters(owner) => unsafe {
                 *owner.as_ref().result.get() = Some(ReaderChildResult::Chapter(None));
+            },
+            Self::Clippings(owner) => unsafe {
+                *owner.as_ref().result.get() = Some(ReaderChildResult::Clippings(None));
             },
             Self::Percent(owner) => unsafe {
                 *owner.as_ref().result.get() = Some(ReaderChildResult::Percent(None));
@@ -292,6 +300,9 @@ impl ChildTarget {
                     _ => false,
                 }
             }
+            Self::Clippings(owner) => unsafe {
+                owner.as_ref().input_clippings(parent, input, home_gesture)
+            },
             Self::Percent(owner) => {
                 let owner = unsafe { owner.as_ref() };
                 let edge = owner.model.with(|model| model.edge_buttons);

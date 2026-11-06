@@ -140,3 +140,9 @@ mod definition;
 mod definition_tests;
 #[path = "../../rust/crates/xp-ffi/src/app/epub/children/selection_physical.rs"]
 mod selection_physical;
+#[path = "../../rust/crates/xp-ffi/src/app/epub/children/clipping_window.rs"]
+mod clipping_window;
+#[cfg(test)]
+mod clipping_window_tests;
+#[path = "../../rust/crates/xp-ffi/src/app/epub/children/clipping_view.rs"]
+mod clipping_view;

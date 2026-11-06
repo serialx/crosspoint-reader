@@ -5,6 +5,11 @@ pub(crate) struct ChapterSelection {
     pub(crate) spine: i32,
     pub(crate) anchor: Text,
 }
+pub(crate) struct ClippingPosition {
+    pub(crate) spine: i32,
+    pub(crate) page: i32,
+    pub(crate) offset: u32,
+}
 
 /// Payloads move out before child destruction and into the resumed parent.
 pub(crate) enum ReaderChildResult {
@@ -14,6 +19,7 @@ pub(crate) enum ReaderChildResult {
         page_turn: u8,
     },
     Chapter(Option<ChapterSelection>),
+    Clippings(Option<ClippingPosition>),
     Percent(Option<u8>),
     QrClosed,
     Footnote(Option<Text>),

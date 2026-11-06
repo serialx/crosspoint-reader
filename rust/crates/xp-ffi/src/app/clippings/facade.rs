@@ -8,9 +8,9 @@ use super::{
 
 // The supported firmware targets are C3 and S3 (scripts/build_rust.py).
 #[cfg(target_arch = "xtensa")]
-type NativeStore = Store<Native, 64>;
+pub(super) type NativeStore = Store<Native, 64>;
 #[cfg(not(target_arch = "xtensa"))]
-type NativeStore = Store<Native, 16>;
+pub(super) type NativeStore = Store<Native, 16>;
 pub(super) type ClippingService = Service<NativeStore, ModelCell<Phase>>;
 
 // ModelCell uses the app's paired critical-section callbacks around its phase.

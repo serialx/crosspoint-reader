@@ -3,7 +3,7 @@
   "baseline_commit": "8389157f693eff753259d08bc92624663458ab97",
   "frozen_at_commit": "e209b1b5c34d38abfa5370f9accbb9ca42b5b3df",
   "sdk_commit": "6a573acd0562e45e4ce96837e0c2aebada219760",
-  "purpose": "Named native oracle inputs captured before O4a deletes production owners and their ABI; public repository source only. Snapshots match both baseline_commit and frozen_at_commit byte-for-byte.",
+  "purpose": "Named native oracle inputs captured before O4a/O5b delete production owners and their ABI; public repository source only. O5b entries record their own frozen_at_commit; baseline source bytes remain exact.",
   "snapshots": [
     {
       "source": "src/activities/reader/EpubReaderMenuActivity.cpp",
@@ -99,6 +99,22 @@
       "bytes": 3819,
       "sha256": "85a687f60dfc4dd3dd88ce696c8361ce1abfe37554f794cfe40459d2d8a45a21",
       "frozen_at_commit": "658497375577a64899f0aa29a621ed36755cef6c"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderClippingListActivity.cpp",
+      "snapshot": "src/activities/reader/EpubReaderClippingListActivity.cpp.txt",
+      "bytes": 6094,
+      "sha256": "37dca58827a8165ac270b09538f785d6a26d55de5058a7d094a61724c9328722",
+      "task": "P16-O5b",
+      "frozen_at_commit": "235062b3"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderClippingListActivity.h",
+      "snapshot": "src/activities/reader/EpubReaderClippingListActivity.h.txt",
+      "bytes": 1465,
+      "sha256": "cca5540cc7c85024b7446471da0852cbd16be11b3efbf92a8b97529956c3452e",
+      "task": "P16-O5b",
+      "frozen_at_commit": "235062b3"
     }
   ],
   "retained_support_sources_at_freeze": [

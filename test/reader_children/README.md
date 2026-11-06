@@ -33,3 +33,19 @@ The standalone CTest inventory has fifteen tests, including the four shared text
 The production `StableOwner` wrapper consumes each existing Box before a target is exposed. The Miri compositions cover a target retained across owner moves, parent and child moves through the real Application container, exact result movement, teardown order and drop-once after rejected stack allocation. The Miri parent/child lifecycle payloads are named host witnesses; the actual EpubSession integration is the separate native/Rust App composition above.
 
 The exhaustive host command bounds are Menu 55, Chapters 56, Percent 18, QR 4 and Toolbar at most 78 (the matrix reaches 72). These are host bounds, not runtime command telemetry. Under Miri, skip only the five exhaustive drawing matrices: `shared_percent_drawing_fits_eighteen_inline_commands`, `menu_host_command_bound_for_all_values_and_selection_styles`, `exhaustive_chapter_command_branches_fit_fifty_six_commands`, `toolbar_command_branches_stay_within_panel_bound` and `exhaustive_menu_command_branches_fit_fifty_five_commands`. They run in normal CTest; allocation, overflow, input and lifetime cases still run under strict-provenance Miri.
+
+The clipping list drawing test extracts row-window methods from the hashed O5b
+snapshots and drawing methods from the retained native reader list. It compares
+those pixels with the real Rust-owned child, real renderer, fonts and SDK at
+792 × 528. Its 864 cases cover three themes, inversion, four orientations,
+touch/button layouts, empty through 256-record lists, and beginning/middle/end
+selections. The candidate help and bookmark leaves are extracted from
+`RustEpubResources.cpp`; help offset, icon tint, icon offset and header-mode
+negative controls must each produce a pixel mismatch. Snapshot `.txt` files are
+extraction inputs only and never enter compiler include paths.
+
+Clipping window, allocation failure, scene publication, long gestures and stable
+owner/result transfer tests run in the Rust ownership suite and under Miri.
+Production app/store integration and the temporary O4b detail return are checked
+at the ownership switch; the dormant drawing test does not claim to exercise
+those routes.

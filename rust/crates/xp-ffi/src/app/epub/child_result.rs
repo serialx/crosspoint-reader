@@ -68,6 +68,18 @@ impl EpubSession {
             (ChildIntent::Dictionary, ReaderChildResult::LookupClosed { cancelled }) => {
                 self.dictionary_result(cancelled)
             }
+            (ChildIntent::Clippings, ReaderChildResult::Clippings(Some(position))) => {
+                self.apply_progress(&app_abi::XpAppProgressResult {
+                    spine: position.spine,
+                    page: position.page,
+                    pages: 0,
+                    xpath: app_abi::Text::from_terminated(b"\0"),
+                    percentage: 0.0,
+                    offset: position.offset,
+                    has_saved_progress: 0,
+                    has_offset: 1,
+                });
+            }
             (ChildIntent::Chapter, ReaderChildResult::Chapter(None))
             | (ChildIntent::Percent, ReaderChildResult::Percent(None))
             | (ChildIntent::Qr, ReaderChildResult::QrClosed) => self.open_reader_menu(),

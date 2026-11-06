@@ -746,6 +746,9 @@ impl Services<Owner> for App {
                     unsafe { result.as_ref() }.map_or(core::ptr::null(), |view| view.original);
                 unsafe { (self.legacy.deliver_result)(parent.as_ptr(), original) };
             }
+            (Target::ReaderChild { child, parent }, ActivityResult::Legacy(_)) => unsafe {
+                child.clipping_detail_return_retire_o4b(parent.as_ref());
+            },
             _ => {}
         }
     }
@@ -766,6 +769,9 @@ impl Services<Owner> for App {
                 ..
             }) => self.definition_install_failed(&child),
             _ => {}
+        }
+        if let Some(Target::ReaderChild { child, parent }) = self.navigation.current() {
+            unsafe { child.clipping_detail_return_retire_o4b(parent.as_ref()) };
         }
         unsafe { (self.runtime.diagnostic)(2, 1, 0) };
     }
@@ -1139,6 +1145,7 @@ mod probe {
             ChildTarget::Qr(p) => (4, p.as_ptr().cast()),
             ChildTarget::Footnote(p) => (5, p.as_ptr().cast()),
             ChildTarget::Lookup(p) => (6, p.as_ptr().cast()),
+            ChildTarget::Clippings(p) => (7, p.as_ptr().cast()),
         };
         if let Some(kind) = unsafe { kind.as_mut() } {
             *kind = tag;

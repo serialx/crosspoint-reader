@@ -2,6 +2,10 @@ mod activity;
 mod chapter_book;
 mod chapter_view;
 mod chapters;
+mod clipping_actions;
+mod clipping_activity;
+mod clipping_view;
+mod clipping_window;
 #[path = "results.rs"]
 mod child_result;
 mod commands;

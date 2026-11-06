@@ -84,6 +84,7 @@ impl Qr {
                 },
                 retry: admission.retry,
                 haptic: false,
+                long_haptic: false,
             }
         })
     }

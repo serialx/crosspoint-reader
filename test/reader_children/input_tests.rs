@@ -165,3 +165,82 @@ fn failed_list_repaint_suppresses_release_even_without_an_intervening_loop() {
         );
     });
 }
+
+#[test]
+fn clipping_long_touch_uses_published_hits_and_consumes_confirm_release() {
+    let child = crate::owned::Clippings::try_new(owner_tests::runtime()).unwrap();
+    child.model.with(|model| {
+        model.hits = hits::Layout::new(1, 1);
+        model
+            .hits
+            .push(Interaction {
+                rect: Rect {
+                    x: 10,
+                    y: 10,
+                    w: 80,
+                    h: 40,
+                },
+                action: 1,
+                value: 3,
+                generation: 1,
+                inputs: 1,
+                flags: 0,
+            })
+            .unwrap();
+        let update = model.clipping_input(Input::default(), 10, false, Some((20, 20)));
+        assert_eq!(update.effect.kind, EffectKind::None as u8);
+        assert!(!update.long_haptic);
+        model.ready = true;
+        let update = model.clipping_input(Input::default(), 10, false, Some((20, 20)));
+        assert_eq!(update.effect.kind, xp_ui::reader_chrome::ACTIONS);
+        assert_eq!(update.effect.value, 3);
+        assert!(update.long_haptic);
+        assert!(!update.haptic);
+        let release = Input {
+            released: CONFIRM,
+            ..Default::default()
+        };
+        assert_eq!(
+            model.clipping_input(release, 10, false, None).effect.kind,
+            EffectKind::None as u8
+        );
+        assert_eq!(
+            model.clipping_input(release, 10, false, None).effect.kind,
+            EffectKind::Activate as u8
+        );
+        let update = model.clipping_input(Input::default(), 10, false, Some((100, 100)));
+        assert_eq!(update.effect.kind, EffectKind::None as u8);
+        assert!(!update.long_haptic);
+    });
+}
+#[test]
+fn clipping_long_button_and_failed_gestures_preserve_native_suppression() {
+    let child = crate::owned::Clippings::try_new(owner_tests::runtime()).unwrap();
+    child.model.with(|model| {
+        model.ready = true;
+        model.state.list.selected = 2;
+        let update = model.clipping_input(Input::default(), 4, true, None);
+        assert_eq!(update.effect.kind, xp_ui::reader_chrome::ACTIONS);
+        assert_eq!(update.effect.value, 2);
+        assert!(!update.long_haptic);
+        model.failed = true;
+        let held = Input {
+            held: CONFIRM,
+            touch_flags: TOUCH_HELD,
+            ..Default::default()
+        };
+        let update = model.clipping_input(held, 4, true, Some((0, 0)));
+        assert!(update.retry);
+        assert_eq!(update.effect.kind, EffectKind::None as u8);
+        model.failed = false;
+        let release = Input {
+            released: CONFIRM,
+            touch_flags: TOUCH_RELEASED,
+            ..Default::default()
+        };
+        assert_eq!(
+            model.clipping_input(release, 4, true, None).effect.kind,
+            EffectKind::None as u8
+        );
+    });
+}

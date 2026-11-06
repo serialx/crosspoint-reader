@@ -1,0 +1,154 @@
+#include <xp_epub_session.h>
+#include <memory>
+#include <vector>
+#include "components/icons/customListIcons.h"
+#include "components/icons/listIcons.h"
+#define LOG_ERR(...) do { assert(false && "native oracle I/O failure"); } while (0)
+template<class T> std::unique_ptr<T> makeUniqueNoThrow(size_t count) { return std::make_unique<T>(count); }
+@NATIVE_CLASSES@
+struct ModelLock { template<class T> explicit ModelLock(T&) {} };
+struct ReaderChromeListActivity {
+  GfxRenderer& renderer;
+  MappedInputManager& mappedInput;
+  const XpUiReaderListKind kind = XP_UI_READER_CLIPPINGS;
+  const uint16_t rowCapacity = @ROW_WINDOW@;
+  fui::GfxRendererTarget textTarget;
+  XpUiReaderListState state{};
+  int32_t renderingScroll = 0;
+  struct { ReaderChromeCommands commands; XpUiReaderListState next{}; XpUiReaderTheme theme{}; XpUiReaderHitLayout nextHits{}; } arena;
+  ReaderChromeListActivity(GfxRenderer& r, MappedInputManager& input) : renderer(r), mappedInput(input), textTarget(makeUiTarget(r)) {
+    xp_ui_reader_list_init(&state, 0); assert(arena.commands.reserve(32));
+  }
+  virtual ~ReaderChromeListActivity() = default;
+  virtual int listCount() const = 0;
+  virtual void prepareRows(int) = 0;
+  virtual const ReaderChromeRow* rowAt(int) const = 0;
+  virtual const char* headerTitle() const = 0;
+  virtual const char* emptyText() const = 0;
+  virtual const char* helpText() const = 0;
+  const char* progressText() const { return ""; }
+  const char* text(uint32_t) const;
+  XpUiReaderRows rows();
+  XpUiPaint rustResources();
+  bool buildRustScene(XpUiScene&);
+  void drawFooter();
+};
+struct Clipping { char chapterTitle[48]{}; std::string preview; };
+struct FixtureStore {
+  std::vector<Clipping> rows;
+  size_t clippingCount() const { return rows.size(); }
+  const Clipping* clippingAt(size_t index) const { return index < rows.size() ? &rows[index] : nullptr; }
+  bool readClippingPreview(size_t index, char* out, size_t capacity, size_t& length) {
+    const auto& text = rows.at(index).preview;
+    assert(text.size() < capacity); length = text.size(); std::memcpy(out, text.c_str(), length + 1); return true;
+  }
+} CLIPPINGS;
+struct EpubReaderClippingListActivity : ReaderChromeListActivity {
+  static constexpr int ROW_WINDOW = @ROW_WINDOW@;
+  std::array<std::array<char,260>,ROW_WINDOW> previews{};
+  std::array<size_t,ROW_WINDOW> previewLengths{};
+  std::array<ReaderChromeRow,ROW_WINDOW> rowItems;
+  int windowStart = -1, windowCount = 0;
+  EpubReaderClippingListActivity(GfxRenderer& r) : ReaderChromeListActivity(r, ::mappedInput) {}
+  int listCount() const override;
+  const char* headerTitle() const override;
+  const char* emptyText() const override { return tr(STR_NO_CLIPPINGS); }
+  const char* helpText() const override { return tr(STR_HOLD_SELECT_TO_DELETE); }
+  void prepareRows(int first) override { refreshRowWindow(first); }
+  void refreshRowWindow(int);
+  const ReaderChromeRow* rowAt(int) const override;
+};
+static GfxRenderer* target;
+static const char* pathText(XpAppText text) { assert(!text.len || text.data[text.len] == 0); return text.len ? reinterpret_cast<const char*>(text.data) : ""; }
+@METHODS@
+extern "C" {
+void* xp_epub_test_clipping_open(const XpAppRuntime*);
+void xp_epub_test_clipping_close(void*);
+uint16_t xp_epub_test_clipping_render(void*, const XpAppResources*, const XpEpubLeaves*, uint16_t, int32_t,
+                                    void (*)(int32_t, XpAppText*, XpAppText*), XpUiReaderListState*);
+}
+static XpAppResources clippingResources() {
+  auto r = percentResources();
+  r.text_width = [](XpAppText text, int32_t font, uint8_t style) -> int32_t {
+    return adapterRenderer->getTextWidth(font, pathText(text), static_cast<EpdFontFamily::Style>(style));
+  };
+  r.footer_draw = [](const XpAppText* labels) {
+    auto mapped = mappedInput.mapLabels(pathText(labels[0]), pathText(labels[1]), pathText(labels[2]), pathText(labels[3]));
+    GUI.drawButtonHints(*target, mapped.btn1, mapped.btn2, mapped.btn3, mapped.btn4);
+  };
+  r.popup_draw = [](XpAppText) -> XpUiRect { return {}; };
+  r.buffer_allocate = [](XpAppMemoryDomain, size_t bytes) -> uint8_t* { return static_cast<uint8_t*>(std::malloc(bytes)); };
+  r.buffer_release = [](XpAppMemoryDomain, uint8_t* data) { std::free(data); };
+  return r;
+}
+static void fixtureRow(int32_t index, XpAppText* chapter, XpAppText* preview) {
+  const auto& row = CLIPPINGS.rows.at(index);
+  *chapter = {reinterpret_cast<const uint8_t*>(row.chapterTitle), std::strlen(row.chapterTitle)};
+  *preview = {reinterpret_cast<const uint8_t*>(row.preview.c_str()), row.preview.size()};
+}
+int main(int argc, char** argv) {
+  HalDisplay display;
+  GfxRenderer renderer(display);
+  renderer.begin(); target = adapterRenderer = &renderer;
+  static const auto runtime = appTestRuntime();
+  static const auto resources = clippingResources();
+  static XpEpubLeaves leaves{};
+  leaves.child_list_theme = [](XpUiReaderTheme* theme, uint8_t toolbar) { sampleReaderChildTheme(*target, *theme, toolbar); };
+  leaves.child_header = [](XpUiRect bounds, XpAppText text, uint8_t list) { drawReaderHeader(*target, bounds, text, list); };
+  leaves.child_list_help = candidateHelp;
+  leaves.child_list_bookmark_icon = candidateIcon;
+  const std::string negative = argc > 1 ? argv[1] : "";
+  if (negative == "help-offset") leaves.child_list_help = [](XpUiRect rect, XpAppText text) { ++rect.y; candidateHelp(rect,text); };
+  if (negative == "icon-tint") leaves.child_list_bookmark_icon = [](XpUiRect rect, XpUiRect clip, uint8_t paint) { candidateIcon(rect,clip,paint^1); };
+  if (negative == "icon-offset") leaves.child_list_bookmark_icon = [](XpUiRect rect, XpUiRect clip, uint8_t paint) { ++rect.x; candidateIcon(rect,clip,paint); };
+  if (negative == "header-mode") leaves.child_header = [](XpUiRect rect, XpAppText text, uint8_t) { drawReaderHeader(*target,rect,text,1); };
+  static EpdFont small(&ubuntu_10_regular), smallBold(&ubuntu_10_bold), body(&ubuntu_12_regular), bodyBold(&ubuntu_12_bold),
+      title(&notosans_18_regular), titleBold(&notosans_18_bold), tiny(&ubuntu_8_regular);
+  renderer.insertFont(SMALL_FONT_ID, EpdFontFamily(&tiny));
+  renderer.insertFont(UI_10_FONT_ID, EpdFontFamily(&small, &smallBold));
+  renderer.insertFont(UI_12_FONT_ID, EpdFontFamily(&body, &bodyBold));
+  renderer.insertFont(NOTOSANS_18_FONT_ID, EpdFontFamily(&title, &titleBold));
+  FontDecompressor decompressor; assert(decompressor.init());
+  FontCacheManager cache(renderer.getFontMap(), renderer.getSdCardFonts(), renderer.getTtfFonts());
+  cache.setFontDecompressor(&decompressor); renderer.setFontCacheManager(&cache);
+  unsigned cases = 0;
+  const ThemeMetrics themes[] = {BaseMetrics::values, RoundedRaffMetrics::values, LyraMetrics::values};
+  for (nativeTheme = 0; nativeTheme < 3; ++nativeTheme)
+  for (bool inverted : {false, true})
+  for (int orientation = 0; orientation < 4; ++orientation)
+  for (bool touch : {false, true})
+  for (unsigned count : {0,1,8,9,17,256}) {
+    display.inverted = inverted; BoardConfig::touch = touch;
+    UITheme::getInstance().metrics = themes[nativeTheme];
+    renderer.setOrientation(static_cast<GfxRenderer::Orientation>(orientation));
+    CLIPPINGS.rows.clear(); CLIPPINGS.rows.resize(count);
+    for (unsigned i = 0; i < count; ++i) {
+      auto& row = CLIPPINGS.rows[i];
+      if (i % 3) std::snprintf(row.chapterTitle, sizeof(row.chapterTitle), "Chapter %u: a long chapter title to wrap at edge", i);
+      row.preview = i % 4 == 0 ? "" : i % 4 == 1 ? "Short clipping." : i % 4 == 2 ? std::string(256,'w') + "…" : "Korean 한국어 and a longer sentence with spaces for line wrapping.";
+    }
+    for (int selected : {0, static_cast<int>(count)/2, std::max(0,static_cast<int>(count)-1)}) {
+      EpubReaderClippingListActivity native(renderer);
+      xp_ui_reader_list_select(&native.state, selected, count);
+      renderer.setClipRect(0,0,renderer.getScreenWidth(),renderer.getScreenHeight());
+      display.pixels.fill(0xa5);
+      XpUiScene scene{}; assert(native.buildRustScene(scene));
+      const auto paint = native.rustResources(); assert(renderer.drawUiScene(scene, &paint));
+      const auto expected = display.pixels;
+      void* owned = xp_epub_test_clipping_open(&runtime);
+      display.pixels.fill(0xa5);
+      XpUiReaderListState result{};
+      assert(xp_epub_test_clipping_render(owned, &resources, &leaves, count, selected, fixtureRow, &result) <= 128);
+      if (expected != display.pixels) {
+        std::fprintf(stderr, "pixel mismatch theme=%u inverted=%d orientation=%d touch=%d count=%u selected=%d\n", nativeTheme,inverted,orientation,touch,count,selected);
+        return 1;
+      }
+      assert(result.list.top == native.arena.next.list.top);
+      assert(result.list.selected == native.arena.next.list.selected);
+      assert(result.list.drawn == native.arena.next.list.drawn);
+      xp_epub_test_clipping_close(owned);
+      ++cases;
+    }
+  }
+  std::printf("clipping native/owned pixel parity: %u cases\n", cases);
+}

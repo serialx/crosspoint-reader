@@ -6,6 +6,7 @@ use super::{
     commands::Commands,
     menu::Items,
     selection_owned::{Footnote, Lookup, LookupData},
+    clipping_window,
 };
 use crate::app::{abi, resources::Text, stable_owner::StableOwner, sync::ModelCell};
 use alloc::{alloc::alloc, boxed::Box};
@@ -35,6 +36,7 @@ pub(super) unsafe fn allocate<T>(initialize: impl FnOnce(*mut T)) -> Option<Box<
 pub(crate) enum ReaderChild {
     Menu(StableOwner<Menu>),
     Chapters(StableOwner<Chapters>),
+    Clippings(StableOwner<Clippings>),
     Percent(StableOwner<Percent>),
     Qr(StableOwner<Qr>),
     Footnote(StableOwner<Footnote>),
@@ -46,6 +48,7 @@ impl ReaderChild {
         match self {
             Self::Menu(owner) => ChildTarget::Menu(owner.pointer()),
             Self::Chapters(owner) => ChildTarget::Chapters(owner.pointer()),
+            Self::Clippings(owner) => ChildTarget::Clippings(owner.pointer()),
             Self::Percent(owner) => ChildTarget::Percent(owner.pointer()),
             Self::Qr(owner) => ChildTarget::Qr(owner.pointer()),
             Self::Footnote(owner) => ChildTarget::Footnote(owner.pointer()),
@@ -64,6 +67,7 @@ impl ReaderChild {
 pub(crate) enum ChildTarget {
     Menu(NonNull<Menu>),
     Chapters(NonNull<Chapters>),
+    Clippings(NonNull<Clippings>),
     Percent(NonNull<Percent>),
     Qr(NonNull<Qr>),
     Footnote(NonNull<Footnote>),
@@ -75,6 +79,7 @@ impl ChildTarget {
         let result = match self {
             Self::Menu(owner) => unsafe { &owner.as_ref().result },
             Self::Chapters(owner) => unsafe { &owner.as_ref().result },
+            Self::Clippings(owner) => unsafe { &owner.as_ref().result },
             Self::Percent(owner) => unsafe { &owner.as_ref().result },
             Self::Qr(owner) => unsafe { &owner.as_ref().result },
             Self::Footnote(owner) => unsafe { &owner.as_ref().result },
@@ -199,6 +204,54 @@ impl Chapters {
                 ListFrame::initialize(ptr::addr_of_mut!((*frame).list), 32);
                 chapters::Window::initialize(ptr::addr_of_mut!((*frame).window));
                 ptr::addr_of_mut!((*out).result).write(UnsafeCell::new(None));
+            })
+        }
+    }
+}
+
+pub(super) struct ClippingFrame {
+    pub(super) list: ListFrame,
+    pub(super) window: clipping_window::Window,
+    pub(super) initial: bool,
+}
+pub(crate) struct Clippings {
+    pub(super) model: ModelCell<ListPublication>,
+    pub(super) frame: UnsafeCell<ClippingFrame>,
+    pub(super) result: UnsafeCell<Option<ReaderChildResult>>,
+    pub(super) popup: UnsafeCell<ClippingPopup>,
+}
+#[derive(Clone, Copy)]
+pub(super) enum ClippingOption {
+    Open,
+    Delete,
+}
+pub(super) struct ClippingPopup {
+    pub(super) handle: Option<NonNull<c_void>>,
+    pub(super) parent: *const c_void,
+    pub(super) option: ClippingOption,
+    pub(super) choice: Option<i32>,
+    pub(super) confirming_delete: bool,
+    pub(super) detail_retire_o4b: bool,
+}
+impl Clippings {
+    pub(super) fn try_new(runtime: &'static abi::Runtime) -> Option<Box<Self>> {
+        unsafe {
+            allocate(|out: *mut Self| {
+                ptr::addr_of_mut!((*out).model)
+                    .write(ModelCell::new(ListPublication::new(0), runtime));
+                let frame = ptr::addr_of_mut!((*out).frame).cast::<ClippingFrame>();
+                ListFrame::initialize(ptr::addr_of_mut!((*frame).list), 32);
+                clipping_window::Window::initialize(ptr::addr_of_mut!((*frame).window));
+                ptr::addr_of_mut!((*frame).initial).write(true);
+                ptr::addr_of_mut!((*out).result).write(UnsafeCell::new(None));
+                ptr::addr_of_mut!((*out).popup).write(UnsafeCell::new(ClippingPopup {
+                    handle: None,
+                    parent: core::ptr::null(),
+                    option: ClippingOption::Open,
+                    choice: None,
+                    confirming_delete: false,
+                    detail_retire_o4b: false,
+                }));
             })
         }
     }

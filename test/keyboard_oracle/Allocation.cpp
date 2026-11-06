@@ -1,11 +1,11 @@
-#include <xp_ui_keyboard.h>
-
 #include <algorithm>
 #include <cassert>
 #include <cstring>
 #include <memory>
 #include <string>
 #include <utility>
+
+#include "legacy_keyboard_wire.h"
 
 static bool failAllocation = false;
 static bool locked = false;

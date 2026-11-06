@@ -225,7 +225,15 @@ unsafe impl Host for NativeHost {
             "Invalid scene in %s" => b"Invalid scene in KeyboardEntry\0".as_slice(),
             "Cannot allocate keyboard scene" => b"Cannot allocate keyboard scene\0".as_slice(),
             other => {
-                let prefix = other.split("%u").next().unwrap().as_bytes();
+                let prefix = match other {
+                    "Cannot allocate keyboard touch text: %u bytes" => {
+                        b"Cannot allocate keyboard touch text: ".as_slice()
+                    }
+                    "Cannot grow keyboard text: %u bytes" => {
+                        b"Cannot grow keyboard text: ".as_slice()
+                    }
+                    _ => unreachable!(),
+                };
                 buffer[..prefix.len()].copy_from_slice(prefix);
                 let mut digits = [0; 10];
                 let (mut number, mut start) = (bytes, digits.len());
@@ -306,7 +314,30 @@ pub(super) fn input(keyboard: &Keyboard, input: Input) -> bool {
 pub(super) fn render(keyboard: &Keyboard) -> bool {
     keyboard.render()
 }
-pub(super) fn deliver(app: &App, parent: NonNull<c_void>, result: Option<Result>) {
+#[inline(never)]
+pub(super) fn input_complete(app: &App, keyboard: &Keyboard, frame: Input) {
+    if input(keyboard, frame) {
+        app.input.borrow_mut().reset();
+        app.navigation.queue(Transition::Pop);
+    }
+}
+/// # Safety
+/// The target is valid on entry. The extraction borrow ends before consume,
+/// which may destroy the owner.
+#[inline(never)]
+pub(super) unsafe fn with_result(
+    keyboard: NonNull<Keyboard>,
+    consume: impl FnOnce(super::ActivityResult),
+) {
+    // The continuation destroys the owner; end the extraction borrow first.
+    let result = unsafe { keyboard.as_ref() }.take_result();
+    consume(super::ActivityResult::Keyboard(result));
+}
+#[inline(never)]
+pub(super) fn deliver(app: &App, parent: super::Target, result: Option<Result>) {
+    let super::Target::Legacy(parent) = parent else {
+        return;
+    };
     let text = result.as_ref().and_then(Result::text);
     unsafe {
         xp_keyboard_deliver(

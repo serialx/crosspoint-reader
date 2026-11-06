@@ -6,6 +6,7 @@ publish = false
 
 [features]
 legacy-reader-oracles = []
+legacy-keyboard-oracles = []
 
 [dependencies]
 embedded-graphics-core.workspace = true

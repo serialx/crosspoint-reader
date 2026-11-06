@@ -2,7 +2,7 @@
   "sdk": "6a573acd0562e45e4ce96837e0c2aebada219760",
   "historical_oracle_revision": "ba6860d8",
   "historical_oracle_sdk": "61c49287",
-  "retained_bytes": 27286,
+  "retained_bytes": 25636,
   "files": [
     {
       "file": "KeyboardEntryActivity.cpp.txt",
@@ -10,8 +10,11 @@
       "revision": "43b3ec46faa343861e83693d42f261deb681ce5f",
       "sha256": "b1ea9dc9c6fcbb9abc61c74d74728252a435813e6d229896ef200f76db0792e8",
       "bytes": 21860,
-      "consumer": "allocation_instrument.py",
-      "retire_when": "The named native extraction no longer compares against the pre-owner implementation."
+      "retire_when": "The named native extraction no longer compares against the pre-owner implementation.",
+      "consumers": [
+        "allocation_instrument.py",
+        "target_instrument.py"
+      ]
     },
     {
       "file": "KeyboardEntryActivity.h.txt",
@@ -19,8 +22,10 @@
       "revision": "43b3ec46faa343861e83693d42f261deb681ce5f",
       "sha256": "15a89c5271f61d48b50b61f03636e910c5f37fd0243687579309e941f785ef94",
       "bytes": 3080,
-      "consumer": "allocation_instrument.py",
-      "retire_when": "The named native extraction no longer compares against the pre-owner implementation."
+      "retire_when": "The named native extraction no longer compares against the pre-owner implementation.",
+      "consumers": [
+        "allocation_instrument.py"
+      ]
     },
     {
       "file": "KeyboardLayoutSet.cpp.txt",
@@ -28,17 +33,11 @@
       "revision": "43b3ec46faa343861e83693d42f261deb681ce5f",
       "sha256": "dbdf4702a839de428d9882867f03b1ccd22f01549d061a3d1c684f6aebd31522",
       "bytes": 696,
-      "consumer": "mapping.py",
-      "retire_when": "The named native extraction no longer compares against the pre-owner implementation."
-    },
-    {
-      "file": "KeyboardLayoutSet.h.txt",
-      "source": "src/activities/util/KeyboardLayoutSet.h",
-      "revision": "43b3ec46faa343861e83693d42f261deb681ce5f",
-      "sha256": "45d0cea943d421268dae938af93c8c5f2d0936e9f5fb7fb8e9d07d152bf04541",
-      "bytes": 1650,
-      "consumer": "layout_instrument.py",
-      "retire_when": "The named native extraction no longer compares against the pre-owner implementation."
+      "retire_when": "The named native extraction no longer compares against the pre-owner implementation.",
+      "consumers": [
+        "mapping.py",
+        "model_diff.py"
+      ]
     }
   ]
 }

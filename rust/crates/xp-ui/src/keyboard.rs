@@ -1,4 +1,4 @@
-//! Keyboard edits and input policy, with a dormant owned lifetime.
+//! Keyboard edits, input policy, and the active owned scene lifetime.
 pub mod owner;
 
 use crate::model::{self, Effect as Navigation, EffectKind, Input, Interest};
@@ -916,16 +916,19 @@ fn navigate(s: &mut State, input: &Input, button: u32) -> bool {
 pub extern "C" fn xp_ui_keyboard_enabled(configured: u16, language: u8) -> u16 {
     enabled(configured, language)
 }
+#[cfg(any(test, feature = "legacy-keyboard-oracles"))]
 #[no_mangle]
 pub extern "C" fn xp_ui_keyboard_start(mask: u16, language: u8) -> u8 {
     start(mask, language)
 }
+#[cfg(any(test, feature = "legacy-keyboard-oracles"))]
 #[no_mangle]
 pub extern "C" fn xp_ui_keyboard_next(mask: u16, current: u8) -> u8 {
     next(mask, current)
 }
 /// # Safety
 /// State is writable and exclusively borrowed for this call.
+#[cfg(any(test, feature = "legacy-keyboard-oracles"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_keyboard_init(
     state: *mut State,
@@ -941,6 +944,7 @@ pub unsafe extern "C" fn xp_ui_keyboard_init(
 }
 /// # Safety
 /// State is readable for this call.
+#[cfg(any(test, feature = "legacy-keyboard-oracles"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_keyboard_interest(state: *const State) -> Interest {
     unsafe { state.as_ref() }.map_or(Interest::default(), interest)
@@ -985,6 +989,7 @@ pub fn publish(s: &mut State, previous: &State, next: &State, layouts: &Layouts)
 /// # Safety
 /// State is exclusive; previous/next/layouts are readable and disjoint from it.
 /// SDK callback strings are immutable and valid for this synchronous call.
+#[cfg(any(test, feature = "legacy-keyboard-oracles"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_keyboard_publish(
     state: *mut State,
@@ -1009,6 +1014,7 @@ pub unsafe extern "C" fn xp_ui_keyboard_publish(
 /// # Safety
 /// State and text are exclusive valid storage; input/layouts are readable and
 /// disjoint. Callbacks return bounded immutable SDK data for this call only.
+#[cfg(any(test, feature = "legacy-keyboard-oracles"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_keyboard_update(
     state: *mut State,

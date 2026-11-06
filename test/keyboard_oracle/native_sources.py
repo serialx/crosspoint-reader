@@ -10,7 +10,9 @@ for item in manifest['files']:
     data = path.read_bytes()
     assert len(data) == item['bytes'], path
     assert hashlib.sha256(data).hexdigest() == item['sha256'], path
-    assert item['file'] in (root / item['consumer']).read_text(), item['consumer']
+    assert item['consumers']
+    for consumer in item['consumers']:
+        assert item['file'] in (root / consumer).read_text(), consumer
     assert path.suffix == '.txt'
 assert manifest['retained_bytes'] == sum(item['bytes'] for item in manifest['files'])
 print(f"{len(manifest['files'])} named inputs, {manifest['retained_bytes']} retained bytes; hashes and consumers match")

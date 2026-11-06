@@ -1,11 +1,11 @@
 #include <FreeInkUI.h>
-#include <xp_ui_keyboard.h>
 
 #include <cassert>
 #include <cstring>
 #include <string>
 
 #include "keyboard-layout-bindings.inc"
+#include "legacy_keyboard_wire.h"
 
 namespace ui = freeink::ui;
 static XpUiKeyboardLayouts layouts = ProductionKeyboardLayouts::layouts();

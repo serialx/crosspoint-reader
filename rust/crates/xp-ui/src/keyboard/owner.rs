@@ -534,6 +534,7 @@ impl<H: Host> Keyboard<H> {
             };
             let mut resources = PaintResources {
                 host: &self.host,
+                generation: scene.generation,
                 layouts,
                 state: &render.snapshot,
                 layout: unsafe { &*self.layout.get() },
@@ -603,6 +604,7 @@ impl<H: Host> Drop for Keyboard<H> {
 
 struct PaintResources<'a, H: Host> {
     host: &'a H,
+    generation: u32,
     layouts: &'a Layouts,
     state: &'a State,
     layout: &'a Layout,
@@ -625,7 +627,9 @@ impl<H: Host> PaintResources<'_, H> {
 }
 impl<H: Host> Resources for PaintResources<'_, H> {
     fn valid(&mut self, resource: u32, generation: u32) -> bool {
-        if generation != 1 {
+        #[cfg(test)]
+        tests::RESOURCE_VALID_CALLS.with(|calls| calls.set(calls.get() + 1));
+        if generation != self.generation {
             return false;
         }
         if resource >= 0x200 {
@@ -644,21 +648,27 @@ impl<H: Host> Resources for PaintResources<'_, H> {
             ) != 0
     }
     fn paint(&mut self, command: &Command, clip: Rect) {
-        if !self.valid(command.resource, command.generation) {
+        if command.generation != self.generation {
             return;
         }
         match command.resource {
             1..=3 => self.host.chrome(command, clip, self.title),
             0x100..=0x104 => {
                 let row = (command.resource - 0x100) as u8;
+                if usize::from(row) >= self.keys.len() {
+                    return;
+                }
                 let count = view::row_keys(self.state, self.layouts, self.layout, row, self.keys);
-                for col in 0..count {
-                    let Some(key) = view::paint_key(self.state, self.layouts, row, col) else {
+                let Some(keys) = self.keys.get(..usize::from(count)) else {
+                    return;
+                };
+                for (col, placed) in keys.iter().enumerate() {
+                    let Some(key) = view::paint_key(self.state, self.layouts, row, col as u8)
+                    else {
                         continue;
                     };
-                    let placed = self.keys[col as usize];
                     let command = Command {
-                        resource: 0x100 + u32::from(row) * 16 + u32::from(col),
+                        resource: 0x100 + u32::from(row) * 16 + col as u32,
                         rect: placed.visual,
                         paint: placed.selected,
                         ..Command::default()
@@ -685,7 +695,11 @@ impl<H: Host> Resources for PaintResources<'_, H> {
                 };
                 let n = span.length as usize;
                 let start = span.start as usize;
-                self.text[..n].copy_from_slice(&source[start..start + n]);
+                let Some(bytes) = start.checked_add(n).and_then(|end| source.get(start..end))
+                else {
+                    return;
+                };
+                self.text[..n].copy_from_slice(bytes);
                 self.text[n] = 0;
                 self.host.text(command, clip, &self.text[..=n]);
             }
@@ -694,7 +708,7 @@ impl<H: Host> Resources for PaintResources<'_, H> {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 #[cfg(test)]
 mod lifecycle_tests;

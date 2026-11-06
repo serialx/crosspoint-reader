@@ -519,10 +519,7 @@ impl App {
                 },
                 Target::Epub(epub) => unsafe { epub.as_ref() }.loop_reader(),
                 Target::Keyboard(keyboard) => {
-                    if keyboard::input(unsafe { keyboard.as_ref() }, frame.input) {
-                        self.input.borrow_mut().reset();
-                        self.navigation.queue(Transition::Pop);
-                    }
+                    keyboard::input_complete(self, unsafe { keyboard.as_ref() }, frame.input)
                 }
                 Target::ReaderChild { child, parent } => {
                     if unsafe { child.input(parent.as_ref(), frame.input, false) } {
@@ -730,9 +727,10 @@ impl Services<Owner> for App {
         }
         match target {
             Target::Home(_) | Target::Epub(_) => consume(ActivityResult::Legacy(core::ptr::null())),
-            Target::Keyboard(keyboard) => consume(ActivityResult::Keyboard(
-                unsafe { keyboard.as_ref() }.take_result(),
-            )),
+            Target::Keyboard(keyboard) => {
+                // SAFETY: the current target is live; extraction ends before consume destroys it.
+                unsafe { keyboard::with_result(keyboard, consume) }
+            }
             Target::Legacy(target) => invoke(self, target, |result| {
                 consume(ActivityResult::Legacy(result))
             }),
@@ -749,9 +747,7 @@ impl Services<Owner> for App {
     }
     fn deliver_result(&self, parent: Target, result: ActivityResult) {
         match (parent, result) {
-            (Target::Legacy(parent), ActivityResult::Keyboard(result)) => {
-                keyboard::deliver(self, parent, result)
-            }
+            (_, ActivityResult::Keyboard(result)) => keyboard::deliver(self, parent, result),
             (Target::Epub(epub), ActivityResult::Legacy(result)) => unsafe {
                 epub.as_ref().child_result(result.as_ref())
             },

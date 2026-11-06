@@ -21,6 +21,8 @@ use xp_ui::{
 };
 
 thread_local! {
+    pub(crate) static ROW_LAYOUT_CALLS: Cell<usize> = const { Cell::new(0) };
+    pub(crate) static RESOURCE_VALID_CALLS: Cell<usize> = const { Cell::new(0) };
     static FAIL_AT: Cell<usize> = const { Cell::new(usize::MAX) };
     static OWNER_FAIL: Cell<bool> = const { Cell::new(false) };
     static FAIL: Cell<bool> = const { Cell::new(false) };
@@ -57,6 +59,8 @@ unsafe impl Memory for Heap {
     }
 }
 pub(super) struct Facts {
+    rows: Cell<u8>,
+    frame_counts: Cell<Option<(usize, usize)>>,
     line: Cell<i32>,
     paint_fail: Cell<bool>,
     errors: RefCell<Vec<&'static str>>,
@@ -69,6 +73,8 @@ pub(super) struct Facts {
 impl Default for Facts {
     fn default() -> Self {
         Self {
+            rows: Cell::new(1),
+            frame_counts: Cell::new(None),
             line: Cell::new(20),
             paint_fail: Cell::new(false),
             errors: RefCell::new(Vec::new()),
@@ -81,9 +87,9 @@ impl Default for Facts {
     }
 }
 pub(super) struct Platform(Rc<Facts>);
-unsafe extern "C" fn row(_: *mut c_void, _: u8, _: u8, _: u8, _: u8, r: u8) -> Row {
+unsafe extern "C" fn row(context: *mut c_void, _: u8, _: u8, _: u8, _: u8, r: u8) -> Row {
     Row {
-        count: u8::from(r == 0),
+        count: u8::from(r < unsafe { &*context.cast::<Facts>() }.rows.get()),
         ..Row::default()
     }
 }
@@ -164,7 +170,7 @@ unsafe impl Host for Platform {
     }
     fn with_layouts<R>(&self, f: impl FnOnce(&Layouts) -> R) -> R {
         f(&Layouts {
-            context: std::ptr::null_mut(),
+            context: Rc::as_ptr(&self.0).cast_mut().cast(),
             row: Some(row),
             key: Some(key),
         })
@@ -194,12 +200,20 @@ unsafe impl Host for Platform {
             );
         }
         assert_eq!(self.0.physical.get(), before);
+        ROW_LAYOUT_CALLS.with(|calls| calls.set(0));
+        RESOURCE_VALID_CALLS.with(|calls| calls.set(0));
+        scene
+            .validate(|resource, generation| resources.valid(resource, generation))
+            .unwrap();
         for command in scene.commands {
-            if command.kind == 4 {
-                assert!(resources.valid(command.resource, command.generation));
+            if matches!(command.kind, 4 | 5 | 10 | 12) {
                 resources.paint(command, scene_clip());
             }
         }
+        self.0.frame_counts.set(Some((
+            ROW_LAYOUT_CALLS.with(Cell::get),
+            RESOURCE_VALID_CALLS.with(Cell::get),
+        )));
         self.0.paints.set(self.0.paints.get() + 1);
         !self.0.paint_fail.get()
     }
@@ -673,4 +687,92 @@ fn deferred_entry_failure_can_exit_without_a_result_or_double_free() {
             Some(&"Cannot allocate keyboard scene")
         );
     }
+}
+
+#[test]
+fn native_row_layout_and_validation_counts_on_open_and_press() {
+    let facts = Rc::new(Facts::default());
+    facts.rows.set(5);
+    let keyboard = Keyboard::try_new(Platform(facts.clone()), b"Title", b"", 0, 0).unwrap();
+    assert!(keyboard.render());
+    assert_eq!(facts.frame_counts.get(), Some((10, 8)));
+    keyboard.input(
+        Input {
+            released: model::DOWN,
+            ..Input::default()
+        },
+        None,
+    );
+    assert!(keyboard.render());
+    assert_eq!(facts.frame_counts.get(), Some((10, 8)));
+}
+
+#[test]
+fn painter_rejects_stale_generation_and_out_of_range_without_prevalidation() {
+    let facts = Rc::new(Facts::default());
+    let host = Platform(facts.clone());
+    let state = xp_ui::keyboard::State {
+        length: 2,
+        ..Default::default()
+    };
+    let layout = host.layout();
+    let mut keys = [xp_ui::keyboard_view::PlacedKey::default(); 16];
+    let spans = [xp_ui::keyboard_view::TextSpan {
+        start: 0,
+        length: 1,
+        raw: 1,
+        ..Default::default()
+    }];
+    let mut text = [0; 2];
+    host.with_layouts(|layouts| {
+        let mut resources = super::PaintResources {
+            host: &host,
+            generation: 7,
+            layouts,
+            state: &state,
+            layout: &layout,
+            title: b"Title\0",
+            raw: &[],
+            display: &[],
+            spans: &spans,
+            text: &mut text,
+            keys: &mut keys,
+        };
+        ROW_LAYOUT_CALLS.with(|calls| calls.set(0));
+        RESOURCE_VALID_CALLS.with(|calls| calls.set(0));
+        for (resource, generation) in [
+            (1, 1),
+            (0x100, 1),
+            (0x200, 1),
+            (0, 7),
+            (4, 7),
+            (0x105, 7),
+            (0x110, 7),
+            (0x201, 7),
+            (u32::MAX, 7),
+            (0x200, 7),
+        ] {
+            resources.paint(
+                &Command {
+                    resource,
+                    generation,
+                    ..Command::default()
+                },
+                scene_clip(),
+            );
+        }
+        assert_eq!(facts.physical.get(), 0);
+        assert_eq!(ROW_LAYOUT_CALLS.with(Cell::get), 0);
+        assert_eq!(RESOURCE_VALID_CALLS.with(Cell::get), 0);
+        // A current generation other than one is accepted from the published frame.
+        resources.paint(
+            &Command {
+                resource: 1,
+                generation: 7,
+                ..Command::default()
+            },
+            scene_clip(),
+        );
+        assert_eq!(facts.physical.get(), 1);
+    });
 }

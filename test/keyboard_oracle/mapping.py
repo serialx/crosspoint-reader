@@ -14,7 +14,7 @@ painter = function((root / 'src/activities/util/KeyboardEntryActivity.cpp').read
 font = re.search(r'props.labelText.font =\s*(.*?);', painter, re.S)[1]
 font = font.replace('ALL[layout]', 'ALL[s.layout]').replace('!symbols', '!s.symbols').replace('arena->snapshot.', 's.').replace('fui::GfxRendererTarget::FONT_SMALL', '0').replace('fui::GfxRendererTarget::FONT_BODY', '1')
 production = (root / 'test/keyboard_oracle/native_oracle/KeyboardLayoutSet.cpp.txt').read_text()
-source = bindings(root) + '\nint selectedFont(const XpUiKeyboardState& s) { return '+font+'; }\n' + '''
+source = '#include "'+str(root / 'test/keyboard_oracle/legacy_keyboard_wire.h')+'"\n' + bindings(root) + '\nnamespace keyboard_layouts { freeink::ui::KeyboardLayoutId startingLayout(); freeink::ui::KeyboardLayoutId next(freeink::ui::KeyboardLayoutId); }\n' + '\nint selectedFont(const XpUiKeyboardState& s) { return '+font+'; }\n' + '''
 #include <cassert>
 #include <cstring>
 struct { uint16_t keyboardLayouts = 1023; } SETTINGS;

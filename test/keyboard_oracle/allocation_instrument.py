@@ -1,4 +1,4 @@
-"""Compile the production allocation/retry path with an injected allocator."""
+"""Compile the frozen pre-owner allocation/retry baseline with an injected allocator."""
 import pathlib
 import sys
 root, out = map(pathlib.Path, sys.argv[1:])

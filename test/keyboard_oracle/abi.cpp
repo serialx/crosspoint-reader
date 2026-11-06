@@ -7,7 +7,7 @@
 #include <string>
 
 #include "keyboard-layout-bindings.inc"
-#include "xp_ui_keyboard.h"
+#include "legacy_keyboard_wire.h"
 namespace ui = freeink::ui;
 static_assert(sizeof(XpUiKeyboardState) == 64 && offsetof(XpUiKeyboardState, active_index) == 62);
 static bool oversized = false;

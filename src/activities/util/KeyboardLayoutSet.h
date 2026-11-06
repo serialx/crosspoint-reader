@@ -35,7 +35,5 @@ inline constexpr uint16_t bitAt(const uint8_t i) { return static_cast<uint16_t>(
 inline constexpr uint16_t LATIN_BITS = bitAt(0) | bitAt(1) | bitAt(2) | bitAt(3);
 
 uint16_t enabled();
-freeink::ui::KeyboardLayoutId startingLayout();
-freeink::ui::KeyboardLayoutId next(freeink::ui::KeyboardLayoutId current);
 
 }  // namespace keyboard_layouts

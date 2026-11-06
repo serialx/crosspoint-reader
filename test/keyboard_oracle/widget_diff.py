@@ -30,7 +30,7 @@ main=main[:start]+r'''
   for(unsigned i=0;i<scene.interaction_count;i++){const auto& h=rustHits[i];frame.hit({h.rect.x,h.rect.y,h.rect.w,h.rect.h},h.action,h.value,ui::InputTouch,ui::StateNormal);}
 ''' +main[end:]
 callbacks=r'''
-#include "xp_ui_keyboard.h"
+#include "legacy_keyboard_wire.h"
 extern "C" uint8_t oracle_widget(const XpUiKeyboardState*,const XpUiKeyboardLayouts*,const XpUiKeyboardViewLayout*,XpUiRect,int16_t,XpUiCommand*,XpUiInteraction*,XpUiScene*);
 XpUiKeyboardLayouts layouts{nullptr,
  [](void*,uint8_t id,uint8_t sh,uint8_t sy,uint8_t la,uint8_t r)->XpUiKeyboardRow{const auto& l=ui::builtinKeyboardLayout(ui::KeyboardLayoutId(id),sh,sy,true,la);if(r>=l.rowCount)return {};const auto& x=l.rows[r];return {x.count,x.insetUnits,uint8_t(x.independentKeyWidth),0};},
@@ -38,7 +38,7 @@ XpUiKeyboardLayouts layouts{nullptr,
 '''
 s=recorder+'\nnamespace fui=freeink::ui;\n'+tables+callbacks+main
 p=pathlib.Path(str(work/'widget-diff.cpp'));p.write_text(s)
-subprocess.run(['c++','-std=c++20','-O1','-DFREEINK_UI_COMPONENT_STYLE=0','-I'+str(record.SDK/'include'),'-I'+str(root/'rust/crates/xp-ffi/include'),str(p),str(record.SDK/'src/FreeInkUI.cpp'),str(work/'target/debug/libkeyboard_model_oracle.a'),'-o',str(work/'widget-diff')],check=True)
+subprocess.run(['c++','-std=c++20','-O1','-DFREEINK_UI_COMPONENT_STYLE=0','-I'+str(record.SDK/'include'),'-I'+str(root/'rust/crates/xp-ffi/include'),'-I'+str(root/'test/keyboard_oracle'),str(p),str(record.SDK/'src/FreeInkUI.cpp'),str(work/'target/debug/libkeyboard_model_oracle.a'),'-o',str(work/'widget-diff')],check=True)
 b=subprocess.check_output([str(work/'widget-diff')]);(work/'rust-widgets.txt').write_bytes(b)
 a=gzip.decompress((record.HERE/'widgets.gz').read_bytes())
 if a!=b:

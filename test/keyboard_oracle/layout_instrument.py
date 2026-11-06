@@ -15,7 +15,7 @@ def function(source, signature):
 
 
 def bindings(root):
-    header = (root / 'test/keyboard_oracle/native_oracle/KeyboardLayoutSet.h.txt').read_text()
+    header = (root / 'src/activities/util/KeyboardLayoutSet.h').read_text()
     header = header.replace('#include <I18n.h>', '#include <I18nKeys.h>').replace('#pragma once\n', '')
     source = (root / 'src/activities/util/KeyboardEntryActivity.cpp').read_text()
     callback = function(source, 'XpUiKeyboardLayouts KeyboardEntryActivity::layouts(')

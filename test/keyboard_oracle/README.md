@@ -28,7 +28,7 @@ a 10 KB zero-advance field. `KeyboardTarget` extracts the actual C++ resource
 painters and the original field renderer. It compares normal, full-field and
 long entries across four orientations, text/password/URL modes and cursor modes,
 and compares full-frame rendering with guarded 16-row bands. `KeyboardAllocation`
-extracts the production allocation, update/retry and view-build methods; injected
+extracts the frozen pre-owner allocation, update/retry and view-build methods; injected
 failures verify unchanged text/cursor, one log per failed held edit, no allocation
 under the model lock, and no published partial scene when paint scratch fails.
 It also checks that touch queries use the painted layout until the next frame
@@ -41,12 +41,12 @@ Run all keyboard checks with `ctest --test-dir build/test -R keyboard_ --output-
 pinned SDK TouchHoldRouter, including press/release priority, alternate keys,
 350/900 ms holds, slides, release slop, canceled swipes and timer wrap.
 
-`keyboard_mapping` extracts the actual application table, SDK callbacks,
-start/next wrappers and painter font choice. It checks both the pinned SDK IDs
+`keyboard_mapping` extracts the live application table, SDK callbacks and
+painter font choice, and the frozen pre-owner start/next wrapper baseline. It checks both the pinned SDK IDs
 and deliberately permuted IDs against the real layout tables.
 
-`keyboard_routed_input` compares the original C++ with actual facade methods
-through text bytes, cursor and returned results. Its 71 matching real-layout cases cover
+`keyboard_routed_input` compares the original C++ with the frozen pre-owner
+orchestration through text bytes, cursor and returned results. Its 71 matching real-layout cases cover
 pending shift/language/URL changes, masked multi-byte and RTL field taps, and
 contacts spanning publication. It also checks the active key used for painting.
 Glyph advances are fixed host leaves; bidi is real, and native-font pixels remain
@@ -69,13 +69,26 @@ Rust clears the contact and stays on snippets. Both cases release while the
 shorter page is published. The Rust shorter-page unit test returns to the larger
 page before release, so it does not cover this fallback behavior.
 
-Dormant owner checks run with `cargo test --manifest-path rust/Cargo.toml -p xp-ui
+Production owner checks run with `cargo test --manifest-path rust/Cargo.toml -p xp-ui
 --lib keyboard::owner`. They exercise the production Rust owner, including every
 scene-capacity failure and retry, allocate-before-release ordering, edit failure,
 password scratch, held input suppression, stale contacts and owned result cleanup.
+The painter witnesses require the native 10 row-layout / 8 resource-validation calls
+per five-row frame on open and press, and reject stale generations and out-of-range
+commands without relying on shared prevalidation.
 The physical leaves in these tests use fixed metrics; `KeyboardTarget` continues
-to supply the complementary real-font/strip witness. Application installation and
-native result projection remain deferred until the shared app integration.
+to supply the complementary real-font/strip witness. The real-App composition in `rust/crates/xp-ffi/src/app/keyboard_tests.rs`
+checks active StableOwner installation, native projection, owned Rust-parent results,
+allocation failure and drop-once ordering. The contact-publication regressions in
+`rust/crates/xp-ui/src/keyboard/owner/tests.rs` exercise the production owner.
+These are the active ownership witnesses; the frozen allocation, routed-input and
+rejection suites remain baseline checks of the prior orchestration.
+
+The twelve retired control wrappers are enabled only for host tests through
+`legacy-keyboard-oracles`; their declarations live in `legacy_keyboard_wire.h`.
+They are absent from the production ABI. The native layout picker still uses
+`xp_ui_keyboard_enabled`. `keyboard_parent_stack` exercises failed parent-stack
+reservation with the real Application, StableOwner and keyboard shell, then retry.
 
 The pre-owner allocation/reconciliation and layout-set inputs are frozen as named
 `.txt` data in `native_oracle/`, with revision, SDK, hash, byte count, consumer and

@@ -34,6 +34,7 @@ struct State {
     delivered: usize,
     cancelled: bool,
     paint_failure: bool,
+    errors: Vec<(u8, Vec<u8>, Vec<u8>)>,
 }
 std::thread_local! { static STATE: RefCell<State> = RefCell::new(State::default()); }
 fn state<R>(f: impl FnOnce(&mut State) -> R) -> R {
@@ -229,8 +230,16 @@ unsafe extern "C" fn refresh(_: u8) {}
 unsafe extern "C" fn text(_: *const Command, _: Rect, t: abi::Text) {
     assert_eq!(unsafe { *t.data.add(t.len) }, 0);
 }
-pub(super) unsafe extern "C" fn log(_: u8, _: abi::Text, t: abi::Text) {
-    assert!(!unsafe { t.bytes() }.unwrap().is_empty());
+pub(super) unsafe extern "C" fn log(level: u8, origin: abi::Text, t: abi::Text) {
+    let text = unsafe { t.bytes() }.unwrap();
+    assert!(!text.is_empty());
+    state(|s| {
+        s.errors.push((
+            level,
+            unsafe { origin.bytes() }.unwrap().to_vec(),
+            text.to_vec(),
+        ))
+    });
 }
 unsafe extern "C" fn feedback(_: u8) {}
 #[no_mangle]
@@ -458,6 +467,50 @@ fn keyboard_real_app_install_return_cancel_failure_and_drop_once() {
         0
     );
     let app = build_app();
+    // Pin every production error, including byte-count boundaries, before narrowing formatting.
+    {
+        use xp_ui::keyboard::owner::Host;
+        let keyboard = keyboard::create(app, NonNull::new(context(b"", true)).unwrap()).unwrap();
+        for (message, expected) in [
+            (
+                "Cannot build scene in %s",
+                "Cannot build scene in KeyboardEntry",
+            ),
+            ("Invalid scene in %s", "Invalid scene in KeyboardEntry"),
+            (
+                "Cannot allocate keyboard scene",
+                "Cannot allocate keyboard scene",
+            ),
+        ] {
+            keyboard.host().error(message, 0);
+            assert_eq!(
+                state(|s| s.errors.pop().unwrap()),
+                (1, b"RUI".to_vec(), expected.as_bytes().to_vec())
+            );
+        }
+        for bytes in [0, 1, 42, u32::MAX] {
+            for (message, prefix) in [
+                (
+                    "Cannot allocate keyboard touch text: %u bytes",
+                    "Cannot allocate keyboard touch text: ",
+                ),
+                (
+                    "Cannot grow keyboard text: %u bytes",
+                    "Cannot grow keyboard text: ",
+                ),
+            ] {
+                keyboard.host().error(message, bytes);
+                assert_eq!(
+                    state(|s| s.errors.pop().unwrap()),
+                    (
+                        1,
+                        b"RUI".to_vec(),
+                        std::format!("{prefix}{bytes} bytes").into_bytes()
+                    )
+                );
+            }
+        }
+    }
     let parent = context(b"", false);
     app.replace(app.adopt(parent).unwrap());
     for initial in [b"".as_slice(), b"maximum text"] {
@@ -545,6 +598,8 @@ fn keyboard_real_app_install_return_cancel_failure_and_drop_once() {
             1
         );
         assert!(app.navigation.drain(&capture));
+        // Capture edit storage before rendering allocates an equal-sized snapshot.
+        let pointer = state(|s| s.live.values().find(|(_, n)| *n == 9).unwrap().0);
         paint_current(app);
         let Some(Target::Keyboard(k)) = app.navigation.current() else {
             panic!("keyboard")
@@ -557,7 +612,6 @@ fn keyboard_real_app_install_return_cancel_failure_and_drop_once() {
                 ..Input::default()
             }
         ));
-        let pointer = state(|s| s.live.values().find(|(_, n)| *n == 9).unwrap().0);
         app.navigation.queue(Transition::Pop);
         assert!(app.navigation.drain(&capture));
         let result = capture.result.borrow_mut().take().unwrap().unwrap();

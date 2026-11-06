@@ -36,7 +36,7 @@ add_test(NAME keyboard_touch COMMAND KeyboardTouch)
 
 add_custom_command(OUTPUT ${KEYBOARD_INSTRUMENTED}/keyboard-layout-bindings.inc
  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/layout_instrument.py ${REPO_ROOT} ${KEYBOARD_INSTRUMENTED}/keyboard-layout-bindings.inc
- DEPENDS layout_instrument.py ${REPO_ROOT}/src/activities/util/KeyboardEntryActivity.cpp native_oracle/KeyboardLayoutSet.h.txt VERBATIM)
+ DEPENDS layout_instrument.py ${REPO_ROOT}/src/activities/util/KeyboardEntryActivity.cpp ${REPO_ROOT}/src/activities/util/KeyboardLayoutSet.h VERBATIM)
 foreach(target keyboard_abi KeyboardTarget KeyboardTouch)
  target_sources(${target} PRIVATE ${KEYBOARD_INSTRUMENTED}/keyboard-layout-bindings.inc)
  target_include_directories(${target} PRIVATE ${KEYBOARD_INSTRUMENTED} ${REPO_ROOT}/lib/I18n)
@@ -44,3 +44,5 @@ endforeach()
 add_test(NAME keyboard_mapping COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/mapping.py ${XP_FFI_HOST_ARCHIVE})
 add_test(NAME keyboard_routed_input COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/routed_input.py ${XP_FFI_HOST_ARCHIVE})
 add_test(NAME keyboard_native_sources COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/native_sources.py)
+
+add_test(NAME keyboard_parent_stack COMMAND ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR}/parent-stack-target cargo test --offline --manifest-path ${CMAKE_CURRENT_SOURCE_DIR}/rust/Cargo.toml --test parent_stack)

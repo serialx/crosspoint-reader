@@ -1,8 +1,9 @@
 //! Keyboard placement and text-field geometry over the shared UI scene.
+#[cfg(any(test, feature = "legacy-keyboard-oracles"))]
+use crate::{ffi::SceneView, scene::Refresh};
 use crate::{
-    ffi::SceneView,
     keyboard::{self, Layouts, State},
-    scene::{Arena, Command, Error, Interaction, Kind, Rect, Refresh},
+    scene::{Arena, Command, Error, Interaction, Kind, Rect},
 };
 use core::ffi::{c_void, CStr};
 #[repr(C)]
@@ -387,6 +388,7 @@ fn bottom(l: &Layout) -> i16 {
 /// # Safety
 /// Input descriptors are readable, callbacks valid, and output has capacity
 /// exclusive slots. Failure returns zero; scratch contents are unspecified.
+#[cfg(any(test, feature = "legacy-keyboard-oracles"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_keyboard_row(
     s: *const State,
@@ -412,6 +414,8 @@ pub unsafe extern "C" fn xp_ui_keyboard_row(
 }
 
 pub fn row_keys(s: &State, layouts: &Layouts, l: &Layout, row: u8, out: &mut [PlacedKey]) -> u8 {
+    #[cfg(test)]
+    crate::keyboard::owner::tests::ROW_LAYOUT_CALLS.with(|calls| calls.set(calls.get() + 1));
     if out.is_empty() || out.len() > 16 || row >= layouts.rows(s) as u8 {
         return 0;
     }
@@ -463,6 +467,7 @@ pub fn row_keys(s: &State, layouts: &Layouts, l: &Layout, row: u8, out: &mut [Pl
 /// # Safety
 /// Inputs refer to the immutable published snapshot; output is writable and
 /// disjoint. Failure leaves output untouched. Callbacks live through the call.
+#[cfg(any(test, feature = "legacy-keyboard-oracles"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_keyboard_hit(
     s: *const State,
@@ -674,6 +679,7 @@ impl FieldText<'_> {
         Ok(())
     }
 }
+#[inline(never)]
 pub fn view(
     a: &mut Arena<'_>,
     s: &State,
@@ -962,6 +968,7 @@ pub fn view(
 }
 /// # Safety
 /// Readable state/text; exclusive output of capacity bytes, disjoint from text.
+#[cfg(any(test, feature = "legacy-keyboard-oracles"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_keyboard_mask(
     s: *const State,
@@ -987,6 +994,7 @@ pub unsafe extern "C" fn xp_ui_keyboard_mask(
 /// # Safety
 /// Descriptors and text slices are readable; output storage is exclusive and
 /// disjoint. All callbacks and borrowed resources live through synchronous paint.
+#[cfg(any(test, feature = "legacy-keyboard-oracles"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_keyboard_view(
     s: *const State,
@@ -1069,6 +1077,7 @@ pub unsafe extern "C" fn xp_ui_keyboard_view(
 }
 /// # Safety
 /// Inputs are readable and disjoint from writable position; callbacks are valid.
+#[cfg(any(test, feature = "legacy-keyboard-oracles"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_keyboard_cursor_at(
     s: *const State,
@@ -1143,6 +1152,7 @@ pub fn paint_key(s: &State, layouts: &Layouts, row: u8, col: u8) -> Option<Paint
 /// # Safety
 /// State/layouts are readable, output is writable and disjoint. Callback strings
 /// are bounded and immutable for this call. Oversized labels leave output intact.
+#[cfg(any(test, feature = "legacy-keyboard-oracles"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_keyboard_paint_key(
     s: *const State,

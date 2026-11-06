@@ -5,7 +5,7 @@ sys.path.insert(0,str(root/'test/keyboard_oracle'))
 import record
 from layout_instrument import function
 s=record.source(root)
-s='#include "xp_ui_keyboard.h"\n'+s
+s='#include "legacy_keyboard_wire.h"\n'+s
 s=s.replace('class KeyboardEntryActivity : public Activity {','class KeyboardEntryActivity : public Activity {\n public:\n XpUiKeyboardState state{};\n void prepare(); void adopt();')
 fields={'length':'text.size()','cursor':'cursorPos','max_length':'maxLength','saved_cursor':'savedCursorPos','right_start_cursor':'rightStartCursorPos','hint_time':'hintShowTime','row':'selRow','col':'selCol','layout':'layoutId','input_type':'inputType','shifted':'shifted','symbols':'symbols','url_panel':'urlPanel','show_language':'showLangKey','cursor_mode':'cursorMode','toggle_position':'togglePos','password_visible':'passwordVisible','hint_visible':'hintVisible','delete_count':'delPressCount','confirm_held':'confirmHeld','confirm_long':'confirmLongHandled','up_held':'upHeld','up_long':'upLongHandled','down_held':'downHeld','down_long':'downLongHandled','right_held':'rightHeld','right_long':'rightLongHandled'}
 extra='''
@@ -55,14 +55,14 @@ replace('void KeyboardEntryActivity::loop()', '''void KeyboardEntryActivity::loo
  if(e.navigation.invalidate)requestUpdate();if(e.navigation.kind==XP_UI_ACTIVATE)onComplete(text);if(e.navigation.kind==XP_UI_CANCEL)onCancel();
 }''')
 replace('uint16_t enabled() {', 'uint16_t enabled(){return xp_ui_keyboard_enabled(SETTINGS.keyboardLayouts,uint8_t(I18N.getLanguage()));}')
-layout_source=(root/'src/activities/util/KeyboardLayoutSet.cpp').read_text()
+layout_source=(root/'test/keyboard_oracle/native_oracle/KeyboardLayoutSet.cpp.txt').read_text()
 for signature in ['freeink::ui::KeyboardLayoutId startingLayout() {', 'freeink::ui::KeyboardLayoutId next(const freeink::ui::KeyboardLayoutId current) {']:
  replace(signature,function(layout_source,signature))
 # declarations must precede replacements; implementations need completed class.
 pos=s.index('namespace fui = freeink::ui;')
 s=s[:pos]+extra+s[pos:]
 path=pathlib.Path(str(work/'diff.cpp'));path.write_text(s)
-subprocess.run(['c++','-std=c++20','-O1','-DFREEINK_UI_COMPONENT_STYLE=0','-I'+str(record.SDK/'include'),'-I'+str(root/'lib/I18n'),'-I'+str(root/'rust/crates/xp-ffi/include'),str(path),str(record.SDK/'src/FreeInkUI.cpp'),str(work/'target/debug/libkeyboard_model_oracle.a'),'-o',str(work/'diff')],check=True)
+subprocess.run(['c++','-std=c++20','-O1','-DFREEINK_UI_COMPONENT_STYLE=0','-I'+str(record.SDK/'include'),'-I'+str(root/'lib/I18n'),'-I'+str(root/'rust/crates/xp-ffi/include'),'-I'+str(root/'test/keyboard_oracle'),str(path),str(record.SDK/'src/FreeInkUI.cpp'),str(work/'target/debug/libkeyboard_model_oracle.a'),'-o',str(work/'diff')],check=True)
 b=subprocess.check_output([str(work/'diff')]);(work/'rust-transcript.txt').write_bytes(b)
 a=b''.join(gzip.decompress(p.read_bytes())for p in sorted(record.HERE.glob('transcript-*.gz')))
 if a!=b:

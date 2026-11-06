@@ -164,6 +164,7 @@ void KeyboardEntryActivity::paintChrome(const XpUiCommand& command, XpUiRect cli
 
 namespace {
 KeyboardEntryActivity& keyboard(void* activity) {
+  // pushActivity admits this pointer only for the reserved KeyboardEntryActivity name.
   return *static_cast<KeyboardEntryActivity*>(nativeActivity(activity));
 }
 }  // namespace

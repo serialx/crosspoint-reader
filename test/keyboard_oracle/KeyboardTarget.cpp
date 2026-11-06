@@ -5,7 +5,6 @@
 #include <GfxRenderer.h>
 #include <builtinFonts/all.h>
 #include <fontIds.h>
-#include <xp_ui_keyboard.h>
 
 #include <array>
 #include <cassert>
@@ -17,6 +16,7 @@
 
 #include "Trace.h"
 #include "keyboard-layout-bindings.inc"
+#include "legacy_keyboard_wire.h"
 void textGoldenGlyph(const EpdFontFamily&, uint32_t, int, int, EpdFontFamily::Style) {}
 void textGoldenScaled(int, uint32_t, int, int, EpdFontFamily::Style) {}
 #define STR_OK_BUTTON "OK"

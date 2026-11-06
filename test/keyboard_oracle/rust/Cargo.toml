@@ -7,5 +7,5 @@ publish=false
 path="lib.rs"
 crate-type=["staticlib"]
 [dependencies]
-xp-ui={path="../../../rust/crates/xp-ui"}
+xp-ui={path="../../../rust/crates/xp-ui",features=["legacy-keyboard-oracles"]}
 [workspace]

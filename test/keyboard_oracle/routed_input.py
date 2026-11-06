@@ -83,7 +83,7 @@ void RustActivityAdapter::loop() {
 }
 '''
 # Include standard headers outside the candidate namespace.
-source = '#include <xp_ui_keyboard.h>\n#include <xp_ffi.h>\n#include <memory>\n#include <cassert>\n'+s+'\nnamespace candidate {\n'+current+'\n}\n'
+source = '#include <legacy_keyboard_wire.h>\n#include <xp_ffi.h>\n#include <memory>\n#include <cassert>\n'+s+'\nnamespace candidate {\n'+current+'\n}\n'
 source += (root/'test/keyboard_oracle/RoutedInput.cpp').read_text()
 with tempfile.TemporaryDirectory() as tmp:
     out=Path(tmp)
@@ -91,7 +91,7 @@ with tempfile.TemporaryDirectory() as tmp:
     (out/'routed.cpp').write_text(source)
     subprocess.run(['c++','-std=c++20','-O1','-DFREEINK_UI_COMPONENT_STYLE=0',
                     '-I'+str(out),'-I'+str(record.SDK/'include'),'-I'+str(root/'lib/I18n'),
-                    '-I'+str(root/'rust/crates/xp-ffi/include'),str(out/'routed.cpp'),
+                    '-I'+str(root/'rust/crates/xp-ffi/include'),'-I'+str(root/'test/keyboard_oracle'),str(out/'routed.cpp'),
                     str(record.SDK/'src/FreeInkUI.cpp'),str(root/'test/cmake/xp_ffi_host.cpp'),
                     str(archive),'-o',str(out/'routed')],check=True)
     subprocess.run([str(out/'routed')],check=True)

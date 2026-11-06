@@ -19,7 +19,8 @@ typedef void (*ChildIcon)(uint32_t, XpUiRect, XpUiRect);
 typedef void (*ChildFonts)(void);
 typedef void (*ChildPrewarm)(int32_t, const void*, XpEpubChildRowText, uint32_t);
 
-CONTRACT(sizeof(XpEpubLeaves) == 173 * sizeof(void (*)(void)));
+CONTRACT(offsetof(XpEpubLeaves, clipping_physical) == 173 * sizeof(void (*)(void)));
+CONTRACT(sizeof(XpEpubLeaves) == 174 * sizeof(void (*)(void)));
 CONTRACT(offsetof(XpEpubLeaves, child_list_theme) == 153 * sizeof(void (*)(void)));
 CONTRACT(offsetof(XpEpubLeaves, child_utility_layout) == 154 * sizeof(void (*)(void)));
 CONTRACT(offsetof(XpEpubLeaves, child_header) == 155 * sizeof(void (*)(void)));
@@ -36,6 +37,7 @@ SIGNATURE(child_qr_draw, ChildQr);
 SIGNATURE(child_toolbar_icon, ChildIcon);
 SIGNATURE(child_clear_fonts, ChildFonts);
 SIGNATURE(child_prewarm_rows, ChildPrewarm);
+SIGNATURE(clipping_physical, const XpClippingPhysical*);
 
 #undef SIGNATURE
 #undef CONTRACT

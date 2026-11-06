@@ -10,7 +10,7 @@ macro_rules! unused_leaves {
             let _ = ($($arg,)*);
             panic!(concat!("unexpected EPUB leaf: ", stringify!($name)))
         })*
-        pub(in crate::app::epub::children) fn leaves() -> XpEpubLeaves { XpEpubLeaves { $($name,)* child_selection_physical: selection(), child_drawing: super::Physical { list_theme: super::theme, utility_layout: super::layout, header: super::header, utility_footer: super::footer, qr: super::qr, toolbar_icon: super::icon, clear_fonts: super::lock, prewarm_rows: super::prewarm } } }
+        pub(in crate::app::epub::children) fn leaves() -> XpEpubLeaves { XpEpubLeaves { $($name,)* clipping_physical: core::ptr::null(), child_selection_physical: selection(), child_drawing: super::Physical { list_theme: super::theme, utility_layout: super::layout, header: super::header, utility_footer: super::footer, qr: super::qr, toolbar_icon: super::icon, clear_fonts: super::lock, prewarm_rows: super::prewarm } } }
     };
 }
 unused_leaves! {

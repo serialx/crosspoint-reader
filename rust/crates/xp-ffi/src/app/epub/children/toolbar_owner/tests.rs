@@ -123,16 +123,16 @@ unsafe extern "C" fn release(domain: u8, pointer: *mut u8) {
 fn parent() -> StableOwner<EpubSession> {
     static RUNTIME: OnceLock<app_abi::Runtime> = OnceLock::new();
     static RESOURCES: OnceLock<app_abi::Resources> = OnceLock::new();
-    static LEAVES: OnceLock<abi::XpEpubLeaves> = OnceLock::new();
+    const LEAVES: abi::XpEpubLeaves = abi::XpEpubLeaves {
+        input_snapshot: input,
+        ..test_leaves::leaves()
+    };
     let runtime = RUNTIME.get_or_init(|| app_abi::Runtime {
         model_lock: lock,
         model_unlock: lock,
         ..test_resources::runtime()
     });
-    let leaves = LEAVES.get_or_init(|| abi::XpEpubLeaves {
-        input_snapshot: input,
-        ..test_leaves::leaves()
-    });
+    let leaves = &LEAVES;
     let resources = RESOURCES.get_or_init(|| app_abi::Resources {
         text_width: width,
         line_height: line,

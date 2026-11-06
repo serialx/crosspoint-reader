@@ -76,6 +76,24 @@ Main task -> xp_app_loop -> Rust Application
 
 ## Migration Checklist
 
+Scene-based owners share admission and list preparation through
+`xp_ui::runtime::SceneGate`, `next_capacity` and
+`reader_chrome::runtime::ListRequest`. Native activities reach the gate and
+capacity policy through `xp_ui.h`; Rust owners call the typed functions directly.
+Keep the four-byte gate in the owner and command/hit buffers in its render
+storage. A failed scene suppresses activation until recovery and held-input
+release; a stale successful scene requests repaint. Custom cancellation remains
+the screen's responsibility.
+
+List preparation does not paint or publish. Grow storage using the screen's
+existing capacity sequence, releasing the old buffer before allocation and
+retaining the request for a failed-allocation retry. Paint a completed scene,
+release temporary resource loans in the caller's required order, then publish
+under the model lock and perform the caller's refresh. Do not move scene scratch
+into shared application dispatch or standardize refresh order across families.
+See [Shared scene and list policy](contributing/rust-ui.md#shared-scene-and-list-policy)
+for the native and owned callers, theme sampling and retained native consumers.
+
 ### 1. Change Base Class
 
 If your activity extended `ActivityWithSubactivity`, change it to extend `Activity`:

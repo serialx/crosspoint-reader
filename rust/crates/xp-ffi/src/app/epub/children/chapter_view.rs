@@ -8,8 +8,11 @@ use crate::app::{abi, resources::Text};
 use core::ffi::c_void;
 use xp_core::i18n::ids::{STR_NO_CHAPTERS, STR_SELECT_CHAPTER};
 use xp_ui::{
-    reader_chrome::list,
-    scene::{Error, Refresh},
+    reader_chrome::{
+        list,
+        runtime::{RowSlot, ThemeMode},
+    },
+    scene::Error,
 };
 
 // The production implementation borrows the retained session's resource guard.
@@ -43,8 +46,12 @@ impl Rows for ChapterRows<'_> {
             } else {
                 abi::Text::from_terminated(b"\0")
             }),
-            1..list::HEADER if (handle - 1).is_multiple_of(4) => {
-                self.window.label(((handle - 1) / 4) as i32).map(Text::wire)
+            1..list::HEADER => {
+                let (index, slot) = RowSlot::decode(handle)?;
+                if slot != RowSlot::Label {
+                    return None;
+                }
+                self.window.label(i32::from(index)).map(Text::wire)
             }
             _ => None,
         }
@@ -76,7 +83,7 @@ impl list::Resources for ChapterRows<'_> {
     fn row(&mut self, index: u16) -> Result<list::Row, Error> {
         self.window.label(i32::from(index)).ok_or(Error::Invalid)?;
         Ok(list::Row {
-            label: u32::from(index) * 4 + 1,
+            label: RowSlot::Label.encode(index),
             ..Default::default()
         })
     }
@@ -112,6 +119,7 @@ impl Chapters {
         true
     }
     /// Caller holds the render lifetime lock and the book's resource guard.
+    #[inline(never)]
     pub(super) unsafe fn render(
         &self,
         services: &'static abi::Resources,
@@ -125,7 +133,7 @@ impl Chapters {
             return Err(Error::Invalid);
         };
         let snapshot = self.model.with(|model| model.state);
-        unsafe { (physical.list_theme)(&mut frame.list.theme, 0) };
+        let sampled = unsafe { physical.sample_theme(&mut frame.list.theme, ThemeMode::List) };
         let mut rows = ChapterRows {
             services,
             physical,
@@ -135,7 +143,7 @@ impl Chapters {
             present: total.is_some(),
             font: frame.list.theme.body_font,
         };
-        let result = unsafe {
+        let result = sampled.and_then(|()| unsafe {
             frame.list.paint(
                 snapshot,
                 list::Screen::Chapters,
@@ -145,12 +153,12 @@ impl Chapters {
                 count,
                 ROWS as u16,
             )
-        };
+        });
         self.model
             .with(|model| model.painted(&frame.list, result.is_ok()));
-        if result.is_ok() {
-            unsafe { (services.refresh)(Refresh::Fast as u8) };
+        if let Ok(prepared) = result {
+            unsafe { (services.refresh)(prepared.refresh as u8) };
         }
-        result
+        result.map(|prepared| prepared.command_count)
     }
 }

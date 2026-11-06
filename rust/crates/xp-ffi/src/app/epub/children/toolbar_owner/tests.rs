@@ -138,7 +138,16 @@ fn parent() -> StableOwner<EpubSession> {
         .unwrap()
         .into()
 }
-unsafe extern "C" fn theme(out: *mut list::Theme, toolbar: u8) {
+unsafe extern "C" fn theme(
+    out: *mut list::Theme,
+    facts: *mut xp_ui::reader_chrome::runtime::ThemeFacts,
+    toolbar: u8,
+) {
+    *facts = xp_ui::reader_chrome::runtime::ThemeFacts {
+        body_line_height: 24,
+        help_font: 0,
+        bookmark_help_font: 0,
+    };
     assert_eq!(toolbar, 1);
     let screen = Rect {
         w: 480,

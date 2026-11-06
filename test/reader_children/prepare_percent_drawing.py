@@ -2,6 +2,8 @@
 from pathlib import Path
 import sys
 import re
+import json
+import hashlib
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "reader_lifecycle"))
 from extract import definition
@@ -82,11 +84,20 @@ struct UtilityActivity {
 };
 """)
 definitions.append(definition(utility, "XpUiPaint UtilityActivity::rustResources("))
+oracle = ROOT / "test/ui_runtime/native_oracle"
+entry = next(e for e in json.loads((oracle / "manifest.json").read_text())["snapshots"]
+             if e["file"] == "ReaderThemeSampling.txt")
+frozen = (oracle / entry["file"]).read_bytes()
+assert len(frozen) == entry["bytes"] and hashlib.sha256(frozen).hexdigest() == entry["sha256"]
+original = frozen.decode().replace("sampleReaderChromeTheme", "nativeReaderChromeTheme").replace(
+    "sampleReaderChildTheme", "nativeReaderChildTheme")
 definitions.extend([
+    original,
+    definition(physical, "void sampleReaderChildTheme("),
     definition(read("src/activities/reader/ReaderChromeListActivity.cpp"), "void sampleReaderChromeTheme("),
     definition(physical, "const char* text("),
     *[definition(physical, signature) for signature in (
-        "bool sampleReaderUtilityLayout(", "void sampleReaderChildTheme(",
+        "bool sampleReaderUtilityLayout(",
         "void drawReaderHeader(", "void drawReaderUtilityFooter(",
         "void drawReaderToolbarIcon(", "void prewarmReaderRows(",
     )],

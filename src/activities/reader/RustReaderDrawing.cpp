@@ -1,15 +1,16 @@
 #include "RustReaderDrawing.h"
 
+#include <BoardConfig.h>
 #include <FreeInkUIIcon.h>
 #include <GfxRenderer.h>
 #include <HalGPIO.h>
 
 #include "MappedInputManager.h"
-#include "ReaderChromeListActivity.h"
 #include "components/UIScale.h"
 #include "components/UITheme.h"
 #include "components/UiAppHelpers.h"
 #include "components/icons/readerToolbarIcons.h"
+#include "fontIds.h"
 
 namespace fui = freeink::ui;
 namespace {
@@ -58,13 +59,45 @@ bool sampleReaderUtilityLayout(GfxRenderer& renderer, const MappedInputManager& 
   return gpio.hasEdgeSideButtons();
 }
 
-void sampleReaderChildTheme(GfxRenderer& renderer, XpUiReaderTheme& theme, const bool toolbar) {
-  sampleReaderChromeTheme(renderer, theme, false);
+void sampleReaderChildTheme(const GfxRenderer& renderer, XpUiReaderTheme& theme, XpUiReaderThemeFacts& facts,
+                            const bool toolbar) {
+  const auto& m = UITheme::getInstance().getMetrics();
+  const auto safe = UITheme::getInstance().getScreenSafeArea(renderer, true, false);
+  const auto fonts = uiScaleSpec();
+  theme = {};
+  theme.screen = {0, 0, static_cast<int16_t>(renderer.getScreenWidth()),
+                  static_cast<int16_t>(renderer.getScreenHeight())};
+  theme.safe = {static_cast<int16_t>(safe.x), static_cast<int16_t>(safe.y), static_cast<int16_t>(safe.width),
+                static_cast<int16_t>(safe.height)};
+  theme.body_font = fonts.bodyFontId;
+  theme.small_font = fonts.smallFontId;
+  theme.title_font = fonts.titleFontId;
+  theme.fixed_title_font = UI_12_FONT_ID;
+  facts.help_font = UI_10_FONT_ID;
+  facts.bookmark_help_font = SMALL_FONT_ID;
+  theme.row_min = m.listRowHeight;
+  theme.row_gap = m.listRowGap;
+  theme.row_inset = m.listInset;
+  theme.row_padding = m.listSidePadding;
+  theme.scroll_width = m.listScrollWidth;
+  theme.top_padding = m.topPadding;
+  theme.header_height = m.headerHeight;
+  theme.spacing = m.verticalSpacing;
+  theme.tab_height = m.tabBarHeight;
+  theme.header_padding = m.headerSidePadding;
+  facts.body_line_height = renderer.getLineHeight(fonts.bodyFontId);
+  theme.control_radius = m.controlRadius;
+  theme.sheet_radius = m.sheetRadius;
+  theme.row_radius = m.listRowRadius;
+  theme.selection = m.listSelectionStyle;
+  theme.scroll_left = m.listScrollSide;
+  theme.title_bold = m.listTitleBold;
+  theme.touch = BoardConfig::hasTouch();
+  theme.orientation = renderer.getOrientation();
   if (toolbar) {
     auto target = makeUiTarget(renderer);
     const auto safe = target.deviceContext().safeRect();
     theme.safe = {safe.x, safe.y, safe.width, safe.height};
-    theme.row_min = UITheme::getInstance().getMetrics().listRowHeight;
   }
 }
 

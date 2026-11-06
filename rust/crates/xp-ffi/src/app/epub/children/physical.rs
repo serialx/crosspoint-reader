@@ -1,12 +1,20 @@
 use crate::app::abi;
 use core::ffi::c_void;
-use xp_ui::{model::Metrics, reader_chrome::list, scene::Rect, utility};
+use xp_ui::{
+    model::Metrics,
+    reader_chrome::{
+        list,
+        runtime::{ThemeFacts, ThemeMode},
+    },
+    scene::{Error, Rect},
+    utility,
+};
 
 // Borrowed from the static EPUB leaf table.
 // Every pointer is borrowed synchronously under the parent's resource guard.
 #[repr(C)]
 pub(crate) struct Physical {
-    pub(super) list_theme: unsafe extern "C" fn(*mut list::Theme, u8),
+    pub(super) list_theme: unsafe extern "C" fn(*mut list::Theme, *mut ThemeFacts, u8),
     pub(super) utility_layout: unsafe extern "C" fn(*mut utility::Layout) -> u8,
     pub(super) header: unsafe extern "C" fn(Rect, abi::Text, u8),
     pub(super) utility_footer: unsafe extern "C" fn(Rect, *const abi::Text),
@@ -19,6 +27,20 @@ pub(crate) struct Physical {
         unsafe extern "C" fn(*const c_void, u32) -> abi::Text,
         u32,
     ),
+}
+
+impl Physical {
+    // Keep theme facts off shared child dispatch and session render frames.
+    #[inline(never)]
+    pub(super) unsafe fn sample_theme(
+        &self,
+        theme: &mut list::Theme,
+        mode: ThemeMode,
+    ) -> Result<(), Error> {
+        let mut facts = ThemeFacts::default();
+        unsafe { (self.list_theme)(theme, &mut facts, u8::from(mode == ThemeMode::Toolbar)) };
+        facts.compose(theme, mode)
+    }
 }
 
 pub(super) struct Fonts<'a>(pub(super) &'a abi::Resources);
@@ -46,7 +68,7 @@ const _: () = {
     assert!(core::mem::offset_of!(Physical, prewarm_rows) == 7 * pointer);
 };
 const _: fn(&Physical) = |p| {
-    let _: unsafe extern "C" fn(*mut list::Theme, u8) = p.list_theme;
+    let _: unsafe extern "C" fn(*mut list::Theme, *mut ThemeFacts, u8) = p.list_theme;
     let _: unsafe extern "C" fn(*mut utility::Layout) -> u8 = p.utility_layout;
     let _: unsafe extern "C" fn(Rect, abi::Text, u8) = p.header;
     let _: unsafe extern "C" fn(Rect, *const abi::Text) = p.utility_footer;

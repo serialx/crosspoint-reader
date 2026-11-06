@@ -10,7 +10,7 @@
 #define SIGNATURE(field, type) CONTRACT(_Generic(((XpEpubLeaves*)0)->field, type: 1, default: 0))
 #endif
 
-typedef void (*ChildTheme)(XpUiReaderTheme*, uint8_t);
+typedef void (*ChildTheme)(XpUiReaderTheme*, XpUiReaderThemeFacts*, uint8_t);
 typedef uint8_t (*ChildLayout)(XpUiUtilityLayout*);
 typedef void (*ChildHeader)(XpUiRect, XpAppText, uint8_t);
 typedef void (*ChildFooter)(XpUiRect, const XpAppText*);

@@ -80,7 +80,11 @@ unsafe extern "C" fn paint(scene: *const SceneView, paint: *const Paint) -> u8 {
     }
     1
 }
-unsafe extern "C" fn list_theme(_: *mut list::Theme, _: u8) {
+unsafe extern "C" fn list_theme(
+    _: *mut list::Theme,
+    _: *mut xp_ui::reader_chrome::runtime::ThemeFacts,
+    _: u8,
+) {
     panic!("unused")
 }
 unsafe extern "C" fn layout(_: *mut utility::Layout) -> u8 {

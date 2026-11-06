@@ -184,7 +184,7 @@ use xp_ui::{
     reader_chrome::{
         hits::{Hits, Layout},
         list::{self, Resources, Row, Screen, Theme},
-        runtime::{ListRequest, RowSlot, ThemeFacts},
+        runtime::{ListRequest, RowSlot, ThemeFacts, ThemeMode},
         ListModel,
     },
     reader_chrome_ffi::{xp_ui_reader_list_view, Rows},
@@ -358,8 +358,11 @@ fn typed_list_preparation_matches_checked_ffi_for_every_screen() {
                     },
                     1
                 );
-                assert_eq!(actual, output.command_count);
-                assert_eq!(&a[..usize::from(actual)], &b[..usize::from(actual)]);
+                assert_eq!(actual.command_count, output.command_count);
+                assert_eq!(actual.refresh, xp_ui::scene::Refresh::Fast);
+                assert_eq!(actual.refresh as u8, output.refresh);
+                let count = usize::from(actual.command_count);
+                assert_eq!(&a[..count], &b[..count]);
                 assert_eq!(next_a.list, next_b.list);
                 assert_eq!(direct.windows, wire.windows);
                 assert_eq!(hits_a.len(), hits_b.len());
@@ -450,13 +453,20 @@ fn explicit_theme_facts_compose_bookmark_touch_and_spacing_only() {
                 help_font: -1,
                 ..theme()
             };
-            let composed = ThemeFacts {
-                sampled,
+            let mut composed = sampled;
+            ThemeFacts {
                 body_line_height: 42,
                 help_font: 9,
                 bookmark_help_font: 11,
             }
-            .compose(bookmarks)
+            .compose(
+                &mut composed,
+                if bookmarks {
+                    ThemeMode::Bookmarks
+                } else {
+                    ThemeMode::List
+                },
+            )
             .unwrap();
             assert_eq!(composed.help_font, if bookmarks { 11 } else { 9 });
             assert_eq!(composed.row_min, if touch != 0 { 0 } else { 48 });
@@ -469,11 +479,85 @@ fn explicit_theme_facts_compose_bookmark_touch_and_spacing_only() {
         }
     }
     assert!(ThemeFacts {
-        sampled: theme(),
         body_line_height: -1,
         help_font: 9,
         bookmark_help_font: 11
     }
-    .compose(false)
+    .compose(&mut theme(), ThemeMode::List)
     .is_err());
+}
+
+#[test]
+fn theme_wire_modes_match_typed_composition_and_fail_without_publication() {
+    use xp_ui::reader_chrome_ffi::xp_ui_reader_theme_compose;
+    fn choices(t: &Theme) -> (i32, i16, i16, i16, i16) {
+        (t.help_font, t.row_min, t.space_sm, t.space_md, t.space_lg)
+    }
+    for (wire, mode) in [
+        (0, ThemeMode::List),
+        (1, ThemeMode::Bookmarks),
+        (2, ThemeMode::Toolbar),
+    ] {
+        for touch in [0, 1] {
+            for height in [0, 1, 24, 42, 255, 32767] {
+                let facts = ThemeFacts {
+                    body_line_height: height,
+                    help_font: 9,
+                    bookmark_help_font: 11,
+                };
+                let mut typed = Theme {
+                    row_min: 48,
+                    touch,
+                    ..theme()
+                };
+                let mut bridged = typed;
+                facts.compose(&mut typed, mode).unwrap();
+                assert_eq!(
+                    unsafe { xp_ui_reader_theme_compose(&mut bridged, &facts, wire) },
+                    1
+                );
+                assert_eq!(choices(&typed), choices(&bridged));
+                assert_eq!(
+                    bridged.row_min,
+                    if touch != 0 && wire != 2 { 0 } else { 48 }
+                );
+                assert_eq!(bridged.help_font, if wire == 1 { 11 } else { 9 });
+                assert_eq!(bridged.safe, typed.safe);
+            }
+        }
+    }
+    let mut output = theme();
+    let before = choices(&output);
+    let facts = ThemeFacts {
+        body_line_height: 24,
+        help_font: 9,
+        bookmark_help_font: 11,
+    };
+    for mode in [3, 255] {
+        assert_eq!(
+            unsafe { xp_ui_reader_theme_compose(&mut output, &facts, mode) },
+            0
+        );
+        assert_eq!(choices(&output), before);
+    }
+    for height in [-1, 32768] {
+        let invalid = ThemeFacts {
+            body_line_height: height,
+            ..facts
+        };
+        assert_eq!(
+            unsafe { xp_ui_reader_theme_compose(&mut output, &invalid, 0) },
+            0
+        );
+        assert_eq!(choices(&output), before);
+    }
+    assert_eq!(
+        unsafe { xp_ui_reader_theme_compose(&mut output, core::ptr::null(), 0) },
+        0
+    );
+    assert_eq!(choices(&output), before);
+    assert_eq!(
+        unsafe { xp_ui_reader_theme_compose(core::ptr::null_mut(), &facts, 0) },
+        0
+    );
 }

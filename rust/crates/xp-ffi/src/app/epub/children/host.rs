@@ -26,7 +26,8 @@ pub unsafe extern "C" fn xp_epub_test_chapter_state(
 
 #[repr(C)]
 pub struct Drawing {
-    theme: unsafe extern "C" fn(*mut list::Theme, u8),
+    theme:
+        unsafe extern "C" fn(*mut list::Theme, *mut xp_ui::reader_chrome::runtime::ThemeFacts, u8),
     header: unsafe extern "C" fn(Rect, abi::Text, u8),
     clear: unsafe extern "C" fn(),
     icon: unsafe extern "C" fn(u32, Rect, Rect),

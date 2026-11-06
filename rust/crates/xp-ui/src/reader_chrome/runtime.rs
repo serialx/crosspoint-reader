@@ -6,6 +6,12 @@ use super::{
 };
 use crate::scene::{Arena, Command, Error, Refresh};
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PreparedList {
+    pub command_count: u16,
+    pub refresh: Refresh,
+}
+
 pub struct ListRequest<'a> {
     pub snapshot: &'a ListModel,
     pub kind: Screen,
@@ -24,7 +30,7 @@ impl ListRequest<'_> {
         resources: &mut dyn Resources,
         next: &mut ListModel,
         hits: &mut Layout,
-    ) -> Result<u16, Error> {
+    ) -> Result<PreparedList, Error> {
         *next = *self.snapshot;
         for pass in 0..list::FOLLOW_PASSES {
             *hits = Layout::new(
@@ -47,7 +53,10 @@ impl ListRequest<'_> {
                 continue;
             }
             let scene = arena.finish(Refresh::Fast, self.generation)?;
-            return Ok(scene.commands.len() as u16);
+            return Ok(PreparedList {
+                command_count: scene.commands.len() as u16,
+                refresh: scene.refresh,
+            });
         }
         Err(Error::Invalid)
     }
@@ -84,30 +93,53 @@ impl RowSlot {
     }
 }
 
-/// Sampled geometry/fonts/metrics are fresh facts, not a settings cache.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ThemeMode {
+    List,
+    Bookmarks,
+    Toolbar,
+}
+impl ThemeMode {
+    pub fn from_byte(mode: u8) -> Option<Self> {
+        match mode {
+            0 => Some(Self::List),
+            1 => Some(Self::Bookmarks),
+            2 => Some(Self::Toolbar),
+            _ => None,
+        }
+    }
+}
+
+/// Fresh native facts; composition changes no geometry or retained settings.
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
 pub struct ThemeFacts {
-    pub sampled: Theme,
     pub body_line_height: i32,
     pub help_font: i32,
     pub bookmark_help_font: i32,
 }
 impl ThemeFacts {
-    pub fn compose(self, bookmarks: bool) -> Result<Theme, Error> {
+    pub fn compose(&self, theme: &mut Theme, mode: ThemeMode) -> Result<(), Error> {
         if !(0..=32767).contains(&self.body_line_height) {
             return Err(Error::Invalid);
         }
-        let mut theme = self.sampled;
-        theme.help_font = if bookmarks {
-            self.bookmark_help_font
-        } else {
-            self.help_font
+        theme.help_font = match mode {
+            ThemeMode::Bookmarks => self.bookmark_help_font,
+            ThemeMode::List | ThemeMode::Toolbar => self.help_font,
         };
-        if theme.touch != 0 {
+        if theme.touch != 0 && mode != ThemeMode::Toolbar {
             theme.row_min = 0;
         }
         theme.space_sm = (self.body_line_height / 6).max(4) as i16;
         theme.space_md = 8;
         theme.space_lg = 16;
-        Ok(theme)
+        Ok(())
     }
 }
+const _: () = {
+    assert!(core::mem::size_of::<ThemeFacts>() == 12);
+    assert!(core::mem::align_of::<ThemeFacts>() == 4);
+    assert!(core::mem::offset_of!(ThemeFacts, body_line_height) == 0);
+    assert!(core::mem::offset_of!(ThemeFacts, help_font) == 4);
+    assert!(core::mem::offset_of!(ThemeFacts, bookmark_help_font) == 8);
+};

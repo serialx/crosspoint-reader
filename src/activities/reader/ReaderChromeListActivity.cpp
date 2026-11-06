@@ -4,6 +4,7 @@
 #include <Memory.h>
 
 #include "CrossPointSettings.h"
+#include "RustReaderDrawing.h"
 #include "components/UIScale.h"
 #include "components/UITheme.h"
 #include "components/UiAppHelpers.h"
@@ -235,40 +236,9 @@ XpUiReaderRows ReaderChromeListActivity::rows() {
 }
 
 void sampleReaderChromeTheme(const GfxRenderer& renderer, XpUiReaderTheme& theme, bool bookmarks) {
-  const auto& m = UITheme::getInstance().getMetrics();
-  const auto safe = UITheme::getInstance().getScreenSafeArea(renderer, true, false);
-  const auto fonts = uiScaleSpec();
-  theme = {};
-  theme.screen = {0, 0, static_cast<int16_t>(renderer.getScreenWidth()),
-                  static_cast<int16_t>(renderer.getScreenHeight())};
-  theme.safe = {static_cast<int16_t>(safe.x), static_cast<int16_t>(safe.y), static_cast<int16_t>(safe.width),
-                static_cast<int16_t>(safe.height)};
-  theme.body_font = fonts.bodyFontId;
-  theme.small_font = fonts.smallFontId;
-  theme.title_font = fonts.titleFontId;
-  theme.fixed_title_font = UI_12_FONT_ID;
-  theme.help_font = bookmarks ? SMALL_FONT_ID : UI_10_FONT_ID;
-  theme.row_min = BoardConfig::hasTouch() ? 0 : m.listRowHeight;
-  theme.row_gap = m.listRowGap;
-  theme.row_inset = m.listInset;
-  theme.row_padding = m.listSidePadding;
-  theme.scroll_width = m.listScrollWidth;
-  theme.top_padding = m.topPadding;
-  theme.header_height = m.headerHeight;
-  theme.spacing = m.verticalSpacing;
-  theme.tab_height = m.tabBarHeight;
-  theme.header_padding = m.headerSidePadding;
-  theme.space_sm = std::max(4, renderer.getLineHeight(fonts.bodyFontId) / 6);
-  theme.space_md = 8;
-  theme.space_lg = 16;
-  theme.control_radius = m.controlRadius;
-  theme.sheet_radius = m.sheetRadius;
-  theme.row_radius = m.listRowRadius;
-  theme.selection = m.listSelectionStyle;
-  theme.scroll_left = m.listScrollSide;
-  theme.title_bold = m.listTitleBold;
-  theme.touch = BoardConfig::hasTouch();
-  theme.orientation = renderer.getOrientation();
+  XpUiReaderThemeFacts facts{};
+  sampleReaderChildTheme(renderer, theme, facts, false);
+  xp_ui_reader_theme_compose(&theme, &facts, bookmarks ? XP_UI_READER_THEME_BOOKMARKS : XP_UI_READER_THEME_LIST);
 }
 
 bool ReaderChromeListActivity::buildRustScene(XpUiScene& scene) {

@@ -144,6 +144,49 @@ any subsequent strip passes. The published interaction table must stay live
 until replacement or screen exit. Reusing a scratch array requires the owner's
 render lock; a frozen overlay parent requires separate retained storage.
 
+### Shared scene and list policy
+
+`xp_ui::runtime::SceneGate` stores four bytes in each participating owner. Native
+`RustActivityAdapter` calls the checked `xp_ui_scene_gate_*` bridge; owned Menu and
+Chapters call the typed methods. Rejection suppresses activation, including when
+painting recovers before the next input frame. Current publication clears failure
+but keeps held controls suppressed through release. Stale publication requests
+another paint without marking a successful frame as failed. Callers retain their
+own Back and custom cancellation behavior, model locks and resource lifetimes.
+
+`runtime::next_capacity` computes the next list command capacity; it does not
+allocate. Native `ReaderChromeCommands` and owned `children::Commands` release
+the old allocation before growing and retain the requested capacity even if
+allocation fails. A later reserve retries that request. FileBrowser starts at 32
+and grows by 4; Library starts at 48 and TextSettings at 32, both growing by 16.
+ReaderChrome chooses its initial capacity by screen, including 40 for Bookmarks.
+These list buffers stop at 128 commands. Settings keeps its separate initial
+8/16/24/32/48 choices and unclamped +16 retry loop: starts at 8 or 24 reach 120
+and reject 136, without a 128-command attempt. Keyboard
+retains its independent doubling buffers and the scene's 8 KiB command ceiling.
+
+`reader_chrome::runtime::ListRequest::prepare` borrows a model snapshot, theme,
+resources and owner scratch. It applies the existing nine-pass follow rule and
+returns `PreparedList` with the finished command count and refresh choice,
+without painting or publishing. The checked FFI writes both into its scene;
+owned callers draw without refreshing, publish, then use that refresh choice.
+A capacity retry begins
+from the same snapshot. Callers paint only a completed scene, validate the
+current revision and publish through their model; pending scroll is consumed
+only once. Resource descriptor, window and generation checks remain required.
+No shared dispatcher owns per-screen command, hit or theme scratch.
+
+`sampleReaderChildTheme` in `RustReaderDrawing.cpp` samples native geometry and
+current font facts. `ThemeFacts::compose` applies bookmark help-font, touch row-height
+and spacing choices in Rust; the retained native sampler calls
+`xp_ui_reader_theme_compose`. Toolbar keeps its own safe rectangle and row
+minimum. The 12-byte facts value is local preparation storage, with no settings
+cache. `UITheme`, its SDK storage and physical header/footer/font services remain
+in use. Bookmarks and Clippings still retain their native row-resource codecs
+until their ownership ports retire those consumers; owned Menu and Chapters use
+the typed `RowSlot` codec. Physical refresh timing and resource-release order stay at each
+caller, including UpdateUi's release-text-before-publication sequence.
+
 ## Drawing and resources
 
 Geometry uses the `xp_core::strip::Strip` packed DrawTarget, including orientation, clipping and

@@ -2,7 +2,7 @@
 use crate::reader_chrome::hits::Layout;
 use crate::reader_chrome::{
     list::{Resources, Row, Screen, Theme},
-    runtime::ListRequest,
+    runtime::{ListRequest, ThemeFacts, ThemeMode},
     ListModel,
 };
 use crate::scene::Error;
@@ -13,6 +13,25 @@ use crate::{
     scene::{Arena, Rect, Refresh, MAX_COMMAND_BYTES, MAX_HITS},
 };
 use core::ffi::c_void;
+
+/// # Safety
+/// Non-null pointers are aligned, live theme/facts loans for this call. The
+/// theme is exclusively writable; facts are copied before output mutation.
+#[no_mangle]
+pub unsafe extern "C" fn xp_ui_reader_theme_compose(
+    theme: *mut Theme,
+    facts: *const ThemeFacts,
+    mode: u8,
+) -> u8 {
+    let Some(mode) = ThemeMode::from_byte(mode) else {
+        return 0;
+    };
+    if theme.is_null() || facts.is_null() {
+        return 0;
+    }
+    let facts = unsafe { facts.read() };
+    u8::from(facts.compose(unsafe { &mut *theme }, mode).is_ok())
+}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -240,8 +259,8 @@ pub unsafe extern "C" fn xp_ui_reader_list_view(
     };
     let mut next = *state;
     let mut layout = Layout::default();
-    let count = match request.prepare(commands, &mut resources, &mut next, &mut layout) {
-        Ok(count) => count,
+    let prepared = match request.prepare(commands, &mut resources, &mut next, &mut layout) {
+        Ok(prepared) => prepared,
         Err(Error::Capacity) => return 2,
         Err(_) => return 0,
     };
@@ -255,10 +274,10 @@ pub unsafe extern "C" fn xp_ui_reader_list_view(
             text: core::ptr::null(),
             interactions: core::ptr::null(),
             generation: rows_copy.generation,
-            command_count: count,
+            command_count: prepared.command_count,
             text_len: 0,
             interaction_count: 0,
-            refresh: Refresh::Fast as u8,
+            refresh: prepared.refresh as u8,
             reserved: 0,
         });
         layout_output.write(layout);

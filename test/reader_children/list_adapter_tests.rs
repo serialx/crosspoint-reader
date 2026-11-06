@@ -24,6 +24,7 @@ struct Record {
     prewarms: Vec<Vec<Vec<u8>>>,
     refresh: usize,
     fail_paint: bool,
+    invalid_theme: bool,
     mutate_menu: Option<*const Menu>,
     peak: u16,
     selection: u8,
@@ -48,7 +49,8 @@ unsafe extern "C" fn text(_: *const xp_ui::scene::Command, _: Rect, value: abi::
     RECORD.with(|r| r.borrow_mut().texts.push(value.bytes().unwrap().to_vec()));
 }
 unsafe extern "C" fn footer(_: *const abi::Text) {}
-unsafe extern "C" fn refresh(_: u8) {
+unsafe extern "C" fn refresh(mode: u8) {
+    assert_eq!(mode, xp_ui::scene::Refresh::Fast as u8);
     RECORD.with(|r| r.borrow_mut().refresh += 1);
 }
 unsafe extern "C" fn paint(scene: *const SceneView, paint: *const Paint) -> u8 {
@@ -90,7 +92,16 @@ unsafe extern "C" fn paint(scene: *const SceneView, paint: *const Paint) -> u8 {
     }
     1
 }
-unsafe extern "C" fn theme(out: *mut list::Theme, toolbar: u8) {
+unsafe extern "C" fn theme(
+    out: *mut list::Theme,
+    facts: *mut xp_ui::reader_chrome::runtime::ThemeFacts,
+    toolbar: u8,
+) {
+    *facts = xp_ui::reader_chrome::runtime::ThemeFacts {
+        body_line_height: RECORD.with(|r| if r.borrow().invalid_theme { -1 } else { 24 }),
+        help_font: 0,
+        bookmark_help_font: 0,
+    };
     assert_eq!(toolbar, 0);
     let (selection, touch) = RECORD.with(|r| (r.borrow().selection, r.borrow().touch));
     *out = list::Theme {
@@ -241,6 +252,33 @@ fn menu_publishes_hits_without_overwriting_concurrent_navigation_and_rejects_fai
     RECORD.with(|r| assert_eq!(r.borrow().refresh, 1));
 }
 #[test]
+fn invalid_theme_rejects_menu_before_and_after_publication() {
+    tests::reset(0);
+    RECORD.with(|r| *r.borrow_mut() = Record::default());
+    let owner = menu();
+    for (invalid, refreshes) in [(true, 0), (false, 1), (true, 1), (false, 2)] {
+        RECORD.with(|r| r.borrow_mut().invalid_theme = invalid);
+        let result = unsafe {
+            owner.render(
+                services(),
+                &physical(),
+                Toggles {
+                    night: false,
+                    bluetooth: false,
+                    frontlight: false,
+                },
+            )
+        };
+        assert_eq!(result.is_err(), invalid);
+        owner.model.with(|m| {
+            assert_eq!(m.list.ready, !invalid);
+            assert_eq!(m.list.gate.failed(), invalid);
+        });
+        RECORD.with(|r| assert_eq!(r.borrow().refresh, refreshes));
+    }
+}
+
+#[test]
 fn menu_host_command_bound_for_all_values_and_selection_styles() {
     tests::reset(0);
     RECORD.with(|r| *r.borrow_mut() = Record::default());
@@ -315,6 +353,28 @@ impl ChapterBook for Book {
         }
     }
 }
+#[test]
+fn invalid_theme_rejects_chapters_before_and_after_publication() {
+    tests::reset(0);
+    RECORD.with(|r| *r.borrow_mut() = Record::default());
+    let owner = Chapters::try_new(owner_tests::runtime(), 0).unwrap();
+    let mut book = Book {
+        reads: Vec::new(),
+        fail_storage: None,
+    };
+    assert!(unsafe { owner.enter(services(), &physical()) });
+    for (invalid, refreshes) in [(true, 0), (false, 1), (true, 1), (false, 2)] {
+        RECORD.with(|r| r.borrow_mut().invalid_theme = invalid);
+        let result = unsafe { owner.render(services(), &physical(), &mut book) };
+        assert_eq!(result.is_err(), invalid);
+        owner.model.with(|m| {
+            assert_eq!(m.ready, !invalid);
+            assert_eq!(m.gate.failed(), invalid);
+        });
+        RECORD.with(|r| assert_eq!(r.borrow().refresh, refreshes));
+    }
+}
+
 #[test]
 fn chapter_window_prewarm_and_failed_storage_publication() {
     tests::reset(0);

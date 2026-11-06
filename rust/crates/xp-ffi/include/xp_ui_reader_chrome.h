@@ -32,6 +32,15 @@ typedef struct {
   uint8_t control_radius, sheet_radius, touch, orientation;
 } XpUiReaderTheme;
 
+// Raw line/font facts accompany sampled geometry and metrics in XpUiReaderTheme.
+typedef struct {
+  int32_t body_line_height, help_font, bookmark_help_font;
+} XpUiReaderThemeFacts;
+
+enum { XP_UI_READER_THEME_LIST = 0, XP_UI_READER_THEME_BOOKMARKS = 1, XP_UI_READER_THEME_TOOLBAR = 2 };
+// Synchronous exclusive theme loan; failure leaves theme unchanged.
+uint8_t xp_ui_reader_theme_compose(XpUiReaderTheme* theme, const XpUiReaderThemeFacts* facts, uint8_t mode);
+
 typedef struct {
   uint32_t label, subtitle, value, icon;
   uint8_t toggle, checked, reserved[2];
@@ -147,6 +156,11 @@ static_assert(offsetof(XpUiReaderListState, list) == 0);
 static_assert(offsetof(XpUiReaderListState, revealed) == 40);
 static_assert(offsetof(XpUiReaderListState, long_press_consumed) == 44);
 static_assert(offsetof(XpUiReaderListState, reserved) == 45);
+static_assert(sizeof(XpUiReaderThemeFacts) == 12);
+static_assert(alignof(XpUiReaderThemeFacts) == 4);
+static_assert(offsetof(XpUiReaderThemeFacts, body_line_height) == 0);
+static_assert(offsetof(XpUiReaderThemeFacts, help_font) == 4);
+static_assert(offsetof(XpUiReaderThemeFacts, bookmark_help_font) == 8);
 static_assert(sizeof(XpUiReaderTheme) == 72);
 static_assert(alignof(XpUiReaderTheme) == 4);
 static_assert(offsetof(XpUiReaderTheme, screen) == 0);

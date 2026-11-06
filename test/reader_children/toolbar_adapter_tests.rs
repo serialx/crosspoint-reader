@@ -39,7 +39,16 @@ unsafe extern "C" fn icon(id: u32, _: Rect, _: Rect) {
     assert!((toolbar::CONTENTS..=toolbar::NEXT).contains(&id));
     RECORD.with(|r| r.borrow_mut().icons.push(id));
 }
-unsafe extern "C" fn theme(t: *mut list::Theme, toolbar: u8) {
+unsafe extern "C" fn theme(
+    t: *mut list::Theme,
+    facts: *mut xp_ui::reader_chrome::runtime::ThemeFacts,
+    toolbar: u8,
+) {
+    *facts = xp_ui::reader_chrome::runtime::ThemeFacts {
+        body_line_height: 24,
+        help_font: 0,
+        bookmark_help_font: 0,
+    };
     assert_eq!(toolbar, 1);
     *t = list::Theme {
         screen: Rect {

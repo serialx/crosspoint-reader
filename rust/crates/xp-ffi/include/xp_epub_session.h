@@ -480,7 +480,7 @@ typedef struct XpEpubLeaves {
   uint8_t (*display_source)(XpDisplaySource* source);
   uint8_t* (*framebuffer_view)(uint32_t* bytes);
   // Synchronous drawing leaves; inputs borrow storage held under the resource guard.
-  void (*child_list_theme)(XpUiReaderTheme* out, uint8_t toolbar);
+  void (*child_list_theme)(XpUiReaderTheme* out, XpUiReaderThemeFacts* facts, uint8_t toolbar);
   uint8_t (*child_utility_layout)(XpUiUtilityLayout* out);
   void (*child_header)(XpUiRect rect, XpAppText title, uint8_t list);
   void (*child_utility_footer)(XpUiRect clip, const XpAppText* labels);

@@ -7,7 +7,10 @@ use core::ffi::c_void;
 use xp_core::{glyph::GlyphTarget, i18n::ids::*};
 use xp_ui::{
     ffi::{Paint, SceneView},
-    reader_chrome::{self, hits, list, runtime::ListRequest},
+    reader_chrome::{
+        self, hits, list,
+        runtime::{ListRequest, PreparedList},
+    },
     scene::{Command, Error, Rect, Refresh},
 };
 
@@ -64,15 +67,15 @@ impl ListFrame {
         rows: &mut dyn Rows,
         count: u16,
         capacity: u16,
-    ) -> Result<u16, Error> {
-        let command_count =
+    ) -> Result<PreparedList, Error> {
+        let prepared =
             unsafe { self.build_scene(snapshot, kind, services, rows, count, capacity) }?;
         let view = SceneView {
             commands: self.commands.as_mut_slice().as_ptr(),
             text: core::ptr::null(),
             interactions: core::ptr::null(),
             generation: 1,
-            command_count,
+            command_count: prepared.command_count,
             text_len: 0,
             interaction_count: 0,
             refresh: Refresh::None as u8,
@@ -93,7 +96,7 @@ impl ListFrame {
         if unsafe { (services.paint_scene)(&view, &paint) } == 0 {
             return Err(Error::Invalid);
         }
-        Ok(view.command_count)
+        Ok(prepared)
     }
 
     #[inline(never)]
@@ -106,7 +109,7 @@ impl ListFrame {
         rows: &mut dyn Rows,
         count: u16,
         capacity: u16,
-    ) -> Result<u16, Error> {
+    ) -> Result<PreparedList, Error> {
         self.consumed_scroll = snapshot.list.pending_scroll;
         if !self.commands.recover(services) {
             return Err(Error::Capacity);

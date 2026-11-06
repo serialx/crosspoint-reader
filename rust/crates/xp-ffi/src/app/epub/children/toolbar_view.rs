@@ -159,6 +159,7 @@ impl Write for Indicator<'_> {
 }
 impl Toolbar {
     /// Caller holds the render lifetime lock and the parent's resource guard.
+    #[inline(never)]
     pub(super) unsafe fn render(
         &self,
         services: &'static abi::Resources,
@@ -200,7 +201,7 @@ impl Toolbar {
             next,
             next_hits,
         } = frame;
-        unsafe { (physical.list_theme)(theme, 1) };
+        unsafe { physical.sample_theme(theme, xp_ui::reader_chrome::runtime::ThemeMode::Toolbar) }?;
         if !commands.recover(services) {
             return Err(Error::Capacity);
         }

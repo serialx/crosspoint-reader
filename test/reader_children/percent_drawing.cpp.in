@@ -344,10 +344,19 @@ int main() {
               }
               assert(std::memcmp(&physicalLayout, &layout, sizeof(layout)) == 0);
               XpUiReaderTheme originalTheme{}, childTheme{};
-              sampleReaderChromeTheme(renderer, originalTheme, false);
-              sampleReaderChildTheme(renderer, childTheme, false);
-              assert(std::memcmp(&originalTheme, &childTheme, sizeof(childTheme)) == 0);
-              sampleReaderChildTheme(renderer, childTheme, true);
+              for (bool bookmarks : {false, true}) {
+                nativeReaderChromeTheme(renderer, originalTheme, bookmarks);
+                sampleReaderChromeTheme(renderer, childTheme, bookmarks);
+                assert(std::memcmp(&originalTheme, &childTheme, sizeof(childTheme)) == 0);
+              }
+              XpUiReaderThemeFacts facts{};
+              for (bool toolbar : {false, true}) {
+                nativeReaderChildTheme(renderer, originalTheme, toolbar);
+                sampleReaderChildTheme(renderer, childTheme, facts, toolbar);
+                assert(xp_ui_reader_theme_compose(&childTheme, &facts,
+                    toolbar ? XP_UI_READER_THEME_TOOLBAR : XP_UI_READER_THEME_LIST));
+                assert(std::memcmp(&originalTheme, &childTheme, sizeof(childTheme)) == 0);
+              }
               const auto safe = target.deviceContext().safeRect();
               assert(childTheme.safe.x == safe.x && childTheme.safe.y == safe.y && childTheme.safe.w == safe.width && childTheme.safe.h == safe.height);
               assert(childTheme.row_min == theme.listRowHeight);

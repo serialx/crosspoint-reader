@@ -2,7 +2,7 @@
 
 extern "C" {
 struct ChildDrawing {
-  void (*theme)(XpUiReaderTheme*, uint8_t);
+  void (*theme)(XpUiReaderTheme*, XpUiReaderThemeFacts*, uint8_t);
   void (*header)(XpUiRect, XpAppText, uint8_t);
   void (*clear)();
   void (*icon)(uint32_t, XpUiRect, XpUiRect);
@@ -83,7 +83,8 @@ int main(int argc, char** argv) {
     return r;
   }();
   const ChildDrawing drawing{
-    [](XpUiReaderTheme* t, uint8_t toolbar) { assert(resourceGuard && toolbar == toolbarPainting); *t = {}; t->screen = {0,0,480,800}; t->safe = {0,0,480,760}; t->row_min = 48; t->row_gap = 4; t->row_inset = 8; t->row_padding = 4; t->header_height = 32; t->scroll_width = 3; },
+    [](XpUiReaderTheme* t, XpUiReaderThemeFacts* facts, uint8_t toolbar) {
+    *facts = {24, 0, 0}; assert(resourceGuard && toolbar == toolbarPainting); *t = {}; t->screen = {0,0,480,800}; t->safe = {0,0,480,760}; t->row_min = 48; t->row_gap = 4; t->row_inset = 8; t->row_padding = 4; t->header_height = 32; t->scroll_width = 3; },
     [](XpUiRect, XpAppText, uint8_t list) { assert(resourceGuard && modelDepth == 0 && list); },
     [] { assert(resourceGuard && modelDepth == 0); ++clears; },
     [](uint32_t, XpUiRect, XpUiRect) { assert(resourceGuard && modelDepth == 0 && toolbarPainting); },

@@ -78,6 +78,8 @@ add_custom_command(OUTPUT ${READER_PERCENT_DRAWING} ${CMAKE_CURRENT_BINARY_DIR}/
     ${REPO_ROOT}/src/activities/util/UtilityActivity.cpp
     ${REPO_ROOT}/src/activities/reader/RustReaderDrawing.cpp
     ${REPO_ROOT}/src/activities/reader/ReaderChromeListActivity.cpp
+    ${REPO_ROOT}/test/ui_runtime/native_oracle/ReaderThemeSampling.txt
+    ${REPO_ROOT}/test/ui_runtime/native_oracle/manifest.json
     ${REPO_ROOT}/src/components/themes/BaseTheme.cpp
     ${REPO_ROOT}/src/components/themes/lyra/LyraTheme.cpp
     ${REPO_ROOT}/src/components/themes/roundedraff/RoundedRaffTheme.cpp

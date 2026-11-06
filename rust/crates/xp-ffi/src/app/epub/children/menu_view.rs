@@ -8,8 +8,11 @@ use crate::app::{abi, resources::Text};
 use xp_core::i18n::ids::*;
 use xp_ui::{
     reader::menu_parent::Action,
-    reader_chrome::{list, menu},
-    scene::{Error, Refresh},
+    reader_chrome::{
+        list, menu,
+        runtime::{RowSlot, ThemeMode},
+    },
+    scene::Error,
 };
 
 #[derive(Clone, Copy)]
@@ -33,11 +36,14 @@ impl Rows for MenuRows<'_> {
             list::PROGRESS => Some(self.progress.wire()),
             list::EMPTY => Some(abi::Text::from_terminated(b"\0")),
             1..list::HEADER => {
-                let index = ((handle - 1) / 4) as usize;
+                let (index, slot) = RowSlot::decode(handle)?;
+                let index = usize::from(index);
                 let action = self.items.actions().get(index)?;
-                match (handle - 1) % 4 {
-                    0 => Some(unsafe { (self.services.translate)(self.items.label(index)?) }),
-                    2 => match action {
+                match slot {
+                    RowSlot::Label => {
+                        Some(unsafe { (self.services.translate)(self.items.label(index)?) })
+                    }
+                    RowSlot::Value => match action {
                         Action::Orientation => [
                             STR_PORTRAIT,
                             STR_LANDSCAPE_CW,
@@ -73,7 +79,6 @@ impl list::Resources for MenuRows<'_> {
             .actions()
             .get(usize::from(index))
             .ok_or(Error::Invalid)?;
-        let base = u32::from(index) * 4 + 1;
         let checked = match action {
             Action::Night => Some(self.toggles.night),
             Action::Bluetooth => Some(self.toggles.bluetooth),
@@ -81,9 +86,9 @@ impl list::Resources for MenuRows<'_> {
             _ => None,
         };
         Ok(list::Row {
-            label: base,
+            label: RowSlot::Label.encode(index),
             value: if matches!(action, Action::Auto | Action::Orientation) {
-                base + 2
+                RowSlot::Value.encode(index)
             } else {
                 0
             },
@@ -111,6 +116,7 @@ impl list::Resources for MenuRows<'_> {
 }
 impl Menu {
     /// Caller holds the render lifetime lock and parent's resource guard.
+    #[inline(never)]
     pub(super) unsafe fn render(
         &self,
         services: &'static abi::Resources,
@@ -120,7 +126,7 @@ impl Menu {
         let (snapshot, menu) = self.model.with(|model| (model.list.state, model.menu));
         let frame = unsafe { &mut *self.frame.get() };
         frame.menu = menu;
-        unsafe { (physical.list_theme)(&mut frame.list.theme, 0) };
+        let sampled = unsafe { physical.sample_theme(&mut frame.list.theme, ThemeMode::List) };
         let mut rows = MenuRows {
             services,
             items: &self.items,
@@ -129,7 +135,7 @@ impl Menu {
             state: frame.menu,
             toggles,
         };
-        let result = unsafe {
+        let result = sampled.and_then(|()| unsafe {
             frame.list.paint(
                 snapshot,
                 list::Screen::Menu,
@@ -139,12 +145,12 @@ impl Menu {
                 self.items.actions().len() as u16,
                 19,
             )
-        };
+        });
         self.model
             .with(|model| model.list.painted(&frame.list, result.is_ok()));
-        if result.is_ok() {
-            unsafe { (services.refresh)(Refresh::Fast as u8) };
+        if let Ok(prepared) = result {
+            unsafe { (services.refresh)(prepared.refresh as u8) };
         }
-        result
+        result.map(|prepared| prepared.command_count)
     }
 }

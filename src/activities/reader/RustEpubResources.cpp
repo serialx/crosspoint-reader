@@ -1009,8 +1009,8 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .image_read_window = physicalImageWindow,
       .display_source = physicalDisplaySource,
       .framebuffer_view = [](uint32_t* bytes) -> uint8_t* { return physicalFramebuffer(*target, bytes); },
-      .child_list_theme = [](XpUiReaderTheme* theme,
-                             uint8_t toolbar) { sampleReaderChildTheme(*target, *theme, toolbar != 0); },
+      .child_list_theme = [](XpUiReaderTheme* theme, XpUiReaderThemeFacts* facts,
+                             uint8_t toolbar) { sampleReaderChildTheme(*target, *theme, *facts, toolbar != 0); },
       .child_utility_layout = [](XpUiUtilityLayout* layout) -> uint8_t {
         return sampleReaderUtilityLayout(*target, *mapped, *layout);
       },

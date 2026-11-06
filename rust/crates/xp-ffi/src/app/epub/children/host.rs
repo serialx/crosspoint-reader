@@ -15,6 +15,15 @@ use alloc::boxed::Box;
 use core::ffi::c_void;
 use xp_ui::{reader_chrome::list, scene::Rect};
 
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_chapter_state(
+    raw: *const c_void,
+    out: *mut xp_ui::reader_chrome::ListModel,
+) {
+    let owner = unsafe { &*raw.cast::<Chapters>() };
+    unsafe { out.write(owner.model.with(|model| model.state)) };
+}
+
 #[repr(C)]
 pub struct Drawing {
     theme: unsafe extern "C" fn(*mut list::Theme, u8),

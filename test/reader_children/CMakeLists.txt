@@ -67,9 +67,11 @@ if(NOT TARGET TextGolden)
   add_subdirectory(${REPO_ROOT}/test/text_golden ${CMAKE_BINARY_DIR}/text_golden)
 endif()
 set(READER_PERCENT_DRAWING ${CMAKE_CURRENT_BINARY_DIR}/percent_drawing.cpp)
-add_custom_command(OUTPUT ${READER_PERCENT_DRAWING}
+file(GLOB READER_DRAWING_TRANSLATIONS CONFIGURE_DEPENDS ${REPO_ROOT}/lib/I18n/translations/*.yaml)
+add_custom_command(OUTPUT ${READER_PERCENT_DRAWING} ${CMAKE_CURRENT_BINARY_DIR}/percent_i18n_keys.h
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_percent_drawing.py ${READER_PERCENT_DRAWING}
   DEPENDS prepare_percent_drawing.py percent_drawing.cpp.in ../reader_lifecycle/extract.py
+    ${REPO_ROOT}/scripts/gen_i18n.py ${READER_DRAWING_TRANSLATIONS}
     ${REPO_ROOT}/src/components/UiSliderDialog.h ${REPO_ROOT}/src/components/UiAppHelpers.h
     ${REPO_ROOT}/src/components/UIThemeTokens.h
     ${CMAKE_CURRENT_SOURCE_DIR}/native_oracle/src/activities/reader/EpubReaderPercentSelectionActivity.cpp.txt

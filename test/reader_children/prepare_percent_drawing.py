@@ -9,6 +9,8 @@ from extract import definition
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "test/reader_children"))
 from oracle_sources import native_text
+sys.path.insert(0, str(ROOT / "scripts"))
+from gen_i18n import generate_keys_header, load_translations
 
 
 def read(name):
@@ -90,4 +92,8 @@ definitions.extend([
     )],
 ])
 template = Path(__file__).with_name("percent_drawing.cpp.in").read_text()
-Path(sys.argv[1]).write_text(template.replace("@DRAWING@", "\n".join(definitions)))
+output = Path(sys.argv[1])
+# The host Rust archive uses all keys; the ignored firmware header may be stripped.
+languages, names, tags, keys, *_ = load_translations(str(ROOT / "lib/I18n/translations"))
+generate_keys_header(languages, names, tags, keys, str(output.with_name("percent_i18n_keys.h")))
+output.write_text(template.replace("@DRAWING@", "\n".join(definitions)))

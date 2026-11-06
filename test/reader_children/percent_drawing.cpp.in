@@ -6,7 +6,7 @@
 #include <FreeInkApp.h>
 #include <FreeInkUIIcon.h>
 #include <xp_app.h>
-#include "I18nKeys.h"
+#include "percent_i18n_keys.h"
 #include "app_leaves.h"
 #include <xp_ui_reader_chrome.h>
 #include "components/icons/readerToolbarIcons.h"

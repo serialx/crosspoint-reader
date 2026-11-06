@@ -201,6 +201,20 @@ impl ChildTarget {
             Self::Menu(owner) => unsafe { owner.as_ref().input(parent, input, home_gesture) },
             Self::Chapters(owner) => {
                 let owner = unsafe { owner.as_ref() };
+                // Poll short holds through release instead of waiting for a display
+                // refresh and turning the stale held state into a page repeat.
+                let due = owner.model.with(|model| {
+                    model.failed
+                        || model.suppress_buttons != 0
+                        || model.suppress_contact
+                        || model
+                            .state
+                            .interest(Screen::Chapters, input.now_ms)
+                            .due(&input)
+                });
+                if !due {
+                    return false;
+                }
                 let total = {
                     let access = parent.lock_resources();
                     GuardedBook(&access).count()

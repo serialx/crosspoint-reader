@@ -14,6 +14,7 @@ struct OwnedChildDrawing {
 void* xp_app_test_current_child(uint8_t*);
 void xp_app_test_activity_loop();
 const uint8_t* xp_epub_test_child_result_anchor(const void*);
+void xp_epub_test_chapter_state(const void*, XpUiReaderListState*);
 }
 static void* watchedChild;
 static bool childFreed, parentUnlocked, parentDelivered, observingPublication;
@@ -25,6 +26,8 @@ static std::vector<std::string> ownedOrder;
 static bool childDebugEnabled;
 static std::string activeChildMarker;
 static unsigned childMarkerEntries;
+static uint32_t chapterClock, chapterDisplayUntil;
+static bool timedChapterInput;
 extern "C" void observeRustFree(void* pointer) {
   if (!watchedChild || pointer != watchedChild) return;
   assert(f().renderDepth == 1 && f().modelDepth == 0 && !childFreed);
@@ -56,6 +59,11 @@ static const OwnedChildDrawing drawing{
   }
 };
 static void bindOwnedChildren() {
+  static auto renderLock = runtime.render_lock;
+  runtime.render_lock = []() -> void* {
+    if (timedChapterInput) chapterClock = std::max(chapterClock, chapterDisplayUntil);
+    return renderLock();
+  };
   static auto previousLog = leaves.log;
   static auto previousLogEnabled = leaves.log_enabled;
   leaves.log_enabled = [](uint8_t severity) -> uint8_t {
@@ -177,10 +185,76 @@ static void returnChild(uint32_t released, bool checkAnchor = false) {
     assert(text.data == anchorBeforeMove && ::text(text) == "anchor"); return 1;
   }, nullptr);
 }
+
+static XpUiReaderListState chapterState() {
+  XpUiReaderListState state{};
+  xp_epub_test_chapter_state(xp_app_test_current_child(nullptr), &state);
+  return state;
+}
+
+static void timedChapterPress(uint32_t duration, bool native, XpUiReaderListState& reference) {
+  // SDK InputManager::update debounces state changes; a blocked poll first sees
+  // release after the wait, and keeps the old held state until the next debounce.
+  const uint32_t start = chapterClock;
+  uint32_t changedAt = start, pressedAt = 0;
+  bool raw = false, debounced = false;
+  while (chapterClock < start + duration + 1000 || debounced) {
+    const bool physical = chapterClock < start + duration;
+    if (physical != raw) { raw = physical; changedAt = chapterClock; }
+    XpUiInput input{};
+    if (chapterClock - changedAt > 5 && raw != debounced) {
+      debounced = raw;
+      if (debounced) { input.pressed = XP_UI_NAV_NEXT; pressedAt = chapterClock; }
+      else input.released = XP_UI_NAV_NEXT;
+    }
+    input.now_ms = chapterClock;
+    input.held = debounced ? XP_UI_NAV_NEXT : 0;
+    input.held_ms = chapterClock - pressedAt;
+    bool changed;
+    if (native) {
+      const auto interest = xp_ui_reader_list_interest(&reference, XP_UI_READER_CHAPTERS, input.now_ms);
+      changed = xp_ui_input_due(&interest, &input) &&
+          xp_ui_reader_list_update(&reference, &input, 1000, 1, XP_UI_READER_CHAPTERS, 0, -1).invalidate;
+    } else {
+      const auto before = chapterState().list.selected;
+      childInput = {}; childInput.input = input;
+      timedChapterInput = true;
+      xp_app_test_activity_loop();
+      timedChapterInput = false;
+      changed = chapterState().list.selected != before;
+      if (changed) paintChild();
+    }
+    // The recorded X3 list refresh occupies the render lock for >500 ms.
+    if (changed) chapterDisplayUntil = chapterClock + 580;
+    chapterClock += 10;
+  }
+}
+
+static void timedChapters() {
+  const auto initial = chapterState();
+  assert(initial.list.selected == 31 && initial.list.drawn > 1);
+  auto reference = initial;
+  chapterClock = 1000;
+  for (unsigned i = 0; i < 32; ++i) timedChapterPress(150, true, reference);
+  assert(reference.list.selected == 63);
+  chapterClock = 1000; chapterDisplayUntil = 0;
+  for (unsigned i = 0; i < 32; ++i) timedChapterPress(150, false, reference);
+  std::fprintf(stderr, "timed chapters: native=%d owned=%d\n", reference.list.selected, chapterState().list.selected);
+  assert(chapterState().list.selected == reference.list.selected);
+  // Also preserve native page-repeat timing after the 500 ms threshold.
+  reference = chapterState(); chapterClock += 2000; chapterDisplayUntil = 0;
+  const auto start = chapterClock;
+  timedChapterPress(1200, true, reference);
+  chapterClock = start; chapterDisplayUntil = 0;
+  timedChapterPress(1200, false, reference);
+  assert(chapterState().list.selected == reference.list.selected);
+  std::printf("timed chapters: 32 short presses 31->63; native/owned held repeat ->%d\n", reference.list.selected);
+}
 int main(int argc, char** argv) {
   assert(argc == 4);
   const std::string mode = argv[1]; const bool cancelled = std::strtoul(argv[2], nullptr, 10) != 0;
   childDebugEnabled = std::strtoul(argv[3], nullptr, 10) != 0;
+  longChapterFixture = mode == "chapter-timed";
   Fixture state; fixture = &state;
   bind(); bindResultsLifecycle(); bindResultsPhysical(); bindProductionChildren();
   bindReaderBook(); bindReaderResults(); BookStoreAdapters::bind(); bindOwnedChildren();
@@ -215,12 +289,13 @@ int main(int argc, char** argv) {
     return 0;
   }
   if (mode == "menu") xp_epub_test_menu_open(results.owner);
-  else xp_epub_test_menu_confirm(results.owner, mode == "chapter" ? 0 : mode == "percent" ? 6 : 14);
+  else xp_epub_test_menu_confirm(results.owner, mode == "chapter" || longChapterFixture ? 0 : mode == "percent" ? 6 : 14);
   assert(xp_app_test_pending_kind() == 1 && xp_app_test_drain());
-  assert(childKind() == (mode == "menu" ? 1 : mode == "chapter" ? 2 : mode == "percent" ? 3 : 4));
+  assert(childKind() == (mode == "menu" ? 1 : mode == "chapter" || longChapterFixture ? 2 : mode == "percent" ? 3 : 4));
   const char* names[] = {"", "EpubReaderMenu", "EpubReaderChapterSelection", "EpubReaderPercentSelection", "QrDisplay"};
   assert(activeChildMarker == (childDebugEnabled ? names[childKind()] : ""));
   paintChild();
+  if (longChapterFixture) timedChapters();
   if (mode == "percent" && !cancelled) {
     // The actual Percent input policy clamps repeated decrements at zero.
     for (unsigned i = 0; i < 110; ++i) {

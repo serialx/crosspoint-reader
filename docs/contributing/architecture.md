@@ -60,7 +60,8 @@ Top-level activity groups:
 
 - `src/activities/home/`: home and library navigation
 - `rust/crates/xp-ffi/src/app/epub/`: EPUB/TXT/Markdown session policy
-- `src/activities/reader/`: native XTC owner, reader resources and child screens
+- `rust/crates/xp-ffi/src/app/epub/children/`: Rust Menu, Chapters, Percent, QR and Toolbar owners
+- `src/activities/reader/`: native XTC owner, retained native children and physical reader services; see the [ownership map](rust-ui.md#reader-child-ownership)
 - `src/activities/settings/`: settings menus and configuration
 - `src/activities/network/`: Wi-Fi selection, AP/STA mode, file transfer server
 - `src/activities/boot_sleep/`: boot and sleep transitions

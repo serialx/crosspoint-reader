@@ -13,8 +13,10 @@ child and sync queries to that same book; the dictionary retains its native
 Chapter adapter. See [Reader book ownership](rust.md#reader-book-ownership) and
 [Section ownership](rust.md#chapter-and-section-compatibility), and
 [Reader Page ownership](rust.md#reader-page-ownership).
-The Rust application owns navigation, Home and the ordinary EPUB `EpubSession`; native XTC
-and reader child screens remain owned legacy activities. The session calls typed
+The Rust application owns navigation, Home, the ordinary EPUB `EpubSession`, and
+its Menu, Chapters, Percent and QR children. The session also owns Toolbar in Rust.
+XTC and the retained native children use owned legacy activities; see the
+[reader child ownership map](rust-ui.md#reader-child-ownership). The session calls typed
 physical leaves for those resources without changing the chapter assembly and
 page-storage boundary described here. The wider reader also uses Rust for
 [shared inflate](rust.md#zip-directory-boundary),

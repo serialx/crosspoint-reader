@@ -4,8 +4,9 @@ The Rust application in `xp-ffi/src/app` owns the main-loop policy, current acti
 retained parents, pending transition, Home gestures and screen, and EPUB session. `ActivityManager`
 forwards native callers through `xp_app.h`; it retains the physical render task,
 RenderLock and completion notification. There is one activity stack, owned by
-`xp-ui::app::Application`. Its entries are Rust Home and EPUB session owners or owned legacy native
-activities, including XTC and reader child screens. A legacy pointer transfers only when the Rust event accepts it.
+`xp-ui::app::Application`. Its entries are Rust Home, EPUB session and reader child
+owners, or owned legacy native activities such as XTC and the retained native
+children. A legacy pointer transfers only when the Rust event accepts it.
 
 `xp_app_init`, `xp_app_loop`, `xp_app_render` and `xp_app_event` are the application
 boundary. Typed legacy, resource and runtime tables supply existing services;
@@ -26,19 +27,21 @@ Home calls its Rust model and view directly and has no native activity class.
 ## Application ownership
 
 Replace and sleep exit and drop the current owner and retained parents under
-RenderLock; push retains the parent without exit. On pop, the native bridge moves
-the child's result into callback-local storage and lends a typed result view to
-Rust. The synchronous continuation exits and destroys the child under RenderLock,
-restores the parent and publishes it as the render target, then unlocks before
-delivering the borrowed result. Destruction of any Pages transferred to the child
-precedes parent delivery. The producer-local result remains alive throughout that
-delivery and dies after the continuation returns.
+RenderLock; push retains the parent without exit. On pop, the application takes
+the result before exiting and destroying the child under RenderLock. It restores
+and publishes the parent as the render target, then unlocks before synchronous
+result delivery. Destruction of any Pages transferred to the child precedes
+parent delivery.
 
-The EPUB owner consumes the typed result through its pending child intent. Native
-parents use the retained native forwarding path. Result text is borrowed, without
-an unconditional Rust copy; a handler that retains a path, anchor or other text
-must copy it before returning. Handlers enqueue transitions. The outer driver
-drains them after the result producer returns, so a callback does not destroy the
+Rust reader children return an owned `ReaderChildResult` through
+`ActivityResult::Child`. The EPUB parent's typed receiver consumes it through
+its pending child intent; a selected chapter anchor moves into navigation state.
+For retained native children, the native bridge instead holds the result in
+callback-local storage and lends a typed view through `ActivityResult::Legacy`.
+That storage lives until delivery returns. A native-result handler must copy
+borrowed text only if it retains the text beyond that call. Native parents keep
+their native forwarding path. Handlers enqueue transitions; the outer driver
+drains them after the result producer returns, so a callback cannot destroy the
 storage it is still reading. Entry also runs after unlocking.
 
 Loop-only navigation and driver state are separate from render-only command/text
@@ -78,6 +81,21 @@ exercise the ordinary owner through App without those policy replacements.
 Firmware symbol inventories must exclude both `xp_app_test_*` and `xp_epub_test_*`.
 The reader oracle documentation describes the scope of each kind of test.
 
+## Reader child ownership
+
+| Route | State, storage and results | Native services |
+| --- | --- | --- |
+| Menu, Chapters, Percent and QR | [`epub/children/`](../../rust/crates/xp-ffi/src/app/epub/children/) owns each child; Application retains its EPUB parent and delivers owned results | [`RustReaderDrawing.cpp`](../../src/activities/reader/RustReaderDrawing.cpp) supplies theme/layout, header/footer and font services; the QR leaf in `RustEpubResources.cpp` calls `QrUtils::drawQrBytes` |
+| Toolbar | `children/toolbar_owner.rs` and `children/toolbar_view.rs` own the session's toolbar slot, row window and publication | The same drawing leaves supply metrics, icons and painting |
+| TextSettings, Bookmarks, Clippings, Wi-Fi, sync, footnote, dictionary and selection | Retained native children use the legacy activity/result boundary | [`RustEpubResources.cpp`](../../src/activities/reader/RustEpubResources.cpp) retains their factories and services |
+
+`ReaderChromeListActivity` remains for `EpubReaderBookmarksActivity` and
+`EpubReaderClippingListActivity`. FileBrowser, Library and TextSettings instead
+use `RustActivityAdapter`; they still use `ReaderChromeCommands` and the theme
+sampler. `UtilityActivity` remains for `ConfirmationActivity`, `DetailsActivity`,
+`IntervalSelectionActivity` and `FrontlightPanelActivity`. Removing the reader
+QR and Percent classes does not retire either shared base or the sampler.
+
 The scene contracts below apply to scene-based activities. The reader uses the
 [policy boundary](#reader-policy-boundary) described separately.
 
@@ -87,7 +105,10 @@ The owner lends command, text and interaction arrays to a scene builder. The
 limits are 256 commands of 32 bytes, 4,096 text bytes, 64 interaction records of
 24 bytes and eight nested clip/translation scopes. These limits are ceilings,
 not a default allocation. Each screen chooses smaller storage and checks the
-builder result before painting. Overflow invalidates the whole build.
+builder result before painting. Strict arena overflow invalidates the whole build.
+The reader Percent picker uses a separate narrow interval entry with 18 inline
+commands: it reports dropped drawing commands while still publishing the full
+interaction table. Its exhaustive host bound covers all normal drawing states.
 
 XTC allocates its arena once on entry, fallibly, and releases it on exit. On C3
 it contains 78 commands, two 32-hit buffers, four borrowed hint pointers and the next
@@ -213,11 +234,13 @@ needed; the retired EPUB-exclusive service dispatch is not the session boundary.
 in `rust/crates/xp-ffi/include/xp_epub_session.h`. The session owns its loaded
 `ReaderBook` and `ReaderSection` in Rust, including metadata, cache, load and
 incremental Chapter build resources. The native `Epub` facade lends the same
-book to child and sync consumers. Rust's `page_owner` owns reader Pages and Page
-metadata. C++ retains dictionary/preview Pages, borrowed/transferred Page facades
-for the three native children, native child screens and physical leaves,
-including file implementations and stores, font/display services and toolbar
-widgets. Rust owns the inline render frame, prewarm storage, plane/scratch buffers
+book to retained native child and sync consumers. Rust's `page_owner` owns reader
+Pages and Page metadata. C++ retains dictionary/preview Pages, borrowed/transferred
+Page facades for the three native Page consumers, the remaining native child
+screens and physical leaves, including file implementations, stores and
+font/display services. Rust owns Menu, Chapters, Percent, QR and Toolbar; native
+drawing leaves supply their theme metrics, font preparation and painting. Rust
+owns the inline render frame, prewarm storage, plane/scratch buffers
 and optional strip storage, including source/plan loans and cleanup. Physical
 leaves perform native font, paint and display operations. In `XpEpubPhysicalQuery`,
 `WIDTH` is the panel width in pixels; `WIDTH_BYTES` is the row stride in bytes
@@ -250,12 +273,13 @@ discard releases only its acquired components; an entered owner's exit performs
 base exit and book teardown before component destruction. It must not clear an
 active owner's shared stores when discarding an unentered replacement.
 
-Borrowed text is consumed synchronously at its leaf or result boundary. For
-example, TOC row labels and the current chapter title are lent to the native
-consumer; toolbar row filling copies labels and indentation into existing widget
-buffers. The widget does not retain the borrowed row source after painting.
-Native children can outlive a launch call, so their retained values must be owned.
-Their returned text instead follows the callback-local lifetime described above.
+Borrowed text is consumed synchronously at its leaf or result boundary. Rust-owned
+Chapters and Toolbar read TOC rows under resource access and copy labels into
+their bounded owner-held windows. Drawing borrows those windows for the current
+paint; it does not retain the book's borrowed row source. Retained native
+consumers may still borrow the current chapter title or facade row data. Native
+children can outlive a launch call, so their retained values must be owned.
+Their returned text follows the callback-local lifetime described above.
 
 The scene input rule above does not redefine reader resource-lock scopes. The
 [reader lifecycle oracle](../../test/reader_lifecycle/README.md) distinguishes

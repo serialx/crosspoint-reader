@@ -8,7 +8,15 @@ These tests exercise the active Rust owners and the frozen native reader child c
 
 Native definitions are named, hashed snapshots under `native_oracle/`; its README lists every consumer and the 97,080 bytes of retained source. `oracle_sources.py` reads them as text. Candidate code uses the live public headers. Historical callback tables and retired wire declarations live in explicit host-only fixtures. `reader_native_oracle_include_paths` rejects any snapshot path in compiler include arguments.
 
-The directory is also a standalone CMake project. Run it through the qualification toolkit's `ctest-parallel.py` with the current thirteen-test inventory, `--jobs 16`, and `NM=/opt/homebrew/opt/llvm/bin/llvm-nm`. The main host CMake tree includes the same tests.
+Run the standalone CMake project from the repository root with CMake, a C/C++ compiler, Python and the pinned Rust toolchain installed. Cargo dependencies must be available locally because the build uses `--offline`.
+
+```sh
+cmake -S test/reader_children -B /tmp/crosspoint-reader-children
+cmake --build /tmp/crosspoint-reader-children --parallel 4
+ctest --test-dir /tmp/crosspoint-reader-children --output-on-failure -j 16
+```
+
+The main host CMake tree includes the same tests. If the system `nm` cannot read Rust LLVM bitcode, set `NM` to a compatible `llvm-nm` for CTest. For example, on Homebrew macOS the optional override is `NM=/opt/homebrew/opt/llvm/bin/llvm-nm ctest --test-dir /tmp/crosspoint-reader-children --output-on-failure -j 16`.
 
 Strict-provenance Miri runs the production ownership tests; the filters and limits are listed below.
 

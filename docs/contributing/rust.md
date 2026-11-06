@@ -543,8 +543,9 @@ owner through `XpEpubBookBorrow`; it does not load another book. It keeps the
 cache path and language needed by retained reference-return APIs. Load-time Rust
 CSS is released before publication; the reader's build owns Section-time CSS.
 The borrowed facade's `getCssParser` returns null. Ordinary native Epub objects
-retain their own CSS parser. Chapter/bookmark children and progress/XPath mapping
-still hold `shared_ptr<Epub>` loans. The shared
+retain their own CSS parser. Native Bookmarks, Clippings and progress/XPath mapping
+still hold `shared_ptr<Epub>` loans. Rust-owned Chapters and Toolbar instead read
+TOC rows directly from the Rust book under resource access. The shared
 pointer keeps the facade alive, not its Rust owner: every loan must end before
 `book_facade_close`, and the Rust owner must outlive that close. Detach the image
 extractor and drop Section before closing the facade and owner. Sync may detach

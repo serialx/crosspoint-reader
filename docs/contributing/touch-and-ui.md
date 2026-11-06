@@ -2,7 +2,7 @@
 
 CrossPoint runs on touch devices (Seeed Sticky, M5Paper, M5Stack PaperMono, LilyGo T5, Xteink X4 Pro) alongside the button-only Xteink X3/X4. Every screen must work with both input styles.
 
-New screens use the [Rust UI runtime](rust-ui.md). Rust owns state, layout and input policy; the Rust application owns navigation. Legacy `RustActivityAdapter` facades retain resource bindings and publication for their screens; Home has a direct Rust owner. Use the existing family host when it fits the screen. FreeInkUI still supplies shared resource painters and supports remaining C++ surfaces.
+New screens use the [Rust UI runtime](rust-ui.md). Rust owns state, layout and input policy; the Rust application owns navigation. Legacy `RustActivityAdapter` facades retain resource bindings and publication for their screens. Home, the EPUB session and its Menu, Chapters, Percent and QR children have direct Rust owners; the session also owns Toolbar. Use the existing family host when it fits the screen. FreeInkUI still supplies shared resource painters and supports remaining C++ surfaces.
 
 ## Picking the right host
 
@@ -19,7 +19,7 @@ Layout and input must use the same published geometry. The Rust runtime guide de
 
 ## Remaining C++ hosting stack
 
-The following describes the existing C++ hosts. For new screens, use the Rust hosts above. `EpubReaderPercentSelectionActivity` still uses `UiAppHost` for its slider dialog.
+The following describes the remaining C++ hosts. For new screens, use the Rust hosts above. The reader Percent dialog is owned by [`children/percent.rs`](../../rust/crates/xp-ffi/src/app/epub/children/percent.rs); its narrow interval view shares the Rust utility widget formulas and publishes its own input geometry. See the [reader child ownership map](rust-ui.md#reader-child-ownership).
 
 `UiAppHost` ([src/components/UiAppHost.h](../../src/components/UiAppHost.h)) owns what every FUI screen shares: the font-bound render target, the `FreeInkApp`, and the `uiReady` handshake that lets the loop task route touch snapshots against the interaction table the render task rebuilds. Never re-implement that handshake; it is a cross-task protocol and lives in exactly one place.
 

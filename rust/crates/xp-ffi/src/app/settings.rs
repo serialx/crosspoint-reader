@@ -2,6 +2,7 @@ use super::{abi, app, App, Owner, StableOwner, Transition};
 use core::{
     alloc::Layout as Allocation,
     ffi::{c_void, CStr},
+    fmt::Write,
 };
 use xp_core::{glyph::GlyphTarget, i18n::ids::*};
 use xp_ui::{
@@ -166,67 +167,47 @@ unsafe impl Host for NativeHost {
     }
     #[inline(never)]
     fn log(&self, event: Log) {
-        let mut buffer = [0u8; 80];
-        let (level, tag, message) = match event {
-            Log::Enter => (0, c"ACT", text(c"Entering activity: SettingsList")),
-            Log::Exit => (0, c"ACT", text(c"Exiting activity: SettingsList")),
-            Log::Build => (1, c"RUI", text(c"Cannot build scene in SettingsList")),
-            Log::Paint => (1, c"RUI", text(c"Invalid scene in SettingsList")),
-            Log::Arena(bytes) => (
-                1,
-                c"RUI",
-                decimal_message(
-                    &mut buffer,
-                    b"Cannot allocate ",
-                    bytes,
-                    false,
-                    b" command bytes\0",
-                ),
-            ),
-            Log::Scroll(delta) => (
-                0,
-                c"LIST",
-                decimal_message(
-                    &mut buffer,
-                    b"SettingsList swipe delta=",
-                    delta.unsigned_abs() as usize,
-                    delta < 0,
-                    b" count=6\0",
-                ),
-            ),
+        let mut buffer = LogBuffer {
+            bytes: [0; 80],
+            len: 0,
         };
-        unsafe { (self.app.epub.log)(level, text(tag), message) };
+        let (level, tag, message) = match event {
+            Log::Enter => (0, c"ACT", c"Entering activity: SettingsList"),
+            Log::Exit => (0, c"ACT", c"Exiting activity: SettingsList"),
+            Log::Build => (1, c"RUI", c"Cannot build scene in SettingsList"),
+            Log::Paint => (1, c"RUI", c"Invalid scene in SettingsList"),
+            Log::Arena(bytes) => {
+                write!(&mut buffer, "Cannot allocate {bytes} command bytes")
+                    .expect("bounded settings log");
+                (1, c"RUI", buffer.message())
+            }
+            Log::Scroll(delta) => {
+                write!(&mut buffer, "SettingsList swipe delta={delta} count=6")
+                    .expect("bounded settings log");
+                (0, c"LIST", buffer.message())
+            }
+        };
+        unsafe { (self.app.epub.log)(level, text(tag), text(message)) };
     }
 }
-fn decimal_message(
-    out: &mut [u8; 80],
-    prefix: &[u8],
-    mut value: usize,
-    negative: bool,
-    suffix: &[u8],
-) -> abi::Text {
-    // At most 20 digits; both fixed messages fit the existing 80-byte scratch.
-    let mut start = out.len();
-    loop {
-        start -= 1;
-        out[start] = b'0' + (value % 10) as u8;
-        value /= 10;
-        if value == 0 {
-            break;
+struct LogBuffer {
+    bytes: [u8; 80],
+    len: usize,
+}
+impl Write for LogBuffer {
+    fn write_str(&mut self, value: &str) -> core::fmt::Result {
+        let end = self.len + value.len();
+        if end >= self.bytes.len() {
+            return Err(core::fmt::Error);
         }
+        self.bytes[self.len..end].copy_from_slice(value.as_bytes());
+        self.len = end;
+        Ok(())
     }
-    let digits = out.len() - start;
-    out[..prefix.len()].copy_from_slice(prefix);
-    let number = prefix.len() + usize::from(negative);
-    if negative {
-        out[prefix.len()] = b'-';
-    }
-    out.copy_within(start.., number);
-    let end = number + digits;
-    out[end..end + suffix.len()].copy_from_slice(suffix);
-    abi::Text {
-        data: out.as_ptr(),
-        len: end + suffix.len() - 1,
+}
+impl LogBuffer {
+    fn message(&self) -> &CStr {
+        CStr::from_bytes_with_nul(&self.bytes[..=self.len]).expect("terminated settings log")
     }
 }
 // Dormant until the CP2 launch switch; tests install this production owner directly.

@@ -8,6 +8,8 @@ use crate::{
     settings::view::{Content, Resources},
 };
 /// Build into the visit's existing command storage, including viewport follow passes.
+// Keep the build frame off the paint route.
+#[inline(never)]
 pub fn build(
     commands: &mut [Command],
     hits: &mut crate::settings::hits::Layout,

@@ -22,6 +22,7 @@ mod font;
 mod gif;
 mod glyph;
 mod hal;
+mod http_transfer;
 mod hyphen;
 mod i18n;
 mod image;

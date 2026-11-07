@@ -88,46 +88,61 @@ The reader oracle documentation describes the scope of each kind of test.
 | Menu, Chapters, Percent and QR | [`epub/children/`](../../rust/crates/xp-ffi/src/app/epub/children/) owns each child; Application retains its EPUB parent and delivers owned results | [`RustReaderDrawing.cpp`](../../src/activities/reader/RustReaderDrawing.cpp) supplies theme/layout, header/footer and font services; the QR leaf in `RustEpubResources.cpp` calls `QrUtils::drawQrBytes` |
 | Toolbar | `children/toolbar_owner.rs` and `children/toolbar_view.rs` own the session's toolbar slot, row window and publication | The same drawing leaves supply metrics, icons and painting |
 | Footnote and dictionary lookup | `children/selection_owned.rs` owns one reader Page while it is needed, plus inline commands and an owned result; footnote returns an href to reader history | Typed leaves in [`RustReaderLookup.cpp`](../../src/activities/reader/RustReaderLookup.cpp) supply dictionary operations, hint mapping and popup metrics |
-| Definition entry | [`children/definition.rs`](../../rust/crates/xp-ffi/src/app/epub/children/definition.rs) owns stable inline storage for the native adapter and viewer | `RustReaderLookup.cpp` constructs and destroys the retained `DictionaryDefinitionActivity`; its HTML, Pages and fonts remain native |
+| Definition | [`DefinitionSession`](../../rust/crates/xp-ffi/src/app/epub/children/definition_owned.rs) owns navigation, history, input, render publication and results in a `StableOwner` | [`DefinitionPayload`](../../src/activities/reader/DefinitionPayload.h) retains native text, HTML and Page resources behind 15 typed leaves |
 | Clippings | `children/clipping_activity.rs` owns the list and its eight-row preview window; App owns the session-independent clipping store | Storage and drawing leaves; the owned plain-text Definition entry opens details |
 | Bookmarks | `children/bookmark_owned.rs` owns the list, bounded subtitle window and moved jump/rename results; the reader owns one record vector | Physical input, popup, drawing and whole-file storage leaves; rename opens the Rust keyboard |
 | TextSettings, Wi-Fi, sync and interactive selection | Retained native children use the legacy activity/result boundary | [`RustEpubResources.cpp`](../../src/activities/reader/RustEpubResources.cpp) retains their factories and services |
 
-The native viewer also serves `DetailsActivity`, `PluginCatalogActivity` and
-the Rust-owned clipping list. Interactive `ClipSelectionActivity` remains
-native: `RustEpubPage.h` opens it for reader selection, and
-`DictionaryDefinitionActivity` opens it for selection within the viewer.
+Definition is a Rust activity owner. `DefinitionOwner` holds one fallible
+`StableOwner<DefinitionSession>` allocation, so native pointers into its payload
+storage stay valid when the activity stack moves. `DefinitionOwner::drop` destroys
+its native payload before `StableOwner` frees the allocation. The owner never passes
+through `Legacy.destroy`. Details and PluginCatalog enter through
+`xp_app_definition_open_native`; dictionary lookup and the Rust clipping list
+construct the owner through typed Rust entry paths.
 
-The definition target uses native lifecycle and rendering callbacks, but its
-allocation belongs to Rust. `Legacy.destroy` must never receive the inline
-handle. `Definition::drop` invokes the typed native destructor before
-`StableOwner` reconstructs and frees its Box. The native adapter releases its
-borrowed activity pointer before destruction, so it cannot delete the inline
-viewer.
+`DefinitionSession` owns the current and pending query blocks, the 16-entry
+history, selection position and published model. `DefinitionPayload` contains
+current and candidate resource slots plus temporary plain-selection Pages.
+Native code still normalizes NULs, converts HTML to plain text, wraps text,
+chooses reserve thresholds, constructs Pages and draws styled spans. Rust
+controls when these operations run and publishes the returned facts only after
+successful preparation and payload commit.
 
-Lookup releases its background reader Page before opening the definition.
-Application retains the lookup owner, including its Dictionary, until the
-definition and any viewer-opened `ClipSelectionActivity` have exited. Selection
-borrows the viewer's native Pages; those Pages remain alive until the selection
-child is destroyed. The Definition-only pop first destroys the child, restores
-and publishes the parent, and unlocks. The synchronous native bridge then
-reacquires RenderLock, releases temporary Pages and allocates or reuses the final
-text block at the original post-release assignment point. Rust receives a
-move-only block and transfers that same allocation into native Definition storage;
-no native stack view escapes and no second text copy is made. Its release callback
-must use the allocator that created the block; acceptance consumes ownership,
-while rejection leaves the guard responsible for release. The Definition viewer
-move to Rust (D1) retires the three temporary Legacy leaves and the current,
-pending and 16 history variant holders. Definition completion becomes an owned
-result, then lookup completion returns to the reader through the normal destroy,
-publish, unlock and deliver sequence. Footnote hrefs use the reader's existing history.
+The 15 callbacks in
+[`DefinitionPhysical`](../../rust/crates/xp-ffi/src/app/epub/children/definition_physical.rs)
+cover lookup/plain/native construction, destruction, default-heap admission,
+prepare/release/find/commit, selection build/child/release, layout and header/body
+drawing. Rust computes the body rectangle from layout facts. The layout query
+also returns the last header-back hit; rendering uses `(-1, -1)` for no query.
+The native viewer, its query variants and the three temporary Definition-only
+Legacy leaves have been retired.
 
-The Rust-owned plain-text definition entry fills the viewer's final string
-synchronously under the clipping store operation lease. The list retains its
-owner while Definition is open. Closing or cancelling the viewer delivers
-`DefinitionClosed` and redraws that same list; a rejected Definition push drops
-the pending viewer before redraw. The inline handle never passes through
-`Legacy.destroy`.
+Lookup releases its background reader Page before opening Definition.
+Application retains the lookup owner and its Dictionary until Definition and
+any selection child have exited. `ClipSelectionActivity` remains native and
+borrows Pages from `DefinitionPayload`. On return, the generic `with_result`
+continuation destroys the child under RenderLock, restores and publishes the
+parent, then unlocks before delivering the result. Only `RESULT_CLIPPING`,
+including cancellation, enters Definition selection processing; other child
+returns, such as the frontlight panel, leave the viewer unchanged.
+
+Selection processing releases temporary Pages before heap admission and the
+single source-to-owned-block copy. The synchronous native bridge keeps its
+`ActivityResult` alive until delivery returns, and the copy runs without
+RenderLock. Rust retains that owned block for the pending query and history;
+there is no second native query copy. A cancelled selection releases temporary
+Pages without changing the query. Definition completion delivers the owned
+`DefinitionClosed` result through the same generic pop path, then lookup can
+return to the reader. Footnote hrefs use the reader's existing history.
+
+The clipping list fills the native plain-text payload synchronously under the
+clipping-store operation lease and retains its list owner while Definition is
+open. Closing or cancelling Definition redraws that same list; a rejected push
+drops the pending owner before redraw. The
+[Definition test guide](../../test/definition_session/README.md) distinguishes
+actual-App result compositions, native geometry comparisons and manual Miri
+negative/layout checks.
 
 The `ReaderChromeListActivity` base and its final Bookmarks subclass are removed. FileBrowser, Library and
 TextSettings use `RustActivityAdapter` and retain `ReaderChromeCommands` and the

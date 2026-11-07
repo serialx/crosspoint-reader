@@ -388,7 +388,7 @@ static_assert(alignof(XpEpubLeaves) == alignof(void (*)()));
 static_assert(sizeof(XpAppResultView::kind) == 1);
 static_assert(sizeof(XpAppResultView::cancelled) == 1);
 
-// The Legacy table includes three temporary Definition-selection callbacks.
+// Definition selection uses the generic result path; Legacy has 14 callbacks.
 static_assert(sizeof(XpAppLegacy) == 14 * sizeof(void*));
 static_assert(offsetof(XpAppLegacy, reader_turn) == 12 * sizeof(void*));
 static_assert(offsetof(XpAppLegacy, screenshot_info) == 13 * sizeof(void*));

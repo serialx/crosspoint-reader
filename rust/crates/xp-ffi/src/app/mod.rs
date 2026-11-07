@@ -22,6 +22,9 @@ mod home;
 mod home_books;
 mod home_text;
 mod keyboard;
+// Dormant until the network-mode adoption switch.
+#[allow(dead_code)]
+mod network_modes;
 mod resources;
 mod result;
 mod stable_owner;

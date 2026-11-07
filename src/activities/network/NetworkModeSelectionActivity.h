@@ -1,6 +1,7 @@
 #pragma once
 #include <BoardConfig.h>
 #include <FreeInkUIGfxRenderer.h>
+#include <xp_network_owner.h>
 #include <xp_ui_network.h>
 
 #include "activities/RustActivityAdapter.h"
@@ -17,6 +18,10 @@ class NetworkModeSelectionActivity final : public RustActivityAdapter {
   void onEnter() override;
   void onModeSelected(NetworkMode mode);
   void onCancel();
+  void physicalLayout(XpUiSettingsLayout&);
+  XpUiSettingsResources resources();
+  void paint(const XpUiCommand&, XpUiRect);
+  void prepareResult(bool cancelled, uint8_t mode);
 
  private:
   XpUiListState state{}, next{};
@@ -28,7 +33,6 @@ class NetworkModeSelectionActivity final : public RustActivityAdapter {
   bool touchActivated = false;
   freeink::ui::GfxRendererTarget textTarget;
   const char* text(uint32_t) const;
-  XpUiSettingsResources resources();
   Publication* rustPublication() override { return &publication; }
   bool buildRustScene(XpUiScene&) override;
   bool rustSceneCurrent() const override;

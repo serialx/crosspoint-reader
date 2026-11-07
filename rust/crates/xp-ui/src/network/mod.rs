@@ -2,6 +2,7 @@ pub mod calibre;
 pub mod calibre_view;
 pub mod ffi;
 pub mod modes;
+pub mod modes_owner;
 pub mod usb;
 pub mod usb_view;
 pub mod web;

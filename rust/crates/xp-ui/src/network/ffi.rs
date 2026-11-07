@@ -123,52 +123,39 @@ pub unsafe fn modes_view(
     {
         return 0;
     }
-    let mut working = *state;
+    let commands = unsafe {
+        core::slice::from_raw_parts_mut(buffer.commands, usize::from(buffer.command_capacity))
+    };
+    let mut routing = Hits::default();
     let mut resources = *services;
-    for pass in 0..9 {
-        let commands = unsafe {
-            core::slice::from_raw_parts_mut(buffer.commands, usize::from(buffer.command_capacity))
-        };
-        let mut routing = Hits::default();
-        let Ok(mut arena) = Arena::with_hit_sink(commands, &mut routing) else {
-            return 0;
-        };
-        working = match super::modes::view(
-            &mut arena,
-            working,
-            *layout,
-            &mut resources,
-            services.count,
-        ) {
-            Ok(next) => next,
-            Err(Error::Capacity) => return 2,
-            Err(_) => return 0,
-        };
-        if working.follow != 0 && pass < 8 {
-            continue;
-        }
-        let Ok(scene) = arena.finish(Refresh::Fast, 1) else {
-            return 0;
-        };
-        let command_count = scene.commands.len() as u16;
-        unsafe {
-            next.write(working);
-            hits.write(routing);
-            out.write(SceneView {
-                commands: buffer.commands,
-                text: core::ptr::null(),
-                interactions: core::ptr::null(),
-                generation: 1,
-                command_count,
-                text_len: 0,
-                interaction_count: 0,
-                refresh: Refresh::Fast as u8,
-                reserved: 0,
-            });
-        }
-        return 1;
+    let (working, command_count) = match super::modes::build(
+        commands,
+        &mut routing,
+        *state,
+        *layout,
+        &mut resources,
+        services.count,
+    ) {
+        Ok(result) => result,
+        Err(Error::Capacity) => return 2,
+        Err(_) => return 0,
+    };
+    unsafe {
+        next.write(working);
+        hits.write(routing);
+        out.write(SceneView {
+            commands: buffer.commands,
+            text: core::ptr::null(),
+            interactions: core::ptr::null(),
+            generation: 1,
+            command_count: command_count as u16,
+            text_len: 0,
+            interaction_count: 0,
+            refresh: Refresh::Fast as u8,
+            reserved: 0,
+        });
     }
-    0
+    1
 }
 
 use super::{calibre, calibre_view};

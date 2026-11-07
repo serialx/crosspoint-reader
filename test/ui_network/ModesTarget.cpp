@@ -36,7 +36,7 @@ struct NetworkModeSelectionActivity {
   void buildScreen(UiScreen&);
   void syncListViewport(UiScreen&, ui::ListProps&, int = 0);
 };
-#include "modes_original.inc"
+// NATIVE_MODE_ORACLE
 int main() {
   HalDisplay display;
   GfxRenderer renderer(display);

@@ -21,7 +21,7 @@ struct NetworkModeSelectionActivity {
   void buildScreen(UiScreen&);
   void syncListViewport(UiScreen&, ui::ListProps&, int = 0);
 };
-#include "modes_original.inc"
+// NATIVE_MODE_ORACLE
 int main() {
   const char* labels[] = {"Join a Network", "Connect to Calibre", "Create Hotspot", "USB Drive"};
   const char* descriptions[] = {"Connect to an existing WiFi network with a deliberately long description that wraps",

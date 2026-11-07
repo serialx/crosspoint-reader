@@ -25,7 +25,18 @@ target_link_libraries(NetworkUsbTarget PRIVATE xp_ffi_host)
 add_test(NAME ui_network_usb_pixels COMMAND NetworkUsbTarget)
 
 add_test(NAME ui_network_modes_oracle COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_modes.py)
-add_executable(NetworkModesGeometry ModesGeometry.cpp
+foreach(MODE_TEMPLATE ModesGeometry ModesTarget)
+  set(MODE_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${MODE_TEMPLATE}.cpp)
+  add_custom_command(OUTPUT ${MODE_OUTPUT}
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_modes_target.py
+      ${CMAKE_CURRENT_SOURCE_DIR}/${MODE_TEMPLATE}.cpp ${MODE_OUTPUT}
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${MODE_TEMPLATE}.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/prepare_modes_target.py
+      ${CMAKE_CURRENT_SOURCE_DIR}/native_oracle/modes_original.txt)
+endforeach()
+add_test(NAME ui_network_modes_oracle_hashes COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/prepare_modes_target.py --check)
+add_executable(NetworkModesGeometry ${CMAKE_CURRENT_BINARY_DIR}/ModesGeometry.cpp
   ${REPO_ROOT}/freeink-sdk/libs/ui/FreeInkUI/src/FreeInkUI.cpp)
 target_include_directories(NetworkModesGeometry PRIVATE ${REPO_ROOT}/freeink-sdk/libs/ui/FreeInkUI/include)
 target_compile_definitions(NetworkModesGeometry PRIVATE FREEINK_UI_COMPONENT_STYLE=0)
@@ -35,7 +46,7 @@ add_test(NAME ui_network_modes_geometry COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_modes_replay.py $<TARGET_FILE:NetworkModesGeometry>)
 add_test(NAME ui_network_modes_input COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_modes_input.py ${XP_FFI_HOST_ARCHIVE})
-add_executable(NetworkModesTarget ModesTarget.cpp ${NETWORK_RENDER_SOURCES})
+add_executable(NetworkModesTarget ${CMAKE_CURRENT_BINARY_DIR}/ModesTarget.cpp ${NETWORK_RENDER_SOURCES})
 target_include_directories(NetworkModesTarget PRIVATE ${REPO_ROOT}/test/text_golden $<TARGET_PROPERTY:UiSceneTarget,INCLUDE_DIRECTORIES>)
 target_compile_definitions(NetworkModesTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,COMPILE_DEFINITIONS>)
 target_compile_options(NetworkModesTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,COMPILE_OPTIONS> -UNDEBUG)

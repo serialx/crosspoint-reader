@@ -8,10 +8,10 @@ SDK = HERE.parents[1]/'freeink-sdk/libs/ui/FreeInkUI'
 
 def record(mutate=False):
     source = (HERE/'modes_geometry.cpp').read_text().replace('../ui_settings/Recorder.h', str(HERE.parent/'ui_settings/Recorder.h'))
-    methods = (HERE/'modes_original.inc').read_text()
+    methods = (HERE/'native_oracle/modes_original.txt').read_text()
     if mutate:
         methods = methods.replace('props.subtitleText.maxLines = 2;', 'props.subtitleText.maxLines = 1;')
-    source = source.replace('#include "modes_original.inc"', methods)
+    source = source.replace('// NATIVE_MODE_ORACLE', methods)
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         cpp = root/'oracle.cpp'

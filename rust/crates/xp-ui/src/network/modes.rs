@@ -4,9 +4,30 @@ use crate::settings::view::Layout;
 use crate::{
     list,
     model::ListState,
-    scene::{Arena, Command, Error, Kind, Rect},
+    scene::{Arena, Command, Error, Kind, Rect, Refresh},
     settings::view::{Content, Resources},
 };
+/// Build into the visit's existing command storage, including viewport follow passes.
+pub fn build(
+    commands: &mut [Command],
+    hits: &mut crate::settings::hits::Layout,
+    mut state: ListState,
+    layout: Layout,
+    resources: &mut dyn Resources,
+    count: u16,
+) -> Result<(ListState, usize), Error> {
+    for pass in 0..9 {
+        *hits = crate::settings::hits::Layout::default();
+        let mut arena = Arena::with_hit_sink(commands, hits).map_err(|_| Error::Invalid)?;
+        state = view(&mut arena, state, layout, resources, count)?;
+        if state.follow != 0 && pass < 8 {
+            continue;
+        }
+        let scene = arena.finish(Refresh::Fast, 1).map_err(|_| Error::Invalid)?;
+        return Ok((state, scene.commands.len()));
+    }
+    Err(Error::Invalid)
+}
 fn narrow(n: i32) -> Result<i16, Error> {
     i16::try_from(n).map_err(|_| Error::Invalid)
 }

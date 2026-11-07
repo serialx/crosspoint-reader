@@ -23,6 +23,7 @@ struct State {
     sections: Vec<u8>,
     labels: Vec<Vec<u8>>,
     logs: Vec<Vec<u8>>,
+    wire_logs: Vec<(u8, Vec<u8>, Vec<u8>)>,
     live: BTreeMap<usize, (*mut u8, usize)>,
 }
 std::thread_local! { static STATE: RefCell<State> = RefCell::new(State::default()); }
@@ -203,8 +204,13 @@ unsafe extern "C" fn paint(scene: *const SceneView, resources: *const Paint) -> 
     state(|s| s.loan = false);
     1
 }
-unsafe extern "C" fn log(_: u8, _: abi::Text, message: abi::Text) {
-    state(|s| s.logs.push(unsafe { message.bytes().unwrap() }.to_vec()));
+unsafe extern "C" fn log(level: u8, tag: abi::Text, message: abi::Text) {
+    state(|s| {
+        let message = unsafe { message.bytes().unwrap() }.to_vec();
+        s.logs.push(message.clone());
+        s.wire_logs
+            .push((level, unsafe { tag.bytes().unwrap() }.to_vec(), message));
+    });
 }
 #[no_mangle]
 unsafe extern "C" fn xp_settings_shell_snapshot(out: *mut view::Layout) {
@@ -381,5 +387,54 @@ fn settings_real_app_failed_child_retains_selected_and_owner_failure_is_atomic()
     app.navigation.drain(app);
     dialog_tests::drop_app();
     assert!(state(|s| s.live.is_empty()));
+    state(|s| *s = State::default());
+}
+
+#[test]
+fn settings_log_bytes_levels_and_order() {
+    use xp_ui::settings::root::{Host, Log};
+    let _serial = dialog_tests::APP_LOCK.lock().unwrap();
+    let app = build_app();
+    let installed = settings::create(app, 6).unwrap();
+    let Owner::Settings(owner) = &installed else {
+        panic!("root")
+    };
+    let mut expected = Vec::new();
+    for (event, level, tag, message) in [
+        (
+            Log::Enter,
+            0,
+            b"ACT".as_slice(),
+            b"Entering activity: SettingsList".as_slice(),
+        ),
+        (Log::Exit, 0, b"ACT", b"Exiting activity: SettingsList"),
+        (Log::Build, 1, b"RUI", b"Cannot build scene in SettingsList"),
+        (Log::Paint, 1, b"RUI", b"Invalid scene in SettingsList"),
+    ] {
+        owner.host().log(event);
+        expected.push((level, tag.to_vec(), message.to_vec()));
+    }
+    for bytes in [0, 1024, 1536, 2048, 2560, 3072, 3584, 4096, usize::MAX] {
+        owner.host().log(Log::Arena(bytes));
+        expected.push((
+            1,
+            b"RUI".to_vec(),
+            format!("Cannot allocate {bytes} command bytes").into_bytes(),
+        ));
+    }
+    for delta in [i32::MIN, -123, -1, 0, 1, 123, i32::MAX] {
+        owner.host().log(Log::Scroll(delta));
+        expected.push((
+            0,
+            b"LIST".to_vec(),
+            format!("SettingsList swipe delta={delta} count=6").into_bytes(),
+        ));
+    }
+    state(|s| {
+        assert_eq!(s.wire_logs, expected);
+        assert!(s.live.is_empty());
+    });
+    drop(installed);
+    dialog_tests::drop_app();
     state(|s| *s = State::default());
 }

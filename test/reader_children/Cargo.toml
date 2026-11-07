@@ -23,6 +23,3 @@ path = "percent_oracle.rs"
 [[bin]]
 name = "chapter-oracle"
 path = "chapter_oracle.rs"
-
-[features]
-app-test = []

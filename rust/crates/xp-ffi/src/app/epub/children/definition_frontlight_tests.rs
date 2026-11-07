@@ -98,7 +98,11 @@ unsafe extern "C" fn test_settings(resolve: u8, out: *mut crate::app::epub::abi:
         }
     }
 }
-unsafe extern "C" fn no_long(_: *mut i32, _: *mut i32) -> u8 {
+unsafe extern "C" fn no_long(kind: u8, _: *mut i32, _: *mut i32) -> u8 {
+    assert_eq!(kind, 0);
+    0
+}
+unsafe extern "C" fn no_tap(_: *mut i32, _: *mut i32) -> u8 {
     0
 }
 unsafe extern "C" fn native_payload(
@@ -169,8 +173,8 @@ fn fixture() -> app::App {
         l.log_enabled = enabled;
         l.fonts_release_caches = fonts;
         l.input_snapshot = snapshot;
-        l.input_screen_long = no_long;
-        l.input_screen_tap = no_long;
+        l.input_screen_point = no_long;
+        l.input_screen_tap = no_tap;
         l.settings_snapshot = test_settings;
         l.fonts_prewarm_begin = begin;
         l.fonts_prewarm_finish_scan = finish;

@@ -428,22 +428,28 @@ Child: setResult(value); finish()
   -> synchronous Rust continuation exits and destroys child
   -> Rust restores and publishes parent
   -> unlock
-  -> generic native route: invoke parent handler with borrowed result
-     Definition selection: reacquire native RenderLock; release temporary Pages;
-       allocate/reuse final text block; deliver allocator-matched owned block
+  -> generic pop delivery: deliver borrowed result to parent
   -> discard result slot; the drain continues with any newly queued transition
 ```
 
 A loop pass that returns before its drain (suppressed release, exclusive storage,
 a Home gesture, the frontlight panel) defers the queued transition to a later pass.
-The drain is the last navigation step of `App::activity_loop` (`rust/crates/xp-ffi/src/app/mod.rs:451`)
-and `Application::drain` applies the transition there (`rust/crates/xp-ui/src/app/mod.rs:282`).
+The drain is the last navigation step of `App::activity_loop` (`rust/crates/xp-ffi/src/app/mod.rs:654`)
+and `Application::drain` applies the transition there (`rust/crates/xp-ui/src/app/mod.rs:235`).
 
 The continuation holds no navigation borrow across a native callback. Handlers
 may enqueue another pop or replacement. Generic native-result handlers must copy
-borrowed text they retain. The Definition-selection branch instead transfers the
-owned block without another copy; its final owner uses the supplied release callback.
-The parent receives an automatic render request if no transition was queued.
+borrowed text they retain. The generic
+[`Application::pop`](../rust/crates/xp-ui/src/app/mod.rs#L177-L202)
+requests a parent render if no transition was queued.
+
+For Definition, Rust [filters for `RESULT_CLIPPING`](../rust/crates/xp-ffi/src/app/definition.rs#L69-L82),
+then [selection processing](../rust/crates/xp-ffi/src/app/epub/children/definition_navigation.rs#L90-L142)
+releases temporary Pages and checks cancellation, history depth and heap capacity.
+If those checks pass, it copies the text once into the pending owned block without
+reacquiring RenderLock. The native `ActivityResult` stays alive until delivery
+returns. See [Definition ownership](contributing/rust-ui.md#reader-child-ownership)
+for the resource and result lifetimes.
 
 ### Common Pitfalls
 

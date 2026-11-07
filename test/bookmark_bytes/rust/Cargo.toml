@@ -19,3 +19,11 @@ path = "tests.rs"
 [[bin]]
 name = "bookmark-codec"
 path = "main.rs"
+
+[[bin]]
+name = "bookmark-xpath"
+path = "progress_main.rs"
+
+[[bin]]
+name = "bookmark-progress-logs"
+path = "progress_logs_main.rs"

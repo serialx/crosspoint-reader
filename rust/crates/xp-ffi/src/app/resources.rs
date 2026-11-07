@@ -59,6 +59,20 @@ impl Text {
         Ok(())
     }
 
+    pub fn append(&mut self, bytes: &[u8]) -> Result<(), TryReserveError> {
+        if bytes.is_empty() {
+            return Ok(());
+        }
+        let length = self.bytes.len().saturating_sub(1);
+        let needed = length.saturating_add(bytes.len()).saturating_add(1);
+        self.bytes
+            .try_reserve_exact(needed.saturating_sub(self.bytes.len()))?;
+        self.bytes.truncate(length);
+        self.bytes.extend_from_slice(bytes);
+        self.bytes.push(0);
+        Ok(())
+    }
+
     pub fn bytes(&self) -> &[u8] {
         self.bytes
             .get(..self.bytes.len().saturating_sub(1))

@@ -85,3 +85,21 @@ old target can leave no file, and failed cleanup can leave a temporary file.
 The test preserves those outcomes rather than asserting atomic replacement.
 The float model uses the target's double/long-long, slot-size, pool, and string
 configuration; host pointer/allocator layout is not target memory evidence.
+
+The dormant reader progress adapter has two additional CTest checks:
+`bookmark_progress_oracles` uses the unchanged KOReader XPath corpus (26,565
+results) and the retained native PM/KOX format strings. The diagnostic matrix
+compares 10,620 host messages byte for byte. Twenty negative-NaN cases use the
+pinned C3 newlib contract: target printf preserves the minus sign, whereas
+macOS printf drops it. Both raw transcripts and the exact exceptional inputs
+are retained; no golden is rewritten. XPath offset/progress and diagnostic
+severity mutations must be rejected.
+
+`bookmark_progress_owner` loads a synthetic EPUB with the actual ReaderBook,
+streams its chapter through the production progress adapter, and maps saved
+paths through the session resource guard. Nine repeated visits exercise offset,
+paragraph and two-pass percentage resolution with no section cache. The
+observer reads the owned XPath after the guard, book and session are destroyed;
+each visit checks balanced locks and zero retained Rust/physical allocations.
+This complements the parser, callback-loan and allocation-denial Miri checks.
+It does not replace the shipping bookmark child/Page/TOC or emulator checks.

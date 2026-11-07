@@ -32,6 +32,10 @@ mod page_owner;
 mod page_records;
 mod page_view;
 mod position;
+#[allow(dead_code)]
+mod progress_mapping;
+#[allow(dead_code)]
+mod progress_native;
 mod projection;
 mod read_folder;
 mod recovery;

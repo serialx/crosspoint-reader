@@ -1,6 +1,9 @@
 //! Reader Section owns cache storage and incremental Chapter lifetime.
+#[allow(dead_code)]
+mod cached;
 use super::Text;
 use crate::{app::abi, section_cache};
+pub(super) use cached::CachedSection;
 
 mod book;
 mod diagnostics;

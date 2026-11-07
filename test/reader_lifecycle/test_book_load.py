@@ -23,7 +23,7 @@ frozen = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(frozen)
 
 
-def build(output, allocation_faults=False):
+def build(output, allocation_faults=False, main_source=None):
     stubs = output / 'stubs'; stubs.mkdir(exist_ok=True)
     (stubs / 'Txt.h').write_text((ROOT / 'lib/Txt/Txt.h').read_text())
     storage = (ROOT / 'test/book_io/epub-stubs/HalStorage.h').read_text()
@@ -92,7 +92,7 @@ inline struct BookSerial { void print(const char* value) { fputs(value, stdout);
   void setupCacheDir() const;
   struct ItemContext;''')
     common = replace_once(common, 'static const XpAppResources resources', '// APP_CSTR_HELPER\nstatic const XpAppResources resources')
-    source = replace_once((HERE / 'book_load_main.cpp').read_text(), '// COMMON_ITEM_COMPOSITION', common)
+    source = replace_once(main_source or (HERE / 'book_load_main.cpp').read_text(), '// COMMON_ITEM_COMPOSITION', common)
     source = compose(source, ('file_open_write', 'file_write', 'path_remove', 'path_rename', 'path_remove_tree', 'path_mkdir', 'heap_snapshot', 'cache_lock', 'cache_unlock'), ('path_exists',))
     epub = (ROOT / 'lib/Epub/Epub.cpp').read_text()
     txt = (ROOT / 'lib/Txt/Txt.cpp').read_text()

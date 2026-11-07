@@ -20,3 +20,11 @@ if(BOOKMARK_TEST_ARDUINOJSON)
 else()
   message(STATUS "Bookmark byte oracle needs ArduinoJson 7.4.2 (BOOKMARK_TEST_ARDUINOJSON)")
 endif()
+
+add_test(NAME bookmark_progress_oracles
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/progress_oracles.py
+    --build ${CMAKE_CURRENT_BINARY_DIR}/progress-oracles)
+add_test(NAME bookmark_progress_owner
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/progress_owner.py
+    --build ${CMAKE_CURRENT_BINARY_DIR}/progress-owner
+    --archive ${XP_FFI_HOST_ARCHIVE})

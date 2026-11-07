@@ -1,21 +1,21 @@
+mod activity;
 #[cfg(feature = "app-test")]
 mod bookmark_host;
 #[allow(dead_code)]
-mod bookmark_view;
-#[allow(dead_code)]
 mod bookmark_owned;
 #[allow(dead_code)]
+mod bookmark_view;
+#[allow(dead_code)]
 mod bookmark_window;
-mod activity;
 mod chapter_book;
 mod chapter_view;
 mod chapters;
+#[path = "results.rs"]
+mod child_result;
 mod clipping_actions;
 mod clipping_activity;
 mod clipping_view;
 mod clipping_window;
-#[path = "results.rs"]
-mod child_result;
 mod commands;
 #[cfg(feature = "app-test")]
 mod host;

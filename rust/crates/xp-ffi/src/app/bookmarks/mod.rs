@@ -9,6 +9,7 @@ mod export_host;
 #[cfg(feature = "app-test")]
 pub mod host;
 mod json;
+pub mod keyboard_name;
 pub mod mutations;
 mod number;
 mod parse_number;

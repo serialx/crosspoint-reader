@@ -6,6 +6,9 @@ mod abi;
 mod resources;
 pub use resources::Text;
 #[allow(dead_code)]
+#[path = "../../../rust/crates/xp-ffi/src/app/epub/progress_mapping/mod.rs"]
+mod progress_mapping;
+#[allow(dead_code)]
 #[path = "../../../rust/crates/xp-ffi/src/app/result.rs"]
 mod result;
 mod epub {
@@ -23,7 +26,11 @@ mod clippings {
 #[cfg(test)]
 mod export_tests;
 #[cfg(test)]
+mod keyboard_name_tests;
+#[cfg(test)]
 mod persistence_tests;
+#[cfg(test)]
+mod progress_mapping_tests;
 
 #[cfg(test)]
 mod tests {
@@ -70,6 +77,37 @@ mod tests {
             LIVE_BYTES.with(|live| live.set(live.get() - layout.size() as isize));
             unsafe { System.dealloc(pointer, layout) };
         }
+    }
+
+    pub(super) fn allocation_failures(mut operation: impl FnMut()) {
+        ATTEMPTS.with(|value| value.set(0));
+        operation();
+        let count = ATTEMPTS.with(Cell::get);
+        assert!(count > 0);
+        for fail in 0..count {
+            let before = LIVE_BYTES.with(Cell::get);
+            FAIL_AT.with(|value| value.set(Some(fail)));
+            operation();
+            FAIL_AT.with(|value| value.set(None));
+            assert_eq!(
+                LIVE_BYTES.with(Cell::get),
+                before,
+                "allocation {fail}/{count}"
+            );
+        }
+    }
+
+    #[test]
+    fn text_append_preserves_original_bytes_and_terminator_on_failure() {
+        let mut text = super::Text::copy(b"existing").unwrap();
+        FAIL_AT.with(|value| value.set(Some(0)));
+        let result = text.append(&[b'x'; 1024]);
+        FAIL_AT.with(|value| value.set(None));
+        assert!(result.is_err());
+        assert_eq!(text.bytes(), b"existing");
+        assert_eq!(unsafe { *text.wire().data.add(text.wire().len) }, 0);
+        text.append(b" plus").unwrap();
+        assert_eq!(text.bytes(), b"existing plus");
     }
 
     const TWO: &[u8] = br#"{"bookmarks":[{"xpath":"first","summary":"summary","name":"name","vo":0},{"xpath":"second","name":"last","vo":null}]}"#;

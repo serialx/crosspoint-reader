@@ -41,8 +41,17 @@ pub(in crate::app) use physical::Physical;
 pub(in crate::app::epub) use toolbar_owner::{ToolbarSlot, ToolbarTarget};
 
 mod definition;
-#[allow(dead_code)]
 pub(in crate::app) mod definition_physical;
+#[allow(dead_code)]
+mod definition_owned;
+#[allow(dead_code)]
+mod definition_navigation;
+#[allow(dead_code)]
+mod definition_input;
+#[allow(dead_code)]
+mod definition_view;
+#[allow(dead_code)]
+mod definition_text;
 mod footnote;
 mod lookup;
 mod lookup_view;
@@ -52,3 +61,9 @@ mod selection_scene;
 
 #[cfg(all(test, feature = "app-test"))]
 mod selection_tests;
+
+#[cfg(test)]
+mod definition_session_tests;
+
+#[cfg(feature = "app-test")]
+mod definition_test_bridge;

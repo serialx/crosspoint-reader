@@ -149,3 +149,8 @@ __attribute__((weak)) void xp_dialog_format(uint16_t, int32_t, uint8_t, uint8_t*
 __attribute__((weak)) void xp_dialog_log(void*, uint8_t, uint32_t) { std::abort(); }
 __attribute__((weak)) void xp_dialog_deliver(const XpAppLegacy*, void*, uint8_t, uint32_t) { std::abort(); }
 }
+
+// Default-heap Definition blocks have a separate host observation/failure seam.
+extern "C" __attribute__((weak)) void* xp_test_definition_malloc(size_t bytes) { return std::malloc(bytes); }
+extern "C" __attribute__((weak)) void xp_test_definition_free(void* data) { std::free(data); }
+extern "C" __attribute__((weak)) void xp_test_definition_copied(const uint8_t*, uint8_t*, size_t) {}

@@ -1,0 +1,13 @@
+[package]
+name = "definition-session-test"
+version = "0.1.0"
+edition = "2021"
+publish = false
+[features]
+app-test = []
+[workspace]
+[dependencies]
+xp-core = { path = "../../rust/crates/xp-core" }
+xp-ui = { path = "../../rust/crates/xp-ui" }
+[lib]
+path = "lib.rs"

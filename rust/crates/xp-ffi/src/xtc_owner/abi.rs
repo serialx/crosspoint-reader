@@ -1,6 +1,11 @@
 use core::ffi::c_void;
 use xp_core::book_io::xtc_reader::State;
 
+pub const ALLOC_TEXT: u32 = 0;
+pub const ALLOC_SHRINK: u32 = 1;
+pub const ALLOC_CHAPTERS: u32 = 2;
+pub const ALLOC_STREAM: u32 = 3;
+
 pub const OWNER_WORDS: usize = if core::mem::size_of::<usize>() == 4 {
     40
 } else {
@@ -36,7 +41,7 @@ pub struct XpXtcLeaves {
     pub read: unsafe extern "C" fn(*mut c_void, *mut u8, usize) -> i32,
     pub seek: unsafe extern "C" fn(*mut c_void, u64) -> bool,
     pub size: unsafe extern "C" fn(*mut c_void) -> u64,
-    pub allocate: unsafe extern "C" fn(usize, bool) -> *mut u8,
+    pub allocate: unsafe extern "C" fn(usize, u32) -> *mut u8,
     pub release: unsafe extern "C" fn(*mut u8, usize),
     pub diagnostic: unsafe extern "C" fn(*mut c_void, u32, u32, u32, u32, u32),
 }

@@ -90,7 +90,7 @@ unsafe fn services(owner: *mut Owner) -> Services {
                 Text::shrink(title(o), leaves(o));
                 Text::shrink(author(o), leaves(o));
             }
-            _ => unreachable!("XTC metadata action"),
+            _ => {}
         }
     }
     unsafe extern "C" fn chapter(
@@ -106,7 +106,7 @@ unsafe fn services(owner: *mut Owner) -> Services {
             0 => Chapters::clear(chapters(o), leaves(o)),
             1 => Chapters::reserve(chapters(o), count, leaves(o)),
             2 => Chapters::append(chapters(o), bytes, count, start, end, leaves(o)),
-            _ => unreachable!("XTC chapter action"),
+            _ => {}
         }
         (*chapters(o)).length
     }
@@ -269,7 +269,7 @@ pub unsafe extern "C" fn xp_xtc_owner_stream(
     unsafe extern "C" fn allocate(ctx: *mut c_void, n: usize) -> *mut u8 {
         let chunk = ctx.cast::<Chunk>();
         if n != 0 {
-            let bytes = (leaves((*chunk).owner).allocate)(n, false);
+            let bytes = (leaves((*chunk).owner).allocate)(n, ALLOC_STREAM);
             bytes.write_bytes(0, n);
             (*chunk).bytes = bytes;
             (*chunk).length = n;

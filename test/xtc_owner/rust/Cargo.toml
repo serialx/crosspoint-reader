@@ -8,3 +8,7 @@ publish = false
 xp-core = { path = "../../../rust/crates/xp-core" }
 [lib]
 path = "lib.rs"
+[[bin]]
+name = "xtc-boundary"
+path = "boundary.rs"
+test = false

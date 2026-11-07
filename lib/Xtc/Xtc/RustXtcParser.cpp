@@ -4,6 +4,8 @@
 
 #include <cstring>
 #include <memory>
+#include <stdexcept>
+#include <vector>
 
 namespace xtc {
 namespace {
@@ -48,17 +50,42 @@ const XpXtcLeaves RustXtcParser::leaves{
     },
     [](void* p, uint64_t offset) { return static_cast<RustXtcParser*>(p)->file.seek64(offset); },
     [](void* p) -> uint64_t { return static_cast<RustXtcParser*>(p)->file.fileSize64(); },
-    [](size_t bytes, bool optionalShrink) -> uint8_t* {
-      if (!optionalShrink) return std::allocator<uint8_t>{}.allocate(bytes);
-#if __cpp_exceptions
-      try {
-        return std::allocator<uint8_t>{}.allocate(bytes);
-      } catch (...) {
-        return nullptr;
-      }
+    [](size_t count, uint32_t kind) -> uint8_t* {
+      size_t bytes = count;
+      switch (kind) {
+        case XP_XTC_ALLOC_CHAPTERS:
+          if (count > std::vector<XpXtcChapterRow>{}.max_size()) {
+#ifdef _LIBCPP_VERSION
+            std::__throw_length_error("vector");
 #else
-      return nullptr;
+            std::__throw_length_error("vector::reserve");
 #endif
+          }
+          bytes = count * sizeof(XpXtcChapterRow);
+          break;
+        case XP_XTC_ALLOC_STREAM:
+          if (count > std::vector<uint8_t>{}.max_size()) {
+#ifdef _LIBCPP_VERSION
+            std::__throw_length_error("vector");
+#else
+            std::__throw_length_error("cannot create std::vector larger than max_size()");
+#endif
+          }
+          break;
+        case XP_XTC_ALLOC_SHRINK:
+#if __cpp_exceptions
+          try {
+            return std::allocator<uint8_t>{}.allocate(bytes);
+          } catch (...) {
+            return nullptr;
+          }
+#else
+          return nullptr;
+#endif
+        default:
+          break;
+      }
+      return std::allocator<uint8_t>{}.allocate(bytes);
     },
     [](uint8_t* bytes, size_t size) { std::allocator<uint8_t>{}.deallocate(bytes, size); },
     [](void* p, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t) {

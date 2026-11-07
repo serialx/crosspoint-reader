@@ -93,11 +93,16 @@ unsafe extern "C" fn size(p: *mut c_void) -> u64 {
     w.inspect();
     w.data.len() as u64
 }
-unsafe extern "C" fn allocate(n: usize, shrink: bool) -> *mut u8 {
+unsafe extern "C" fn allocate(n: usize, kind: u32) -> *mut u8 {
     // The native C3 build has no long-string shrink allocation with exceptions off.
-    if shrink {
+    if kind == ALLOC_SHRINK {
         return ptr::null_mut();
     }
+    let n = if kind == ALLOC_CHAPTERS {
+        n * size_of::<XpXtcChapterRow>()
+    } else {
+        n
+    };
     ACTIVE.with(|active| {
         let w = &mut *active.get();
         w.inspect();

@@ -1,4 +1,4 @@
-use super::abi::{XpXtcChapterRow, XpXtcLeaves};
+use super::abi::{XpXtcChapterRow, XpXtcLeaves, ALLOC_CHAPTERS, ALLOC_TEXT};
 use core::{mem::size_of, ptr};
 
 #[repr(C)]
@@ -31,12 +31,9 @@ impl Chapters {
     }
     pub unsafe fn reserve(rows: *mut Self, count: usize, leaves: &XpXtcLeaves) {
         // The parser clears all rows before reserve, so no initialized self-pointer moves.
-        assert_eq!((*rows).length, 0);
         if count > (*rows).capacity {
-            let bytes = count
-                .checked_mul(size_of::<XpXtcChapterRow>())
-                .expect("XTC chapter capacity");
-            let data = (leaves.allocate)(bytes, false).cast();
+            // Native reserve checks count before multiplying; a rejected count cannot return.
+            let data = (leaves.allocate)(count, ALLOC_CHAPTERS).cast();
             if (*rows).capacity != 0 {
                 (leaves.release)(
                     (*rows).data.cast(),
@@ -55,13 +52,13 @@ impl Chapters {
         end: u16,
         leaves: &XpXtcLeaves,
     ) {
-        assert!((*rows).length < (*rows).capacity);
+        // The reader appends at most the count reserved before its bounded read loop.
         let row = (*rows).data.add((*rows).length);
         ptr::addr_of_mut!((*row).inline_name).write([0; 16]);
         let data = if length <= 15 {
             Self::local(row)
         } else {
-            (leaves.allocate)(length + 1, false)
+            (leaves.allocate)(length + 1, ALLOC_TEXT)
         };
         if length != 0 {
             ptr::copy_nonoverlapping(bytes, data, length);

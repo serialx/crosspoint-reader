@@ -33,9 +33,12 @@ typedef struct {
   size_t chapter_count;
 } XpXtcView;
 
+enum { XP_XTC_ALLOC_TEXT, XP_XTC_ALLOC_SHRINK, XP_XTC_ALLOC_CHAPTERS, XP_XTC_ALLOC_STREAM };
+
 // File callbacks use the existing caller-provided HalFile, retaining its Impl across close.
-// allocate(false) preserves native throwing-container failure; allocate(true) is optional
-// shrink storage and returns null when native shrink would not allocate or would fail.
+// allocate takes bytes except CHAPTERS takes row count, preserving native max_size checks.
+// TEXT/CHAPTERS/STREAM preserve native throwing failure; SHRINK is optional storage
+// and returns null when native shrink would not allocate or would fail.
 // release matches allocate. Diagnostics may borrow view(), never mutate or reenter IO.
 typedef struct {
   bool (*open)(void*, const uint8_t*);
@@ -44,7 +47,7 @@ typedef struct {
   int32_t (*read)(void*, uint8_t*, size_t);
   bool (*seek)(void*, uint64_t);
   uint64_t (*size)(void*);
-  uint8_t* (*allocate)(size_t, bool);
+  uint8_t* (*allocate)(size_t, uint32_t kind);
   void (*release)(uint8_t*, size_t);
   void (*diagnostic)(void*, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
 } XpXtcLeaves;

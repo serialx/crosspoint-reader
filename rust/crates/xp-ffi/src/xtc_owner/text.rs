@@ -1,4 +1,4 @@
-use super::abi::XpXtcLeaves;
+use super::abi::{XpXtcLeaves, ALLOC_SHRINK, ALLOC_TEXT};
 use core::{mem, ptr};
 
 #[repr(C)]
@@ -39,7 +39,7 @@ impl Text {
         let capacity = Self::capacity(text);
         if length > capacity {
             let next = length.max(capacity.saturating_mul(2));
-            let data = (leaves.allocate)(next + 1, false);
+            let data = (leaves.allocate)(next + 1, ALLOC_TEXT);
             // Required native allocation either succeeds or terminates; no null result.
             if length != 0 {
                 ptr::copy_nonoverlapping(bytes, data, length);
@@ -69,7 +69,7 @@ impl Text {
             (leaves.release)(old, capacity + 1);
         } else if length < capacity {
             // The C3 -fno-exceptions std::string implementation skips this attempt.
-            let data = (leaves.allocate)(length + 1, true);
+            let data = (leaves.allocate)(length + 1, ALLOC_SHRINK);
             if !data.is_null() {
                 ptr::copy_nonoverlapping((*text).data, data, length + 1);
                 let old = mem::replace(&mut (*text).data, data);

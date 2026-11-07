@@ -24,7 +24,27 @@ impl App {
         unsafe { target.as_ref().exit(self.epub) };
     }
     #[inline(never)]
-    pub(super) fn definition_input(&self, target: NonNull<DefinitionSession>) {
+    pub(super) fn definition_input(
+        &self,
+        target: NonNull<DefinitionSession>,
+        home_gesture: bool,
+        light_panel_gesture: bool,
+    ) {
+        if home_gesture {
+            self.go_home(0, false);
+            return;
+        }
+        if unsafe { (self.runtime.frontlight_present)() } != 0 && light_panel_gesture {
+            unsafe { (self.runtime.touch_feedback)(0) };
+            if let Some(panel) = self.create(&abi::Launch::new(
+                abi::FRONTLIGHT_PANEL,
+                abi::LaunchPayload::None,
+            )) {
+                self.input.borrow_mut().reset();
+                self.navigation.queue(Transition::Push(panel));
+            }
+            return;
+        }
         let mut settings = MaybeUninit::<XpEpubSettings>::uninit();
         unsafe { (self.epub.settings_snapshot)(0, settings.as_mut_ptr()) };
         let touch = unsafe { settings.assume_init() }.touch_controls != 0;
@@ -36,6 +56,9 @@ impl App {
         } else if unsafe { *target.as_ref().result.get() }.is_some() {
             self.input.borrow_mut().reset();
             self.navigation.queue(Transition::Pop);
+        }
+        if self.navigation.drain(self) {
+            self.flush_update();
         }
     }
     #[inline(never)]

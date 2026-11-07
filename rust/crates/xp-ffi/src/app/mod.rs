@@ -518,7 +518,14 @@ impl App {
         if let Some(target) = self.navigation.current() {
             let facts = match target {
                 Target::Legacy(target) => Some(self.legacy_facts(target)),
-                Target::Definition(_) => Some(definition::facts()),
+                Target::Definition(target) => {
+                    self.definition_input(
+                        target,
+                        frame.home_gesture != 0,
+                        frame.light_panel_gesture != 0,
+                    );
+                    return;
+                }
                 Target::Epub(epub) => Some(unsafe { epub.as_ref() }.app_facts(false)),
                 Target::ReaderChild { child, .. } => Some(unsafe { child.facts() }),
                 Target::Keyboard(keyboard) => Some(keyboard::facts(unsafe { keyboard.as_ref() })),
@@ -584,7 +591,7 @@ impl App {
             }
             match target {
                 Target::Legacy(target) => unsafe { (self.legacy.r#loop)(target.as_ptr()) },
-                Target::Definition(target) => self.definition_input(target),
+                Target::Definition(_) => unreachable!("Definition input already dispatched"),
                 Target::Epub(epub) => unsafe { epub.as_ref() }.loop_reader(),
                 Target::Dialog(dialog) => dialog.input(frame.input),
                 Target::Keyboard(keyboard) => {

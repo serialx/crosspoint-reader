@@ -225,3 +225,6 @@ pub(super) fn render(target: NonNull<Modes>) -> bool {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(feature = "app-test")]
+mod capture;

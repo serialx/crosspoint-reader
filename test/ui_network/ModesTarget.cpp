@@ -11,6 +11,8 @@
 #include <cstdio>
 
 #include "Trace.h"
+extern "C" uint8_t network_modes_owner_render(uint16_t selected, const XpUiSettingsLayout*,
+                                              const XpUiSettingsResources*, const XpUiBuffer*, XpUiScene*);
 void textGoldenGlyph(const EpdFontFamily&, uint32_t, int, int, EpdFontFamily::Style) {}
 void textGoldenScaled(int, uint32_t, int, int, EpdFontFamily::Style) {}
 namespace ui = freeink::ui;
@@ -138,13 +140,10 @@ int main() {
             layout.hints_height = 40;
             layout.spacing = 8;
             layout.touch = touch;
-            XpUiListState state{}, next{};
-            xp_ui_settings_list_init(&state, selected);
-            XpUiSettingsHits routing{};
             XpUiScene scene{};
             XpUiCommand commands[24]{};
             XpUiBuffer buffer{commands, nullptr, 24, 0};
-            assert(xp_ui_network_modes_view(&state, &layout, &resources, &buffer, &next, &scene, &routing) == 1);
+            assert(network_modes_owner_render(selected, &layout, &resources, &buffer, &scene) == 1);
             XpUiPaint paint{
                 &owner, nullptr, nullptr,
                 [](void*, uint32_t, uint32_t generation) -> uint8_t { return generation == 1; },
@@ -169,7 +168,6 @@ int main() {
                       orientation, touch, count, selected, selection);
               return 1;
             }
-            assert(next.top == original.nav.top && next.drawn == original.nav.drawnRows);
             ++cases;
           }
   printf("%u mode body pixel cases passed\n", cases);

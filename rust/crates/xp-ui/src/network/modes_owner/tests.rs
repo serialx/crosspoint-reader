@@ -394,23 +394,6 @@ fn all_mode_geometry_fits_native_inline_capacity() {
 }
 
 #[test]
-fn invalid_arena_keeps_facade_error_classification() {
-    // The retiring C facade returns invalid (0), not overflow (2), when the
-    // caller lends more storage than the scene format permits.
-    let mut commands = vec![Command::default(); 257];
-    assert!(matches!(
-        super::super::modes::build(
-            &mut commands,
-            &mut hits::Layout::default(),
-            ListState::new(0),
-            record(3).layout.get(),
-            &mut Metrics(true),
-            3,
-        ),
-        Err(Error::Invalid)
-    ));
-}
-#[test]
 #[ignore = "strict Miri negative control: must report use after free"]
 fn negative_destroyed_target() {
     let (o, _r) = owner(3);

@@ -20,9 +20,15 @@ The scene interface is `rust/crates/xp-ffi/include/xp_ui.h` (ABI version 2).
 `FullScreenMessageActivity` is the synchronous entry-only example;
 `XtcReaderChapterSelectionActivity` is the stateful list example.
 `SettingsUiActivity`, `UpdateUiActivity` and `CatalogUiActivity` share bindings
-within their families. Library, file browser and network screens use the
+within their families. Library, file browser and the remaining network screens use the
 `RustActivityAdapter` with their Rust models and native resource bindings.
 Home calls its Rust model and view directly and has no native activity class.
+
+Network mode selection is a Rust `StableOwner` in `app/network_modes`.
+`xp-ui::network::modes_owner` owns its list, input, scene publication and result
+decision. `NetworkModeSelectionActivity` retains borrowed labels, measurement,
+drawing and native result projection through the six fields in `xp_network_owner.h`.
+The shared settings-list exports remain for `SettingsUiActivity` callers.
 
 ## Application ownership
 

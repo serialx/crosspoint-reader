@@ -1,8 +1,8 @@
 use super::{usb, usb_view};
 use crate::{
     ffi::{Buffer, SceneView},
-    model::Input,
-    scene::{Arena, Refresh, MAX_COMMAND_BYTES},
+    model::{Input, ListState},
+    scene::{Arena, Error, Refresh, MAX_COMMAND_BYTES},
 };
 
 /// # Safety
@@ -82,79 +82,6 @@ pub unsafe fn usb_view(
         refresh: Refresh::Fast as u8,
         reserved: 0,
     };
-    1
-}
-
-use crate::{
-    model::ListState,
-    scene::Error,
-    settings::{hits::Layout as Hits, settings_ffi::Services, view::Layout},
-};
-/// # Safety
-/// Descriptors are aligned, live and disjoint. Commands are exclusively writable.
-/// Resource callbacks retain no pointers and may not mutate the descriptors.
-pub unsafe fn modes_view(
-    state: *const ListState,
-    layout: *const Layout,
-    services: *const Services,
-    buffer: *const Buffer,
-    next: *mut ListState,
-    out: *mut SceneView,
-    hits: *mut Hits,
-) -> u8 {
-    let (Some(state), Some(layout), Some(services), Some(buffer)) = (
-        unsafe { state.as_ref() },
-        unsafe { layout.as_ref() },
-        unsafe { services.as_ref() },
-        unsafe { buffer.as_ref() },
-    ) else {
-        return 0;
-    };
-    if next.is_null()
-        || out.is_null()
-        || hits.is_null()
-        || buffer.commands.is_null()
-        || buffer.command_capacity > 256
-        || buffer.hit_capacity != 0
-        || services.row.is_none()
-        || services.width.is_none()
-        || services.height.is_none()
-        || services.line.is_none()
-    {
-        return 0;
-    }
-    let commands = unsafe {
-        core::slice::from_raw_parts_mut(buffer.commands, usize::from(buffer.command_capacity))
-    };
-    let mut routing = Hits::default();
-    let mut resources = *services;
-    let (working, command_count) = match super::modes::build(
-        commands,
-        &mut routing,
-        *state,
-        *layout,
-        &mut resources,
-        services.count,
-    ) {
-        Ok(result) => result,
-        Err(Error::Capacity) => return 2,
-        Err(_) => return 0,
-    };
-    unsafe {
-        next.write(working);
-        hits.write(routing);
-        out.write(SceneView {
-            commands: buffer.commands,
-            text: core::ptr::null(),
-            interactions: core::ptr::null(),
-            generation: 1,
-            command_count: command_count as u16,
-            text_len: 0,
-            interaction_count: 0,
-            refresh: Refresh::Fast as u8,
-            reserved: 0,
-        });
-    }
     1
 }
 

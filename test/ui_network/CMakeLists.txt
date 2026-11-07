@@ -25,7 +25,7 @@ target_link_libraries(NetworkUsbTarget PRIVATE xp_ffi_host)
 add_test(NAME ui_network_usb_pixels COMMAND NetworkUsbTarget)
 
 add_test(NAME ui_network_modes_oracle COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_modes.py)
-foreach(MODE_TEMPLATE ModesGeometry ModesTarget)
+foreach(MODE_TEMPLATE ModesTarget)
   set(MODE_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${MODE_TEMPLATE}.cpp)
   add_custom_command(OUTPUT ${MODE_OUTPUT}
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_modes_target.py
@@ -36,16 +36,6 @@ foreach(MODE_TEMPLATE ModesGeometry ModesTarget)
 endforeach()
 add_test(NAME ui_network_modes_oracle_hashes COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/prepare_modes_target.py --check)
-add_executable(NetworkModesGeometry ${CMAKE_CURRENT_BINARY_DIR}/ModesGeometry.cpp
-  ${REPO_ROOT}/freeink-sdk/libs/ui/FreeInkUI/src/FreeInkUI.cpp)
-target_include_directories(NetworkModesGeometry PRIVATE ${REPO_ROOT}/freeink-sdk/libs/ui/FreeInkUI/include)
-target_compile_definitions(NetworkModesGeometry PRIVATE FREEINK_UI_COMPONENT_STYLE=0)
-target_compile_options(NetworkModesGeometry PRIVATE -UNDEBUG)
-target_link_libraries(NetworkModesGeometry PRIVATE xp_ffi_host)
-add_test(NAME ui_network_modes_geometry COMMAND ${Python3_EXECUTABLE}
-  ${CMAKE_CURRENT_SOURCE_DIR}/test_modes_replay.py $<TARGET_FILE:NetworkModesGeometry>)
-add_test(NAME ui_network_modes_input COMMAND ${Python3_EXECUTABLE}
-  ${CMAKE_CURRENT_SOURCE_DIR}/test_modes_input.py ${XP_FFI_HOST_ARCHIVE})
 add_executable(NetworkModesTarget ${CMAKE_CURRENT_BINARY_DIR}/ModesTarget.cpp ${NETWORK_RENDER_SOURCES})
 target_include_directories(NetworkModesTarget PRIVATE ${REPO_ROOT}/test/text_golden $<TARGET_PROPERTY:UiSceneTarget,INCLUDE_DIRECTORIES>)
 target_compile_definitions(NetworkModesTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,COMPILE_DEFINITIONS>)
@@ -177,7 +167,7 @@ foreach(WIFI_PANEL X3 X4)
 endforeach()
 add_test(NAME ui_network_shared_gate COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_shared_gate.py ${XP_FFI_HOST_ARCHIVE}
-  wifi-failure calibre-failure web-failure wifi-stale calibre-stale web-stale modes-stale usb-stale)
+  wifi-failure calibre-failure web-failure wifi-stale calibre-stale web-stale usb-stale)
 add_test(NAME ui_network_wait_gate COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_wifi_wait_gate.py ${XP_FFI_HOST_ARCHIVE})
 

@@ -11,8 +11,6 @@ SOURCE = Path(os.environ.get("XP_REJECTION_SOURCE_ROOT", ROOT))
 
 def method(family, name):
     path = SOURCE / "src/activities/network" / (family + ".cpp")
-    if family == "NetworkModeSelectionActivity" and SOURCE == ROOT:
-        path = Path(__file__).resolve().parent / "native_oracle/NetworkModeSelectionActivity.cpp.txt"
     source = path.read_text()
     marker = family + "::" + name + "("
     if marker not in source:
@@ -72,10 +70,6 @@ struct CrossPointWebServerActivity:Base {
  void render(RenderLock&&)override;
  // WEB_CURRENT
 };
-struct NetworkModeSelectionActivity:Base {
- using Base::Base;XpUiListState state{},next{};
- // MODES_CURRENT
-};
 struct UsbDriveActivity:Base {
  using Base::Base;XpUiUsbState model{},renderingState{};
  // USB_CURRENT
@@ -83,8 +77,8 @@ struct UsbDriveActivity:Base {
 '''
 
 families = ["WifiSelectionActivity", "CalibreConnectActivity", "CrossPointWebServerActivity",
-            "NetworkModeSelectionActivity", "UsbDriveActivity"]
-for family, tag in zip(families, ["WIFI", "CALIBRE", "WEB", "MODES", "USB"]):
+            "UsbDriveActivity"]
+for family, tag in zip(families, ["WIFI", "CALIBRE", "WEB", "USB"]):
     current = method(family, "rustSceneCurrent")
     code = code.replace("// " + tag + "_CURRENT", "bool rustSceneCurrent()const override;" if current else "")
     code += current + "\n"
@@ -127,7 +121,6 @@ int main(int argc,char**argv){
  }
  if(which=="calibre-stale"){CalibreConnectActivity a("calibre",r,i);stale(a,i,[&](bool old){a.model.phase=old;});}
  if(which=="web-stale"){CrossPointWebServerActivity a("web",r,i);stale(a,i,[&](bool old){a.model.phase=old;});}
- if(which=="modes-stale"){NetworkModeSelectionActivity a("modes",r,i);stale(a,i,[&](bool old){a.state.navigation_revision=old;});}
  if(which=="usb-stale"){UsbDriveActivity a("usb",r,i);stale(a,i,[&](bool old){a.model.preparing=old;});}
  puts(argv[1]);
 }

@@ -40,23 +40,6 @@ pub unsafe extern "C" fn xp_ui_network_usb_view(
     unsafe { ffi::usb_view(state, layout, texts, buffer, out) }
 }
 
-/// # Safety
-/// Descriptors are aligned, live and disjoint. Commands are exclusively writable.
-/// Resource callbacks retain no pointers and may not mutate the descriptors.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_network_modes_view(
-    state: *const xp_ui::model::ListState,
-    layout: *const xp_ui::settings::view::Layout,
-    resources: *const xp_ui::settings::settings_ffi::Services,
-    buffer: *const Buffer,
-    next: *mut xp_ui::model::ListState,
-    out: *mut SceneView,
-    hits: *mut xp_ui::settings::hits::Layout,
-) -> u8 {
-    unsafe { ffi::modes_view(state, layout, resources, buffer, next, out, hits) }
-}
-
 use xp_ui::network::{calibre, calibre_view};
 /// # Safety
 /// Descriptors live and disjoint; callbacks do not reenter state.

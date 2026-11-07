@@ -96,11 +96,6 @@ enum {
 };
 uint8_t xp_ui_network_usb_view(const XpUiUsbState*, const XpUiNetworkLayout*, const XpUiNetworkTextServices*,
                                const XpUiBuffer*, XpUiScene*);
-// Transfer-mode rows wrap subtitles to two lines and use the SDK automatic row
-// padding. Shared settings descriptors and list input/hit policy are reused.
-// Return codes match xp_ui_settings_view: 1 success, 2 capacity, 0 invalid.
-uint8_t xp_ui_network_modes_view(const XpUiListState*, const XpUiSettingsLayout*, const XpUiSettingsResources*,
-                                 const XpUiBuffer*, XpUiListState* next, XpUiScene*, XpUiSettingsHits*);
 
 // Calibre transport leaves run outside ModelLock. Upload strings stay owned by
 // C++ until DropUpload; publish's flags copy/clear names under the resource mutex.

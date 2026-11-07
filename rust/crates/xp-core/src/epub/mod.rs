@@ -49,6 +49,7 @@ pub fn attr<'a>(event: &'a Event<'_>, name: &[u8], use_local: bool) -> Option<&'
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
+#[cfg_attr(test, derive(Debug))]
 pub enum ParserKind {
     Container = 1,
     Ncx = 2,
@@ -74,12 +75,22 @@ pub struct Record<'a> {
     pub anchor: &'a [u8],
     pub level: u8,
 }
+#[cfg_attr(test, derive(Debug, PartialEq))]
 pub struct Parser {
     xml: Xml,
     state: Simple,
     failed: bool,
 }
 impl Parser {
+    /// # Safety
+    /// `out` must be aligned, writable, uninitialized storage with no aliases.
+    #[inline(never)]
+    pub(crate) unsafe fn initialize(out: *mut Self, kind: ParserKind) {
+        Xml::initialize(core::ptr::addr_of_mut!((*out).xml));
+        Simple::initialize(core::ptr::addr_of_mut!((*out).state), kind);
+        core::ptr::addr_of_mut!((*out).failed).write(false);
+    }
+
     pub const fn new(kind: ParserKind) -> Self {
         Self {
             xml: Xml::new(),
@@ -212,5 +223,24 @@ impl Element {
             .iter()
             .find(|(text, _)| *text == name)
             .map_or(Self::Unknown, |(_, tag)| *tag)
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn parser_in_place_matches_constructor() {
+    for kind in [
+        ParserKind::Container,
+        ParserKind::Ncx,
+        ParserKind::Nav,
+        ParserKind::Encryption,
+    ] {
+        let expected = Parser::new(kind);
+        let mut storage = core::mem::MaybeUninit::<Parser>::uninit();
+        unsafe {
+            Parser::initialize(storage.as_mut_ptr(), kind);
+            let actual = storage.assume_init();
+            assert_eq!(actual, expected);
+        }
     }
 }

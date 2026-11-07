@@ -102,7 +102,7 @@ impl<'writer, 'path> Document<'writer, 'path> {
             if raw.is_null() {
                 return Err(());
             }
-            unsafe { raw.write(facade::Opf::new(size, metadata_only, writer.is_some())) };
+            unsafe { facade::Opf::initialize(raw, size, metadata_only, writer.is_some()) };
             Pass::Opf(unsafe { Box::from_raw(raw) })
         } else {
             let parser_kind = match kind {
@@ -116,7 +116,7 @@ impl<'writer, 'path> Document<'writer, 'path> {
             if raw.is_null() {
                 return Err(());
             }
-            unsafe { raw.write(facade::Simple::new(parser_kind, size)) };
+            unsafe { facade::Simple::initialize(raw, parser_kind, size) };
             Pass::Simple(unsafe { Box::from_raw(raw) })
         };
         let mut document = Self {

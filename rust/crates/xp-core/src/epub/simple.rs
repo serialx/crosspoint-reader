@@ -7,6 +7,7 @@ use super::{
 use alloc::vec::Vec;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(test, derive(Debug))]
 enum State {
     Start,
     Container,
@@ -23,6 +24,7 @@ enum State {
     Li,
     Anchor,
 }
+#[cfg_attr(test, derive(Debug, PartialEq))]
 pub(super) struct Simple {
     kind: ParserKind,
     state: State,
@@ -37,6 +39,23 @@ pub(super) struct Simple {
     clear: bool,
 }
 impl Simple {
+    /// # Safety
+    /// `out` must be aligned, writable, uninitialized storage with no aliases.
+    #[inline(never)]
+    pub(super) unsafe fn initialize(out: *mut Self, kind: ParserKind) {
+        core::ptr::addr_of_mut!((*out).kind).write(kind);
+        core::ptr::addr_of_mut!((*out).state).write(State::Start);
+        core::ptr::addr_of_mut!((*out).base).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).label).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).raw).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).href).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).anchor).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).scratch).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).decoded).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).depth).write(0);
+        core::ptr::addr_of_mut!((*out).clear).write(false);
+    }
+
     pub const fn new(kind: ParserKind) -> Self {
         Self {
             kind,
@@ -218,5 +237,24 @@ impl Simple {
             }
         }
         Ok(None)
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn simple_in_place_matches_constructor() {
+    for kind in [
+        ParserKind::Container,
+        ParserKind::Ncx,
+        ParserKind::Nav,
+        ParserKind::Encryption,
+    ] {
+        let expected = Simple::new(kind);
+        let mut storage = core::mem::MaybeUninit::<Simple>::uninit();
+        unsafe {
+            Simple::initialize(storage.as_mut_ptr(), kind);
+            let actual = storage.assume_init();
+            assert_eq!(actual, expected);
+        }
     }
 }

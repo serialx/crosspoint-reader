@@ -47,6 +47,7 @@ struct Failure {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(test, derive(Debug))]
 enum Phase {
     Prolog,
     Content,
@@ -57,6 +58,7 @@ enum Phase {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(test, derive(Debug))]
 enum Token {
     Unknown,
     Text,
@@ -67,6 +69,7 @@ enum Token {
     Comment(u8),
 }
 
+#[cfg_attr(test, derive(Debug, PartialEq))]
 struct DefaultAttribute {
     element: Vec<u8>,
     name: Vec<u8>,
@@ -74,6 +77,7 @@ struct DefaultAttribute {
     cdata: bool,
 }
 
+#[cfg_attr(test, derive(Debug, PartialEq))]
 pub struct Parser {
     input: Vec<u8>,
     pos: usize,
@@ -164,6 +168,47 @@ impl Default for Parser {
     }
 }
 impl Parser {
+    /// # Safety
+    /// `out` must be aligned, writable, uninitialized storage with no aliases.
+    #[inline(never)]
+    pub(crate) unsafe fn initialize(out: *mut Self) {
+        core::ptr::addr_of_mut!((*out).input).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).pos).write(0);
+        core::ptr::addr_of_mut!((*out).scan).write(0);
+        core::ptr::addr_of_mut!((*out).offset).write(0);
+        core::ptr::addr_of_mut!((*out).line).write(1);
+        core::ptr::addr_of_mut!((*out).previous_cr).write(false);
+        core::ptr::addr_of_mut!((*out).encoding).write(Encoding::Utf8);
+        core::ptr::addr_of_mut!((*out).detected).write(false);
+        core::ptr::addr_of_mut!((*out).final_input).write(false);
+        core::ptr::addr_of_mut!((*out).phase).write(Phase::Prolog);
+        core::ptr::addr_of_mut!((*out).token).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).token_kind).write(Token::Unknown);
+        core::ptr::addr_of_mut!((*out).quote).write(0);
+        core::ptr::addr_of_mut!((*out).subset_depth).write(0);
+        core::ptr::addr_of_mut!((*out).cdata).write(false);
+        core::ptr::addr_of_mut!((*out).doctype_seen).write(false);
+        core::ptr::addr_of_mut!((*out).declaration_seen).write(false);
+        core::ptr::addr_of_mut!((*out).external_subset).write(false);
+        core::ptr::addr_of_mut!((*out).standalone).write(false);
+        core::ptr::addr_of_mut!((*out).elements).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).entities).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).internal_subset).write(false);
+        core::ptr::addr_of_mut!((*out).value).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).declaration_offset).write(0);
+        core::ptr::addr_of_mut!((*out).defaults).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).output).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).comment_output).write(false);
+        core::ptr::addr_of_mut!((*out).fields).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).kind).write(Kind::NeedInput);
+        core::ptr::addr_of_mut!((*out).event_byte).write(0);
+        core::ptr::addr_of_mut!((*out).event_line).write(1);
+        core::ptr::addr_of_mut!((*out).failure).write(None);
+        core::ptr::addr_of_mut!((*out).empty_end).write(false);
+        core::ptr::addr_of_mut!((*out).partial_token_bytes).write(0);
+        core::ptr::addr_of_mut!((*out).deferred).write(false);
+    }
+
     pub const fn new() -> Self {
         Self {
             input: Vec::new(),
@@ -1800,3 +1845,15 @@ impl Parser {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[test]
+fn parser_in_place_matches_constructor() {
+    let expected = Parser::new();
+    let mut storage = core::mem::MaybeUninit::<Parser>::uninit();
+    unsafe {
+        Parser::initialize(storage.as_mut_ptr());
+        let actual = storage.assume_init();
+        assert_eq!(actual, expected);
+    }
+}

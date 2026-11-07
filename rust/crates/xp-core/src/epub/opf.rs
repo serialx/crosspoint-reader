@@ -30,6 +30,7 @@ pub const DONE: u32 = 29;
 pub const ERROR: u32 = 30;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(test, derive(Debug))]
 enum State {
     Start,
     Package,
@@ -43,6 +44,7 @@ enum State {
     Spine,
     Guide,
 }
+#[cfg_attr(test, derive(Debug, PartialEq))]
 struct Collection {
     id: Vec<u8>,
     title: Vec<u8>,
@@ -50,6 +52,7 @@ struct Collection {
     series: bool,
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(test, derive(Debug))]
 enum MetaProperty {
     Unknown,
     Collection,
@@ -69,6 +72,7 @@ impl MetaProperty {
             .map_or(Self::Unknown, |(_, kind)| *kind)
     }
 }
+#[cfg_attr(test, derive(Debug, PartialEq))]
 struct Metadata {
     values: [Vec<u8>; 11],
     index: Option<f32>,
@@ -86,6 +90,29 @@ struct Metadata {
     separator: bool,
 }
 impl Metadata {
+    /// # Safety
+    /// `out` must be aligned, writable, uninitialized storage with no aliases.
+    #[inline(never)]
+    unsafe fn initialize(out: *mut Self) {
+        let values = core::ptr::addr_of_mut!((*out).values).cast::<Vec<u8>>();
+        for i in 0..11 {
+            values.add(i).write(Vec::new());
+        }
+        core::ptr::addr_of_mut!((*out).index).write(None);
+        core::ptr::addr_of_mut!((*out).cover_id).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).identifier).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).isbn_scheme).write(false);
+        core::ptr::addr_of_mut!((*out).asin_scheme).write(false);
+        core::ptr::addr_of_mut!((*out).meta_text).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).property).write(MetaProperty::Unknown);
+        core::ptr::addr_of_mut!((*out).meta_id).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).calibre).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).calibre_index).write(None);
+        core::ptr::addr_of_mut!((*out).collections).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).space).write(false);
+        core::ptr::addr_of_mut!((*out).separator).write(false);
+    }
+
     const fn new() -> Self {
         Self {
             // Explicit elements avoid repeated-array temporaries on the C3 stack.
@@ -219,10 +246,12 @@ pub struct Record<'a> {
     pub error: u32,
     pub line: u32,
 }
+#[cfg_attr(test, derive(Debug, PartialEq))]
 pub struct Parser {
     xml: Xml,
     semantics: Semantics,
 }
+#[cfg_attr(test, derive(Debug, PartialEq))]
 struct Semantics {
     state: State,
     metadata: Metadata,
@@ -239,6 +268,26 @@ struct Semantics {
     error: u32,
 }
 impl Parser {
+    /// # Safety
+    /// `out` must be aligned, writable, uninitialized storage with no aliases.
+    #[inline(never)]
+    pub(crate) unsafe fn initialize(out: *mut Self, metadata_only: bool, has_cache: bool) {
+        Xml::initialize(core::ptr::addr_of_mut!((*out).xml));
+        Metadata::initialize(core::ptr::addr_of_mut!((*out).semantics.metadata));
+        core::ptr::addr_of_mut!((*out).semantics.state).write(State::Start);
+        core::ptr::addr_of_mut!((*out).semantics.base).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).semantics.item).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).semantics.href).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).semantics.scratch).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).semantics.decoded).write(Vec::new());
+        core::ptr::addr_of_mut!((*out).semantics.pending).write(0);
+        core::ptr::addr_of_mut!((*out).semantics.metadata_only).write(metadata_only);
+        core::ptr::addr_of_mut!((*out).semantics.complete).write(false);
+        core::ptr::addr_of_mut!((*out).semantics.has_cache).write(has_cache);
+        core::ptr::addr_of_mut!((*out).semantics.explicit_start).write(false);
+        core::ptr::addr_of_mut!((*out).semantics.error).write(0);
+    }
+
     pub const fn new(metadata_only: bool, has_cache: bool) -> Self {
         Self {
             xml: Xml::new(),
@@ -688,5 +737,31 @@ mod float_tests {
             float(b"1.0000000596046448").map(f32::to_bits),
             Some(0x3f80_0001)
         );
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn metadata_in_place_matches_constructor() {
+    let expected = Metadata::new();
+    let mut storage = core::mem::MaybeUninit::<Metadata>::uninit();
+    unsafe {
+        Metadata::initialize(storage.as_mut_ptr());
+        let actual = storage.assume_init();
+        assert_eq!(actual, expected);
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn parser_in_place_matches_constructor() {
+    for (metadata_only, has_cache) in [(false, false), (false, true), (true, false), (true, true)] {
+        let expected = Parser::new(metadata_only, has_cache);
+        let mut storage = core::mem::MaybeUninit::<Parser>::uninit();
+        unsafe {
+            Parser::initialize(storage.as_mut_ptr(), metadata_only, has_cache);
+            let actual = storage.assume_init();
+            assert_eq!(actual, expected);
+        }
     }
 }

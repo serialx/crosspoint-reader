@@ -19,6 +19,7 @@ pub trait Sink {
         diagnostics: &Diagnostics,
     ) -> Result<()>;
 }
+#[cfg_attr(test, derive(Debug, PartialEq))]
 pub struct Simple {
     pub parser: Parser,
     remaining: usize,
@@ -28,6 +29,18 @@ pub struct Simple {
     failed: bool,
 }
 impl Simple {
+    /// # Safety
+    /// `out` must be aligned, writable, uninitialized storage with no aliases.
+    #[inline(never)]
+    pub unsafe fn initialize(out: *mut Self, kind: ParserKind, size: usize) {
+        Parser::initialize(core::ptr::addr_of_mut!((*out).parser), kind);
+        core::ptr::addr_of_mut!((*out).remaining).write(size);
+        core::ptr::addr_of_mut!((*out).encryption).write(kind == ParserKind::Encryption);
+        core::ptr::addr_of_mut!((*out).protection).write(false);
+        core::ptr::addr_of_mut!((*out).completed).write(false);
+        core::ptr::addr_of_mut!((*out).failed).write(false);
+    }
+
     pub fn new(kind: ParserKind, size: usize) -> Self {
         Self {
             parser: Parser::new(kind),
@@ -146,6 +159,24 @@ pub struct Opf {
     pub css: Vec<Scratch>,
 }
 impl Opf {
+    /// # Safety
+    /// `out` must be aligned, writable, uninitialized storage with no aliases.
+    #[inline(never)]
+    pub unsafe fn initialize(out: *mut Self, size: usize, metadata_only: bool, has_cache: bool) {
+        opf::Parser::initialize(
+            core::ptr::addr_of_mut!((*out).parser),
+            metadata_only,
+            has_cache,
+        );
+        core::ptr::addr_of_mut!((*out).remaining).write(size);
+        core::ptr::addr_of_mut!((*out).metadata_only).write(metadata_only);
+        core::ptr::addr_of_mut!((*out).complete).write(false);
+        core::ptr::addr_of_mut!((*out).failed).write(false);
+        core::ptr::addr_of_mut!((*out).indexed).write(false);
+        core::ptr::addr_of_mut!((*out).items).write(Nodes::default());
+        core::ptr::addr_of_mut!((*out).css).write(Vec::new());
+    }
+
     pub fn new(size: usize, metadata_only: bool, has_cache: bool) -> Self {
         Self {
             parser: opf::Parser::new(metadata_only, has_cache),
@@ -308,5 +339,72 @@ impl Opf {
             }
         }
         bytes.len()
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn simple_in_place_matches_constructor() {
+    for (kind, size) in [
+        (ParserKind::Container, 0),
+        (ParserKind::Ncx, 1),
+        (ParserKind::Nav, usize::MAX),
+        (ParserKind::Encryption, 1024),
+    ] {
+        let expected = Simple::new(kind, size);
+        let mut storage = core::mem::MaybeUninit::<Simple>::uninit();
+        unsafe {
+            Simple::initialize(storage.as_mut_ptr(), kind, size);
+            let actual = storage.assume_init();
+            assert_eq!(actual, expected);
+        }
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn opf_in_place_matches_constructor() {
+    for size in [0, 1024, usize::MAX] {
+        for metadata_only in [false, true] {
+            for has_cache in [false, true] {
+                let expected = Opf::new(size, metadata_only, has_cache);
+                let mut storage = core::mem::MaybeUninit::<Opf>::uninit();
+                unsafe {
+                    Opf::initialize(storage.as_mut_ptr(), size, metadata_only, has_cache);
+                    let Opf {
+                        parser,
+                        remaining,
+                        metadata_only,
+                        complete,
+                        failed,
+                        indexed,
+                        items,
+                        css,
+                    } = storage.assume_init();
+                    assert_eq!(parser, expected.parser);
+                    assert_eq!(remaining, expected.remaining);
+                    assert_eq!(metadata_only, expected.metadata_only);
+                    assert_eq!(complete, expected.complete);
+                    assert_eq!(failed, expected.failed);
+                    assert_eq!(indexed, expected.indexed);
+                    assert_eq!(items.len, expected.items.len);
+                    assert_eq!(css.len(), expected.css.len());
+                    assert_eq!(css.capacity(), expected.css.capacity());
+                }
+            }
+        }
+    }
+}
+
+#[cfg(all(test, miri))]
+#[test]
+#[ignore = "Miri negative control: must reject an uninitialized field read"]
+fn in_place_read_before_init_negative_control() {
+    let mut storage = core::mem::MaybeUninit::<Opf>::uninit();
+    unsafe {
+        let out = storage.as_mut_ptr();
+        core::hint::black_box(core::ptr::addr_of!((*out).failed).read());
+        Opf::initialize(out, 0, false, false);
+        storage.assume_init_drop();
     }
 }

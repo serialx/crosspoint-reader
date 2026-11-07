@@ -338,11 +338,12 @@ pub unsafe extern "C" fn xp_pkg_pass_create(
             return -2;
         }
         ptr::addr_of_mut!((*p).tag).write(XpPkgPass { opf: true });
-        ptr::addr_of_mut!((*p).driver).write(facade::Opf::new(
+        facade::Opf::initialize(
+            ptr::addr_of_mut!((*p).driver),
             size,
             metadata_only != 0,
             !cache.is_null(),
-        ));
+        );
         ptr::addr_of_mut!((*p).sink).write(sink);
         if (*p).driver.parser.set_base(base).is_err() {
             xp_pkg_pass_destroy(p.cast());
@@ -362,7 +363,7 @@ pub unsafe extern "C" fn xp_pkg_pass_create(
             return -2;
         }
         ptr::addr_of_mut!((*p).tag).write(XpPkgPass { opf: false });
-        ptr::addr_of_mut!((*p).driver).write(facade::Simple::new(kind, size));
+        facade::Simple::initialize(ptr::addr_of_mut!((*p).driver), kind, size);
         ptr::addr_of_mut!((*p).sink).write(sink);
         if (*p).driver.parser.set_base(base).is_err() {
             xp_pkg_pass_destroy(p.cast());

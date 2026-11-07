@@ -103,10 +103,11 @@ Host-only substitutions and limits worth knowing before reading the golden:
 `xp-ffi/src/app/clippings`. `RustStore.cpp` substitutes only the physical file
 operations, clock, randomness and native path hash. Its one-record copy and text
 buffer are test scaffolding, not the production facade or a heap measurement.
-This target retains the native `ClippingsManager` export. The separate
-`clipping_bytes_rust_export` target adds `--rust-export` and uses O5a's dormant
+This target uses the frozen `ClippingExportOracle` export. The separate
+`clipping_bytes_rust_export` target adds `--rust-export` and uses the production
 Rust writer through physical file and calendar callbacks. It runs all 141 cases
-against the same frozen inputs and golden; no production export is activated.
+against the same frozen inputs and golden.
+Kindle export text remains untranslated English to preserve native byte parity.
 
 The candidate reads `inputs.json.gz`, captured from the verified native run at
 `8389157f`, rather than building migration inputs with its own writer. This
@@ -164,9 +165,8 @@ other retained reader inputs and their provenance.
 folder retains four snapshots and 34,405 B. The export entries use `snapshots`;
 the existing store materializer continues to consume only `files`.
 
-The export oracle still compiles the live manager during this freeze checkpoint.
-Before its retirement, `run.py` and `Oracle.cpp` will consume these hash-checked
-sources through a generated translation unit, without adding a frozen header
-include path. The 141-case frozen corpus and its failure expectations remain
-unchanged. Retire the pair only after equivalent independent export byte and
+The export oracle compiles these hash-checked sources as the generated
+`ClippingExportOracle.cpp` translation unit. `run.py` builds it and `Oracle.cpp`
+links against it, without adding a frozen header include path. The 141-case
+frozen corpus and its failure expectations remain unchanged. Retire the pair only after equivalent independent export byte and
 failure coverage replaces these consumers.

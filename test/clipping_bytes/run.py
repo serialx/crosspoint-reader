@@ -25,6 +25,7 @@ BOOK_UNICODE = '/books/한글 é.epub'.encode()
 BOOK_INVALID = b'/books/bad\xff.epub'
 BOOK_LONG = b'/books/' + b'x' * 4090 + b'.epub'
 
+# Includes retired source paths resolved through the hash-checked frozen oracle.
 PRODUCTION = ['src/ClippingStore.cpp', 'src/ClippingStore.h', 'src/clippings/ClippingsManager.cpp',
               'src/clippings/ClippingsManager.h', 'src/clippings/ClippingPreview.h', 'lib/Serialization/Serialization.h',
               'lib/Memory/Memory.h', 'lib/Utf8/Utf8.cpp', 'lib/Utf8/Utf8.h', 'lib/hal/HalStorage.h',

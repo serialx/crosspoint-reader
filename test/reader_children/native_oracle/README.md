@@ -28,7 +28,6 @@ Paths below are under `src/activities/reader/`. Each consumer is a CTest name.
 | `RustEpubPage.h.txt` | `ReaderPageTransfer`: retired footnote and dictionary factories and their ownership transfer |
 | `EpubReaderClippingListActivity.cpp.txt` | `reader_clipping_native_drawing`: native list drawing extracted by `prepare_clipping_drawing.py`; retain until equivalent independent drawing coverage replaces it |
 | `EpubReaderClippingListActivity.h.txt` | `reader_clipping_native_drawing`: ROW_WINDOW; `reader_child_handle_composition` and `reader_owned_app_children`: historical declaration through `test_child_handle_composition.py` and its imported fixture in `test_owned_app.py`; delete only after both drawing and historical consumers retire |
-
 | `EpubReaderBookmarksActivity.cpp.txt`, `EpubReaderBookmarksActivity.h.txt` | `reader_bookmark_native_drawing` and its negative controls: native row labels, subtitles and drawing; lifecycle fixtures retain these as hashed historical inputs |
 | `ReaderChromeListActivity.cpp.txt`, `ReaderChromeListActivity.h.txt` | `reader_bookmark_native_drawing`, `reader_clipping_native_drawing` and their negative controls: shared drawing and command arena; retained reader-chrome fixtures: native input reference |
 

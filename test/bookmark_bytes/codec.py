@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare the dormant Rust encoder with the immutable D0 serialized bytes."""
+"""Compare the Rust encoder with the immutable D0 serialized bytes."""
 import argparse
 import json
 from pathlib import Path

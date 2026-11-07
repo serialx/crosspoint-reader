@@ -579,13 +579,15 @@ synchronous callback, which may reenter another query or stream. Do not hold a
 Rust mutable borrow across a native callback. Clipping/recents adapters lend
 string views to synchronous stores, which copy into their final fields or row
 sink. No metadata view survives the call. Rust owns one bookmark record vector,
-its exact JSON encoding and the Kindle text export. Whole-file reads and temporary-file replacement remain native HAL transactions
-under the original StorageLock. `storage_read_file` lends the SDK buffer only
+its exact JSON encoding and the Kindle text export. Whole-file reads and
+temporary-file replacement remain native HAL transactions under the original
+StorageLock. `storage_read_file` lends the SDK buffer only
 during its synchronous sink; `storage_write_file_atomic` takes encoded bytes.
-Raw SDK diagnostics remain direct native output, with no raw-log mode or new
-file-open readiness flag. Despite its name, the write leaf is not power-loss
-atomic: the SDK removes the destination before renaming the temporary file. A
-rename failure followed by cleanup can leave neither file. The port preserves
+Whole-file HAL operations check readiness and emit SDK diagnostics directly;
+the reader log leaf has no raw-byte mode, and file-open leaves have no readiness
+flag. Despite its name, the write leaf is not power-loss atomic: the SDK removes
+the destination before renaming the temporary file. A rename failure followed
+by cleanup can leave neither file. The port preserves
 that inherited behavior; a failed save does not always preserve the old file. The
 bookmark filename convention is unchanged; `BookmarkUtil` remains for the two
 FileBrowser rename-path calls until that screen moves to Rust. XTC and sync keep

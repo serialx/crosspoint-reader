@@ -131,7 +131,7 @@ the pending viewer before redraw. The inline handle never passes through
 
 The `ReaderChromeListActivity` base and its final Bookmarks subclass are removed. FileBrowser, Library and
 TextSettings use `RustActivityAdapter` and retain `ReaderChromeCommands` and the
-theme sampler. `EndOfBookOptions` also uses those helpers and the list init,
+theme sampler. `EndOfBookOptions` uses only the theme sampler and the list init,
 view and publish exports; the list select, interest and update exports are test-only. The shared helper file remains until those actual callers move.
 `UtilityActivity` remains for `DetailsActivity` and `FrontlightPanelActivity`.
 
@@ -259,9 +259,9 @@ The wire bridges are temporary Phase 18 compatibility seams:
 `xp_ui_scene_gate_*`, `xp_ui_command_next_capacity` and
 `xp_ui_reader_theme_compose` retire only when their last actual native callers
 retire. Rust owners already call the typed functions directly. Keep the common
-commands and sampler in `ReaderChromeListActivity.{cpp,h}` while FileBrowser,
-Library, TextSettings or EndOfBookOptions still use them; retiring native
-Bookmarks alone does not remove those consumers. Keep reader/XTC
+commands in `ReaderChromeListActivity.{cpp,h}` for FileBrowser, Library and
+TextSettings, and the sampler for those three plus EndOfBookOptions; retiring
+native Bookmarks alone does not remove those consumers. Keep reader/XTC
 exports and physical drawing services for as long as their callers remain.
 
 ## Drawing and resources

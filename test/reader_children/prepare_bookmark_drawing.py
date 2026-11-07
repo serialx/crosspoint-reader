@@ -1,4 +1,4 @@
-"""Compare frozen bookmark/list drawing with the dormant Rust owner and physical bitmap adapter."""
+"""Compare frozen bookmark/list drawing with the Rust owner and physical bitmap adapter."""
 from pathlib import Path
 import hashlib
 import json

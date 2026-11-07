@@ -33,7 +33,6 @@
 #include "reader/RustEpubResources.h"
 #include "settings/OpdsServerListActivity.h"
 #include "settings/SettingsActivity.h"
-#include "settings/SettingsListActivity.h"
 #include "util/BmpViewerActivity.h"
 #include "util/ConfirmationActivity.h"
 #include "util/FrontlightPanelActivity.h"
@@ -134,10 +133,6 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
               LOG_ERR("ACT", "USB Drive requested in a build without USB Drive capability");
               return nullptr;
 #endif
-            case XP_APP_SETTINGS:
-              static_assert(static_cast<uint8_t>(SettingsSection::End) == 6);
-              return makeUniqueNoThrow<SettingsListActivity>(
-                  renderer, input, static_cast<SettingsSection>(launch->value.settings_section));
             case XP_APP_READER:
               return ReaderActivity::create(renderer, input, owned(launch->value.reader.path),
                                             launch->value.reader.fast_initial != 0);
@@ -156,6 +151,7 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
             case XP_APP_FRONTLIGHT_PANEL:
               return makeUniqueNoThrow<FrontlightPanelActivity>(renderer, input);
             case XP_APP_SETTINGS_SECTION: {
+              static_assert(static_cast<uint8_t>(SettingsSection::End) == 6);
               if (launch->value.settings_section >= static_cast<uint8_t>(SettingsSection::End)) return nullptr;
               auto section = makeUniqueNoThrow<SettingsActivity>(
                   renderer, input, static_cast<SettingsSection>(launch->value.settings_section));
@@ -192,7 +188,7 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
             owner.kind = XP_APP_PLUGINS;
           else if (name == "CrossPointWebServer")
             owner.kind = XP_APP_FILE_TRANSFER;
-          else if (name == "Settings" || name == "SettingsList")
+          else if (name == "Settings")
             owner.kind = XP_APP_SETTINGS;
           else if (name == "NetworkModeSelection")
             owner.kind = XP_APP_NETWORK_MODE;

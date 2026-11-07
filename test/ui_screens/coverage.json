@@ -552,7 +552,7 @@
       "activity": "Settings"
     },
     {
-      "source": "src/activities/settings/SettingsListActivity.cpp",
+      "source": "src/activities/settings/RustSettingsDrawing.cpp",
       "status": "captured",
       "groups": [
         "general"

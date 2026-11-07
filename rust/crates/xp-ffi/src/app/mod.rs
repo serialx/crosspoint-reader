@@ -412,7 +412,6 @@ impl App {
                 | abi::PLUGINS
                 | abi::FILE_TRANSFER
                 | abi::USB_DRIVE
-                | abi::SETTINGS
                 | abi::READER
                 | abi::BITMAP
                 | abi::BOOT

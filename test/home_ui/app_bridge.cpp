@@ -100,12 +100,6 @@ struct CrossPointWebServerActivity : Activity {
   }
 };
 enum class SettingsSection : uint8_t { End = 6 };
-struct SettingsListActivity : Activity {
-  SettingsListActivity(GfxRenderer&, MappedInputManager&, SettingsSection section) {
-    created = XP_APP_SETTINGS;
-    flag = int(section);
-  }
-};
 struct SettingsActivity : Activity {
   SettingsActivity(GfxRenderer&, MappedInputManager&, SettingsSection section) {
     created = XP_APP_SETTINGS_SECTION;

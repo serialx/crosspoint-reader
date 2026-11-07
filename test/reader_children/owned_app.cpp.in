@@ -263,6 +263,7 @@ int main(int argc, char** argv) {
   bindReaderBook(); bindReaderResults(); BookStoreAdapters::bind(); bindOwnedChildren();
   if (mode.starts_with("clippings")) bindOwnedClippings();
   if (mode.starts_with("bookmarks")) bindOwnedBookmarks();
+  if (mode.starts_with("bookmarks-return-")) state.path = "/return.epub";
   initialize();
   enterCompositionReader();
   xp_epub_test_legacy_children(results.owner, nullptr);

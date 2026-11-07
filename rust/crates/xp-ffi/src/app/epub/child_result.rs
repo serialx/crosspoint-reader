@@ -83,6 +83,10 @@ impl EpubSession {
 
     #[inline(never)]
     fn bookmark_returned(&self, position: Option<super::children::bookmark_owned::Position>) {
+        {
+            let access = self.lock_resources();
+            self.load_cached_bookmarks(&access);
+        }
         if let Some(position) = position {
             self.apply_progress(&app_abi::XpAppProgressResult {
                 spine: position.spine,

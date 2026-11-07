@@ -1,3 +1,5 @@
+#include "I18nKeys.h"
+#include "bookmark_session_fixture.h"
 #include <xp_ui_keyboard.h>
 struct BookmarkKeyboard { std::string title, initial; bool locked = false; };
 static BookmarkKeyboard* bookmarkKeyboard;
@@ -79,6 +81,8 @@ extern "C" void xp_keyboard_deliver(const XpAppLegacy*, void*, XpAppText, uint8_
 }
 extern "C" void xp_epub_test_bookmark_rows(void*, XpEpubBookmarkSink, void*);
 static std::string bookmarkDisk = R"({"bookmarks":[{"xpath":"target-xpath","percentage":0.375,"summary":"saved passage","name":"named bookmark","si":4,"pc":10,"pp":3,"vo":321}]})";
+static bool bookmarkReturnChecks, bookmarkMenuLabel, bookmarkReturnLogging;
+static std::vector<std::string> bookmarkLogs;
 static bool bookmarkPopup, bookmarkLong, bookmarkWriteFails, bookmarkGrowthFailure;
 static int bookmarkChoice = -1;
 static unsigned bookmarkOptions, bookmarkWrites, bookmarkPaints;
@@ -97,7 +101,8 @@ static void bindOwnedBookmarks() {
   bindBookmarkKeyboard();
   static auto logEnabled = leaves.log_enabled;
   leaves.log_enabled = [](uint8_t level) -> uint8_t {
-    return level == 1 && bookmarkCommandFailure ? 1 : logEnabled(level);
+    if (level == 0 && bookmarkReturnLogging) return childDebugEnabled;
+    return level == 1 && (bookmarkCommandFailure || bookmarkReturnChecks) ? 1 : logEnabled(level);
   };
   static auto allocate = resources.buffer_allocate;
   resources.buffer_allocate = [](uint8_t domain, size_t bytes) -> uint8_t* {
@@ -107,6 +112,7 @@ static void bindOwnedBookmarks() {
   static auto log = leaves.log;
   leaves.log = [](uint8_t level, XpAppText origin, XpAppText message) {
     const auto tag = text(origin), value = text(message);
+    if (tag == "BKM" || tag == "PERSIST" || tag == "EPB") bookmarkLogs.push_back(std::to_string(level) + ":" + tag + ":" + value);
     if (tag == "RUI") {
       assert(level == 1 && bookmarkCommandFailure &&
              value == "Cannot allocate " + std::to_string(bookmarkCommandFailure) + " command bytes");
@@ -116,7 +122,7 @@ static void bindOwnedBookmarks() {
       assert(level == 0 && (value.starts_with("Loaded ") || value.starts_with("Saving "))); return;
     }
     if (tag == "EPB") {
-      if (level == 0) assert(value.starts_with("Loaded "));
+      if (level == 0) assert(value.starts_with("Loaded ") || (bookmarkReturnChecks && value.starts_with("Toggle bookmark")));
       else assert(bookmarkWriteFails && (value == "Failed to save bookmarks after delete" ||
                                        value == "Failed to save bookmarks after rename"));
       return;
@@ -129,6 +135,11 @@ static void bindOwnedBookmarks() {
     }
     if (tag == "LIST") { assert(level == 0 && value.starts_with("Selected ")); return; }
     log(level, origin, message);
+  };
+  static auto translate = resources.translate;
+  resources.translate = [](uint16_t key) -> XpAppText {
+    if (key == uint16_t(StrId::STR_BOOKMARKS) && xp_app_test_current_child(nullptr) && childKind() == 1) bookmarkMenuLabel = true;
+    return translate(key);
   };
   leaves.storage_read_file = [](XpAppText path, XpAppTextSink sink, void* context) -> uint8_t {
     assert(!f().modelDepth && text(path) == bookmarkPath());
@@ -242,7 +253,7 @@ static void bookmarkPointGesture(const std::string& mode, bool cancelled) {
   assert((bookmarkDisk.find("second row") != std::string::npos) == cancelled);
   paintChild(); returnChild(XP_UI_BACK);
 }
-static void renameBookmark(bool cancelled, const std::string& expected) {
+static void renameBookmark(bool cancelled, const std::string& expected, unsigned expectedRows = 1) {
   const auto* bookmarkOwner = xp_app_test_current_child(nullptr);
   const auto beforeBuffers = readerBuffers;
   const uint8_t* originalName = nullptr;
@@ -272,17 +283,96 @@ static void renameBookmark(bool cancelled, const std::string& expected) {
   if (!cancelled) {
     struct Name { const uint8_t* pointer; const std::string* expected; unsigned count = 0; } name{bookmarkWriteFails ? originalName : edit, &expected};
     xp_epub_test_bookmark_rows(results.owner, [](void* raw, const XpEpubBookmark* row) -> uint8_t {
-      auto& name = *static_cast<Name*>(raw); assert(name.count++ == 0);
+      auto& name = *static_cast<Name*>(raw); if (name.count++ != 0) return 1;
       assert(row->name.data == name.pointer && text(row->name) == *name.expected); return 1;
     }, &name);
-    assert(name.count == 1);
+    assert(name.count == expectedRows);
   }
   if (cancelled || bookmarkWriteFails) assert(!readerBuffers.contains(const_cast<uint8_t*>(edit)));
   paintChild();
 }
 
+
+static std::vector<std::string> bookmarkNames() {
+  std::vector<std::string> names;
+  xp_epub_test_bookmark_rows(results.owner, [](void* raw, const XpEpubBookmark* row) -> uint8_t {
+    static_cast<std::vector<std::string>*>(raw)->push_back(text(row->name)); return 1;
+  }, &names);
+  return names;
+}
+static void bookmarkDeletePrompt() {
+  paintChild(); bookmarkLong = true; inputChild(0); bookmarkLong = false;
+  assert(bookmarkPopup && bookmarkOptions == 3);
+  bookmarkChoice = 2; inputChild(0);
+  assert(bookmarkPopup && bookmarkOptions == 2);
+}
+static void bookmarkReturnScenario(const std::string& mode, bool cancelled) {
+  const bool last = mode == "bookmarks-return-last" || mode == "bookmarks-return-success";
+  const bool success = mode == "bookmarks-return-success";
+  const bool jump = mode == "bookmarks-return-jump";
+  const auto persisted = bookmarkDisk;
+  const auto beforeLoads = f().bookmarkLoads;
+  bookmarkLogs.clear();
+  bookmarkWriteFails = !success;
+  bookmarkDeletePrompt(); bookmarkChoice = 1;
+  if (last) { bookmarkReturnLogging = true; returnChild(0); bookmarkReturnLogging = false; }
+  else {
+    inputChild(0);
+    assert((bookmarkNames() == std::vector<std::string>{"second row"}));
+    inputChild(0); paintChild(); // Consume the native post-confirmation idle frame.
+    if (cancelled) { // Cancel a second delete after the first failed write.
+      bookmarkDeletePrompt(); bookmarkChoice = 0; inputChild(0); inputChild(0); paintChild();
+    }
+    if (jump) { inputChild(XP_UI_CONFIRM); assert(childKind() == 8); paintChild(); } // Release the held actions key.
+    bookmarkReturnLogging = true;
+    returnChild(jump ? XP_UI_CONFIRM : XP_UI_BACK);
+    bookmarkReturnLogging = false;
+  }
+  assert(f().bookmarkLoads == beforeLoads + 1);
+  const std::vector<std::string> expected = success ? std::vector<std::string>{} :
+      last ? std::vector<std::string>{"original row"} : std::vector<std::string>{"original row", "second row"};
+  assert(bookmarkNames() == expected);
+  assert(bookmarkWrites == 1);
+  assert(bookmarkDisk == (success ? "{\"bookmarks\":[]}" : persisted));
+  std::vector<std::string> logs;
+  if (childDebugEnabled) logs.push_back("0:BKM:Saving " + std::to_string(last ? 0 : 1) + " bookmarks to file");
+  if (!success) {
+    logs.push_back("1:PERSIST:Failed to write " + bookmarkPath());
+    logs.push_back("1:EPB:Failed to save bookmarks after delete");
+  }
+  if (childDebugEnabled) logs.push_back("0:BKM:Loaded " + std::to_string(expected.size()) + " bookmarks from file");
+  if (bookmarkLogs != logs) {
+    for (const auto& row : bookmarkLogs) std::fprintf(stderr, "actual bookmark log: %s\n", row.c_str());
+    for (const auto& row : logs) std::fprintf(stderr, "expected bookmark log: %s\n", row.c_str());
+  }
+  assert(bookmarkLogs == logs);
+  XpEpubTestBookmarkObservation status{}; xp_epub_test_bookmark_observe(results.owner, &status);
+  assert(status.bookmarked == !success);
+  if (jump) {
+    XpEpubTestMenuObservation position{}; xp_epub_test_menu_observe(results.owner, &position);
+    assert(position.spine == 4 && position.next_page == 3); // Owned XPath survives reload.
+    xp_epub_test_menu_open(results.owner); assert(xp_app_test_drain());
+  }
+  assert(childKind() == 1);
+  bookmarkMenuLabel = false; paintChild();
+  assert(bookmarkMenuLabel == !expected.empty());
+  returnChild(XP_UI_BACK);
+  if (mode == "bookmarks-return-save") {
+    bookmarkWriteFails = false;
+    xp_epub_test_menu_confirm(results.owner, 9); assert(xp_app_test_drain());
+    assert(childKind() == 8); paintChild();
+    renameBookmark(false, "original row", 2);
+    assert(bookmarkWrites == 2 && bookmarkDisk.find("second row") != std::string::npos);
+    assert(bookmarkDisk.find("original row") != std::string::npos);
+    returnChild(XP_UI_BACK);
+    assert(bookmarkNames() == expected);
+    assert(childKind() == 1); paintChild(); returnChild(XP_UI_BACK);
+  }
+}
+
 static int runOwnedBookmarks(const std::string& mode, bool cancelled) {
   const auto baseline = xp_test_live_allocations();
+  bookmarkReturnChecks = mode.starts_with("bookmarks-return-");
   bookmarkGrowthFailure = mode == "bookmarks-record-oom";
   bookmarkWriteFails = mode == "bookmarks-rename-fail";
   if (mode == "bookmarks-oom") {
@@ -304,6 +394,12 @@ static int runOwnedBookmarks(const std::string& mode, bool cancelled) {
       const auto end = bookmarkDisk.rfind("]}"); assert(end != std::string::npos);
       bookmarkDisk.insert(end, R"(,{"name":"second row","si":4,"pc":10,"pp":5})");
     }
+    if (bookmarkReturnChecks) {
+      bookmarkDisk = R"({"bookmarks":[{"xpath":"restored-xpath","percentage":0,"name":"original row","si":1,"pc":10,"pp":2}]})";
+      if (mode != "bookmarks-return-last" && mode != "bookmarks-return-success") {
+        bookmarkDisk.insert(bookmarkDisk.rfind("]}"), R"(,{"xpath":"jump-xpath","percentage":0.375,"name":"second row","si":4,"pc":10,"pp":3,"vo":321})");
+      }
+    }
     for (unsigned visit = 0; visit < (mode == "bookmarks" ? 3u : 1u); ++visit) {
       xp_epub_test_menu_confirm(results.owner, 9);
       assert(xp_app_test_pending_kind() == 1);
@@ -323,13 +419,21 @@ static int runOwnedBookmarks(const std::string& mode, bool cancelled) {
         break;
       }
       assert(childKind() == 8);
-      if (mode.starts_with("bookmarks-swipe") || mode == "bookmarks-touch-hold") {
+      if (bookmarkReturnChecks) {
+        bookmarkReturnScenario(mode, cancelled);
+      } else if (mode.starts_with("bookmarks-swipe") || mode == "bookmarks-touch-hold") {
         paintChild();
         bookmarkPointGesture(mode, cancelled);
       } else if (mode.starts_with("bookmarks-rename")) {
         paintChild();
         for (unsigned rename = 0; rename < 3; ++rename) renameBookmark(cancelled, renameName);
-        returnChild(XP_UI_BACK);
+        const auto loads = f().bookmarkLoads;
+        bookmarkLogs.clear(); bookmarkReturnLogging = true; returnChild(XP_UI_BACK); bookmarkReturnLogging = false;
+        assert(f().bookmarkLoads == loads + 1);
+        assert((bookmarkNames() == std::vector<std::string>{renameName}));
+        // The menu must retain the persisted bookmark after every keyboard return.
+        assert(childKind() == 1); bookmarkMenuLabel = false; paintChild(); assert(bookmarkMenuLabel);
+        if (childDebugEnabled) assert((bookmarkLogs == std::vector<std::string>{"0:BKM:Loaded 1 bookmarks from file"}));
       } else if (mode == "bookmarks-delete" || mode == "bookmarks-delete-fail") {
         paintChild();
         bookmarkLong = true; inputChild(0); bookmarkLong = false;

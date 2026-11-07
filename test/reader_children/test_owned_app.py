@@ -18,6 +18,7 @@ from test_popup_resource import replace_once
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--archive', type=Path, required=True)
+    parser.add_argument("--mode", action="append", help="Run only these actual-App scenarios")
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix='reader-owned-app-') as temporary:
         out = Path(temporary)
@@ -48,14 +49,16 @@ def main():
         facade.write_text(facade_bridge_source(ROOT))
         binary = out / 'candidate'
         command = compile_command(ROOT, out, facade, binary, archive=str(args.archive))
-        command[command.index('-o'):command.index('-o')] = ['-I', str(ROOT / 'src/activities'), '-I', str(ROOT / 'src'), str(candidate)]
+        command[command.index('-o'):command.index('-o')] = ['-I', str(ROOT / 'lib/I18n'), '-I', str(ROOT / 'src/activities'), '-I', str(ROOT / 'src'), str(candidate)]
         allocator = out / 'allocator.cpp'
         allocator.write_text(replace_once((ROOT / 'test/cmake/xp_ffi_host.cpp').read_text(),
             'extern "C" void heap_caps_free(void* ptr) {',
             'extern "C" void observeRustFree(void*);\nextern "C" void heap_caps_free(void* ptr) { observeRustFree(ptr);'))
         command = [str(allocator) if arg == str(ROOT / 'test/cmake/xp_ffi_host.cpp') else arg for arg in command]
         subprocess.run(command, check=True)
-        for mode in ('chapter-timed', 'menu', 'chapter', 'percent', 'qr', 'text', 'text-overlay', 'clippings', 'clippings-nav', 'clippings-delete', 'clippings-passage', 'clippings-detail', 'clippings-detail-oom', 'clippings-oom', 'bookmarks', 'bookmarks-empty', 'bookmarks-delete', 'bookmarks-delete-fail', 'bookmarks-oom', 'bookmarks-stack-oom', 'bookmarks-rename', 'bookmarks-rename-empty', 'bookmarks-rename-max', 'bookmarks-record-oom', 'bookmarks-rename-fail', 'bookmarks-swipe', 'bookmarks-swipe-absent', 'bookmarks-swipe-outside', 'bookmarks-touch-hold', 'bookmarks-command-oom'):
+        for mode in ('chapter-timed', 'menu', 'chapter', 'percent', 'qr', 'text', 'text-overlay', 'clippings', 'clippings-nav', 'clippings-delete', 'clippings-passage', 'clippings-detail', 'clippings-detail-oom', 'clippings-oom', 'bookmarks', 'bookmarks-empty', 'bookmarks-delete', 'bookmarks-delete-fail', 'bookmarks-oom', 'bookmarks-stack-oom', 'bookmarks-rename', 'bookmarks-rename-empty', 'bookmarks-rename-max', 'bookmarks-record-oom', 'bookmarks-rename-fail', 'bookmarks-swipe', 'bookmarks-swipe-absent', 'bookmarks-swipe-outside', 'bookmarks-touch-hold', 'bookmarks-command-oom', 'bookmarks-return-last', 'bookmarks-return-nonlast', 'bookmarks-return-jump', 'bookmarks-return-save', 'bookmarks-return-success'):
+            if args.mode and mode not in args.mode:
+                continue
             for cancelled in ('0', '1'):
                 for debug in ('0', '1'):
                     result = subprocess.run([str(binary), mode, cancelled, debug], capture_output=True, text=True)
@@ -63,6 +66,8 @@ def main():
                         print(result.stderr[-15000:])
                         raise AssertionError((mode, cancelled, debug, result.returncode))
                     print(result.stdout)
+        if args.mode:
+            return
         # A swipe release has no tap coordinates; substituting them must lose the target row.
         candidate.write_text(replace_once(source,
             '*x = bookmarkPointX; *y = bookmarkPointY; return 1;',

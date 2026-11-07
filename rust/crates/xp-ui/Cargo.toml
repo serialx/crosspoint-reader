@@ -23,3 +23,7 @@ path = "../../../test/dictionary_ui/rust_paint.rs"
 [[test]]
 name = "utility_owned"
 path = "../../../test/ui_utility/owned.rs"
+
+[[test]]
+name = "settings_owned"
+path = "../../../test/ui_settings/owned.rs"

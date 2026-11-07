@@ -47,7 +47,8 @@ enum {
   XP_APP_NETWORK_MODE,
   XP_APP_DIALOG,
   XP_APP_KEYBOARD,
-  XP_APP_WIFI
+  XP_APP_WIFI,
+  XP_APP_SETTINGS_SECTION
 };
 typedef struct {
   XpAppText path;

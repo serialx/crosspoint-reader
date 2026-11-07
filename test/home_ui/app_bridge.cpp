@@ -106,6 +106,12 @@ struct SettingsListActivity : Activity {
     flag = int(section);
   }
 };
+struct SettingsActivity : Activity {
+  SettingsActivity(GfxRenderer&, MappedInputManager&, SettingsSection section) {
+    created = XP_APP_SETTINGS_SECTION;
+    flag = int(section);
+  }
+};
 struct EpdFontFamily {
   enum class Style {};
 };

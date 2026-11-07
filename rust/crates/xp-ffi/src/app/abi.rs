@@ -121,6 +121,7 @@ pub enum LaunchPayload {
     #[allow(dead_code)]
     Dialog(*const DialogLaunch),
     Keyboard(*const KeyboardLaunch),
+    SettingsSection(u8),
 }
 
 impl Launch {
@@ -139,6 +140,7 @@ impl Launch {
                     | (SLEEP, Sleep(_))
                     | (DIALOG, Dialog(_))
                     | (KEYBOARD, Keyboard(_))
+                    | (SETTINGS_SECTION, SettingsSection(0..=5))
                     | (
                         LIBRARY | OPDS_PICKER | USB_DRIVE | BOOT | CRASH | FRONTLIGHT_PANEL,
                         None
@@ -160,6 +162,7 @@ impl Launch {
             Sleep(sleep_from_timeout) => LaunchValue { sleep_from_timeout },
             Dialog(dialog) => LaunchValue { dialog },
             Keyboard(keyboard) => LaunchValue { keyboard },
+            SettingsSection(settings_section) => LaunchValue { settings_section },
         };
         Self { kind, value }
     }
@@ -653,6 +656,7 @@ pub const FRONTLIGHT_PANEL: u8 = 14;
 pub const NETWORK_MODE: u8 = 15;
 pub const DIALOG: u8 = 16;
 pub const KEYBOARD: u8 = 17;
+pub const SETTINGS_SECTION: u8 = 19;
 pub const ADOPT_REPLACE: u8 = 0;
 pub const ADOPT_PUSH: u8 = 1;
 pub const POP: u8 = 2;

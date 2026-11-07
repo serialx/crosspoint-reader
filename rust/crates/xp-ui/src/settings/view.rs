@@ -2,7 +2,7 @@ use super::protocol;
 use crate::{
     list::{self, Style},
     model::ListState,
-    scene::{Arena, Command, Error, Kind, Rect},
+    scene::{Arena, Command, Error, Kind, Rect, Refresh},
 };
 
 #[repr(C)]
@@ -417,6 +417,45 @@ pub struct Layout {
 pub const HEADER: u32 = 0x8000_0001;
 pub const FOOTER: u32 = 0x8000_0002;
 pub const PREVIEW: u32 = 0x8000_0003;
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Prepared {
+    pub command_count: u16,
+    pub refresh: Refresh,
+}
+
+/// Retry from the same snapshot; publish output metadata only on success.
+pub fn prepare(
+    state: &ListState,
+    layout: &Layout,
+    resources: &mut dyn Resources,
+    count: u16,
+    commands: &mut [Command],
+    next: &mut ListState,
+    hits: &mut super::hits::Layout,
+) -> Result<Prepared, Error> {
+    let mut next_state = *state;
+    for pass in 0..9 {
+        let mut routing = super::hits::Layout::default();
+        let mut arena = Arena::with_hit_sink(commands, &mut routing)?;
+        let (n, disabled) = view(&mut arena, next_state, *layout, resources, count)?;
+        next_state = n;
+        if n.follow != 0 && pass < 8 {
+            continue;
+        }
+        let scene = arena.finish(Refresh::Fast, 1)?;
+        let prepared = Prepared {
+            command_count: scene.commands.len() as u16,
+            refresh: scene.refresh,
+        };
+        routing.disabled = disabled;
+        *next = next_state;
+        *hits = routing;
+        return Ok(prepared);
+    }
+    Err(Error::Invalid)
+}
+
 pub fn view(
     arena: &mut Arena<'_>,
     state: ListState,

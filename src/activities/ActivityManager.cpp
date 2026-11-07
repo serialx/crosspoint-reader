@@ -32,6 +32,7 @@
 #include "reader/ReaderActivity.h"
 #include "reader/RustEpubResources.h"
 #include "settings/OpdsServerListActivity.h"
+#include "settings/SettingsActivity.h"
 #include "settings/SettingsListActivity.h"
 #include "util/BmpViewerActivity.h"
 #include "util/ConfirmationActivity.h"
@@ -154,6 +155,13 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
               return makeUniqueNoThrow<CrashActivity>(renderer, input);
             case XP_APP_FRONTLIGHT_PANEL:
               return makeUniqueNoThrow<FrontlightPanelActivity>(renderer, input);
+            case XP_APP_SETTINGS_SECTION: {
+              if (launch->value.settings_section >= static_cast<uint8_t>(SettingsSection::End)) return nullptr;
+              auto section = makeUniqueNoThrow<SettingsActivity>(
+                  renderer, input, static_cast<SettingsSection>(launch->value.settings_section));
+              if (!section) LOG_ERR("SETTINGS", "OOM: SettingsActivity");
+              return section;
+            }
             default:
               return nullptr;
           }

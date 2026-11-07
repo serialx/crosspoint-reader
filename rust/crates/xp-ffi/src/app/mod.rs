@@ -25,6 +25,7 @@ mod keyboard;
 mod network_modes;
 mod resources;
 mod result;
+mod settings;
 mod stable_owner;
 mod sync;
 #[cfg(test)]
@@ -66,6 +67,8 @@ enum Target {
         child: ChildTarget,
         parent: NonNull<epub::EpubSession>,
     },
+    Settings(NonNull<settings::Settings>),
+    SettingsSection(NonNull<c_void>),
 }
 
 enum ActivityResult {
@@ -73,6 +76,7 @@ enum ActivityResult {
     Dialog(Option<dialog::Result>),
     Legacy(*const abi::XpAppResultView),
     Child(ChildResultSlot),
+    SectionComplete,
 }
 
 // Valid only during with_result's synchronous continuation. Its outlined producer
@@ -109,7 +113,9 @@ enum Owner {
         object: NonNull<c_void>,
         services: &'static abi::Legacy,
         reader: bool,
+        section: bool,
     },
+    Settings(StableOwner<settings::Settings>),
 }
 
 impl Activity for Owner {
@@ -121,7 +127,16 @@ impl Activity for Owner {
             Self::Keyboard(keyboard) => Target::Keyboard(keyboard.pointer()),
             Self::NetworkModes(modes) => Target::NetworkModes(modes.pointer()),
             Self::Dialog(dialog) => Target::Dialog(dialog.target()),
-            Self::Legacy { object, .. } => Target::Legacy(*object),
+            Self::Legacy {
+                object, section, ..
+            } => {
+                if *section {
+                    Target::SettingsSection(*object)
+                } else {
+                    Target::Legacy(*object)
+                }
+            }
+            Self::Settings(root) => Target::Settings(root.pointer()),
             Self::Definition(viewer) => Target::Definition(viewer.pointer()),
             Self::ReaderChild { child, parent } => Target::ReaderChild {
                 child: child.target(),
@@ -147,7 +162,8 @@ impl Drop for Owner {
             | Self::NetworkModes(_)
             | Self::Dialog(_)
             | Self::ReaderChild { .. }
-            | Self::Definition(_) => {}
+            | Self::Definition(_)
+            | Self::Settings(_) => {}
         }
     }
 }
@@ -248,7 +264,7 @@ impl App {
     fn skip_delay(&self) -> bool {
         match self.navigation.current() {
             Some(Target::Epub(epub)) => unsafe { epub.as_ref() }.skip_loop_delay(),
-            Some(Target::Legacy(target)) => unsafe {
+            Some(Target::Legacy(target) | Target::SettingsSection(target)) => unsafe {
                 (self.legacy.facts)(target.as_ptr(), 1, 0).skip_delay != 0
             },
             _ => false,
@@ -257,7 +273,9 @@ impl App {
 
     fn target_facts(&self) -> Option<abi::LegacyFacts> {
         match self.navigation.current()? {
-            Target::Legacy(target) => Some(self.legacy_facts(target)),
+            Target::Legacy(target) | Target::SettingsSection(target) => {
+                Some(self.legacy_facts(target))
+            }
             Target::Definition(_) => Some(definition::facts()),
             Target::Epub(epub) => Some(unsafe { epub.as_ref() }.app_facts(false)),
             Target::ReaderChild { child, .. } => Some(unsafe { child.facts() }),
@@ -265,6 +283,7 @@ impl App {
             Target::Dialog(dialog) => Some(dialog.facts()),
             Target::NetworkModes(modes) => Some(network_modes::facts(modes)),
             Target::Home(_) => None,
+            Target::Settings(_) => Some(settings::facts()),
         }
     }
 
@@ -311,10 +330,14 @@ impl App {
             object,
             services: self.legacy,
             reader,
+            section: false,
         })
     }
 
     fn create(&self, launch: &abi::Launch) -> Option<Owner> {
+        if launch.kind == abi::SETTINGS_SECTION {
+            return settings::create_section(self, launch);
+        }
         if matches!(launch.kind, abi::MESSAGE | abi::DIALOG) {
             return dialog::create_launch(self, launch);
         }
@@ -518,7 +541,11 @@ impl App {
     fn activity_loop(&self) {
         let full_buttons = match self.navigation.current() {
             Some(
-                Target::Home(_) | Target::Keyboard(_) | Target::Dialog(_) | Target::NetworkModes(_),
+                Target::Home(_)
+                | Target::Keyboard(_)
+                | Target::Dialog(_)
+                | Target::NetworkModes(_)
+                | Target::Settings(_),
             ) => true,
             Some(Target::ReaderChild { child, .. }) => !matches!(child, ChildTarget::Lookup(_)),
             _ => false,
@@ -529,7 +556,9 @@ impl App {
         }
         if let Some(target) = self.navigation.current() {
             let facts = match target {
-                Target::Legacy(target) => Some(self.legacy_facts(target)),
+                Target::Legacy(target) | Target::SettingsSection(target) => {
+                    Some(self.legacy_facts(target))
+                }
                 Target::Definition(target) => {
                     self.definition_input(
                         target,
@@ -544,9 +573,10 @@ impl App {
                 Target::Dialog(dialog) => Some(dialog.facts()),
                 Target::NetworkModes(modes) => Some(network_modes::facts(modes)),
                 Target::Home(_) => None,
+                Target::Settings(_) => Some(settings::facts()),
             };
             if facts.is_some_and(|f| f.exclusive_storage != 0) {
-                if let Target::Legacy(target) = target {
+                if let Target::Legacy(target) | Target::SettingsSection(target) = target {
                     unsafe { (self.legacy.r#loop)(target.as_ptr()) };
                 }
                 self.flush_update();
@@ -554,7 +584,7 @@ impl App {
             }
             if frame.home_gesture != 0 {
                 match target {
-                    Target::Legacy(target) => {
+                    Target::Legacy(target) | Target::SettingsSection(target) => {
                         if unsafe { (self.legacy.home_gesture)(target.as_ptr()) } == 0 {
                             self.go_home(0, false);
                         }
@@ -564,7 +594,8 @@ impl App {
                     | Target::Keyboard(_)
                     | Target::Dialog(_)
                     | Target::Definition(_)
-                    | Target::NetworkModes(_) => {
+                    | Target::NetworkModes(_)
+                    | Target::Settings(_) => {
                         self.go_home(0, false);
                         return;
                     }
@@ -604,11 +635,14 @@ impl App {
                 return;
             }
             match target {
-                Target::Legacy(target) => unsafe { (self.legacy.r#loop)(target.as_ptr()) },
+                Target::Legacy(target) | Target::SettingsSection(target) => unsafe {
+                    (self.legacy.r#loop)(target.as_ptr())
+                },
                 Target::Definition(_) => unreachable!("Definition input already dispatched"),
                 Target::Epub(epub) => unsafe { epub.as_ref() }.loop_reader(),
                 Target::Dialog(dialog) => dialog.input(frame.input),
                 Target::NetworkModes(modes) => network_modes::input(modes, frame.input),
+                Target::Settings(root) => settings::input(unsafe { root.as_ref() }, frame.input),
                 Target::Keyboard(keyboard) => {
                     keyboard::input_complete(self, unsafe { keyboard.as_ref() }, frame.input)
                 }
@@ -694,7 +728,7 @@ impl App {
     fn forced_refresh(&self) -> bool {
         match self.navigation.current() {
             Some(Target::Epub(epub)) => unsafe { epub.as_ref() }.force_refresh(),
-            Some(Target::Legacy(target)) => unsafe {
+            Some(Target::Legacy(target) | Target::SettingsSection(target)) => unsafe {
                 (self.legacy.forced_refresh)(target.as_ptr()) != 0
             },
             _ => false,
@@ -762,6 +796,7 @@ impl Services<Owner> for App {
             Target::Home(home) => unsafe { home.as_ref() }.enter(),
             Target::Dialog(dialog) => dialog.enter(),
             Target::NetworkModes(modes) => network_modes::enter(modes),
+            Target::Settings(root) => settings::enter(unsafe { root.as_ref() }),
             Target::Keyboard(keyboard) => {
                 if !keyboard::enter(unsafe { keyboard.as_ref() }) {
                     self.navigation.queue(Transition::Pop);
@@ -769,7 +804,9 @@ impl Services<Owner> for App {
             }
             Target::Definition(target) => self.definition_enter(target),
             Target::Epub(epub) => unsafe { epub.as_ref() }.enter(),
-            Target::Legacy(target) => unsafe { (self.legacy.enter)(target.as_ptr()) },
+            Target::Legacy(target) | Target::SettingsSection(target) => unsafe {
+                (self.legacy.enter)(target.as_ptr())
+            },
             Target::ReaderChild { child, parent } => {
                 let ready = unsafe {
                     child.enter(
@@ -788,10 +825,13 @@ impl Services<Owner> for App {
             Target::Home(home) => unsafe { home.as_ref() }.exit(),
             Target::Dialog(dialog) => dialog.exit(),
             Target::NetworkModes(modes) => network_modes::exit(modes),
+            Target::Settings(root) => unsafe { root.as_ref() }.exit(),
             Target::Keyboard(keyboard) => keyboard::exit(unsafe { keyboard.as_ref() }),
             Target::Definition(target) => self.definition_exit(target),
             Target::Epub(epub) => unsafe { epub.as_ref().exit_owned() },
-            Target::Legacy(target) => unsafe { (self.legacy.exit)(target.as_ptr()) },
+            Target::Legacy(target) | Target::SettingsSection(target) => unsafe {
+                (self.legacy.exit)(target.as_ptr())
+            },
             Target::ReaderChild { child, parent } => unsafe { child.exit(parent.as_ref()) },
         }
     }
@@ -826,7 +866,9 @@ impl Services<Owner> for App {
                     consume(ActivityResult::Legacy(result))
                 });
             }
-            Target::Home(_) | Target::Epub(_) => consume(ActivityResult::Legacy(core::ptr::null())),
+            Target::Home(_) | Target::Epub(_) | Target::Settings(_) => {
+                consume(ActivityResult::Legacy(core::ptr::null()))
+            }
             Target::Keyboard(keyboard) => {
                 // SAFETY: the current target is live; extraction ends before consume destroys it.
                 unsafe { keyboard::with_result(keyboard, consume) }
@@ -834,12 +876,18 @@ impl Services<Owner> for App {
             Target::Legacy(target) => invoke(self, target, |result| {
                 consume(ActivityResult::Legacy(result))
             }),
+            Target::SettingsSection(target) => {
+                invoke(self, target, |_| consume(ActivityResult::SectionComplete))
+            }
             Target::Definition(target) => definition::with_result(target, consume),
             Target::ReaderChild { child, .. } => unsafe { receive_child_result(child, consume) },
         }
     }
     fn deliver_result(&self, parent: Target, result: ActivityResult) {
         match (parent, result) {
+            (Target::Settings(root), ActivityResult::SectionComplete) => {
+                unsafe { root.as_ref() }.returned()
+            }
             (_, ActivityResult::Keyboard(result)) => keyboard::deliver(self, parent, result),
             (_, ActivityResult::Dialog(result)) => dialog::deliver(self, parent, result),
             (Target::Epub(epub), ActivityResult::Legacy(result)) => unsafe {
@@ -848,11 +896,13 @@ impl Services<Owner> for App {
             (parent, ActivityResult::Child(result)) => unsafe {
                 self.deliver_child_result(parent, result)
             },
+            (Target::Definition(parent), ActivityResult::Legacy(result)) => {
+                self.definition_result(parent, result)
+            }
             (
-                Target::Definition(parent),
+                Target::Legacy(parent) | Target::SettingsSection(parent),
                 ActivityResult::Legacy(result),
-            ) => self.definition_result(parent, result),
-            (Target::Legacy(parent), ActivityResult::Legacy(result)) => {
+            ) => {
                 let original =
                     unsafe { result.as_ref() }.map_or(core::ptr::null(), |view| view.original);
                 unsafe { (self.legacy.deliver_result)(parent.as_ptr(), original) };
@@ -893,13 +943,16 @@ impl Services<Owner> for App {
     fn prepare_sleep(&self, target: Target) {
         match target {
             Target::Epub(epub) => unsafe { epub.as_ref() }.flush_session(),
-            Target::Legacy(target) => unsafe { (self.legacy.prepare_sleep)(target.as_ptr()) },
+            Target::Legacy(target) | Target::SettingsSection(target) => unsafe {
+                (self.legacy.prepare_sleep)(target.as_ptr())
+            },
             Target::Home(_)
             | Target::NetworkModes(_)
             | Target::Keyboard(_)
             | Target::Dialog(_)
             | Target::ReaderChild { .. }
-            | Target::Definition(_) => {}
+            | Target::Definition(_)
+            | Target::Settings(_) => {}
         }
     }
 }
@@ -939,7 +992,7 @@ unsafe extern "C" fn home_action() -> u8 {
 unsafe extern "C" fn screenshot_info(sink: abi::ScreenshotSink, context: *mut c_void) {
     if let Some(app) = app() {
         match app.navigation.current() {
-            Some(Target::Legacy(target)) => {
+            Some(Target::Legacy(target) | Target::SettingsSection(target)) => {
                 unsafe { (app.legacy.screenshot_info)(target.as_ptr(), sink, context) };
                 return;
             }
@@ -1065,7 +1118,7 @@ pub unsafe extern "C" fn xp_app_render(token: *mut abi::RenderToken) {
         Some(Target::Home(home)) => {
             unsafe { home.as_ref().render(&mut *app.widths.get()) }.is_some()
         }
-        Some(Target::Legacy(target)) => {
+        Some(Target::Legacy(target) | Target::SettingsSection(target)) => {
             unsafe { (app.legacy.render)(target.as_ptr(), token) };
             true
         }
@@ -1074,6 +1127,7 @@ pub unsafe extern "C" fn xp_app_render(token: *mut abi::RenderToken) {
         Some(Target::Keyboard(keyboard)) => keyboard::render(unsafe { keyboard.as_ref() }),
         Some(Target::Dialog(dialog)) => dialog.render(),
         Some(Target::NetworkModes(modes)) => network_modes::render(modes),
+        Some(Target::Settings(root)) => settings::render(unsafe { root.as_ref() }),
         Some(Target::ReaderChild { child, parent }) => unsafe {
             child.render(
                 parent.as_ref(),
@@ -1160,14 +1214,17 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
                 return abi::REJECTED;
             };
             let facts = match target {
-                Target::Legacy(target) => unsafe { (app.legacy.facts)(target.as_ptr(), 0, 1) },
+                Target::Legacy(target) | Target::SettingsSection(target) => unsafe {
+                    (app.legacy.facts)(target.as_ptr(), 0, 1)
+                },
                 Target::Definition(_) => definition::facts(),
                 Target::Epub(epub) => unsafe { epub.as_ref() }.app_facts(true),
                 Target::ReaderChild { child, .. } => unsafe { child.facts() },
                 Target::Home(_)
                 | Target::Keyboard(_)
                 | Target::Dialog(_)
-                | Target::NetworkModes(_) => return abi::REJECTED,
+                | Target::NetworkModes(_)
+                | Target::Settings(_) => return abi::REJECTED,
             };
             if event.kind == abi::REMOTE_SHORTCUT {
                 if facts.reader == 0 || facts.remote_input == 0 || facts.input_over_page != 0 {
@@ -1182,13 +1239,14 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
                     runtime: app.runtime,
                 });
                 match target {
-                    Target::Legacy(_) | Target::Definition(_) => false,
+                    Target::Legacy(_) | Target::Definition(_) | Target::SettingsSection(_) => false,
                     Target::Epub(epub) => unsafe { epub.as_ref() }
                         .dispatch_remote_shortcut(unsafe { event.value.reader_menu } != 0),
                     Target::Home(_)
                     | Target::NetworkModes(_)
                     | Target::Keyboard(_)
                     | Target::Dialog(_)
+                    | Target::Settings(_)
                     | Target::ReaderChild { .. } => false,
                 }
             } else {
@@ -1208,7 +1266,7 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
                         runtime: app.runtime,
                     });
                     let turned = match target {
-                        Target::Legacy(target) => unsafe {
+                        Target::Legacy(target) | Target::SettingsSection(target) => unsafe {
                             (app.legacy.reader_turn)(target.as_ptr(), turn.forward, turn.chapter)
                                 != 0
                         },
@@ -1219,7 +1277,8 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
                         | Target::Keyboard(_)
                         | Target::Dialog(_)
                         | Target::ReaderChild { .. }
-                        | Target::Definition(_) => false,
+                        | Target::Definition(_)
+                        | Target::Settings(_) => false,
                     };
                     if turned {
                         app.request(false);
@@ -1399,7 +1458,7 @@ mod probe {
     #[no_mangle]
     pub extern "C" fn xp_app_test_current_legacy() -> *mut c_void {
         match app().and_then(|app| app.navigation.current()) {
-            Some(Target::Legacy(target)) => target.as_ptr(),
+            Some(Target::Legacy(target) | Target::SettingsSection(target)) => target.as_ptr(),
             _ => core::ptr::null_mut(),
         }
     }
@@ -1431,3 +1490,6 @@ mod keyboard_tests;
 
 #[cfg(test)]
 mod dialog_tests;
+
+#[cfg(test)]
+mod settings_tests;

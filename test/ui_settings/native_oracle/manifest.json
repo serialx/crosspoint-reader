@@ -1,0 +1,54 @@
+{
+  "files": [
+    {
+      "file": "SettingsListActivity.cpp.txt",
+      "source": "src/activities/settings/SettingsListActivity.cpp",
+      "revision": "0941b392c1ee1feb82599ae25d8b78b3f5bfdecd",
+      "sha256": "770d8a78aca6aa45c9a2a6298b6bd8767fc343d18fc09acc973a989813d6d623",
+      "bytes": 2510,
+      "consumers": [
+        "test/ui_settings/test_root_oracle.py"
+      ],
+      "retirement": "Remove when the root native differential oracle is retired by an explicit replacement."
+    },
+    {
+      "file": "SettingsListActivity.h.txt",
+      "source": "src/activities/settings/SettingsListActivity.h",
+      "revision": "0941b392c1ee1feb82599ae25d8b78b3f5bfdecd",
+      "sha256": "2260cfa9da18f46378fcea10dc5a897aa73da0fbc0970fddb842002bae80987f",
+      "bytes": 1222,
+      "consumers": [
+        "test/ui_settings/test_root_oracle.py"
+      ],
+      "retirement": "Remove when the root native differential oracle is retired by an explicit replacement."
+    },
+    {
+      "file": "SettingsSection.h.txt",
+      "source": "src/activities/settings/SettingsSection.h",
+      "revision": "0941b392c1ee1feb82599ae25d8b78b3f5bfdecd",
+      "sha256": "26da062a005064bdabcf7639d03a9acb22e8282f97793ecd8f7ba0de6e44e3f8",
+      "bytes": 626,
+      "consumers": [
+        "test/ui_settings/test_root_oracle.py"
+      ],
+      "retirement": "Remove when the root native differential oracle is retired by an explicit replacement."
+    },
+    {
+      "file": "SettingsUiActivity.methods.cpp.txt",
+      "source": "src/activities/settings/SettingsUiActivity.cpp",
+      "revision": "0941b392c1ee1feb82599ae25d8b78b3f5bfdecd",
+      "sha256": "83704f102f003e5f3abb1c560a0413516b63ad7642e9db80c8778c143a9b1c5d",
+      "bytes": 1545,
+      "methods": [
+        "reserveCommands",
+        "onEnter",
+        "onExit"
+      ],
+      "consumers": [
+        "test/ui_settings/test_root_oracle.py"
+      ],
+      "retirement": "Remove when root lifecycle/allocation oracle is retired; production shared base stays live."
+    }
+  ],
+  "total_bytes": 5903
+}

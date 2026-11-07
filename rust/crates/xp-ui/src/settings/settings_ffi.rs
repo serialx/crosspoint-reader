@@ -6,7 +6,7 @@ use super::{
 use crate::{
     ffi::{Buffer, SceneView},
     model::{Effect, Input, Interest, ListState},
-    scene::{Arena, Error, Interaction, Refresh},
+    scene::{Error, Interaction},
 };
 use core::ffi::{c_char, c_void};
 #[repr(C)]
@@ -216,47 +216,40 @@ pub unsafe fn view(
     {
         return 0;
     }
-    let mut next_state = *state;
     let mut services = *s;
-    for pass in 0..9 {
-        let commands =
-            unsafe { core::slice::from_raw_parts_mut(b.commands, usize::from(b.command_capacity)) };
-        let mut routing = Hits::default();
-        let Ok(mut arena) = Arena::with_hit_sink(commands, &mut routing) else {
-            return 0;
-        };
-        let (n, disabled) = match view::view(&mut arena, next_state, *l, &mut services, s.count) {
-            Ok(v) => v,
-            Err(Error::Capacity) => return 2,
-            Err(_) => return 0,
-        };
-        next_state = n;
-        if n.follow != 0 && pass < 8 {
-            continue;
-        }
-        let Ok(scene) = arena.finish(Refresh::Fast, 1) else {
-            return 0;
-        };
-        let command_count = scene.commands.len() as u16;
-        routing.disabled = disabled;
-        unsafe {
-            next.write(next_state);
-            hits.write(routing);
-            out.write(SceneView {
-                commands: b.commands,
-                text: core::ptr::null(),
-                interactions: core::ptr::null(),
-                generation: 1,
-                command_count,
-                text_len: 0,
-                interaction_count: 0,
-                refresh: 1,
-                reserved: 0,
-            });
-        }
-        return 1;
+    let commands =
+        unsafe { core::slice::from_raw_parts_mut(b.commands, usize::from(b.command_capacity)) };
+    let mut next_state = *state;
+    let mut routing = Hits::default();
+    let prepared = match view::prepare(
+        state,
+        l,
+        &mut services,
+        s.count,
+        commands,
+        &mut next_state,
+        &mut routing,
+    ) {
+        Ok(prepared) => prepared,
+        Err(Error::Capacity) => return 2,
+        Err(_) => return 0,
+    };
+    unsafe {
+        next.write(next_state);
+        hits.write(routing);
+        out.write(SceneView {
+            commands: b.commands,
+            text: core::ptr::null(),
+            interactions: core::ptr::null(),
+            generation: 1,
+            command_count: prepared.command_count,
+            text_len: 0,
+            interaction_count: 0,
+            refresh: prepared.refresh as u8,
+            reserved: 0,
+        });
     }
-    0
+    1
 }
 /// # Safety
 /// Non-null pointers must be aligned and live for the call; mutable descriptors

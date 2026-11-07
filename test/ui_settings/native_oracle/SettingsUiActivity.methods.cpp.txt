@@ -1,0 +1,56 @@
+bool SettingsUiActivity::reserveCommands(uint16_t count) {
+  if (commands && count <= commandCapacity) return true;
+  if (count > 128) return false;
+  commands.reset();
+  commandCapacity = count;
+  commands = makeUniqueNoThrow<XpUiCommand[]>(count);
+  if (!commands) {
+    LOG_ERR("RUI", "Cannot allocate %u command bytes", static_cast<unsigned>(count * sizeof(XpUiCommand)));
+    return false;
+  }
+  commandCapacity = count;
+  return true;
+}
+
+void SettingsUiActivity::onEnter() {
+  Activity::onEnter();
+  publication.ready = false;
+  xp_ui_settings_list_init(&state, 0);
+  // Small fixed menus reserve their row/chrome budget; measured overflow grows below.
+  uint16_t initialCommands = 48;
+  switch (kind) {
+    case XP_UI_SETTINGS_SYNC:
+      initialCommands = 8;
+      break;
+    case XP_UI_SETTINGS_HOME_BUTTON:
+      initialCommands = 16;
+      break;
+    case XP_UI_SETTINGS_REMAP:
+    case XP_UI_SETTINGS_CLOCK:
+      initialCommands = 24;
+      break;
+    case XP_UI_SETTINGS_ROOT:
+    case XP_UI_SETTINGS_STATUS_BAR:
+      initialCommands = 32;
+      break;
+    case XP_UI_SETTINGS_SECTION:
+    case XP_UI_SETTINGS_ABOUT:
+    case XP_UI_SETTINGS_BLE:
+    case XP_UI_SETTINGS_LAYOUTS:
+    case XP_UI_SETTINGS_LANGUAGE:
+    case XP_UI_SETTINGS_TIMEZONE:
+      break;
+  }
+  if (!reserveCommands(initialCommands)) {
+    onBackButton();
+    return;
+  }
+  if (kind != XP_UI_SETTINGS_SYNC) requestUpdate();
+}
+
+void SettingsUiActivity::onExit() {
+  publication.ready = false;
+  commands.reset();
+  commandCapacity = 0;
+  Activity::onExit();
+}

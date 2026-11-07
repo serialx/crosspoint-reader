@@ -4,6 +4,7 @@
 #include <freertos/semphr.h>
 #include <freertos/task.h>
 #include <xp_app.h>
+#include <xp_settings_shell.h>
 
 #include <cassert>
 #include <memory>
@@ -22,6 +23,8 @@ enum class HomeMenuItem { NONE, FILE_BROWSER, LIBRARY, OPDS_BROWSER, FILE_TRANSF
 // Compatibility facade. Rust owns activities, pending transitions, and visit state.
 class ActivityManager {
   friend class RenderLock;
+  friend void xp_settings_shell_snapshot(XpUiSettingsLayout*);
+  friend void xp_settings_shell_paint(const XpUiCommand*, XpUiRect, const char*, uint8_t);
 
  protected:
   GfxRenderer& renderer;

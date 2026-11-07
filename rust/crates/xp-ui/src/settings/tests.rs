@@ -53,6 +53,79 @@ fn layout() -> Layout {
     l.safe = l.list.screen;
     l
 }
+
+#[test]
+fn typed_preparation_matches_wire_output_and_failed_publication() {
+    for kind in 0..12 {
+        for touch in 0..2 {
+            for capacity in [0, 8, 24, 32, 48, 128] {
+                let mut l = layout();
+                l.kind = kind;
+                l.touch = touch;
+                let state = ListState::new(5);
+                let mut wire_commands = [Command::default(); 128];
+                let mut typed_commands = wire_commands;
+                let buffer = Buffer {
+                    commands: wire_commands.as_mut_ptr(),
+                    hits: core::ptr::null_mut(),
+                    command_capacity: capacity,
+                    hit_capacity: 0,
+                };
+                let mut wire_next = ListState::new(555);
+                let mut wire_hits = hits::Layout::default();
+                let mut scene: SceneView = unsafe { core::mem::zeroed() };
+                let wire = unsafe {
+                    settings_ffi::view(
+                        &state,
+                        &l,
+                        &services(6),
+                        &buffer,
+                        &mut wire_next,
+                        &mut scene,
+                        &mut wire_hits,
+                    )
+                };
+                let mut next = ListState::new(555);
+                let mut routing = hits::Layout::default();
+                let result = super::view::prepare(
+                    &state,
+                    &l,
+                    &mut services(6),
+                    6,
+                    &mut typed_commands[..usize::from(capacity)],
+                    &mut next,
+                    &mut routing,
+                );
+                if wire == 1 {
+                    let prepared = result.expect("wire succeeded");
+                    assert_eq!(prepared.command_count, scene.command_count);
+                    assert_eq!(prepared.refresh as u8, scene.refresh);
+                    assert_eq!(next.selected, wire_next.selected);
+                    assert_eq!(next.navigation_revision, wire_next.navigation_revision);
+                    assert_eq!(routing.count, wire_hits.count);
+                    assert_eq!(routing.disabled, wire_hits.disabled);
+                    for i in 0..usize::from(scene.command_count) {
+                        assert_eq!(typed_commands[i], wire_commands[i]);
+                    }
+                    for y in 0..800 {
+                        assert_eq!(routing.hit(100, y), wire_hits.hit(100, y));
+                    }
+                } else {
+                    assert_eq!(
+                        result.err(),
+                        Some(if wire == 2 {
+                            crate::scene::Error::Capacity
+                        } else {
+                            crate::scene::Error::Invalid
+                        })
+                    );
+                    assert_eq!(next.selected, 555);
+                    assert_eq!(routing.count, 0);
+                }
+            }
+        }
+    }
+}
 #[test]
 fn too_many_visible_rows_preserves_publication() {
     // The real timezone resource table is the longest list in this family.

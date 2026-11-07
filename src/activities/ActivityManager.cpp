@@ -70,6 +70,12 @@ __attribute__((noinline)) void* createDialog(GfxRenderer& renderer, MappedInputM
       return nullptr;
   }
 }
+__attribute__((noinline)) std::unique_ptr<Activity> createKeyboard(GfxRenderer& renderer, MappedInputManager& input,
+                                                                   const XpAppKeyboardLaunch* launch) {
+  if (!launch) return nullptr;
+  return makeUniqueNoThrow<KeyboardEntryActivity>(renderer, input, owned(launch->title), owned(launch->initial),
+                                                  launch->maximum, static_cast<InputType>(launch->input_type));
+}
 bool send(const XpAppEvent& event) { return xp_app_event(&event) == XP_APP_ACCEPTED; }
 void navigate(const XpAppLaunch& launch) {
   XpAppEvent event{.kind = XP_APP_NAVIGATE};
@@ -102,6 +108,8 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
         if (launch->kind == XP_APP_DIALOG) return createDialog(renderer, input, launch->value.dialog);
         const auto create = [&]() -> std::unique_ptr<Activity> {
           switch (launch->kind) {
+            case XP_APP_KEYBOARD:
+              return createKeyboard(renderer, input, launch->value.keyboard);
             case XP_APP_FILES:
               return makeUniqueNoThrow<FileBrowserActivity>(renderer, input, owned(launch->value.file_path));
             case XP_APP_LIBRARY:

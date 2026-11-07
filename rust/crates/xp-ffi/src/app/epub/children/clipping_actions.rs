@@ -271,7 +271,7 @@ impl Clippings {
             });
             if self.model.with(|model| model.ready) {
                 let (mut x, mut y) = (0, 0);
-                if unsafe { (parent.leaves.input_screen_long)(&mut x, &mut y) } != 0 {
+                if unsafe { (parent.leaves.input_screen_point)(0, &mut x, &mut y) } != 0 {
                     long_touch = i16::try_from(x).ok().zip(i16::try_from(y).ok());
                 }
             }

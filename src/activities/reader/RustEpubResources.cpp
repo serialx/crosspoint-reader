@@ -653,9 +653,18 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
             out->slide_owns_light = slideSwitchOwnsLight();
           },
       .input_pressed = [](uint32_t button) -> uint8_t { return mapped->isPressed(inputButton(button)); },
-      .input_screen_long = [](int32_t* x, int32_t* y) -> uint8_t {
+      .input_screen_point = [](uint8_t kind, int32_t* x, int32_t* y) -> uint8_t {
         int hitX = 0, hitY = 0;
-        if (!mapped->wasScreenLongPress(hitX, hitY)) return 0;
+        switch (kind) {
+          case 0:
+            if (!mapped->wasScreenLongPress(hitX, hitY)) return 0;
+            break;
+          case 1:
+            if (mapped->wasSwipe(&hitX, &hitY) == MappedInputManager::SwipeDir::None) return 0;
+            break;
+          default:
+            return 0;
+        }
         *x = hitX;
         *y = hitY;
         return 1;
@@ -1021,10 +1030,10 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
           [](XpUiRect bounds, XpAppText text) {
             GUI.drawHelpText(*target, Rect(bounds.x, bounds.y, bounds.w, bounds.h), pathText(text));
           },
-      .child_list_bookmark_icon =
-          [](XpUiRect bounds, XpUiRect clip, uint8_t paint) {
+      .child_list_icon =
+          [](uint8_t kind, XpUiRect bounds, XpUiRect clip, uint8_t paint) {
             namespace fui = freeink::ui;
-            const auto bitmap = listIconFor(UIIcon::Bookmark, 32);
+            const auto bitmap = kind == 1 ? fui::bitmapFromIcon(icon_trash_2_24) : listIconFor(UIIcon::Bookmark, 32);
             const auto previous = target->getClipRect();
             target->setClipRect(clip.x, clip.y, clip.w, clip.h);
             auto canvas = makeUiTarget(*target);

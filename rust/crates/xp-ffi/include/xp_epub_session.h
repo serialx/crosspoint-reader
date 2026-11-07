@@ -345,7 +345,7 @@ typedef struct XpEpubLeaves {
   const XpUiReaderInputServices* (*input_services)(void);
   void (*input_facts)(XpEpubInputFacts* out);
   uint8_t (*input_pressed)(uint32_t button);
-  uint8_t (*input_screen_long)(int32_t* x, int32_t* y);
+  uint8_t (*input_screen_point)(uint8_t kind, int32_t* x, int32_t* y);
   uint8_t (*input_screen_tap)(int32_t* x, int32_t* y);
   uint8_t (*input_raw_contact)(void);
   uint8_t (*render_busy)(void);
@@ -490,7 +490,7 @@ typedef struct XpEpubLeaves {
   void (*child_wait_paint)(void);
   const XpClippingPhysical* clipping_physical;
   void (*child_list_help)(XpUiRect bounds, XpAppText text);
-  void (*child_list_bookmark_icon)(XpUiRect bounds, XpUiRect clip, uint8_t paint);
+  void (*child_list_icon)(uint8_t kind, XpUiRect bounds, XpUiRect clip, uint8_t paint);
 } XpEpubLeaves;
 
 #ifdef __cplusplus
@@ -582,7 +582,7 @@ XP_EPUB_LEAF_OFFSET(settings_save, 41);
 XP_EPUB_LEAF_OFFSET(input_services, 42);
 XP_EPUB_LEAF_OFFSET(input_facts, 43);
 XP_EPUB_LEAF_OFFSET(input_pressed, 44);
-XP_EPUB_LEAF_OFFSET(input_screen_long, 45);
+XP_EPUB_LEAF_OFFSET(input_screen_point, 45);
 XP_EPUB_LEAF_OFFSET(input_screen_tap, 46);
 XP_EPUB_LEAF_OFFSET(input_raw_contact, 47);
 XP_EPUB_LEAF_OFFSET(render_busy, 48);
@@ -707,7 +707,7 @@ XP_EPUB_LEAF_OFFSET(child_dictionary_popup_layout, 163);
 XP_EPUB_LEAF_OFFSET(child_wait_paint, 164);
 XP_EPUB_LEAF_OFFSET(clipping_physical, 165);
 XP_EPUB_LEAF_OFFSET(child_list_help, 166);
-XP_EPUB_LEAF_OFFSET(child_list_bookmark_icon, 167);
+XP_EPUB_LEAF_OFFSET(child_list_icon, 167);
 #undef XP_EPUB_LEAF_OFFSET
 XP_EPUB_ASSERT(sizeof(XpEpubBookBorrow) == 6 * sizeof(void (*)(void)), "XpEpubBookBorrow size");
 XP_EPUB_ASSERT(offsetof(XpEpubBookBorrow, spine) == 0, "XpEpubBookBorrow.spine");

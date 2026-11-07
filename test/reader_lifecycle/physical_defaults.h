@@ -65,7 +65,7 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.input_services = &AppFixtureUnexpected<decltype(value.input_services), 84>::call;
   value.input_facts = &AppFixtureUnexpected<decltype(value.input_facts), 85>::call;
   value.input_pressed = &AppFixtureUnexpected<decltype(value.input_pressed), 86>::call;
-  value.input_screen_long = &AppFixtureUnexpected<decltype(value.input_screen_long), 87>::call;
+  value.input_screen_point = &AppFixtureUnexpected<decltype(value.input_screen_point), 87>::call;
   value.input_screen_tap = &AppFixtureUnexpected<decltype(value.input_screen_tap), 88>::call;
   value.input_raw_contact = &AppFixtureUnexpected<decltype(value.input_raw_contact), 89>::call;
   value.render_busy = &AppFixtureUnexpected<decltype(value.render_busy), 90>::call;

@@ -47,7 +47,7 @@ impl EpubSession {
         let (mut x, mut y) = (0, 0);
         let found = unsafe {
             if long {
-                (self.leaves.input_screen_long)(&mut x, &mut y)
+                (self.leaves.input_screen_point)(0, &mut x, &mut y)
             } else {
                 (self.leaves.input_screen_tap)(&mut x, &mut y)
             }

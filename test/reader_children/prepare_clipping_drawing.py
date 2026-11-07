@@ -51,6 +51,6 @@ for signature in ('int EpubReaderClippingListActivity::listCount(', 'const char*
 # Definitions needing the fixture class declarations follow @NATIVE_CLASSES@.
 setup = '\n'.join(definitions[:6])
 methods = '\n'.join(definitions[6:])
-for field, name in [('child_list_help', 'candidateHelp'), ('child_list_bookmark_icon', 'candidateIcon')]:
+for field, name in [('child_list_help', 'candidateHelp'), ('child_list_icon', 'candidateIcon')]:
     methods += '\nstatic auto ' + definition(leaves, '.' + field + ' =').replace('.' + field + ' =', name + ' =', 1) + ';\n'
 output.write_text(base + body.replace('@NATIVE_CLASSES@', setup).replace('@METHODS@', methods))

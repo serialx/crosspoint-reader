@@ -19,7 +19,7 @@ use xp_ui::{
 
 pub(super) struct Details {
     pub(super) help: unsafe extern "C" fn(Rect, abi::Text),
-    pub(super) bookmark: unsafe extern "C" fn(Rect, Rect, u8),
+    pub(super) bookmark: unsafe extern "C" fn(u8, Rect, Rect, u8),
 }
 struct ClippingRows<'a> {
     services: &'a abi::Resources,
@@ -81,7 +81,7 @@ impl Rows for ClippingRows<'_> {
             return true;
         }
         if command.kind == Kind::Bitmap as u8 {
-            unsafe { (self.details.bookmark)(command.rect, clip, command.paint) };
+            unsafe { (self.details.bookmark)(0, command.rect, clip, command.paint) };
             return true;
         }
         false

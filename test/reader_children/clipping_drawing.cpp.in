@@ -96,11 +96,11 @@ int main(int argc, char** argv) {
   leaves.child_list_theme = [](XpUiReaderTheme* theme, XpUiReaderThemeFacts* facts, uint8_t toolbar) { sampleReaderChildTheme(*target, *theme, *facts, toolbar); };
   leaves.child_header = [](XpUiRect bounds, XpAppText text, uint8_t list) { drawReaderHeader(*target, bounds, text, list); };
   leaves.child_list_help = candidateHelp;
-  leaves.child_list_bookmark_icon = candidateIcon;
+  leaves.child_list_icon = candidateIcon;
   const std::string negative = argc > 1 ? argv[1] : "";
   if (negative == "help-offset") leaves.child_list_help = [](XpUiRect rect, XpAppText text) { ++rect.y; candidateHelp(rect,text); };
-  if (negative == "icon-tint") leaves.child_list_bookmark_icon = [](XpUiRect rect, XpUiRect clip, uint8_t paint) { candidateIcon(rect,clip,paint^1); };
-  if (negative == "icon-offset") leaves.child_list_bookmark_icon = [](XpUiRect rect, XpUiRect clip, uint8_t paint) { ++rect.x; candidateIcon(rect,clip,paint); };
+  if (negative == "icon-tint") leaves.child_list_icon = [](uint8_t kind, XpUiRect rect, XpUiRect clip, uint8_t paint) { candidateIcon(kind,rect,clip,paint^1); };
+  if (negative == "icon-offset") leaves.child_list_icon = [](uint8_t kind, XpUiRect rect, XpUiRect clip, uint8_t paint) { ++rect.x; candidateIcon(kind,rect,clip,paint); };
   if (negative == "header-mode") leaves.child_header = [](XpUiRect rect, XpAppText text, uint8_t) { drawReaderHeader(*target,rect,text,1); };
   static EpdFont small(&ubuntu_10_regular), smallBold(&ubuntu_10_bold), body(&ubuntu_12_regular), bodyBold(&ubuntu_12_bold),
       title(&notosans_18_regular), titleBold(&notosans_18_bold), tiny(&ubuntu_8_regular);

@@ -147,7 +147,7 @@ inline XpEpubLeaves leavesDefaults() {
   UNUSED_LEAF(input_services);
   UNUSED_LEAF(input_facts);
   UNUSED_LEAF(input_pressed);
-  UNUSED_LEAF(input_screen_long);
+  UNUSED_LEAF(input_screen_point);
   UNUSED_LEAF(input_screen_tap);
   UNUSED_LEAF(input_raw_contact);
   UNUSED_LEAF(render_busy);

@@ -434,7 +434,8 @@ unsafe extern "C" fn clipping_help(_: Rect, text: abi::Text) {
     assert_eq!(text.bytes().unwrap(), b"translated label");
     RECORD.with(|r| r.borrow_mut().help += 1);
 }
-unsafe extern "C" fn clipping_bookmark(bounds: Rect, clip: Rect, paint: u8) {
+unsafe extern "C" fn clipping_bookmark(kind: u8, bounds: Rect, clip: Rect, paint: u8) {
+    assert_eq!(kind, 0);
     assert!(bounds.w > 0 && bounds.h > 0);
     assert!(clip.w > 0 && clip.h > 0);
     assert!(paint <= 1);

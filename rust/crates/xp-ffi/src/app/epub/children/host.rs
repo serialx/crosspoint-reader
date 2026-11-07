@@ -330,7 +330,7 @@ pub unsafe extern "C" fn xp_epub_test_clipping_render(
             &leaves.child_drawing,
             &super::clipping_view::Details {
                 help: leaves.child_list_help,
-                bookmark: leaves.child_list_bookmark_icon,
+                bookmark: leaves.child_list_icon,
             },
             count,
             &mut |index, item| {

@@ -45,7 +45,8 @@ enum {
   XP_APP_CRASH,
   XP_APP_FRONTLIGHT_PANEL,
   XP_APP_NETWORK_MODE,
-  XP_APP_DIALOG
+  XP_APP_DIALOG,
+  XP_APP_KEYBOARD
 };
 typedef struct {
   XpAppText path;
@@ -56,6 +57,7 @@ typedef struct {
   uint8_t style;
 } XpAppMessageLaunch;
 typedef struct XpDialogLaunch XpDialogLaunch;
+typedef struct XpAppKeyboardLaunch XpAppKeyboardLaunch;
 typedef struct {
   XpAppLaunchKind kind;
   union {
@@ -64,6 +66,7 @@ typedef struct {
     XpAppReaderLaunch reader;
     XpAppMessageLaunch message;
     const XpDialogLaunch* dialog;
+    const XpAppKeyboardLaunch* keyboard;
     uint32_t opds_server;
     uint8_t settings_section;
     uint8_t plugins_show_opds;

@@ -141,7 +141,7 @@ def mutants(source):
     yield 'back-gesture-reordered', replace_once(replace_once(source, back, ''), release, release + back)
     # No App/navigation hooks are installed solely to make an update mutant observable.
     yield 'extra-screen-long-probe', replace_once(source, '        true\n', '''        let (mut x, mut y) = (0, 0);
-        unsafe { (self.leaves.input_screen_long)(&mut x, &mut y); }
+        unsafe { (self.leaves.input_screen_point)(0, &mut x, &mut y); }
         true
 ''')
     for name, before in (

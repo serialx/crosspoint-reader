@@ -192,7 +192,7 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.input_services = &OverlayUnexpected<decltype(table.input_services)>::call;
   table.input_facts = &OverlayUnexpected<decltype(table.input_facts)>::call;
   table.input_pressed = &OverlayUnexpected<decltype(table.input_pressed)>::call;
-  table.input_screen_long = &OverlayUnexpected<decltype(table.input_screen_long)>::call;
+  table.input_screen_point = &OverlayUnexpected<decltype(table.input_screen_point)>::call;
   table.input_screen_tap = &OverlayUnexpected<decltype(table.input_screen_tap)>::call;
   table.input_raw_contact = &OverlayUnexpected<decltype(table.input_raw_contact)>::call;
   table.render_busy = &OverlayUnexpected<decltype(table.render_busy)>::call;

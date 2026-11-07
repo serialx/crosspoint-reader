@@ -284,7 +284,7 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(physical.input_services);
   UNUSED_LEAF(physical.input_facts);
   UNUSED_LEAF(physical.input_pressed);
-  UNUSED_LEAF(physical.input_screen_long);
+  UNUSED_LEAF(physical.input_screen_point);
   UNUSED_LEAF(physical.input_screen_tap);
   UNUSED_LEAF(physical.input_raw_contact);
   UNUSED_LEAF(physical.render_busy);

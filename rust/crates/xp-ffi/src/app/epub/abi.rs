@@ -421,7 +421,7 @@ pub struct XpEpubLeaves {
     pub input_services: unsafe extern "C" fn() -> *const XpUiReaderInputServices,
     pub input_facts: unsafe extern "C" fn(out: *mut XpEpubInputFacts),
     pub input_pressed: unsafe extern "C" fn(button: u32) -> u8,
-    pub input_screen_long: unsafe extern "C" fn(x: *mut i32, y: *mut i32) -> u8,
+    pub input_screen_point: unsafe extern "C" fn(kind: u8, x: *mut i32, y: *mut i32) -> u8,
     pub input_screen_tap: unsafe extern "C" fn(x: *mut i32, y: *mut i32) -> u8,
     pub input_raw_contact: unsafe extern "C" fn() -> u8,
     pub render_busy: unsafe extern "C" fn() -> u8,
@@ -597,7 +597,7 @@ pub struct XpEpubLeaves {
     pub child_selection_physical: super::children::selection_physical::Physical,
     pub clipping_physical: *const crate::app::clippings_native::Physical,
     pub child_list_help: unsafe extern "C" fn(xp_ui::scene::Rect, XpAppText),
-    pub child_list_bookmark_icon: unsafe extern "C" fn(xp_ui::scene::Rect, xp_ui::scene::Rect, u8),
+    pub child_list_icon: unsafe extern "C" fn(u8, xp_ui::scene::Rect, xp_ui::scene::Rect, u8),
 }
 
 const _: () = {
@@ -807,7 +807,7 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, input_services) == 42 * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, input_facts) == 43 * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, input_pressed) == 44 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, input_screen_long) == 45 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, input_screen_point) == 45 * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, input_screen_tap) == 46 * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, input_raw_contact) == 47 * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, render_busy) == 48 * pointer);
@@ -913,7 +913,7 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, child_drawing) == 145 * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, clipping_physical) == 165 * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, child_list_help) == 166 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, child_list_bookmark_icon) == 167 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, child_list_icon) == 167 * pointer);
 
     assert!(
         core::mem::align_of::<XpEpubLeaves>() == core::mem::align_of::<unsafe extern "C" fn()>()

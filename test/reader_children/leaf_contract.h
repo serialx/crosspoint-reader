@@ -40,11 +40,11 @@ SIGNATURE(child_prewarm_rows, ChildPrewarm);
 SIGNATURE(clipping_physical, const XpClippingPhysical*);
 
 CONTRACT(offsetof(XpEpubLeaves, child_list_help) == 166 * sizeof(void (*)(void)));
-CONTRACT(offsetof(XpEpubLeaves, child_list_bookmark_icon) == 167 * sizeof(void (*)(void)));
+CONTRACT(offsetof(XpEpubLeaves, child_list_icon) == 167 * sizeof(void (*)(void)));
 typedef void (*ChildListHelp)(XpUiRect, XpAppText);
-typedef void (*ChildListBookmark)(XpUiRect, XpUiRect, uint8_t);
+typedef void (*ChildListBookmark)(uint8_t, XpUiRect, XpUiRect, uint8_t);
 SIGNATURE(child_list_help, ChildListHelp);
-SIGNATURE(child_list_bookmark_icon, ChildListBookmark);
+SIGNATURE(child_list_icon, ChildListBookmark);
 
 #undef SIGNATURE
 #undef CONTRACT

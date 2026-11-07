@@ -248,7 +248,7 @@ static void configure() {
     };
     return &input;
   };
-  leaves.physical.input_screen_long = [](int32_t* x, int32_t* y) -> uint8_t {
+  leaves.physical.input_screen_point = [](uint8_t, int32_t* x, int32_t* y) -> uint8_t {
     unlocked(); return bridge().owner.mappedInput.wasScreenLongPress(*x, *y);
   };
   leaves.physical.input_screen_tap = [](int32_t* x, int32_t* y) -> uint8_t {

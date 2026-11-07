@@ -59,8 +59,8 @@ static void bindOwnedClippings() {
     assert(f().renderDepth == 1 && text.len); ++clippingLoads; return {};
   };
   leaves.child_list_help = [](XpUiRect, XpAppText text) { assert(f().renderDepth == 1 && text.len); };
-  leaves.child_list_bookmark_icon = [](XpUiRect, XpUiRect, uint8_t paint) { assert(f().renderDepth == 1 && paint <= 1); };
-  leaves.input_screen_long = [](int32_t*, int32_t*) -> uint8_t { return 0; };
+  leaves.child_list_icon = [](XpUiRect, XpUiRect, uint8_t paint) { assert(f().renderDepth == 1 && paint <= 1); };
+  leaves.input_screen_point = [](uint8_t, int32_t*, int32_t*) -> uint8_t { return 0; };
   leaves.input_services = []() -> const XpUiReaderInputServices* {
     static const XpUiReaderInputServices service{
       nullptr,

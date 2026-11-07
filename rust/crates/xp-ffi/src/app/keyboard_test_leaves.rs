@@ -69,7 +69,7 @@ unused_leaves! {
     input_services() -> *const XpUiReaderInputServices;
     input_facts(_a0: *mut XpEpubInputFacts) ;
     input_pressed(_a0: u32) -> u8;
-    input_screen_long(_a0: *mut i32, _a1: *mut i32) -> u8;
+    input_screen_point(_kind: u8, _a0: *mut i32, _a1: *mut i32) -> u8;
     input_screen_tap(_a0: *mut i32, _a1: *mut i32) -> u8;
     input_raw_contact() -> u8;
     render_busy() -> u8;
@@ -99,7 +99,7 @@ unused_leaves! {
     child_selection(_a0: *mut XpEpubOwnedPage, _a1: u8, _a2: *const XpEpubSelectionArgs) -> *mut core::ffi::c_void;
     child_bookmarks(_a0: *mut core::ffi::c_void, _a1: XpAppText) -> *mut core::ffi::c_void;
     child_list_help(_a0: xp_ui::scene::Rect, _a1: XpAppText);
-    child_list_bookmark_icon(_a0: xp_ui::scene::Rect, _a1: xp_ui::scene::Rect, _a2: u8);
+    child_list_icon(_kind: u8, _a0: xp_ui::scene::Rect, _a1: xp_ui::scene::Rect, _a2: u8);
     child_wifi() -> *mut core::ffi::c_void;
     child_sync(_a0: XpAppText, _a1: *const XpEpubPosition, _a2: *const XpEpubSavedProgress, _a3: XpAppText, _a4: u8) -> *mut core::ffi::c_void;
     popup_open() -> *mut core::ffi::c_void;

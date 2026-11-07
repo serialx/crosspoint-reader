@@ -52,11 +52,7 @@ methods += '\n' + '\n'.join(definition(bookmarks, signature) for signature in (
     'void EpubReaderBookmarksActivity::drawFooter('))
 leaves = (ROOT/'src/activities/reader/RustEpubResources.cpp').read_text()
 methods += '\nstatic auto ' + definition(leaves, '.child_list_help =').replace('.child_list_help =', 'candidateHelp =', 1) + ';\n'
-# CP1 has no production ABI binding. Generalize the approved physical callback
-# in this fixture; CP2 will consume its real child_list_icon definition instead.
-icon = definition(leaves, '.child_list_bookmark_icon =').replace('.child_list_bookmark_icon =', 'candidateIcon =', 1)
-icon = icon.replace('[](XpUiRect bounds,', '[](uint8_t kind, XpUiRect bounds,', 1)
-icon = icon.replace('const auto bitmap = listIconFor(UIIcon::Bookmark, 32);', 'const auto bitmap = kind == 1 ? fui::bitmapFromIcon(icon_trash_2_24) : listIconFor(UIIcon::Bookmark, 32);')
+icon = definition(leaves, '.child_list_icon =').replace('.child_list_icon =', 'candidateIcon =', 1)
 methods += '\nstatic auto ' + icon + ';\n'
 getters = '\n'.join(definition(book_header, signature) for signature in (
     'int listCount() const override', 'const char* headerTitle() const override',

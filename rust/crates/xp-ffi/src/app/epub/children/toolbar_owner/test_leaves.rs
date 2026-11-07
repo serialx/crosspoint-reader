@@ -15,7 +15,7 @@ macro_rules! unused_leaves {
 }
 unused_leaves! {
     child_list_help(bounds: xp_ui::scene::Rect, text: XpAppText);
-    child_list_bookmark_icon(bounds: xp_ui::scene::Rect, clip: xp_ui::scene::Rect, paint: u8);
+    child_list_icon(kind: u8, bounds: xp_ui::scene::Rect, clip: xp_ui::scene::Rect, paint: u8);
     render_margins(_a0: *mut i32) ;
     render_geometry(_a0: *mut XpEpubGeometry) ;
     render_restore_bw(_a0: u8) ;
@@ -61,7 +61,7 @@ unused_leaves! {
     input_services() -> *const XpUiReaderInputServices;
     input_facts(_a0: *mut XpEpubInputFacts) ;
     input_pressed(_a0: u32) -> u8;
-    input_screen_long(_a0: *mut i32, _a1: *mut i32) -> u8;
+    input_screen_point(_kind: u8, _a0: *mut i32, _a1: *mut i32) -> u8;
     input_screen_tap(_a0: *mut i32, _a1: *mut i32) -> u8;
     input_raw_contact() -> u8;
     render_busy() -> u8;

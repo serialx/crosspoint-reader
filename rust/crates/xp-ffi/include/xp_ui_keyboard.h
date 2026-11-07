@@ -41,11 +41,11 @@ typedef struct {
 uint16_t xp_ui_keyboard_enabled(uint16_t configured, uint8_t language);
 
 // Launch storage is borrowed until release_launch, never retained by a callback.
-typedef struct {
+struct XpAppKeyboardLaunch {
   XpAppText title, initial;
   size_t maximum;
   uint8_t input_type;
-} XpAppKeyboardLaunch;
+};
 // On acceptance the existing OwnedLegacyActivity transfers to the Rust owner.
 uint8_t xp_app_keyboard_push(void* activity);
 void xp_keyboard_launch(void* activity, XpAppKeyboardLaunch* out);

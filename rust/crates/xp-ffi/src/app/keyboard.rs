@@ -17,13 +17,7 @@ use xp_ui::{
     scene::{Command, Rect, Refresh, Scene},
 };
 
-#[repr(C)]
-pub(super) struct Launch {
-    pub title: abi::Text,
-    pub initial: abi::Text,
-    pub maximum: usize,
-    pub input_type: u8,
-}
+pub(super) use abi::KeyboardLaunch as Launch;
 extern "C" {
     fn xp_keyboard_launch(activity: *mut c_void, out: *mut Launch);
     fn xp_keyboard_release_launch(activity: *mut c_void);
@@ -270,6 +264,23 @@ pub(super) fn create(app: &'static App, object: NonNull<c_void>) -> Option<Stabl
     let keyboard = StableOwner::from(keyboard);
     keyboard.host().adopted.set(true);
     Some(keyboard)
+}
+#[inline(never)]
+#[allow(dead_code)] // Activated by the Bookmarks owner switch.
+pub(super) fn launch(descriptor: &Launch) -> bool {
+    let Some(app) = app() else { return false };
+    let launch = abi::Launch::new(abi::KEYBOARD, abi::LaunchPayload::Keyboard(descriptor));
+    let Some(object) = NonNull::new(unsafe { (app.legacy.create)(&launch) }) else {
+        return false;
+    };
+    let Some(keyboard) = create(app, object) else {
+        unsafe { (app.legacy.destroy)(object.as_ptr()) };
+        return false;
+    };
+    app.input.borrow_mut().reset();
+    app.navigation
+        .queue(Transition::Push(Owner::Keyboard(keyboard)));
+    true
 }
 #[inline(never)]
 pub(super) fn enter(keyboard: &Keyboard) -> bool {

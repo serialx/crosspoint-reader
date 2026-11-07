@@ -720,7 +720,7 @@ void bindInput() {
     physical(0);
     return parent.fixture->mappedInput.wasScreenTapped(*x, *y);
   };
-  leaves.input_screen_long = [](int32_t* x, int32_t* y) -> uint8_t {
+  leaves.input_screen_point = [](uint8_t, int32_t* x, int32_t* y) -> uint8_t {
     physical(0);
     return parent.fixture->mappedInput.wasScreenLongPress(*x, *y);
   };

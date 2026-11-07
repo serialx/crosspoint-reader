@@ -193,3 +193,6 @@ add_test(NAME reader_bookmark_native_drawing COMMAND ReaderBookmarkDrawing)
 
 add_test(NAME reader_bookmark_drawing_negative_controls
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/check_bookmark_drawing_controls.py $<TARGET_FILE:ReaderBookmarkDrawing>)
+
+add_test(NAME reader_bookmark_point_contract
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_bookmark_point.py)

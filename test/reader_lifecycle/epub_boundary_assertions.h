@@ -173,9 +173,9 @@ static_assert(std::is_pointer_v<decltype(XpEpubLeaves::input_facts)> &&
 static_assert(offsetof(XpEpubLeaves, input_pressed) == 44 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::input_pressed)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::input_pressed)>>);
-static_assert(offsetof(XpEpubLeaves, input_screen_long) == 45 * sizeof(void (*)()));
-static_assert(std::is_pointer_v<decltype(XpEpubLeaves::input_screen_long)> &&
-              std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::input_screen_long)>>);
+static_assert(offsetof(XpEpubLeaves, input_screen_point) == 45 * sizeof(void (*)()));
+static_assert(std::is_pointer_v<decltype(XpEpubLeaves::input_screen_point)> &&
+              std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::input_screen_point)>>);
 static_assert(offsetof(XpEpubLeaves, input_screen_tap) == 46 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::input_screen_tap)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::input_screen_tap)>>);

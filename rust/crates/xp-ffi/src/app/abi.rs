@@ -43,6 +43,14 @@ pub struct MessageLaunch {
 }
 
 #[repr(C)]
+pub struct KeyboardLaunch {
+    pub title: Text,
+    pub initial: Text,
+    pub maximum: usize,
+    pub input_type: u8,
+}
+
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct DialogInterval {
     pub title: u16,
@@ -77,6 +85,7 @@ pub union LaunchValue {
     pub reader: ReaderLaunch,
     pub message: MessageLaunch,
     pub dialog: *const DialogLaunch,
+    pub keyboard: *const KeyboardLaunch,
     pub opds_server: u32,
     pub settings_section: u8,
     pub plugins_show_opds: u8,
@@ -90,6 +99,12 @@ pub struct Launch {
     pub kind: LaunchKind,
     pub value: LaunchValue,
 }
+
+const _: () = {
+    assert!(core::mem::size_of::<LaunchValue>() == 3 * core::mem::size_of::<usize>());
+    assert!(core::mem::size_of::<Launch>() == 4 * core::mem::size_of::<usize>());
+    assert!(core::mem::size_of::<KeyboardLaunch>() == 6 * core::mem::size_of::<usize>());
+};
 
 // Rust callers cannot pair a launch kind with a partially initialized union member.
 pub enum LaunchPayload {
@@ -105,6 +120,7 @@ pub enum LaunchPayload {
     // First production consumer: P17-L1 or S3.
     #[allow(dead_code)]
     Dialog(*const DialogLaunch),
+    Keyboard(*const KeyboardLaunch),
 }
 
 impl Launch {
@@ -122,6 +138,7 @@ impl Launch {
                     | (FILE_TRANSFER, Transfer(_))
                     | (SLEEP, Sleep(_))
                     | (DIALOG, Dialog(_))
+                    | (KEYBOARD, Keyboard(_))
                     | (
                         LIBRARY | OPDS_PICKER | USB_DRIVE | BOOT | CRASH | FRONTLIGHT_PANEL,
                         None
@@ -142,6 +159,7 @@ impl Launch {
             },
             Sleep(sleep_from_timeout) => LaunchValue { sleep_from_timeout },
             Dialog(dialog) => LaunchValue { dialog },
+            Keyboard(keyboard) => LaunchValue { keyboard },
         };
         Self { kind, value }
     }
@@ -654,6 +672,7 @@ pub const CRASH: u8 = 13;
 pub const FRONTLIGHT_PANEL: u8 = 14;
 pub const NETWORK_MODE: u8 = 15;
 pub const DIALOG: u8 = 16;
+pub const KEYBOARD: u8 = 17;
 pub const ADOPT_REPLACE: u8 = 0;
 pub const ADOPT_PUSH: u8 = 1;
 pub const POP: u8 = 2;

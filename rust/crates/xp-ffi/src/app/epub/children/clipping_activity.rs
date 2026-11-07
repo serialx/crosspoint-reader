@@ -55,7 +55,7 @@ impl Clippings {
                 physical,
                 &Details {
                     help: parent.leaves.child_list_help,
-                    bookmark: parent.leaves.child_list_bookmark_icon,
+                    bookmark: parent.leaves.child_list_icon,
                 },
                 store.count() as u16,
                 &mut |index, output| {

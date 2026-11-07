@@ -82,7 +82,7 @@ static const LegacyEpubLeaves idleLeaves = [] {
     out->long_menu = owner.confirmThreshold == 400 ? CrossPointSettings::LP_MENU_BOOKMARK
                                                   : CrossPointSettings::LP_MENU_DISABLED;
   };
-  table.physical.input_screen_long = [](int32_t* x, int32_t* y) -> uint8_t {
+  table.physical.input_screen_point = [](uint8_t, int32_t* x, int32_t* y) -> uint8_t {
     return idleOwner().mappedInput.wasScreenLongPress(*x, *y);
   };
   table.physical.input_services = []() -> const XpUiReaderInputServices* {

@@ -26,6 +26,7 @@ struct State {
     live: BTreeMap<usize, (*mut u8, usize)>,
     fail_after: Option<usize>,
     shell_fail: bool,
+    factory_fail: bool,
     entered: usize,
     destroyed: usize,
     closed: usize,
@@ -54,6 +55,8 @@ struct Context {
     initial: Vec<u8>,
     title: Vec<u8>,
     keyboard: bool,
+    maximum: usize,
+    input_type: u8,
     entered: bool,
     text_locked: Cell<bool>,
 }
@@ -62,6 +65,8 @@ fn context(initial: &[u8], keyboard: bool) -> *mut c_void {
         initial: initial.to_vec(),
         title: b"Title".to_vec(),
         keyboard,
+        maximum: 0,
+        input_type: 0,
         entered: false,
         text_locked: Cell::new(false),
     }))
@@ -102,8 +107,19 @@ unsafe extern "C" fn no(_: *mut c_void) -> u8 {
 unsafe extern "C" fn no_turn(_: *mut c_void, _: u8, _: u8) -> u8 {
     0
 }
-unsafe extern "C" fn create(_: *const abi::Launch) -> *mut c_void {
-    panic!("factory")
+unsafe extern "C" fn create(launch: *const abi::Launch) -> *mut c_void {
+    let launch = unsafe { &*launch };
+    assert_eq!(launch.kind, abi::KEYBOARD);
+    if state(|s| core::mem::take(&mut s.factory_fail)) {
+        return ptr::null_mut();
+    }
+    let launch = unsafe { &*launch.value.keyboard };
+    let object = context(unsafe { launch.initial.bytes() }.unwrap(), true);
+    let owned = unsafe { ctx(object) };
+    owned.title = unsafe { launch.title.bytes() }.unwrap().to_vec();
+    owned.maximum = launch.maximum;
+    owned.input_type = launch.input_type;
+    object
 }
 unsafe extern "C" fn old_render(_: *mut c_void, _: *mut abi::RenderToken) {
     panic!("legacy render")
@@ -252,8 +268,8 @@ unsafe extern "C" fn xp_keyboard_launch(p: *mut c_void, out: *mut keyboard::Laun
         out.write(keyboard::Launch {
             title: abi::Text::from_bytes(&c.title),
             initial: abi::Text::from_bytes(&c.initial),
-            maximum: 0,
-            input_type: 0,
+            maximum: c.maximum,
+            input_type: c.input_type,
         });
     }
 }
@@ -568,6 +584,52 @@ fn keyboard_real_app_install_return_cancel_failure_and_drop_once() {
             );
         }
     }
+    // The factory borrows its descriptor only during create; entry uses owned launch storage.
+    for length in [0, 5, 128] {
+        for cancel in [false, true] {
+            let mut title = b"Rename".to_vec();
+            let mut initial = vec![b'x'; length];
+            state(|s| s.expected = initial.clone());
+            assert!(keyboard::launch(&keyboard::Launch {
+                title: abi::Text::from_bytes(&title),
+                initial: abi::Text::from_bytes(&initial),
+                maximum: 128,
+                input_type: 0,
+            }));
+            title.fill(b'?');
+            initial.fill(b'?');
+            drop(title);
+            drop(initial);
+            assert!(app.navigation.drain(app));
+            state(|s| s.edit_pointer = s.live.values().find(|(_, n)| *n == length + 1).unwrap().0);
+            paint_current(app);
+            send_input(
+                app,
+                Input {
+                    pressed: if cancel { model::BACK } else { model::CONFIRM },
+                    released: if cancel { model::BACK } else { model::CONFIRM },
+                    ..Input::default()
+                },
+            );
+            state(|s| {
+                assert_eq!(s.cancelled, cancel);
+                assert!(s.live.is_empty());
+            });
+        }
+    }
+    let launch = keyboard::Launch {
+        title: abi::Text::from_bytes(b"Rename"),
+        initial: abi::Text::from_bytes(b"failed"),
+        maximum: 128,
+        input_type: 0,
+    };
+    state(|s| s.factory_fail = true);
+    assert!(!keyboard::launch(&launch));
+    let destroyed = state(|s| s.destroyed);
+    state(|s| s.shell_fail = true);
+    assert!(!keyboard::launch(&launch));
+    assert_eq!(state(|s| s.destroyed), destroyed + 1);
+    state(|s| assert!(s.live.is_empty()));
     // Real native buffer backend: partial scene failures publish nothing and retry.
     for n in 0..5 {
         state(|s| s.expected = b"retry-text".to_vec());

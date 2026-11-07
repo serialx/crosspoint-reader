@@ -71,7 +71,7 @@ impl EpubSession {
         if plan & idle::SCREEN_LONG != 0 {
             let (mut x, mut y) = (0, 0);
             unsafe {
-                (self.leaves.input_screen_long)(&mut x, &mut y);
+                (self.leaves.input_screen_point)(0, &mut x, &mut y);
             }
         }
         self.mapped_query(Query::BackGesture);

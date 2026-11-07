@@ -17,8 +17,9 @@ struct XpDialogLaunch {
   XpAppText name, heading, body, cancel, confirm;
   XpDialogInterval interval;
 };
-// Retires when the last native dialog caller moves to a typed Rust launch.
+// Retires with the last native caller that pushes a dialog.
 uint8_t xp_app_dialog_push(void* activity);
+// Retire when Rust dialog creation no longer constructs the native facade.
 void xp_dialog_launch(void* activity, XpDialogLaunch* out);
 void xp_dialog_release_launch(void* activity);
 // Physical leaves retire with Phase 18 native UI drawing/formatting.

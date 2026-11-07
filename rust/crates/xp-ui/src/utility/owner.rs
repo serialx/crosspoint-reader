@@ -268,10 +268,14 @@ impl<H: Host, S: Spec> Dialog<H, S> {
         self.spec
             .prepare(&self.host, &frame.state, &mut frame.labels);
         frame.layout = self.host.layout();
-        let resources = labels::View {
+        let labels = labels::Labels {
             host: &self.host,
             spec: &self.spec,
             buffers: &frame.labels,
+        };
+        let resources = labels::View {
+            host: &self.host,
+            labels: &labels,
         };
         let built = (|| {
             let (commands, hits) = storage.build(bank);

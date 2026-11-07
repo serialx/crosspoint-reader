@@ -17,6 +17,7 @@ struct Activity {
   virtual void render(RenderLock&&);
   virtual void onExit();
   virtual void prepareForSleep();
+  virtual void requestUpdate(bool = false) { assert(false && "unexpected rejected dialog in reader fixture"); }
   virtual bool isReaderActivity() const { return false; }
   // ACTUAL_BASE_CAPABILITY
   // ACTUAL_BASE_DIALOG

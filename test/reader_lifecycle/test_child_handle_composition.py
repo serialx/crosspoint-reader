@@ -137,7 +137,7 @@ static MappedInputManager* mapped = &input;
 struct ActivityManager {
   MappedInputManager mappedInput;
   bool send(const XpAppEvent& event) { return xp_app_test_event_legacy_book(&event, &legacyBook) == XP_APP_ACCEPTED; }
-  void pushActivity(std::unique_ptr<Activity>&&);
+  bool pushActivity(std::unique_ptr<Activity>&&);
 };
 static ActivityManager activityManager;
 static struct { int value = 0; int& registry() { return value; } } sdFontSystem;
@@ -147,7 +147,8 @@ XpEpubPosition position(const XpEpubPosition& value) { return value; }
 struct SavedProgressPosition { std::string xpath; float percentage; };
 '''
     additions += block(native, 'std::string owned(XpAppText value)') + '\n'
-    additions += block(manager, 'void ActivityManager::pushActivity(') + '\n'
+    additions += block(manager, 'bool ActivityManager::pushActivity(') + '\n'
+    additions += block((ROOT / 'src/activities/Activity.cpp').read_text(), '__attribute__((noinline)) void cancelRejectedDialog(') + '\n'
     additions += block((ROOT / 'src/activities/Activity.cpp').read_text(), 'void Activity::startActivityForResult(') + '\n'
     additions += block(manager, 'void screenshot(const ScreenshotInfo& info') + '\n'
     for name in ('facts', 'enter', 'loop', 'exit', 'destroy', 'render', 'prepare_sleep',

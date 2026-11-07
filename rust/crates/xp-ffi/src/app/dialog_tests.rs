@@ -67,6 +67,20 @@ unsafe extern "C" fn old_result(_: *mut c_void, _: abi::ResultSink, _: *mut c_vo
 unsafe extern "C" fn delivery(_: *mut c_void, _: *const c_void) {
     panic!("native projection")
 }
+unsafe extern "C" fn unexpected_definition_result(
+    _: *mut c_void,
+    _: abi::DefinitionPop,
+    _: abi::DefinitionSelectionSink,
+    _: *mut c_void,
+) {
+    panic!("dialog fixture entered Definition transfer");
+}
+unsafe extern "C" fn unexpected_definition_accept(
+    _: *mut c_void,
+    _: abi::DefinitionSelection,
+) -> u8 {
+    panic!("dialog fixture accepted Definition transfer");
+}
 unsafe extern "C" fn facts(_: *const c_void, _: u8, _: u8) -> abi::LegacyFacts {
     unsafe { core::mem::zeroed() }
 }
@@ -118,6 +132,9 @@ fn build_app() -> &'static App {
         forced_refresh: no,
         reader_turn: no_turn,
         screenshot_info: shot,
+        with_definition_selection_result: unexpected_definition_result,
+        deliver_definition_selection_result: unexpected_definition_accept,
+        definition_selection_install_failed: ignored,
     }));
     let mut resources = test_resources::resources();
     resources.buffer_allocate = allocate;
@@ -316,6 +333,22 @@ fn dialog_real_app_install_results_failures_and_drop_once() {
         }
     }
     // Every fallible shell/text stage leaves rejected ownership with the caller.
+    let visit = app.navigation.visit();
+    let rejected = || {
+        assert_eq!(app.navigation.pending_kind(), TransitionKind::None);
+        assert_eq!(app.navigation.parent_count(), 0);
+        assert_eq!(app.navigation.visit(), visit);
+        assert!(
+            matches!(app.navigation.current(), Some(Target::Legacy(p)) if p.as_ptr() == parent)
+        );
+        assert!(
+            matches!(app.signals.with(|s| s.target), Some(Target::Legacy(p)) if p.as_ptr() == parent)
+        );
+        state(|s| {
+            assert!(!s.locked && !s.model);
+            assert!(s.live.is_empty());
+        });
+    };
     for kind in 0..=2 {
         let child = context();
         unsafe {
@@ -323,6 +356,7 @@ fn dialog_real_app_install_results_failures_and_drop_once() {
         }
         state(|s| s.shell_fail = true);
         assert_eq!(unsafe { dialog::xp_app_dialog_push(child) }, 0);
+        rejected();
         unsafe { destroy(child) };
         for n in 0..if kind == 0 {
             4
@@ -337,6 +371,7 @@ fn dialog_real_app_install_results_failures_and_drop_once() {
             }
             state(|s| s.fail_after = Some(n));
             assert_eq!(unsafe { dialog::xp_app_dialog_push(child) }, 0);
+            rejected();
             state(|s| {
                 s.fail_after = None;
                 assert!(s.live.is_empty());

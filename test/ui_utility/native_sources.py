@@ -59,7 +59,7 @@ def method(path, signature):
         end += 1
     return source[start:end]
 projection = method('src/activities/util/DialogActivity.cpp', 'void xp_dialog_deliver(')
-push = method('src/activities/ActivityManager.cpp', 'void ActivityManager::pushActivity(')
+push = method('src/activities/ActivityManager.cpp', 'bool ActivityManager::pushActivity(')
 source = r'''#include <cassert>
 #include <memory>
 #include <string>
@@ -86,7 +86,7 @@ std::unique_ptr<OwnedLegacyActivity> ownLegacy(std::unique_ptr<Activity> a) {
 bool send(const XpAppEvent&){++legacySent;return false;}
 extern "C" uint8_t xp_app_keyboard_push(void*){assert(false);return 0;}
 extern "C" uint8_t xp_app_dialog_push(void* p){++pushed;if(accept)transferred=p;return accept;}
-struct ActivityManager {void pushActivity(std::unique_ptr<Activity>&&);};
+struct ActivityManager {bool pushActivity(std::unique_ptr<Activity>&&);};
 // PUSH
 extern "C" {
 // PROJECTION

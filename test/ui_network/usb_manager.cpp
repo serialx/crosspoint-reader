@@ -140,7 +140,7 @@ class ActivityManager {
   void loop();
   void exitActivity(const RenderLock&) { legacy.exit(xp_app_test_current_legacy()); }
   void replaceActivity(std::unique_ptr<Activity>&&);
-  void pushActivity(std::unique_ptr<Activity>&&);
+  bool pushActivity(std::unique_ptr<Activity>&&);
   void popActivity();
   void goHome(HomeMenuItem = HomeMenuItem::NONE, bool = false);
   bool requiresExclusiveStorageLoop() const;

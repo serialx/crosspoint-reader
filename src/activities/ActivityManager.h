@@ -70,7 +70,7 @@ class ActivityManager {
   void goHome(HomeMenuItem initialMenuItem = HomeMenuItem::NONE, bool cleanInitialRefresh = false);
 
   // This will move current activity to stack instead of deleting it
-  void pushActivity(std::unique_ptr<Activity>&& activity);
+  bool pushActivity(std::unique_ptr<Activity>&& activity);
 
   // Remove the currentActivity, returning the last one on stack
   // Note: if popActivity() on last activity on the stack, we will goHome()

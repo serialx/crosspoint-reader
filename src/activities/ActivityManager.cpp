@@ -327,23 +327,29 @@ void ActivityManager::replaceActivity(std::unique_ptr<Activity>&& activity) {
   event.value.adopt_replace = owner.release();
   if (!send(event)) delete static_cast<OwnedLegacyActivity*>(event.value.adopt_replace);
 }
-void ActivityManager::pushActivity(std::unique_ptr<Activity>&& activity) {
+bool ActivityManager::pushActivity(std::unique_ptr<Activity>&& activity) {
   // "KeyboardEntry" is reserved for KeyboardEntryActivity; the facade's leaves downcast using this invariant.
   const bool keyboard = activity && activity->name == "KeyboardEntry";
   const bool dialog = activity && activity->dialog();
   auto owner = ownLegacy(std::move(activity));
-  if (!owner) return;
+  if (!owner) return false;
   if (dialog) {
-    if (xp_app_dialog_push(owner.get())) owner.release();
-    return;
+    if (!xp_app_dialog_push(owner.get())) return false;
+    owner.release();
+    return true;
   }
   if (keyboard) {
-    if (xp_app_keyboard_push(owner.get())) owner.release();
-    return;
+    if (!xp_app_keyboard_push(owner.get())) return false;
+    owner.release();
+    return true;
   }
   XpAppEvent event{.kind = XP_APP_ADOPT_PUSH};
   event.value.adopt_push = owner.release();
-  if (!send(event)) delete static_cast<OwnedLegacyActivity*>(event.value.adopt_push);
+  if (!send(event)) {
+    delete static_cast<OwnedLegacyActivity*>(event.value.adopt_push);
+    return false;
+  }
+  return true;
 }
 void ActivityManager::popActivity() { send({.kind = XP_APP_POP}); }
 void ActivityManager::goToFileTransfer() { navigate({.kind = XP_APP_FILE_TRANSFER}); }

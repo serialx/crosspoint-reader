@@ -242,24 +242,42 @@ fn default_text<H: Host, R>(host: &H, handle: u32, f: impl FnOnce(&CStr) -> R) -
         _ => f(c""),
     }
 }
-pub(super) struct View<'a, H: Host, S: Spec> {
+pub(super) struct Labels<'a, H: Host, S: Spec> {
     pub(super) host: &'a H,
     pub(super) spec: &'a S,
     pub(super) buffers: &'a S::Buffers,
 }
-impl<H: Host, S: Spec> Texts for View<'_, H, S> {
+pub(super) trait Source {
+    fn text(&self, handle: u32, consume: &mut dyn FnMut(&CStr));
+    fn hints(&self) -> [Label; 4];
+}
+impl<H: Host, S: Spec> Source for Labels<'_, H, S> {
+    fn text(&self, handle: u32, consume: &mut dyn FnMut(&CStr)) {
+        self.spec.text(self.host, self.buffers, handle, consume);
+    }
+    fn hints(&self) -> [Label; 4] {
+        S::hints()
+    }
+}
+// Both typed owners borrow this adapter; no label or callback outlives the frame.
+pub(super) struct View<'a, H: Host> {
+    pub(super) host: &'a H,
+    pub(super) labels: &'a dyn Source,
+}
+impl<H: Host> Texts for View<'_, H> {
     fn present(&self, h: u32) -> Result<bool, Error> {
         if !(u::TITLE..=u::PLUS).contains(&h) {
             return Err(Error::Invalid);
         }
-        Ok(self
-            .spec
-            .text(self.host, self.buffers, h, |s| !s.is_empty()))
+        let mut present = false;
+        self.labels.text(h, &mut |s| present = !s.is_empty());
+        Ok(present)
     }
     fn height(&self, h: u32, font: i32, width: i16, style: u8, lines: u8) -> Result<i16, Error> {
         self.present(h)?;
-        let height = self.spec.text(self.host, self.buffers, h, |text| {
-            self.host.text_height(text, font, width, style, lines)
+        let mut height = 0;
+        self.labels.text(h, &mut |text| {
+            height = self.host.text_height(text, font, width, style, lines)
         });
         if (0..=4096).contains(&height) {
             Ok(height)
@@ -268,17 +286,16 @@ impl<H: Host, S: Spec> Texts for View<'_, H, S> {
         }
     }
 }
-impl<H: Host, S: Spec> Resources for View<'_, H, S> {
+impl<H: Host> Resources for View<'_, H> {
     fn valid(&mut self, h: u32, g: u32) -> bool {
         g == 1 && ((u::TITLE..=u::PLUS).contains(&h) || h == u::FOOTER)
     }
     fn paint(&mut self, c: &Command, clip: Rect) {
         if c.resource == u::FOOTER {
-            self.host.footer(c, clip, S::hints());
+            self.host.footer(c, clip, self.labels.hints());
         } else {
-            self.spec.text(self.host, self.buffers, c.resource, |text| {
-                self.host.text(c, clip, text)
-            });
+            self.labels
+                .text(c.resource, &mut |text| self.host.text(c, clip, text));
         }
     }
 }

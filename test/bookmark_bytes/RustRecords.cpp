@@ -50,7 +50,7 @@ void xp_bookmarks_test_path(Bytes, Receive, void*);
 }
 RustRecords::RustRecords() : owner(xp_bookmarks_test_create(&operations)) { assert(owner); }
 RustRecords::~RustRecords() { xp_bookmarks_test_destroy(owner); }
-void RustRecords::push_back(const BookmarkEntry& b) {
+void RustRecords::push_back(const BookmarkOracleEntry& b) {
   const Row row{bytes(b.xpath),
                 bytes(b.summary),
                 bytes(b.name),
@@ -63,7 +63,7 @@ void RustRecords::push_back(const BookmarkEntry& b) {
   assert(xp_bookmarks_test_push(owner, &row));
 }
 size_t RustRecords::size() const { return xp_bookmarks_test_count(owner); }
-const BookmarkEntry& RustRecords::operator[](size_t index) const {
+const BookmarkOracleEntry& RustRecords::operator[](size_t index) const {
   Row row{};
   assert(xp_bookmarks_test_row(owner, index, &row));
   snapshot.xpath = string(row.xpath);

@@ -5,7 +5,7 @@
 #include <iostream>
 #include <limits>
 
-#include "src/util/BookmarkFile.h"
+#include "BookmarkOracleFixture.h"
 #include "src/util/BookmarkUtil.h"
 #ifdef BOOKMARK_RUST_ORACLE
 #include "RustRecords.h"
@@ -61,10 +61,10 @@ int main() {
 #ifdef BOOKMARK_RUST_ORACLE
     RustRecords records;
 #else
-    std::vector<BookmarkEntry> records;
+    std::vector<BookmarkOracleEntry> records;
 #endif
     for (JsonObject r : input["records"].as<JsonArray>()) {
-      BookmarkEntry b{};
+      BookmarkOracleEntry b{};
       b.xpath = unhex(r["xpath"] | "");
       b.summary = unhex(r["summary"] | "");
       b.name = unhex(r["name"] | "");
@@ -80,7 +80,7 @@ int main() {
 #ifdef BOOKMARK_RUST_ORACLE
     const bool ok = load ? records.load(bookPath) : records.save(bookPath);
 #else
-    const bool ok = load ? BookmarkFile::load(bookPath, records) : BookmarkFile::save(bookPath, records);
+    const bool ok = load ? BookmarkOracleFile::load(bookPath, records) : BookmarkOracleFile::save(bookPath, records);
 #endif
     JsonDocument output;
     output["ok"] = ok;

@@ -144,7 +144,7 @@ def main():
     if args.rust_owner and args.capture_baseline:
         parser.error('Rust candidate cannot capture the native golden')
     args.build.mkdir(parents=True, exist_ok=True)
-    frozen = args.build / 'native'
+    frozen = args.build / 'oracle-fixture'
     frozen_manifest = prepare(frozen)
     sdk = ROOT/'freeink-sdk'
     assert subprocess.check_output(['git', '-C', str(sdk), 'rev-parse', 'HEAD'], text=True).strip() == SDK
@@ -154,7 +154,7 @@ def main():
                ROOT/'rust/crates/xp-ffi/src/settings.rs',
                ROOT/'lib/hal/HalStorage.cpp', ROOT/'platformio.ini', ROOT/'rust/Cargo.lock']
     manifest = dict(head=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
-                    sdk=SDK, sources={str(p.relative_to(ROOT)):sha((p if p.exists() else frozen/p.relative_to(ROOT)).read_bytes()) for p in sources}, native_oracle=frozen_manifest,
+                    sdk=SDK, sources={str(p.relative_to(ROOT)):sha((p if p.exists() else HERE/'native_oracle'/(str(p.relative_to(ROOT))+'.txt')).read_bytes()) for p in sources}, native_oracle=frozen_manifest,
                     extraction=[], arduinojson={str(p.relative_to(args.arduinojson)):sha(p.read_bytes())
                                               for p in sorted(args.arduinojson.rglob('*')) if p.is_file()})
     if args.rust_owner:
@@ -198,11 +198,11 @@ def main():
              '-DARDUINOJSON_SIZEOF_POINTER=4']
     if args.rust_owner:
         flags.append('-DBOOKMARK_RUST_ORACLE=1')
-    include = [HERE/'stubs', frozen, frozen/'src', args.build, ROOT, ROOT/'src', ROOT/'src/util', ROOT/'lib/Serialization',
+    include = [HERE/'stubs', frozen, args.build, ROOT, ROOT/'src', ROOT/'src/util', ROOT/'lib/Serialization',
                ROOT/'rust/crates/xp-ffi/include', args.arduinojson]
     cmd = ['c++', '-std=c++20', '-O2', '-ffp-contract=off', '-ffunction-sections', '-fdata-sections', *flags,
            *['-I'+str(p) for p in include], str(HERE/'Oracle.cpp'),
-           str(HERE/'RustRecords.cpp' if args.rust_owner else frozen/'src/util/BookmarkFile.cpp'), str(ROOT/'src/util/BookmarkUtil.cpp'),
+           str(HERE/'RustRecords.cpp' if args.rust_owner else frozen/'BookmarkOracleFixture.cpp'), str(ROOT/'src/util/BookmarkUtil.cpp'),
            str(ROOT/'lib/Serialization/PersistableStore.cpp'), str(args.build/'SdkStorage.cpp'), str(args.build/'HalAtomic.cpp'),
            str(ROOT/'test/cmake/xp_ffi_host.cpp'), str(args.archive),
            '-Wl,-dead_strip' if sys.platform == 'darwin' else '-Wl,--gc-sections', '-o', str(args.build/'oracle')]
@@ -213,6 +213,11 @@ def main():
         'follow_ups': ['O5a design freeze must specify target-written bookmark comparison in eink-qemu', 'Physical bookmark files on X3 and S3 remain human QA'],
     }
     manifest['command'] = cmd
+    command_file = args.build/'compile_commands.json'
+    command_file.write_text(json.dumps([dict(directory=str(ROOT), file=str(HERE/'Oracle.cpp'), arguments=cmd)], indent=2)+'\n')
+    subprocess.run([sys.executable, str(ROOT/'test/cmake/check_native_oracle_includes.py'), str(command_file)], check=True)
+    if args.negative_controls:
+        subprocess.run([sys.executable, str(HERE/'test_include_isolation.py'), str(command_file)], check=True)
     manifest['compiler'] = subprocess.check_output(['c++', '--version'], text=True)
     manifest['dependency_metadata'] = {str(p): sha(p.read_bytes()) for p in
                                        [args.arduinojson.parent/'library.json', args.arduinojson.parent/'.piopm']

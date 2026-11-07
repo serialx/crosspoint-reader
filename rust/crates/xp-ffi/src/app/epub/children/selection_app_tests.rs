@@ -81,14 +81,8 @@ unsafe extern "C" fn destroy(pointer: *mut c_void) {
         call("clip-drop");
     }
 }
-unsafe extern "C" fn delivered(pointer: *mut c_void, original: *const c_void) {
-    LOCKED.with(|v| assert!(!v.get()));
-    CLIP_LIVE.with(|v| assert!(!v.get()));
-    assert_eq!(unsafe { *original.cast::<u8>() }, 7);
-    // The definition and its borrowed dictionary remain live after clip destruction.
-    let lookup = unsafe { (*pointer.cast::<DefinitionLoan>()).lookup };
-    assert_eq!(unsafe { (*lookup.cast::<Native>()).pointer }, lookup);
-    call("clip-deliver");
+unsafe extern "C" fn delivered(_: *mut c_void, _: *const c_void) {
+    panic!("Definition selection must use owned delivery")
 }
 unsafe extern "C" fn drop_definition(p: *mut children::selection_physical::DefinitionStorage) {
     CLIP_LIVE.with(|v| assert!(!v.get()));
@@ -163,16 +157,7 @@ fn app_fixture() -> app::App {
 }
 
 #[test]
-fn actual_app_three_deep_selection_return_destroys_before_delivery() {
-    selection_return_test(true);
-}
-#[test]
 fn definition_owned_result_actual_app_destroys_and_publishes_before_transfer() {
-    selection_return_test(true);
-}
-fn selection_return_test(typed: bool) {
-    static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
-    let _serial = SERIAL.lock().unwrap();
     for cancelled in [0, 1, 2] {
         let app = app_fixture();
         let parent: StableOwner<app::epub::EpubSession> =
@@ -260,25 +245,21 @@ fn selection_return_test(typed: bool) {
         app.navigation.queue(Transition::Pop);
         app.navigation.drain(&app);
         CALLS.with(|v| {
-            if typed {
-                let mut expected = vec![
-                    "native-take",
-                    "clip-drop",
-                    "unlock",
-                    "selection-pages-release",
-                ];
-                if cancelled == 0 {
-                    expected.push("text-allocation");
-                }
-                expected.push("clip-deliver");
-                if cancelled == 0 {
-                    expected.push("text-free");
-                }
-                expected.push("native-result-drop");
-                assert_eq!(*v.borrow(), expected);
-            } else {
-                assert_eq!(&*v.borrow(), &["clip-drop", "unlock", "clip-deliver"]);
+            let mut expected = vec![
+                "native-take",
+                "clip-drop",
+                "unlock",
+                "selection-pages-release",
+            ];
+            if cancelled == 0 {
+                expected.push("text-allocation");
             }
+            expected.push("clip-deliver");
+            if cancelled == 0 {
+                expected.push("text-free");
+            }
+            expected.push("native-result-drop");
+            assert_eq!(*v.borrow(), expected);
         });
         assert_eq!(app.navigation.parent_count(), 2);
         CANCELLED.with(|v| v.set(cancelled));

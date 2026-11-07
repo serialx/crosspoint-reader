@@ -213,6 +213,7 @@ typedef struct {
 } XpAppLegacyFacts;
 
 // Definition selection transfer. No native ActivityResult or string address crosses.
+// The final owner must release data with its supplied allocator-matched callback.
 typedef void (*XpDefinitionTextRelease)(uint8_t* data, uint32_t capacity);
 typedef struct {
   uint8_t* data;
@@ -231,6 +232,7 @@ typedef struct {
   uint8_t status;
   uint8_t reserved[3];
 } XpDefinitionSelection;
+// Pop and sink run synchronously; neither callback nor context may escape the bridge.
 // Pop returns the restored Definition adapter, or null if delivery is no longer valid.
 typedef void* (*XpDefinitionPop)(void* context);
 // One means ownership consumed; zero leaves the native guard responsible for text.
@@ -255,6 +257,7 @@ typedef struct {
   uint8_t (*forced_refresh)(void* activity);
   uint8_t (*reader_turn)(void* activity, uint8_t forward, uint8_t chapter);
   void (*screenshot_info)(const void* activity, XpAppScreenshotSink sink, void* context);
+  // These three native Definition seams retire when D1 moves the viewer/control to Rust.
   void (*with_definition_selection_result)(void* child, XpDefinitionPop pop, XpDefinitionSelectionSink sink,
                                            void* context);
   uint8_t (*deliver_definition_selection_result)(void* parent, XpDefinitionSelection result);

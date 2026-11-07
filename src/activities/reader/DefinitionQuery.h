@@ -60,7 +60,8 @@ class OwnedSelectionText {
   }
 };
 
-// Native navigation can move a selected block without converting it to std::string.
+// Initial queries use native strings; selections use allocator-matched owned blocks.
+// D1 retires this mixed holder when current/pending/history move to Rust with the viewer.
 class DefinitionQuery {
   std::variant<std::string, OwnedSelectionText> value;
 

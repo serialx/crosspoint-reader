@@ -19,7 +19,7 @@ struct AppFixtureUnexpected<R (*)(A...), Slot> {
 
 inline XpEpubLeaves unexpectedEpubLeaves() {
   XpEpubLeaves value{};
-  static_assert(sizeof(XpEpubLeaves) == 158 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 173 * sizeof(void (*)()));
   value.render_margins = &AppFixtureUnexpected<decltype(value.render_margins), 5>::call;
   value.render_geometry = &AppFixtureUnexpected<decltype(value.render_geometry), 6>::call;
   value.render_restore_bw = &AppFixtureUnexpected<decltype(value.render_restore_bw), 7>::call;
@@ -169,6 +169,30 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.child_definition_lookup = &AppFixtureUnexpected<decltype(value.child_definition_lookup), 169>::call;
   value.child_definition_plain = &AppFixtureUnexpected<decltype(value.child_definition_plain), 170>::call;
   value.child_definition_drop = &AppFixtureUnexpected<decltype(value.child_definition_drop), 171>::call;
+  value.child_definition_payload_lookup =
+      &AppFixtureUnexpected<decltype(value.child_definition_payload_lookup), 300>::call;
+  value.child_definition_payload_plain =
+      &AppFixtureUnexpected<decltype(value.child_definition_payload_plain), 301>::call;
+  value.child_definition_payload_native =
+      &AppFixtureUnexpected<decltype(value.child_definition_payload_native), 302>::call;
+  value.child_definition_payload_drop = &AppFixtureUnexpected<decltype(value.child_definition_payload_drop), 303>::call;
+  value.child_definition_heap = &AppFixtureUnexpected<decltype(value.child_definition_heap), 304>::call;
+  value.child_definition_payload_prepare =
+      &AppFixtureUnexpected<decltype(value.child_definition_payload_prepare), 305>::call;
+  value.child_definition_payload_release =
+      &AppFixtureUnexpected<decltype(value.child_definition_payload_release), 306>::call;
+  value.child_definition_payload_find = &AppFixtureUnexpected<decltype(value.child_definition_payload_find), 307>::call;
+  value.child_definition_payload_commit =
+      &AppFixtureUnexpected<decltype(value.child_definition_payload_commit), 308>::call;
+  value.child_definition_selection_build =
+      &AppFixtureUnexpected<decltype(value.child_definition_selection_build), 309>::call;
+  value.child_definition_selection_child =
+      &AppFixtureUnexpected<decltype(value.child_definition_selection_child), 310>::call;
+  value.child_definition_selection_release =
+      &AppFixtureUnexpected<decltype(value.child_definition_selection_release), 311>::call;
+  value.child_definition_layout = &AppFixtureUnexpected<decltype(value.child_definition_layout), 312>::call;
+  value.child_definition_draw_header = &AppFixtureUnexpected<decltype(value.child_definition_draw_header), 313>::call;
+  value.child_definition_draw_body = &AppFixtureUnexpected<decltype(value.child_definition_draw_body), 314>::call;
   value.child_directional_hints = &AppFixtureUnexpected<decltype(value.child_directional_hints), 172>::call;
   value.child_dictionary_popup_layout = &AppFixtureUnexpected<decltype(value.child_dictionary_popup_layout), 173>::call;
   value.child_wait_paint = &AppFixtureUnexpected<decltype(value.child_wait_paint), 174>::call;

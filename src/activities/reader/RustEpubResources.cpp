@@ -16,6 +16,7 @@
 #include <HalClock.h>
 #include <HalDisplay.h>
 #include <HalGPIO.h>
+#include <HalMemory.h>
 #include <HalStorage.h>
 #include <InflateStream.h>
 #include <KOReaderDocumentId.h>
@@ -40,6 +41,8 @@
 #include "ClippingStore.h"
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
+#include "DefinitionPayload.h"
+#include "DictionaryUiBindings.h"
 #include "EndOfBookOptions.h"
 #include "KOReaderCredentialStore.h"
 #include "KOReaderSyncActivity.h"
@@ -57,6 +60,7 @@
 #include "activities/RenderLock.h"
 #include "activities/network/WifiSelectionActivity.h"
 #include "activities/settings/TextSettingsActivity.h"
+#include "components/HeaderBackTapTarget.h"
 #include "components/OptionPopup.h"
 #include "components/RustInputSnapshot.h"
 #include "components/UITheme.h"
@@ -929,6 +933,61 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         return readerLookup::definitionPlain(storage, title, length, fill, context, *target, *mapped);
       },
       .child_definition_drop = readerLookup::definitionDrop,
+      .child_definition_payload_lookup = readerLookup::payloadLookup,
+      .child_definition_payload_plain = DefinitionPayload::constructPlain,
+      .child_definition_payload_native = DefinitionPayload::constructNative,
+      .child_definition_payload_drop =
+          [](XpDefinitionPayloadStorage* storage) { std::destroy_at(&DefinitionPayload::get(storage)); },
+      .child_definition_heap =
+          [](XpEpubHeap* out) {
+            const auto heap = HalMemory::getDefaultHeap();
+            *out = {heap.freeBytes, heap.largestBlockBytes};
+          },
+      .child_definition_payload_prepare = [](XpDefinitionPayloadStorage* storage, uint8_t slot, uint8_t html,
+                                             uint8_t plain, XpUiRect body, XpDefinitionPayloadView* out) -> uint8_t {
+        auto& payload = DefinitionPayload::get(storage);
+        auto& value = payload.slot(slot);
+        if (!payload.prepareDefinition(*target, value, html, plain, body)) {
+          value.lines.clear();
+          return 0;
+        }
+        *out = {value.totalPages, static_cast<uint8_t>(!value.pages.empty()), {0, 0, 0}};
+        return 1;
+      },
+      .child_definition_payload_release =
+          [](XpDefinitionPayloadStorage* storage, uint8_t slot, uint8_t keepHeadword) {
+            auto& payload = DefinitionPayload::get(storage).slot(slot);
+            payload.releasePayload();
+            if (!keepHeadword) std::string{}.swap(payload.headword);
+          },
+      .child_definition_payload_find = readerLookup::payloadFind,
+      .child_definition_payload_commit =
+          [](XpDefinitionPayloadStorage* storage) {
+            auto& payload = DefinitionPayload::get(storage);
+            payload.slots[0] = std::move(payload.slots[1]);
+          },
+      .child_definition_selection_build = [](XpDefinitionPayloadStorage* storage, int32_t page) -> uint8_t {
+        return DefinitionPayload::get(storage).buildPlainSelectionPages(*target, page);
+      },
+      .child_definition_selection_child = [](XpDefinitionPayloadStorage* storage,
+                                             const XpDefinitionSelectionRequest* request, XpUiRect body) -> void* {
+        return DefinitionPayload::get(storage).selectionChild(*target, *mapped, *request, body);
+      },
+      .child_definition_selection_release =
+          [](XpDefinitionPayloadStorage* storage) { DefinitionPayload::get(storage).selectionPages.clear(); },
+      .child_definition_layout = [](XpUiDefinitionLayout* out, int32_t x, int32_t y) -> uint8_t {
+        const bool headerBackHit = (x != -1 || y != -1) && HeaderBackTapTarget::contains(x, y);
+        *out = dictionaryUiDefinitionLayout(*target);
+        return headerBackHit;
+      },
+      .child_definition_draw_header =
+          [](const XpDefinitionPayloadStorage* storage, XpUiRect bounds, int32_t page, int32_t pages) {
+            DefinitionPayload::get(storage).drawHeader(*target, bounds, page, pages);
+          },
+      .child_definition_draw_body =
+          [](const XpDefinitionPayloadStorage* storage, int32_t font, int32_t x, int32_t y, int32_t page) {
+            DefinitionPayload::get(storage).drawBody(*target, font, x, y, page);
+          },
       .child_directional_hints =
           [](const XpAppText* labels) { readerLookup::directionalHints(*target, *mapped, labels); },
       .child_dictionary_popup_layout = [](XpUiDictionaryPopup* out) { readerLookup::popupLayout(*target, out); },

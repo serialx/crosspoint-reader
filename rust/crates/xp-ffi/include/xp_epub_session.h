@@ -289,6 +289,25 @@ typedef struct {
 typedef struct {
   uintptr_t words[111];
 } XpEpubDefinitionStorage;
+typedef struct {
+  uintptr_t words[43];
+} XpDefinitionPayloadStorage;
+typedef struct XpDefinitionNativeTransfer XpDefinitionNativeTransfer;
+typedef struct {
+  int32_t pages;
+  uint8_t styled;
+  uint8_t reserved[3];
+} XpDefinitionPayloadView;
+typedef struct {
+  uint16_t start_page, end_page, start_word, end_word;
+  uint8_t valid;
+  uint8_t reserved[3];
+} XpDefinitionSelectionPosition;
+typedef struct {
+  int32_t page;
+  XpDefinitionSelectionPosition selection;
+  int32_t x, y;
+} XpDefinitionSelectionRequest;
 // Fill the final native string synchronously. The callback and context never escape.
 typedef uint8_t (*XpEpubDefinitionFill)(void* context, uint8_t* text, uint32_t length);
 
@@ -470,6 +489,31 @@ typedef struct XpEpubLeaves {
   void* (*child_definition_plain)(XpEpubDefinitionStorage* storage, XpAppText title, uint32_t length,
                                   XpEpubDefinitionFill fill, void* context);
   void (*child_definition_drop)(XpEpubDefinitionStorage* storage);
+  uint8_t (*child_definition_payload_lookup)(XpDefinitionPayloadStorage* storage, XpEpubLookupStorage* lookup,
+                                             XpAppTextSink query, void* context, uint8_t* html);
+  uint8_t (*child_definition_payload_plain)(XpDefinitionPayloadStorage* storage, XpAppText title, uint32_t length,
+                                            XpEpubDefinitionFill fill, void* context);
+  uint8_t (*child_definition_payload_native)(XpDefinitionPayloadStorage* storage, XpDefinitionNativeTransfer* transfer,
+                                             uint8_t* html);
+  void (*child_definition_payload_drop)(XpDefinitionPayloadStorage* storage);
+  void (*child_definition_heap)(XpEpubHeap* out);
+  uint8_t (*child_definition_payload_prepare)(XpDefinitionPayloadStorage* storage, uint8_t slot, uint8_t html,
+                                              uint8_t force_plain, XpUiRect body, XpDefinitionPayloadView* out);
+  void (*child_definition_payload_release)(XpDefinitionPayloadStorage* storage, uint8_t slot, uint8_t keep_headword);
+  uint8_t (*child_definition_payload_find)(XpDefinitionPayloadStorage* storage, uint8_t slot,
+                                           XpEpubLookupStorage* lookup, XpAppText query, uint8_t* result);
+  void (*child_definition_payload_commit)(XpDefinitionPayloadStorage* storage);
+  uint8_t (*child_definition_selection_build)(XpDefinitionPayloadStorage* storage, int32_t page);
+  void* (*child_definition_selection_child)(XpDefinitionPayloadStorage* storage,
+                                            const XpDefinitionSelectionRequest* request, XpUiRect body);
+  void (*child_definition_selection_release)(XpDefinitionPayloadStorage* storage);
+  // Returns the HeaderBackTapTarget hit for (x,y), recorded by the last header draw.
+  // (-1,-1) means no query.
+  uint8_t (*child_definition_layout)(XpUiDefinitionLayout* out, int32_t x, int32_t y);
+  void (*child_definition_draw_header)(const XpDefinitionPayloadStorage* storage, XpUiRect bounds, int32_t page,
+                                       int32_t pages);
+  void (*child_definition_draw_body)(const XpDefinitionPayloadStorage* storage, int32_t font, int32_t x, int32_t y,
+                                     int32_t page);
   void (*child_directional_hints)(const XpAppText labels[6]);
   void (*child_dictionary_popup_layout)(XpUiDictionaryPopup* out);
   // Existing ActivityManager render completion wait; call only without model/render/resource locks.
@@ -523,7 +567,7 @@ XP_EPUB_ASSERT(offsetof(XpEpubRadio, note) == 4, "XpEpubRadio.note");
 XP_EPUB_ASSERT(sizeof(XpEpubPeer) == 82, "XpEpubPeer size");
 XP_EPUB_ASSERT(offsetof(XpEpubPeer, name) == 0, "XpEpubPeer.name");
 XP_EPUB_ASSERT(offsetof(XpEpubPeer, addr) == 64, "XpEpubPeer.addr");
-XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 158 * sizeof(void (*)(void)), "XpEpubLeaves size");
+XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 173 * sizeof(void (*)(void)), "XpEpubLeaves size");
 #define XP_EPUB_LEAF_OFFSET(field, index) \
   XP_EPUB_ASSERT(offsetof(XpEpubLeaves, field) == (index) * sizeof(void (*)(void)), "XpEpubLeaves." #field)
 XP_EPUB_LEAF_OFFSET(render_margins, 0);
@@ -677,21 +721,43 @@ XP_EPUB_LEAF_OFFSET(child_lookup_discard, 145);
 XP_EPUB_LEAF_OFFSET(child_definition_lookup, 146);
 XP_EPUB_LEAF_OFFSET(child_definition_plain, 147);
 XP_EPUB_LEAF_OFFSET(child_definition_drop, 148);
-XP_EPUB_LEAF_OFFSET(child_directional_hints, 149);
-XP_EPUB_LEAF_OFFSET(child_dictionary_popup_layout, 150);
-XP_EPUB_LEAF_OFFSET(child_wait_paint, 151);
-XP_EPUB_LEAF_OFFSET(clipping_physical, 152);
-XP_EPUB_LEAF_OFFSET(child_list_help, 153);
-XP_EPUB_LEAF_OFFSET(child_list_icon, 154);
-XP_EPUB_LEAF_OFFSET(local_calendar, 155);
-XP_EPUB_LEAF_OFFSET(storage_read_file, 156);
-XP_EPUB_LEAF_OFFSET(storage_write_file_atomic, 157);
+XP_EPUB_LEAF_OFFSET(child_definition_payload_lookup, 149);
+XP_EPUB_LEAF_OFFSET(child_definition_payload_plain, 150);
+XP_EPUB_LEAF_OFFSET(child_definition_payload_native, 151);
+XP_EPUB_LEAF_OFFSET(child_definition_payload_drop, 152);
+XP_EPUB_LEAF_OFFSET(child_definition_heap, 153);
+XP_EPUB_LEAF_OFFSET(child_definition_payload_prepare, 154);
+XP_EPUB_LEAF_OFFSET(child_definition_payload_release, 155);
+XP_EPUB_LEAF_OFFSET(child_definition_payload_find, 156);
+XP_EPUB_LEAF_OFFSET(child_definition_payload_commit, 157);
+XP_EPUB_LEAF_OFFSET(child_definition_selection_build, 158);
+XP_EPUB_LEAF_OFFSET(child_definition_selection_child, 159);
+XP_EPUB_LEAF_OFFSET(child_definition_selection_release, 160);
+XP_EPUB_LEAF_OFFSET(child_definition_layout, 161);
+XP_EPUB_LEAF_OFFSET(child_definition_draw_header, 162);
+XP_EPUB_LEAF_OFFSET(child_definition_draw_body, 163);
+XP_EPUB_LEAF_OFFSET(child_directional_hints, 164);
+XP_EPUB_LEAF_OFFSET(child_dictionary_popup_layout, 165);
+XP_EPUB_LEAF_OFFSET(child_wait_paint, 166);
+XP_EPUB_LEAF_OFFSET(clipping_physical, 167);
+XP_EPUB_LEAF_OFFSET(child_list_help, 168);
+XP_EPUB_LEAF_OFFSET(child_list_icon, 169);
+XP_EPUB_LEAF_OFFSET(local_calendar, 170);
+XP_EPUB_LEAF_OFFSET(storage_read_file, 171);
+XP_EPUB_LEAF_OFFSET(storage_write_file_atomic, 172);
 #undef XP_EPUB_LEAF_OFFSET
 XP_EPUB_ASSERT(sizeof(XpEpubBookBorrow) == 6 * sizeof(void (*)(void)), "XpEpubBookBorrow size");
 XP_EPUB_ASSERT(offsetof(XpEpubBookBorrow, spine) == 0, "XpEpubBookBorrow.spine");
 XP_EPUB_ASSERT(offsetof(XpEpubBookBorrow, item_size) == 5 * sizeof(void (*)(void)), "XpEpubBookBorrow.item_size");
 XP_EPUB_ASSERT(sizeof(XpEpubBookView) == (sizeof(void*) == 8 ? 40 : 24), "XpEpubBookView size");
 XP_EPUB_ASSERT(offsetof(XpEpubSpine, toc_index) == sizeof(XpAppText) + 4, "XpEpubSpine.toc_index");
+XP_EPUB_ASSERT(sizeof(XpDefinitionPayloadStorage) == 43 * sizeof(uintptr_t), "payload storage size");
+XP_EPUB_ASSERT(sizeof(XpDefinitionPayloadView) == 8, "payload view size");
+XP_EPUB_ASSERT(sizeof(XpDefinitionSelectionPosition) == 12, "selection position size");
+XP_EPUB_ASSERT(sizeof(XpDefinitionSelectionRequest) == 24, "selection request size");
+XP_EPUB_ASSERT(offsetof(XpDefinitionSelectionRequest, selection) == 4, "selection request position");
+XP_EPUB_ASSERT(offsetof(XpDefinitionSelectionRequest, x) == 16, "selection request x");
+XP_EPUB_ASSERT(offsetof(XpDefinitionSelectionRequest, y) == 20, "selection request y");
 #undef XP_EPUB_ASSERT
 
 #ifndef __cplusplus

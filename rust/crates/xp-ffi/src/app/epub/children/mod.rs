@@ -41,6 +41,8 @@ pub(in crate::app) use physical::Physical;
 pub(in crate::app::epub) use toolbar_owner::{ToolbarSlot, ToolbarTarget};
 
 mod definition;
+#[allow(dead_code)]
+pub(in crate::app) mod definition_physical;
 mod footnote;
 mod lookup;
 mod lookup_view;

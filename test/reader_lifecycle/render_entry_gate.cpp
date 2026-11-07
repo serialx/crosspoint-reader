@@ -239,7 +239,7 @@ static const XpUiReaderRenderServices renderServices = {
 static const XpEpubLeaves& physicalLeaves() {
   static const XpEpubLeaves value = [] {
     XpEpubLeaves table{};
-    static_assert(sizeof(XpEpubLeaves) == 158 * sizeof(void (*)()));
+    static_assert(sizeof(XpEpubLeaves) == 173 * sizeof(void (*)()));
     UNUSED_LEAF(render_margins);
     UNUSED_LEAF(render_geometry);
     UNUSED_LEAF(render_restore_bw);

@@ -192,7 +192,7 @@ static const XpUiReaderRenderServices renderServices = {
 };
 static const LegacyEpubLeaves leaves = [] {
   LegacyEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 158 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 173 * sizeof(void (*)()));
   UNUSED_LEAF(physical.render_margins);
   UNUSED_LEAF(physical.render_geometry);
   UNUSED_LEAF(physical.render_restore_bw);

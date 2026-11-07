@@ -5,6 +5,8 @@ pub mod chapter_trace;
 mod epub {
     pub mod abi {
         pub enum XpEpubLeaves {}
+        #[repr(C)]
+        pub struct XpEpubHeap { pub free_bytes: u32, pub largest_block: u32 }
     }
     // This crate exercises the four O4a children. Real Page/selection owners run
     // in reader_selection_ownership, which compiles the complete App instead.
@@ -164,3 +166,5 @@ mod bookmark_tests;
 
 #[path = "../../rust/crates/xp-ffi/src/app/epub/children/bookmark_view.rs"]
 mod bookmark_view;
+#[path = "../../rust/crates/xp-ffi/src/app/epub/children/definition_physical.rs"]
+mod definition_physical;

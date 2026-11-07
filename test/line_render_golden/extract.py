@@ -2,7 +2,9 @@
 import pathlib
 import sys
 root, output = map(pathlib.Path, sys.argv[1:])
-dictionary = (root / 'src/activities/reader/DictionaryDefinitionActivity.cpp').read_text()
+sys.path.insert(0, str(root / 'test/definition_session'))
+from definition_oracle import native_text
+dictionary = native_text('src/activities/reader/DictionaryDefinitionActivity.cpp')
 clip = (root / 'src/activities/reader/ClipSelectionActivity.cpp').read_text()
 header = (root / 'src/activities/reader/ClipSelectionActivity.h').read_text()
 def between(text, first, last):

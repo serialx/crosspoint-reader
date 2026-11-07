@@ -198,6 +198,7 @@ pub(in crate::app::epub::children) const fn selection() -> Selection {
         definition_lookup: unused_lookup,
         definition_plain: unused_plain,
         definition_drop: unused_definition_drop,
+        definition: crate::app::epub::children::definition_physical::DefinitionPhysical::unused(),
         directional_hints: unused_hints,
         dictionary_popup_layout: unused_layout,
         wait_paint: super::lock,

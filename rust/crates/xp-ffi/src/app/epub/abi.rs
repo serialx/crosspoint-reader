@@ -577,7 +577,7 @@ const _: () = {
     );
     assert!(
         core::mem::size_of::<XpEpubLeaves>()
-            == 158 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 173 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
     assert!(
         core::mem::offset_of!(XpEpubLeaves, log)
@@ -855,12 +855,12 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, display_source) == 130 * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, framebuffer_view) == 131 * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, child_drawing) == 132 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, clipping_physical) == 152 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, child_list_help) == 153 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, child_list_icon) == 154 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, local_calendar) == 155 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, storage_read_file) == 156 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, storage_write_file_atomic) == 157 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, clipping_physical) == 167 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, child_list_help) == 168 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, child_list_icon) == 169 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, local_calendar) == 170 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, storage_read_file) == 171 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, storage_write_file_atomic) == 172 * pointer);
 
     assert!(
         core::mem::align_of::<XpEpubLeaves>() == core::mem::align_of::<unsafe extern "C" fn()>()

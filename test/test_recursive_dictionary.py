@@ -18,8 +18,10 @@ from rust_host import rust_link_flags
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / "test/reader_lifecycle"))
 from test_app_results import make_source as app_result_source
-viewer = (ROOT / "src/activities/reader/DictionaryDefinitionActivity.cpp").read_text()
-header = (ROOT / "src/activities/reader/DictionaryDefinitionActivity.h").read_text()
+sys.path.insert(0, str(ROOT / "test/definition_session"))
+from definition_oracle import native_text as definition_text
+viewer = definition_text("src/activities/reader/DictionaryDefinitionActivity.cpp")
+header = definition_text("src/activities/reader/DictionaryDefinitionActivity.h")
 selector = (ROOT / "src/activities/reader/ClipSelectionActivity.h").read_text()
 
 
@@ -727,6 +729,8 @@ owner_sources = [
     parent_adapter, Path(__file__),
 ]
 owner_hashes = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in owner_sources}
+
+harness = harness.replace('#include "activities/reader/DefinitionQuery.h"', definition_text("src/activities/reader/DefinitionQuery.h").replace("#pragma once", ""))
 
 harness = harness.replace('bool DictionaryDefinitionActivity::prepareDefinition',
                           plain_scratch + '\nbool DictionaryDefinitionActivity::prepareDefinition', 1)

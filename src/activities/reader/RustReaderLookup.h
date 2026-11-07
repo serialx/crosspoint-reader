@@ -16,6 +16,8 @@ void* definitionLookup(XpEpubDefinitionStorage* storage, XpEpubLookupStorage* lo
 void* definitionPlain(XpEpubDefinitionStorage* storage, XpAppText title, uint32_t length, XpEpubDefinitionFill fill,
                       void* context, GfxRenderer& renderer, MappedInputManager& input);
 void definitionDrop(XpEpubDefinitionStorage* storage);
+uint8_t payloadLookup(XpDefinitionPayloadStorage*, XpEpubLookupStorage*, XpAppTextSink, void*, uint8_t*);
+uint8_t payloadFind(XpDefinitionPayloadStorage*, uint8_t, XpEpubLookupStorage*, XpAppText, uint8_t*);
 void directionalHints(GfxRenderer& renderer, MappedInputManager& input, const XpAppText* labels);
 void popupLayout(const GfxRenderer& renderer, XpUiDictionaryPopup* out);
 }  // namespace readerLookup

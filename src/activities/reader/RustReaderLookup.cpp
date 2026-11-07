@@ -10,6 +10,7 @@
 #include <string>
 
 #include "CrossPointSettings.h"
+#include "DefinitionPayload.h"
 #include "DictionaryDefinitionActivity.h"
 #include "MappedInputManager.h"
 #include "activities/OwnedLegacyActivity.h"
@@ -104,6 +105,26 @@ void definitionDrop(XpEpubDefinitionStorage* storage) {
   auto* viewer = static_cast<DictionaryDefinitionActivity*>(owner->adapter.activity.release());
   std::destroy_at(viewer);
   std::destroy_at(owner);
+}
+uint8_t payloadLookup(XpDefinitionPayloadStorage* storage, XpEpubLookupStorage* source, XpAppTextSink sink,
+                      void* context, uint8_t* html) {
+  auto& lookup = get(source);
+  if (!sink(context, {reinterpret_cast<const uint8_t*>(lookup.query.data()), lookup.query.size()})) return 0;
+  auto* payload = ::new (storage) DefinitionPayload;
+  payload->slots[0].headword = std::move(lookup.headword);
+  payload->slots[0].text = std::move(lookup.definition);
+  std::string{}.swap(lookup.query);
+  *html = lookup.dictionary.definitionsAreHtml();
+  return 1;
+}
+uint8_t payloadFind(XpDefinitionPayloadStorage* storage, uint8_t slot, XpEpubLookupStorage* source, XpAppText query,
+                    uint8_t* result) {
+  auto& payload = DefinitionPayload::get(storage).slot(slot);
+  auto code = Dictionary::LookupResult::Found;
+  const bool found = get(source).dictionary.lookup(query.len ? reinterpret_cast<const char*>(query.data) : "",
+                                                   payload.text, payload.headword, &code);
+  *result = static_cast<uint8_t>(code);
+  return found;
 }
 void directionalHints(GfxRenderer& renderer, MappedInputManager& input, const XpAppText* labels) {
   const auto text = [labels](int index) { return reinterpret_cast<const char*>(labels[index].data); };

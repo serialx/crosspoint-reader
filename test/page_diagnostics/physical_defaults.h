@@ -25,7 +25,7 @@ struct AppFixtureUnexpected<R (*)(A...), Slot> {
 
 inline XpEpubLeaves unexpectedEpubLeaves() {
   XpEpubLeaves value{};
-  static_assert(sizeof(XpEpubLeaves) == 158 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 173 * sizeof(void (*)()));
   value.render_margins = &AppFixtureUnexpected<decltype(value.render_margins), 5>::call;
   value.render_geometry = &AppFixtureUnexpected<decltype(value.render_geometry), 6>::call;
   value.render_restore_bw = &AppFixtureUnexpected<decltype(value.render_restore_bw), 7>::call;

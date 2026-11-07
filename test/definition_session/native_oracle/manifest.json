@@ -1,0 +1,228 @@
+{
+  "commit": "493373a76fa3b8b908c13355c2d222c6ec8b3537",
+  "snapshot_count": 20,
+  "snapshot_bytes": 242535,
+  "sources": [
+    {
+      "source": "src/activities/reader/DictionaryDefinitionActivity.cpp",
+      "frozen": "native-oracle/src/activities/reader/DictionaryDefinitionActivity.cpp.txt",
+      "bytes": 34136,
+      "sha256": "4bcab804d6ee39b1c0dc60e384e36aa7e52387bebf06341046397eee2e7b002b",
+      "first_line": 1,
+      "last_line": 848,
+      "consumer_status": "Pinned CP0 source; reference-side adapters must route here before CP1 modifies production source",
+      "delete_when": "Remove unconsumed sections at CP3; keep only independently used native reference inputs",
+      "snapshot": "src/activities/reader/DictionaryDefinitionActivity.cpp.txt"
+    },
+    {
+      "source": "src/activities/reader/DictionaryDefinitionActivity.h",
+      "frozen": "native-oracle/src/activities/reader/DictionaryDefinitionActivity.h.txt",
+      "bytes": 4396,
+      "sha256": "0406a17acf4433390bf11dd3be18ca05c8cd3c78087f385f88ed7b42f6f2756f",
+      "first_line": 1,
+      "last_line": 133,
+      "consumer_status": "Pinned CP0 source; reference-side adapters must route here before CP1 modifies production source",
+      "delete_when": "Remove unconsumed sections at CP3; keep only independently used native reference inputs",
+      "snapshot": "src/activities/reader/DictionaryDefinitionActivity.h.txt"
+    },
+    {
+      "source": "src/activities/reader/DefinitionQuery.h",
+      "frozen": "native-oracle/src/activities/reader/DefinitionQuery.h.txt",
+      "bytes": 3619,
+      "sha256": "76f4c79700082b50dad6bf688f9bb84272a856eb8b58f705642299274bf6ca8d",
+      "first_line": 1,
+      "last_line": 103,
+      "consumer_status": "Pinned CP0 source; reference-side adapters must route here before CP1 modifies production source",
+      "delete_when": "Remove unconsumed sections at CP3; keep only independently used native reference inputs",
+      "snapshot": "src/activities/reader/DefinitionQuery.h.txt"
+    },
+    {
+      "source": "src/activities/reader/DictionaryUiBindings.cpp",
+      "frozen": "native-oracle/src/activities/reader/DictionaryUiBindings.cpp.txt",
+      "bytes": 4934,
+      "sha256": "51fb97845b736d632c728ef9e447205b7160031f358e15c762d98118c916f80b",
+      "first_line": 1,
+      "last_line": 104,
+      "consumer_status": "Pinned CP0 source; reference-side adapters must route here before CP1 modifies production source",
+      "delete_when": "Remove unconsumed sections at CP3; keep only independently used native reference inputs",
+      "snapshot": "src/activities/reader/DictionaryUiBindings.cpp.txt"
+    },
+    {
+      "source": "src/activities/reader/DictionaryUiBindings.h",
+      "frozen": "native-oracle/src/activities/reader/DictionaryUiBindings.h.txt",
+      "bytes": 308,
+      "sha256": "5681fce01d881809124babd18027b633eb895232689f1e7127b457a0366e13ab",
+      "first_line": 1,
+      "last_line": 7,
+      "consumer_status": "Pinned CP0 source; reference-side adapters must route here before CP1 modifies production source",
+      "delete_when": "Remove unconsumed sections at CP3; keep only independently used native reference inputs",
+      "snapshot": "src/activities/reader/DictionaryUiBindings.h.txt"
+    },
+    {
+      "source": "src/activities/reader/RustReaderLookup.cpp",
+      "frozen": "native-oracle/src/activities/reader/RustReaderLookup.cpp.txt",
+      "bytes": 5705,
+      "sha256": "189a1648ed09112b2aa1c96437498dd4e028170ca12c987b66e332417f493604",
+      "first_line": 1,
+      "last_line": 127,
+      "consumer_status": "Pinned CP0 source; reference-side adapters must route here before CP1 modifies production source",
+      "delete_when": "Remove unconsumed sections at CP3; keep only independently used native reference inputs",
+      "snapshot": "src/activities/reader/RustReaderLookup.cpp.txt"
+    },
+    {
+      "source": "src/activities/reader/ClipSelectionActivity.cpp",
+      "frozen": "native-oracle/src/activities/reader/ClipSelectionActivity.cpp.txt",
+      "bytes": 22192,
+      "sha256": "05e855aeb87815565a6bddd60197184600cd85e93369d7505db32b38c0db2834",
+      "first_line": 1,
+      "last_line": 536,
+      "consumer_status": "Pinned CP0 source; reference-side adapters must route here before CP1 modifies production source",
+      "delete_when": "Remove unconsumed sections at CP3; keep only independently used native reference inputs",
+      "snapshot": "src/activities/reader/ClipSelectionActivity.cpp.txt"
+    },
+    {
+      "source": "src/activities/reader/ClipSelectionActivity.h",
+      "frozen": "native-oracle/src/activities/reader/ClipSelectionActivity.h.txt",
+      "bytes": 3465,
+      "sha256": "7d89e0acebfa6154406e967b92240499dd12dd09417ef463c69afec82f6a8fd7",
+      "first_line": 1,
+      "last_line": 99,
+      "consumer_status": "Pinned CP0 source; reference-side adapters must route here before CP1 modifies production source",
+      "delete_when": "Remove unconsumed sections at CP3; keep only independently used native reference inputs",
+      "snapshot": "src/activities/reader/ClipSelectionActivity.h.txt"
+    },
+    {
+      "source": "src/util/DictHtmlPages.cpp",
+      "frozen": "native-oracle/src/util/DictHtmlPages.cpp.txt",
+      "bytes": 4458,
+      "sha256": "0c79bbabd6593b9542973a20e2e4adecc2462481c1183089b3fb37eee90ce01a",
+      "first_line": 1,
+      "last_line": 106,
+      "consumer_status": "Pinned CP0 source; reference-side adapters must route here before CP1 modifies production source",
+      "delete_when": "Remove unconsumed sections at CP3; keep only independently used native reference inputs",
+      "snapshot": "src/util/DictHtmlPages.cpp.txt"
+    },
+    {
+      "source": "src/activities/RustActivityAdapter.cpp",
+      "frozen": "native-oracle/src/activities/RustActivityAdapter.cpp.txt",
+      "bytes": 4601,
+      "sha256": "608733b2646d5382b0e03b517a465f779683855c8e0253b08012c735c19a2987",
+      "first_line": 1,
+      "last_line": 146,
+      "consumer_status": "Pinned CP0 source; reference-side adapters must route here before CP1 modifies production source",
+      "delete_when": "Remove unconsumed sections at CP3; keep only independently used native reference inputs",
+      "snapshot": "src/activities/RustActivityAdapter.cpp.txt"
+    },
+    {
+      "source": "src/activities/RustActivityAdapter.h",
+      "frozen": "native-oracle/src/activities/RustActivityAdapter.h.txt",
+      "bytes": 2815,
+      "sha256": "7d03185a413091571cde27f7fbe43f2f6e8195f4f889e22a15e458bf70fc7f67",
+      "first_line": 1,
+      "last_line": 67,
+      "consumer_status": "Pinned CP0 source; reference-side adapters must route here before CP1 modifies production source",
+      "delete_when": "Remove unconsumed sections at CP3; keep only independently used native reference inputs",
+      "snapshot": "src/activities/RustActivityAdapter.h.txt"
+    },
+    {
+      "source": "lib/GfxRenderer/FontCacheManager.cpp",
+      "frozen": "native-oracle/lib/GfxRenderer/FontCacheManager.cpp.txt",
+      "bytes": 8103,
+      "sha256": "0103cd4f7ddb4e00beb496c16fc760dd77142af2629fa5b1de3f97b865657b3d",
+      "first_line": 1,
+      "last_line": 222,
+      "consumer_status": "Pinned CP0 source; reference-side adapters must route here before CP1 modifies production source",
+      "delete_when": "Remove unconsumed sections at CP3; keep only independently used native reference inputs",
+      "snapshot": "lib/GfxRenderer/FontCacheManager.cpp.txt"
+    },
+    {
+      "source": "lib/EpdFont/SdCardFont.cpp",
+      "frozen": "native-oracle/lib/EpdFont/SdCardFont.cpp.txt",
+      "bytes": 25673,
+      "sha256": "b801169c7597c4da34f23898146d0e9bf6dcfa30b533f72c41a76b3a92793dac",
+      "first_line": 1,
+      "last_line": 612,
+      "consumer_status": "Pinned CP0 source; reference-side adapters must route here before CP1 modifies production source",
+      "delete_when": "Remove unconsumed sections at CP3; keep only independently used native reference inputs",
+      "snapshot": "lib/EpdFont/SdCardFont.cpp.txt"
+    },
+    {
+      "source": "lib/EpdFont/FontDecompressor.cpp",
+      "frozen": "native-oracle/lib/EpdFont/FontDecompressor.cpp.txt",
+      "bytes": 3809,
+      "sha256": "01570e9e41c97a9522be12572ef0b8e43744f7811929a0703663c5ced9ec36dc",
+      "first_line": 1,
+      "last_line": 86,
+      "consumer_status": "Pinned CP0 source; reference-side adapters must route here before CP1 modifies production source",
+      "delete_when": "Remove unconsumed sections at CP3; keep only independently used native reference inputs",
+      "snapshot": "lib/EpdFont/FontDecompressor.cpp.txt"
+    },
+    {
+      "source": "rust/crates/xp-ffi/src/sdfont.rs",
+      "frozen": "native-oracle/rust/crates/xp-ffi/src/sdfont.rs.txt",
+      "bytes": 7421,
+      "sha256": "6351ea3ab965013946235a5421bda84533659acb794cd9c22d8f7f497c402893",
+      "first_line": 1,
+      "last_line": 286,
+      "consumer_status": "Pinned CP0 source; reference-side adapters must route here before CP1 modifies production source",
+      "delete_when": "Remove unconsumed sections at CP3; keep only independently used native reference inputs",
+      "snapshot": "rust/crates/xp-ffi/src/sdfont.rs.txt"
+    },
+    {
+      "source": "rust/crates/xp-ffi/src/font.rs",
+      "frozen": "native-oracle/rust/crates/xp-ffi/src/font.rs.txt",
+      "bytes": 11231,
+      "sha256": "bb34f867bc620f68fc7bb52a940507f31296b09ec36d1bd4ae8dde7c1ff8762c",
+      "first_line": 1,
+      "last_line": 411,
+      "consumer_status": "Pinned CP0 source; reference-side adapters must route here before CP1 modifies production source",
+      "delete_when": "Remove unconsumed sections at CP3; keep only independently used native reference inputs",
+      "snapshot": "rust/crates/xp-ffi/src/font.rs.txt"
+    },
+    {
+      "source": "rust/crates/xp-core/src/sdfont/load.rs",
+      "frozen": "native-oracle/rust/crates/xp-core/src/sdfont/load.rs.txt",
+      "bytes": 10918,
+      "sha256": "451abcca2c8ad5808510ccc743737e9d1011be9ec8e780447c5e95ff2a7be564",
+      "first_line": 1,
+      "last_line": 301,
+      "consumer_status": "Pinned CP0 source; reference-side adapters must route here before CP1 modifies production source",
+      "delete_when": "Remove unconsumed sections at CP3; keep only independently used native reference inputs",
+      "snapshot": "rust/crates/xp-core/src/sdfont/load.rs.txt"
+    },
+    {
+      "source": "rust/crates/xp-core/src/sdfont/pool.rs",
+      "frozen": "native-oracle/rust/crates/xp-core/src/sdfont/pool.rs.txt",
+      "bytes": 62907,
+      "sha256": "a1f6653e2999f51c2bdc310b0fb2e81c1c54ec31eb6fa0357bec947503e56af8",
+      "first_line": 1,
+      "last_line": 1782,
+      "consumer_status": "Pinned CP0 source; reference-side adapters must route here before CP1 modifies production source",
+      "delete_when": "Remove unconsumed sections at CP3; keep only independently used native reference inputs",
+      "snapshot": "rust/crates/xp-core/src/sdfont/pool.rs.txt"
+    },
+    {
+      "source": "rust/crates/xp-core/src/font/cache.rs",
+      "frozen": "native-oracle/rust/crates/xp-core/src/font/cache.rs.txt",
+      "bytes": 15812,
+      "sha256": "dbb345e0f36d00c1be883b777ddebb0039eba629b516915ee54bf12f156a749d",
+      "first_line": 1,
+      "last_line": 458,
+      "consumer_status": "Pinned CP0 source; reference-side adapters must route here before CP1 modifies production source",
+      "delete_when": "Remove unconsumed sections at CP3; keep only independently used native reference inputs",
+      "snapshot": "rust/crates/xp-core/src/font/cache.rs.txt"
+    },
+    {
+      "source": "rust/crates/xp-ui/src/dictionary/definition.rs",
+      "frozen": "native-oracle/rust/crates/xp-ui/src/dictionary/definition.rs.txt",
+      "bytes": 6032,
+      "sha256": "cbecbb262899a0069a58c4bf2be09b44c81f4b48f5b1225c4e27af5d74354b57",
+      "first_line": 1,
+      "last_line": 202,
+      "consumer_status": "Pinned CP0 source; reference-side adapters must route here before CP1 modifies production source",
+      "delete_when": "Remove unconsumed sections at CP3; keep only independently used native reference inputs",
+      "snapshot": "rust/crates/xp-ui/src/dictionary/definition.rs.txt"
+    }
+  ],
+  "scope": "Native behavioral reference inputs, never production translation units or include paths; CP1 must connect differential consumers before production mutation"
+}

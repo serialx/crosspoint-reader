@@ -30,12 +30,13 @@ pub(crate) struct Physical {
         *mut c_void,
     ) -> *mut c_void,
     pub(super) definition_drop: unsafe extern "C" fn(*mut DefinitionStorage),
+    pub(super) definition: super::definition_physical::DefinitionPhysical,
     pub(super) directional_hints: unsafe extern "C" fn(*const abi::Text),
     pub(super) dictionary_popup_layout: unsafe extern "C" fn(*mut xp_ui::dictionary::popup::Layout),
     pub(super) wait_paint: unsafe extern "C" fn(),
 }
 const _: () = {
-    assert!(core::mem::size_of::<Physical>() == 12 * core::mem::size_of::<usize>());
+    assert!(core::mem::size_of::<Physical>() == 27 * core::mem::size_of::<usize>());
     assert!(core::mem::size_of::<LookupStorage>() == 90 * core::mem::size_of::<usize>());
     assert!(core::mem::size_of::<DefinitionStorage>() == 111 * core::mem::size_of::<usize>());
 };

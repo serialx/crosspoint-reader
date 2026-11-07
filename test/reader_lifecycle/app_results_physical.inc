@@ -148,9 +148,9 @@ void bindResultsPhysical() {
         if (row->spine == 6) { assert(index == 0); }
         else { assert(row->word_count == 8 && row->paragraph == 7); }
       });
-    xp_epub_test_clipping_transactions(owner, nullptr,
+    xp_epub_test_clipping_results(owner,
       [](const XpClippingRecord* row, XpAppText chapter, XpAppNativeText value, uint8_t result) {
-        borrowedUse("clip-insert"); assert(f().renderDepth == 1 && row);
+        borrowedUse("clip-insert"); assert(!f().renderDepth && row);
         assert(value.bytes.data == results.borrowedText && value.bytes.len == 4096);
         assert(value.native_string == &std::get<ClippingResult>(results.borrowed->data).text);
         assert(row->word_count == 8 && row->paragraph == 7 && text(chapter) == "Chapter");

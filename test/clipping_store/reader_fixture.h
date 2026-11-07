@@ -11,9 +11,8 @@ uint8_t xp_epub_test_clipping_load(void*, XpAppText);
 uint8_t xp_epub_test_clipping_insert(void*, const XpClippingRecord*, XpAppText, XpAppNativeText);
 uint8_t xp_epub_test_clipping_remove(void*, uint32_t);
 void xp_epub_test_clipping_reset(void*);
-void xp_epub_test_clipping_transactions(void*, void (*)(uint8_t),
-                                        void (*)(const XpClippingRecord*, XpAppText, XpAppNativeText, uint8_t),
-                                        void (*)(uint32_t, uint8_t));
+void xp_epub_test_clipping_results(void*, void (*)(const XpClippingRecord*, XpAppText, XpAppNativeText, uint8_t),
+                                   void (*)(uint32_t, uint8_t));
 }
 
 namespace clipping_fixture {

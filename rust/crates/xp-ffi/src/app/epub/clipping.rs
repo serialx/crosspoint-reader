@@ -228,8 +228,6 @@ impl EpubSession {
         chapter: app_abi::Text,
         text: app_abi::XpAppNativeText,
     ) -> AddResult {
-        #[cfg(feature = "app-test")]
-        let logical = super::test_support::clipping_store::LogicalTransaction::begin(self, 1);
         let result = (|| {
             let chapter = unsafe { chapter.bytes() }.unwrap_or_default();
             let text = unsafe { text.bytes.bytes() }.unwrap_or_default();
@@ -253,7 +251,8 @@ impl EpubSession {
             AddResult::Added
         })();
         #[cfg(feature = "app-test")]
-        logical.inserted(&record, chapter, text, result as u8);
+        self.clipping_fixture
+            .inserted(&record, chapter, text, result as u8);
         result
     }
 

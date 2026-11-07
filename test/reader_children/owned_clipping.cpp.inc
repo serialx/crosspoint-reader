@@ -117,7 +117,7 @@ static void nextClipping() {
 }
 static int runOwnedClippings(const std::string& mode, bool cancelled) {
   xp_epub_test_clipping_observe(results.owner, nullptr, nullptr);
-  xp_epub_test_clipping_transactions(results.owner, nullptr, nullptr, nullptr);
+  xp_epub_test_clipping_results(results.owner, nullptr, nullptr);
   if (mode == "clippings-nav" || mode == "clippings-detail" || mode == "clippings-detail-oom") {
     XpClippingRecord record{}; record.spine = 2; record.page_count = 10;
     record.start_offset = 100; record.end_offset = 104;

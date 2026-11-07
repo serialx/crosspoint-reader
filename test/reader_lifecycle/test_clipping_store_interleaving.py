@@ -1,7 +1,7 @@
 """Verify the Rust store's physical prepare/I/O/publish interleaving.
 
-The historical child-parent trace observes logical transactions. This independent
-composition installs no logical observer and checks the actual mutex and I/O order.
+The historical child-parent trace and this independent composition observe real
+guards. This test also checks mutex exclusion while physical I/O is paused.
 """
 import argparse
 import hashlib

@@ -10,7 +10,6 @@ use core::{cell::Cell, ffi::c_void};
 
 type CountObserver = unsafe extern "C" fn(u32);
 type RowObserver = unsafe extern "C" fn(u32, *const Record);
-type TransactionObserver = unsafe extern "C" fn(u8);
 type InsertObserver =
     unsafe extern "C" fn(*const Record, app_abi::Text, app_abi::XpAppNativeText, u8);
 type RemoveObserver = unsafe extern "C" fn(u32, u8);
@@ -20,7 +19,6 @@ pub(in crate::app::epub) struct Fixture {
     pub enabled: Cell<bool>,
     pub count_observer: Cell<Option<CountObserver>>,
     pub row_observer: Cell<Option<RowObserver>>,
-    pub transaction: Cell<Option<TransactionObserver>>,
     pub insert: Cell<Option<InsertObserver>>,
     pub remove: Cell<Option<RemoveObserver>>,
 }
@@ -32,21 +30,13 @@ impl Fixture {
             enabled: Cell::new(false),
             count_observer: Cell::new(None),
             row_observer: Cell::new(None),
-            transaction: Cell::new(None),
             insert: Cell::new(None),
             remove: Cell::new(None),
         }
     }
 }
 
-pub(in crate::app::epub) struct LogicalTransaction<'a>(&'a EpubSession);
-impl<'a> LogicalTransaction<'a> {
-    pub fn begin(owner: &'a EpubSession, kind: u8) -> Self {
-        if let Some(observe) = owner.clipping_fixture.transaction.get() {
-            unsafe { observe(kind) };
-        }
-        Self(owner)
-    }
+impl Fixture {
     pub fn inserted(
         &self,
         row: &Record,
@@ -54,38 +44,24 @@ impl<'a> LogicalTransaction<'a> {
         text: app_abi::XpAppNativeText,
         result: u8,
     ) {
-        if let Some(observe) = self.0.clipping_fixture.insert.get() {
-            let _access = self.0.lock_resources();
+        if let Some(observe) = self.insert.get() {
             unsafe { observe(row, chapter, text, result) };
         }
     }
-    pub fn removed(&self, index: u32, result: bool) -> Option<super::super::ResourceAccess<'a>> {
-        if let Some(observe) = self.0.clipping_fixture.remove.get() {
-            let access = self.0.lock_resources();
+    pub fn removed(&self, index: u32, result: bool) {
+        if let Some(observe) = self.remove.get() {
             unsafe { observe(index, result as u8) };
-            Some(access)
-        } else {
-            None
-        }
-    }
-}
-impl Drop for LogicalTransaction<'_> {
-    fn drop(&mut self) {
-        if let Some(observe) = self.0.clipping_fixture.transaction.get() {
-            unsafe { observe(0) };
         }
     }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn xp_epub_test_clipping_transactions(
+pub unsafe extern "C" fn xp_epub_test_clipping_results(
     owner: *mut c_void,
-    phase: Option<TransactionObserver>,
     insert: Option<InsertObserver>,
     remove: Option<RemoveObserver>,
 ) {
     let owner = unsafe { &*owner.cast::<EpubSession>() };
-    owner.clipping_fixture.transaction.set(phase);
     owner.clipping_fixture.insert.set(insert);
     owner.clipping_fixture.remove.set(remove);
 }
@@ -177,7 +153,6 @@ pub unsafe extern "C" fn xp_epub_test_clipping_reset(owner: *mut c_void) {
     fixture.enabled.set(false);
     fixture.count_observer.set(None);
     fixture.row_observer.set(None);
-    fixture.transaction.set(None);
     fixture.insert.set(None);
     fixture.remove.set(None);
 }

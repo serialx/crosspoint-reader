@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / 'test'))
 from rust_host import rust_link_flags
-from test_child_parent import logical_lock_fixture, replace_once
+from test_child_parent import seed_lock_fixture, replace_once
 
 PRODUCTION = Path('crates/xp-ffi/src/app/epub/child.rs')
 
@@ -22,7 +22,7 @@ def digest(data):
 
 def physical_fixture():
     source = (HERE / 'child_parent_oracle.cpp').read_text().split('int main() {', 1)[0]
-    source = replace_once(logical_lock_fixture(source), '// CHILD_RESOURCES', '')
+    source = replace_once(seed_lock_fixture(source), '// CHILD_RESOURCES', '')
     source = replace_once(source, '// CHILD_METHODS', (HERE / 'child_session_rust.inc').read_text())
     source = replace_once(source, 'struct Page {', 'static int livePages = 0;\nstruct Page {')
     source = replace_once(source, 'explicit Page(int n) : number(n) { event("page-new", n); }',

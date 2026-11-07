@@ -126,12 +126,12 @@ strict-provenance Miri for the Rust allocation/lifetime checks. These checks do
 not establish production synchronization, target stack/heap floors, physical
 FAT or power-loss behavior.
 
-The historical child-parent oracle retains its logical transaction lock events.
-An app-test-only observer maps the actual prepare-lock, unlocked persistence and
-publish-lock to that trace without selecting the operation result. Its delete
-scope includes the original failure notice, and two synthetic rows ensure hit
-index 1 reaches physical write-failure injection. The full traces, lock-depth
-annotations, borrowed text assertions and goldens remain unchanged. The separate
+The historical child-parent oracle checks actual prepare and publish lock events,
+with persistence between them unlocked. Its projection derives these scopes from
+the frozen operation boundaries; it never rewrites a golden or reads candidate
+output to choose expected events. Direct result observers check record fields and
+borrowed text without adding a guard. Two synthetic rows ensure hit index 1
+reaches physical write-failure injection. The separate
 `reader_clipping_store_interleaving` test installs no observer: it checks the
 actual mutex/I/O order, old metadata during paused writes, rejected concurrent
 storage access, atomic publication and clean teardown. Three compiled Rust

@@ -122,14 +122,31 @@ def project_case(lines, strip, counts):
                             b'add-signature ', b'add-offsets ', b'add-text ')
                 assert all(lines[index + offset].startswith(prefix)
                            for offset, prefix in enumerate(prefixes))
-                scope(index, index + len(prefixes), 'clipping_insert')
+                assert action == 0
+                scope(index, index, 'clipping_prepare')
+                scope(index, index, 'clipping_publish')
             elif line.startswith(b'lookup-result ') and not mask & 8:
                 assert action == 1
                 capture(index + 1, True)
+    for index, line in enumerate(lines):
+        if not line.startswith(b'remove '):
+            continue
+        assert operation == 1
+        end = next(i for i in range(index + 1, len(lines)) if lines[i] == UNLOCK)
+        before[index].append(UNLOCK)  # Release the hit-test loan before store I/O.
+        scope(index, index, 'clipping_remove_prepare')
+        if not mask & 32:
+            scope(index, index, 'clipping_remove_publish')
+        for i in range(index, end):
+            if b' lock=' in lines[i]:
+                assert lines[i].endswith(b' lock=1\n')
+                changed[i] = lines[i][:-8] + b' lock=0\n'
+        changed[end] = b''
     output = []
     for index, line in enumerate(lines):
         output.extend(before[index])
-        output.append(changed.get(index, line))
+        if value := changed.get(index, line):
+            output.append(value)
         output.extend(after[index])
     output.extend(before[len(lines)])
     counts['cases'] += 1
@@ -148,18 +165,18 @@ def project(raw, strip):
         output.extend(project_case(lines[begin:end], strip, counts))
     expected_counts = dict(cases=10240, selection_capture=3092 if not strip else 1920,
                            existing_strip_capture=0 if not strip else 1172, page_load=2662,
-                           result_position=270, result_paragraph=90, clipping_insert=90)
+                           result_position=270, result_paragraph=90, clipping_prepare=90, clipping_publish=90)
     for name, count in expected_counts.items():
         assert counts[name] == count, (name, counts[name], count)
     scopes = sum(counts[name] for name in ('selection_capture', 'page_load', 'result_position',
-                                         'result_paragraph', 'clipping_insert'))
+                                         'result_paragraph', 'clipping_prepare', 'clipping_publish',
+                                         'clipping_remove_prepare', 'clipping_remove_publish'))
     assert len(output) == len(lines) + scopes * 2
     return b''.join(output), dict(counts)
 
 
-def logical_lock_fixture(source):
-    # Keep the real RenderLock/mutex hooks; silence only their historical trace
-    # while the named logical transaction emits its own begin/end observations.
+def seed_lock_fixture(source):
+    # Seeding is fixture setup. Actual operations keep every real guard event.
     return replace_once(source, 'static void event(const char* n, int a = 0, int b = 0) {',
                         'static thread_local bool clippingLockEventsQuiet = false;\n'
                         'static void event(const char* n, int a = 0, int b = 0) {\n'
@@ -167,7 +184,7 @@ def logical_lock_fixture(source):
 
 
 def transformed_fixture(template):
-    source = replace_once(logical_lock_fixture(template), '// CHILD_RESOURCES', '')
+    source = replace_once(seed_lock_fixture(template), '// CHILD_RESOURCES', '')
     source = replace_once(source, '// CHILD_METHODS', (HERE / 'child_session_rust.inc').read_text())
     return replace_once(source, '        switch (operation) {',
                         '        ChildSessionBridge childSession(o);\n        switch (operation) {')
@@ -283,7 +300,7 @@ def main():
                               projected_trace_lines=len(expected.splitlines()), actual_trace_sha256=digest(baseline.stdout),
                               projection_counts=projections, fixture_sha256=fixture_hashes,
                               candidate_source_sha256={name: digest(data) for name, data in source.items()},
-                              resource_contract='per-access Section scopes; clipping logical transaction observer with independently verified split physical guards; owned Pages and child construction outside scopes',
+                              resource_contract='per-access Section and clipping prepare/publish scopes; direct result observers without extra guards; owned Pages and child construction outside scopes',
                               policy_replacements=['historical bookmark', 'menu', 'applyProgress', 'flush', 'saveProgress',
                                                    'navigateHref', 'clippingAtPoint', 'replace', 'currentPosition',
                                                    'layoutSignature', 'discardOverlay', 'saveLinks', 'push', 'update'],

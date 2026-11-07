@@ -135,13 +135,10 @@ impl EpubSession {
                 }
                 let index = self.clipping_at_point(&access, page.borrow(), x, y);
                 if index >= 0 {
-                    #[cfg(feature = "app-test")]
-                    let logical =
-                        super::test_support::clipping_store::LogicalTransaction::begin(self, 2);
                     drop(access);
                     let removed = self.remove_clipping(index as u32);
                     #[cfg(feature = "app-test")]
-                    let _logical_notice_guard = logical.removed(index as u32, removed);
+                    self.clipping_fixture.removed(index as u32, removed);
                     if !removed {
                         self.loop_log_formatted(
                             1,

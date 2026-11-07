@@ -246,3 +246,5 @@ pub struct NavigationObservation {
 pub(super) mod legacy_section;
 
 pub(super) mod legacy_page;
+
+pub(super) mod legacy_progress;

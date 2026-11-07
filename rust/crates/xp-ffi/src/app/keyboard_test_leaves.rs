@@ -1,7 +1,5 @@
 // Host-only EPUB table: keyboard must never invoke these unrelated services.
-use super::super::abi::{
-    self as app_abi, Text as XpAppText, TextSink as XpAppTextSink, XpAppNativeText,
-};
+use super::super::abi::{self as app_abi, Text as XpAppText, TextSink as XpAppTextSink};
 use super::super::epub::abi::*;
 use xp_ui::reader::input::Services as XpUiReaderInputServices;
 macro_rules! unused_leaves {
@@ -25,6 +23,9 @@ child_drawing: unsafe { core::mem::transmute::<PhysicalWire, _>(PhysicalWire { t
     };
 }
 unused_leaves! {
+    storage_write_file_atomic(path: XpAppText, bytes: *const u8, size: u32) -> u8;
+    storage_read_file(path: XpAppText, sink: XpAppTextSink, context: *mut core::ffi::c_void) -> u8;
+    local_calendar(out: *mut crate::app::bookmarks::export::Calendar) -> u8;
 
     render_margins(_a0: *mut i32) ;
     render_geometry(_a0: *mut XpEpubGeometry) ;
@@ -43,9 +44,7 @@ unused_leaves! {
     file_seek(_a0: *mut core::ffi::c_void, _a1: u32) -> u8;
     file_size(_a0: *mut core::ffi::c_void) -> u32;
     path_remove_tree(_a0: XpAppText) -> u8;
-    progress_to_reader(_a0: *mut core::ffi::c_void, _a1: *const XpEpubSavedProgress, _a2: i32, _a3: i32, _a4: *mut XpEpubPosition) ;
-    progress_to_saved(_a0: *mut core::ffi::c_void, _a1: *const XpEpubPosition, _a2: XpEpubSavedProgressSink, _a3: *mut core::ffi::c_void) -> u8;
-    progress_save(_a0: *mut core::ffi::c_void, _a1: *const XpEpubPosition) -> u8;
+    progress_save(_a0: XpAppText, _a1: *const u8, _a2: u32) -> u8;
     paint_dither(_a0: i32, _a1: i32, _a2: i32, _a3: i32) ;
     paint_pixel(_a0: i32, _a1: i32) ;
     paint_status(_a0: *const XpEpubStatus) ;
@@ -125,7 +124,6 @@ unused_leaves! {
     bookmarks_row(_a0: *mut core::ffi::c_void, _a1: u32, _a2: XpEpubBookmarkSink, _a3: *mut core::ffi::c_void) -> u8;
     bookmarks_retain(_a0: *mut core::ffi::c_void, _a1: unsafe extern "C" fn(*mut core::ffi::c_void, *const XpEpubBookmark) -> u8, context: *mut core::ffi::c_void,) -> u32;
     bookmarks_insert_front(_a0: *mut core::ffi::c_void, _a1: *const XpEpubBookmark) -> u8;
-    clippings_export(_a0: XpAppText, _a1: XpAppText, _a2: XpAppText, _a3: i32, _a4: XpAppNativeText) -> u8;
     recents_remove(_a0: XpAppText) -> u8;
     recents_add(_a0: *const app_abi::Book) ;
     recents_update_path(_a0: XpAppText, _a1: XpAppText, _a2: XpAppText, _a3: XpAppText) ;

@@ -118,8 +118,6 @@ inline XpEpubLeaves leavesDefaults() {
   UNUSED_LEAF(render_discard_bw);
   UNUSED_LEAF(render_orientation);
   UNUSED_LEAF(loan_count);
-  UNUSED_LEAF(progress_to_reader);
-  UNUSED_LEAF(progress_to_saved);
   UNUSED_LEAF(progress_save);
 
   UNUSED_LEAF(paint_dither);
@@ -202,8 +200,6 @@ inline XpEpubLeaves leavesDefaults() {
   UNUSED_LEAF(bookmarks_row);
   UNUSED_LEAF(bookmarks_retain);
   UNUSED_LEAF(bookmarks_insert_front);
-
-  UNUSED_LEAF(clippings_export);
 
   UNUSED_LEAF(recents_remove);
   UNUSED_LEAF(recents_add);

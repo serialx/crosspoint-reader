@@ -1,5 +1,6 @@
 use super::session_section::Section as ReaderSection;
 use super::{abi, app_abi, state::Position, EpubSession, ResourceAccess, Text};
+use core::ptr::NonNull;
 
 impl EpubSession {
     pub(super) fn navigate_href(&self, href: &[u8], save: bool) {
@@ -243,17 +244,30 @@ impl EpubSession {
                 xpath: sync.xpath,
                 percentage: sync.percentage,
             };
-            let mut position = core::mem::MaybeUninit::<abi::XpEpubPosition>::uninit();
-            unsafe {
-                (self.leaves.progress_to_reader)(
-                    super::session_book::facade(book),
+            #[cfg(feature = "app-test")]
+            let legacy = unsafe {
+                super::test_support::legacy_progress::mapped(
+                    NonNull::new(book).unwrap(),
                     &saved,
                     spine,
                     count,
-                    position.as_mut_ptr(),
-                );
-                target_spine = (*position.as_ptr()).spine;
-                target_page = (*position.as_ptr()).page;
+                )
+            };
+            #[cfg(not(feature = "app-test"))]
+            let legacy: Option<abi::XpEpubPosition> = None;
+            if let Some(mapped) = legacy {
+                target_spine = mapped.spine;
+                target_page = mapped.page;
+            } else {
+                let access = self.lock_resources();
+                if let Some(reader) = NonNull::new(book)
+                    .and_then(|book| unsafe { super::session_book::reader_pointer(book) })
+                {
+                    let position =
+                        unsafe { self.mapped_progress(&access, reader, &saved, spine, count) };
+                    target_spine = position.spine;
+                    target_page = position.page;
+                }
             }
         }
         let access = self.lock_resources();
@@ -346,7 +360,7 @@ impl EpubSession {
         if let Some(hooks) = self.child_hooks {
             return unsafe { (hooks.save_progress)(hooks.context, spine, page, count) != 0 };
         }
-        let Some(book) = self.book(access) else {
+        let Some(_) = self.book(access) else {
             return false;
         };
         let mut offset = None;
@@ -365,23 +379,47 @@ impl EpubSession {
                 }
             }
         }
-        let position = abi::XpEpubPosition {
-            spine,
-            page,
-            count,
-            visible_offset: offset.unwrap_or(0),
-            has_visible_offset: u8::from(offset.is_some()),
-            paragraph: 0,
-            list_item: 0,
-            has_paragraph: 0,
-            has_list_item: 0,
-            resolved_spine: 0,
-            mapped_page: 0,
-            anchor: [0; 64],
-        };
-        unsafe {
-            (self.leaves.progress_save)(super::session_book::facade(book.as_ptr()), &position) != 0
+        #[cfg(feature = "app-test")]
+        if let Some(result) = unsafe {
+            super::test_support::legacy_progress::save_file(
+                self.book(access).unwrap(),
+                spine,
+                page,
+                count,
+                offset,
+            )
+        } {
+            return result;
         }
+        let mut data = [0; 10];
+        let size = xp_ui::reader::progress_encode(spine, page, count, offset, &mut data);
+        if size == 0 {
+            self.loop_log_formatted(
+                1,
+                b"ERS",
+                format_args!(
+                    "Progress values out of range: spine={spine} page={page} count={count}"
+                ),
+                &[],
+            );
+            return false;
+        }
+        let Some(cache) = self.cache_path(access, b"") else {
+            return false;
+        };
+        if unsafe { (self.leaves.progress_save)(cache.wire(), data.as_ptr(), size) } == 0 {
+            return false;
+        };
+        self.loop_log_formatted(
+            0,
+            b"ERS",
+            format_args!(
+                "Progress saved: spine={spine} offset={} page={page}",
+                offset.unwrap_or(0)
+            ),
+            &[],
+        );
+        true
     }
 
     pub(super) fn remember_offset(&self, access: &ResourceAccess<'_>) {

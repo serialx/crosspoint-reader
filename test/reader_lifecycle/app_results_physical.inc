@@ -154,12 +154,12 @@ void bindResultsPhysical() {
         assert(result == 0); ++results.inserts;
       }, nullptr);
   };
-  leaves.clippings_export = [](XpAppText title, XpAppText author, XpAppText chapter, int32_t, XpAppNativeText value) -> uint8_t {
+  legacyBook.clippings_export = [](XpAppText title, XpAppText author, XpAppText chapter, int32_t, XpAppNativeText value) -> uint8_t {
     borrowedUse("clip-export"); assert(!f().renderDepth && value.bytes.data == results.borrowedText);
     assert(text(title) == "Fixture" && text(author) == "Author" && text(chapter) == "Chapter");
     ++results.exports; return 1;
   };
-  leaves.progress_to_saved = [](void*, const XpEpubPosition*, XpEpubSavedProgressSink sink, void* context) -> uint8_t {
+  legacyBook.progress_to_saved = [](void*, const XpEpubPosition*, XpEpubSavedProgressSink sink, void* context) -> uint8_t {
     physical("progress-to-saved"); const XpEpubSavedProgress saved{literal("saved-xpath"), .25f}; return sink(context, &saved);
   };
   leaves.file_open_write = [](XpAppText path, XpAppText origin) -> void* {
@@ -173,7 +173,7 @@ void bindResultsPhysical() {
     assert(bytes && count == 9 && results.savedLinks.empty());
     results.savedLinks.assign(bytes, bytes + count); return count;
   };
-  leaves.progress_save = [](void*, const XpEpubPosition*) -> uint8_t { physical("progress-save", 1); return 1; };
+  legacyBook.progress_save = [](void*, const XpEpubPosition*) -> uint8_t { physical("progress-save", 1); return 1; };
   leaves.paint_status = [](const XpEpubStatus* out) { physical("status", 1); assert(out); };
   leaves.radio_status = [](XpEpubRadio* out, XpEpubPeer* peer) { physical("radio-status"); assert(!peer); *out = {}; };
   leaves.radio_settle_start = [] { physical("radio-settle", 1); };

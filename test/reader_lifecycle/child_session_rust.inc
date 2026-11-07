@@ -199,7 +199,7 @@ static void configureChildLeaves() {
     row.href = childText(notes[index].href);
     return sink(context, &row);
   };
-  childLeaves.physical.clippings_export = [](XpAppText title, XpAppText author, XpAppText chapter, int32_t page,
+  childLeaves.book.clippings_export = [](XpAppText title, XpAppText author, XpAppText chapter, int32_t page,
                                     XpAppNativeText text) -> uint8_t {
     assert(!lockDepth);
     return ClippingsManager::saveClipping(childString(title), childString(author), childString(chapter), page,
@@ -269,7 +269,7 @@ static void configureChildLeaves() {
   childLeaves.physical.framebuffer_restore = [](uint8_t owned) {
     assert(owned && activeChild->loan);
     activeChild->loan.reset();
-  };  childLeaves.physical.progress_to_saved = [](void* raw, const XpEpubPosition* position, XpEpubSavedProgressSink sink,
+  };  childLeaves.book.progress_to_saved = [](void* raw, const XpEpubPosition* position, XpEpubSavedProgressSink sink,
                                     void* context) -> uint8_t {
     assert(raw == activeChild->owner.epub.get());
     const auto saved = ProgressMapper::toSavedProgress(activeChild->owner.epub, CrossPointPosition{position->spine});

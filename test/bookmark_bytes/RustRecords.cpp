@@ -34,7 +34,7 @@ const Operations operations{
       receive(context, {reinterpret_cast<const uint8_t*>(input.c_str()), input.length()});
       return 1;
     },
-    [](Bytes path, Bytes data) -> uint8_t { return Storage.writeFile(string(path).c_str(), String(string(data))); },
+    [](Bytes path, Bytes data) -> uint8_t { return Storage.writeFileAtomic(string(path).c_str(), data.data, data.length); },
 };
 }  // namespace
 

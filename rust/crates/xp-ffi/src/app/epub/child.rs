@@ -297,16 +297,36 @@ impl EpubSession {
                     ..Default::default()
                 };
                 let added = self.insert_clipping(record, metadata.chapter(), result.text) as u8;
-                let exported = added == 0
-                    && unsafe {
-                        (self.leaves.clippings_export)(
+                let exported = added == 0 && {
+                    #[cfg(feature = "app-test")]
+                    let legacy = self.loop_book().and_then(|book| unsafe {
+                        super::test_support::legacy_progress::export(
+                            book,
                             metadata.title(),
                             metadata.author(),
                             metadata.chapter(),
                             i32::from(start) + 1,
                             result.text,
-                        ) != 0
+                        )
+                    });
+                    let export = || {
+                        self.export_clipping(
+                            unsafe { metadata.title().bytes() }.unwrap_or_default(),
+                            unsafe { metadata.author().bytes() }.unwrap_or_default(),
+                            unsafe { metadata.chapter().bytes() }.unwrap_or_default(),
+                            i32::from(start) + 1,
+                            unsafe { result.text.bytes.bytes() }.unwrap_or_default(),
+                        )
                     };
+                    #[cfg(feature = "app-test")]
+                    {
+                        legacy.unwrap_or_else(export)
+                    }
+                    #[cfg(not(feature = "app-test"))]
+                    {
+                        export()
+                    }
+                };
                 let message = if added == 1 {
                     Notice::ClipLimit
                 } else if exported {

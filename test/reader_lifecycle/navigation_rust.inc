@@ -143,8 +143,6 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(book.book_install_extractor);
   UNUSED_LEAF(book.book_clear_extractor);
   UNUSED_LEAF(book.book_protection_error);
-  UNUSED_LEAF(physical.progress_to_reader);
-  UNUSED_LEAF(physical.progress_to_saved);
   UNUSED_LEAF(physical.progress_save);
   UNUSED_LEAF(book.section.section_open);
   UNUSED_LEAF(book.section.section_close);
@@ -276,7 +274,6 @@ static const LegacyEpubLeaves leaves = [] {
 
 
 
-  UNUSED_LEAF(physical.clippings_export);
 
   UNUSED_LEAF(physical.recents_remove);
   UNUSED_LEAF(book.recents_add);
@@ -420,7 +417,7 @@ static const LegacyEpubLeaves leaves = [] {
     if (result) *offset = *result;
     return result.has_value();
   };
-  table.physical.progress_to_reader = [](void* book, const XpEpubSavedProgress* saved, int32_t spine,
+  table.book.progress_to_reader = [](void* book, const XpEpubSavedProgress* saved, int32_t spine,
                                  int32_t count, XpEpubPosition* out) {
     leaf();
     assert(book && saved && out);
@@ -430,7 +427,7 @@ static const LegacyEpubLeaves leaves = [] {
     out->spine = 4;
     out->page = 9;
   };
-  table.physical.progress_save = [](void* book, const XpEpubPosition* position) -> uint8_t {
+  table.book.progress_save = [](void* book, const XpEpubPosition* position) -> uint8_t {
     leaf();
     assert(book && position);
     std::printf("save %d %d %d %d %u\n", position->spine, position->page, position->count,

@@ -51,6 +51,8 @@ class HalStorage {
   // Write a string to `path` on the SD card. Overwrites existing file.
   // Returns true on success.
   bool writeFile(const char* path, const String& content);
+  // SDK text transaction over borrowed encoded bytes; retains StorageLock throughout.
+  bool writeFileAtomic(const char* path, const uint8_t* bytes, size_t size);
   // Ensure a directory exists, creating it if necessary. Returns true on success.
   bool ensureDirectoryExists(const char* path);
 

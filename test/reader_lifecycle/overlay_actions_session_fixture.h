@@ -164,8 +164,6 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.render_discard_bw = &OverlayUnexpected<decltype(table.render_discard_bw)>::call;
   table.render_orientation = &OverlayUnexpected<decltype(table.render_orientation)>::call;
   table.loan_count = &OverlayUnexpected<decltype(table.loan_count)>::call;
-  table.progress_to_reader = &OverlayUnexpected<decltype(table.progress_to_reader)>::call;
-  table.progress_to_saved = &OverlayUnexpected<decltype(table.progress_to_saved)>::call;
   table.progress_save = &OverlayUnexpected<decltype(table.progress_save)>::call;
   table.paint_dither = &OverlayUnexpected<decltype(table.paint_dither)>::call;
   table.paint_pixel = &OverlayUnexpected<decltype(table.paint_pixel)>::call;
@@ -246,7 +244,6 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.bookmarks_row = &OverlayUnexpected<decltype(table.bookmarks_row)>::call;
   table.bookmarks_retain = &OverlayUnexpected<decltype(table.bookmarks_retain)>::call;
   table.bookmarks_insert_front = &OverlayUnexpected<decltype(table.bookmarks_insert_front)>::call;
-  table.clippings_export = &OverlayUnexpected<decltype(table.clippings_export)>::call;
   table.recents_remove = &OverlayUnexpected<decltype(table.recents_remove)>::call;
   table.recents_add = &OverlayUnexpected<decltype(table.recents_add)>::call;
   table.recents_update_path = &OverlayUnexpected<decltype(table.recents_update_path)>::call;

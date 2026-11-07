@@ -460,3 +460,13 @@ pub(super) unsafe fn assert_real(raw: NonNull<c_void>) {
         Loaded::Reader(_)
     ));
 }
+
+pub(super) unsafe fn reader_pointer(raw: NonNull<c_void>) -> Option<NonNull<c_void>> {
+    #[cfg(feature = "app-test")]
+    return match unsafe { &*raw.cast::<Loaded>().as_ptr() } {
+        Loaded::Reader(book) => Some(*book),
+        Loaded::Legacy { .. } => None,
+    };
+    #[cfg(not(feature = "app-test"))]
+    Some(raw)
+}

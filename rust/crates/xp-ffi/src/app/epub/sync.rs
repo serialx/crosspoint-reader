@@ -63,39 +63,43 @@ impl EpubSession {
         book: NonNull<c_void>,
         position: &abi::XpEpubPosition,
     ) -> Option<SavedProgress> {
-        unsafe extern "C" fn capture(
-            context: *mut c_void,
-            row: *const abi::XpEpubSavedProgress,
-        ) -> u8 {
-            let Some(row) = row.as_ref() else { return 0 };
-            let Some(bytes) = row.xpath.bytes() else {
-                return 0;
-            };
-            let Ok(xpath) = Text::copy(bytes) else {
-                return 0;
-            };
-            *context.cast::<Option<SavedProgress>>() = Some(SavedProgress {
-                xpath,
-                percentage: row.percentage,
-            });
-            1
-        }
         self.check_resources(access);
+
         let loan = super::section_owner::FramebufferLoan::new(
             self.leaves.framebuffer_lend,
             self.leaves.framebuffer_restore,
         );
-        let mut saved: Option<SavedProgress> = None;
-        unsafe {
-            (self.leaves.progress_to_saved)(
-                super::session_book::facade(book.as_ptr()),
-                position,
-                capture,
-                (&mut saved as *mut Option<SavedProgress>).cast(),
-            );
-            drop(loan);
+
+        #[cfg(feature = "app-test")]
+        {
+            let mut saved = None;
+            if unsafe {
+                super::test_support::legacy_progress::saved(book, position, |row| {
+                    let Some(bytes) = row.xpath.bytes() else {
+                        return 0;
+                    };
+                    let Ok(xpath) = Text::copy(bytes) else {
+                        return 0;
+                    };
+                    saved = Some(SavedProgress {
+                        xpath,
+                        percentage: row.percentage,
+                    });
+                    1
+                })
+            }
+            .is_some()
+            {
+                return saved;
+            }
         }
-        saved
+        let reader = unsafe { super::session_book::reader_pointer(book) }?;
+        let saved = unsafe { self.saved_progress(access, reader, position) };
+        drop(loan);
+        saved.map(|saved| SavedProgress {
+            xpath: saved.xpath,
+            percentage: saved.percentage,
+        })
     }
 
     fn replace_with_sync(

@@ -13,6 +13,7 @@
 #include <Epub/hyphenation/Hyphenator.h>
 #include <FontCacheManager.h>
 #include <GfxRenderer.h>
+#include <HalClock.h>
 #include <HalDisplay.h>
 #include <HalGPIO.h>
 #include <HalStorage.h>
@@ -43,10 +44,10 @@
 #include "CrossPointState.h"
 #include "EndOfBookOptions.h"
 #include "EpubReaderBookmarksActivity.h"
-#include "EpubReaderUtils.h"
 #include "KOReaderCredentialStore.h"
 #include "KOReaderSyncActivity.h"
 #include "MappedInputManager.h"
+#include "ProgressFile.h"
 #include "ReaderFontSizes.h"
 #include "ReaderUtils.h"
 #include "RecentBooksStore.h"
@@ -59,7 +60,6 @@
 #include "activities/RenderLock.h"
 #include "activities/network/WifiSelectionActivity.h"
 #include "activities/settings/TextSettingsActivity.h"
-#include "clippings/ClippingsManager.h"
 #include "components/OptionPopup.h"
 #include "components/RustInputSnapshot.h"
 #include "components/UITheme.h"
@@ -437,21 +437,7 @@ CrossPointPosition position(const XpEpubPosition& value) {
   memcpy(result.xpathAnchorId, value.anchor, sizeof(result.xpathAnchorId));
   return result;
 }
-void position(const CrossPointPosition& value, XpEpubPosition& result) {
-  result = {};
-  result.spine = value.spineIndex;
-  result.page = value.pageNumber;
-  result.count = value.totalPages;
-  result.visible_offset = value.visibleTextOffset;
-  result.has_visible_offset = value.hasVisibleTextOffset;
-  result.paragraph = value.paragraphIndex;
-  result.has_paragraph = value.hasParagraphIndex;
-  result.list_item = value.liIndex;
-  result.has_list_item = value.hasLiIndex;
-  result.resolved_spine = value.hasResolvedSpineIndex;
-  result.mapped_page = value.hasMappedPage;
-  memcpy(result.anchor, value.xpathAnchorId, sizeof(result.anchor));
-}
+
 }  // namespace
 
 const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager& input) {
@@ -538,22 +524,9 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .file_seek = [](void* file, uint32_t offset) -> uint8_t { return static_cast<HalFile*>(file)->seek(offset); },
       .file_size = [](void* file) -> uint32_t { return static_cast<HalFile*>(file)->size(); },
       .path_remove_tree = [](XpAppText path) -> uint8_t { return Storage.removeDir(pathText(path)); },
-      .progress_to_reader =
-          [](void* handle, const XpEpubSavedProgress* saved, int32_t spine, int32_t count, XpEpubPosition* out) {
-            const auto value = ProgressMapper::toCrossPoint(book(handle).book, {owned(saved->xpath), saved->percentage},
-                                                            *target, spine, count);
-            position(value, *out);
-          },
-      .progress_to_saved = [](void* handle, const XpEpubPosition* source, XpEpubSavedProgressSink sink,
-                              void* context) -> uint8_t {
-        const auto value = ProgressMapper::toSavedProgress(book(handle).book, position(*source));
-        const XpEpubSavedProgress view{text(value.xpath), value.percentage};
-        return sink(context, &view);
-      },
-      .progress_save = [](void* handle, const XpEpubPosition* value) -> uint8_t {
-        return EpubReaderUtils::saveProgress(
-            book(handle).value(), value->spine, value->page, value->count,
-            value->has_visible_offset ? std::optional<uint32_t>(value->visible_offset) : std::nullopt);
+
+      .progress_save = [](XpAppText cachePath, const uint8_t* bytes, uint32_t size) -> uint8_t {
+        return ProgressFile::writeAtomic(owned(cachePath), bytes, size);
       },
       .paint_dither = [](int32_t x, int32_t y, int32_t width,
                          int32_t height) { target->fillRectDither(x, y, width, height, Color::LightGray); },
@@ -842,10 +815,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         bookmarkRows(handle).insert(bookmarkRows(handle).begin(), std::move(entry));
         return 1;
       },
-      .clippings_export = [](XpAppText title, XpAppText author, XpAppText chapter, int32_t percent,
-                             XpAppNativeText value) -> uint8_t {
-        return ClippingsManager::saveClipping(owned(title), owned(author), owned(chapter), percent, borrowed(value));
-      },
+
       .recents_remove = [](XpAppText path) -> uint8_t { return RECENT_BOOKS.removeByPath(owned(path)); },
       .recents_add =
           [](const XpAppBook* value) {
@@ -1041,6 +1011,21 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
                           fui::Paint::solid(paint == 1 ? fui::Color::White : fui::Color::Black));
             target->setClipRect(previous[0], previous[1], previous[2], previous[3]);
           },
+
+      .local_calendar = [](XpEpubCalendar* out) -> uint8_t {
+        struct tm local;
+        if (!halClock.localTime(local)) return 0;
+        *out = {local.tm_year, local.tm_mon, local.tm_mday, local.tm_wday, local.tm_hour, local.tm_min};
+        return 1;
+      },
+      .storage_read_file = [](XpAppText path, XpAppTextSink sink, void* context) -> uint8_t {
+        const String bytes = Storage.readFile(pathText(path));
+        if (bytes.isEmpty()) return 0;
+        return sink(context, {reinterpret_cast<const uint8_t*>(bytes.c_str()), bytes.length()});
+      },
+      .storage_write_file_atomic = [](XpAppText path, const uint8_t* bytes, uint32_t size) -> uint8_t {
+        return Storage.writeFileAtomic(pathText(path), bytes, size);
+      },
 
   };
   if (!sectionMetrics.context) sectionMetrics.context = target;

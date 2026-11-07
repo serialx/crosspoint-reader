@@ -6,6 +6,7 @@ mod base;
 mod book;
 pub(super) mod book_owner;
 mod book_render;
+mod bookmark_storage;
 mod bookmarks;
 mod build;
 mod child;

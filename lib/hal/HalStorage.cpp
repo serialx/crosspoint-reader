@@ -183,6 +183,32 @@ bool HalStorage::writeFile(const char* path, const String& content) {
   HAL_STORAGE_WRAPPED_CALL(writeFile, path, content);
 }
 
+bool HalStorage::writeFileAtomic(const char* path, const uint8_t* bytes, const size_t size) {
+  StorageLock lock;
+  if (!SDCard.ready()) {
+    if (logSerial) logSerial.println("SDCardManager: not initialized; cannot write file");
+    return false;
+  }
+  // Keep the pinned SDK writeFile transaction, including close and replacement failures.
+  const String tmp = String(path) + ".tmp";
+  FsFile f;
+  if (!SDCard.openFileForWrite("SD", tmp.c_str(), f)) {
+    if (logSerial) logSerial.printf("Failed to open file for write: %s\n", tmp.c_str());
+    return false;
+  }
+  const bool complete = f.write(bytes, size) == size;
+  if (!f.close() || !complete) {
+    if (logSerial) logSerial.printf("Short write, keeping previous %s\n", path);
+    SDCard.remove(tmp.c_str());
+    return false;
+  }
+  if (!SDCard.replaceFile(tmp.c_str(), path)) {
+    SDCard.remove(tmp.c_str());
+    return false;
+  }
+  return true;
+}
+
 bool HalStorage::ensureDirectoryExists(const char* path) { HAL_STORAGE_WRAPPED_CALL(ensureDirectoryExists, path); }
 
 class HalFile::Impl {

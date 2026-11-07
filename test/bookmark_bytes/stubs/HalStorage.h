@@ -2,6 +2,7 @@
 #include <Arduino.h>
 
 #include <algorithm>
+#include <cassert>
 #include <map>
 #include <set>
 #include <string>
@@ -16,6 +17,7 @@ inline std::map<std::string, unsigned> calls;
 inline std::string fail;
 inline unsigned failAt = 1;
 inline std::map<std::string, unsigned> failures;
+inline unsigned lockDepth = 0, lockEpoch = 0;
 inline size_t writeLimit = SIZE_MAX;
 inline size_t readLimit = SIZE_MAX;
 inline bool event(const std::string& op, const std::string& detail) {
@@ -35,25 +37,30 @@ class FsFile {
   std::string path;
   size_t position = 0;
   bool opened = false;
+  unsigned epoch = 0;
 
  public:
   FsFile() = default;
-  FsFile(std::string p, bool ok) : path(std::move(p)), opened(ok) {}
+  FsFile(std::string p, bool ok) : path(std::move(p)), opened(ok), epoch(bookmark_test::lockEpoch) {}
   explicit operator bool() const { return opened; }
   bool available() const { return position < std::min(bookmark_test::files.at(path).size(), bookmark_test::readLimit); }
   int read() {
+    assert(bookmark_test::lockDepth == 1 && epoch == bookmark_test::lockEpoch);
     using namespace bookmark_test;
     if (!event("read", std::to_string(position))) return -1;
     return static_cast<unsigned char>(files.at(path)[position++]);
   }
-  size_t print(const String& text) {
+  size_t print(const String& text) { return write(reinterpret_cast<const uint8_t*>(text.c_str()), text.length()); }
+  size_t write(const uint8_t* bytes, size_t size) {
     using namespace bookmark_test;
-    size_t count = event("write", std::to_string(text.length())) ? std::min<size_t>(text.length(), writeLimit) : 0;
-    files[path].append(text.c_str(), count);
+    assert(lockDepth == 1 && epoch == lockEpoch);
+    size_t count = event("write", std::to_string(size)) ? std::min<size_t>(size, writeLimit) : 0;
+    files[path].append(reinterpret_cast<const char*>(bytes), count);
     io.push_back("written:" + std::to_string(count));
     return count;
   }
   bool close() {
+    assert(bookmark_test::lockDepth == 1 && epoch == bookmark_test::lockEpoch);
     opened = false;
     return bookmark_test::event("close", bookmark_test::hex(path));
   }
@@ -118,10 +125,39 @@ class SDCardManager {
   PhysicalVolume& vol() { return volume; }
 
  public:
+  bool ready() const { return initialized; }
   String readFile(const char* path);
   bool writeFile(const char* path, const String& content);
   bool openFileForRead(const char* moduleName, const char* path, FsFile& file);
   bool openFileForWrite(const char* moduleName, const char* path, FsFile& file);
 #include "SdkInline.inc"
 };
-inline SDCardManager Storage;
+inline SDCardManager SDCard;
+class HalStorage {
+ public:
+  struct StorageLock {
+    StorageLock() {
+      assert(bookmark_test::lockDepth++ == 0);
+      ++bookmark_test::lockEpoch;
+    }
+    ~StorageLock() { assert(--bookmark_test::lockDepth == 0); }
+  };
+  String readFile(const char* path) {
+    StorageLock lock;
+    return SDCard.readFile(path);
+  }
+  bool writeFile(const char* path, const String& value) {
+    StorageLock lock;
+    return SDCard.writeFile(path, value);
+  }
+  bool writeFileAtomic(const char* path, const uint8_t* bytes, size_t size);
+  bool exists(const char* path) {
+    StorageLock lock;
+    return SDCard.exists(path);
+  }
+  bool mkdir(const char* path) {
+    StorageLock lock;
+    return SDCard.mkdir(path);
+  }
+};
+inline HalStorage Storage;

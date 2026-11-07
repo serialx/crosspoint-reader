@@ -82,6 +82,10 @@ struct XpEpubLegacyBookServices {
   void (*clippings_unload)();
   void (*recents_add)(void* book);
   XpEpubLegacyChildren children = unexpectedLegacyChildren();
+  uint8_t (*progress_to_saved)(void*, const XpEpubPosition*, XpEpubSavedProgressSink, void*) = nullptr;
+  void (*progress_to_reader)(void*, const XpEpubSavedProgress*, int32_t, int32_t, XpEpubPosition*) = nullptr;
+  uint8_t (*progress_save)(void*, const XpEpubPosition*) = nullptr;
+  uint8_t (*clippings_export)(XpAppText, XpAppText, XpAppText, int32_t, XpAppNativeText) = nullptr;
 };
 struct LegacyEpubLeaves {
   XpEpubLeaves physical;

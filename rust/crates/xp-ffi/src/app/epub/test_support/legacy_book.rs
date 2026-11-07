@@ -76,6 +76,28 @@ pub struct LegacyBookServices {
     pub clippings_unload: Option<unsafe extern "C" fn()>,
     pub recents_add: unsafe extern "C" fn(book: *mut core::ffi::c_void),
     pub children: super::legacy_children::LegacyChildren,
+    pub progress_to_saved: Option<
+        unsafe extern "C" fn(
+            *mut core::ffi::c_void,
+            *const XpEpubPosition,
+            super::legacy_progress::SavedSink,
+            *mut core::ffi::c_void,
+        ) -> u8,
+    >,
+    pub progress_to_reader: Option<
+        unsafe extern "C" fn(
+            *mut core::ffi::c_void,
+            *const XpEpubSavedProgress,
+            i32,
+            i32,
+            *mut XpEpubPosition,
+        ),
+    >,
+    pub progress_save:
+        Option<unsafe extern "C" fn(*mut core::ffi::c_void, *const XpEpubPosition) -> u8>,
+    pub clippings_export: Option<
+        unsafe extern "C" fn(XpAppText, XpAppText, XpAppText, i32, app_abi::XpAppNativeText) -> u8,
+    >,
 }
 
 // Only this named constructor opts an application fixture into synthetic books.

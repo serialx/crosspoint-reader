@@ -37,8 +37,6 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.file_seek = &AppFixtureUnexpected<decltype(value.file_seek), 23>::call;
   value.file_size = &AppFixtureUnexpected<decltype(value.file_size), 24>::call;
   value.path_remove_tree = &AppFixtureUnexpected<decltype(value.path_remove_tree), 25>::call;
-  value.progress_to_reader = &AppFixtureUnexpected<decltype(value.progress_to_reader), 26>::call;
-  value.progress_to_saved = &AppFixtureUnexpected<decltype(value.progress_to_saved), 27>::call;
   value.progress_save = &AppFixtureUnexpected<decltype(value.progress_save), 28>::call;
   value.paint_dither = &AppFixtureUnexpected<decltype(value.paint_dither), 62>::call;
   value.paint_pixel = &AppFixtureUnexpected<decltype(value.paint_pixel), 63>::call;
@@ -119,7 +117,6 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.bookmarks_row = &AppFixtureUnexpected<decltype(value.bookmarks_row), 152>::call;
   value.bookmarks_retain = &AppFixtureUnexpected<decltype(value.bookmarks_retain), 153>::call;
   value.bookmarks_insert_front = &AppFixtureUnexpected<decltype(value.bookmarks_insert_front), 154>::call;
-  value.clippings_export = &AppFixtureUnexpected<decltype(value.clippings_export), 161>::call;
   value.recents_remove = &AppFixtureUnexpected<decltype(value.recents_remove), 163>::call;
   value.recents_add = &AppFixtureUnexpected<decltype(value.recents_add), 164>::call;
   value.recents_update_path = &AppFixtureUnexpected<decltype(value.recents_update_path), 165>::call;

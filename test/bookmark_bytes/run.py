@@ -8,6 +8,7 @@ import pathlib
 import struct
 import subprocess
 import sys
+from prepare_native import prepare
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
@@ -143,6 +144,8 @@ def main():
     if args.rust_owner and args.capture_baseline:
         parser.error('Rust candidate cannot capture the native golden')
     args.build.mkdir(parents=True, exist_ok=True)
+    frozen = args.build / 'native'
+    frozen_manifest = prepare(frozen)
     sdk = ROOT/'freeink-sdk'
     assert subprocess.check_output(['git', '-C', str(sdk), 'rev-parse', 'HEAD'], text=True).strip() == SDK
     sources = [ROOT/'src/util/BookmarkFile.cpp', ROOT/'src/util/BookmarkFile.h',
@@ -151,11 +154,11 @@ def main():
                ROOT/'rust/crates/xp-ffi/src/settings.rs',
                ROOT/'lib/hal/HalStorage.cpp', ROOT/'platformio.ini', ROOT/'rust/Cargo.lock']
     manifest = dict(head=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
-                    sdk=SDK, sources={str(p.relative_to(ROOT)):sha(p.read_bytes()) for p in sources},
+                    sdk=SDK, sources={str(p.relative_to(ROOT)):sha((p if p.exists() else frozen/p.relative_to(ROOT)).read_bytes()) for p in sources}, native_oracle=frozen_manifest,
                     extraction=[], arduinojson={str(p.relative_to(args.arduinojson)):sha(p.read_bytes())
                                               for p in sorted(args.arduinojson.rglob('*')) if p.is_file()})
     if args.rust_owner:
-        manifest['owner'] = 'Rust app::bookmarks, extracted whole SDK transactions'
+        manifest['owner'] = 'Rust app::bookmarks, SDK whole-file read and actual HalStorage atomic byte writer'
         for source in sorted((ROOT/'rust/crates/xp-ffi/src/app/bookmarks').glob('*.rs')):
             manifest['sources'][str(source.relative_to(ROOT))] = sha(source.read_bytes())
         for source in [HERE/'RustRecords.h', HERE/'RustRecords.cpp']:
@@ -169,7 +172,7 @@ def main():
                'bool SDCardManager::openFileForWrite(const char* moduleName, const char* path, FsFile& file)'],
          args.build/'SdkStorage.cpp'),
         (header, ['bool mkdir(const char* path, const bool pFlag = true)',
-                  'bool exists(const char* path)', 'bool replaceFile(const char* tmpPath, const char* path)'],
+                  'bool exists(const char* path)', 'bool remove(const char* path)', 'bool replaceFile(const char* tmpPath, const char* path)'],
          args.build/'SdkInline.inc')]:
         pinned = subprocess.check_output(['git', '-C', str(sdk), 'show', SDK+':'+str(source.relative_to(sdk))])
         assert source.read_bytes() == pinned, f'SDK source differs from pinned {SDK}: {source}'
@@ -184,17 +187,23 @@ def main():
                                                sha256=sha(body.encode())))
             pieces.append(body)
         output.write_text(('#include <HalStorage.h>\n' if source == cpp else '') + '\n\n'.join(pieces)+'\n')
+    hal_source = ROOT/'lib/hal/HalStorage.cpp'
+    hal_body, start, end = extract(hal_source.read_text(), 'bool HalStorage::writeFileAtomic(')
+    (args.build/'HalAtomic.cpp').write_text('#include <HalStorage.h>\n' + hal_body + '\n')
+    manifest['extraction'].append(dict(source=str(hal_source.relative_to(ROOT)),
+        file_sha256=sha(hal_source.read_bytes()), signature='bool HalStorage::writeFileAtomic(',
+        sha256=sha(hal_body.encode()), start_byte=start, end_byte=end))
     flags = ['-DARDUINOJSON_ENABLE_ARDUINO_STRING=1', '-DARDUINOJSON_ENABLE_ARDUINO_STREAM=0',
              '-DARDUINOJSON_ENABLE_ARDUINO_PRINT=0', '-DARDUINOJSON_ENABLE_PROGMEM=0',
              '-DARDUINOJSON_SIZEOF_POINTER=4']
     if args.rust_owner:
         flags.append('-DBOOKMARK_RUST_ORACLE=1')
-    include = [HERE/'stubs', args.build, ROOT, ROOT/'src', ROOT/'lib/Serialization',
+    include = [HERE/'stubs', frozen, frozen/'src', args.build, ROOT, ROOT/'src', ROOT/'src/util', ROOT/'lib/Serialization',
                ROOT/'rust/crates/xp-ffi/include', args.arduinojson]
     cmd = ['c++', '-std=c++20', '-O2', '-ffp-contract=off', '-ffunction-sections', '-fdata-sections', *flags,
            *['-I'+str(p) for p in include], str(HERE/'Oracle.cpp'),
-           str(HERE/'RustRecords.cpp' if args.rust_owner else ROOT/'src/util/BookmarkFile.cpp'), str(ROOT/'src/util/BookmarkUtil.cpp'),
-           str(ROOT/'lib/Serialization/PersistableStore.cpp'), str(args.build/'SdkStorage.cpp'),
+           str(HERE/'RustRecords.cpp' if args.rust_owner else frozen/'src/util/BookmarkFile.cpp'), str(ROOT/'src/util/BookmarkUtil.cpp'),
+           str(ROOT/'lib/Serialization/PersistableStore.cpp'), str(args.build/'SdkStorage.cpp'), str(args.build/'HalAtomic.cpp'),
            str(ROOT/'test/cmake/xp_ffi_host.cpp'), str(args.archive),
            '-Wl,-dead_strip' if sys.platform == 'darwin' else '-Wl,--gc-sections', '-o', str(args.build/'oracle')]
     manifest['proof_boundary'] = {

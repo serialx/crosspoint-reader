@@ -176,8 +176,6 @@ static LegacyEpubLeaves leavesDefaults() {
   UNUSED_LEAF(physical.render_discard_bw);
   UNUSED_LEAF(physical.render_orientation);
   UNUSED_LEAF(physical.loan_count);
-  UNUSED_LEAF(physical.progress_to_reader);
-  UNUSED_LEAF(physical.progress_to_saved);
   UNUSED_LEAF(physical.progress_save);
   UNUSED_LEAF(book.section.section_open);
   UNUSED_LEAF(book.section.section_close);
@@ -309,7 +307,6 @@ static LegacyEpubLeaves leavesDefaults() {
 
 
 
-  UNUSED_LEAF(physical.clippings_export);
 
   UNUSED_LEAF(physical.recents_remove);
   UNUSED_LEAF(book.recents_add);

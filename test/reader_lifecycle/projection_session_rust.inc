@@ -164,8 +164,6 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(book.book_install_extractor);
   UNUSED_LEAF(book.book_clear_extractor);
   UNUSED_LEAF(book.book_protection_error);
-  UNUSED_LEAF(physical.progress_to_reader);
-  UNUSED_LEAF(physical.progress_to_saved);
   UNUSED_LEAF(physical.progress_save);
   UNUSED_LEAF(book.section.section_open);
   UNUSED_LEAF(book.section.section_close);
@@ -297,7 +295,6 @@ static const LegacyEpubLeaves leaves = [] {
 
 
 
-  UNUSED_LEAF(physical.clippings_export);
 
   UNUSED_LEAF(physical.recents_remove);
   UNUSED_LEAF(book.recents_add);

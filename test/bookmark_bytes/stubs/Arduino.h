@@ -38,4 +38,5 @@ struct HostSerial {
   void println(const char*) {}
 };
 inline HostSerial Serial;
+inline HostSerial& logSerial = Serial;
 inline unsigned long millis() { return 0; }

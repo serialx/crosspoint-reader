@@ -185,38 +185,31 @@ impl EpubSession {
             (self.model(|state| state.current.page), count)
         };
         let position = self.loop_current_position();
-        struct Context<'a> {
-            owner: &'a EpubSession,
-            book: NonNull<c_void>,
-            page: i32,
-            count: i32,
+        #[cfg(feature = "app-test")]
+        if unsafe {
+            super::test_support::legacy_progress::saved(book, &position, |saved| {
+                u8::from(self.commit_bookmark(book, page, count, saved))
+            })
         }
-        unsafe extern "C" fn saved(
-            context: *mut c_void,
-            saved: *const abi::XpEpubSavedProgress,
-        ) -> u8 {
-            let context = &*context.cast::<Context<'_>>();
-            u8::from(context.owner.commit_bookmark(
-                context.book,
-                context.page,
-                context.count,
-                &*saved,
-            ))
+        .is_some()
+        {
+            return;
         }
-        let mut context = Context {
-            owner: self,
-            book,
-            page,
-            count,
+
+        let saved = {
+            let access = self.lock_resources();
+            let Some(reader) = (unsafe { super::session_book::reader_pointer(book) }) else {
+                return;
+            };
+            unsafe { self.saved_progress(&access, reader, &position) }
         };
-        unsafe {
-            (self.leaves.progress_to_saved)(
-                super::session_book::facade(book.as_ptr()),
-                &position,
-                saved,
-                (&mut context as *mut Context<'_>).cast(),
-            )
-        };
+        if let Some(saved) = saved {
+            let wire = abi::XpEpubSavedProgress {
+                xpath: saved.xpath.wire(),
+                percentage: saved.percentage,
+            };
+            self.commit_bookmark(book, page, count, &wire);
+        }
     }
 
     fn commit_bookmark(

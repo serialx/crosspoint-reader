@@ -51,7 +51,7 @@ methods = "\n".join(block(viewer, signature) for signature in (
     "uint8_t DictionaryDefinitionActivity::acceptSelectionResult",
 ))
 # The small widget fixture hands native launches to its local child slot; real App
-# ownership and publication are exercised by definition_transfer/composition.py.
+# ownership and publication are exercised by definition_session/composition.py.
 methods = methods.replace("void DictionaryDefinitionActivity::startSelection(const int x, const int y) {",
                           "void DictionaryDefinitionActivity::startSelection(const int x, const int y) {\n  widgetViewer = this;")
 methods = methods.replace("xp_app_event(&event)", "widgetEvent(&event)")
@@ -122,6 +122,7 @@ harness = r'''
 #include <Utf8.h>
 #include <Memory.h>
 #include "activities/ActivityResult.h"
+#include "definition_session/legacy_wire.h"
 #include "activities/reader/DefinitionQuery.h"
 #include "components/HeaderBackTapTarget.h"
 #define LOG_ERR(...) ((void)0)
@@ -725,8 +726,6 @@ owner_sources = [
     ROOT / 'rust/crates/xp-ffi/src/app/epub/child.rs',
     ROOT / 'rust/crates/xp-ffi/src/app/epub/child_result.rs',
     ROOT / 'src/activities/reader/RustReaderLookup.cpp',
-    ROOT / 'src/activities/reader/DictionaryDefinitionActivity.h',
-    ROOT / 'src/activities/reader/DictionaryDefinitionActivity.cpp',
     parent_adapter, Path(__file__),
 ]
 owner_hashes = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in owner_sources}

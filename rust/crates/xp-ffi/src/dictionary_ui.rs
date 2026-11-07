@@ -1,11 +1,12 @@
 //! Thin private ABI wrappers; dictionary screen policy and drawing live in xp-ui.
 use core::ffi::c_char;
 use xp_core::glyph::GlyphTarget;
+#[cfg(feature = "app-test")]
+use xp_ui::{dictionary::definition, model::Effect, scene::Rect};
 use xp_ui::{
-    dictionary::{definition, ffi as screen, paint, popup, selection},
+    dictionary::{ffi as screen, paint, popup, selection},
     ffi::{Buffer, Metrics, SceneView},
-    model::{Effect, Input},
-    scene::Rect,
+    model::Input,
 };
 macro_rules! forward {
     ($name:ident($($arg:ident:$ty:ty),* $(,)?) -> $ret:ty, $target:ident) => {
@@ -81,6 +82,7 @@ forward!(
     ) -> u8,
     selection_paint
 );
+#[cfg(feature = "app-test")]
 forward!(
     xp_ui_definition_update(
         state: *mut definition::State,
@@ -93,18 +95,10 @@ forward!(
     ) -> Effect,
     definition_update
 );
+#[cfg(feature = "app-test")]
 forward!(
     xp_ui_definition_body(layout: *const definition::Layout) -> Rect,
     definition_body
-);
-forward!(
-    xp_ui_definition_view(
-        state: *const definition::State,
-        layout: *const definition::Layout,
-        buffer: *const Buffer,
-        out: *mut SceneView,
-    ) -> u8,
-    definition_view
 );
 #[cfg(feature = "app-test")]
 forward!(

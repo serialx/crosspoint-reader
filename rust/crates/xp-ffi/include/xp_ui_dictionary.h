@@ -114,10 +114,6 @@ typedef enum {
   XP_UI_DEFINITION_SELECT,
   XP_UI_DEFINITION_TOUCH_SELECT
 } XpUiDefinitionEffect;
-XpUiEffect xp_ui_definition_update(XpUiDefinitionState*, const XpUiInput*, uint8_t tap, uint8_t long_press,
-                                   uint8_t header_long_press, int32_t screen_width, uint8_t touch_controls);
-XpUiRect xp_ui_definition_body(const XpUiDefinitionLayout*);
-uint8_t xp_ui_definition_view(const XpUiDefinitionState*, const XpUiDefinitionLayout*, const XpUiBuffer*, XpUiScene*);
 
 typedef struct {
   XpUiRect screen;

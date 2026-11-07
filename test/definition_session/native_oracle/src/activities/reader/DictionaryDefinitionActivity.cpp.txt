@@ -1,29 +1,3 @@
-#include "DictionaryDefinitionActivity.h"
-
-#include <BidiUtils.h>
-#include <FontCacheManager.h>
-#include <GfxRenderer.h>
-#include <HalMemory.h>
-#include <I18n.h>
-#include <Logging.h>
-#include <Memory.h>
-#include <Utf8.h>
-
-#include <algorithm>
-#include <atomic>
-#include <cstdint>
-#include <cstdio>
-
-#include "CrossPointSettings.h"
-#include "DictionaryUiBindings.h"
-#include "HapticFeedback.h"
-#include "ReaderUtils.h"
-#include "activities/OwnedLegacyActivity.h"
-#include "components/HeaderBackTapTarget.h"
-#include "components/UITheme.h"
-#include "util/DictHtmlPages.h"
-#include "util/HtmlToPlainText.h"
-
 namespace {
 
 // Longest measurable/drawable span. Wrapped lines stay under the screen width
@@ -161,23 +135,7 @@ struct DictionaryDefinitionActivity::PlainSelectionLine {
   }
 };
 
-// cppcheck-suppress constParameterReference // the lookup state holds the dictionary by non-const reference
-bool DictionaryDefinitionActivity::enableLookup(Dictionary& dictionary, std::string&& query) {
-  lookup = makeUniqueNoThrow<LookupState>(dictionary);
-  if (!lookup) LOG_ERR("DICT", "OOM: lookup history (%u bytes)", static_cast<unsigned>(sizeof(LookupState)));
-  if (lookup) lookup->query = std::move(query);
-  return lookup != nullptr;
-}
 
-void DictionaryDefinitionActivity::onEnter() {
-  Activity::onEnter();
-  initialLayoutFailed = !prepareDefinition(content);
-  if (initialLayoutFailed) {
-    content.lines.clear();
-    showMessage(StrId::STR_DICT_LOW_MEMORY);
-  }
-  requestUpdate();
-}
 
 bool DictionaryDefinitionActivity::prepareDefinition(Definition& next, const bool forcePlain) {
   std::replace(next.text.begin(), next.text.end(), '\0', '\n');
@@ -194,22 +152,12 @@ bool DictionaryDefinitionActivity::prepareDefinition(Definition& next, const boo
   return wrapText(next);
 }
 
-void DictionaryDefinitionActivity::onExit() {
-  Activity::onExit();
-  if (auto* fcm = renderer.getFontCacheManager()) {
-    fcm->releaseSdFontCaches();
-  }
-}
-
 DictionaryDefinitionActivity::BodyArea DictionaryDefinitionActivity::bodyArea() const {
   const auto layout = dictionaryUiDefinitionLayout(renderer);
   const auto body = xp_ui_definition_body(&layout);
   return {body.x, body.y, body.w, body.h};
 }
 
-// Styled path: lay the HTML definition out through the EPUB chapter parser
-// into reader-identical Pages. Frees `definition` on success (the page arenas
-// own the text); any failure leaves state untouched for the plain-text path.
 bool DictionaryDefinitionActivity::layoutHtmlPages(Definition& next) {
   auto& definition = next.text;
   auto& pages = next.pages;
@@ -612,7 +560,6 @@ void DictionaryDefinitionActivity::startSelection(const int x, const int y) {
   }
 }
 
-// Called under the bridge's RenderLock, after child destruction and publication.
 XpDefinitionSelection DictionaryDefinitionActivity::prepareSelectionResult(const ActivityResult& result) {
   XpDefinitionSelection out{};
   lookup->selectionPages.clear();
@@ -658,12 +605,6 @@ uint8_t DictionaryDefinitionActivity::acceptSelectionResult(XpDefinitionSelectio
     lookup->pendingWord = OwnedSelectionText(result.text);
   }
   return 1;
-}
-
-void DictionaryDefinitionActivity::selectionInstallFailed() {
-  RenderLock lock;
-  lookup->selectionPages.clear();
-  showMessage(StrId::STR_DICT_LOW_MEMORY);
 }
 
 void DictionaryDefinitionActivity::loop() {
@@ -745,35 +686,6 @@ void DictionaryDefinitionActivity::applyNavigation(const XpUiEffect& effect, int
   }
 }
 
-// Draws the current page: a styled Page when the HTML layout succeeded,
-// otherwise the wrapped line spans (copied into a stack buffer for NUL
-// termination). Called twice per render: once in font-cache scan mode, once
-// for the real paint.
-void DictionaryDefinitionActivity::drawBody(const int fontId, const int x, const int startY,
-                                            const int currentPage) const {
-  const auto& pages = content.pages;
-  const auto& lines = content.lines;
-  const auto& definition = content.text;
-  const int linesPerPage = content.linesPerPage;
-  if (!pages.empty()) {
-    pages[currentPage]->render(renderer, fontId, x, startY);
-    return;
-  }
-  const int lineHeight = renderer.getLineHeight(fontId, PLAIN_TEXT_LINE_SPACING);
-  char buf[MAX_LINE_BYTES + 1];
-  const int firstLine = currentPage * linesPerPage;
-  const int lastLine = std::min(firstLine + linesPerPage, static_cast<int>(lines.size()));
-  for (int i = firstLine; i < lastLine; i++) {
-    if (lines[i].len == 0) continue;
-    const size_t len = utf8SafeTruncateBuffer(definition.c_str() + lines[i].start,
-                                              std::min(static_cast<size_t>(lines[i].len), MAX_LINE_BYTES));
-    memcpy(buf, definition.c_str() + lines[i].start, len);
-    buf[len] = '\0';
-    renderer.drawText(fontId, x, startY + (i - firstLine) * lineHeight, buf, true,
-                      lines[i].bold ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
-  }
-}
-
 void DictionaryDefinitionActivity::render(RenderLock&&) {
   rendered.page = std::atomic_ref(content.currentPage).load();
   rendered.pages = content.totalPages;
@@ -794,48 +706,6 @@ void DictionaryDefinitionActivity::render(RenderLock&&) {
       rejectRustScene();
   }
   framePrewarm.reset();
-}
-
-XpUiPaint DictionaryDefinitionActivity::rustResources() {
-  return {this, nullptr, nullptr,
-          [](void*, uint32_t handle, uint32_t generation) -> uint8_t {
-            return generation == 1 && handle >= XP_UI_DICT_FOOTER && handle <= XP_UI_DICT_MESSAGE;
-          },
-          [](void* context, const XpGlyphTarget*, const XpUiCommand* command, XpUiRect clip) {
-            auto& self = *static_cast<DictionaryDefinitionActivity*>(context);
-            auto& renderer = self.renderer;
-            switch (command->resource) {
-              case XP_UI_DICT_HEADER: {
-                char counter[16]{};
-                if (self.rendered.pages > 1)
-                  snprintf(counter, sizeof(counter), "%d/%d", static_cast<int>(self.rendered.page + 1),
-                           static_cast<int>(self.rendered.pages));
-                const auto& r = command->rect;
-                GUI.drawHeader(renderer, Rect{r.x, r.y, r.w, r.h}, self.content.headword.c_str(),
-                               counter[0] ? counter : nullptr);
-                break;
-              }
-              case XP_UI_DICT_BODY: {
-                self.framePrewarm.emplace(*renderer.getFontCacheManager());
-                self.drawBody(SETTINGS.getReaderFontId(), command->rect.x, command->rect.y, self.rendered.page);
-                self.framePrewarm->endScanAndPrewarm();
-                self.drawBody(SETTINGS.getReaderFontId(), command->rect.x, command->rect.y, self.rendered.page);
-                break;
-              }
-              case XP_UI_DICT_FOOTER: {
-                const auto labels = self.mappedInput.mapLabels(tr(STR_BACK), self.lookup ? tr(STR_LOOKUP) : "",
-                                                               self.rendered.page > 0 ? "<" : "",
-                                                               self.rendered.page + 1 < self.rendered.pages ? ">" : "");
-                GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-                break;
-              }
-              case XP_UI_DICT_MESSAGE:
-                renderer.drawUiText(*command, clip, I18N.get(self.message));
-                break;
-              default:
-                break;
-            }
-          }};
 }
 
 void DictionaryDefinitionActivity::cancelRejectedInput(const XpUiInput& input) {

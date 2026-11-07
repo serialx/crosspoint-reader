@@ -226,24 +226,6 @@ typedef struct {
   uint32_t len, capacity;
   XpDefinitionTextRelease release;
 } XpDefinitionOwnedText;
-enum {
-  XP_DEFINITION_SELECTION_CANCELLED,
-  XP_DEFINITION_SELECTION_SELECTED,
-  XP_DEFINITION_SELECTION_DEPTH_FULL,
-  XP_DEFINITION_SELECTION_LOW_MEMORY
-};
-typedef struct {
-  XpDefinitionOwnedText text;
-  uint16_t start_page, end_page, start_word, end_word;
-  uint8_t status;
-  uint8_t reserved[3];
-} XpDefinitionSelection;
-// Pop and sink run synchronously; neither callback nor context may escape the bridge.
-// Pop returns the restored Definition adapter, or null if delivery is no longer valid.
-typedef void* (*XpDefinitionPop)(void* context);
-// One means ownership consumed; zero leaves the native guard responsible for text.
-typedef uint8_t (*XpDefinitionSelectionSink)(void* context, void* parent, XpDefinitionSelection result);
-
 // The token borrows the existing C++ RenderLock and power scope for one render call.
 typedef struct {
   void* lock;

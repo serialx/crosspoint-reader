@@ -7,10 +7,12 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "test/reader_children"))
 from oracle_sources import native_text
+sys.path.insert(0, str(ROOT / "test/definition_session"))
+from definition_oracle import native_text as definition_text
 
 
 def method(path, signature):
-    source = native_text(path)
+    source = definition_text(path) if "DictionaryDefinitionActivity" in path else native_text(path)
     start = source.index(signature)
     end = source.index('{', start) + 1
     depth = 1

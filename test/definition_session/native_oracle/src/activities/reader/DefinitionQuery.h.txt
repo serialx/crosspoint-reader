@@ -1,5 +1,3 @@
-#pragma once
-
 #include <xp_app.h>
 
 #include <cstdlib>

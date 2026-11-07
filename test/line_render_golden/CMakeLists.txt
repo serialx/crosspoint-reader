@@ -30,7 +30,9 @@ endforeach()
 set(EXTRACTED ${CMAKE_CURRENT_BINARY_DIR}/Consumers.inc)
 add_custom_command(OUTPUT ${EXTRACTED}
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract.py ${REPO_ROOT} ${EXTRACTED}
-  DEPENDS extract.py ${REPO_ROOT}/src/activities/reader/DictionaryDefinitionActivity.cpp
+  DEPENDS extract.py ${REPO_ROOT}/test/definition_session/definition_oracle.py
+    ${REPO_ROOT}/test/definition_session/native_oracle/manifest.json
+    ${REPO_ROOT}/test/definition_session/native_oracle/src/activities/reader/DictionaryDefinitionActivity.cpp.txt
     ${REPO_ROOT}/src/activities/reader/ClipSelectionActivity.cpp
     ${REPO_ROOT}/src/activities/reader/ClipSelectionActivity.h VERBATIM)
 add_executable(LineRenderGolden LineRenderGolden.cpp ${LINE_SOURCES} ${EXTRACTED}

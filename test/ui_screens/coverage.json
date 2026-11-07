@@ -238,7 +238,7 @@
       "activity": "ClipSelection"
     },
     {
-      "source": "src/activities/reader/DictionaryDefinitionActivity.cpp",
+      "source": "rust/crates/xp-ffi/src/app/epub/children/definition_view.rs",
       "status": "captured",
       "groups": [
         "dictionary",

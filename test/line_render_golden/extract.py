@@ -10,7 +10,7 @@ header = (root / 'src/activities/reader/ClipSelectionActivity.h').read_text()
 def between(text, first, last):
     assert text.count(first) == 1 and text.count(last) == 1, (first, last)
     return text[text.index(first):text.index(last)]
-parts = [between(dictionary, 'namespace {', '// cppcheck-suppress constParameterReference')]
+parts = [dictionary[dictionary.index('namespace {'):dictionary.index('bool DictionaryDefinitionActivity::prepareDefinition')]]
 parts += [between(dictionary, 'int DictionaryDefinitionActivity::measureSpan(',
                   'bool DictionaryDefinitionActivity::reserveLines(')]
 parts += [between(dictionary, 'bool DictionaryDefinitionActivity::buildPlainSelectionPages()',

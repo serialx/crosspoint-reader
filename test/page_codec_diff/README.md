@@ -110,15 +110,16 @@ preserved rather than silently repaired.
 
 ## Consumer mapping for P2l/R1
 
-Paths and line numbers refer to the task base, `9738db01`. Current Section
-resource methods live in `lib/Epub/Epub/SectionPlatform.cpp`; its cache and
-page-selection policy lives in `rust/crates/xp-ffi/src/book_section.rs`.
+The table records historical consumers at `9738db01`; its line numbers are not
+current call sites. The active Section owner and page-selection policy live in
+`rust/crates/xp-ffi/src/app/epub/section_owner/`. Retained native Section resources
+live in `lib/Epub/Epub/SectionPlatform.cpp`.
 
 | Existing consumer | Record/query replacement |
 | --- | --- |
 | `Page.h:124` element vector, `PageElement::getTag`, `xPos/yPos` | `xp_page_info.elements`, `xp_page_element.tag/record` |
 | `Page.h:135`, `Section.cpp:769,797`, `EpubReaderActivity.cpp:1915` visible offset | decode's visible argument and `xp_page_info` visible output |
-| `EpubReaderActivity.cpp:1916-1917`; `EpubReaderFootnoteSelectActivity.cpp:26-34` footnotes/links | `xp_page_info`, `xp_page_footnote`, `xp_page_link`; copying into longer-lived UI state remains C++ ownership |
+| `EpubReaderActivity.cpp:1916-1917`; `EpubReaderFootnoteSelectActivity.cpp:26-34` footnotes/links | `xp_page_info`, `xp_page_footnote`, `xp_page_link`; the current Rust Footnote owner holds the Page loan and moves its selected href result |
 | `EpubReaderUtils.h:44` link hit testing | `xp_page_link` rectangle/href; same containment arithmetic in Rust `Link::contains` |
 | `EpubReaderActivity.cpp:2071-2072`, `Page.h:179` image presence/decode status | `xp_page_image_bounds` found flag; image cache/source spans from `xp_page_element`; cache availability remains storage service work |
 | `Page.h:194` image bounding union | `xp_page_image_bounds`, including C++ int16 wrapping |

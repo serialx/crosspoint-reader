@@ -2,7 +2,7 @@
 #include <HalStorage.h>
 #include <common/FsApiConstants.h>
 
-#include "src/clippings/ClippingsManager.h"
+#include "ClippingExportOracle.h"
 
 namespace {
 struct Bytes {
@@ -46,7 +46,7 @@ const Operations operations{
 
 extern "C" uint8_t xp_bookmarks_test_export(const Operations*, Bytes, Bytes, Bytes, int32_t, Bytes);
 
-bool ClippingsManager::saveClipping(const std::string& title, const std::string& author, const std::string& chapter,
-                                    const int page, const std::string& text) {
+bool ClippingExportOracle::saveClipping(const std::string& title, const std::string& author, const std::string& chapter,
+                                        const int page, const std::string& text) {
   return xp_bookmarks_test_export(&operations, bytes(title), bytes(author), bytes(chapter), page, bytes(text));
 }

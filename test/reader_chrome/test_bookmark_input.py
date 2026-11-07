@@ -12,6 +12,8 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'test'))
 from rust_host import rust_link_flags
+sys.path.insert(0, str(ROOT / "test/reader_children"))
+from oracle_sources import native_text
 
 
 # The list base classes were deleted; read the pre-port oracle from the last
@@ -20,7 +22,7 @@ BASE = "365cf23d0eb0b4344eecac6c98efd66514fd594c"
 
 
 def method(path, signature, revision=None):
-    source = ((ROOT / path).read_text() if revision is None else
+    source = (native_text(path) if revision is None else
               subprocess.check_output(["git", "show", f"{revision}:{path}"], cwd=ROOT, text=True))
     start = source.index(signature)
     brace = source.index('{', start)

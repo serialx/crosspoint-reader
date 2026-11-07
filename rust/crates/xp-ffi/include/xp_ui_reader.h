@@ -691,32 +691,7 @@ enum { XP_UI_READER_OVERLAY_TEXT_ROWS = 5, XP_UI_READER_OVERLAY_HOLD_MS = 1500, 
  * No ModelLock, heap owner or new scheduling operation is added. Other command
  * arguments and return values are ignored. */
 
-/* Bookmark and consumed-link composition, synchronous borrowed context.
- * Pure helpers preserve original f32 arithmetic (including NaN comparisons):
- * range returns chapter-fraction bounds; matching uses direct position equality
- * or clamped percentage within the page range plus/minus 0.0001f.
- * Native getPageProgressRange retains only the two EPUB calculateProgress calls.
- * LOAD/ADD/FLAG borrow owner. Only ADD supplies native temporary resources, in
- * its separate facade stack frame; FLAG/LOAD do not reserve Entry/string storage.
- * Rust guards balance LOCK, PROGRESS, TEXT and ENTRY scopes on all return paths.
- * Fields are pure scalar facts; REMOVED/BOOKMARKED writes use short ModelLock.
- * No resource callback runs inside ModelLock. Signed fields preserve i32 bits.
- *
- * LOCK/UNLOCK retain original RenderLock. LOG_TOGGLE preserves diagnostic args.
- * ESTIMATE reads Section::estimatedTotalPages. PROGRESS_BEGIN/END own the original
- * SavedProgressPosition; RANGE(a=page,b=count) retains the two converted bounds.
- * ERASE_MATCHES/ANY_MATCH(a=page,b=count) retain native STL vector mutation/scan
- * with the Rust matching predicate; they return removed/any-match booleans.
- * Native STL owns element move/destruction order, not matching decisions.
- * TEXT_BEGIN/END own original pageText string; TEXT_READ assigns section text.
- * ENTRY_BEGIN(a=page,b=count) constructs original BookmarkEntry and copies mapped
- * progress, sanitized text and position. ENTRY_OFFSET(a=u32) sets its offset and
- * presence flag; ENTRY_INSERT copies entry to vector front; ENTRY_END destroys it.
- * OFFSET_READ(a=page) retains Section optional offset, returns presence and
- * exposes value through LOADED_OFFSET. CLEAR/LOAD/SAVE are existing BookmarkFile
- * operations (SAVE returns bool); LOG_SAVE_FAILED and UPDATE retain their effects.
- * Other arguments and return values are ignored. No pointer escapes the call.
- *
+/* Consumed-link composition, synchronous borrowed context.
  * Link queries read depth, position spine/page by index 0..2, and spine count.
  * PATH_BEGIN/END own the original load path; EXISTS/OpenRead/REMOVE use it.
  * FILE_BEGIN/END own HalFile including its implementation release; OPEN_READ and

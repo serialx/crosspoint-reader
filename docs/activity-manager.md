@@ -56,11 +56,11 @@ retains the render task, RenderLock and completion notification. See
 [Application ownership](contributing/rust-ui.md#application-ownership).
 
 The EPUB session owns one Rust `ReaderBook` and `ReaderSection`. The Section
-owns its incremental Chapter build. Rust-owned Chapters and Toolbar read TOC
-rows directly from the Rust book under resource access. Retained native Bookmarks
-and progress/XPath code borrow the book's `Epub` compatibility object. Their
-shared pointers must be released before the Rust book is destroyed. The facade
-close asserts that no native borrower remains before deleting the facade; this
+owns its incremental Chapter build. Chapters, Bookmarks and Toolbar read TOC
+rows directly from the Rust book under resource access. Bookmark and progress
+mapping also use that owner. The remaining native facade loan is the ImageBlock
+extractor's raw pointer. The facade close asserts that no additional shared
+owner remains before deleting the facade; this
 assertion is active in shipping firmware and aborts on a live loan. Exit detaches
 the image extractor, drops Section and closes the facade before releasing the book. Native Home,
 Library, Sleep and sync objects retain their ordinary Epub ownership. See

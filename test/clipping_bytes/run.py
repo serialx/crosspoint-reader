@@ -550,7 +550,8 @@ def probe_store_paths(binary, paths):
 
 
 def collect_sources(arduinojson):
-    sources = {name: sha((ROOT / name).read_bytes()) for name in PRODUCTION}
+    frozen = HERE / 'native_oracle'
+    sources = {name: sha(((frozen / (name + '.txt')) if (frozen / (name + '.txt')).exists() else ROOT / name).read_bytes()) for name in PRODUCTION}
     for extra in ('test/clipping_bytes/run.py', 'test/clipping_bytes/Oracle.cpp'):
         sources[extra] = sha((ROOT / extra).read_bytes())
     for stub in sorted((HERE / 'stubs').rglob('*')):
@@ -611,7 +612,7 @@ def build(build_dir, arduinojson, archive, rust_owner=False, rust_export=False):
     units = [
         (ROOT / 'test/clipping_bytes/Oracle.cpp', []),
         (frozen / 'src/ClippingStore.cpp', ['-include', str(HERE / 'stubs/clip_clock.h')]),
-        (ROOT / 'src/clippings/ClippingsManager.cpp', []),
+        (frozen / 'ClippingExportOracle.cpp', []),
         (ROOT / 'lib/Utf8/Utf8.cpp', []),
         (build_dir / 'SdkStorage.cpp', []),
         (ROOT / 'test/cmake/xp_ffi_host.cpp', []),
@@ -635,6 +636,10 @@ def build(build_dir, arduinojson, archive, rust_owner=False, rust_export=False):
         target = build_dir / (source.stem + '.o')
         command = [*common, *extra, '-c', str(source), '-o', str(target)]
         commands.append(command)
+        database = build_dir / 'compile_commands.json'
+        database.write_text(json.dumps([dict(directory=str(ROOT), file=str(source), arguments=command)]))
+        subprocess.run([sys.executable, str(ROOT / 'test/cmake/check_native_oracle_includes.py'),
+                        str(database)], check=True)
         subprocess.run(command, check=True)
         objects.append(target)
     link = ['c++', *[str(obj) for obj in objects], str(archive),

@@ -1,5 +1,5 @@
 // Host driver for the clipping store byte oracle. Reads one case per line from
-// stdin, runs the production ClippingStore/ClippingsManager against the fake
+// stdin, runs the production ClippingStore/ClippingExportOracle against the fake
 // volume in stubs/HalStorage.h, and writes one result row per line.
 #include <ArduinoJson.h>
 #include <HalClock.h>
@@ -12,8 +12,8 @@
 #include <string>
 #include <vector>
 
+#include "ClippingExportOracle.h"
 #include "src/ClippingStore.h"
-#include "src/clippings/ClippingsManager.h"
 #ifdef CLIPPING_RUST_ORACLE
 #include "RustStore.h"
 #define ClippingStore RustStore
@@ -207,8 +207,8 @@ void runCase(JsonObjectConst input, JsonObject output) {
       row2["length"] = length;
       row2["text"] = hexBytes(reinterpret_cast<const uint8_t*>(buffer.data()), length);
     } else if (name == "export") {
-      ok = ClippingsManager::saveClipping(field(op, "title"), field(op, "author"), field(op, "chapter"),
-                                          static_cast<int>(number(op, "page", 0)), field(op, "text"));
+      ok = ClippingExportOracle::saveClipping(field(op, "title"), field(op, "author"), field(op, "chapter"),
+                                              static_cast<int>(number(op, "page", 0)), field(op, "text"));
     } else if (name == "delete_for_path") {
       ok = ClippingStore::deleteForFilePath(field(op, "path"), field(op, "type"));
     } else if (name == "move_book") {

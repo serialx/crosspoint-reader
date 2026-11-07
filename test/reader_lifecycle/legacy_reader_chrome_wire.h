@@ -5,6 +5,13 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+void xp_ui_reader_list_select(XpUiReaderListState*, int32_t selected, uint16_t count);
+XpUiInterest xp_ui_reader_list_interest(const XpUiReaderListState*, uint8_t kind, uint32_t now_ms);
+// Extra native classifier facts preserve the existing long-press and swipe
+// ownership without adding another hardware poll or a second classifier.
+XpUiEffect xp_ui_reader_list_update(XpUiReaderListState*, const XpUiInput*, uint16_t count, uint8_t present,
+                                    uint8_t kind, uint8_t long_press, int32_t swipe_row);
+
 /* ReaderToolbarUi replaces ListNav with the existing XpUiListState. These keep
  * the old immediate viewport scroll/clamp and pageRows fallback exactly. */
 void xp_ui_reader_toolbar_nav_reset(XpUiListState*);

@@ -543,11 +543,12 @@ owner through `XpEpubBookBorrow`; it does not load another book. It keeps the
 cache path and language needed by retained reference-return APIs. Load-time Rust
 CSS is released before publication; the reader's build owns Section-time CSS.
 The borrowed facade's `getCssParser` returns null. Ordinary native Epub objects
-retain their own CSS parser. Native Bookmarks and progress/XPath mapping
-still hold `shared_ptr<Epub>` loans. Rust-owned Chapters and Toolbar instead read
-TOC rows directly from the Rust book under resource access. The shared
-pointer keeps the facade alive, not its Rust owner: every loan must end before
-`book_facade_close`, and the Rust owner must outlive that close. Detach the image
+retain their own CSS parser. Chapters, Bookmarks and Toolbar read TOC rows
+from the Rust book under resource access. Bookmark and progress/XPath mapping
+also use the Rust owner. The reader's remaining native facade borrower is the
+ImageBlock extractor callback installed by `BookHandle::bindExtractor`; it holds
+a raw pointer and must detach before `book_facade_close`. The Rust book must
+outlive the facade. Detach the image
 extractor and drop Section before closing the facade and owner. Sync may detach
 and rebind the extractor to the same live facade.
 
@@ -577,8 +578,18 @@ its guard before invoking a sink; the decoded row owns its bytes for the
 synchronous callback, which may reenter another query or stream. Do not hold a
 Rust mutable borrow across a native callback. Clipping/recents adapters lend
 string views to synchronous stores, which copy into their final fields or row
-sink. No metadata view survives the call. Bookmark paths retain their native
-string adapter.
+sink. No metadata view survives the call. Rust owns one bookmark record vector,
+its exact JSON encoding and the Kindle text export. Whole-file reads and temporary-file replacement remain native HAL transactions
+under the original StorageLock. `storage_read_file` lends the SDK buffer only
+during its synchronous sink; `storage_write_file_atomic` takes encoded bytes.
+Raw SDK diagnostics remain direct native output, with no raw-log mode or new
+file-open readiness flag. Despite its name, the write leaf is not power-loss
+atomic: the SDK removes the destination before renaming the temporary file. A
+rename failure followed by cleanup can leave neither file. The port preserves
+that inherited behavior; a failed save does not always preserve the old file. The
+bookmark filename convention is unchanged; `BookmarkUtil` remains for the two
+FileBrowser rename-path calls until that screen moves to Rust. XTC and sync keep
+`ProgressFile` and `EpubReaderUtils::saveProgress`.
 
 Book cache v10, CSS cache v19, Section cache v68 and the target's
 `std::hash<std::string>` path convention are unchanged. The native path-hash

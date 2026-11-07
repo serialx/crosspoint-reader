@@ -19,13 +19,15 @@ ArduinoJson 7.4.2 must be installed by PlatformIO. An existing installation can 
 selected with `-DCLIPPING_TEST_ARDUINOJSON=/path/to/ArduinoJson/src`. The runner
 links the host `xp-ffi` archive built by CMake (`Serialization::tryReadString` and
 `Utf8.cpp` are production code), compiles the complete `ClippingStore.cpp` and
-`ClippingsManager.cpp`, and substitutes only physical storage, logging and the
+the hashed export implementation as `ClippingExportOracle`, and substitutes only physical storage, logging and the
 clock. No store serializer, index rule or transaction path is stubbed.
 
 The native store source is frozen from `8389157f` as named `.txt` inputs in
 `native_oracle/`; `prepare_native.py` verifies their hashes before materializing
 them in the host build directory. The production Rust store consumes the same
-141-case corpus and unchanged golden.
+141-case corpus and unchanged golden. Export declarations use the explicit
+`ClippingExportOracle.h` fixture, never a recreated production header path.
+Each byte-runner compiler command passes the historical-header include guard.
 
 The related `reader_clipping_parent` trace maps the native fixture's `clip`
 event to each actual Rust `clipping_row` lookup. Metadata seeding reads fixture

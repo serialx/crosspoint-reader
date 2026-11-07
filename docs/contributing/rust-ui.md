@@ -90,7 +90,8 @@ The reader oracle documentation describes the scope of each kind of test.
 | Footnote and dictionary lookup | `children/selection_owned.rs` owns one reader Page while it is needed, plus inline commands and an owned result; footnote returns an href to reader history | Typed leaves in [`RustReaderLookup.cpp`](../../src/activities/reader/RustReaderLookup.cpp) supply dictionary operations, hint mapping and popup metrics |
 | Definition entry | [`children/definition.rs`](../../rust/crates/xp-ffi/src/app/epub/children/definition.rs) owns stable inline storage for the native adapter and viewer | `RustReaderLookup.cpp` constructs and destroys the retained `DictionaryDefinitionActivity`; its HTML, Pages and fonts remain native |
 | Clippings | `children/clipping_activity.rs` owns the list and its eight-row preview window; App owns the session-independent clipping store | Storage and drawing leaves; the owned plain-text Definition entry opens details |
-| TextSettings, Bookmarks, Wi-Fi, sync and interactive selection | Retained native children use the legacy activity/result boundary | [`RustEpubResources.cpp`](../../src/activities/reader/RustEpubResources.cpp) retains their factories and services |
+| Bookmarks | `children/bookmark_owned.rs` owns the list, bounded subtitle window and moved jump/rename results; the reader owns one record vector | Physical input, popup, drawing and whole-file storage leaves; rename opens the Rust keyboard |
+| TextSettings, Wi-Fi, sync and interactive selection | Retained native children use the legacy activity/result boundary | [`RustEpubResources.cpp`](../../src/activities/reader/RustEpubResources.cpp) retains their factories and services |
 
 The native viewer also serves `DetailsActivity`, `PluginCatalogActivity` and
 the Rust-owned clipping list. Interactive `ClipSelectionActivity` remains
@@ -128,11 +129,11 @@ owner while Definition is open. Closing or cancelling the viewer delivers
 the pending viewer before redraw. The inline handle never passes through
 `Legacy.destroy`.
 
-`ReaderChromeListActivity` remains for `EpubReaderBookmarksActivity`. FileBrowser, Library and TextSettings instead
-use `RustActivityAdapter`; they still use `ReaderChromeCommands` and the theme
-sampler. `UtilityActivity` remains for `ConfirmationActivity`, `DetailsActivity`,
-`IntervalSelectionActivity` and `FrontlightPanelActivity`. Removing the reader
-QR and Percent classes does not retire either shared base or the sampler.
+The `ReaderChromeListActivity` base and its final Bookmarks subclass are removed. FileBrowser, Library and
+TextSettings use `RustActivityAdapter` and retain `ReaderChromeCommands` and the
+theme sampler. `EndOfBookOptions` also uses those helpers and the list init,
+view and publish exports; the list select, interest and update exports are test-only. The shared helper file remains until those actual callers move.
+`UtilityActivity` remains for `DetailsActivity` and `FrontlightPanelActivity`.
 
 The scene contracts below apply to scene-based activities. The reader uses the
 [policy boundary](#reader-policy-boundary) described separately.
@@ -250,8 +251,8 @@ and spacing choices in Rust; the retained native sampler calls
 `xp_ui_reader_theme_compose`. Toolbar keeps its own safe rectangle and row
 minimum. The 12-byte facts value is local preparation storage, with no settings
 cache. `UITheme`, its SDK storage and physical header/footer/font services remain
-in use. Bookmarks retains its native row-resource codec until O5a retires that
-consumer; owned Menu, Chapters and Clippings use the typed `RowSlot` codec. Physical refresh timing and resource-release order stay at each
+in use. Menu, Chapters, Clippings and Bookmarks use the typed `RowSlot` codec;
+the native Bookmarks row-resource codec is removed. Physical refresh timing and resource-release order stay at each
 caller, including UpdateUi's release-text-before-publication sequence.
 
 The wire bridges are temporary Phase 18 compatibility seams:

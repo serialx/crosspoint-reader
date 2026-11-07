@@ -97,12 +97,6 @@ void xp_ui_reader_list_init(XpUiReaderListState*, int32_t selected);
 // The common effect IDs retain their meanings. These family effects request
 // the existing bookmark/clipping action and deletion resource bindings.
 enum { XP_UI_READER_ACTIONS = 4, XP_UI_READER_DELETE = 5 };
-void xp_ui_reader_list_select(XpUiReaderListState*, int32_t selected, uint16_t count);
-XpUiInterest xp_ui_reader_list_interest(const XpUiReaderListState*, uint8_t kind, uint32_t now_ms);
-// Extra native classifier facts preserve the existing long-press and swipe
-// ownership without adding another hardware poll or a second classifier.
-XpUiEffect xp_ui_reader_list_update(XpUiReaderListState*, const XpUiInput*, uint16_t count, uint8_t present,
-                                    uint8_t kind, uint8_t long_press, int32_t swipe_row);
 void xp_ui_reader_list_publish(XpUiReaderListState*, const XpUiReaderListState*, int32_t consumed_scroll);
 // View outputs remain unchanged on INVALID/CAPACITY; scratch commands may change.
 // Reader scenes have no hit array: buffer.hits may be null with capacity zero.

@@ -1,6 +1,6 @@
 # Production bookmark byte oracle
 
-`bookmark_bytes_codec` exercises the dormant P16-O5a Rust record codec directly.
+`bookmark_bytes_codec` exercises the production Rust record codec directly.
 It compares 43 save cases against raw D0 file bytes and 73 load cases against
 exact record bytes, float bits, defaults and optional offsets. It also denies
 each record/field allocation in turn and checks partial-record cleanup; the
@@ -8,17 +8,17 @@ writer has one checked allocation after its exact-size pass. `bookmark_bytes_rus
 also runs all 134 D0 cases through Rust path and persistence policy, using the
 same extracted whole SDK transactions as the native oracle. Every path, byte,
 operation, return value and remaining file must match the unchanged golden.
-The physical production leaves remain unbound until the owner switch.
+The reader binds the whole-file storage leaves through `RustEpubResources.cpp`.
 
 Run it with `ctest --test-dir build/test -R '^bookmark_bytes_codec$'
 --output-on-failure`. The standalone crate uses the production codec sources,
-without linking native storage. Its generic final name storage permits the R2
-keyboard result block to become the record's name directly at the later switch;
-the current dormant fixture uses a byte vector. No keyboard owner is activated.
+without linking native storage. The standalone fixture uses a byte vector for names; production adopts the moved
+keyboard result block directly as the record name. Actual App/keyboard composition
+coverage is documented in `test/reader_children/README.md`.
 
 The standalone tests cover checked record growth, move-only rename rollback,
 delete failure, read-buffer loans, export-handle teardown and ordered diagnostic
-calls. Run all 16 with `cargo test --offline --manifest-path
+calls. Run the current test set with `cargo test --offline --manifest-path
 test/bookmark_bytes/rust/Cargo.toml --features app-test --lib`; use the same
 arguments with `cargo +nightly miri test` and
 `MIRIFLAGS=-Zmiri-strict-provenance` for the Rust lifetime checks.
@@ -30,7 +30,7 @@ transaction. The host adapter's String copy and one-record dump view are fixture
 scaffolding; they are neither production representations nor heap measurements.
 The byte oracle disables logging; the standalone tests check Rust diagnostic
 strings, severity and ordering separately. Physical SDK raw diagnostics and
-lock scope still require the production adapter's switch checks.
+lock scope are checked separately by the production adapter compositions.
 
 `bookmark_bytes_oracle` compares the native bookmark serializer, parser, path rules,
 and storage failure outcomes with frozen synthetic fixtures from firmware source
@@ -87,7 +87,7 @@ The test preserves those outcomes rather than asserting atomic replacement.
 The float model uses the target's double/long-long, slot-size, pool, and string
 configuration; host pointer/allocator layout is not target memory evidence.
 
-The dormant reader progress adapter has two additional CTest checks:
+The production reader progress adapter has two additional CTest checks:
 `bookmark_progress_oracles` uses the unchanged KOReader XPath corpus (26,565
 results) and the retained native PM/KOX format strings. The diagnostic matrix
 compares 10,620 host messages byte for byte. Twenty negative-NaN cases use the

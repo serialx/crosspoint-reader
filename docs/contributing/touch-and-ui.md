@@ -56,7 +56,7 @@ facade retains its static text semaphore and SDK/font drawing bindings. Its raw
 `fui::Frame` has no interactions and only paints one SDK key; it does not own the
 keyboard scene or input geometry.
 
-The thirteen constructor sites in these nine files still launch through
+The twelve native constructor sites in these eight files still launch through
 `Activity::startActivityForResult`. `ActivityManager::pushActivity` adopts the
 facade into the Rust keyboard owner without pushing an extra child.
 
@@ -64,7 +64,6 @@ facade into the Rust keyboard owner without pushing an extra child.
 |---|---|---|
 | [FileBrowserActivity](../../src/activities/home/FileBrowserActivity.cpp) | 376 | Rename |
 | [LibraryListActivity](../../src/activities/library/LibraryListActivity.cpp) | 350 | Search |
-| [EpubReaderBookmarksActivity](../../src/activities/reader/EpubReaderBookmarksActivity.cpp) | 126 | Rename |
 | [WifiSelectionActivity](../../src/activities/network/WifiSelectionActivity.cpp) | 498 | SSID or credential entry |
 | [KOReaderSettingsActivity](../../src/activities/settings/KOReaderSettingsActivity.cpp) | 114 | Settings fields |
 | [CatalogActivity](../../src/activities/CatalogActivity.cpp) | 73 | Online catalog search |
@@ -72,13 +71,14 @@ facade into the Rust keyboard owner without pushing an extra child.
 | [OpdsSettingsActivity](../../src/activities/settings/OpdsSettingsActivity.cpp) | 102, 116, 129, 142, 160 | Server settings fields |
 | [OpdsServerListActivity](../../src/activities/settings/OpdsServerListActivity.cpp) | 130 | Download folder |
 
-O5a (Bookmarks) owns the first production Rust-parent integration: construction
-via `Legacy.create(Keyboard descriptor)` → `keyboard::create/push`; the result is
-delivered as a moved semantic result. It will add the borrowed launch descriptor
-and an outlined Bookmarks delivery arm without a new export. Until that consumer
-lands, Rust-parent lifetime and result coverage is a real-App host composition;
-O5a owns its first production emulator smoke. See the [Rust UI guide](rust-ui.md)
-and [keyboard witnesses](../../test/keyboard_oracle/README.md).
+Bookmarks is the first production Rust parent of the keyboard. Its outlined
+rename action passes a borrowed descriptor through `Legacy.create(Keyboard)`,
+then uses the existing Rust keyboard creation and push path. The native create
+call copies title and initial text before returning; it retains no descriptor
+pointer. The outlined result receiver moves the keyboard text block directly
+into final bookmark name storage after destruction, publication and unlock.
+See the [Rust UI guide](rust-ui.md) and
+[keyboard witnesses](../../test/keyboard_oracle/README.md).
 
 ---
 

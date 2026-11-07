@@ -1,3 +1,4 @@
+#include "legacy_reader_chrome_wire.h"
 #include <xp_ui_utility.h>
 #include <xp_ui.h>
 extern "C" {

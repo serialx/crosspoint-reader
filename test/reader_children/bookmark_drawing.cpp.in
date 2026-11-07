@@ -1,3 +1,4 @@
+#include "legacy_reader_chrome_wire.h"
 #include <xp_epub_session.h>
 #include <memory>
 #include <vector>

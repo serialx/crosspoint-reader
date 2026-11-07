@@ -5,6 +5,8 @@
 #include <cassert>
 #include <cstdio>
 #include <string>
+
+#include "legacy_reader_chrome_wire.h"
 namespace fui = freeink::ui;
 struct MappedInputManager {
   enum class Button {

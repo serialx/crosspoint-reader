@@ -1,4 +1,6 @@
 //! Reader-only C wire boundary. The shared runtime remains ABI 2.
+#[cfg(any(test, feature = "legacy-reader-oracles"))]
+use crate::model::Interest;
 use crate::reader_chrome::hits::Layout;
 use crate::reader_chrome::{
     list::{Resources, Row, Screen, Theme},
@@ -12,7 +14,7 @@ use crate::scene::{Arena, Refresh};
 use crate::scene::{Rect, MAX_HITS};
 use crate::{
     ffi::{Buffer, SceneView},
-    model::{Effect, Input, Interest},
+    model::{Effect, Input},
     reader_chrome::{self, FootnoteState},
     scene::MAX_COMMAND_BYTES,
 };
@@ -136,6 +138,7 @@ pub unsafe extern "C" fn xp_ui_reader_list_init(state: *mut ListModel, selected:
 }
 /// # Safety
 /// A non-null state is aligned and writable for this call.
+#[cfg(any(test, feature = "legacy-reader-oracles"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_reader_list_select(
     state: *mut ListModel,
@@ -150,6 +153,7 @@ pub unsafe extern "C" fn xp_ui_reader_list_select(
 }
 /// # Safety
 /// A non-null state is aligned and readable for this call.
+#[cfg(any(test, feature = "legacy-reader-oracles"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_reader_list_interest(
     state: *const ListModel,
@@ -163,6 +167,7 @@ pub unsafe extern "C" fn xp_ui_reader_list_interest(
 }
 /// # Safety
 /// State is writable, input is readable, and both are aligned and disjoint.
+#[cfg(any(test, feature = "legacy-reader-oracles"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_reader_list_update(
     state: *mut ListModel,

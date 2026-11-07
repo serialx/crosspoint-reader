@@ -5,9 +5,12 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "test/reader_children"))
+from oracle_sources import native_text
 
 def method(path, signature):
-    source = (ROOT / path).read_text()
+    source = (native_text(path) if "ReaderChromeListActivity::" in signature
+              else (ROOT / path).read_text())
     start = source.index(signature)
     end = source.index('{', start) + 1
     depth = 1

@@ -66,7 +66,7 @@ with tempfile.TemporaryDirectory() as directory:
     end = commands_header.index('\n};', start) + 3
     commands_source = (ROOT/'src/activities/reader/ReaderChromeListActivity.cpp').read_text()
     methods = commands_source[commands_source.index('bool ReaderChromeCommands::reserve'):
-                              commands_source.index('ReaderChromeListActivity::ReaderChromeListActivity')]
+                              commands_source.index('void sampleReaderChromeTheme(')]
     shared = commands_header[start:end] + '\n' + methods
     code = r'''
 #include <xp_ui.h>

@@ -10,7 +10,7 @@ source = (ROOT / 'src/activities/reader/ReaderChromeListActivity.cpp').read_text
 start = header.index('class ReaderChromeCommands {')
 owner = header[start:header.index('\n};', start) + 3]
 start = source.index('bool ReaderChromeCommands::reserve(')
-methods = source[start:source.index('ReaderChromeListActivity::ReaderChromeListActivity', start)]
+methods = source[start:source.index('void sampleReaderChromeTheme(', start)]
 fixture = r'''
 #include <algorithm>
 #include <cassert>

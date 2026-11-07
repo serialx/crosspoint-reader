@@ -1,4 +1,4 @@
-"""Exercise production family callbacks through the production rejection gate."""
+"""Exercise live and frozen family callbacks through the production rejection gate."""
 from pathlib import Path
 import os
 import subprocess
@@ -13,7 +13,8 @@ ARCHIVE = Path(sys.argv[1])
 
 def method(path, signature):
     file = SOURCE / path
-    source = file.read_text() if file.is_file() else native_text(path)
+    source = (native_text(path) if "ReaderChromeListActivity::" in signature
+              else file.read_text() if file.is_file() else native_text(path))
     start = source.index(signature)
     end = source.index('{', start) + 1
     depth = 1
@@ -25,7 +26,7 @@ def method(path, signature):
         body = body.replace('{', '{\n ++updates;', 1)
     return body
 
-code = '#include "' + str(ROOT / "test/reader_children/selection_legacy_wire.h") + '"\n' + r'''
+code = '#include "' + str(ROOT / 'test/reader_lifecycle/legacy_reader_chrome_wire.h') + '"\n' + '#include "' + str(ROOT / "test/reader_children/selection_legacy_wire.h") + '"\n' + r'''
 #include "RustActivityAdapter.h"
 #include <xp_ui_utility.h>
 #include <xp_ui_home.h>

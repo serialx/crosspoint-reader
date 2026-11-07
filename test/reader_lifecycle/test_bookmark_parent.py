@@ -13,6 +13,8 @@ ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / 'test'))
 from rust_host import rust_link_flags
+sys.path.insert(0, str(ROOT / "test/bookmark_bytes"))
+from prepare_native import prepare as prepare_bookmark_oracle
 
 release = '--release-log' in sys.argv
 section_drop = '--section-drop' in sys.argv
@@ -169,7 +171,9 @@ production = {path: (ROOT / 'rust' / path).read_bytes() for path in (BOOKMARK, S
 with tempfile.TemporaryDirectory(prefix='reader-bookmarks-') as directory:
     work = Path(directory)
     cpp = work / 'bookmark.cpp'
-    cpp.write_text(fixture)
+    prepare_bookmark_oracle(work)
+    cpp.write_text(re.sub(r'\bBookmarkEntry\b', 'BookmarkOracleEntry',
+                          fixture.replace('#include "BookmarkEntry.h"', '#include "BookmarkOracleFixture.h"')))
     baseline_flags = rust_link_flags()
     def run(name, archive=None):
         flags = baseline_flags if archive is None else rust_link_flags(archive=str(archive))

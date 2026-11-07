@@ -81,7 +81,7 @@ def fixture_source(root, definition, native_leaf):
     header = re.sub(r'^#include.*\n|^#pragma once\n', '', header, flags=re.M)
     header = header.replace(' private:', ' public:')
     commands = (root / 'src/activities/reader/ReaderChromeListActivity.h').read_text()
-    commands = commands[commands.index('class ReaderChromeCommands {'):commands.index('// Owns the resource lifetime')]
+    commands = definition(commands, 'class ReaderChromeCommands {') + ';'
     command_source = (root / 'src/activities/reader/ReaderChromeListActivity.cpp').read_text()
     methods = toolbar[toolbar.index('void ReaderToolbarUi::begin()'):]
     methods = once(methods, 'xp_ui_reader_toolbar_view(', 'injectedView(')

@@ -28,7 +28,7 @@ header = re.sub(r'^#include.*\n|^#pragma once\n', '', header, flags=re.M)
 # Public access is fixture-only: inspect publication and force an exact growth point.
 header = header.replace(' private:', ' public:')
 commands = (SOURCE / 'src/activities/reader/ReaderChromeListActivity.h').read_text()
-commands = commands[commands.index('class ReaderChromeCommands {'):commands.index('// Owns the resource lifetime')]
+commands = definition(commands, 'class ReaderChromeCommands {') + ';'
 methods = toolbar[toolbar.index('void ReaderToolbarUi::begin()'):]
 # Interpose only the builder result. Normal calls execute the real Rust builder.
 methods = methods.replace('xp_ui_reader_toolbar_view(', 'injectedView(')

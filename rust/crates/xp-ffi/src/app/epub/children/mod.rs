@@ -33,25 +33,19 @@ mod toolbar_owner;
 mod toolbar_view;
 
 pub(in crate::app) use child_result::ReaderChildResult;
-pub(in crate::app) use definition::Definition;
+pub(in crate::app) use definition_owned::{DefinitionOwner as Definition, DefinitionSession};
 
 pub(in crate::app) use owned::{ChildTarget, ReaderChild};
 pub(in crate::app) use physical::Physical;
 
 pub(in crate::app::epub) use toolbar_owner::{ToolbarSlot, ToolbarTarget};
 
-mod definition;
-pub(in crate::app) mod definition_physical;
-#[allow(dead_code)]
-mod definition_owned;
-#[allow(dead_code)]
-mod definition_navigation;
-#[allow(dead_code)]
 mod definition_input;
-#[allow(dead_code)]
-mod definition_view;
-#[allow(dead_code)]
+mod definition_navigation;
+mod definition_owned;
+pub(in crate::app) mod definition_physical;
 mod definition_text;
+mod definition_view;
 mod footnote;
 mod lookup;
 mod lookup_view;

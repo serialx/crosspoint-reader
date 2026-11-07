@@ -111,7 +111,7 @@ inline XpAppRuntime runtimeDefaults() {
 
 inline XpEpubLeaves leavesDefaults() {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 173 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 170 * sizeof(void (*)()));
   UNUSED_LEAF(render_margins);
   UNUSED_LEAF(render_geometry);
   UNUSED_LEAF(render_restore_bw);
@@ -261,9 +261,6 @@ inline XpEpubLeaves leavesDefaults() {
   UNUSED_LEAF(child_lookup_index);
   UNUSED_LEAF(child_lookup_find);
   UNUSED_LEAF(child_lookup_discard);
-  UNUSED_LEAF(child_definition_lookup);
-  UNUSED_LEAF(child_definition_plain);
-  UNUSED_LEAF(child_definition_drop);
   UNUSED_LEAF(child_directional_hints);
   UNUSED_LEAF(child_dictionary_popup_layout);
   UNUSED_LEAF(child_wait_paint);

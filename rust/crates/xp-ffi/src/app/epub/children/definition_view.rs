@@ -1,9 +1,12 @@
 use super::{definition_owned::DefinitionSession, selection_scene};
 use crate::app::{
     abi,
-    epub::{abi::XpEpubLeaves, render_resources::PrewarmStorage},
+    epub::{
+        abi::{XpEpubLeaves, XpEpubSettings},
+        render_resources::PrewarmStorage,
+    },
 };
-use core::{cell::Cell, ffi::c_void, ptr};
+use core::{cell::Cell, ffi::c_void, mem::MaybeUninit, ptr};
 use xp_core::{glyph::GlyphTarget, i18n::ids::*};
 use xp_ui::{
     dictionary::{definition, popup, view},
@@ -17,7 +20,6 @@ struct Drawing<'a> {
     services: &'a abi::Resources,
     leaves: &'a XpEpubLeaves,
     message: abi::Text,
-    font: i32,
     prewarm: *mut PrewarmStorage,
     started: Cell<bool>,
 }
@@ -75,7 +77,11 @@ impl Drawing<'_> {
                 let body = || unsafe {
                     (this.owner.physical.draw_body)(
                         this.owner.payload.get(),
-                        this.font,
+                        {
+                            let mut settings = MaybeUninit::<XpEpubSettings>::uninit();
+                            (this.leaves.settings_snapshot)(1, settings.as_mut_ptr());
+                            settings.assume_init().font
+                        },
                         i32::from(command.rect.x),
                         i32::from(command.rect.y),
                         state.page,
@@ -133,13 +139,12 @@ impl Drop for Drawing<'_> {
 impl DefinitionSession {
     /// Caller holds RenderLock; prewarm survives both scenes and their refreshes.
     #[inline(never)]
-    pub(super) unsafe fn render(
+    pub(in crate::app) unsafe fn render(
         &self,
         services: &abi::Resources,
         leaves: &XpEpubLeaves,
-        font: i32,
     ) -> Result<(), Error> {
-        unsafe { self.draw(services, leaves, font) }
+        unsafe { self.draw(services, leaves) }
     }
     fn publish_scene(&self) {
         self.model.with(|model| {
@@ -156,12 +161,7 @@ impl DefinitionSession {
         });
     }
 
-    unsafe fn draw(
-        &self,
-        services: &abi::Resources,
-        leaves: &XpEpubLeaves,
-        font: i32,
-    ) -> Result<(), Error> {
+    unsafe fn draw(&self, services: &abi::Resources, leaves: &XpEpubLeaves) -> Result<(), Error> {
         let frame = self.frame.get();
         unsafe {
             (*frame).state = self.model.with(|model| model.state);
@@ -177,7 +177,6 @@ impl DefinitionSession {
             services,
             leaves,
             message,
-            font,
             prewarm: unsafe { ptr::addr_of_mut!((*frame).prewarm).cast() },
             started: Cell::new(false),
         };

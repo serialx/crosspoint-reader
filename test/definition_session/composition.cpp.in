@@ -14,10 +14,9 @@
 #include "physical_defaults.h"
 extern "C" {
 uint8_t xp_app_test_drain();
-void* xp_app_test_published_legacy();
-void* xp_app_test_definition_owner_new(const XpAppRuntime*, const XpEpubLeaves*, XpEpubLookupStorage*);
-void xp_app_test_definition_owner_drop(void*);
-void xp_app_test_definition_owner_result(void*, const XpAppRuntime*, const XpEpubLeaves*, const XpAppResultView*);
+void* xp_app_test_current_definition();
+void* xp_app_test_published_definition();
+uint8_t xp_app_test_definition_install_lookup(XpEpubLookupStorage*);
 }
 static bool locked, childLive, resultLive, tracing;
 static unsigned pages, copies, allocations, frees;
@@ -27,7 +26,6 @@ static void record(const char* s) {
 }
 struct Activity {
   ActivityResult result;
-  void* definition = nullptr;
   bool child = false;
   ~Activity() {
     if (child) {
@@ -35,11 +33,10 @@ struct Activity {
       childLive = false;
       record("child-drop");
     }
-    if (definition) xp_app_test_definition_owner_drop(definition);
   }
 };
 static Activity* nativeActivity(void* p) { return static_cast<Activity*>(p); }
-static Activity* parent;
+static void* parent;
 struct ResultLifetime {
   ResultLifetime() {
     assert(!resultLive);
@@ -70,7 +67,7 @@ static uint8_t* block;
 static Payload* payload;
 extern "C" void* xp_test_definition_malloc(size_t size) {
   assert(!childLive && !locked && !pages && resultLive);
-  assert(xp_app_test_published_legacy() == parent);
+  assert(xp_app_test_published_definition() == parent);
   ++allocations;
   record("malloc");
   return block = static_cast<uint8_t*>(std::malloc(size));
@@ -103,7 +100,7 @@ int main(int argc, char** argv) {
   runtime.render_unlock = [](void*) {
     assert(locked);
     if (tracing && !childLive && pages) {
-      assert(xp_app_test_current_legacy() == parent && xp_app_test_published_legacy() == parent);
+      assert(xp_app_test_current_definition() == parent && xp_app_test_published_definition() == parent);
       record("parent-publish");
     }
     locked = false;
@@ -113,11 +110,6 @@ int main(int argc, char** argv) {
   legacy.destroy = [](void* p) { delete nativeActivity(p); };
   legacy.with_result =  // GENERIC_BRIDGE
       ;
-  legacy.deliver_result = [](void* p, const void* original) {
-    assert(p == parent && !locked && resultLive);
-    auto view = activityResultView(*static_cast<const ActivityResult*>(original));
-    xp_app_test_definition_owner_result(parent->definition, &runtime, &leaves, &view);
-  };
   leaves.child_definition_payload_lookup = [](XpDefinitionPayloadStorage* p, XpEpubLookupStorage*, XpAppTextSink, void*,
                                               uint8_t* html) -> uint8_t {
     payload = new (p) Payload{};
@@ -128,7 +120,7 @@ int main(int argc, char** argv) {
     std::destroy_at(reinterpret_cast<Payload*>(p));
   };
   leaves.child_definition_selection_release = [](XpDefinitionPayloadStorage* p) {
-    assert(!locked && !childLive && resultLive && xp_app_test_published_legacy() == parent);
+    assert(!locked && !childLive && resultLive && xp_app_test_published_definition() == parent);
     reinterpret_cast<Payload*>(p)->pages.clear();
   };
   leaves.child_definition_heap = [](XpEpubHeap* out) {
@@ -136,13 +128,20 @@ int main(int argc, char** argv) {
     *out = {100000, 50000};
     record("default-heap");
   };
+  leaves.child_definition_payload_prepare = [](XpDefinitionPayloadStorage*, uint8_t, uint8_t, uint8_t,
+      XpUiRect, XpDefinitionPayloadView* out) -> uint8_t { *out = {}; out->pages = 1; return 1; };
+  leaves.child_definition_layout = [](XpUiDefinitionLayout* out, int32_t x, int32_t y) -> uint8_t {
+    assert(x == -1 && y == -1); *out = {}; return 0;
+  };
+  leaves.log_enabled = [](uint8_t) -> uint8_t { return 0; };
+  leaves.fonts_release_caches = [] { assert(locked); };
   XpAppPlatform platform{&legacy, &resources, &runtime, &leaves};
   assert(xp_app_init(&platform, &compatibility) == XP_APP_OK);
-  parent = new Activity;
   XpEpubLookupStorage lookup{};
-  parent->definition = xp_app_test_definition_owner_new(&runtime, &leaves, &lookup);
-  assert(parent->definition);
-  push(parent);
+  assert(xp_app_test_definition_install_lookup(&lookup));
+  assert(xp_app_test_drain());
+  parent = xp_app_test_current_definition();
+  assert(parent);
   // A test leaf records the payload pointer during construction; selection loans use its actual inline storage.
   auto* child = new Activity;
   child->child = true;

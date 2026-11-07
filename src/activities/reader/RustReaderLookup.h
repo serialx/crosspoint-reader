@@ -11,11 +11,6 @@ uint8_t open(XpEpubLookupStorage* storage, uint8_t* needsIndex);
 uint8_t index(XpEpubLookupStorage* storage, uint8_t* result);
 uint8_t find(XpEpubLookupStorage* storage, uint8_t* result);
 void discard(XpEpubLookupStorage* storage);
-void* definitionLookup(XpEpubDefinitionStorage* storage, XpEpubLookupStorage* lookup, GfxRenderer& renderer,
-                       MappedInputManager& input);
-void* definitionPlain(XpEpubDefinitionStorage* storage, XpAppText title, uint32_t length, XpEpubDefinitionFill fill,
-                      void* context, GfxRenderer& renderer, MappedInputManager& input);
-void definitionDrop(XpEpubDefinitionStorage* storage);
 uint8_t payloadLookup(XpDefinitionPayloadStorage*, XpEpubLookupStorage*, XpAppTextSink, void*, uint8_t*);
 uint8_t payloadFind(XpDefinitionPayloadStorage*, uint8_t, XpEpubLookupStorage*, XpAppText, uint8_t*);
 void directionalHints(GfxRenderer& renderer, MappedInputManager& input, const XpAppText* labels);

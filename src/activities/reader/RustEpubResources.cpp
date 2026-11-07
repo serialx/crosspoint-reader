@@ -925,14 +925,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .child_lookup_index = readerLookup::index,
       .child_lookup_find = readerLookup::find,
       .child_lookup_discard = readerLookup::discard,
-      .child_definition_lookup = [](XpEpubDefinitionStorage* storage, XpEpubLookupStorage* lookup) -> void* {
-        return readerLookup::definitionLookup(storage, lookup, *target, *mapped);
-      },
-      .child_definition_plain = [](XpEpubDefinitionStorage* storage, XpAppText title, uint32_t length,
-                                   XpEpubDefinitionFill fill, void* context) -> void* {
-        return readerLookup::definitionPlain(storage, title, length, fill, context, *target, *mapped);
-      },
-      .child_definition_drop = readerLookup::definitionDrop,
       .child_definition_payload_lookup = readerLookup::payloadLookup,
       .child_definition_payload_plain = DefinitionPayload::constructPlain,
       .child_definition_payload_native = DefinitionPayload::constructNative,

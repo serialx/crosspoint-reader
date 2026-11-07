@@ -28,7 +28,7 @@ impl DefinitionSession {
     }
     /// Loop-task entry. Returned native children are adopted only after this borrow ends.
     #[inline(never)]
-    pub(super) unsafe fn input(
+    pub(in crate::app) unsafe fn input(
         &self,
         runtime: &'static abi::Runtime,
         leaves: &XpEpubLeaves,
@@ -89,7 +89,7 @@ impl DefinitionSession {
         }
         let (mut x, mut y) = (0, 0);
         let long_press =
-            !failed && lookup && unsafe { (leaves.input_screen_long)(&mut x, &mut y) } != 0;
+            !failed && lookup && unsafe { (leaves.input_screen_point)(0, &mut x, &mut y) } != 0;
         // Native samples the recorded header target immediately after consuming the long press.
         let mut layout = Layout::default();
         let header_back_hit = unsafe {

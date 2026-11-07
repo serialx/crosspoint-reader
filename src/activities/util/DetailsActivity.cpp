@@ -7,7 +7,7 @@
 #include <algorithm>
 
 #include "CrossPointSettings.h"
-#include "activities/reader/DictionaryDefinitionActivity.h"
+#include "activities/reader/DefinitionPayload.h"
 #include "components/UITheme.h"
 #include "util/DictHtmlPages.h"
 #include "util/HtmlToPlainText.h"
@@ -149,13 +149,16 @@ void DetailsActivity::utilityResource(const XpUiCommand& c) {
 void DetailsActivity::applyUtilityEffect(const XpUiUtilityEffect& e) {
   if (e.navigation.kind == XP_UI_ACTIVATE && e.navigation.value == 2) {
     if (spec.description.empty()) return;
-    auto viewer = makeUniqueNoThrow<DictionaryDefinitionActivity>(renderer, mappedInput, spec.title, spec.description,
-                                                                  spec.descriptionHtml);
-    if (!viewer) {
+    XpDefinitionNativeTransfer transfer{};
+    transfer.title = &spec.title;
+    transfer.text.copy = &spec.description;
+    transfer.kind = XpDefinitionNativeTransfer::TextKind::Copy;
+    transfer.html = spec.descriptionHtml;
+    if (!xp_app_definition_open_native(&transfer)) {
       LOG_ERR("DETAILS", "OOM: description viewer");
       return;
     }
-    startActivityForResult(std::move(viewer), nullptr);
+    resultHandler = nullptr;
   } else
     UtilityActivity::applyUtilityEffect(e);
 }

@@ -420,20 +420,6 @@ unsafe extern "C" fn xp_keyboard_deliver(
         }
     });
 }
-unsafe extern "C" fn unexpected_definition_result(
-    _: *mut c_void,
-    _: abi::DefinitionPop,
-    _: abi::DefinitionSelectionSink,
-    _: *mut c_void,
-) {
-    panic!("keyboard fixture entered Definition transfer");
-}
-unsafe extern "C" fn unexpected_definition_accept(
-    _: *mut c_void,
-    _: abi::DefinitionSelection,
-) -> u8 {
-    panic!("keyboard fixture accepted Definition transfer");
-}
 fn build_app() -> &'static App {
     let legacy = Box::into_raw(Box::new(abi::Legacy {
         create,
@@ -450,9 +436,6 @@ fn build_app() -> &'static App {
         forced_refresh: no,
         reader_turn: no_turn,
         screenshot_info: shot,
-        with_definition_selection_result: unexpected_definition_result,
-        deliver_definition_selection_result: unexpected_definition_accept,
-        definition_selection_install_failed: ignored,
     }));
     let mut resources = test_resources::resources();
     resources.buffer_allocate = allocate;

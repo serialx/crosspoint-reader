@@ -78,12 +78,14 @@ impl OwnedText {
             if data.is_null() {
                 return false;
             }
-            let mut replacement = Self(abi::DefinitionOwnedText {
-                data,
-                len: 0,
-                capacity: needed,
-                release: Some(release),
-            });
+            let mut replacement = unsafe {
+                Self::from_wire(abi::DefinitionOwnedText {
+                    data,
+                    len: 0,
+                    capacity: needed,
+                    release: Some(release),
+                })
+            };
             replacement.copy(bytes);
             *self = replacement;
         } else {

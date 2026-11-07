@@ -29,7 +29,6 @@
 #include "network/CrossPointWebServerActivity.h"
 #include "network/UsbDriveActivity.h"
 #include "plugins/PluginCatalogActivity.h"
-#include "reader/DictionaryDefinitionActivity.h"
 #include "reader/ReaderActivity.h"
 #include "reader/RustEpubResources.h"
 #include "settings/OpdsServerListActivity.h"
@@ -237,24 +236,6 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
       .screenshot_info =
           [](const void* activity, XpAppScreenshotSink sink, void* context) {
             screenshot(nativeActivity(activity)->getScreenshotInfo(), sink, context);
-          },
-      .with_definition_selection_result =
-          [](void* child, XpDefinitionPop pop, XpDefinitionSelectionSink sink, void* context) {
-            auto result = std::move(nativeActivity(child)->result);
-            void* parent = pop(context);
-            if (!parent) return;
-            RenderLock lock;
-            auto selected =
-                static_cast<DictionaryDefinitionActivity*>(nativeActivity(parent))->prepareSelectionResult(result);
-            OwnedSelectionText text(selected.text);
-            if (sink(context, parent, selected)) text.release();
-          },
-      .deliver_definition_selection_result = [](void* parent, XpDefinitionSelection result) -> uint8_t {
-        return static_cast<DictionaryDefinitionActivity*>(nativeActivity(parent))->acceptSelectionResult(result);
-      },
-      .definition_selection_install_failed =
-          [](void* parent) {
-            static_cast<DictionaryDefinitionActivity*>(nativeActivity(parent))->selectionInstallFailed();
           },
   };
   static XpAppRuntime runtime = leaves;

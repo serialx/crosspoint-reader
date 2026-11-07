@@ -26,7 +26,7 @@
 #include "CrossPointSettings.h"
 #include "MappedInputManager.h"
 #include "PluginCatalogPaging.h"
-#include "activities/reader/DictionaryDefinitionActivity.h"  // plain-text README viewer
+#include "activities/reader/DefinitionPayload.h"
 #include "activities/settings/PluginHubInstallActivity.h"
 #include "activities/util/ConfirmationActivity.h"
 #include "activities/util/DetailsActivity.h"
@@ -1391,13 +1391,15 @@ void PluginCatalogActivity::activateIndex(const int index) {
                 plugin.readmePath.c_str());
         return;
       }
-      auto viewer =
-          makeUniqueNoThrow<DictionaryDefinitionActivity>(renderer, mappedInput, plugin.title, std::move(text));
-      if (!viewer) {
+      XpDefinitionNativeTransfer transfer{};
+      transfer.title = &plugin.title;
+      transfer.text.move = &text;
+      transfer.kind = XpDefinitionNativeTransfer::TextKind::Move;
+      if (!xp_app_definition_open_native(&transfer)) {
         LOG_ERR("PCAT", "OOM: README viewer");
         return;
       }
-      startActivityForResult(std::move(viewer), [](const ActivityResult&) {});
+      resultHandler = [](const ActivityResult&) {};
       return;
     }
     if (action != PluginLocations::PickerAction::Catalog) return;

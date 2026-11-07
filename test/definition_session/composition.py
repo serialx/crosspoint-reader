@@ -1,4 +1,4 @@
-"""Actual App generic pop and actual C++ result bridge, delivering to the dormant Rust owner."""
+"""Actual App generic pop and actual C++ result bridge, delivering to the typed Rust owner."""
 import argparse,json,subprocess,sys,hashlib
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
@@ -19,6 +19,6 @@ for size in [0,1,15,4096]:
   r=subprocess.run([str(binary),str(size),str(cancelled)],capture_output=True,text=True);(a.evidence/f'run-{size}-{cancelled}.log').write_text(r.stdout+r.stderr);records.append({'length':size,'cancelled':cancelled,'exit':r.returncode})
   if r.returncode:print(r.stderr[-4000:]);break
  if r.returncode:break
-(a.evidence/'results.json').write_text(json.dumps({'cases':records,'source_sha256':hashlib.sha256(s.encode()).hexdigest(),'scope':'Real App generic pop, real native stack-owned ActivityResult and view, dormant Rust owner; proxy native parent and synthetic Page resources; typed Definition App variant remains CP2.'},indent=2)+'\n')
+(a.evidence/'results.json').write_text(json.dumps({'cases':records,'source_sha256':hashlib.sha256(s.encode()).hexdigest(),'scope':'Real App generic pop, real native stack-owned ActivityResult and view, typed Rust Definition App owner and synthetic Page resources; real native ActivityResult outlives the single copy.'},indent=2)+'\n')
 assert len(records)==8 and all(r['exit']==0 for r in records),records
 print('8 actual-App/C++ generic result compositions passed')

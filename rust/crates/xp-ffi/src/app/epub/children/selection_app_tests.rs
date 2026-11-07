@@ -63,14 +63,31 @@ unsafe extern "C" fn no_screenshot(_: *const c_void, _: wire::ScreenshotSink, _:
     panic!("screenshot")
 }
 unsafe extern "C" fn result(_: *mut c_void, sink: wire::ResultSink, context: *mut c_void) {
+    call("native-take");
     let original = 7_u8;
     let view = wire::XpAppResultView {
         original: (&original as *const u8).cast(),
-        value: unsafe { core::mem::zeroed() },
-        kind: 0,
+        value: wire::XpAppResultPayload {
+            clipping: wire::XpAppClipResult {
+                text: wire::XpAppNativeText {
+                    bytes: wire::Text::from_bytes(b"word"),
+                    native_string: core::ptr::null(),
+                },
+                start_page_offset: 0,
+                end_page_offset: 0,
+                start_word: 0,
+                end_word: 1,
+                word_count: 1,
+                start_offset: 0,
+                end_offset: 0,
+                action: 1,
+            },
+        },
+        kind: wire::RESULT_CLIPPING,
         cancelled: CANCELLED.with(Cell::get),
     };
     unsafe { sink(context, &view) };
+    call("native-result-drop");
 }
 unsafe extern "C" fn destroy(pointer: *mut c_void) {
     // Only the native ClipSelection witness is separately heap-owned.
@@ -84,7 +101,7 @@ unsafe extern "C" fn destroy(pointer: *mut c_void) {
 unsafe extern "C" fn delivered(_: *mut c_void, _: *const c_void) {
     panic!("Definition selection must use owned delivery")
 }
-unsafe extern "C" fn drop_definition(p: *mut children::selection_physical::DefinitionStorage) {
+unsafe extern "C" fn drop_definition(p: *mut children::definition_physical::PayloadStorage) {
     CLIP_LIVE.with(|v| assert!(!v.get()));
     unsafe { definition_drop(p) };
 }
@@ -93,6 +110,7 @@ fn app_fixture() -> app::App {
     static RESOURCES: OnceLock<wire::Resources> = OnceLock::new();
     const LEAVES: abi::XpEpubLeaves = abi::XpEpubLeaves {
         log_enabled: quiet,
+        fonts_release_caches: empty,
         ..test_leaves::leaves()
     };
     static LEGACY: wire::Legacy = wire::Legacy {
@@ -110,9 +128,6 @@ fn app_fixture() -> app::App {
         forced_refresh: no_action,
         reader_turn: no_turn,
         screenshot_info: no_screenshot,
-        with_definition_selection_result: no_selection,
-        deliver_definition_selection_result: no_selection_delivery,
-        definition_selection_install_failed: native_event,
     };
     let runtime = RUNTIME.get_or_init(|| wire::Runtime {
         render_lock,
@@ -178,8 +193,12 @@ fn definition_owned_result_actual_app_destroys_and_publishes_before_transfer() {
         ops.lookup_find = found;
         ops.wait_paint = wait_paint;
         ops.lookup_discard = discard;
-        ops.definition_lookup = definition_lookup;
-        ops.definition_drop = drop_definition;
+        ops.definition.payload_lookup = definition_lookup;
+        ops.definition.payload_drop = drop_definition;
+        ops.definition.payload_prepare = prepared;
+        ops.definition.layout = layout;
+        ops.definition.selection_release = release_pages;
+        ops.definition.heap = default_heap;
         let owner = Lookup::try_new(
             app.runtime,
             page(),
@@ -204,9 +223,19 @@ fn definition_owned_result_actual_app_destroys_and_publishes_before_transfer() {
         };
         app.activity_loop();
         let lookup = unsafe { pointer.as_ref() };
-        let children::lookup::Attempt::Detail(viewer) =
-            (unsafe { lookup.perform(&ops, || 0, || lookup.release_page()) })
-        else {
+        let children::lookup::Attempt::Detail(viewer) = (unsafe {
+            lookup.perform(
+                {
+                    static OPS: std::sync::OnceLock<
+                        crate::app::epub::children::selection_physical::Physical,
+                    > = std::sync::OnceLock::new();
+                    OPS.get_or_init(|| ops)
+                },
+                app.runtime,
+                || 0,
+                || lookup.release_page(),
+            )
+        }) else {
             panic!()
         };
         app.navigation
@@ -251,23 +280,18 @@ fn definition_owned_result_actual_app_destroys_and_publishes_before_transfer() {
                 "unlock",
                 "selection-pages-release",
             ];
-            if cancelled == 0 {
-                expected.push("text-allocation");
-            }
-            expected.push("clip-deliver");
-            if cancelled == 0 {
-                expected.push("text-free");
-            }
             expected.push("native-result-drop");
             assert_eq!(*v.borrow(), expected);
         });
         assert_eq!(app.navigation.parent_count(), 2);
         CANCELLED.with(|v| v.set(cancelled));
-        // The real definition result is copied before its inline native storage drops.
+        unsafe { *viewer.as_ref().result.get() = Some(cancelled != 0) };
+        // The small result is copied before the continuation drops the Rust owner.
         app.with_result(app::Target::Definition(viewer),|result| {
             let app::ActivityResult::Child(slot) = result else { panic!("wrong result route") };
             assert!(matches!(unsafe { slot.take() }, Some(children::ReaderChildResult::DefinitionClosed{cancelled:value}) if value==(cancelled!=0)));
         });
+        unsafe { *viewer.as_ref().result.get() = Some(cancelled != 0) };
         app.navigation.queue(Transition::Pop);
         app.navigation.drain(&app);
         assert_eq!(app.navigation.parent_count(), 0);
@@ -330,62 +354,20 @@ fn failed_definition_stack_growth_returns_to_timed_low_memory() {
     });
 }
 
-// Native witnesses for strict Miri; native C++ strings and Page clearing are
-// independently exercised by test/definition_transfer/composition.py.
-unsafe extern "C" fn no_selection(
-    child: *mut c_void,
-    pop: wire::DefinitionPop,
-    sink: wire::DefinitionSelectionSink,
-    context: *mut c_void,
-) {
-    let expected_parent = unsafe { *child.cast::<*mut c_void>() };
-    call("native-take");
-    let parent = unsafe { pop(context) };
-    assert_eq!(parent, expected_parent);
-    CLIP_LIVE.with(|v| assert!(!v.get()));
-    LOCKED.with(|v| assert!(!v.get()));
-    call("selection-pages-release");
-    let mut result: wire::DefinitionSelection = unsafe { core::mem::zeroed() };
-    if CANCELLED.with(Cell::get) == 0 {
-        call("text-allocation");
-        let data = unsafe { std::alloc::alloc(std::alloc::Layout::array::<u8>(5).unwrap()) };
-        assert!(!data.is_null());
-        unsafe { core::ptr::copy_nonoverlapping(b"word\0".as_ptr(), data, 5) };
-        result.text = wire::DefinitionOwnedText {
-            data,
-            len: 4,
-            capacity: 5,
-            release: Some(selection_release),
-        };
-        result.status = 1;
-    }
-    assert_eq!(unsafe { sink(context, parent, result) }, 1);
-    call("native-result-drop");
-}
-unsafe extern "C" fn selection_release(data: *mut u8, capacity: u32) {
-    assert_eq!(capacity, 5);
-    call("text-free");
-    unsafe {
-        std::alloc::dealloc(
-            data,
-            std::alloc::Layout::array::<u8>(capacity as usize).unwrap(),
-        )
-    };
-}
-unsafe extern "C" fn no_selection_delivery(
-    parent: *mut c_void,
-    result: wire::DefinitionSelection,
+unsafe extern "C" fn prepared(
+    _: *mut children::definition_physical::PayloadStorage,
+    _: u8,
+    _: u8,
+    _: u8,
+    _: xp_ui::scene::Rect,
+    out: *mut children::definition_physical::PayloadView,
 ) -> u8 {
-    let lookup = unsafe { (*parent.cast::<DefinitionLoan>()).lookup };
-    assert_eq!(unsafe { (*lookup.cast::<Native>()).pointer }, lookup);
-    call("clip-deliver");
-    if let Some(release) = result.text.release {
-        assert_eq!(
-            unsafe { core::slice::from_raw_parts(result.text.data, 5) },
-            b"word\0"
-        );
-        unsafe { release(result.text.data, result.text.capacity) };
-    }
+    unsafe {
+        out.write(children::definition_physical::PayloadView {
+            pages: 1,
+            ..Default::default()
+        })
+    };
     1
 }
 
@@ -484,4 +466,22 @@ fn reader_result_slot_moves_once_after_producer_drop() {
             }
         }
     }
+}
+
+unsafe extern "C" fn layout(out: *mut xp_ui::dictionary::definition::Layout, x: i32, y: i32) -> u8 {
+    assert_eq!((x, y), (-1, -1));
+    unsafe { out.write(Default::default()) };
+    0
+}
+unsafe extern "C" fn release_pages(_: *mut children::definition_physical::PayloadStorage) {
+    assert!(!LOCKED.with(Cell::get) && !CLIP_LIVE.with(Cell::get));
+    call("selection-pages-release");
+}
+unsafe extern "C" fn default_heap(out: *mut abi::XpEpubHeap) {
+    unsafe {
+        out.write(abi::XpEpubHeap {
+            free_bytes: 100000,
+            largest_block: 50000,
+        })
+    };
 }

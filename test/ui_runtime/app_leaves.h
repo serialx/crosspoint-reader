@@ -24,9 +24,6 @@ inline XpAppLegacy appTestLegacy() {
       .forced_refresh = [](void* activity) -> uint8_t { return {}; },
       .reader_turn = [](void* activity, uint8_t forward, uint8_t chapter) -> uint8_t { return {}; },
       .screenshot_info = [](const void* activity, XpAppScreenshotSink sink, void* context) -> void {},
-      .with_definition_selection_result = [](void*, XpDefinitionPop, XpDefinitionSelectionSink, void*) {},
-      .deliver_definition_selection_result = [](void*, XpDefinitionSelection) -> uint8_t { return 0; },
-      .definition_selection_install_failed = [](void*) {},
   };
 }
 

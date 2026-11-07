@@ -151,9 +151,7 @@ unused_leaves! {
     framebuffer_view(_a0: *mut u32) -> *mut u8;
 }
 
-use crate::app::epub::children::selection_physical::{
-    DefinitionFill, DefinitionStorage, LookupStorage, Physical as Selection,
-};
+use crate::app::epub::children::selection_physical::{LookupStorage, Physical as Selection};
 unsafe extern "C" fn unused_init(_: *mut LookupStorage, _: XpAppText) {
     panic!("lookup init");
 }
@@ -162,24 +160,6 @@ unsafe extern "C" fn unused_drop(_: *mut LookupStorage) {
 }
 unsafe extern "C" fn unused_result(_: *mut LookupStorage, _: *mut u8) -> u8 {
     panic!("lookup operation");
-}
-unsafe extern "C" fn unused_lookup(
-    _: *mut DefinitionStorage,
-    _: *mut LookupStorage,
-) -> *mut core::ffi::c_void {
-    panic!("definition lookup");
-}
-unsafe extern "C" fn unused_plain(
-    _: *mut DefinitionStorage,
-    _: XpAppText,
-    _: u32,
-    _: DefinitionFill,
-    _: *mut core::ffi::c_void,
-) -> *mut core::ffi::c_void {
-    panic!("definition plain");
-}
-unsafe extern "C" fn unused_definition_drop(_: *mut DefinitionStorage) {
-    panic!("definition drop");
 }
 unsafe extern "C" fn unused_hints(_: *const XpAppText) {
     panic!("directional hints");
@@ -195,9 +175,6 @@ pub(in crate::app::epub::children) const fn selection() -> Selection {
         lookup_index: unused_result,
         lookup_find: unused_result,
         lookup_discard: unused_drop,
-        definition_lookup: unused_lookup,
-        definition_plain: unused_plain,
-        definition_drop: unused_definition_drop,
         definition: crate::app::epub::children::definition_physical::DefinitionPhysical::unused(),
         directional_hints: unused_hints,
         dictionary_popup_layout: unused_layout,

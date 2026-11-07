@@ -383,13 +383,13 @@ static_assert(std::is_pointer_v<decltype(XpEpubLeaves::scratch_release)> &&
 static_assert(offsetof(XpEpubLeaves, inflate_oom_log) == 109 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::inflate_oom_log)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::inflate_oom_log)>>);
-static_assert(sizeof(XpEpubLeaves) == 173 * sizeof(void (*)()));
+static_assert(sizeof(XpEpubLeaves) == 170 * sizeof(void (*)()));
 static_assert(alignof(XpEpubLeaves) == alignof(void (*)()));
 static_assert(sizeof(XpAppResultView::kind) == 1);
 static_assert(sizeof(XpAppResultView::cancelled) == 1);
 
 // The Legacy table includes three temporary Definition-selection callbacks.
-static_assert(sizeof(XpAppLegacy) == 17 * sizeof(void*));
+static_assert(sizeof(XpAppLegacy) == 14 * sizeof(void*));
 static_assert(offsetof(XpAppLegacy, reader_turn) == 12 * sizeof(void*));
 static_assert(offsetof(XpAppLegacy, screenshot_info) == 13 * sizeof(void*));
 static_assert(sizeof(XpAppPlatform) == 4 * sizeof(void*));

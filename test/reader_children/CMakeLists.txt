@@ -196,3 +196,18 @@ add_test(NAME reader_bookmark_drawing_negative_controls
 
 add_test(NAME reader_bookmark_point_contract
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_bookmark_point.py)
+
+add_test(NAME reader_definition_owner
+  COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${READER_CHILDREN_TARGET}"
+    ${READER_CHILDREN_CARGO} test --manifest-path ${REPO_ROOT}/test/home_ui/app_owner/Cargo.toml
+    --features app-test --locked --offline --lib definition_session_tests)
+add_test(NAME reader_definition_owned_text
+  COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${READER_CHILDREN_TARGET}"
+    ${READER_CHILDREN_CARGO} test --manifest-path ${REPO_ROOT}/test/definition_session/Cargo.toml
+    --locked --offline --lib)
+add_test(NAME reader_definition_native_payload
+  COMMAND ${Python3_EXECUTABLE} ${REPO_ROOT}/test/definition_session/payload.py
+    --archive ${XP_FFI_HOST_ARCHIVE} --evidence ${CMAKE_CURRENT_BINARY_DIR}/definition-payload)
+add_test(NAME reader_definition_app_result
+  COMMAND ${Python3_EXECUTABLE} ${REPO_ROOT}/test/definition_session/composition.py
+    --archive ${XP_FFI_HOST_ARCHIVE} --evidence ${CMAKE_CURRENT_BINARY_DIR}/definition-composition)

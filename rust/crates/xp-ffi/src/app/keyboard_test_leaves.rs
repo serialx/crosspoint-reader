@@ -239,18 +239,6 @@ struct SelectionWire {
     lookup_index: unsafe extern "C" fn(*mut core::ffi::c_void, *mut u8) -> u8,
     lookup_find: unsafe extern "C" fn(*mut core::ffi::c_void, *mut u8) -> u8,
     lookup_discard: unsafe extern "C" fn(*mut core::ffi::c_void),
-    definition_lookup: unsafe extern "C" fn(
-        *mut core::ffi::c_void,
-        *mut core::ffi::c_void,
-    ) -> *mut core::ffi::c_void,
-    definition_plain: unsafe extern "C" fn(
-        *mut core::ffi::c_void,
-        XpAppText,
-        u32,
-        DefinitionFill,
-        *mut core::ffi::c_void,
-    ) -> *mut core::ffi::c_void,
-    definition_drop: unsafe extern "C" fn(*mut core::ffi::c_void),
     definition: super::epub::children::definition_physical::DefinitionPhysical,
     directional_hints: unsafe extern "C" fn(*const XpAppText),
     dictionary_popup_layout: unsafe extern "C" fn(*mut xp_ui::dictionary::popup::Layout),
@@ -264,24 +252,6 @@ unsafe extern "C" fn unused_drop(_: *mut core::ffi::c_void) {
 }
 unsafe extern "C" fn unused_result(_: *mut core::ffi::c_void, _: *mut u8) -> u8 {
     panic!("lookup operation");
-}
-unsafe extern "C" fn unused_lookup(
-    _: *mut core::ffi::c_void,
-    _: *mut core::ffi::c_void,
-) -> *mut core::ffi::c_void {
-    panic!("definition lookup");
-}
-unsafe extern "C" fn unused_plain(
-    _: *mut core::ffi::c_void,
-    _: XpAppText,
-    _: u32,
-    _: DefinitionFill,
-    _: *mut core::ffi::c_void,
-) -> *mut core::ffi::c_void {
-    panic!("definition plain");
-}
-unsafe extern "C" fn unused_definition_drop(_: *mut core::ffi::c_void) {
-    panic!("definition drop");
 }
 unsafe extern "C" fn unused_hints(_: *const XpAppText) {
     panic!("directional hints");
@@ -297,9 +267,6 @@ const fn selection() -> SelectionWire {
         lookup_index: unused_result,
         lookup_find: unused_result,
         lookup_discard: unused_drop,
-        definition_lookup: unused_lookup,
-        definition_plain: unused_plain,
-        definition_drop: unused_definition_drop,
         definition: super::epub::children::definition_physical::DefinitionPhysical::unused(),
         directional_hints: unused_hints,
         dictionary_popup_layout: unused_layout,

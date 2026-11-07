@@ -11,9 +11,7 @@
 
 #include "CrossPointSettings.h"
 #include "DefinitionPayload.h"
-#include "DictionaryDefinitionActivity.h"
 #include "MappedInputManager.h"
-#include "activities/OwnedLegacyActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "util/Dictionary.h"
@@ -27,30 +25,14 @@ struct Lookup {
   std::string headword;
   explicit Lookup(XpAppText text) : query(text.len ? reinterpret_cast<const char*>(text.data) : "", text.len) {}
 };
-struct Definition {
-  OwnedLegacyActivity adapter{nullptr};
-  alignas(DictionaryDefinitionActivity) std::byte activity[sizeof(DictionaryDefinitionActivity)];
-};
 static_assert(sizeof(Lookup) <= sizeof(XpEpubLookupStorage));
 static_assert(alignof(Lookup) <= alignof(XpEpubLookupStorage));
-static_assert(sizeof(Definition) <= sizeof(XpEpubDefinitionStorage));
-static_assert(alignof(Definition) <= alignof(XpEpubDefinitionStorage));
-static_assert(offsetof(Definition, adapter) == 0);
 #if UINTPTR_MAX == UINT32_MAX
 static_assert(sizeof(Lookup) == 360);
-static_assert(sizeof(Definition) == 444);
 #endif
 Lookup& get(XpEpubLookupStorage* storage) { return *std::launder(reinterpret_cast<Lookup*>(storage)); }
 void indexYield(void*) { vTaskDelay(1); }
 
-Definition* construct(XpEpubDefinitionStorage* storage, GfxRenderer& renderer, MappedInputManager& input,
-                      std::string&& title, std::string&& text, bool html) {
-  auto* owner = ::new (static_cast<void*>(storage)) Definition;
-  auto* viewer = ::new (static_cast<void*>(owner->activity))
-      DictionaryDefinitionActivity(renderer, input, std::move(title), std::move(text), html);
-  owner->adapter.activity.reset(viewer);
-  return owner;
-}
 }  // namespace
 
 void init(XpEpubLookupStorage* storage, XpAppText query) { ::new (static_cast<void*>(storage)) Lookup(query); }
@@ -78,33 +60,6 @@ void discard(XpEpubLookupStorage* storage) {
   auto& lookup = get(storage);
   std::string{}.swap(lookup.headword);
   std::string{}.swap(lookup.definition);
-}
-void* definitionLookup(XpEpubDefinitionStorage* storage, XpEpubLookupStorage* source, GfxRenderer& renderer,
-                       MappedInputManager& input) {
-  auto& lookup = get(source);
-  auto* owner = construct(storage, renderer, input, std::move(lookup.headword), std::move(lookup.definition),
-                          lookup.dictionary.definitionsAreHtml());
-  auto* viewer = static_cast<DictionaryDefinitionActivity*>(owner->adapter.activity.get());
-  if (!viewer->enableLookup(lookup.dictionary, std::move(lookup.query))) {
-    definitionDrop(storage);
-    return nullptr;
-  }
-  return &owner->adapter;
-}
-void* definitionPlain(XpEpubDefinitionStorage* storage, XpAppText title, uint32_t length, XpEpubDefinitionFill fill,
-                      void* context, GfxRenderer& renderer, MappedInputManager& input) {
-  std::string text;
-  text.resize(length);
-  if (!fill(context, reinterpret_cast<uint8_t*>(text.data()), length)) return nullptr;
-  std::string heading(title.len ? reinterpret_cast<const char*>(title.data) : "", title.len);
-  return &construct(storage, renderer, input, std::move(heading), std::move(text), false)->adapter;
-}
-void definitionDrop(XpEpubDefinitionStorage* storage) {
-  auto* owner = std::launder(reinterpret_cast<Definition*>(storage));
-  // The adapter points into caller storage; releasing first prevents delete.
-  auto* viewer = static_cast<DictionaryDefinitionActivity*>(owner->adapter.activity.release());
-  std::destroy_at(viewer);
-  std::destroy_at(owner);
 }
 uint8_t payloadLookup(XpDefinitionPayloadStorage* storage, XpEpubLookupStorage* source, XpAppTextSink sink,
                       void* context, uint8_t* html) {

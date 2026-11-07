@@ -19,6 +19,13 @@ use xp_ui::{
     scene::Command,
 };
 
+#[repr(u8)]
+#[derive(Clone, Copy)]
+pub(super) enum PayloadSlot {
+    Current = 0,
+    Candidate = 1,
+}
+
 #[repr(C)]
 #[derive(Default)]
 pub(super) struct HistoryEntry {
@@ -62,7 +69,7 @@ pub(crate) struct DefinitionSession {
     pub(super) physical: &'static DefinitionPhysical,
     initialized: UnsafeCell<bool>,
     pub(super) html: UnsafeCell<bool>,
-    pub(super) result: UnsafeCell<Option<bool>>,
+    pub(in crate::app) result: UnsafeCell<Option<bool>>,
 }
 pub(crate) struct DefinitionOwner(StableOwner<DefinitionSession>);
 impl core::ops::Deref for DefinitionOwner {
@@ -211,12 +218,16 @@ impl DefinitionSession {
     pub(super) unsafe fn body(&self) -> xp_ui::scene::Rect {
         unsafe { self.physical.body() }
     }
-    pub(super) unsafe fn prepare(&self, slot: u8, force_plain: bool) -> Option<PayloadView> {
+    pub(super) unsafe fn prepare(
+        &self,
+        slot: PayloadSlot,
+        force_plain: bool,
+    ) -> Option<PayloadView> {
         let mut out = MaybeUninit::<PayloadView>::uninit();
         if unsafe {
             (self.physical.payload_prepare)(
                 self.payload.get(),
-                slot,
+                slot as u8,
                 u8::from(*self.html.get()),
                 u8::from(force_plain),
                 self.body(),

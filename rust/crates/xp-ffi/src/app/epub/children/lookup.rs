@@ -1,4 +1,7 @@
-use super::{definition::Definition, selection_owned::LookupData, selection_physical::Physical};
+use super::{
+    definition_owned::DefinitionOwner as Definition, selection_owned::LookupData,
+    selection_physical::Physical,
+};
 use xp_ui::dictionary::popup;
 
 pub(super) enum Attempt {
@@ -10,7 +13,8 @@ impl LookupData {
     /// Called on the loop task. `release_page` must exclude all render loans.
     pub(super) unsafe fn perform(
         &self,
-        physical: &Physical,
+        physical: &'static Physical,
+        runtime: &'static crate::app::abi::Runtime,
         now: impl Fn() -> u32,
         release_page: impl FnOnce(),
     ) -> Attempt {
@@ -50,7 +54,9 @@ impl LookupData {
         let outcome = if found {
             self.model.with(|model| model.state.popup = 0);
             release_page();
-            if let Some(viewer) = unsafe { Definition::try_lookup(physical, self.native.get()) } {
+            if let Some(viewer) =
+                unsafe { Definition::try_lookup(runtime, &physical.definition, self.native.get()) }
+            {
                 self.model.with(|model| model.awaiting_detail = true);
                 Attempt::Detail(viewer)
             } else {
@@ -97,6 +103,7 @@ impl LookupData {
             let attempt = unsafe {
                 self.perform(
                     &parent.leaves.child_selection_physical,
+                    parent.runtime,
                     || (parent.runtime.now_ms)(),
                     || {
                         let _access = parent.lock_resources();

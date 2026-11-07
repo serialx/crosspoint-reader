@@ -287,9 +287,6 @@ typedef struct {
   uintptr_t words[90];
 } XpEpubLookupStorage;
 typedef struct {
-  uintptr_t words[111];
-} XpEpubDefinitionStorage;
-typedef struct {
   uintptr_t words[43];
 } XpDefinitionPayloadStorage;
 typedef struct XpDefinitionNativeTransfer XpDefinitionNativeTransfer;
@@ -484,11 +481,6 @@ typedef struct XpEpubLeaves {
   uint8_t (*child_lookup_index)(XpEpubLookupStorage* storage, uint8_t* result);
   uint8_t (*child_lookup_find)(XpEpubLookupStorage* storage, uint8_t* result);
   void (*child_lookup_discard)(XpEpubLookupStorage* storage);
-  // Returned handles borrow the inline definition storage. Use existing Legacy services except destroy.
-  void* (*child_definition_lookup)(XpEpubDefinitionStorage* storage, XpEpubLookupStorage* lookup);
-  void* (*child_definition_plain)(XpEpubDefinitionStorage* storage, XpAppText title, uint32_t length,
-                                  XpEpubDefinitionFill fill, void* context);
-  void (*child_definition_drop)(XpEpubDefinitionStorage* storage);
   uint8_t (*child_definition_payload_lookup)(XpDefinitionPayloadStorage* storage, XpEpubLookupStorage* lookup,
                                              XpAppTextSink query, void* context, uint8_t* html);
   uint8_t (*child_definition_payload_plain)(XpDefinitionPayloadStorage* storage, XpAppText title, uint32_t length,
@@ -567,7 +559,7 @@ XP_EPUB_ASSERT(offsetof(XpEpubRadio, note) == 4, "XpEpubRadio.note");
 XP_EPUB_ASSERT(sizeof(XpEpubPeer) == 82, "XpEpubPeer size");
 XP_EPUB_ASSERT(offsetof(XpEpubPeer, name) == 0, "XpEpubPeer.name");
 XP_EPUB_ASSERT(offsetof(XpEpubPeer, addr) == 64, "XpEpubPeer.addr");
-XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 173 * sizeof(void (*)(void)), "XpEpubLeaves size");
+XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 170 * sizeof(void (*)(void)), "XpEpubLeaves size");
 #define XP_EPUB_LEAF_OFFSET(field, index) \
   XP_EPUB_ASSERT(offsetof(XpEpubLeaves, field) == (index) * sizeof(void (*)(void)), "XpEpubLeaves." #field)
 XP_EPUB_LEAF_OFFSET(render_margins, 0);
@@ -718,33 +710,30 @@ XP_EPUB_LEAF_OFFSET(child_lookup_open, 142);
 XP_EPUB_LEAF_OFFSET(child_lookup_index, 143);
 XP_EPUB_LEAF_OFFSET(child_lookup_find, 144);
 XP_EPUB_LEAF_OFFSET(child_lookup_discard, 145);
-XP_EPUB_LEAF_OFFSET(child_definition_lookup, 146);
-XP_EPUB_LEAF_OFFSET(child_definition_plain, 147);
-XP_EPUB_LEAF_OFFSET(child_definition_drop, 148);
-XP_EPUB_LEAF_OFFSET(child_definition_payload_lookup, 149);
-XP_EPUB_LEAF_OFFSET(child_definition_payload_plain, 150);
-XP_EPUB_LEAF_OFFSET(child_definition_payload_native, 151);
-XP_EPUB_LEAF_OFFSET(child_definition_payload_drop, 152);
-XP_EPUB_LEAF_OFFSET(child_definition_heap, 153);
-XP_EPUB_LEAF_OFFSET(child_definition_payload_prepare, 154);
-XP_EPUB_LEAF_OFFSET(child_definition_payload_release, 155);
-XP_EPUB_LEAF_OFFSET(child_definition_payload_find, 156);
-XP_EPUB_LEAF_OFFSET(child_definition_payload_commit, 157);
-XP_EPUB_LEAF_OFFSET(child_definition_selection_build, 158);
-XP_EPUB_LEAF_OFFSET(child_definition_selection_child, 159);
-XP_EPUB_LEAF_OFFSET(child_definition_selection_release, 160);
-XP_EPUB_LEAF_OFFSET(child_definition_layout, 161);
-XP_EPUB_LEAF_OFFSET(child_definition_draw_header, 162);
-XP_EPUB_LEAF_OFFSET(child_definition_draw_body, 163);
-XP_EPUB_LEAF_OFFSET(child_directional_hints, 164);
-XP_EPUB_LEAF_OFFSET(child_dictionary_popup_layout, 165);
-XP_EPUB_LEAF_OFFSET(child_wait_paint, 166);
-XP_EPUB_LEAF_OFFSET(clipping_physical, 167);
-XP_EPUB_LEAF_OFFSET(child_list_help, 168);
-XP_EPUB_LEAF_OFFSET(child_list_icon, 169);
-XP_EPUB_LEAF_OFFSET(local_calendar, 170);
-XP_EPUB_LEAF_OFFSET(storage_read_file, 171);
-XP_EPUB_LEAF_OFFSET(storage_write_file_atomic, 172);
+XP_EPUB_LEAF_OFFSET(child_definition_payload_lookup, 146);
+XP_EPUB_LEAF_OFFSET(child_definition_payload_plain, 147);
+XP_EPUB_LEAF_OFFSET(child_definition_payload_native, 148);
+XP_EPUB_LEAF_OFFSET(child_definition_payload_drop, 149);
+XP_EPUB_LEAF_OFFSET(child_definition_heap, 150);
+XP_EPUB_LEAF_OFFSET(child_definition_payload_prepare, 151);
+XP_EPUB_LEAF_OFFSET(child_definition_payload_release, 152);
+XP_EPUB_LEAF_OFFSET(child_definition_payload_find, 153);
+XP_EPUB_LEAF_OFFSET(child_definition_payload_commit, 154);
+XP_EPUB_LEAF_OFFSET(child_definition_selection_build, 155);
+XP_EPUB_LEAF_OFFSET(child_definition_selection_child, 156);
+XP_EPUB_LEAF_OFFSET(child_definition_selection_release, 157);
+XP_EPUB_LEAF_OFFSET(child_definition_layout, 158);
+XP_EPUB_LEAF_OFFSET(child_definition_draw_header, 159);
+XP_EPUB_LEAF_OFFSET(child_definition_draw_body, 160);
+XP_EPUB_LEAF_OFFSET(child_directional_hints, 161);
+XP_EPUB_LEAF_OFFSET(child_dictionary_popup_layout, 162);
+XP_EPUB_LEAF_OFFSET(child_wait_paint, 163);
+XP_EPUB_LEAF_OFFSET(clipping_physical, 164);
+XP_EPUB_LEAF_OFFSET(child_list_help, 165);
+XP_EPUB_LEAF_OFFSET(child_list_icon, 166);
+XP_EPUB_LEAF_OFFSET(local_calendar, 167);
+XP_EPUB_LEAF_OFFSET(storage_read_file, 168);
+XP_EPUB_LEAF_OFFSET(storage_write_file_atomic, 169);
 #undef XP_EPUB_LEAF_OFFSET
 XP_EPUB_ASSERT(sizeof(XpEpubBookBorrow) == 6 * sizeof(void (*)(void)), "XpEpubBookBorrow size");
 XP_EPUB_ASSERT(offsetof(XpEpubBookBorrow, spine) == 0, "XpEpubBookBorrow.spine");

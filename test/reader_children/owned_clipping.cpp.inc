@@ -6,13 +6,11 @@ static int clippingChoice = -1;
 static void (*clippingChoose)(void*, int32_t);
 static void* clippingChoiceContext;
 static unsigned clippingLoads, clippingDetailCreates, clippingDetailDrops;
-struct ClippingDetailNative {
-  OwnedLegacyActivity adapter{nullptr};
-  alignas(Activity) unsigned char viewer[sizeof(Activity)];
-};
-static_assert(sizeof(ClippingDetailNative) <= sizeof(XpEpubDefinitionStorage));
+extern "C" void* xp_app_test_current_definition();
+extern "C" uint8_t xp_app_test_definition_result(uint8_t);
+struct ClippingDetailNative { bool entered = false; };
+static_assert(sizeof(ClippingDetailNative) <= sizeof(XpDefinitionPayloadStorage));
 static void* clippingDetailHandle;
-static bool clippingNestedDelivered, clippingNestedCancelled;
 static std::string clippingDetailText, clippingDetailTitle;
 namespace {
 static bool observeOwnedClippingLog(uint8_t level, XpAppText origin, XpAppText message) {
@@ -72,8 +70,8 @@ static void bindOwnedClippings() {
     };
     return &service;
   };
-  leaves.child_definition_plain = [](XpEpubDefinitionStorage* storage, XpAppText title, uint32_t length,
-      XpEpubDefinitionFill fill, void* context) -> void* {
+  leaves.child_definition_payload_plain = [](XpDefinitionPayloadStorage* storage, XpAppText title, uint32_t length,
+      XpEpubDefinitionFill fill, void* context) -> uint8_t {
     assert(!f().renderDepth && !f().modelDepth);
     clippingDetailTitle = text(title);
     clippingDetailText.assign(length, '\0');
@@ -82,34 +80,38 @@ static void bindOwnedClippings() {
     const bool filled = fill(context, reinterpret_cast<uint8_t*>(clippingDetailText.data()), length);
     fake::failRead = -1;
     assert(filled == !clippingReadFailure);
-    if (!filled) return nullptr;
-    if (clippingDetailFailure) return nullptr;
-    auto* owner = new (storage) ClippingDetailNative;
-    owner->adapter.activity.reset(new (owner->viewer) Activity("clipping-detail"));
+    if (!filled) return 0;
+    if (clippingDetailFailure) return 0;
+    new (storage) ClippingDetailNative;
     ++clippingDetailCreates;
     clippingDetailHandle = storage;
     assert(results.children.insert(storage).second);
     if (clippingStackFailure) xp_test_fail_allocation_after(0);
-    return &owner->adapter;
+    return 1;
   };
-  leaves.child_definition_drop = [](XpEpubDefinitionStorage* storage) {
+  leaves.child_definition_payload_drop = [](XpDefinitionPayloadStorage* storage) {
     assert(!f().modelDepth && clippingDetailHandle == storage);
-    assert(f().renderDepth == (nativeActivity(storage)->entered ? 1 : 0));
+    assert(f().renderDepth == (reinterpret_cast<ClippingDetailNative*>(storage)->entered ? 1 : 0));
     assert(results.children.erase(storage) == 1);
     auto* owner = reinterpret_cast<ClippingDetailNative*>(storage);
-    auto* viewer = owner->adapter.activity.release();
-    std::destroy_at(viewer);
     std::destroy_at(owner);
     clippingDetailHandle = nullptr;
     ++clippingDetailDrops;
   };
   static auto destroy = legacy.destroy;
   legacy.destroy = [](void* raw) { assert(raw != clippingDetailHandle); destroy(raw); };
-  static auto withResult = legacy.with_result;
-  legacy.with_result = [](void* raw, XpAppResultSink sink, void* context) {
-    if (results.children.count(raw) && nativeActivity(raw)->kind == "clipping-detail") production_with_result(raw, sink, context);
-    else withResult(raw, sink, context);
+  leaves.child_definition_payload_prepare = [](XpDefinitionPayloadStorage* storage, uint8_t slot,
+      uint8_t html, uint8_t plain, XpUiRect, XpDefinitionPayloadView* out) -> uint8_t {
+    assert(!f().renderDepth && slot == 0 && html == 0 && plain == 0);
+    reinterpret_cast<ClippingDetailNative*>(storage)->entered = true;
+    *out = {}; out->pages = 1; return 1;
   };
+  leaves.child_definition_layout = [](XpUiDefinitionLayout* out, int32_t x, int32_t y) -> uint8_t {
+    assert(x == -1 && y == -1); *out = {}; return 0;
+  };
+  static auto releaseFonts = leaves.fonts_release_caches;
+  leaves.fonts_release_caches = [] { assert(f().renderDepth == 1); releaseFonts(); };
+
 }
 static void nextClipping() {
   childInput = {}; childInput.input.now_ms = 100; childInput.input.pressed = XP_UI_NAV_NEXT;
@@ -180,51 +182,18 @@ static int runOwnedClippings(const std::string& mode, bool cancelled) {
       assert(clippingDetailText == std::string(4096, 's'));
       assert(clippingDetailTitle == (mode == "clippings-nav" ? "Chapter 9" : "Chapter 0"));
       if (!clippingDetailFailure) {
-        assert(xp_app_test_current_legacy() && !xp_app_test_current_child(nullptr));
-        auto* detail = xp_app_test_current_legacy();
-        if (mode == "clippings-detail") {
-          clippingNestedDelivered = false;
-          clippingNestedCancelled = cancelled;
-          auto child = ownLegacy(makeUniqueNoThrow<ClipSelectionActivity>(renderer, input,
-              std::vector<std::unique_ptr<Page>>{}, 0, 0, 0, 0, ClipSelectionActivity::Mode::Clip));
-          XpAppEvent push{}; push.kind = XP_APP_ADOPT_PUSH; push.value.adopt_push = child.get();
-          assert(xp_app_event(&push) == XP_APP_ACCEPTED); child.release();
-          assert(xp_app_test_drain());
-          auto* selection = xp_app_test_current_legacy();
-          assert(selection && selection != detail && clippingDetailDrops == 0);
-          nativeActivity(selection)->result.isCancelled = cancelled;
-          // This fixture's viewer is a physical fake; the native transfer is covered separately.
-          legacy.with_definition_selection_result = [](void* raw, XpDefinitionPop pop,
-              XpDefinitionSelectionSink sink, void* context) {
-            auto result = std::move(nativeActivity(raw)->result);
-            assert(result.isCancelled == clippingNestedCancelled);
-            auto* parent = pop(context);
-            assert(parent == clippingDetailHandle && !f().renderDepth && !results.children.count(raw));
-            XpDefinitionSelection owned{};
-            owned.status = result.isCancelled ? XP_DEFINITION_SELECTION_CANCELLED : XP_DEFINITION_SELECTION_SELECTED;
-            assert(sink(context, parent, owned));
-          };
-          legacy.deliver_definition_selection_result = [](void* parent, XpDefinitionSelection result) -> uint8_t {
-            assert(parent == clippingDetailHandle && !result.text.data);
-            assert((result.status == XP_DEFINITION_SELECTION_CANCELLED) == clippingNestedCancelled);
-            clippingNestedDelivered = true;
-            return 1;
-          };
-          XpAppEvent selectionPop{}; selectionPop.kind = XP_APP_POP;
-          assert(xp_app_event(&selectionPop) == XP_APP_ACCEPTED && xp_app_test_drain());
-          assert(clippingNestedDelivered && xp_app_test_current_legacy() == detail && clippingDetailDrops == 0);
-        }
+        assert(xp_app_test_current_definition() && !xp_app_test_current_child(nullptr));
         XpAppEvent event{}; event.kind = XP_APP_POP;
-        nativeActivity(xp_app_test_current_legacy())->result.isCancelled = cancelled;
+        assert(xp_app_test_definition_result(cancelled));
         assert(xp_app_event(&event) == XP_APP_ACCEPTED && xp_app_test_drain());
         assert(xp_app_test_current_child(nullptr) == list && xp_app_test_parent_count() == 1);
-        assert(!xp_app_test_current_legacy() && clippingDetailCreates == 1 && clippingDetailDrops == 1);
+        assert(!xp_app_test_current_definition() && clippingDetailCreates == 1 && clippingDetailDrops == 1);
         if (mode == "clippings-detail") {
           for (unsigned visit = 2; visit <= 3; ++visit) {
             paintChild();
             inputChild(XP_UI_CONFIRM); assert(clippingPopup); clippingChoice = 0; inputChild(0);
-            assert(xp_app_test_current_legacy() && clippingDetailCreates == visit);
-            nativeActivity(xp_app_test_current_legacy())->result.isCancelled = cancelled;
+            assert(xp_app_test_current_definition() && clippingDetailCreates == visit);
+            assert(xp_app_test_definition_result(cancelled));
             assert(xp_app_event(&event) == XP_APP_ACCEPTED && xp_app_test_drain());
             assert(xp_app_test_current_child(nullptr) == list && clippingDetailDrops == visit);
           }

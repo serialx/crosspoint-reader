@@ -137,7 +137,7 @@ impl EpubSession {
 }
 
 impl EpubSession {
-    pub(super) fn push_definition(&self, viewer: super::definition::Definition) {
+    pub(super) fn push_definition(&self, viewer: super::definition_owned::DefinitionOwner) {
         let app = crate::app::app().expect("application initialized");
         app.input.borrow_mut().reset();
         app.navigation
@@ -152,8 +152,9 @@ impl EpubSession {
         context: *mut core::ffi::c_void,
     ) -> bool {
         let Some(viewer) = (unsafe {
-            super::definition::Definition::try_plain(
-                &self.leaves.child_selection_physical,
+            super::definition_owned::DefinitionOwner::try_plain(
+                self.runtime,
+                &self.leaves.child_selection_physical.definition,
                 title,
                 length,
                 fill,

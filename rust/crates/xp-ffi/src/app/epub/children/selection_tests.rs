@@ -146,7 +146,19 @@ fn lookup_unavailable_keeps_page_until_timed_error_exit() {
     CALLS.with(|v| v.borrow_mut().clear());
     PAGE_DROPS.with(|v| v.set(0));
     assert!(matches!(
-        unsafe { owner.perform(&ops, || 100, || panic!("unavailable lookup drops no Page")) },
+        unsafe {
+            owner.perform(
+                {
+                    static OPS: std::sync::OnceLock<
+                        crate::app::epub::children::selection_physical::Physical,
+                    > = std::sync::OnceLock::new();
+                    OPS.get_or_init(|| ops)
+                },
+                runtime(),
+                || 100,
+                || panic!("unavailable lookup drops no Page"),
+            )
+        },
         super::lookup::Attempt::Popup {
             allocation_failed: false
         }
@@ -187,9 +199,17 @@ struct DefinitionLoan {
     lookup: *mut LookupStorage,
 }
 unsafe extern "C" fn definition_lookup(
-    p: *mut super::selection_physical::DefinitionStorage,
+    p: *mut super::definition_physical::PayloadStorage,
     source: *mut LookupStorage,
-) -> *mut core::ffi::c_void {
+    sink: app_abi::TextSink,
+    context: *mut core::ffi::c_void,
+    html: *mut u8,
+) -> u8 {
+    assert_eq!(
+        unsafe { sink(context, app_abi::Text::from_bytes(b"word")) },
+        1
+    );
+    unsafe { html.write(0) };
     assert_eq!(PAGE_DROPS.with(Cell::get), 1);
     assert_eq!(NATIVE_DROPS.with(Cell::get), 0);
     unsafe {
@@ -197,9 +217,9 @@ unsafe extern "C" fn definition_lookup(
             .write(DefinitionLoan { lookup: source })
     };
     call("definition");
-    p.cast()
+    1
 }
-unsafe extern "C" fn definition_drop(p: *mut super::selection_physical::DefinitionStorage) {
+unsafe extern "C" fn definition_drop(p: *mut super::definition_physical::PayloadStorage) {
     let lookup = unsafe { (*p.cast::<DefinitionLoan>()).lookup };
     assert_eq!(unsafe { (*lookup.cast::<Native>()).pointer }, lookup);
     assert_eq!(NATIVE_DROPS.with(Cell::get), 0);
@@ -215,8 +235,8 @@ fn lookup_definition_loan_survives_owner_moves_after_page_drop() {
     ops.lookup_find = found;
     ops.wait_paint = wait_paint;
     ops.lookup_discard = discard;
-    ops.definition_lookup = definition_lookup;
-    ops.definition_drop = definition_drop;
+    ops.definition.payload_lookup = definition_lookup;
+    ops.definition.payload_drop = definition_drop;
     let owner = Lookup::try_new(
         runtime(),
         page(),
@@ -229,9 +249,19 @@ fn lookup_definition_loan_survives_owner_moves_after_page_drop() {
     CALLS.with(|v| v.borrow_mut().clear());
     PAGE_DROPS.with(|v| v.set(0));
     NATIVE_DROPS.with(|v| v.set(0));
-    let super::lookup::Attempt::Detail(viewer) =
-        (unsafe { owner.perform(&ops, || 0, || owner.release_page()) })
-    else {
+    let super::lookup::Attempt::Detail(viewer) = (unsafe {
+        owner.perform(
+            {
+                static OPS: std::sync::OnceLock<
+                    crate::app::epub::children::selection_physical::Physical,
+                > = std::sync::OnceLock::new();
+                OPS.get_or_init(|| ops)
+            },
+            runtime(),
+            || 0,
+            || owner.release_page(),
+        )
+    }) else {
         panic!("lookup must open a definition")
     };
     let mut parents = vec![owner];
@@ -284,7 +314,19 @@ fn definition_oom_discards_attempt_output_after_page_drop() {
     });
     PAGE_DROPS.with(|v| v.set(0));
     assert!(matches!(
-        unsafe { owner.perform(&ops, || 200, || owner.release_page()) },
+        unsafe {
+            owner.perform(
+                {
+                    static OPS: std::sync::OnceLock<
+                        crate::app::epub::children::selection_physical::Physical,
+                    > = std::sync::OnceLock::new();
+                    OPS.get_or_init(|| ops)
+                },
+                runtime(),
+                || 200,
+                || owner.release_page(),
+            )
+        },
         super::lookup::Attempt::Popup {
             allocation_failed: true
         }

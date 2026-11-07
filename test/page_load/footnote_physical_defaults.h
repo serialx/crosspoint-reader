@@ -25,7 +25,7 @@ struct AppFixtureUnexpected<R (*)(A...), Slot> {
 
 inline XpEpubLeaves unexpectedEpubLeaves() {
   XpEpubLeaves value{};
-  static_assert(sizeof(XpEpubLeaves) == 173 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 170 * sizeof(void (*)()));
   value.render_margins = &AppFixtureUnexpected<decltype(value.render_margins), 5>::call;
   value.render_geometry = &AppFixtureUnexpected<decltype(value.render_geometry), 6>::call;
   value.render_restore_bw = &AppFixtureUnexpected<decltype(value.render_restore_bw), 7>::call;
@@ -172,9 +172,6 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.child_lookup_index = &AppFixtureUnexpected<decltype(value.child_lookup_index), 166>::call;
   value.child_lookup_find = &AppFixtureUnexpected<decltype(value.child_lookup_find), 167>::call;
   value.child_lookup_discard = &AppFixtureUnexpected<decltype(value.child_lookup_discard), 168>::call;
-  value.child_definition_lookup = &AppFixtureUnexpected<decltype(value.child_definition_lookup), 169>::call;
-  value.child_definition_plain = &AppFixtureUnexpected<decltype(value.child_definition_plain), 170>::call;
-  value.child_definition_drop = &AppFixtureUnexpected<decltype(value.child_definition_drop), 171>::call;
   value.child_directional_hints = &AppFixtureUnexpected<decltype(value.child_directional_hints), 172>::call;
   value.child_dictionary_popup_layout = &AppFixtureUnexpected<decltype(value.child_dictionary_popup_layout), 173>::call;
   value.child_wait_paint = &AppFixtureUnexpected<decltype(value.child_wait_paint), 174>::call;
@@ -183,7 +180,7 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
 
 inline XpAppLegacy unexpectedAppLegacy() {
   XpAppLegacy value{};
-  static_assert(sizeof(XpAppLegacy) == 17 * sizeof(void (*)()));
+  static_assert(sizeof(XpAppLegacy) == 14 * sizeof(void (*)()));
   value.create = &AppFixtureUnexpected<decltype(value.create), 1000>::call;
   value.destroy = &AppFixtureUnexpected<decltype(value.destroy), 1001>::call;
   value.enter = &AppFixtureUnexpected<decltype(value.enter), 1002>::call;
@@ -198,12 +195,6 @@ inline XpAppLegacy unexpectedAppLegacy() {
   value.forced_refresh = &AppFixtureUnexpected<decltype(value.forced_refresh), 1011>::call;
   value.reader_turn = &AppFixtureUnexpected<decltype(value.reader_turn), 1012>::call;
   value.screenshot_info = &AppFixtureUnexpected<decltype(value.screenshot_info), 1013>::call;
-  value.with_definition_selection_result =
-      &AppFixtureUnexpected<decltype(value.with_definition_selection_result), 1014>::call;
-  value.deliver_definition_selection_result =
-      &AppFixtureUnexpected<decltype(value.deliver_definition_selection_result), 1015>::call;
-  value.definition_selection_install_failed =
-      &AppFixtureUnexpected<decltype(value.definition_selection_install_failed), 1016>::call;
   return value;
 }
 

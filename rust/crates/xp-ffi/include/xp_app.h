@@ -263,11 +263,6 @@ typedef struct {
   uint8_t (*forced_refresh)(void* activity);
   uint8_t (*reader_turn)(void* activity, uint8_t forward, uint8_t chapter);
   void (*screenshot_info)(const void* activity, XpAppScreenshotSink sink, void* context);
-  // These three native Definition seams retire when the Definition viewer/control moves to Rust.
-  void (*with_definition_selection_result)(void* child, XpDefinitionPop pop, XpDefinitionSelectionSink sink,
-                                           void* context);
-  uint8_t (*deliver_definition_selection_result)(void* parent, XpDefinitionSelection result);
-  void (*definition_selection_install_failed)(void* parent);
 } XpAppLegacy;
 
 // Manager compatibility retires with the last native screen; mapping stays native.
@@ -421,6 +416,9 @@ typedef struct {
 } XpAppPlatform;
 
 XpAppStatus xp_app_init(const XpAppPlatform* platform, XpAppCompatibility* compatibility);
+typedef struct XpDefinitionNativeTransfer XpDefinitionNativeTransfer;
+// Synchronous native title/text move; no transfer pointer is retained.
+uint8_t xp_app_definition_open_native(XpDefinitionNativeTransfer* transfer);
 void xp_app_loop(void);
 void xp_app_render(XpAppRenderToken* token);
 XpAppEventResult xp_app_event(const XpAppEvent* event);
@@ -431,7 +429,7 @@ static_assert(sizeof(XpAppText) == 2 * sizeof(void*));
 static_assert(offsetof(XpAppText, len) == sizeof(void*));
 static_assert(sizeof(XpAppPoint) == 8);
 static_assert(sizeof(XpAppBook) == 8 * sizeof(void*));
-static_assert(sizeof(XpAppLegacy) == 17 * sizeof(void*));
+static_assert(sizeof(XpAppLegacy) == 14 * sizeof(void*));
 static_assert(sizeof(XpAppCompatibility) == 3 * sizeof(void*));
 static_assert(sizeof(XpAppResources) == 46 * sizeof(void*));
 static_assert(sizeof(XpAppRuntime) == 34 * sizeof(void*));

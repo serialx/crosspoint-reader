@@ -159,7 +159,7 @@ static XpUiReaderRenderServices renderServices{
 
 static const LegacyEpubLeaves leaves = [] {
   LegacyEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 173 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 170 * sizeof(void (*)()));
   UNUSED_LEAF(physical.render_margins);
   UNUSED_LEAF(physical.render_geometry);
   UNUSED_LEAF(physical.render_restore_bw);
@@ -388,9 +388,6 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(physical.child_lookup_index);
   UNUSED_LEAF(physical.child_lookup_find);
   UNUSED_LEAF(physical.child_lookup_discard);
-  UNUSED_LEAF(physical.child_definition_lookup);
-  UNUSED_LEAF(physical.child_definition_plain);
-  UNUSED_LEAF(physical.child_definition_drop);
   UNUSED_LEAF(physical.child_directional_hints);
   UNUSED_LEAF(physical.child_dictionary_popup_layout);
   UNUSED_LEAF(physical.child_wait_paint);

@@ -97,7 +97,7 @@ reader_constants = "\n".join(re.findall(
     r"^constexpr unsigned long (?:GO_HOME_MS|GO_BACK_OR_HOME_MS) = [^;]+;",
     (ROOT / "src/activities/reader/ReaderUtils.h").read_text(), re.MULTILINE))
 reader_constants = re.sub(r'^constexpr ', '[[maybe_unused]] constexpr ', reader_constants, flags=re.MULTILINE)
-inline_source = (ROOT / 'src/activities/reader/RustReaderLookup.cpp').read_text()
+inline_source = definition_text('src/activities/reader/RustReaderLookup.cpp')
 inline_entry = '\n'.join(block(inline_source, signature, signature.startswith('struct ')) for signature in (
     'struct Definition {', 'Definition* construct(', 'void* definitionPlain(', 'void definitionDrop('
 ))
@@ -350,6 +350,7 @@ static XpAppEventResult widgetEvent(const XpAppEvent* event) {
   return XP_APP_ACCEPTED;
 }
 ''' + methods + reader_owner + r'''
+struct XpEpubDefinitionStorage { uintptr_t words[111]; };
 struct OwnedLegacyActivity {
   std::unique_ptr<DictionaryDefinitionActivity> activity;
 };

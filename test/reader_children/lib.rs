@@ -6,7 +6,10 @@ mod epub {
     pub mod abi {
         pub enum XpEpubLeaves {}
         #[repr(C)]
-        pub struct XpEpubHeap { pub free_bytes: u32, pub largest_block: u32 }
+        pub struct XpEpubHeap {
+            pub free_bytes: u32,
+            pub largest_block: u32,
+        }
     }
     // This crate exercises the four O4a children. Real Page/selection owners run
     // in reader_selection_ownership, which compiles the complete App instead.
@@ -139,18 +142,16 @@ mod menu_scene_tests;
 #[path = "../../rust/crates/xp-ffi/src/app/stable_owner.rs"]
 mod stable_owner;
 
-#[path = "../../rust/crates/xp-ffi/src/app/epub/children/definition.rs"]
-mod definition;
-#[cfg(test)]
-mod definition_tests;
-#[path = "../../rust/crates/xp-ffi/src/app/epub/children/selection_physical.rs"]
-mod selection_physical;
+#[path = "../../rust/crates/xp-ffi/src/app/epub/children/clipping_view.rs"]
+mod clipping_view;
 #[path = "../../rust/crates/xp-ffi/src/app/epub/children/clipping_window.rs"]
 mod clipping_window;
 #[cfg(test)]
 mod clipping_window_tests;
-#[path = "../../rust/crates/xp-ffi/src/app/epub/children/clipping_view.rs"]
-mod clipping_view;
+#[cfg(test)]
+mod definition_tests;
+#[path = "../../rust/crates/xp-ffi/src/app/epub/children/selection_physical.rs"]
+mod selection_physical;
 
 #[path = "../../rust/crates/xp-ffi/src/app/bookmarks/mod.rs"]
 mod bookmarks;

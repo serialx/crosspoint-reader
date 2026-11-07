@@ -24,6 +24,14 @@ unsafe extern "C" fn drop_scan(_: *mut PrewarmStorage) {
     assert!(SCANS.with(|v| v.replace(false)));
     event("prewarm-drop");
 }
+unsafe extern "C" fn settings(resolve: u8, out: *mut crate::app::epub::abi::XpEpubSettings) {
+    assert_eq!(resolve, 1);
+    assert!(SCANS.with(Cell::get));
+    unsafe {
+        out.write(core::mem::zeroed());
+        (*out).font = 7;
+    }
+}
 unsafe extern "C" fn header(_: *const PayloadStorage, _: Rect, _: i32, _: i32) {
     event("header");
 }
@@ -104,6 +112,7 @@ fn render_publishes_before_refresh_and_drops_prewarm_after_both_scenes_or_reject
     };
     let mut leaves = leaves();
     leaves.input_snapshot = snapshot;
+    leaves.settings_snapshot = settings;
     leaves.fonts_prewarm_begin = begin;
     leaves.fonts_prewarm_finish_scan = finish;
     leaves.fonts_prewarm_drop = drop_scan;
@@ -136,10 +145,7 @@ fn render_publishes_before_refresh_and_drops_prewarm_after_both_scenes_or_reject
             PAINT_FAIL.with(|v| v.set(failed));
             events();
             let guard = DefinitionSession::lock(runtime());
-            assert_eq!(
-                unsafe { owner.render(&services, &leaves, 7) }.is_err(),
-                failed
-            );
+            assert_eq!(unsafe { owner.render(&services, &leaves) }.is_err(), failed);
             drop(guard);
             let seen = events();
             assert_eq!(

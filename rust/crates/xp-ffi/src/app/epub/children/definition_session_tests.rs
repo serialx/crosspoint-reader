@@ -1,5 +1,5 @@
 use super::{
-    definition_owned::DefinitionOwner,
+    definition_owned::{DefinitionOwner, PayloadSlot},
     definition_physical::*,
     selection_physical::{DefinitionFill, LookupStorage},
     toolbar_owner::tests::test_leaves,
@@ -295,7 +295,7 @@ fn failed_prepare_sentinel_cannot_publish_and_candidate_commits_with_facts() {
         m.styled = true;
     });
     PREPARE_OK.with(|v| v.set(false));
-    assert!(unsafe { owner.prepare(1, false) }.is_none());
+    assert!(unsafe { owner.prepare(PayloadSlot::Candidate, false) }.is_none());
     owner.model.with(|m| {
         assert_eq!(m.state.pages, 11);
         assert_eq!(m.state.page, 2);
@@ -373,7 +373,8 @@ thread_local! {
     static HEADER_RECT: Cell<Option<(i32,i32,i32,i32)>> = const { Cell::new(None) };
     static LONG_POINT: Cell<Option<(i32,i32)>> = const { Cell::new(None) };
 }
-unsafe extern "C" fn long_press(x: *mut i32, y: *mut i32) -> u8 {
+unsafe extern "C" fn long_press(kind: u8, x: *mut i32, y: *mut i32) -> u8 {
+    assert_eq!(kind, 0);
     assert!(!LOCKED.with(Cell::get));
     event("long");
     if let Some((px, py)) = LONG_POINT.with(Cell::get) {
@@ -445,7 +446,7 @@ fn long_press_uses_recorded_header_hit_after_sampling_and_clear_removes_cancel()
     };
     let mut leaves = leaves();
     leaves.input_snapshot = snapshot;
-    leaves.input_screen_long = long_press;
+    leaves.input_screen_point = long_press;
     leaves.input_screen_tap = tap;
     for (point, target, cancel) in [
         ((15, 25), Some((10, 20, 40, 40)), true),

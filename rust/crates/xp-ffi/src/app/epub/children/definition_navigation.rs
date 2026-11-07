@@ -1,5 +1,5 @@
 use super::{
-    definition_owned::{DefinitionSession, HistoryEntry},
+    definition_owned::{DefinitionSession, HistoryEntry, PayloadSlot},
     definition_physical::{SelectionPosition, SelectionRequest},
     owned::Fixed,
 };
@@ -12,7 +12,7 @@ use core::{ffi::c_void, fmt::Write, mem, ptr};
 use xp_core::i18n::ids::*;
 
 impl DefinitionSession {
-    pub(super) fn lock(runtime: &'static abi::Runtime) -> RenderGuard {
+    pub(in crate::app) fn lock(runtime: &'static abi::Runtime) -> RenderGuard {
         let token = unsafe { (runtime.render_lock)() };
         assert!(!token.is_null());
         RenderGuard { token, runtime }
@@ -26,9 +26,9 @@ impl DefinitionSession {
         });
         crate::app::request_update();
     }
-    pub(super) unsafe fn enter(&self, runtime: &abi::Runtime, leaves: &XpEpubLeaves) {
+    pub(in crate::app) unsafe fn enter(&self, runtime: &abi::Runtime, leaves: &XpEpubLeaves) {
         unsafe { Self::activity_log(leaves, true) };
-        if let Some(view) = unsafe { self.prepare(0, false) } {
+        if let Some(view) = unsafe { self.prepare(PayloadSlot::Current, false) } {
             self.publish_payload(view, 0);
         } else {
             self.model.with(|model| model.state.failed = 1);
@@ -36,11 +36,11 @@ impl DefinitionSession {
         }
         crate::app::request_update();
     }
-    pub(super) unsafe fn exit(&self, leaves: &XpEpubLeaves) {
+    pub(in crate::app) unsafe fn exit(&self, leaves: &XpEpubLeaves) {
         unsafe { Self::activity_log(leaves, false) };
         unsafe { (leaves.fonts_release_caches)() };
     }
-    pub(super) unsafe fn selection_failed(&self, runtime: &abi::Runtime) {
+    pub(in crate::app) unsafe fn selection_failed(&self, runtime: &abi::Runtime) {
         unsafe { (self.physical.selection_release)(self.payload.get()) };
         self.message(STR_DICT_LOW_MEMORY, runtime);
     }
@@ -90,7 +90,7 @@ impl DefinitionSession {
     /// Called after child destruction, parent publication and RenderLock release.
     /// The native bridge retains its ActivityResult until this synchronous call returns.
     #[inline(never)]
-    pub(super) unsafe fn selection_result(
+    pub(in crate::app) unsafe fn selection_result(
         &self,
         runtime: &abi::Runtime,
         leaves: &XpEpubLeaves,
@@ -197,10 +197,16 @@ impl DefinitionSession {
         );
         unsafe { (leaves.log)(0, abi::Text::from_bytes(b"DICT"), message.wire()) };
     }
-    unsafe fn find(&self, slot: u8, word: abi::Text) -> Result<(), u8> {
+    unsafe fn find(&self, slot: PayloadSlot, word: abi::Text) -> Result<(), u8> {
         let mut result = 0;
         if unsafe {
-            (self.physical.payload_find)(self.payload.get(), slot, self.lookup, word, &mut result)
+            (self.physical.payload_find)(
+                self.payload.get(),
+                slot as u8,
+                self.lookup,
+                word,
+                &mut result,
+            )
         } == 0
         {
             Err(result)
@@ -219,7 +225,7 @@ impl DefinitionSession {
         let nav = unsafe { &mut *self.navigation.get() };
         nav.pending.clear();
         unsafe {
-            (self.physical.payload_release)(self.payload.get(), 1, 0);
+            (self.physical.payload_release)(self.payload.get(), PayloadSlot::Candidate as u8, 0);
             (leaves.fonts_release_caches)();
         }
         if back {
@@ -234,9 +240,9 @@ impl DefinitionSession {
             return;
         }
         let page = self.model.with(|model| model.state.page);
-        let restored = unsafe { self.find(0, nav.query.view()) }
+        let restored = unsafe { self.find(PayloadSlot::Current, nav.query.view()) }
             .ok()
-            .and_then(|()| unsafe { self.prepare(0, !styled) });
+            .and_then(|()| unsafe { self.prepare(PayloadSlot::Current, !styled) });
         if let Some(view) =
             restored.filter(|view| (view.styled != 0) == styled && page < view.pages)
         {
@@ -288,7 +294,7 @@ impl DefinitionSession {
             (model.state, model.styled)
         });
         unsafe {
-            (self.physical.payload_release)(self.payload.get(), 0, 1);
+            (self.physical.payload_release)(self.payload.get(), PayloadSlot::Current as u8, 1);
             (leaves.fonts_release_caches)();
             Self::log_heap(leaves);
         }
@@ -299,7 +305,7 @@ impl DefinitionSession {
         } else {
             nav.pending.view()
         };
-        if let Err(result) = unsafe { self.find(1, word) } {
+        if let Err(result) = unsafe { self.find(PayloadSlot::Candidate, word) } {
             let error = match result {
                 1 => STR_DICT_NOT_FOUND,
                 2 => STR_DICT_LOW_MEMORY,
@@ -310,7 +316,7 @@ impl DefinitionSession {
             return;
         }
         let plain = back && !nav.history[depth - 1].styled;
-        let Some(view) = (unsafe { self.prepare(1, plain) }) else {
+        let Some(view) = (unsafe { self.prepare(PayloadSlot::Candidate, plain) }) else {
             unsafe { self.recover(back, styled, STR_DICT_LOW_MEMORY, runtime, leaves) };
             return;
         };

@@ -257,7 +257,7 @@ typedef struct {
   uint8_t (*forced_refresh)(void* activity);
   uint8_t (*reader_turn)(void* activity, uint8_t forward, uint8_t chapter);
   void (*screenshot_info)(const void* activity, XpAppScreenshotSink sink, void* context);
-  // These three native Definition seams retire when D1 moves the viewer/control to Rust.
+  // These three native Definition seams retire when the Definition viewer/control moves to Rust.
   void (*with_definition_selection_result)(void* child, XpDefinitionPop pop, XpDefinitionSelectionSink sink,
                                            void* context);
   uint8_t (*deliver_definition_selection_result)(void* parent, XpDefinitionSelection result);

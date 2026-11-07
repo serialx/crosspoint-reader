@@ -61,7 +61,7 @@ class OwnedSelectionText {
 };
 
 // Initial queries use native strings; selections use allocator-matched owned blocks.
-// D1 retires this mixed holder when current/pending/history move to Rust with the viewer.
+// The Definition viewer move to Rust retires this holder with current/pending/history.
 class DefinitionQuery {
   std::variant<std::string, OwnedSelectionText> value;
 

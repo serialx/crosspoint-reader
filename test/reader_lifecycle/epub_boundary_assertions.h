@@ -427,7 +427,7 @@ static_assert(alignof(XpEpubLeaves) == alignof(void (*)()));
 static_assert(sizeof(XpAppResultView::kind) == 1);
 static_assert(sizeof(XpAppResultView::cancelled) == 1);
 
-// The native shortcut slot retires with the legacy EPUB owner.
+// The Legacy table includes three temporary Definition-selection callbacks.
 static_assert(sizeof(XpAppLegacy) == 17 * sizeof(void*));
 static_assert(offsetof(XpAppLegacy, reader_turn) == 12 * sizeof(void*));
 static_assert(offsetof(XpAppLegacy, screenshot_info) == 13 * sizeof(void*));

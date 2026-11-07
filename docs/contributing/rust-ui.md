@@ -36,10 +36,10 @@ parent delivery.
 Rust reader children return an owned `ReaderChildResult` through
 `ActivityResult::Child`. The EPUB parent's typed receiver consumes it through
 its pending child intent; a selected chapter anchor moves into navigation state.
-For retained native children, the native bridge instead holds the result in
-callback-local storage and lends a typed view through `ActivityResult::Legacy`.
-That storage lives until delivery returns. A native-result handler must copy
-borrowed text only if it retains the text beyond that call. Native parents keep
+Retained native children normally use callback-local storage and lend a typed
+view through `ActivityResult::Legacy`. That storage lives until delivery returns;
+a handler must copy borrowed text if it retains it beyond that call. Definition
+selection uses the owned-block route described below instead. Native parents keep
 their native forwarding path. Handlers enqueue transitions; the outer driver
 drains them after the result producer returns, so a callback cannot destroy the
 storage it is still reading. Entry also runs after unlocking.
@@ -107,10 +107,19 @@ viewer.
 Lookup releases its background reader Page before opening the definition.
 Application retains the lookup owner, including its Dictionary, until the
 definition and any viewer-opened `ClipSelectionActivity` have exited. Selection
-borrows the viewer's native Pages; those Pages remain alive through selection
-result delivery. Definition completion becomes an owned result, then lookup
-completion returns to the reader through the normal destroy, publish, unlock
-and deliver sequence. Footnote hrefs use the reader's existing history.
+borrows the viewer's native Pages; those Pages remain alive until the selection
+child is destroyed. The Definition-only pop first destroys the child, restores
+and publishes the parent, and unlocks. The synchronous native bridge then
+reacquires RenderLock, releases temporary Pages and allocates or reuses the final
+text block at the original post-release assignment point. Rust receives a
+move-only block and transfers that same allocation into native Definition storage;
+no native stack view escapes and no second text copy is made. Its release callback
+must use the allocator that created the block; acceptance consumes ownership,
+while rejection leaves the guard responsible for release. The Definition viewer
+move to Rust (D1) retires the three temporary Legacy leaves and the current,
+pending and 16 history variant holders. Definition completion becomes an owned
+result, then lookup completion returns to the reader through the normal destroy,
+publish, unlock and deliver sequence. Footnote hrefs use the reader's existing history.
 
 The Rust-owned plain-text definition entry fills the viewer's final string
 synchronously under the clipping store operation lease. The list retains its

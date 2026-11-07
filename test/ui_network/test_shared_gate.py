@@ -10,7 +10,10 @@ SOURCE = Path(os.environ.get("XP_REJECTION_SOURCE_ROOT", ROOT))
 
 
 def method(family, name):
-    source = (SOURCE / "src/activities/network" / (family + ".cpp")).read_text()
+    path = SOURCE / "src/activities/network" / (family + ".cpp")
+    if family == "NetworkModeSelectionActivity" and SOURCE == ROOT:
+        path = Path(__file__).resolve().parent / "native_oracle/NetworkModeSelectionActivity.cpp.txt"
+    source = path.read_text()
     marker = family + "::" + name + "("
     if marker not in source:
         return ""

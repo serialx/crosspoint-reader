@@ -33,65 +33,9 @@ constexpr UIIcon menuIcons[NetworkModeSelectionActivity::MENU_ITEM_COUNT] = {
 };
 }  // namespace
 NetworkModeSelectionActivity::NetworkModeSelectionActivity(GfxRenderer& renderer, MappedInputManager& input)
-    : RustActivityAdapter("NetworkModeSelection", renderer, input), textTarget(makeUiTarget(renderer)) {
+    : Activity("NetworkModeSelection", renderer, input), textTarget(makeUiTarget(renderer)) {
   for (int i = 0; i < MENU_ITEM_COUNT; ++i)
     rows[i] = {I18N.get(menuItems[i]), I18N.get(menuDescs[i]), nullptr, static_cast<uint32_t>(i + 1), 0, 0, 1, 0};
-}
-void NetworkModeSelectionActivity::onEnter() {
-  Activity::onEnter();
-  xp_ui_settings_list_init(&state, 0);
-  publication.ready = false;
-  requestUpdate();
-}
-void NetworkModeSelectionActivity::onModeSelected(NetworkMode mode) {
-  setResult(NetworkModeResult{mode});
-  finish();
-}
-void NetworkModeSelectionActivity::onCancel() {
-  ActivityResult result;
-  result.isCancelled = true;
-  setResult(std::move(result));
-  finish();
-}
-void NetworkModeSelectionActivity::rustSceneFailed() {
-  state.active = -1;
-  state.last_repeat = 0;
-  state.pending_scroll = 0;
-  state.navigation_revision++;
-  touchActivated = false;
-}
-XpUiInterest NetworkModeSelectionActivity::rustInterest(uint32_t now) const {
-  return xp_ui_settings_list_interest(&state, now);
-}
-XpUiEffect NetworkModeSelectionActivity::updateRust(const XpUiInput& source) {
-  auto input = source;
-  touchActivated = false;
-  if (publication.ready && input.touch_flags) {
-    XpUiInteraction hit{};
-    if (xp_ui_settings_hit(&hits, input.touch_x, input.touch_y, &hit)) {
-      input.action = hit.action;
-      input.value = hit.value;
-    }
-  }
-  const auto effect = xp_ui_settings_list_update(&state, &input, MENU_ITEM_COUNT);
-  touchActivated = input.action && (input.touch_flags & XP_UI_TOUCH_RELEASED) && effect.kind == XP_UI_ACTIVATE;
-  return effect;
-}
-void NetworkModeSelectionActivity::applyRustEffect(const XpUiEffect& effect) {
-  switch (effect.kind) {
-    case XP_UI_CANCEL:
-      onCancel();
-      break;
-    case XP_UI_ACTIVATE:
-      if (touchActivated) haptic_feedback::touchAction(false);
-      onModeSelected(static_cast<NetworkMode>(effect.value));
-      break;
-    case XP_UI_SCROLL:
-      LOG_DBG("LIST", "%s swipe delta=%d count=%d", name.c_str(), static_cast<int>(effect.value), MENU_ITEM_COUNT);
-      break;
-    default:
-      break;
-  }
 }
 const char* NetworkModeSelectionActivity::text(uint32_t handle) const {
   if (handle == 0 || (handle - 1) / 4 >= MENU_ITEM_COUNT) return nullptr;
@@ -131,41 +75,6 @@ XpUiSettingsResources NetworkModeSelectionActivity::resources() {
           MENU_ITEM_COUNT,
           0};
 }
-bool NetworkModeSelectionActivity::rustSceneCurrent() const {
-  return state.navigation_revision == next.navigation_revision;
-}
-bool NetworkModeSelectionActivity::buildRustScene(XpUiScene& scene) {
-  XpUiListState snapshot{};
-  {
-    ModelLock lock(*this);
-    snapshot = state;
-    renderingScroll = state.pending_scroll;
-  }
-  XpUiSettingsLayout layout{};
-  physicalLayout(layout);
-  const auto services = resources();
-  const XpUiBuffer buffer{commands, nullptr, 24, 0};
-  const bool built = xp_ui_network_modes_view(&snapshot, &layout, &services, &buffer, &next, &scene, &nextHits) == 1;
-  return built;
-}
-void NetworkModeSelectionActivity::rustPublished() {
-  xp_ui_settings_list_publish(&state, &next, renderingScroll);
-  hits = nextHits;
-}
-XpUiPaint NetworkModeSelectionActivity::rustResources() {
-  return {this, nullptr, nullptr,
-          [](void* context, uint32_t handle, uint32_t generation) -> uint8_t {
-            if (generation != 1) return 0;
-            if (handle == XP_UI_NETWORK_HEADER || handle == XP_UI_NETWORK_FOOTER) return 1;
-            if (handle > 0 && (handle - 1) / 4 < MENU_ITEM_COUNT && (handle - 1) % 4 == 3) return 1;
-            return static_cast<NetworkModeSelectionActivity*>(context)->text(handle) != nullptr;
-          },
-          [](void* context, const XpGlyphTarget*, const XpUiCommand* command, XpUiRect clip) {
-            auto& self = *static_cast<NetworkModeSelectionActivity*>(context);
-            self.paint(*command, clip);
-          }};
-}
-
 void NetworkModeSelectionActivity::physicalLayout(XpUiSettingsLayout& layout) {
   const auto& m = UITheme::getInstance().getMetrics();
   const auto fonts = uiScaleSpec();
@@ -239,3 +148,7 @@ const XpNetworkModesPhysical XP_NETWORK_MODES_PHYSICAL = {
         LOG_ERR("RUI", "Cannot build scene in %s", "NetworkModeSelection");
     },
     [](void* object, uint8_t cancelled, uint8_t mode) { modes(object).prepareResult(cancelled != 0, mode); }};
+
+#if defined(CONFIG_IDF_TARGET_ESP32C3)
+static_assert(sizeof(NetworkModeSelectionActivity) == 208);
+#endif

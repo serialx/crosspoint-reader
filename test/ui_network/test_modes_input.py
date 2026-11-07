@@ -1,4 +1,4 @@
-"""Replay the production mode facade over the production adapter with host leaves."""
+"""Keep the frozen native input oracle; Rust owner/App tests cover the candidate."""
 from pathlib import Path
 import shutil
 import subprocess
@@ -7,7 +7,7 @@ import tempfile
 import prepare
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-for frozen in [False, True]:
+for frozen in [True]:
     source = (HERE/'modes_input.cpp').read_text()
     native = HERE/'native_oracle'
     production = (native/'NetworkModeSelectionActivity.cpp.txt' if frozen else ROOT/'src/activities/network/NetworkModeSelectionActivity.cpp').read_text()

@@ -45,7 +45,7 @@ impl NativeHost {
     pub(super) fn object(&self) -> NonNull<c_void> {
         self.object
     }
-    pub(super) fn facts(&self) -> abi::LegacyFacts {
+    fn facts(&self) -> abi::LegacyFacts {
         unsafe { (self.app.legacy.facts)(self.object.as_ptr(), 0, 0) }
     }
     fn resources(&self) -> Services {
@@ -83,6 +83,11 @@ impl NativeHost {
     }
 }
 unsafe impl Host for NativeHost {
+    #[cfg(test)]
+    fn allocate_owner(layout: core::alloc::Layout) -> *mut u8 {
+        tests::allocate_owner(layout)
+    }
+
     fn lock(&self) {
         unsafe { (self.app.runtime.model_lock)() };
     }
@@ -191,3 +196,32 @@ const _: () = {
     assert!(core::mem::align_of::<Modes>() == 4);
     assert!(core::mem::size_of::<Physical>() == 24);
 };
+
+// Outlined dispatch keeps this screen's scratch out of shared App frames.
+#[inline(never)]
+pub(super) fn facts(target: NonNull<Modes>) -> abi::LegacyFacts {
+    unsafe { target.as_ref() }.host().facts()
+}
+#[inline(never)]
+pub(super) fn object(target: NonNull<Modes>) -> NonNull<c_void> {
+    unsafe { target.as_ref() }.host().object()
+}
+#[inline(never)]
+pub(super) fn enter(target: NonNull<Modes>) {
+    unsafe { target.as_ref() }.enter();
+}
+#[inline(never)]
+pub(super) fn exit(target: NonNull<Modes>) {
+    unsafe { target.as_ref() }.exit();
+}
+#[inline(never)]
+pub(super) fn input(target: NonNull<Modes>, input: xp_ui::model::Input) {
+    unsafe { target.as_ref() }.input(input);
+}
+#[inline(never)]
+pub(super) fn render(target: NonNull<Modes>) -> bool {
+    unsafe { target.as_ref() }.render()
+}
+
+#[cfg(test)]
+mod tests;

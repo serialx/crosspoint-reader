@@ -22,8 +22,6 @@ mod home;
 mod home_books;
 mod home_text;
 mod keyboard;
-// Dormant until the network-mode adoption switch.
-#[allow(dead_code)]
 mod network_modes;
 mod resources;
 mod result;
@@ -59,6 +57,7 @@ use xp_ui::{
 enum Target {
     Home(NonNull<home::Home>),
     Keyboard(NonNull<keyboard::Keyboard>),
+    NetworkModes(NonNull<network_modes::Modes>),
     Dialog(dialog::Target),
     Epub(NonNull<epub::EpubSession>),
     Legacy(NonNull<c_void>),
@@ -99,6 +98,7 @@ enum Owner {
     Definition(Definition),
     Home(Box<home::Home>),
     Keyboard(StableOwner<keyboard::Keyboard>),
+    NetworkModes(StableOwner<network_modes::Modes>),
     Dialog(dialog::Owned),
     Epub(StableOwner<epub::EpubSession>),
     ReaderChild {
@@ -119,6 +119,7 @@ impl Activity for Owner {
             Self::Home(home) => Target::Home(NonNull::from(home.as_ref())),
             Self::Epub(epub) => Target::Epub(epub.pointer()),
             Self::Keyboard(keyboard) => Target::Keyboard(keyboard.pointer()),
+            Self::NetworkModes(modes) => Target::NetworkModes(modes.pointer()),
             Self::Dialog(dialog) => Target::Dialog(dialog.target()),
             Self::Legacy { object, .. } => Target::Legacy(*object),
             Self::Definition(viewer) => Target::Definition(viewer.pointer()),
@@ -143,6 +144,7 @@ impl Drop for Owner {
             } => unsafe { (services.destroy)(object.as_ptr()) },
             Self::Home(_)
             | Self::Keyboard(_)
+            | Self::NetworkModes(_)
             | Self::Dialog(_)
             | Self::ReaderChild { .. }
             | Self::Definition(_) => {}
@@ -261,6 +263,7 @@ impl App {
             Target::ReaderChild { child, .. } => Some(unsafe { child.facts() }),
             Target::Keyboard(keyboard) => Some(keyboard::facts(unsafe { keyboard.as_ref() })),
             Target::Dialog(dialog) => Some(dialog.facts()),
+            Target::NetworkModes(modes) => Some(network_modes::facts(modes)),
             Target::Home(_) => None,
         }
     }
@@ -299,7 +302,11 @@ impl App {
 
     fn adopt(&self, object: *mut c_void) -> Option<Owner> {
         let object = NonNull::new(object)?;
-        let reader = self.legacy_facts(object).reader != 0;
+        let facts = self.legacy_facts(object);
+        if facts.kind == abi::NETWORK_MODE {
+            return network_modes::create(object).map(Owner::NetworkModes);
+        }
+        let reader = facts.reader != 0;
         Some(Owner::Legacy {
             object,
             services: self.legacy,
@@ -510,7 +517,9 @@ impl App {
 
     fn activity_loop(&self) {
         let full_buttons = match self.navigation.current() {
-            Some(Target::Home(_) | Target::Keyboard(_) | Target::Dialog(_)) => true,
+            Some(
+                Target::Home(_) | Target::Keyboard(_) | Target::Dialog(_) | Target::NetworkModes(_),
+            ) => true,
             Some(Target::ReaderChild { child, .. }) => !matches!(child, ChildTarget::Lookup(_)),
             _ => false,
         };
@@ -533,6 +542,7 @@ impl App {
                 Target::ReaderChild { child, .. } => Some(unsafe { child.facts() }),
                 Target::Keyboard(keyboard) => Some(keyboard::facts(unsafe { keyboard.as_ref() })),
                 Target::Dialog(dialog) => Some(dialog.facts()),
+                Target::NetworkModes(modes) => Some(network_modes::facts(modes)),
                 Target::Home(_) => None,
             };
             if facts.is_some_and(|f| f.exclusive_storage != 0) {
@@ -553,7 +563,8 @@ impl App {
                     Target::Epub(_)
                     | Target::Keyboard(_)
                     | Target::Dialog(_)
-                    | Target::Definition(_) => {
+                    | Target::Definition(_)
+                    | Target::NetworkModes(_) => {
                         self.go_home(0, false);
                         return;
                     }
@@ -597,6 +608,7 @@ impl App {
                 Target::Definition(_) => unreachable!("Definition input already dispatched"),
                 Target::Epub(epub) => unsafe { epub.as_ref() }.loop_reader(),
                 Target::Dialog(dialog) => dialog.input(frame.input),
+                Target::NetworkModes(modes) => network_modes::input(modes, frame.input),
                 Target::Keyboard(keyboard) => {
                     keyboard::input_complete(self, unsafe { keyboard.as_ref() }, frame.input)
                 }
@@ -749,6 +761,7 @@ impl Services<Owner> for App {
         match target {
             Target::Home(home) => unsafe { home.as_ref() }.enter(),
             Target::Dialog(dialog) => dialog.enter(),
+            Target::NetworkModes(modes) => network_modes::enter(modes),
             Target::Keyboard(keyboard) => {
                 if !keyboard::enter(unsafe { keyboard.as_ref() }) {
                     self.navigation.queue(Transition::Pop);
@@ -774,6 +787,7 @@ impl Services<Owner> for App {
         match target {
             Target::Home(home) => unsafe { home.as_ref() }.exit(),
             Target::Dialog(dialog) => dialog.exit(),
+            Target::NetworkModes(modes) => network_modes::exit(modes),
             Target::Keyboard(keyboard) => keyboard::exit(unsafe { keyboard.as_ref() }),
             Target::Definition(target) => self.definition_exit(target),
             Target::Epub(epub) => unsafe { epub.as_ref().exit_owned() },
@@ -806,6 +820,12 @@ impl Services<Owner> for App {
         }
         match target {
             Target::Dialog(dialog) => dialog.with_result(consume),
+            Target::NetworkModes(modes) => {
+                let object = network_modes::object(modes);
+                invoke(self, object, |result| {
+                    consume(ActivityResult::Legacy(result))
+                });
+            }
             Target::Home(_) | Target::Epub(_) => consume(ActivityResult::Legacy(core::ptr::null())),
             Target::Keyboard(keyboard) => {
                 // SAFETY: the current target is live; extraction ends before consume destroys it.
@@ -875,6 +895,7 @@ impl Services<Owner> for App {
             Target::Epub(epub) => unsafe { epub.as_ref() }.flush_session(),
             Target::Legacy(target) => unsafe { (self.legacy.prepare_sleep)(target.as_ptr()) },
             Target::Home(_)
+            | Target::NetworkModes(_)
             | Target::Keyboard(_)
             | Target::Dialog(_)
             | Target::ReaderChild { .. }
@@ -920,6 +941,16 @@ unsafe extern "C" fn screenshot_info(sink: abi::ScreenshotSink, context: *mut c_
         match app.navigation.current() {
             Some(Target::Legacy(target)) => {
                 unsafe { (app.legacy.screenshot_info)(target.as_ptr(), sink, context) };
+                return;
+            }
+            Some(Target::NetworkModes(modes)) => {
+                unsafe {
+                    (app.legacy.screenshot_info)(
+                        network_modes::object(modes).as_ptr(),
+                        sink,
+                        context,
+                    )
+                };
                 return;
             }
             Some(Target::Epub(epub)) => {
@@ -1042,6 +1073,7 @@ pub unsafe extern "C" fn xp_app_render(token: *mut abi::RenderToken) {
         Some(Target::Epub(epub)) => unsafe { epub.as_ref().render() },
         Some(Target::Keyboard(keyboard)) => keyboard::render(unsafe { keyboard.as_ref() }),
         Some(Target::Dialog(dialog)) => dialog.render(),
+        Some(Target::NetworkModes(modes)) => network_modes::render(modes),
         Some(Target::ReaderChild { child, parent }) => unsafe {
             child.render(
                 parent.as_ref(),
@@ -1132,7 +1164,10 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
                 Target::Definition(_) => definition::facts(),
                 Target::Epub(epub) => unsafe { epub.as_ref() }.app_facts(true),
                 Target::ReaderChild { child, .. } => unsafe { child.facts() },
-                Target::Home(_) | Target::Keyboard(_) | Target::Dialog(_) => return abi::REJECTED,
+                Target::Home(_)
+                | Target::Keyboard(_)
+                | Target::Dialog(_)
+                | Target::NetworkModes(_) => return abi::REJECTED,
             };
             if event.kind == abi::REMOTE_SHORTCUT {
                 if facts.reader == 0 || facts.remote_input == 0 || facts.input_over_page != 0 {
@@ -1151,6 +1186,7 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
                     Target::Epub(epub) => unsafe { epub.as_ref() }
                         .dispatch_remote_shortcut(unsafe { event.value.reader_menu } != 0),
                     Target::Home(_)
+                    | Target::NetworkModes(_)
                     | Target::Keyboard(_)
                     | Target::Dialog(_)
                     | Target::ReaderChild { .. } => false,
@@ -1179,6 +1215,7 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
                         Target::Epub(epub) => unsafe { epub.as_ref() }
                             .app_remote_turn(turn.forward != 0, turn.chapter != 0),
                         Target::Home(_)
+                        | Target::NetworkModes(_)
                         | Target::Keyboard(_)
                         | Target::Dialog(_)
                         | Target::ReaderChild { .. }

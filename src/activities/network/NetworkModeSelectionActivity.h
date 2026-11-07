@@ -4,10 +4,10 @@
 #include <xp_network_owner.h>
 #include <xp_ui_network.h>
 
-#include "activities/RustActivityAdapter.h"
+#include "activities/Activity.h"
 
 enum class NetworkMode { JOIN_NETWORK, CONNECT_CALIBRE, CREATE_HOTSPOT, USB_DRIVE };
-class NetworkModeSelectionActivity final : public RustActivityAdapter {
+class NetworkModeSelectionActivity final : public Activity {
  public:
   explicit NetworkModeSelectionActivity(GfxRenderer&, MappedInputManager&);
 #if FREEINK_CAP_USB_MSC
@@ -15,31 +15,13 @@ class NetworkModeSelectionActivity final : public RustActivityAdapter {
 #else
   static constexpr int MENU_ITEM_COUNT = 3;
 #endif
-  void onEnter() override;
-  void onModeSelected(NetworkMode mode);
-  void onCancel();
   void physicalLayout(XpUiSettingsLayout&);
   XpUiSettingsResources resources();
   void paint(const XpUiCommand&, XpUiRect);
   void prepareResult(bool cancelled, uint8_t mode);
 
  private:
-  XpUiListState state{}, next{};
-  XpUiSettingsHits hits{}, nextHits{};
-  XpUiCommand commands[24]{};
   XpUiSettingsRow rows[MENU_ITEM_COUNT]{};
-  Publication publication;
-  int32_t renderingScroll = 0;
-  bool touchActivated = false;
   freeink::ui::GfxRendererTarget textTarget;
   const char* text(uint32_t) const;
-  Publication* rustPublication() override { return &publication; }
-  bool buildRustScene(XpUiScene&) override;
-  bool rustSceneCurrent() const override;
-  void rustPublished() override;
-  void rustSceneFailed() override;
-  XpUiPaint rustResources() override;
-  XpUiInterest rustInterest(uint32_t) const override;
-  XpUiEffect updateRust(const XpUiInput&) override;
-  void applyRustEffect(const XpUiEffect&) override;
 };

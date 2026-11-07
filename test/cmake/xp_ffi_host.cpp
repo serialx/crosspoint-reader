@@ -154,3 +154,14 @@ __attribute__((weak)) void xp_dialog_deliver(const XpAppLegacy*, void*, uint8_t,
 extern "C" __attribute__((weak)) void* xp_test_definition_malloc(size_t bytes) { return std::malloc(bytes); }
 extern "C" __attribute__((weak)) void xp_test_definition_free(void* data) { std::free(data); }
 extern "C" __attribute__((weak)) void xp_test_definition_copied(const uint8_t*, uint8_t*, size_t) {}
+
+// App tests that open File Transfer override this physical table. Other host
+// compositions fail immediately if they accidentally route a mode activity here.
+#include <xp_network_owner.h>
+extern "C" __attribute__((weak))
+const XpNetworkModesPhysical XP_NETWORK_MODES_PHYSICAL = {[](void*, XpUiSettingsLayout*) { std::abort(); },
+                                                          [](void*) -> XpUiSettingsResources { std::abort(); },
+                                                          [](void*, const XpUiCommand*, XpUiRect) { std::abort(); },
+                                                          [](int32_t, uint16_t) { std::abort(); },
+                                                          [](uint8_t) { std::abort(); },
+                                                          [](void*, uint8_t, uint8_t) { std::abort(); }};

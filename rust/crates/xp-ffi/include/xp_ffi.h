@@ -2431,43 +2431,6 @@ uint32_t xp_flash_run(const XpFlashServices* services, bool already_validated);
 bool xp_sensitive_path(const uint8_t* path, size_t len, uint8_t* scratch);
 bool xp_plugin_path_candidate(const uint8_t* path, size_t len);
 
-enum XpHttpMode { XP_HTTP_FETCH, XP_HTTP_CATALOG, XP_HTTP_FORM, XP_HTTP_DOWNLOAD, XP_HTTP_POST_FILE };
-typedef struct {
-  size_t bytes, total;
-  int32_t status;
-  uint32_t mode;
-  bool capture, known, aborted, stopped, complete, same_origin;
-} XpHttpState;
-enum XpHttpOp {
-  XP_HTTP_REMOVE,
-  XP_HTTP_OPEN,
-  XP_HTTP_CLOSE,
-  XP_HTTP_REPLACE,
-  XP_HTTP_WRITE,
-  XP_HTTP_PROGRESS,
-  XP_HTTP_SINK,
-  XP_HTTP_APPEND,
-  XP_HTTP_RESOLVE,
-  XP_HTTP_SAME_ORIGIN,
-  XP_HTTP_LAST_STATUS,
-  XP_HTTP_LAST_REDIRECTED,
-  XP_HTTP_GUARD_ENTER,
-  XP_HTTP_GUARD_EXIT
-};
-typedef struct {
-  void* ctx;
-  size_t (*operation)(void*, uint32_t op, size_t a, size_t b, const uint8_t* bytes);
-  int32_t (*request)(void*, XpHttpState*);
-  void (*diagnostic)(void*, uint32_t event, size_t a, size_t b);
-} XpHttpServices;
-// Mode 0 simple GET; 1 catalog GET; 2 form POST; 3 file GET; 4 file POST.
-// A request may call xp_http_chunk synchronously; all other reentry is forbidden.
-bool xp_http_redirect(int32_t status);
-// Authorization choice: 0 none, 1 basic, 2 bearer. Caller headers use same_origin.
-uint32_t xp_http_auth(bool same_origin, size_t bearer_len, size_t user_len, size_t password_len);
-uint32_t xp_http_run(const XpHttpServices* services, XpHttpState* state);
-bool xp_http_chunk(const XpHttpServices* services, XpHttpState* state, const uint8_t* data, size_t len);
-
 typedef struct {
   bool ok, existed;
 } XpDavState;

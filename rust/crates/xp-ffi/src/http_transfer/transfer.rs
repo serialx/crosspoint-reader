@@ -186,16 +186,7 @@ unsafe extern "C" fn chunk(context: *mut c_void, bytes: Bytes, facts: *const Fac
             }
             true
         }
-        Kind::Catalog => {
-            if !success(facts.status) && !((*t).request.capture_error_body && facts.status == 401) {
-                return true;
-            }
-            if !sink(t, bytes) {
-                (*t).stopped = true;
-                return false;
-            }
-            true
-        }
+        Kind::Catalog => unreachable!("catalog has its own entry"),
         Kind::Form => {
             let length = bytes.length.min(4096usize.saturating_sub((*t).bytes));
             text::output_append(
@@ -298,11 +289,11 @@ unsafe fn configure(
     }
 }
 #[inline(always)]
-unsafe fn send(t: *mut Transfer<'_>, get: bool, catalog: bool) -> Facts {
+unsafe fn send(t: *mut Transfer<'_>, get: bool) -> Facts {
     let callbacks = Callbacks {
         context: t.cast(),
         chunk,
-        should_abort: if catalog { None } else { Some(abort) },
+        should_abort: Some(abort),
     };
     let mut facts = Facts::default();
     let r = (*t).request;
@@ -359,7 +350,7 @@ unsafe fn resumable(t: *mut Transfer<'_>) {
             value.append(Bytes::from_slice(b"-"));
             add_header(pool, sdk, r.client_storage, b"Range", value.native());
         }
-        let facts = send(t, true, false);
+        let facts = send(t, true);
         if (*t).aborted {
             (sdk.release)(r.client_storage);
             return;
@@ -415,7 +406,7 @@ unsafe fn resumable(t: *mut Transfer<'_>) {
     }
 }
 #[inline(always)]
-unsafe fn direct<'a>(t: *mut Transfer<'a>, current: NativeText, catalog: bool) -> Option<Text<'a>> {
+unsafe fn direct(t: *mut Transfer<'_>, current: NativeText) {
     let r = (*t).request;
     let sdk = &*(*t).leaves.sdk;
     if !(sdk.acquire)(r.client_storage, current) {
@@ -426,12 +417,10 @@ unsafe fn direct<'a>(t: *mut Transfer<'a>, current: NativeText, catalog: bool) -
             0
         };
         (sdk.release)(r.client_storage);
-        return None;
+        return;
     }
-    configure(r, (*t).leaves, (*t).pool, (*t).same_origin, catalog);
-    if catalog {
-        ((*(*t).leaves.diagnostics).emit)(Diagnostic::Get, current.bytes, Bytes::EMPTY, 0, 0);
-    } else if r.kind == Kind::Form {
+    configure(r, (*t).leaves, (*t).pool, (*t).same_origin, false);
+    if r.kind == Kind::Form {
         let value = (*t)
             .pool
             .copy(Bytes::from_slice(b"application/x-www-form-urlencoded"));
@@ -453,20 +442,11 @@ unsafe fn direct<'a>(t: *mut Transfer<'a>, current: NativeText, catalog: bool) -
             r.content_type,
         );
     }
-    let facts = send(t, catalog, catalog);
-    let location = if catalog && redirect(facts.status) {
-        Some(
-            (*t).pool
-                .header(sdk, r.client_storage, c"location".as_ptr()),
-        )
-    } else {
-        None
-    };
+    let facts = send(t, false);
     (*t).known = facts.known_length;
     (*t).total = facts.length;
     (*t).complete = true;
     (sdk.release)(r.client_storage);
-    location
 }
 unsafe fn publish(t: *const Transfer<'_>, same: bool) {
     let r = (*t).request;
@@ -520,13 +500,13 @@ unsafe fn run(t: *mut Transfer<'_>) -> u32 {
         }
         Kind::Catalog => unreachable!("catalog has its own entry"),
         Kind::Form | Kind::PostFile => {
-            direct(t, r.url, false);
+            direct(t, r.url);
         }
     }
     if !r.status_output.is_null() {
         *r.status_output = (*t).status.max(0);
     }
-    if matches!(r.kind, Kind::Catalog | Kind::Form) {
+    if r.kind == Kind::Form {
         return u32::from(!success((*t).status) || (*t).stopped);
     }
     if r.kind == Kind::PostFile && !(*t).complete && (*t).status == i32::MIN {
@@ -689,12 +669,13 @@ unsafe fn common_entry(r: &Request, leaves: &Leaves) -> u32 {
         Kind::Fetch => Some(Diagnostic::Fetching),
         Kind::Download => Some(Diagnostic::Downloading),
         Kind::PostFile => Some(Diagnostic::PostDownload),
-        Kind::Catalog | Kind::Form => None,
+        Kind::Catalog => unreachable!("catalog has its own entry"),
+        Kind::Form => None,
     };
     if let Some(initial) = initial {
         ((*leaves.diagnostics).emit)(initial, r.url.bytes, r.destination.bytes, 0, 0);
     }
-    let guard = matches!(r.kind, Kind::Catalog | Kind::Form | Kind::PostFile)
+    let guard = matches!(r.kind, Kind::Form | Kind::PostFile)
         .then(|| enter_guard(leaves.radio, leaves.diagnostics));
     if r.kind == Kind::Form {
         ((*leaves.text).resize)(r.form_response, 0);

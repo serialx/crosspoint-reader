@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-// Proposal only: synchronous loans expire before the enclosing transfer returns.
+// Synchronous loans expire before the enclosing transfer returns.
 typedef struct {
   const uint8_t* data;
   size_t length;
@@ -134,7 +134,7 @@ typedef enum {
   XP_HTTP_TRANSFER_POST_FILE
 } XpHttpTransferKind;
 
-// The only projected request; every text/body/callback borrows its native caller.
+// The only request; every text/body/callback borrows its native caller.
 typedef struct {
   XpHttpTransferKind kind;
   XpHttpNativeText url;
@@ -167,9 +167,6 @@ uint32_t xp_http_transfer_retire_n5_n6_c2_c4_b2(const XpHttpRequestRetireN5N6C2C
 XpHttpGuardToken xp_wifi_guard_enter_retire_n7_s1_s2_w3b(const XpHttpRadioLeaves*, const XpHttpDiagnosticsRetireZ1*);
 void xp_wifi_guard_exit_retire_n7_s1_s2_w3b(XpHttpGuardToken, const XpHttpRadioLeaves*,
                                             const XpHttpDiagnosticsRetireZ1*);
-void xp_url_ensure_protocol_retire_c2(XpHttpNativeText, XpHttpMutableText*, const XpHttpTextLeaves*);
-void xp_url_extract_host_retire_c2(XpHttpNativeText, XpHttpMutableText*, const XpHttpTextLeaves*);
-void xp_url_encode_unsafe_retire_c2(XpHttpNativeText, XpHttpMutableText*, const XpHttpTextLeaves*);
 void xp_url_build_retire_c2(XpHttpNativeText base, XpHttpNativeText path, XpHttpMutableText*, const XpHttpTextLeaves*);
 void xp_http_header_parse_retire_c1_s2(XpHttpBytes line, XpHttpMutableText* name, XpHttpMutableText* value,
                                        const XpHttpTextLeaves*);

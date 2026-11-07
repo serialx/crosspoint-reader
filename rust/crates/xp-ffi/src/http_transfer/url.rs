@@ -222,41 +222,6 @@ unsafe fn encode(url: Bytes, out: *mut MutableText, leaves: &TextLeaves) {
 }
 #[no_mangle]
 #[inline(never)]
-pub unsafe extern "C" fn xp_url_ensure_protocol_retire_c2(
-    url: NativeText,
-    out: *mut MutableText,
-    leaves: *const TextLeaves,
-) {
-    if find(url.bytes.slice(), b"://").is_some() {
-        text::output_copy(&*leaves, out, url.bytes);
-    } else {
-        text::initialize(&*leaves, out, 0);
-        ((*leaves).resize)(out, 7 + url.bytes.length);
-        ((*leaves).resize)(out, 0);
-        text::output_append(&*leaves, out, span(b"http://"));
-        text::output_append(&*leaves, out, url.bytes);
-    }
-}
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_url_extract_host_retire_c2(
-    url: NativeText,
-    out: *mut MutableText,
-    leaves: *const TextLeaves,
-) {
-    text::output_copy(&*leaves, out, host(url.bytes));
-}
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_url_encode_unsafe_retire_c2(
-    url: NativeText,
-    out: *mut MutableText,
-    leaves: *const TextLeaves,
-) {
-    encode(url.bytes, out, &*leaves);
-}
-#[no_mangle]
-#[inline(never)]
 pub unsafe extern "C" fn xp_url_build_retire_c2(
     base: NativeText,
     path: NativeText,

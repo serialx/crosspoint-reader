@@ -13,6 +13,7 @@ from oracle_sources import native_text
 from legacy_page_native import source as legacy_page_source
 from book_facade_composition import facade_bridge_source, compile_command
 from test_popup_resource import replace_once
+from test_reader_settings import generated_i18n_directory
 
 
 def main():
@@ -49,7 +50,9 @@ def main():
         facade.write_text(facade_bridge_source(ROOT))
         binary = out / 'candidate'
         command = compile_command(ROOT, out, facade, binary, archive=str(args.archive))
-        command[command.index('-o'):command.index('-o')] = ['-I', str(ROOT / 'lib/I18n'), '-I', str(ROOT / 'src/activities'), '-I', str(ROOT / 'src'), str(candidate)]
+        # Translation IDs must match the linked archive.
+        i18n = generated_i18n_directory(args.archive)
+        command[command.index('-o'):command.index('-o')] = ['-I', str(i18n), '-I', str(ROOT / 'src/activities'), '-I', str(ROOT / 'src'), str(candidate)]
         allocator = out / 'allocator.cpp'
         allocator.write_text(replace_once((ROOT / 'test/cmake/xp_ffi_host.cpp').read_text(),
             'extern "C" void heap_caps_free(void* ptr) {',

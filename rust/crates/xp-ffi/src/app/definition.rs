@@ -71,7 +71,9 @@ impl App {
         target: NonNull<DefinitionSession>,
         result: *const abi::XpAppResultView,
     ) {
-        if let Some(result) = unsafe { result.as_ref() } {
+        if let Some(result) =
+            unsafe { result.as_ref() }.filter(|result| result.kind == abi::RESULT_CLIPPING)
+        {
             unsafe {
                 target
                     .as_ref()

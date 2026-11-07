@@ -9,6 +9,7 @@ p=argparse.ArgumentParser();p.add_argument('--evidence',type=Path,required=True)
 manager=(ROOT/'src/activities/ActivityManager.cpp').read_text()
 bridge=block(manager,'[](void* activity, XpAppResultSink sink, void* context)').replace('auto result =','ResultLifetime lifetime;\n            auto result =')
 s=Path(__file__).with_name('composition.cpp.in').read_text().replace('// GENERIC_BRIDGE',bridge)
+s=s.replace('// CLIP_CANCEL',block((ROOT/'src/activities/reader/ClipSelectionActivity.cpp').read_text(),'void ClipSelectionActivity::cancel()'))
 cpp=a.evidence/'composition.cpp';cpp.write_text(s);binary=a.evidence/'composition'
 cmd=['c++','-std=c++20','-O1','-g','-fsanitize=address,undefined',str(cpp),'-I',str(ROOT/'src'),'-I',str(ROOT/'test/ui_runtime'),*rust_link_flags(a.archive),'-o',str(binary)]
 r=subprocess.run(cmd,text=True,capture_output=True);(a.evidence/'compile.log').write_text(r.stdout+r.stderr)

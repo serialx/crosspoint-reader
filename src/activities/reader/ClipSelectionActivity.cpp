@@ -311,6 +311,7 @@ void ClipSelectionActivity::confirmSelection(const ClippingResult::Action action
 
 void ClipSelectionActivity::cancel() {
   ActivityResult result;
+  result.data.emplace<ClippingResult>();
   result.isCancelled = true;
   setResult(std::move(result));
   finish();

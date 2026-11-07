@@ -35,6 +35,7 @@ fn protected_whole_owner_negative() {
 }
 '''
 mutations = [
+    ('frontlight-filter-removed', '../../definition.rs', '.filter(|result| result.kind == abi::RESULT_CLIPPING)', '', 'frontlight_return', False),
     ('control', 'definition_session_tests.rs', None, None, 'stable_owner_moves', True),
     ('whole-owner-protector', 'definition_session_tests.rs', '', protected, 'protected_whole_owner_negative', False),
     ('wrong-heap', 'definition_navigation.rs', '(self.physical.heap)(&mut heap)', '(leaves.heap_snapshot)(&mut heap)', 'default_heap_not_internal', False),
@@ -57,4 +58,4 @@ for name, file, before, after, test, success in mutations:
     assert success or ('Undefined Behavior' in log if name == 'whole-owner-protector' else 'assertion' in log), name
     records.append({'name': name, 'command': cmd, 'exit': run.returncode, 'expected_success': success})
 (out / 'results.json').write_text(json.dumps(records, indent=2) + '\n')
-print('Control passed; whole-owner protector, wrong heap and failed-view mutants rejected')
+print('Control passed; frontlight filter, whole-owner protector, wrong heap and failed-view mutants rejected')

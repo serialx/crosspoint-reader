@@ -173,3 +173,7 @@ fn render_publishes_before_refresh_and_drops_prewarm_after_both_scenes_or_reject
         }
     }
 }
+
+#[cfg(feature = "app-test")]
+#[path = "definition_frontlight_tests.rs"]
+mod frontlight_tests;

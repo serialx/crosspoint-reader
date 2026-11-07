@@ -35,6 +35,13 @@ struct Activity {
     }
   }
 };
+struct ClipSelectionActivity {
+  ActivityResult result;
+  void cancel();
+  void setResult(ActivityResult&& value) { result = std::move(value); }
+  void finish() {}
+};
+// CLIP_CANCEL
 static Activity* nativeActivity(void* p) { return static_cast<Activity*>(p); }
 static void* parent;
 struct ResultLifetime {
@@ -147,11 +154,18 @@ int main(int argc, char** argv) {
   child->child = true;
   childLive = true;
   payload->pages.push_back(std::make_unique<Page>());
-  child->result.isCancelled = cancelled;
-  ClippingResult selected;
-  selected.text.assign(length, 'x');
-  selected.endPageOffset = 1;
-  child->result.data = std::move(selected);
+  if (cancelled) {
+    ClipSelectionActivity selection;
+    selection.cancel();
+    assert(selection.result.isCancelled);
+    assert(std::holds_alternative<ClippingResult>(selection.result.data));
+    child->result = std::move(selection.result);
+  } else {
+    ClippingResult selected;
+    selected.text.assign(length, 'x');
+    selected.endPageOffset = 1;
+    child->result.data = std::move(selected);
+  }
   push(child);
   tracing = true;
   XpAppEvent pop{.kind = XP_APP_POP};

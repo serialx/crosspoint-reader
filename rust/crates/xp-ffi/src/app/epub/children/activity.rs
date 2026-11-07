@@ -65,6 +65,7 @@ impl ChildTarget {
     }
 
     /// Entry runs after publication; acquire the parent guard before touching scratch.
+    #[inline(never)]
     pub(in crate::app) unsafe fn enter(self, parent: &EpubSession, physical: &Physical) -> bool {
         self.activity_log(parent, true);
         let _access = parent.lock_resources();
@@ -99,6 +100,7 @@ impl ChildTarget {
     }
 
     /// App holds the render lifetime lock through exit and destruction.
+    #[inline(never)]
     pub(in crate::app) unsafe fn exit(self, parent: &EpubSession) {
         let _access = unsafe { parent.borrowed_resources() };
         match self {

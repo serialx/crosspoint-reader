@@ -345,10 +345,13 @@ pub(super) unsafe fn with_result(
     consume(super::ActivityResult::Keyboard(result));
 }
 #[inline(never)]
-pub(super) fn deliver(app: &App, parent: super::Target, result: Option<Result>) {
-    let super::Target::Legacy(parent) = parent else {
-        return;
-    };
+pub(super) fn deliver(app: &App, parent: super::Target, mut result: Option<Result>) {
+    if let super::Target::Legacy(parent) = parent {
+        deliver_native(app, parent, &mut result);
+    }
+}
+#[inline(never)]
+fn deliver_native(app: &App, parent: NonNull<c_void>, result: &mut Option<Result>) {
     let text = result.as_ref().and_then(Result::text);
     unsafe {
         xp_keyboard_deliver(

@@ -68,7 +68,38 @@ enum ActivityResult {
     Keyboard(Option<keyboard::Result>),
     Dialog(Option<dialog::Result>),
     Legacy(*const abi::XpAppResultView),
-    Child(Option<ReaderChildResult>),
+    Child(ChildResultSlot),
+}
+
+// Valid only during with_result's synchronous continuation. Its outlined producer
+// owns the slot after child destruction; delivery takes the payload exactly once.
+struct ChildResultSlot(NonNull<Option<ReaderChildResult>>);
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::size_of::<ActivityResult>() <= 24);
+impl ChildResultSlot {
+    unsafe fn take(mut self) -> Option<ReaderChildResult> {
+        unsafe { self.0.as_mut() }.take()
+    }
+}
+
+#[inline(never)]
+unsafe fn receive_child_result(child: ChildTarget, consume: impl FnOnce(ActivityResult)) {
+    let mut result = unsafe { child.take_result() };
+    consume(ActivityResult::Child(ChildResultSlot(NonNull::from(
+        &mut result,
+    ))));
+}
+
+#[inline(never)]
+unsafe fn receive_definition_result(
+    view: *const abi::XpAppResultView,
+    consume: impl FnOnce(ActivityResult),
+) {
+    let cancelled = unsafe { view.as_ref() }.is_none_or(|view| view.cancelled != 0);
+    let mut result = Some(ReaderChildResult::DefinitionClosed { cancelled });
+    consume(ActivityResult::Child(ChildResultSlot(NonNull::from(
+        &mut result,
+    ))));
 }
 
 enum Owner {
@@ -188,6 +219,30 @@ fn request_update() {
 }
 
 impl App {
+    #[inline(never)]
+    unsafe fn deliver_child_result(&self, parent: Target, slot: ChildResultSlot) {
+        let result = unsafe { slot.take() };
+        match (parent, result) {
+            (Target::Epub(epub), Some(result)) => unsafe {
+                epub.as_ref().deliver_reader_child(result)
+            },
+            (
+                Target::ReaderChild {
+                    child: child @ ChildTarget::Lookup(_),
+                    ..
+                },
+                Some(ReaderChildResult::DefinitionClosed { cancelled }),
+            ) => self.definition_returned(&child, cancelled),
+            (
+                Target::ReaderChild {
+                    child: ChildTarget::Clippings(_),
+                    ..
+                },
+                Some(ReaderChildResult::DefinitionClosed { .. }),
+            ) => self.request(false),
+            _ => {}
+        }
+    }
     fn legacy_facts(&self, target: NonNull<c_void>) -> abi::LegacyFacts {
         unsafe { (self.legacy.facts)(target.as_ptr(), 0, 0) }
     }
@@ -756,15 +811,10 @@ impl Services<Owner> for App {
             Target::Legacy(target) => invoke(self, target, |result| {
                 consume(ActivityResult::Legacy(result))
             }),
-            Target::Definition(target) => invoke(self, target, |result| {
-                let cancelled = unsafe { result.as_ref() }.is_none_or(|view| view.cancelled != 0);
-                consume(ActivityResult::Child(Some(
-                    ReaderChildResult::DefinitionClosed { cancelled },
-                )))
+            Target::Definition(target) => invoke(self, target, |result| unsafe {
+                receive_definition_result(result, consume)
             }),
-            Target::ReaderChild { child, .. } => {
-                consume(ActivityResult::Child(unsafe { child.take_result() }))
-            }
+            Target::ReaderChild { child, .. } => unsafe { receive_child_result(child, consume) },
         }
     }
     fn deliver_result(&self, parent: Target, result: ActivityResult) {
@@ -774,18 +824,9 @@ impl Services<Owner> for App {
             (Target::Epub(epub), ActivityResult::Legacy(result)) => unsafe {
                 epub.as_ref().child_result(result.as_ref())
             },
-            (Target::Epub(epub), ActivityResult::Child(Some(result))) => unsafe {
-                epub.as_ref().deliver_reader_child(result)
+            (parent, ActivityResult::Child(result)) => unsafe {
+                self.deliver_child_result(parent, result)
             },
-            (
-                Target::ReaderChild {
-                    child: child @ ChildTarget::Lookup(_),
-                    ..
-                },
-                ActivityResult::Child(Some(ReaderChildResult::DefinitionClosed { cancelled })),
-            ) => {
-                self.definition_returned(&child, cancelled);
-            }
             (
                 Target::Legacy(parent) | Target::Definition(parent),
                 ActivityResult::Legacy(result),
@@ -794,13 +835,6 @@ impl Services<Owner> for App {
                     unsafe { result.as_ref() }.map_or(core::ptr::null(), |view| view.original);
                 unsafe { (self.legacy.deliver_result)(parent.as_ptr(), original) };
             }
-            (
-                Target::ReaderChild {
-                    child: ChildTarget::Clippings(_),
-                    ..
-                },
-                ActivityResult::Child(Some(ReaderChildResult::DefinitionClosed { .. })),
-            ) => self.request(false),
             _ => {}
         }
     }

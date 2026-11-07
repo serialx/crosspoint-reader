@@ -265,7 +265,8 @@ fn definition_owned_result_actual_app_destroys_and_publishes_before_transfer() {
         CANCELLED.with(|v| v.set(cancelled));
         // The real definition result is copied before its inline native storage drops.
         app.with_result(app::Target::Definition(viewer),|result| {
-            assert!(matches!(result,app::ActivityResult::Child(Some(children::ReaderChildResult::DefinitionClosed{cancelled:value})) if value==(cancelled!=0)));
+            let app::ActivityResult::Child(slot) = result else { panic!("wrong result route") };
+            assert!(matches!(unsafe { slot.take() }, Some(children::ReaderChildResult::DefinitionClosed{cancelled:value}) if value==(cancelled!=0)));
         });
         app.navigation.queue(Transition::Pop);
         app.navigation.drain(&app);
@@ -386,4 +387,47 @@ unsafe extern "C" fn no_selection_delivery(
         unsafe { release(result.text.data, result.text.capacity) };
     }
     1
+}
+
+#[test]
+fn reader_result_slot_moves_once_after_producer_drop() {
+    use children::selection_owned::Footnote;
+    for cancelled in [false, true] {
+        for consume_result in [false, true] {
+            let app = app_fixture();
+            let owner = Footnote::try_new(app.runtime, footnote_page(), [0; 2]).unwrap();
+            let href = owner.selection(0).unwrap();
+            let original = href.bytes().as_ptr();
+            unsafe {
+                *owner.result.get() = Some(children::ReaderChildResult::Footnote(
+                    (!cancelled).then_some(href),
+                ))
+            };
+            let target = app::Target::ReaderChild {
+                child: children::ChildTarget::Footnote(owner.pointer()),
+                parent: NonNull::dangling(),
+            };
+            let mut moved = None;
+            app.with_result(target, |result| {
+                drop(owner);
+                let app::ActivityResult::Child(slot) = result else {
+                    panic!("wrong result route")
+                };
+                if consume_result {
+                    let Some(children::ReaderChildResult::Footnote(href)) =
+                        (unsafe { slot.take() })
+                    else {
+                        panic!("wrong child result")
+                    };
+                    moved = href;
+                }
+            });
+            if let Some(href) = moved {
+                assert_eq!(href.bytes().as_ptr(), original);
+                assert_eq!(href.bytes(), b"#a");
+            } else {
+                assert!(cancelled || !consume_result);
+            }
+        }
+    }
 }

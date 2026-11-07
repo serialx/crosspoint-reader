@@ -67,20 +67,6 @@ unsafe extern "C" fn old_result(_: *mut c_void, _: abi::ResultSink, _: *mut c_vo
 unsafe extern "C" fn delivery(_: *mut c_void, _: *const c_void) {
     panic!("native projection")
 }
-unsafe extern "C" fn unexpected_definition_result(
-    _: *mut c_void,
-    _: abi::DefinitionPop,
-    _: abi::DefinitionSelectionSink,
-    _: *mut c_void,
-) {
-    panic!("dialog fixture entered Definition transfer");
-}
-unsafe extern "C" fn unexpected_definition_accept(
-    _: *mut c_void,
-    _: abi::DefinitionSelection,
-) -> u8 {
-    panic!("dialog fixture accepted Definition transfer");
-}
 unsafe extern "C" fn facts(_: *const c_void, _: u8, _: u8) -> abi::LegacyFacts {
     unsafe { core::mem::zeroed() }
 }
@@ -132,9 +118,6 @@ fn build_app() -> &'static App {
         forced_refresh: no,
         reader_turn: no_turn,
         screenshot_info: shot,
-        with_definition_selection_result: unexpected_definition_result,
-        deliver_definition_selection_result: unexpected_definition_accept,
-        definition_selection_install_failed: ignored,
     }));
     let mut resources = test_resources::resources();
     resources.buffer_allocate = allocate;

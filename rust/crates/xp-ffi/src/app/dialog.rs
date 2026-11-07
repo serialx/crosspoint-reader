@@ -369,7 +369,7 @@ pub(super) fn create_launch(app: &App, launch: &abi::Launch) -> Option<Owner> {
 }
 #[inline(never)]
 pub(super) fn deliver(app: &App, parent: super::Target, result: Option<Result>) {
-    if let super::Target::Legacy(parent) | super::Target::Definition(parent) = parent {
+    if let super::Target::Legacy(parent) = parent {
         let (kind, value) = match result {
             Some(Result::Cancelled) => (0, 0),
             Some(Result::Interval(v)) => (2, v),

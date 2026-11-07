@@ -727,3 +727,32 @@ pub(super) fn drop_app() {
         drop(Box::from_raw(epub));
     }
 }
+
+#[test]
+fn message_pixel_bridge_bounds() {
+    let screen = Rect {
+        x: 0,
+        y: 0,
+        w: 480,
+        h: 800,
+    };
+    let mut out = [Command::default(); 3];
+    let canary = out[2];
+    unsafe {
+        assert_eq!(
+            dialog::xp_app_test_message_commands(screen, 0, 0, 7, 56, 20, out.as_mut_ptr()),
+            1
+        );
+        assert_eq!(out[2], canary);
+        let before = out;
+        assert_eq!(
+            dialog::xp_app_test_message_commands(screen, 0, 0, 7, i32::MAX, 20, out.as_mut_ptr()),
+            0
+        );
+        assert_eq!(out, before);
+        assert_eq!(
+            dialog::xp_app_test_message_commands(screen, 0, 0, 7, 56, 20, core::ptr::null_mut()),
+            0
+        );
+    }
+}

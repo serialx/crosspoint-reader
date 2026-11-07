@@ -483,57 +483,33 @@ fn repeated_entry_preserves_allocate_before_release_and_failure_logs() {
 
 #[test]
 fn message_commands_match_native_coordinate_oracle() {
-    unsafe extern "C" {
-        fn xp_ui_message_view(
-            m: *const xp_ui::ffi::Metrics,
-            s: Rect,
-            font: i32,
-            style: u8,
-            text: *const u8,
-            n: u16,
-            out: *mut Command,
-            capacity: u16,
-        ) -> u8;
-    }
-    unsafe extern "C" fn width(
-        _: *mut std::ffi::c_void,
-        _: i32,
-        _: *const u8,
-        n: u16,
-        _: u8,
-    ) -> i32 {
-        i32::from(n) * 8
-    }
-    unsafe extern "C" fn line(_: *mut std::ffi::c_void, _: i32) -> i32 {
-        20
-    }
+    use xp_ui::scene::Kind;
     for style in 0..4 {
         let (h, f) = platform();
         let screen = h.layout().screen;
         let d = Message::try_new(h, b"Message", style, Refresh::Fast).unwrap();
         assert!(d.enter(0));
-        let metrics = xp_ui::ffi::Metrics {
-            context: std::ptr::null_mut(),
-            width: Some(width),
-            line_height: Some(line),
-        };
-        let mut commands = [Command::default(); 2];
-        assert_eq!(
-            unsafe {
-                xp_ui_message_view(
-                    &metrics,
-                    screen,
-                    0,
-                    style,
-                    c"Message".as_ptr().cast(),
-                    7,
-                    commands.as_mut_ptr(),
-                    2,
-                )
+        let expected = [
+            Command {
+                kind: Kind::Clear as u8,
+                rect: screen,
+                paint: 1,
+                ..Command::default()
             },
-            2
-        );
-        assert_eq!(*f.commands.borrow(), commands);
+            Command {
+                kind: Kind::Text as u8,
+                rect: Rect {
+                    x: (screen.w - 7 * 8) / 2,
+                    y: (screen.h - 20) / 2,
+                    w: 0,
+                    h: 0,
+                },
+                style,
+                text_len: 7,
+                ..Command::default()
+            },
+        ];
+        assert_eq!(*f.commands.borrow(), expected);
     }
 }
 

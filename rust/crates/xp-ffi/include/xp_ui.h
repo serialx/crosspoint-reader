@@ -159,11 +159,6 @@ typedef struct {
 } XpUiLayer;
 uint8_t xp_ui_render_layers(const XpUiLayer* layers, uint8_t count, const XpGlyphTarget*);
 uint8_t xp_ui_hit(const XpUiScene* scene, int16_t x, int16_t y, uint16_t inputs, XpUiInteraction* out);
-// Builds two commands borrowing the caller's terminated immutable text.
-// Returns zero on failure, before changing the output commands.
-uint8_t xp_ui_message_view(const XpUiMetrics* metrics, XpUiRect screen, int32_t font, uint8_t style,
-                           const uint8_t* text, uint16_t text_len, XpUiCommand* commands, uint16_t capacity);
-
 void xp_ui_list_publish(XpUiListState*, const XpUiListState* next, int32_t consumed_scroll);
 XpUiInterest xp_ui_list_interest(const XpUiListState*, uint32_t now_ms);
 uint8_t xp_ui_list_init(XpUiListState*, const XpUiResources*, uint32_t page);

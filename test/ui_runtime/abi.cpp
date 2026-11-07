@@ -140,6 +140,5 @@ int main() {
   assert(!xp_ui_xtc_view(&state, &layout, &metrics, &resources, &buffer, &next, &scene));
   assert(!memcmp(&state, &oldState, sizeof(state)) && !memcmp(&scene, &oldScene, sizeof(scene)));
   assert(!xp_ui_xtc_view(nullptr, &layout, &metrics, &resources, &buffer, &next, &scene));
-  assert(!xp_ui_message_view(nullptr, layout.screen, 0, 0, nullptr, 0, commands.data(), 80));
   return 0;
 }

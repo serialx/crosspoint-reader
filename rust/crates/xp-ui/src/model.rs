@@ -1,6 +1,6 @@
 //! Input is a snapshot, never a second hardware poll. Effects are applied by
 //! the existing activity owner after releasing its model lock.
-use crate::scene::{Arena, Command, Error, Kind, Rect};
+use crate::scene::{Command, Error, Kind, Rect};
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
@@ -261,22 +261,6 @@ impl ListState {
 pub trait Metrics {
     fn width(&mut self, font: i32, text: &[u8], style: u8) -> i32;
     fn line_height(&mut self, font: i32) -> i32;
-}
-
-/// The synchronous full-screen message uses the fixed UI font, as before.
-pub fn message_view(
-    arena: &mut Arena<'_>,
-    metrics: &mut dyn Metrics,
-    screen: Rect,
-    font: i32,
-    style: u8,
-    text: &[u8],
-) -> Result<(), Error> {
-    let height = metrics.line_height(font);
-    let width = metrics.width(font, text, style);
-    let [clear, text_command] = message_commands(screen, font, style, text.len(), width, height)?;
-    arena.push(clear)?;
-    arena.text(text_command, text)
 }
 
 /// Two commands borrow the owner's existing terminated message text.

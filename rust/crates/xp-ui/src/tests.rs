@@ -539,69 +539,21 @@ fn list_edges_repeat_scroll_and_cancel() {
 }
 
 #[test]
-fn frozen_cpp_message_origins_and_ffi_failure() {
+fn frozen_cpp_message_origins() {
     extern crate std;
-    use core::ffi::c_void;
     use std::{fmt::Write, string::String};
     let mut actual = String::new();
     for width in [480, 528, 792, 800] {
         for text_width in [0, 73, 900] {
             for style in 0..4 {
-                let mut commands = [Command::default(); 2];
-                let metrics = crate::ffi::Metrics {
-                    context: core::ptr::from_ref(&text_width).cast_mut().cast::<c_void>(),
-                    width: Some(width_callback),
-                    line_height: Some(height_callback),
-                };
-                unsafe extern "C" fn width_callback(
-                    p: *mut c_void,
-                    _: i32,
-                    _: *const u8,
-                    _: u16,
-                    _: u8,
-                ) -> i32 {
-                    unsafe { *p.cast::<i32>() }
-                }
-                unsafe extern "C" fn height_callback(_: *mut c_void, _: i32) -> i32 {
-                    23
-                }
                 let screen = Rect {
                     x: 0,
                     y: 0,
                     w: width,
                     h: if width == 528 { 792 } else { 480 },
                 };
-                assert_eq!(
-                    unsafe {
-                        crate::ffi::xp_ui_message_view(
-                            &metrics,
-                            screen,
-                            0,
-                            style,
-                            c"hello".as_ptr().cast(),
-                            5,
-                            commands.as_mut_ptr(),
-                            1,
-                        )
-                    },
-                    0
-                );
-                assert_eq!(commands, [Command::default(); 2]);
-                assert_eq!(
-                    unsafe {
-                        crate::ffi::xp_ui_message_view(
-                            &metrics,
-                            screen,
-                            0,
-                            style,
-                            c"hello".as_ptr().cast(),
-                            5,
-                            commands.as_mut_ptr(),
-                            2,
-                        )
-                    },
-                    2
-                );
+                let commands =
+                    crate::model::message_commands(screen, 0, style, 5, text_width, 23).unwrap();
                 assert_eq!(commands[0].kind, Kind::Clear as u8);
                 writeln!(
                     actual,

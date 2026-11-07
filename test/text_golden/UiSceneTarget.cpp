@@ -12,6 +12,8 @@
 #include <iostream>
 
 #include "Trace.h"
+extern "C" uint8_t xp_app_test_message_commands(XpUiRect screen, int32_t font, uint8_t style, uint16_t text_len,
+                                                int32_t width, int32_t height, XpUiCommand* out);
 void textGoldenGlyph(const EpdFontFamily&, uint32_t, int, int, EpdFontFamily::Style) {}
 void textGoldenScaled(int, uint32_t, int, int, EpdFontFamily::Style) {}
 
@@ -95,17 +97,12 @@ int main(int argc, char** argv) {
       }
       assert(assembled == expected);
       // Message layout still agrees with the C++ placement for multilingual text.
-      XpUiMetrics metrics{
-          &renderer,
-          [](void* p, int32_t font, const uint8_t* s, uint16_t, uint8_t) -> int32_t {
-            return static_cast<GfxRenderer*>(p)->getTextWidth(font, reinterpret_cast<const char*>(s));
-          },
-          [](void* p, int32_t font) -> int32_t { return static_cast<GfxRenderer*>(p)->getLineHeight(font); }};
       XpUiRect screen{0, 0, static_cast<int16_t>(renderer.getScreenWidth()),
                       static_cast<int16_t>(renderer.getScreenHeight())};
       XpUiCommand message[2]{};
-      assert(xp_ui_message_view(&metrics, screen, UI_10_FONT_ID, 0, reinterpret_cast<const uint8_t*>(text),
-                                strlen(text), message, 2));
+      assert(xp_app_test_message_commands(screen, UI_10_FONT_ID, 0, strlen(text),
+                                          renderer.getTextWidth(UI_10_FONT_ID, text),
+                                          renderer.getLineHeight(UI_10_FONT_ID), message));
       XpUiScene messageScene{message, reinterpret_cast<const uint8_t*>(text),  nullptr, 0,
                              2,       static_cast<uint16_t>(strlen(text) + 1), 0,       XP_UI_NONE,
                              0};

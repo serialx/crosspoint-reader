@@ -394,3 +394,28 @@ pub unsafe extern "C" fn xp_app_dialog_push(object: *mut c_void) -> u8 {
     app.navigation.queue(Transition::Push(Owner::Dialog(owner)));
     1
 }
+
+/// # Safety
+/// Host pixel tests lend two aligned writable commands.
+#[cfg(any(test, feature = "app-test"))]
+#[no_mangle]
+pub unsafe extern "C" fn xp_app_test_message_commands(
+    screen: Rect,
+    font: i32,
+    style: u8,
+    text_len: u16,
+    width: i32,
+    height: i32,
+    out: *mut Command,
+) -> u8 {
+    let Some(out) = (unsafe { out.cast::<[Command; 2]>().as_mut() }) else {
+        return 0;
+    };
+    let Ok(commands) =
+        xp_ui::model::message_commands(screen, font, style, usize::from(text_len), width, height)
+    else {
+        return 0;
+    };
+    *out = commands;
+    1
+}

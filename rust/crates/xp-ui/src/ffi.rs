@@ -234,65 +234,6 @@ pub unsafe extern "C" fn xp_ui_hit(
         0
     }
 }
-/// # Safety
-/// Text lends text_len+1 bytes, including its terminator. Output has capacity
-/// aligned writable commands and does not alias text/metrics. Callbacks cannot
-/// retain the text or mutate the output.
-#[no_mangle]
-pub unsafe extern "C" fn xp_ui_message_view(
-    metrics: *const Metrics,
-    screen: Rect,
-    font: i32,
-    style: u8,
-    text: *const u8,
-    text_len: u16,
-    commands: *mut Command,
-    capacity: u16,
-) -> u8 {
-    let Some(metrics) = (unsafe { metrics.as_ref() }) else {
-        return 0;
-    };
-    let (Some(width), Some(height)) = (metrics.width, metrics.line_height) else {
-        return 0;
-    };
-    if capacity < 2
-        || commands.is_null()
-        || text.is_null()
-        || usize::from(text_len) >= MAX_TEXT_BYTES
-        || screen.w <= 0
-        || screen.h <= 0
-    {
-        return 0;
-    }
-    let text_bytes = unsafe { slice::from_raw_parts(text, usize::from(text_len) + 1) };
-    if text_bytes.last() != Some(&0) || text_bytes[..usize::from(text_len)].contains(&0) {
-        return 0;
-    }
-    let width = unsafe { width(metrics.context, font, text, text_len, style) };
-    let height = unsafe { height(metrics.context, font) };
-    let x = (i64::from(screen.w) - i64::from(width)) / 2;
-    let y = (i64::from(screen.h) - i64::from(height)) / 2;
-    let (Ok(x), Ok(y)) = (i16::try_from(x), i16::try_from(y)) else {
-        return 0;
-    };
-    let output = unsafe { slice::from_raw_parts_mut(commands, 2) };
-    output[0] = Command {
-        kind: Kind::Clear as u8,
-        rect: screen,
-        paint: 1,
-        ..Command::default()
-    };
-    output[1] = Command {
-        kind: Kind::Text as u8,
-        rect: Rect { x, y, w: 0, h: 0 },
-        font,
-        style,
-        text_len,
-        ..Command::default()
-    };
-    2
-}
-
 #[repr(C)]
 pub struct Resources {
     pub context: *mut c_void,

@@ -210,8 +210,6 @@ impl LogBuffer {
         CStr::from_bytes_with_nul(&self.bytes[..=self.len]).expect("terminated settings log")
     }
 }
-// Dormant until the CP2 launch switch; tests install this production owner directly.
-#[allow(dead_code)]
 #[inline(never)]
 pub(super) fn create(app: &'static App, section: u8) -> Option<Owner> {
     Settings::try_new(NativeHost { app }, section)

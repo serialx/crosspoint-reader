@@ -335,6 +335,9 @@ impl App {
     }
 
     fn create(&self, launch: &abi::Launch) -> Option<Owner> {
+        if launch.kind == abi::SETTINGS {
+            return settings::create(app()?, unsafe { launch.value.settings_section });
+        }
         if launch.kind == abi::SETTINGS_SECTION {
             return settings::create_section(self, launch);
         }

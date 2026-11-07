@@ -310,7 +310,13 @@ fn settings_real_app_all_sections_pending_return_and_teardown() {
     let _serial = dialog_tests::APP_LOCK.lock().unwrap();
     for section in 0..=6 {
         let app = build_app();
-        app.replace(settings::create(app, section).unwrap());
+        app.replace(
+            app.create(&abi::Launch::new(
+                abi::SETTINGS,
+                abi::LaunchPayload::Settings(section),
+            ))
+            .unwrap(),
+        );
         let Some(Target::Settings(root)) = app.navigation.current() else {
             panic!("root")
         };
@@ -355,9 +361,20 @@ fn settings_real_app_failed_child_retains_selected_and_owner_failure_is_atomic()
     let _serial = dialog_tests::APP_LOCK.lock().unwrap();
     let app = build_app();
     state(|s| s.fail_shell = true);
-    assert!(settings::create(app, 6).is_none());
+    assert!(app
+        .create(&abi::Launch::new(
+            abi::SETTINGS,
+            abi::LaunchPayload::Settings(6)
+        ))
+        .is_none());
     assert!(app.navigation.current().is_none());
-    app.replace(settings::create(app, 5).unwrap());
+    app.replace(
+        app.create(&abi::Launch::new(
+            abi::SETTINGS,
+            abi::LaunchPayload::Settings(5),
+        ))
+        .unwrap(),
+    );
     state(|s| s.fail_child = true);
     app.activity_loop();
     let Some(Target::Settings(root)) = app.navigation.current() else {

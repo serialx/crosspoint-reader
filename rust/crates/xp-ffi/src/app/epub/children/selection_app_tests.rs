@@ -183,6 +183,7 @@ fn definition_owned_result_actual_app_destroys_and_publishes_before_transfer() {
             object: NonNull::dangling(),
             services: app.legacy,
             reader: true,
+            section: false,
         };
         app.navigation.replace(root, &app);
         let mut ops = test_leaves::selection();
@@ -251,6 +252,7 @@ fn definition_owned_result_actual_app_destroys_and_publishes_before_transfer() {
             object: NonNull::new(Box::into_raw(loan).cast()).unwrap(),
             services: app.legacy,
             reader: false,
+            section: false,
         }));
         app.navigation.drain(&app);
         assert_eq!(app.navigation.parent_count(), 3);
@@ -262,6 +264,7 @@ fn definition_owned_result_actual_app_destroys_and_publishes_before_transfer() {
                     object: NonNull::dangling(),
                     services: app.legacy,
                     reader: false,
+                    section: false,
                 }));
             app.navigation.drain(&app);
             assert_eq!(app.navigation.parent_count(), 0);

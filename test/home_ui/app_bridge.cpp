@@ -350,7 +350,12 @@ void init() {
     }
     return 1;
   };
-  static const auto epub = unexpectedEpubLeaves();
+  resources.buffer_allocate = [](XpAppMemoryDomain, size_t bytes) -> uint8_t* {
+    return static_cast<uint8_t*>(std::malloc(bytes));
+  };
+  resources.buffer_release = [](XpAppMemoryDomain, uint8_t* data) { std::free(data); };
+  static auto epub = unexpectedEpubLeaves();
+  epub.log = [](uint8_t, XpAppText, XpAppText) {};
   const XpAppPlatform platform{&legacy, &resources, &runtime, &epub};
   assert(xp_app_init(&platform, &compatibility) == XP_APP_OK);
 }
@@ -381,6 +386,12 @@ void factoryCase(int argc, char** argv) {
     input.released = XP_UI_CONFIRM;
   xp_app_loop();
   auto* object = xp_app_test_current_legacy();
+  if (menu == 5) {
+    assert(!object && created == -1);
+    assert(compatibility.activity_facts().current_kind == XP_APP_SETTINGS);
+    assert(compatibility.activity_facts().reader_in_stack == 0);
+    return;
+  }
   assert(object);
   auto* activity = nativeActivity(object);
   if (menu == 1) assert(static_cast<FileBrowserActivity*>(activity)->basepath == "/");
@@ -393,7 +404,6 @@ void factoryCase(int argc, char** argv) {
       assert(flag == 42);
   }
   if (menu == 4) assert(created == XP_APP_FILE_TRANSFER && flag == 0);
-  if (menu == 5) assert(created == XP_APP_SETTINGS && flag == 6);
 }
 void resultCase() {
   init();

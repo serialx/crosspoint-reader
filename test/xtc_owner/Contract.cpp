@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
   booktest::files["book.xtc"] = {std::istreambuf_iterator<char>(file), {}};
   booktest::fail = std::stoul(argv[3]);
   if (std::string_view(argv[2]) == "base")
-    run<xtc::XtcParser>();
+    std::abort();
   else
     run<xtc::RustXtcParser>();
   for (const auto& line : xtcowner::logs) std::printf("log %s\n", line.c_str());

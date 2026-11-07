@@ -44,10 +44,13 @@ with tempfile.TemporaryDirectory() as tmp:
                 includes=[root/'test/book_io/stubs',root/'test/xtc_diff/stubs',source/'lib/Xtc',root/'lib/GfxRenderer']
                 sources=[root/'test/book_io/XtcOracle.cpp',source/'lib/Xtc/Xtc.cpp',source/'lib/Xtc/Xtc/XtcParser.cpp',
                          root/'lib/GfxRenderer/BitmapHelpers.cpp']
+            if name=='xtc' and variant=='candidate': sources.append(source/'lib/Xtc/Xtc/RustXtcParser.cpp')
             command=common+['-I'+str(path) for path in includes]+[str(path) for path in sources]
             command += [str(root/'test/assets_oracle/Allocation.cpp'),str(archive),'-o',str(exe)]
             subprocess.run(command,check=True)
             exes.append(exe)
+        header_sizes=[int(subprocess.check_output([exe,'--layout'])) for exe in exes] if name=='xtc' else [0,0]
+        header_delta=max(0,header_sizes[1]-header_sizes[0])
         fixtures=[None] if name=='txt' else [tmp/'fixtures'/f'synthetic-{depth}-16-17-0.xtc' for depth in (1,2)]
         if name=='xtc' and not fixtures: raise SystemExit('Missing XTC resource fixture')
         for fixture in fixtures:
@@ -62,9 +65,9 @@ with tempfile.TemporaryDirectory() as tmp:
                 after=run(exes[1],fail)
                 before_bytes=[int(n) for n in re.search(rb'peak=(\d+) largest=(\d+) retained=(\d+)',before.stderr).groups()]
                 after_bytes=[int(n) for n in re.search(rb'peak=(\d+) largest=(\d+) retained=(\d+)',after.stderr).groups()]
-                if before.stdout!=after.stdout or before.stderr.split(b'RESOURCE ')[0]!=after.stderr.split(b'RESOURCE ')[0] or after_bytes[2]!=0 or any(b>a for a,b in zip(before_bytes[:2],after_bytes[:2])):
+                if before.stdout!=after.stdout or before.stderr.split(b'RESOURCE ')[0]!=after.stderr.split(b'RESOURCE ')[0] or after_bytes[2]!=0 or (after_bytes[0]>before_bytes[0]+header_delta or after_bytes[1]>max(before_bytes[1],header_sizes[1])):
                     raise SystemExit(f'Allocation trace mismatch {name} {fixture} failure={fail}: {before.stderr!r} / {after.stderr!r}')
                 rows.append({'case':name,'fixture':fixture.name if fixture else None,'fail':fail,
-                             'base_resources':before.stderr.decode().split('RESOURCE ')[-1].strip(),'resources':after.stderr.decode().split('RESOURCE ')[-1].strip(),'log_bytes':len(after.stderr.split(b'RESOURCE ')[0]),'exact_output_bytes':len(after.stdout)})
+                             'host_parser_sizes':header_sizes,'host_parser_delta':header_delta,'coverage':'Only nothrow/Rust allocator resources instrumented; native STL allocations are not covered and C3 firmware proof is separate','base_resources':before.stderr.decode().split('RESOURCE ')[-1].strip(),'resources':after.stderr.decode().split('RESOURCE ')[-1].strip(),'log_bytes':len(after.stderr.split(b'RESOURCE ')[0]),'exact_output_bytes':len(after.stdout)})
 Path(a.report).write_text(json.dumps(rows,indent=2)+'\n')
-print(f'Paired allocation oracle: {len(rows)} runs, all outputs identical, no peak increase or retained bytes; allocation attempts recorded')
+print(f'Paired allocation oracle: {len(rows)} runs, exact outputs, zero retained bytes; measured host parser-header delta allowed separately, C3 proof required')

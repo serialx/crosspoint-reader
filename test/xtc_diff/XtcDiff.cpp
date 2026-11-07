@@ -59,7 +59,8 @@ static void compare() {
   const auto& bc = base.getChapters();
   check(ac.size() == bc.size(), "chapter count");
   for (size_t i = 0; i < ac.size(); ++i) {
-    check(ac[i].name == bc[i].name && ac[i].startPage == bc[i].startPage && ac[i].endPage == bc[i].endPage,
+    check(std::string_view(reinterpret_cast<const char*>(ac[i].name), ac[i].name_len) == bc[i].name &&
+              ac[i].start_page == bc[i].startPage && ac[i].end_page == bc[i].endPage,
           "chapter record");
   }
   check(cand.hasChapters() == base.hasChapters(), "chapter flag after load");

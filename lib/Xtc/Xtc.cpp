@@ -107,7 +107,7 @@ std::string Xtc::getTitle() const {
     return "";
   }
 
-  std::string title = parser->getTitle();
+  std::string title(parser->getTitle());
   const auto value = xp_book_xtc_title({reinterpret_cast<const uint8_t*>(filepath.data()), filepath.size()},
                                        {reinterpret_cast<const uint8_t*>(title.data()), title.size()});
   if (value.data == reinterpret_cast<const uint8_t*>(title.data())) return title;
@@ -120,7 +120,7 @@ std::string Xtc::getAuthor() const {
   }
 
   // Try to get author from XTC metadata
-  return parser->getAuthor();
+  return std::string(parser->getAuthor());
 }
 
 bool Xtc::hasChapters() const {
@@ -130,10 +130,11 @@ bool Xtc::hasChapters() const {
   return parser->hasChapters();
 }
 
-const std::vector<xtc::ChapterInfo>& Xtc::getChapters() {
+std::span<const XpXtcChapterRow> Xtc::getChapters() {
+  // Preserve the native empty result's first-use lifetime registration.
   static const std::vector<xtc::ChapterInfo> kEmpty;
   if (!loaded || !parser) {
-    return kEmpty;
+    return {};
   }
   return parser->getChapters();
 }

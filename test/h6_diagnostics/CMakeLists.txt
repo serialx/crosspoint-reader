@@ -38,7 +38,7 @@ set(H6_GENERATED ${CMAKE_CURRENT_BINARY_DIR}/generated)
 execute_process(COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/instrument.py
   ${REPO_ROOT} ${H6_GENERATED} ${XTC_REFERENCE} COMMAND_ERROR_IS_FATAL ANY)
 add_executable(H6Xtc ${H6_GENERATED}/XtcDiagnostic.cpp ${H6_GENERATED}/reference/XtcParser.cpp
-  ${REPO_ROOT}/lib/Xtc/Xtc/XtcParser.cpp)
+  ${REPO_ROOT}/lib/Xtc/Xtc/XtcParser.cpp ${REPO_ROOT}/lib/Xtc/Xtc/RustXtcParser.cpp)
 target_include_directories(H6Xtc PRIVATE stubs xtc-stubs ${REPO_ROOT}/test/xtc_diff/stubs ${REPO_ROOT}/lib/Xtc)
 target_compile_options(H6Xtc PRIVATE -Wno-logical-op-parentheses)
 target_link_libraries(H6Xtc PRIVATE xp_ffi_host)

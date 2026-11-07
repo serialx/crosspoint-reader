@@ -28,8 +28,8 @@ const char* XtcReaderChapterSelectionActivity::text(const uint32_t handle) const
       if (handle >= XP_UI_XTC_FOOTER && handle < XP_UI_XTC_FOOTER + 4)
         return arena ? arena->hints[handle - XP_UI_XTC_FOOTER] : nullptr;
       if (xtc && handle > 0 && handle <= xtc->getChapters().size()) {
-        const auto& name = xtc->getChapters()[handle - 1].name;
-        return name.empty() ? tr(STR_UNNAMED) : name.c_str();
+        const auto& chapter = xtc->getChapters()[handle - 1];
+        return chapter.name_len == 0 ? tr(STR_UNNAMED) : reinterpret_cast<const char*>(chapter.name);
       }
       return nullptr;
   }
@@ -46,8 +46,8 @@ XpUiResources XtcReaderChapterSelectionActivity::resources() {
           [](void* p, uint16_t index, uint32_t* start, uint32_t* end) {
             const auto& book = static_cast<XtcReaderChapterSelectionActivity*>(p)->xtc;
             const auto& chapter = book->getChapters()[index];
-            *start = chapter.startPage;
-            *end = chapter.endPage;
+            *start = chapter.start_page;
+            *end = chapter.end_page;
           },
           static_cast<uint16_t>(xtc ? xtc->getChapters().size() : 0),
           static_cast<uint8_t>(!!xtc),
@@ -174,7 +174,7 @@ void XtcReaderChapterSelectionActivity::applyRustEffect(const XpUiEffect& effect
     }
     case XP_UI_ACTIVATE:
       if (xtc && effect.value >= 0 && static_cast<size_t>(effect.value) < xtc->getChapters().size()) {
-        setResult(PageResult{xtc->getChapters()[effect.value].startPage});
+        setResult(PageResult{xtc->getChapters()[effect.value].start_page});
         finish();
       }
       break;

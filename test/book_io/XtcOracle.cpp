@@ -3,7 +3,17 @@
 
 #include <fstream>
 #include <iterator>
+#include <string_view>
 
+template <class Row>
+void printChapter(const Row& chapter) {
+  if constexpr (requires { chapter.name_len; }) {
+    std::printf("chapter %s %u %u\n", reinterpret_cast<const char*>(chapter.name), chapter.start_page,
+                chapter.end_page);
+  } else {
+    std::printf("chapter %s %u %u\n", chapter.name.c_str(), chapter.startPage, chapter.endPage);
+  }
+}
 void run(const std::vector<uint8_t>& bytes, size_t fail, bool images) {
   booktest::files.clear();
   booktest::files["book.xtc"] = bytes;
@@ -20,11 +30,9 @@ void run(const std::vector<uint8_t>& bytes, size_t fail, bool images) {
   } else {
     xtc::XtcParser parser;
     std::printf("open %d\n", static_cast<int>(parser.open("book.xtc")));
-    std::printf("metadata %s %s %u %u %u\n", parser.getTitle().c_str(), parser.getAuthor().c_str(),
-                parser.getPageCount(), parser.getWidth(), parser.getHeight());
-    for (const auto& chapter : parser.getChapters()) {
-      std::printf("chapter %s %u %u\n", chapter.name.c_str(), chapter.startPage, chapter.endPage);
-    }
+    std::printf("metadata %s %s %u %u %u\n", parser.getTitle().data(), parser.getAuthor().data(), parser.getPageCount(),
+                parser.getWidth(), parser.getHeight());
+    for (const auto& chapter : parser.getChapters()) printChapter(chapter);
     for (uint32_t index : {0u, 1u, 3u, UINT32_MAX}) {
       uint8_t pixels[256] = {};
       size_t count = parser.loadPage(index, pixels, sizeof(pixels));
@@ -41,6 +49,10 @@ void run(const std::vector<uint8_t>& bytes, size_t fail, bool images) {
   }
 }
 int main(int argc, char** argv) {
+  if (argc == 2 && std::string_view(argv[1]) == "--layout") {
+    std::printf("%zu\n", sizeof(xtc::XtcParser));
+    return 0;
+  }
   if (argc != 2 && argc != 3) return 2;
   std::ifstream input(argv[1], std::ios::binary);
   std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(input)), {});

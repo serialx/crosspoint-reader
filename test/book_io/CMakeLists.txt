@@ -32,7 +32,7 @@ target_link_libraries(BookOracle PRIVATE xp_ffi_host)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(NAME BookIoGolden COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py --oracle $<TARGET_FILE:BookOracle>)
 add_executable(BookXtcOracle XtcOracle.cpp
-  ${REPO_ROOT}/lib/Xtc/Xtc.cpp ${REPO_ROOT}/lib/Xtc/Xtc/XtcParser.cpp
+  ${REPO_ROOT}/lib/Xtc/Xtc.cpp ${REPO_ROOT}/lib/Xtc/Xtc/XtcParser.cpp ${REPO_ROOT}/lib/Xtc/Xtc/RustXtcParser.cpp
   ${REPO_ROOT}/lib/GfxRenderer/BitmapHelpers.cpp)
 target_include_directories(BookXtcOracle PRIVATE stubs
   ${REPO_ROOT}/test/xtc_diff/stubs ${REPO_ROOT}/lib/Xtc ${REPO_ROOT}/lib/GfxRenderer)
@@ -115,7 +115,7 @@ target_link_libraries(BookResidualCallbacksTest PRIVATE xp_ffi_host GTest::gtest
 gtest_discover_tests(BookResidualCallbacksTest)
 
 add_executable(BookXtcCopyOracle XtcCopyOracle.cpp
-  ${REPO_ROOT}/lib/Xtc/Xtc.cpp ${REPO_ROOT}/lib/Xtc/Xtc/XtcParser.cpp
+  ${REPO_ROOT}/lib/Xtc/Xtc.cpp ${REPO_ROOT}/lib/Xtc/Xtc/XtcParser.cpp ${REPO_ROOT}/lib/Xtc/Xtc/RustXtcParser.cpp
   ${REPO_ROOT}/lib/GfxRenderer/BitmapHelpers.cpp)
 target_include_directories(BookXtcCopyOracle PRIVATE stubs
   ${REPO_ROOT}/test/xtc_diff/stubs ${REPO_ROOT}/lib/Xtc ${REPO_ROOT}/lib/GfxRenderer)

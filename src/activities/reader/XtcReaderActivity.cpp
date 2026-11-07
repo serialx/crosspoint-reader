@@ -149,20 +149,21 @@ XtcReaderActivity::StatusBarInfo XtcReaderActivity::getStatusBarInfo() const {
   }
 
   const auto& chapters = xtc->getChapters();
-  const auto chapterIt = std::find_if(chapters.begin(), chapters.end(), [this](const xtc::ChapterInfo& chapter) {
-    return state.page >= chapter.startPage && state.page <= chapter.endPage;
+  const auto chapterIt = std::find_if(chapters.begin(), chapters.end(), [this](const XpXtcChapterRow& chapter) {
+    return state.page >= chapter.start_page && state.page <= chapter.end_page;
   });
 
-  if (chapterIt == chapters.end() || chapterIt->endPage < chapterIt->startPage) {
+  if (chapterIt == chapters.end() || chapterIt->end_page < chapterIt->start_page) {
     return StatusBarInfo{bookPage, bookPageCount, std::move(title)};
   }
 
   if (sb.titleMode == CrossPointSettings::STATUS_BAR_TITLE::CHAPTER_TITLE) {
-    title = chapterIt->name.empty() ? tr(STR_UNNAMED) : chapterIt->name;
+    title = chapterIt->name_len == 0 ? std::string(tr(STR_UNNAMED))
+                                     : std::string(reinterpret_cast<const char*>(chapterIt->name), chapterIt->name_len);
   }
 
-  return StatusBarInfo{static_cast<int>(state.page - chapterIt->startPage) + 1,
-                       static_cast<int>(chapterIt->endPage - chapterIt->startPage) + 1, std::move(title)};
+  return StatusBarInfo{static_cast<int>(state.page - chapterIt->start_page) + 1,
+                       static_cast<int>(chapterIt->end_page - chapterIt->start_page) + 1, std::move(title)};
 }
 
 void XtcReaderActivity::renderStatusBarOverlay(GfxRenderer& renderer, const StatusBarOverlayPosition position) const {

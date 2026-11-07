@@ -8,6 +8,9 @@ import tempfile
 from layout_instrument import bindings, function
 
 root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(root / 'test'))
+from rust_host import generated_i18n_directory
+
 sdk = root / 'freeink-sdk/libs/ui/FreeInkUI'
 archive = Path(sys.argv[1])
 painter = function((root / 'src/activities/util/KeyboardEntryActivity.cpp').read_text(), 'void KeyboardEntryActivity::paintKey(')
@@ -86,7 +89,7 @@ const KeyboardLayout& builtinKeyboardLayout(KeyboardLayoutId id,bool sh,bool sy,
         enum.write_text(text)
         (work / 'mapping.cpp').write_text(source + shim)
         subprocess.run(['c++','-std=c++20','-O1','-DFREEINK_UI_COMPONENT_STYLE=0',
-                        '-I'+str(work/'include'),'-I'+str(root/'lib/I18n'),
+                        '-I'+str(work/'include'),'-I'+str(generated_i18n_directory(archive)),
                         '-I'+str(root/'rust/crates/xp-ffi/include'),str(work/'mapping.cpp'),
                         str(work/'vendor.o'),str(root/'test/cmake/xp_ffi_host.cpp'),str(archive),'-o',str(work/'mapping')],check=True)
         subprocess.run([str(work/'mapping')],check=True)

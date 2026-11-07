@@ -1,5 +1,7 @@
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
-add_test(NAME keyboard_cpp_oracle COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_oracle.py)
+add_test(NAME keyboard_cpp_oracle
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_oracle.py)
 add_test(NAME keyboard_rust_differential COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run_diff.py ${CMAKE_CURRENT_BINARY_DIR}/diff)
 add_executable(keyboard_abi abi.cpp ${REPO_ROOT}/freeink-sdk/libs/ui/FreeInkUI/src/FreeInkUI.cpp)
 target_include_directories(keyboard_abi PRIVATE ${REPO_ROOT}/freeink-sdk/libs/ui/FreeInkUI/include)
@@ -39,7 +41,8 @@ add_custom_command(OUTPUT ${KEYBOARD_INSTRUMENTED}/keyboard-layout-bindings.inc
  DEPENDS layout_instrument.py ${REPO_ROOT}/src/activities/util/KeyboardEntryActivity.cpp ${REPO_ROOT}/src/activities/util/KeyboardLayoutSet.h VERBATIM)
 foreach(target keyboard_abi KeyboardTarget KeyboardTouch)
  target_sources(${target} PRIVATE ${KEYBOARD_INSTRUMENTED}/keyboard-layout-bindings.inc)
- target_include_directories(${target} PRIVATE ${KEYBOARD_INSTRUMENTED} ${REPO_ROOT}/lib/I18n)
+ target_include_directories(${target} PRIVATE ${KEYBOARD_INSTRUMENTED} ${XP_FFI_HOST_I18N_DIR})
+ add_dependencies(${target} xp_ffi_host_i18n)
 endforeach()
 add_test(NAME keyboard_mapping COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/mapping.py ${XP_FFI_HOST_ARCHIVE})
 add_test(NAME keyboard_routed_input COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/routed_input.py ${XP_FFI_HOST_ARCHIVE})

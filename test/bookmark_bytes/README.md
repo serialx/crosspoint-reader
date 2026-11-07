@@ -45,8 +45,9 @@ cmake --build build/test
 ctest --test-dir build/test -R bookmark_bytes_oracle --output-on-failure
 ```
 
-ArduinoJson 7.4.2 must be installed by PlatformIO. An existing installation can be
-selected with `-DBOOKMARK_TEST_ARDUINOJSON=/path/to/ArduinoJson/src`. The runner
+CMake fetches the pinned ArduinoJson 7.4.2 source
+(`test/cmake/xp_test_arduinojson.cmake`). Reuse an existing checkout with
+`-DXP_TEST_ARDUINOJSON_SRC=/path/to/ArduinoJson/src`. The runner
 links the host `xp-ffi` archive built by CMake, including production
 `xp_store_document`. It compiles the hashed historical `BookmarkFile.cpp`
 implementation under explicitly named oracle declarations, plus the live

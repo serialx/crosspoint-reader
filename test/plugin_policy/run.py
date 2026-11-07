@@ -13,7 +13,8 @@ p = argparse.ArgumentParser()
 p.add_argument('--build', type=pathlib.Path, required=True)
 p.add_argument('--source', type=pathlib.Path, default=ROOT)
 p.add_argument('--archive', type=pathlib.Path, required=True)
-p.add_argument('--json-include', type=pathlib.Path, default=ROOT/'.pio/libdeps/default/ArduinoJson/src')
+p.add_argument('--json-include', type=pathlib.Path, required=True,
+               help="ArduinoJson 'src' directory provided by the CMake configuration")
 p.add_argument('--record', action='store_true')
 p.add_argument('--json-faults', action='store_true')
 p.add_argument('--asan', action='store_true')
@@ -21,6 +22,8 @@ p.add_argument('--token-lifetime', action='store_true')
 p.add_argument('--memory-baseline', type=pathlib.Path)
 p.add_argument('--contract', action='store_true')
 a = p.parse_args()
+if not (a.json_include/'ArduinoJson.h').is_file():
+    p.error(f"--json-include {a.json_include} has no ArduinoJson.h")
 a.build.mkdir(parents=True, exist_ok=True)
 cmd = ['c++', '-std=c++20', '-O2', '-I'+str(HERE/'stubs'), '-I'+str(a.source/'src'), '-I'+str(ROOT/'src'), '-I'+str(ROOT/'rust/crates/xp-ffi/include'), '-I'+str(a.json_include), str(HERE/('contract.cpp' if a.contract else 'oracle.cpp'))]
 if a.token_lifetime:

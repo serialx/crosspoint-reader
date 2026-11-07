@@ -3,11 +3,14 @@ import argparse
 import pathlib
 import re
 import subprocess
+import sys
 import tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 SDK = ROOT / 'freeink-sdk/libs/ui/FreeInkUI'
+sys.path.insert(0, str(ROOT / 'test'))
+from rust_host import generated_i18n_directory, rust_archive
 
 
 def strip_includes(text):
@@ -48,8 +51,10 @@ def record(root=ROOT, mutation=False):
     with tempfile.TemporaryDirectory() as tmp:
         path = pathlib.Path(tmp)
         (path / 'oracle.cpp').write_text(cpp)
+        # Translation declarations must match the host archive this model is compared with.
+        i18n = generated_i18n_directory(rust_archive())
         subprocess.run(['c++', '-std=c++20', '-O1', '-DFREEINK_UI_COMPONENT_STYLE=0',
-                        '-I' + str(SDK / 'include'), '-I' + str(ROOT / 'lib/I18n'),
+                        '-I' + str(SDK / 'include'), '-I' + str(i18n),
                         str(path / 'oracle.cpp'), str(SDK / 'src/FreeInkUI.cpp'),
                         '-o', str(path / 'oracle')], check=True)
         return subprocess.check_output([str(path / 'oracle')])

@@ -22,7 +22,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / 'test'))
-from rust_host import rust_link_flags
+from rust_host import generated_i18n_directory, rust_archive, rust_link_flags
 
 if '--freeze-original' in sys.argv:
     raise SystemExit('Book lifetime goldens are frozen; regeneration is not supported.')
@@ -50,13 +50,15 @@ with tempfile.TemporaryDirectory(prefix='reader-book-lifetime-') as directory:
     work = Path(directory)
     source_path = work / 'book.cpp'
     source_path.write_text(fixture)
-    baseline_flags = rust_link_flags()
 
     def run(name, archive=None):
         executable = work / name
-        flags = baseline_flags if archive is None else rust_link_flags(archive=str(archive))
+        archive = rust_archive() if archive is None else str(archive)
+        # Translation IDs must match the linked archive.
+        i18n = generated_i18n_directory(archive)
+        flags = rust_link_flags(archive=archive)
         subprocess.run(['c++', '-std=c++17', '-UNDEBUG', '-fsanitize=address,undefined',
-                        '-I', str(HERE), '-I', str(ROOT / 'lib/I18n'),
+                        '-I', str(HERE), '-I', str(i18n),
                         *(['-DLIFETIME_RELEASE_LOG'] if release else []), str(source_path),
                         *flags, '-o', str(executable)], check=True)
         return subprocess.run([str(executable)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)

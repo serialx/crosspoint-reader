@@ -6,8 +6,9 @@ migration resaves, HTTP request/header/body order and status handling, reverse
 XPath mapping with cache fallbacks, forward anchors, comparison, and diagnostics.
 Inputs are synthetic and contain no real credentials or books.
 
-Configure the host suites with `-DSYNC_JSON_DIR=/path/to/ArduinoJson/src`, build
-`SyncOracle`, then run `ctest --test-dir build/test -R SyncGoldens --output-on-failure`.
+The host CMake configuration supplies ArduinoJson (pinned in
+`test/cmake/xp_test_arduinojson.cmake`). Build `SyncOracle`, then run
+`ctest --test-dir build/test -R SyncGoldens --output-on-failure`.
 The MD5 leaf uses macOS CommonCrypto, so this target currently runs on macOS.
 The storage, HTTP, heap, obfuscation MAC, and section cache leaves are deterministic
 stubs. The JSON library and sync implementation are real. The oracle does not

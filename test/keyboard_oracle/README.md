@@ -17,7 +17,10 @@ that the frozen transcript rejects it. The goldens were captured at ba6860d8
 with SDK 61c49287 before the port.
 
 Run `python3 test/keyboard_oracle/test_oracle.py`. For an archived source tree,
-use `record.py --root PATH --out TRANSCRIPT`. Goldens contain synthetic text only.
+use `record.py --root PATH --out TRANSCRIPT`. The C++ side always compiles the
+`I18nKeys.h` generated beside the host archive (`XP_TEST_RUST_ARCHIVE` from the
+CMake build), never a copy generated into `lib/I18n`. Goldens contain synthetic
+text only.
 
 After the port, `run_diff.py BUILD_DIRECTORY` links the production Rust modules
 and compares both frozen byte streams. Original method bodies are read from

@@ -7,9 +7,12 @@ import json
 import shutil
 from pathlib import Path
 import subprocess
+import sys
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
+sys.path.insert(0, str(ROOT / 'test'))
+from rust_host import generated_i18n_directory
 
 def corpus():
     cases = {}
@@ -55,7 +58,7 @@ def main():
     p.add_argument('--build', type=Path, required=True)
     p.add_argument('--arduinojson', type=Path, required=True)
     p.add_argument('--mbedtls', type=Path, required=True)
-    p.add_argument('--archive', type=Path)
+    p.add_argument('--archive', type=Path, required=True)
     p.add_argument('--record', type=Path)
     p.add_argument('--record-scaling', type=Path)
     p.add_argument('--golden', type=Path, default=HERE/'golden.json.gz')
@@ -71,18 +74,16 @@ def main():
     collection.write_text(implementation.replace(marker, marker + '\n  ++::store_test_list_steps;'))
     counter = args.build/'ListSteps.h'
     counter.write_text('#pragma once\n#include <cstddef>\ninline std::size_t store_test_list_steps = 0;\n')
-    includes = [HERE/'stubs', args.source/'src', args.source/'lib/Serialization', ROOT/'src', ROOT/'lib/HttpHeader', ROOT/'lib/I18n', ROOT/'lib/Epub', ROOT/'lib/BlePageTurner/include', ROOT/'freeink-sdk/libs/network/BleKeyboardHost/include', ROOT/'rust/crates/xp-ffi/include', json_source, args.mbedtls/'include', args.mbedtls/'library']
+    # The store facades and the archive must share one StrId numbering.
+    i18n = generated_i18n_directory(args.archive)
+    includes = [HERE/'stubs', args.source/'src', args.source/'lib/Serialization', ROOT/'src', ROOT/'lib/HttpHeader', ROOT/'lib/Epub', i18n, ROOT/'lib/BlePageTurner/include', ROOT/'freeink-sdk/libs/network/BleKeyboardHost/include', ROOT/'rust/crates/xp-ffi/include', json_source, args.mbedtls/'include', args.mbedtls/'library']
     flags = [f'-I{x}' for x in includes]
     subprocess.run(['cc', '-c', str(args.mbedtls/'library/base64.c'), *flags, '-DMBEDTLS_CONFIG_FILE="oracle_mbedtls.h"', '-o', str(args.build/'base64.o')], check=True)
     sources = [HERE/'Oracle.cpp', *[args.source/'src'/f'{name}.cpp' for name in ['CrossPointState', 'RecentBooksStore', 'WifiCredentialStore', 'OpdsServerStore', 'OpdsTokenStore']], args.source/'lib/Serialization/PersistableStore.cpp', args.source/'lib/Serialization/ObfuscationUtils.cpp']
     settings = (args.source/'src/CrossPointSettings.cpp').read_text().replace('\"SettingsList.h\"', '\"StoreTestSettings.h\"').replace('\"ReaderFontSizes.h\"', '\"StoreTestFontSizes.h\"')
     settings_source = args.build/'CrossPointSettings.cpp'
     settings_source.write_text(settings)
-    # The translation unit supplies exported metadata before the Rust port;
-    # afterward it is a compatibility unit and the archive supplies the symbols.
-    sources += [settings_source, ROOT/'lib/I18n/I18nStrings.cpp']
-    if args.archive:
-        sources += [ROOT/'test/cmake/xp_ffi_host.cpp', args.archive]
+    sources += [settings_source, ROOT/'test/cmake/xp_ffi_host.cpp', args.archive]
     subprocess.run(['c++', '-std=c++20', '-O2', '-include', str(counter), '-DARDUINOJSON_ENABLE_ARDUINO_STRING=0', '-DARDUINOJSON_ENABLE_ARDUINO_STREAM=0', '-DARDUINOJSON_ENABLE_ARDUINO_PRINT=0', *flags, *map(str, sources), str(args.build/'base64.o'), '-o', str(args.build/'oracle')], check=True)
     actual = {}
     for kind, inputs in corpus().items():

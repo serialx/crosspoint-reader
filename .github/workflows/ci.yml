@@ -222,13 +222,6 @@ jobs:
           ref: 5ba5d5bf2790f4a885b0db823cf218e4fa718061 # v0.0.1
           path: .pio/libdeps/default/QRCode
 
-      - name: Check out ArduinoJson
-        uses: actions/checkout@v6
-        with:
-          repository: bblanchon/ArduinoJson
-          ref: 733bc4ee82630c88c0a619a883cd3a206efae977 # v7.4.2
-          path: .pio/libdeps/default/ArduinoJson
-
       - name: Install build tools
         run: |
           wget https://apt.llvm.org/llvm.sh
@@ -245,12 +238,6 @@ jobs:
           chmod +x "$RUNNER_TEMP/native-bin/c++"
           echo "$RUNNER_TEMP/native-bin" >> "$GITHUB_PATH"
           clang++-22 --version
-
-      - name: Generate web assets
-        run: python3 scripts/build_html.py
-
-      - name: Generate i18n sources
-        run: python3 scripts/gen_i18n.py lib/I18n/translations lib/I18n/
 
       - name: Set up Rust
         uses: ./.github/actions/setup-rust-esp

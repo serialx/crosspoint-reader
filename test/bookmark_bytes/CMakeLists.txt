@@ -2,24 +2,18 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(NAME bookmark_bytes_codec
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/codec.py
     --build ${CMAKE_CURRENT_BINARY_DIR}/codec)
-find_path(BOOKMARK_TEST_ARDUINOJSON ArduinoJson.h
-  HINTS ${REPO_ROOT}/.pio/libdeps/default/ArduinoJson/src)
-if(BOOKMARK_TEST_ARDUINOJSON)
-  add_test(NAME bookmark_bytes_rust
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py
-      --build ${CMAKE_CURRENT_BINARY_DIR}/rust-oracle
-      --arduinojson ${BOOKMARK_TEST_ARDUINOJSON}
-      --archive ${XP_FFI_HOST_ARCHIVE}
-      --rust-owner --negative-controls)
-  add_test(NAME bookmark_bytes_oracle
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py
-      --build ${CMAKE_CURRENT_BINARY_DIR}/oracle
-      --arduinojson ${BOOKMARK_TEST_ARDUINOJSON}
-      --archive ${XP_FFI_HOST_ARCHIVE}
-      --negative-controls)
-else()
-  message(STATUS "Bookmark byte oracle needs ArduinoJson 7.4.2 (BOOKMARK_TEST_ARDUINOJSON)")
-endif()
+add_test(NAME bookmark_bytes_rust
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py
+    --build ${CMAKE_CURRENT_BINARY_DIR}/rust-oracle
+    --arduinojson ${XP_TEST_ARDUINOJSON_SRC}
+    --archive ${XP_FFI_HOST_ARCHIVE}
+    --rust-owner --negative-controls)
+add_test(NAME bookmark_bytes_oracle
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py
+    --build ${CMAKE_CURRENT_BINARY_DIR}/oracle
+    --arduinojson ${XP_TEST_ARDUINOJSON_SRC}
+    --archive ${XP_FFI_HOST_ARCHIVE}
+    --negative-controls)
 
 add_test(NAME bookmark_progress_oracles
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/progress_oracles.py

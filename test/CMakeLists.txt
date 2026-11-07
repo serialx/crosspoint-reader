@@ -45,6 +45,8 @@ if(NOT XP_FFI_HOST_FEATURES MATCHES "(^|,)app-test(,|$)")
   set(XP_FFI_HOST_FEATURES "${XP_FFI_HOST_FEATURES},app-test" CACHE STRING "Cargo features for host tests" FORCE)
 endif()
 include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
+include(${REPO_ROOT}/test/cmake/xp_test_arduinojson.cmake)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 add_library(crosspoint_test_common INTERFACE)
 target_link_libraries(crosspoint_test_common INTERFACE xp_ffi_host)
@@ -105,6 +107,19 @@ add_subdirectory(inflate_stream)
 add_subdirectory(zip_file)
 add_subdirectory(fs_helpers)
 add_subdirectory(http_header)
+# The server oracle compiles the production server, which includes the generated
+# web page headers. Generate them into the build tree with the firmware pre-build
+# script so the oracle never reads a header left in src/network/html by an
+# earlier firmware build.
+set(XP_TEST_WEB_DIR "${CMAKE_BINARY_DIR}/generated/web")
+file(GLOB_RECURSE XP_TEST_WEB_ASSETS CONFIGURE_DEPENDS
+  ${REPO_ROOT}/src/*.html ${REPO_ROOT}/src/*.js ${REPO_ROOT}/src/*.css ${REPO_ROOT}/src/*.svg)
+add_custom_target(xp_test_web_assets ALL
+  COMMAND ${Python3_EXECUTABLE} ${REPO_ROOT}/scripts/build_html.py --output-root ${XP_TEST_WEB_DIR}
+  WORKING_DIRECTORY ${REPO_ROOT}
+  DEPENDS ${REPO_ROOT}/scripts/build_html.py ${XP_TEST_WEB_ASSETS}
+  COMMENT "Generating web asset headers for host oracles"
+  VERBATIM)
 add_subdirectory(web_server)
 add_subdirectory(txt_to_html)
 
@@ -126,7 +141,6 @@ add_subdirectory(plugin_manifest_classification)
 add_subdirectory(plugin_picker_layout)
 add_subdirectory(protected_paths)
 
-find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(NAME rust_display_features COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_rust_display_features.py)
 add_test(NAME TrustedTimeTimezone COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_trusted_time.py)
 add_test(NAME RemoteButtonInputIntegration COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_remote_button_input.py)

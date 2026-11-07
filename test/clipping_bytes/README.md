@@ -15,8 +15,9 @@ cmake --build build/test
 ctest --test-dir build/test -R clipping_bytes_oracle --output-on-failure
 ```
 
-ArduinoJson 7.4.2 must be installed by PlatformIO. An existing installation can be
-selected with `-DCLIPPING_TEST_ARDUINOJSON=/path/to/ArduinoJson/src`. The runner
+CMake fetches the pinned ArduinoJson 7.4.2 source
+(`test/cmake/xp_test_arduinojson.cmake`). Reuse an existing checkout with
+`-DXP_TEST_ARDUINOJSON_SRC=/path/to/ArduinoJson/src`. The runner
 links the host `xp-ffi` archive built by CMake (`Serialization::tryReadString` and
 `Utf8.cpp` are production code), compiles the complete `ClippingStore.cpp` and
 the hashed export implementation as `ClippingExportOracle`, and substitutes only physical storage, logging and the

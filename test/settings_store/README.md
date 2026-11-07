@@ -26,10 +26,13 @@ of host timing. `scaling-golden.json.gz`, captured from the original C++ with
 `--record-scaling`, also checks saved bytes, diagnostics and JSON allocation traces
 for those 15 inputs; the original 2,529 golden cases remain unchanged.
 
-CMake registers `settings_store_oracle` when ArduinoJson and mbedTLS sources are
-available. Set `STORE_TEST_ARDUINOJSON` to the ArduinoJson `src` directory and
-`STORE_TEST_MBEDTLS` to the mbedTLS root if they are outside the usual PlatformIO
-locations. The normal host build supplies the Rust archive.
+CMake resolves ArduinoJson itself (pinned in
+`test/cmake/xp_test_arduinojson.cmake`; override with `XP_TEST_ARDUINOJSON_SRC`)
+and registers `settings_store_oracle` when it also finds mbedTLS sources. Set
+`STORE_TEST_MBEDTLS` to an mbedtls checkout if it is outside the PlatformIO
+package directory. The runner includes the `I18nKeys.h` generated beside the
+archive it links, so the store facades and the archive always share one `StrId`
+numbering.
 
 For a standalone run:
 
@@ -37,7 +40,7 @@ For a standalone run:
 cargo build --manifest-path rust/Cargo.toml -p xp-ffi --release --locked
 python3 test/settings_store/run.py \
   --build build/settings-oracle \
-  --arduinojson .pio/libdeps/default/ArduinoJson/src \
+  --arduinojson /path/to/ArduinoJson/src \
   --mbedtls "$HOME/.platformio/packages/framework-espidf/components/mbedtls/mbedtls" \
   --archive rust/target/release/libxp_ffi.a
 ```

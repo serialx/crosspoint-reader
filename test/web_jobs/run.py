@@ -17,7 +17,11 @@ p.add_argument('--dav-allocation', action='store_true')
 p.add_argument('--system-policy', action='store_true')
 p.add_argument('--lcp', action='store_true')
 p.add_argument('--no-enroll-key', action='store_true')
+p.add_argument('--json-include', type=pathlib.Path,
+               help="ArduinoJson 'src' directory provided by the CMake configuration (--lcp only)")
 a = p.parse_args()
+if a.lcp and not a.json_include:
+    p.error('--lcp needs --json-include (the ArduinoJson src directory from the CMake configuration)')
 a.build.mkdir(parents=True, exist_ok=True)
 # Retained SDK header copy; the current HTTP oracle uses Rust resume policy and scripted client leaves.
 sdk = ROOT / 'freeink-sdk/libs/network/SecureNet/include/ResumableFetch.h'
@@ -37,7 +41,7 @@ cmd.append('-I' + str(a.source / 'lib/HttpHeader'))
 if a.dav_allocation:
     cmd.append('-DORACLE_FALLIBLE_STRING')
 if a.lcp:
-    cmd += ['-I'+str(ROOT/'.pio/libdeps/default/ArduinoJson/src'), '-I'+str(ROOT/'freeink-sdk/libs/network/JsonSax/include')]
+    cmd += ['-I'+str(a.json_include), '-I'+str(ROOT/'freeink-sdk/libs/network/JsonSax/include')]
     if not a.no_enroll_key:
         cmd += ['-DFREEINK_LCP_RELEASE_KEY="release"']
 if a.archive:

@@ -70,6 +70,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--build", type=pathlib.Path, required=True)
     parser.add_argument("--arduinojson", type=pathlib.Path, required=True)
+    parser.add_argument("--html-root", type=pathlib.Path, required=True,
+                        help="root of the generated web asset headers (build tree)")
     parser.add_argument("--source", type=pathlib.Path, default=ROOT / "src/network/CrossPointWebServer.cpp")
     parser.add_argument("--header", type=pathlib.Path, default=ROOT / "src/network/CrossPointWebServer.h")
     parser.add_argument("--record", action="store_true")
@@ -91,8 +93,12 @@ def main():
         link = [str(ROOT / "test/cmake/xp_ffi_host.cpp"), str(args.archive)] if args.archive else []
         if args.archive:
             instrumentation += ["-DXP_FFI_HOST_FAULT_INJECTION"]
+        if not (args.html_root / "src/network/html/FilesPageHtml.generated.h").is_file():
+            raise SystemExit(f"missing generated web page headers under {args.html_root}; "
+                             "build the xp_test_web_assets target (cmake --build) first")
         subprocess.run(["c++", "-std=c++20", "-funsigned-char", "-O1", "-g", *instrumentation, "-I" + str(ROOT / "test/web_server/stubs"),
-                        "-I" + str(ROOT / "test/web_server"), "-I" + str(ROOT),
+                        "-I" + str(ROOT / "test/web_server"), "-I" + str(args.html_root),
+                        "-I" + str(ROOT),
                         "-I" + str(args.arduinojson), "-I" + str(args.ffi_include),
                         str(generated), *link, "-o", str(args.build / "oracle")], check=True)
         try:

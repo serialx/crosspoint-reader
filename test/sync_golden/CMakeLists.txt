@@ -1,5 +1,5 @@
 if(APPLE)
-  set(SYNC_JSON_DIR "${REPO_ROOT}/.pio/libdeps/default/ArduinoJson/src" CACHE PATH "ArduinoJson headers for sync oracle")
+  set(SYNC_JSON_DIR "${XP_TEST_ARDUINOJSON_SRC}" CACHE PATH "ArduinoJson headers for sync oracle")
   if(EXISTS "${SYNC_JSON_DIR}/ArduinoJson.h")
     add_executable(SyncOracle Oracle.cpp
       ${REPO_ROOT}/lib/KOReaderSync/ChapterXPathResolver.cpp

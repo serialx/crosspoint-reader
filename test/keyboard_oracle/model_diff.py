@@ -4,6 +4,7 @@ work=pathlib.Path(sys.argv[1]).resolve()
 sys.path.insert(0,str(root/'test/keyboard_oracle'))
 import record
 from layout_instrument import function
+from rust_host import generated_i18n_directory
 s=record.source(root)
 s='#include "legacy_keyboard_wire.h"\n'+s
 s=s.replace('class KeyboardEntryActivity : public Activity {','class KeyboardEntryActivity : public Activity {\n public:\n XpUiKeyboardState state{};\n void prepare(); void adopt();')
@@ -62,7 +63,9 @@ for signature in ['freeink::ui::KeyboardLayoutId startingLayout() {', 'freeink::
 pos=s.index('namespace fui = freeink::ui;')
 s=s[:pos]+extra+s[pos:]
 path=pathlib.Path(str(work/'diff.cpp'));path.write_text(s)
-subprocess.run(['c++','-std=c++20','-O1','-DFREEINK_UI_COMPONENT_STYLE=0','-I'+str(record.SDK/'include'),'-I'+str(root/'lib/I18n'),'-I'+str(root/'rust/crates/xp-ffi/include'),'-I'+str(root/'test/keyboard_oracle'),str(path),str(record.SDK/'src/FreeInkUI.cpp'),str(work/'target/debug/libkeyboard_model_oracle.a'),'-o',str(work/'diff')],check=True)
+# Translation declarations must match the Rust model this transcript compares with.
+i18n=generated_i18n_directory(work/'target/debug/libkeyboard_model_oracle.a')
+subprocess.run(['c++','-std=c++20','-O1','-DFREEINK_UI_COMPONENT_STYLE=0','-I'+str(record.SDK/'include'),'-I'+str(i18n),'-I'+str(root/'rust/crates/xp-ffi/include'),'-I'+str(root/'test/keyboard_oracle'),str(path),str(record.SDK/'src/FreeInkUI.cpp'),str(work/'target/debug/libkeyboard_model_oracle.a'),'-o',str(work/'diff')],check=True)
 b=subprocess.check_output([str(work/'diff')]);(work/'rust-transcript.txt').write_bytes(b)
 a=b''.join(gzip.decompress(p.read_bytes())for p in sorted(record.HERE.glob('transcript-*.gz')))
 if a!=b:

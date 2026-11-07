@@ -20,6 +20,9 @@ get_filename_component(XP_FFI_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLU
 set(XP_FFI_HOST_WORKSPACE "${XP_FFI_REPO_ROOT}/rust" CACHE PATH "Rust workspace used by host oracles")
 set(XP_FFI_HOST_TARGET_DIR "${CMAKE_BINARY_DIR}/xp-ffi-host-target")
 set(XP_FFI_HOST_ARCHIVE "${XP_FFI_HOST_TARGET_DIR}/${XP_FFI_HOST_TRIPLE}/release/libxp_ffi.a")
+# The archive and the C++ translation IDs must come from the same generator run.
+set(XP_FFI_HOST_I18N_DIR "${CMAKE_BINARY_DIR}/xp-ffi-host-i18n")
+set(XP_FFI_HOST_I18N_HEADER "${XP_FFI_HOST_I18N_DIR}/I18nKeys.h")
 set(XP_FFI_HOST_FEATURE_ARGS)
 if(XP_FFI_HOST_FEATURES)
   list(APPEND XP_FFI_HOST_FEATURE_ARGS --features "${XP_FFI_HOST_FEATURES}")
@@ -32,9 +35,20 @@ add_custom_target(xp_ffi_host_build
   BYPRODUCTS ${XP_FFI_HOST_ARCHIVE}
   VERBATIM
 )
+# Publish the archive's own I18nKeys.h so C++ consumers never read a header that
+# a firmware build happened to generate in lib/I18n.
+add_custom_command(OUTPUT ${XP_FFI_HOST_I18N_HEADER}
+  COMMAND ${CMAKE_COMMAND} -DARCHIVE=${XP_FFI_HOST_ARCHIVE} -DOUTPUT=${XP_FFI_HOST_I18N_HEADER}
+    -P ${CMAKE_CURRENT_LIST_DIR}/generated_i18n.cmake
+  DEPENDS xp_ffi_host_build ${CMAKE_CURRENT_LIST_DIR}/generated_i18n.cmake
+  COMMENT "Publishing the host archive's generated I18nKeys.h"
+  VERBATIM
+)
+add_custom_target(xp_ffi_host_i18n DEPENDS ${XP_FFI_HOST_I18N_HEADER})
 add_library(xp_ffi_host INTERFACE)
 add_dependencies(xp_ffi_host xp_ffi_host_build)
 target_sources(xp_ffi_host INTERFACE ${CMAKE_CURRENT_LIST_DIR}/xp_ffi_host.cpp)
-target_include_directories(xp_ffi_host INTERFACE ${XP_FFI_HOST_WORKSPACE}/crates/xp-ffi/include
+target_include_directories(xp_ffi_host INTERFACE ${XP_FFI_HOST_I18N_DIR}
+  ${XP_FFI_HOST_WORKSPACE}/crates/xp-ffi/include
   ${XP_FFI_REPO_ROOT}/test/reader_lifecycle)
 target_link_libraries(xp_ffi_host INTERFACE ${XP_FFI_HOST_ARCHIVE})

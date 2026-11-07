@@ -11,6 +11,12 @@ Edit sources, not generated output. Stage only sources.
 
 Other ignored artifacts include `.pio/`, `build/`, and `compile_commands.json`.
 
+Host tests do not read these ignored outputs. `test/CMakeLists.txt` generates the
+web asset headers into the build tree with `scripts/build_html.py`, and
+archive-linked fixtures include the `I18nKeys.h` generated beside the archive they
+link, so a test result never depends on which build last wrote `src/network/html`
+or `lib/I18n`.
+
 ### Modifying Generated Content Workflow
 
 For HTML, edit `data/html/`; the next relevant firmware build regenerates the

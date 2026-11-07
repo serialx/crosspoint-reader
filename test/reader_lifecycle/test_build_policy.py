@@ -10,7 +10,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / 'test'))
-from rust_host import rust_link_flags
+from rust_host import generated_i18n_directory, rust_archive, rust_link_flags
 
 if '--freeze-original' in sys.argv:
     raise SystemExit('Build-policy goldens are frozen; regeneration is not supported.')
@@ -25,6 +25,8 @@ mutations = [
 
 with tempfile.TemporaryDirectory(prefix='reader-build-policy-') as directory:
     path = Path(directory)
+    # Translation IDs must match the linked archive.
+    i18n = generated_i18n_directory(rust_archive())
     flags = rust_link_flags()
     for strip in (0, 1):
         def run(source, name):
@@ -32,7 +34,7 @@ with tempfile.TemporaryDirectory(prefix='reader-build-policy-') as directory:
             source_path.write_text(source)
             subprocess.run(['c++', '-std=c++17', '-UNDEBUG', '-fsanitize=address,undefined',
                             f'-DXP_STRIP_RENDER={strip}', *(['-DBUILD_RELEASE_LOG'] if release else []),
-                            '-I', str(HERE), '-I', str(ROOT / 'lib/I18n'),
+                            '-I', str(HERE), '-I', str(i18n),
                             str(source_path), *flags, '-o', str(path / name)], check=True)
             return subprocess.check_output([str(path / name)])
 

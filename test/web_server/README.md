@@ -6,18 +6,20 @@ against deterministic transport, storage, clock, settings, and dependent-service
 substitutes. It does not open a network connection or
 access a device or real SD card.
 
-Run through the host CMake build after PlatformIO has installed ArduinoJson.
-For a standalone run, build the native `xp-ffi` archive and pass its path:
+Run through the host CMake build. CMake resolves ArduinoJson (pinned in
+`test/cmake/xp_test_arduinojson.cmake`) and generates the web page headers the
+server includes into the build tree, so no PlatformIO install is needed. For a
+standalone run, build the native `xp-ffi` archive and pass the resolved inputs:
 
 ```sh
 python3 test/web_server/extract.py --build build/web-server \
-  --arduinojson .pio/libdeps/default/ArduinoJson/src \
+  --arduinojson /path/to/ArduinoJson/src --html-root build/test/generated/web \
   --archive /path/to/native/libxp_ffi.a --mutation-check --sanitize --fault-check --review-check
 ```
 
-The parity suite and mutation check are registered with CTest when ArduinoJson
-is available. Sanitizers and the allocation sweep are separate options. Set
-`WEB_TEST_ARDUINOJSON` at CMake configure time to use another installed copy.
+Sanitizers and the allocation sweep are separate options. Set
+`XP_TEST_ARDUINOJSON_SRC` at CMake configure time to reuse an existing
+ArduinoJson `src` directory instead of the pinned fetch.
 `golden.jsonl.gz` contains 1666 ordered transcripts checked against the original C++.
 Each record has the case name, responses/chunks, diagnostics, service calls,
 final in-memory filesystem bytes (hexadecimal), and settings/credential state.
@@ -187,7 +189,7 @@ observed, run:
 
 ```sh
 python3 test/web_server/mutate_fetch.py --build build/web-mutations \
-  --arduinojson .pio/libdeps/default/ArduinoJson/src
+  --arduinojson /path/to/ArduinoJson/src
 ```
 
 It builds isolated Rust copies with each comparison changed by one operator and

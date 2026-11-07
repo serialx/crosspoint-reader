@@ -48,7 +48,7 @@ CHILDREN = {
 
 def fixture(native, owner, manager, historical=False):
     source = make_source(ROOT, HERE)
-    prefix = '#include <xp_ui_keyboard.h>\n#include <Memory.h>\n#include "util/ScreenshotInfo.h"\n#define LOG_ERR(...) ((void)0)\n'
+    prefix = '#include <xp_ui_keyboard.h>\n#include <xp_dialog.h>\n#include <Memory.h>\n#include "util/ScreenshotInfo.h"\n#define LOG_ERR(...) ((void)0)\n'
     prefix += '''
 static size_t failOuterAfter = SIZE_MAX, outerAttempt = 0;
 void* operator new(size_t bytes, const std::nothrow_t&) noexcept {
@@ -66,6 +66,7 @@ void* operator new(size_t bytes, const std::nothrow_t&) noexcept {
                             f'struct XtcReaderActivity final : {xtc_base} {{ using {xtc_base}::{xtc_base}; }};')
     for marker, path, signature in [
         ('BASE_CAPABILITY', 'Activity.h', 'virtual ReaderActivity* readerControls()'),
+        ('BASE_DIALOG', 'Activity.h', 'virtual DialogActivity* dialog()'),
         ('READER_CAPABILITY', 'reader/ReaderActivity.h', 'ReaderActivity* readerControls()'),
         ('INTERVAL_IDENTITY', 'util/IntervalSelectionActivity.h', 'bool isReaderActivity()'),
     ]:

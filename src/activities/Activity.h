@@ -14,6 +14,7 @@
 #include "util/ScreenshotInfo.h"
 
 class ReaderActivity;
+class DialogActivity;
 
 class Activity {
   friend class ActivityManager;
@@ -29,6 +30,7 @@ class Activity {
  public:
   explicit Activity(std::string name, GfxRenderer& renderer, MappedInputManager& mappedInput);
   virtual ~Activity();
+  virtual DialogActivity* dialog() { return nullptr; }
   virtual void onEnter();
   virtual void onExit();
   // Last chance to queue activity-owned state before sleep events are drained.

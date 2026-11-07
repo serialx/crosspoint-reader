@@ -1,3 +1,4 @@
+use core::ffi::CStr;
 use std::{
     alloc::{alloc_zeroed, dealloc, Layout as Allocation},
     cell::{Cell, RefCell},
@@ -94,9 +95,15 @@ unsafe impl Host for Platform {
             ..Default::default()
         }
     }
-    fn with_translation<R>(&self, _: u16, f: impl FnOnce(&[u8]) -> R) -> R {
+    fn with_translation<R>(&self, _: u16, f: impl FnOnce(&CStr) -> R) -> R {
         let text = self.0.translation.borrow();
-        f(if text.is_empty() { b"Label" } else { &text })
+        let mut terminated = if text.is_empty() {
+            b"Label".to_vec()
+        } else {
+            text.clone()
+        };
+        terminated.push(0);
+        f(CStr::from_bytes_until_nul(&terminated).unwrap())
     }
     fn format_number(&self, _: u16, value: i32, unsigned: bool, out: &mut [u8]) {
         let s = if unsigned {
@@ -111,7 +118,7 @@ unsafe impl Host for Platform {
     fn with_metrics<R>(&self, f: impl FnOnce(&mut dyn Metrics) -> R) -> R {
         f(&mut Platform(self.0.clone()))
     }
-    fn text_height(&self, text: &[u8], _: i32, _: i16, _: u8, _: u8) -> i16 {
+    fn text_height(&self, text: &CStr, _: i32, _: i16, _: u8, _: u8) -> i16 {
         if text.is_empty() {
             0
         } else {
@@ -143,8 +150,11 @@ unsafe impl Host for Platform {
         }
         true
     }
-    fn text(&self, c: &Command, _: Rect, text: &[u8]) {
-        self.0.texts.borrow_mut().push((c.resource, text.to_vec()));
+    fn text(&self, c: &Command, _: Rect, text: &CStr) {
+        self.0
+            .texts
+            .borrow_mut()
+            .push((c.resource, text.to_bytes().to_vec()));
     }
     fn footer(&self, _: &Command, _: Rect, _: [Label; 4]) {}
     fn refresh(&self, _: Refresh) {

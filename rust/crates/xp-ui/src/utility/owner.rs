@@ -1,4 +1,4 @@
-//! Dormant dialog owners. Native launch/result installation is a later checkpoint.
+//! Ordinary dialog owners; native services supply drawing and launch compatibility.
 extern crate alloc;
 mod labels;
 mod message;
@@ -10,7 +10,7 @@ use crate::{
     scene::{Arena, Command, Error, Rect, Refresh, Scene},
 };
 use alloc::boxed::Box;
-use core::{alloc::Layout as Allocation, cell::UnsafeCell, ptr};
+use core::{alloc::Layout as Allocation, cell::UnsafeCell, ffi::CStr, ptr};
 pub use labels::{Confirmation, ConfirmationResult, Interval, IntervalResult, Label, Spec};
 pub use message::{Message, MessageResult};
 pub use storage::Memory;
@@ -25,7 +25,7 @@ pub enum Log {
     Paint,
     MessageBuild,
 }
-/// Physical leaves only. Text loans exclude their terminating NUL.
+/// Physical leaves only. C-string loans include their terminating NUL.
 /// # Safety
 /// Model locks serialize input/publication. Render has one caller and never
 /// reenters render; entry/exit/drop exclude input and render via the app lock.
@@ -35,13 +35,13 @@ pub unsafe trait Host {
     fn lock(&self);
     fn unlock(&self);
     fn layout(&self) -> Layout;
-    fn with_translation<R>(&self, id: u16, consume: impl FnOnce(&[u8]) -> R) -> R;
+    fn with_translation<R>(&self, id: u16, consume: impl FnOnce(&CStr) -> R) -> R;
     /// Same bounded snprintf semantics as native, including byte truncation/NUL.
     fn format_number(&self, id: u16, value: i32, unsigned: bool, out: &mut [u8]);
     fn with_metrics<R>(&self, consume: impl FnOnce(&mut dyn Metrics) -> R) -> R;
-    fn text_height(&self, text: &[u8], font: i32, width: i16, style: u8, lines: u8) -> i16;
+    fn text_height(&self, text: &CStr, font: i32, width: i16, style: u8, lines: u8) -> i16;
     fn paint(&self, scene: &Scene<'_>, resources: &mut impl Resources) -> bool;
-    fn text(&self, command: &Command, clip: Rect, text: &[u8]);
+    fn text(&self, command: &Command, clip: Rect, text: &CStr);
     /// Map these labels and preserve native footer clip/orientation handling.
     fn footer(&self, command: &Command, clip: Rect, labels: [Label; 4]);
     fn refresh(&self, refresh: Refresh);
@@ -137,6 +137,9 @@ impl<H: Host, S: Spec> Dialog<H, S> {
         self.host.lock();
         let _guard = Guard(&self.host);
         f(unsafe { &mut *self.model.get() })
+    }
+    pub fn host(&self) -> &H {
+        &self.host
     }
     pub fn ready(&self) -> bool {
         self.model(|m| m.ready)

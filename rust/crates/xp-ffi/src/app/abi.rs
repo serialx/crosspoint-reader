@@ -44,11 +44,39 @@ pub struct MessageLaunch {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct DialogInterval {
+    pub title: u16,
+    pub format: u16,
+    pub boundary: u16,
+    pub initial: i32,
+    pub minimum: i32,
+    pub maximum: i32,
+    pub small_step: i32,
+    pub large_step: i32,
+    pub edge_buttons: u8,
+    pub reader: u8,
+}
+#[repr(C)]
+pub struct DialogLaunch {
+    pub kind: u8,
+    pub style: u8,
+    pub refresh: u8,
+    pub message_font: i32,
+    pub name: Text,
+    pub heading: Text,
+    pub body: Text,
+    pub cancel: Text,
+    pub confirm: Text,
+    pub interval: DialogInterval,
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub union LaunchValue {
     pub file_path: Text,
     pub bitmap_path: Text,
     pub reader: ReaderLaunch,
     pub message: MessageLaunch,
+    pub dialog: *const DialogLaunch,
     pub opds_server: u32,
     pub settings_section: u8,
     pub plugins_show_opds: u8,
@@ -74,6 +102,9 @@ pub enum LaunchPayload {
     Plugins(u8),
     Transfer(u8),
     Sleep(u8),
+    // First production consumer: P17-L1 or S3.
+    #[allow(dead_code)]
+    Dialog(*const DialogLaunch),
 }
 
 impl Launch {
@@ -90,6 +121,7 @@ impl Launch {
                     | (PLUGINS, Plugins(_))
                     | (FILE_TRANSFER, Transfer(_))
                     | (SLEEP, Sleep(_))
+                    | (DIALOG, Dialog(_))
                     | (
                         LIBRARY | OPDS_PICKER | USB_DRIVE | BOOT | CRASH | FRONTLIGHT_PANEL,
                         None
@@ -109,6 +141,7 @@ impl Launch {
                 transfer_join_network,
             },
             Sleep(sleep_from_timeout) => LaunchValue { sleep_from_timeout },
+            Dialog(dialog) => LaunchValue { dialog },
         };
         Self { kind, value }
     }
@@ -620,6 +653,7 @@ pub const MESSAGE: u8 = 12;
 pub const CRASH: u8 = 13;
 pub const FRONTLIGHT_PANEL: u8 = 14;
 pub const NETWORK_MODE: u8 = 15;
+pub const DIALOG: u8 = 16;
 pub const ADOPT_REPLACE: u8 = 0;
 pub const ADOPT_PUSH: u8 = 1;
 pub const POP: u8 = 2;

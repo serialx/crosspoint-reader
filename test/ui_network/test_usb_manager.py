@@ -8,7 +8,7 @@ import prepare
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-source = '#include <xp_ui_keyboard.h>\n' + (HERE / 'usb_manager.cpp').read_text()
+source = '#include <xp_ui_keyboard.h>\n#include <xp_dialog.h>\n' + (HERE / 'usb_manager.cpp').read_text()
 methods = []
 for cls, filename, names in [
     ('UsbDriveActivity', 'network/UsbDriveActivity.cpp', ['onEnter', 'onExit', 'loop', 'render', 'rustSceneCurrent', 'run', 'service']),
@@ -43,11 +43,12 @@ with tempfile.TemporaryDirectory() as directory:
     stub = stub.replace('  RenderLock() { renderMutex.lock(); }', '  bool locked = true;\n  RenderLock() { renderMutex.lock(); }')
     stub = stub.replace('  ~RenderLock() { renderMutex.unlock(); }', '''  void unlock() { if (locked) { locked = false; renderMutex.unlock(); } }
   ~RenderLock() { unlock(); }''')
-    stub = stub.replace('class Activity {\n protected:', 'using ActivityResult = int;\nclass Activity {\n public:')
+    stub = stub.replace('class Activity {\n protected:', 'using ActivityResult = int;\nclass DialogActivity;\nclass Activity {\n public:')
     stub = stub.replace('  void requestUpdate() {}', '''  ActivityResult result = 0;
   std::function<void(ActivityResult)> resultHandler;
   virtual void onEnter() {}
   virtual void onExit() {}
+  virtual DialogActivity* dialog() { return nullptr; }
   virtual bool isReaderActivity() const { return false; }
   virtual bool handleHomeGesture() { return false; }
   virtual bool preventAutoSleep() { return false; }

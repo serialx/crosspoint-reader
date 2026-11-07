@@ -43,3 +43,89 @@ assert ': RustActivityAdapter("FullScreenMessage"' in texts['FullScreenMessageAc
 cmake = (HERE / 'CMakeLists.txt').read_text()
 assert not re.search(r'(?:include_directories|add_executable|add_library)[^)]*native_oracle', cmake, re.S)
 print(f"8 native contracts, {sum(row['bytes'] for row in manifest['inputs'])} frozen bytes")
+
+# Execute the exact native interception and scalar projection bodies. Unrelated
+# hardware and constructors are replaced by counted objects, never screen policy.
+import subprocess
+import tempfile
+ROOT = HERE.parents[1]
+def method(path, signature):
+    source = (ROOT / path).read_text()
+    start = source.index(signature)
+    brace = source.index('{', start)
+    end, depth = brace + 1, 1
+    while depth:
+        depth += (source[end] == '{') - (source[end] == '}')
+        end += 1
+    return source[start:end]
+projection = method('src/activities/util/DialogActivity.cpp', 'void xp_dialog_deliver(')
+push = method('src/activities/ActivityManager.cpp', 'void ActivityManager::pushActivity(')
+source = r'''#include <cassert>
+#include <memory>
+#include <string>
+#include <xp_dialog.h>
+#include "ActivityResult.h"
+int destroyed=0, pushed=0, legacySent=0, delivered=0;
+bool accept=true;
+void* transferred=nullptr;
+class DialogActivity;
+struct Activity {
+  std::string name;
+  Activity(std::string n):name(n){}
+  virtual ~Activity(){++destroyed;}
+  // BASE_HOOK
+};
+struct DialogActivity:Activity {
+  using Activity::Activity;
+  // DIALOG_HOOK
+};
+struct OwnedLegacyActivity { std::unique_ptr<Activity> activity; };
+std::unique_ptr<OwnedLegacyActivity> ownLegacy(std::unique_ptr<Activity> a) {
+  return a?std::make_unique<OwnedLegacyActivity>(std::move(a)):nullptr;
+}
+bool send(const XpAppEvent&){++legacySent;return false;}
+extern "C" uint8_t xp_app_keyboard_push(void*){assert(false);return 0;}
+extern "C" uint8_t xp_app_dialog_push(void* p){++pushed;if(accept)transferred=p;return accept;}
+struct ActivityManager {void pushActivity(std::unique_ptr<Activity>&&);};
+// PUSH
+extern "C" {
+// PROJECTION
+}
+int main(){
+ ActivityManager m;
+ for(const char* name:{"SleepTimeoutInterval","custom interval","KeyboardEntry"}) {
+  for(bool success:{false,true}) {
+   accept=success;int old=destroyed, calls=pushed;
+   m.pushActivity(std::make_unique<DialogActivity>(name));
+   assert(pushed==calls+1 && legacySent==0);
+   assert(destroyed==old+!success);
+   if(success){delete static_cast<OwnedLegacyActivity*>(transferred);transferred=nullptr;}
+   assert(destroyed==old+1);
+  }
+ }
+ m.pushActivity(std::make_unique<Activity>("ordinary"));assert(legacySent==1);
+ int calls=pushed;m.pushActivity(nullptr);assert(pushed==calls);
+ XpAppLegacy services{};
+ services.deliver_result=[](void* p,const void* raw){
+  const auto& r=*static_cast<const ActivityResult*>(raw);
+  const unsigned kind=*static_cast<unsigned*>(p);
+  assert(r.isCancelled==(kind==0));
+  if(kind==2)assert(std::get<IntervalResult>(r.data).value==UINT32_MAX);
+  else assert(std::holds_alternative<std::monostate>(r.data));
+  ++delivered;
+ };
+ for(unsigned kind=0;kind<4;++kind)xp_dialog_deliver(&services,&kind,kind,UINT32_MAX);
+ assert(delivered==4);
+}
+'''
+source = source.replace('// BASE_HOOK', method('src/activities/Activity.h', 'virtual DialogActivity* dialog()'))
+source = source.replace('// DIALOG_HOOK', method('src/activities/util/DialogActivity.h', 'DialogActivity* dialog()'))
+source = source.replace('// PUSH', push).replace('// PROJECTION', projection)
+with tempfile.TemporaryDirectory() as tmp:
+    path = Path(tmp)
+    (path / 'native.cpp').write_text(source)
+    subprocess.run(['c++', '-std=c++20', '-UNDEBUG', '-I'+str(ROOT/'src/activities'),
+                    '-I'+str(ROOT/'rust/crates/xp-ffi/include'), str(path/'native.cpp'),
+                    '-o', str(path/'native')], check=True)
+    subprocess.run([str(path/'native')], check=True)
+print('native dialog interception: one transfer, rejected destruction, arbitrary names; four scalar result projections')

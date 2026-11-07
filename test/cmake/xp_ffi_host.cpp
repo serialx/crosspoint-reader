@@ -137,3 +137,15 @@ __attribute__((weak)) void xp_keyboard_draw_key(void*, const XpUiCommand*, const
 __attribute__((weak)) void xp_keyboard_chrome(void*, const XpUiCommand*, XpUiRect, XpAppText) { std::abort(); }
 __attribute__((weak)) void xp_keyboard_deliver(const XpAppLegacy*, void*, XpAppText, uint8_t) { std::abort(); }
 }
+
+#include <xp_dialog.h>
+extern "C" {
+__attribute__((weak)) void xp_dialog_launch(void*, XpDialogLaunch*) { std::abort(); }
+__attribute__((weak)) void xp_dialog_release_launch(void*) { std::abort(); }
+__attribute__((weak)) void xp_dialog_layout(void*, XpUiUtilityLayout*) { std::abort(); }
+__attribute__((weak)) XpUiMetrics xp_dialog_metrics(void*) { std::abort(); }
+__attribute__((weak)) void xp_dialog_footer(void*, XpUiRect, const XpAppText*) { std::abort(); }
+__attribute__((weak)) void xp_dialog_format(uint16_t, int32_t, uint8_t, uint8_t*, size_t) { std::abort(); }
+__attribute__((weak)) void xp_dialog_log(void*, uint8_t, uint32_t) { std::abort(); }
+__attribute__((weak)) void xp_dialog_deliver(const XpAppLegacy*, void*, uint8_t, uint32_t) { std::abort(); }
+}

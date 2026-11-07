@@ -35,8 +35,10 @@
 #include "settings/OpdsServerListActivity.h"
 #include "settings/SettingsListActivity.h"
 #include "util/BmpViewerActivity.h"
+#include "util/ConfirmationActivity.h"
 #include "util/FrontlightPanelActivity.h"
 #include "util/FullScreenMessageActivity.h"
+#include "util/IntervalSelectionActivity.h"
 #include "util/KeyboardEntryActivity.h"
 
 static portMUX_TYPE activityManagerSpinlock = portMUX_INITIALIZER_UNLOCKED;
@@ -46,6 +48,27 @@ namespace {
 XpAppText text(const std::string& value) { return {reinterpret_cast<const uint8_t*>(value.data()), value.size()}; }
 std::string owned(XpAppText value) {
   return value.len ? std::string(reinterpret_cast<const char*>(value.data), value.len) : std::string();
+}
+// Keep dialog constructor scratch out of the shared launch frame.
+__attribute__((noinline)) void* createDialog(GfxRenderer& renderer, MappedInputManager& input,
+                                             const XpDialogLaunch* d) {
+  if (!d) return nullptr;
+  switch (d->kind) {
+    case XP_DIALOG_CONFIRMATION:
+      return ownLegacy(makeUniqueNoThrow<ConfirmationActivity>(renderer, input, owned(d->heading), owned(d->body),
+                                                               owned(d->cancel), owned(d->confirm)))
+          .release();
+    case XP_DIALOG_INTERVAL: {
+      const auto& v = d->interval;
+      return ownLegacy(makeUniqueNoThrow<IntervalSelectionActivity>(
+                           renderer, input, owned(d->name).c_str(), static_cast<StrId>(v.title), v.initial, v.minimum,
+                           v.maximum, v.small_step, v.large_step, static_cast<StrId>(v.format), v.reader != 0,
+                           static_cast<StrId>(v.boundary)))
+          .release();
+    }
+    default:
+      return nullptr;
+  }
 }
 bool send(const XpAppEvent& event) { return xp_app_event(&event) == XP_APP_ACCEPTED; }
 void navigate(const XpAppLaunch& launch) {
@@ -76,6 +99,7 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
       .create = [](const XpAppLaunch* launch) -> void* {
         auto& renderer = activityManager.renderer;
         auto& input = activityManager.mappedInput;
+        if (launch->kind == XP_APP_DIALOG) return createDialog(renderer, input, launch->value.dialog);
         const auto create = [&]() -> std::unique_ptr<Activity> {
           switch (launch->kind) {
             case XP_APP_FILES:
@@ -306,8 +330,13 @@ void ActivityManager::replaceActivity(std::unique_ptr<Activity>&& activity) {
 void ActivityManager::pushActivity(std::unique_ptr<Activity>&& activity) {
   // "KeyboardEntry" is reserved for KeyboardEntryActivity; the facade's leaves downcast using this invariant.
   const bool keyboard = activity && activity->name == "KeyboardEntry";
+  const bool dialog = activity && activity->dialog();
   auto owner = ownLegacy(std::move(activity));
   if (!owner) return;
+  if (dialog) {
+    if (xp_app_dialog_push(owner.get())) owner.release();
+    return;
+  }
   if (keyboard) {
     if (xp_app_keyboard_push(owner.get())) owner.release();
     return;

@@ -1,3 +1,5 @@
+#include <xp_dialog.h>
+
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -69,6 +71,9 @@ using OpdsServerListActivity = Stub<XP_APP_OPDS_PICKER>;
 using BootActivity = Stub<XP_APP_BOOT>;
 using SleepActivity = Stub<XP_APP_SLEEP>;
 using FullScreenMessageActivity = Stub<XP_APP_MESSAGE>;
+using ConfirmationActivity = Stub<XP_APP_DIALOG>;
+using IntervalSelectionActivity = Stub<XP_APP_DIALOG>;
+enum class StrId : uint16_t {};
 using CrashActivity = Stub<XP_APP_CRASH>;
 using FrontlightPanelActivity = Stub<XP_APP_FRONTLIGHT_PANEL>;
 using BmpViewerActivity = Stub<XP_APP_BITMAP>;

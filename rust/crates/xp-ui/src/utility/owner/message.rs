@@ -46,6 +46,9 @@ impl<H: Host> Message<H> {
             Some(Box::from_raw(out))
         }
     }
+    pub fn host(&self) -> &H {
+        &self.host
+    }
     /// Synchronous native onEnter; caller supplies the existing UI_10 font ID.
     pub fn enter(&self, font: i32) -> bool {
         self.host.log(Log::Enter);

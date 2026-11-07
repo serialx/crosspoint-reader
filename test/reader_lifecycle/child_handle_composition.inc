@@ -3,6 +3,7 @@ struct GfxRenderer {};
 struct MappedInputManager { bool hasRemoteClick() const { return false; } };
 struct RenderLock {};
 class ReaderActivity;
+class DialogActivity;
 struct Activity {
   ActivityResult result;
   ActivityResultHandler resultHandler;
@@ -18,6 +19,7 @@ struct Activity {
   virtual void prepareForSleep();
   virtual bool isReaderActivity() const { return false; }
   // ACTUAL_BASE_CAPABILITY
+  // ACTUAL_BASE_DIALOG
   virtual bool acceptsRemoteInput() const { return false; }
   virtual bool preventAutoSleep() { return false; }
   virtual bool requiresExclusiveStorageLoop() const { return false; }
@@ -46,7 +48,7 @@ struct ReaderActivity : RustActivityAdapter {
 };
 struct IntervalSelectionActivity : UtilityActivity {
   using UtilityActivity::UtilityActivity;
-  bool readerActivity = true;
+  XpDialogInterval spec{.reader = 1};
   // ACTUAL_INTERVAL_IDENTITY
 };
 // ACTUAL_XTC_BASE

@@ -17,7 +17,8 @@ for marker, signature in [('FACTORY', '[](const XpAppLaunch* launch)'),
     source = source.replace('// ' + marker, method(manager, signature))
 ownership = (ROOT / 'src/activities/OwnedLegacyActivity.h').read_text()
 source = source.replace('// LEGACY_OWNER', ownership[ownership.index('struct OwnedLegacyActivity {'):])
-source = source.replace('// OWNED_TEXT', method(manager, 'std::string owned('))
+source = source.replace('// OWNED_TEXT', method(manager, 'std::string owned(') + '\n' +
+                        method(manager, '__attribute__((noinline)) void* createDialog('))
 source = source.replace('// FILE_CONSTRUCTOR', method((ROOT/'src/activities/home/FileBrowserActivity.cpp').read_text(), 'FileBrowserActivity::FileBrowserActivity('))
 keyboard = (ROOT/'src/activities/util/KeyboardEntryActivity.cpp').read_text()
 projection = method(keyboard, 'void xp_keyboard_deliver(')

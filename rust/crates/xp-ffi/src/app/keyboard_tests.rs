@@ -14,6 +14,9 @@ use xp_ui::{
 };
 #[path = "keyboard_test_leaves.rs"]
 mod leaves;
+pub(super) fn dialog_leaves() -> super::epub::abi::XpEpubLeaves {
+    leaves::leaves()
+}
 
 #[derive(Default)]
 struct State {
@@ -416,7 +419,7 @@ unsafe extern "C" fn unexpected_definition_accept(
     panic!("keyboard fixture accepted Definition transfer");
 }
 fn build_app() -> &'static App {
-    let legacy = Box::leak(Box::new(abi::Legacy {
+    let legacy = Box::into_raw(Box::new(abi::Legacy {
         create,
         destroy,
         enter,
@@ -454,10 +457,11 @@ fn build_app() -> &'static App {
     runtime.touch_feedback = feedback;
     let platform = abi::Platform {
         legacy,
-        resources: Box::leak(Box::new(resources)),
-        runtime: Box::leak(Box::new(runtime)),
-        epub: Box::leak(Box::new(leaves::leaves())),
+        resources: Box::into_raw(Box::new(resources)),
+        runtime: Box::into_raw(Box::new(runtime)),
+        epub: Box::into_raw(Box::new(leaves::leaves())),
     };
+    super::dialog_tests::record_tables(&platform);
     let mut compatibility = core::mem::MaybeUninit::uninit();
     assert_eq!(
         unsafe { xp_app_init(&platform, compatibility.as_mut_ptr()) },
@@ -479,6 +483,7 @@ fn send_input(app: &App, input: Input) {
 
 #[test]
 fn keyboard_real_app_install_return_cancel_failure_and_drop_once() {
+    let _serial = super::dialog_tests::APP_LOCK.lock().unwrap();
     assert_eq!(
         unsafe { keyboard::xp_app_keyboard_push(ptr::null_mut()) },
         0
@@ -672,6 +677,7 @@ fn keyboard_real_app_install_return_cancel_failure_and_drop_once() {
     app.replace(app.adopt(context(b"", false)).unwrap());
     assert!(app.navigation.drain(app));
     assert_eq!(state(|s| s.parent_drops), 2);
+    super::dialog_tests::drop_app();
 }
 
 struct RustParent<'a> {

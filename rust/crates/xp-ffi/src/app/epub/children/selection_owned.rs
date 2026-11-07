@@ -209,6 +209,6 @@ impl Drop for Lookup {
 }
 #[cfg(target_pointer_width = "32")]
 const _: () = {
-    assert!(core::mem::size_of::<Footnote>() == 216);
-    assert!(core::mem::size_of::<LookupData>() == 556);
+    assert!(core::mem::size_of::<Footnote>() == 232);
+    assert!(core::mem::size_of::<LookupData>() == 572);
 };

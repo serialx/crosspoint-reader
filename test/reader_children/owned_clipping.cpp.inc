@@ -35,7 +35,7 @@ static void bindOwnedClippings() {
 
   static auto open = leaves.popup_open;
   leaves.popup_open = []() -> void* {
-    if (f().componentAttempt < 4) return open();
+    if (f().componentAttempt < 3) return open();
     return f().acquire(Kind::OverlayPopup, 0);
   };
   leaves.popup_show = [](void*, XpAppText, XpAppText, uint32_t count, int32_t selected,
@@ -59,7 +59,7 @@ static void bindOwnedClippings() {
     assert(f().renderDepth == 1 && text.len); ++clippingLoads; return {};
   };
   leaves.child_list_help = [](XpUiRect, XpAppText text) { assert(f().renderDepth == 1 && text.len); };
-  leaves.child_list_icon = [](XpUiRect, XpUiRect, uint8_t paint) { assert(f().renderDepth == 1 && paint <= 1); };
+  leaves.child_list_icon = [](uint8_t kind, XpUiRect, XpUiRect, uint8_t paint) { assert(kind == 0 && f().renderDepth == 1 && paint <= 1); };
   leaves.input_screen_point = [](uint8_t, int32_t*, int32_t*) -> uint8_t { return 0; };
   leaves.input_services = []() -> const XpUiReaderInputServices* {
     static const XpUiReaderInputServices service{

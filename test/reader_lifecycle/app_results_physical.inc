@@ -124,14 +124,17 @@ void bindResultsPhysical() {
   legacyBook.section.page.metadata_assign = [](void*, void* raw) -> uint8_t { physical("metadata-copy", 1); assert(results.pages.count(static_cast<ResultPage*>(raw))); return 1; };
   legacyBook.section.page.metadata_clear = [](void*) { physical("metadata-clear", 1); };
   legacyBook.section.page.metadata_footnotes = [](void*) -> uint16_t { physical("footnote-count", 1); return 2; };
-  leaves.bookmarks_count = [](void*) -> uint32_t { physical("bookmark-count"); return 0; };
-  leaves.bookmarks_clear = [](void* raw) { auto& h = f().handle(raw, Kind::Bookmarks); f().physical("bookmarks-clear", h.generation, h.id); };
-  legacyBook.bookmarks_load = [](void* raw, void* book) -> uint8_t {
-    auto& h = f().handle(raw, Kind::Bookmarks); f().handle(book, Kind::Book); ++f().bookmarkLoads; f().physical("bookmarks-load", h.generation, h.id); return 1;
+  leaves.path_mkdir = [](XpAppText path) -> uint8_t {
+    physical("bookmark-directory");
+    assert(text(path) == "/.crosspoint/bookmarks/" || text(path) == "/.crosspoint"); return 1;
   };
-  leaves.bookmarks_retain = [](void*, uint8_t (*)(void*, const XpEpubBookmark*), void*) -> uint32_t { borrowedUse("bookmark-retain"); return 0; };
-  leaves.bookmarks_insert_front = [](void*, const XpEpubBookmark* row) -> uint8_t { borrowedUse("bookmark-insert"); assert(row && row->has_offset); ++results.bookmarkWrites; return 1; };
-  legacyBook.bookmarks_save = [](void*, void*) -> uint8_t { borrowedUse("bookmark-save"); return 1; };
+  leaves.storage_write_file_atomic = [](XpAppText path, const uint8_t* bytes, uint32_t length) -> uint8_t {
+    borrowedUse("bookmark-save");
+    assert(text(path) == "/.crosspoint/bookmarks/" + f().path.substr(1, f().path.size() - 6) + ".json");
+    const std::string json(reinterpret_cast<const char*>(bytes), length);
+    assert(json.find("\"vo\":") != std::string::npos);
+    ++results.bookmarkWrites; return 1;
+  };
   clipping_fixture::appStoreRequested = true;
   clipping_fixture::ready = [](void* owner) {
     assert(owner);
@@ -209,7 +212,6 @@ void bindResultsPhysical() {
   legacyBook.children.child_chapter = [](void* book, int32_t toc) -> void* { assert(book == f().extractor && toc == 0); return child("chapter"); };
   legacyBook.children.child_percent = [](int32_t) -> void* { return child("percent"); };
   leaves.child_text_settings = []() -> void* { return child("text"); };
-  leaves.child_bookmarks = [](void* book, XpAppText path) -> void* { assert(book == f().extractor && text(path) == f().path); return child("bookmarks"); };
   legacyBook.children.child_clippings = []() -> void* { return child("clippings"); };
   legacyBook.children.child_qr = [](XpAppText value) -> void* { assert(text(value) == "page words"); return child("qr"); };
   legacyBook.section.page.child_footnote = [](void* page, int32_t, int32_t) -> void* { return child("footnote", {static_cast<ResultPage*>(page)}); };

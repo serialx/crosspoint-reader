@@ -1,11 +1,10 @@
 mod activity;
+mod bookmark_actions;
+mod bookmark_activity;
 #[cfg(feature = "app-test")]
 mod bookmark_host;
-#[allow(dead_code)]
-mod bookmark_owned;
-#[allow(dead_code)]
+pub(super) mod bookmark_owned;
 mod bookmark_view;
-#[allow(dead_code)]
 mod bookmark_window;
 mod chapter_book;
 mod chapter_view;

@@ -25,6 +25,7 @@ pub(in crate::app::epub) struct MenuHooks {
     pub sync: unsafe extern "C" fn(*mut c_void),
     pub selection: unsafe extern "C" fn(*mut c_void, i32, i32, u8),
     pub clippings: unsafe extern "C" fn(*mut c_void),
+    pub bookmarks: unsafe extern "C" fn(*mut c_void),
     pub bookmark: unsafe extern "C" fn(*mut c_void),
     pub bluetooth: unsafe extern "C" fn(*mut c_void),
     pub build_items: unsafe extern "C" fn(*mut c_void, u8, u8, u8, *mut u8) -> u8,
@@ -39,7 +40,7 @@ pub struct Seed {
     section: *mut c_void,
     toolbar: *mut c_void,
     popup: *mut c_void,
-    bookmarks: *mut c_void,
+    bookmark_count: usize,
     spine: i32,
     page: i32,
     cached_spine: i32,
@@ -161,7 +162,7 @@ pub unsafe extern "C" fn xp_epub_test_menu_create_legacy_book(
         super::legacy_section::SectionSlot::legacy(seed.section, &legacy_book.section);
     guarded.toolbar = NonNull::new(seed.toolbar).map(super::super::children::ToolbarSlot::Legacy);
     guarded.overlay_popup = NonNull::new(seed.popup);
-    guarded.bookmarks = NonNull::new(seed.bookmarks);
+    guarded.bookmarks = super::bookmarks::seed_count(seed.bookmark_count);
     assert!(seed.more_count <= 19);
     guarded.more_actions = seed.more_actions;
     guarded.more_count = seed.more_count;

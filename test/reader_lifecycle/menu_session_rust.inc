@@ -201,10 +201,6 @@ static void configureMenuLeaves() {
     assert(!menuModelDepth && lockDepth == 1 && raw == activeMenu);
     return activeMenu->owner.currentPageMetadata.footnotes().size();
   };
-  menuLeaves.physical.bookmarks_count = [](void* raw) -> uint32_t {
-    assert(!menuModelDepth && raw == &activeMenu->owner.cachedBookmarks);
-    return activeMenu->owner.cachedBookmarks.size();
-  };
   menuLeaves.book.section.page.strip_release_idle = [](void* raw) -> uint8_t {
     assert(!menuModelDepth && lockDepth == 1 && raw == activeMenu);
     activeMenu->owner.stripBuffers.releaseIdle();
@@ -265,11 +261,6 @@ static void configureMenuLeaves() {
     return std::make_unique<QrDisplayActivity>(activeMenu->owner.renderer, activeMenu->owner.mappedInput,
                                               menuString(text)).release();
   };
-  menuLeaves.physical.child_bookmarks = [](void* raw, XpAppText path) -> void* {
-    assert(!menuModelDepth && !lockDepth && raw == activeMenu->owner.epub.get());
-    return std::make_unique<EpubReaderBookmarksActivity>(activeMenu->owner.renderer, activeMenu->owner.mappedInput,
-                                                        activeMenu->owner.epub, menuString(path)).release();
-  };
   menuLeaves.physical.popup_show = [](void* raw, XpAppText title, XpAppText message, uint32_t count, int32_t selected,
                             uint8_t (*label)(void*, uint32_t, XpAppTextSink, void*), void* labelContext,
                             void (*choose)(void*, int32_t), void* choiceContext) {
@@ -324,7 +315,7 @@ MenuSessionBridge::MenuSessionBridge(EpubReaderActivity& value) : owner(value) {
   seed.section = owner.section.get();
   seed.toolbar = owner.toolbarUi.get();
   seed.popup = &owner.overlayPopup;
-  seed.bookmarks = &owner.cachedBookmarks;
+  seed.bookmark_count = owner.cachedBookmarks.size();
   seed.spine = owner.currentSpineIndex;
   seed.page = owner.section ? owner.section->currentPage : 0;
   seed.cached_spine = owner.cachedSpineIndex;
@@ -369,6 +360,13 @@ MenuSessionBridge::MenuSessionBridge(EpubReaderActivity& value) : owner(value) {
         menuOwner(p).startClipSelection();
       },
       [](void* p) { menuOwner(p).openClippings(); },
+      [](void* p) {
+        auto& owner = menuOwner(p);
+        assert(!menuModelDepth && !lockDepth && owner.epub);
+        auto child = std::make_unique<EpubReaderBookmarksActivity>(owner.renderer, owner.mappedInput,
+                                                                  owner.epub, owner.epub->getPath());
+        static_cast<MenuSessionBridge*>(p)->push(child.release());
+      },
       [](void* p) { menuOwner(p).addBookmark(); },
       [](void*) { assert(!menuModelDepth); EpubReaderMenuActivity::toggleBluetooth(); },
       [](void*, uint8_t footnotes, uint8_t bookmarks, uint8_t clips, uint8_t* out) -> uint8_t {

@@ -1,5 +1,14 @@
 #pragma once
 #include <cstdio>
+struct OracleSerial {
+  explicit operator bool() const { return true; }
+  void println(const char* text) { std::puts(text); }
+  template <class... Args>
+  void printf(const char* format, Args... args) {
+    std::printf(format, args...);
+  }
+};
+inline OracleSerial logSerial;
 #define LOG_ERR(tag, fmt, ...)  \
   do {                          \
     printf("ERR %s ", tag);     \

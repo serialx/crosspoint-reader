@@ -38,7 +38,6 @@ CHILDREN = {
     'footnote': ('EpubReaderFootnoteSelectActivity', 'reader', 'footnote'),
     'dictionary': ('DictionaryWordSelectActivity', 'reader', 'dictionary'),
     'selection': ('ClipSelectionActivity', 'reader', 'selection'),
-    'bookmarks': ('EpubReaderBookmarksActivity', 'reader', 'bookmarks'),
     'clippings': ('EpubReaderClippingListActivity', 'reader', 'clippings'),
     'qr': ('QrDisplayActivity', 'reader', 'qr'),
     'wifi': ('WifiSelectionActivity', 'network', 'wifi'),

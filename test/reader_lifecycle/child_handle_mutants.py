@@ -20,7 +20,6 @@ FACTORY_CASES = {
     'footnote': 'footnote',
     'dictionary': 'dictionary',
     'selection': 'clip',
-    'bookmarks': 'bookmarks',
     'clippings': 'clippings',
     'qr': 'qr',
     'wifi': 'wifi',
@@ -42,7 +41,7 @@ def _leaf_change(source, name, before, after):
 
 
 def mutants(native, owner, manager):
-    """Yield 22 independently mutated source/case records, without side effects.
+    """Yield 21 independently mutated source/case records, without side effects.
 
     Failure stages are the fixture's zero-based nothrow allocation indices.
     Stage 1 in the reversed helper is wrapper OOM after a constructed child;

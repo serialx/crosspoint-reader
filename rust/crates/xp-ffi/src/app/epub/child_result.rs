@@ -68,6 +68,9 @@ impl EpubSession {
             (ChildIntent::Dictionary, ReaderChildResult::LookupClosed { cancelled }) => {
                 self.dictionary_result(cancelled)
             }
+            (ChildIntent::Bookmarks, ReaderChildResult::Bookmarks(position)) => {
+                self.bookmark_returned(position)
+            }
             (ChildIntent::Clippings, ReaderChildResult::Clippings(Some(position))) => {
                 self.apply_clipping_position(position.spine, position.page, position.offset);
             }
@@ -75,6 +78,24 @@ impl EpubSession {
             | (ChildIntent::Percent, ReaderChildResult::Percent(None))
             | (ChildIntent::Qr, ReaderChildResult::QrClosed) => self.open_reader_menu(),
             _ => self.request_update(),
+        }
+    }
+
+    #[inline(never)]
+    fn bookmark_returned(&self, position: Option<super::children::bookmark_owned::Position>) {
+        if let Some(position) = position {
+            self.apply_progress(&app_abi::XpAppProgressResult {
+                spine: position.spine,
+                page: position.page,
+                pages: position.total_pages,
+                xpath: position.xpath.wire(),
+                percentage: position.percentage,
+                offset: position.visible_offset.unwrap_or(0),
+                has_offset: u8::from(position.visible_offset.is_some()),
+                has_saved_progress: 1,
+            });
+        } else {
+            self.open_reader_menu();
         }
     }
 

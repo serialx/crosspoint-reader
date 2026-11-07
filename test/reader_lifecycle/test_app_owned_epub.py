@@ -20,7 +20,7 @@ def main():
     sys.path.insert(0, str(root / 'test'))
     from rust_host import rust_link_flags
     cases = [('rust-failure', str(i)) for i in range(2)]
-    cases += [('native-failure', str(i)) for i in range(4)]
+    cases += [('native-failure', str(i)) for i in range(3)]
     cases += [('entry',), ('active-pending',)]
     source_paths = [here / 'app_owned_epub.cpp', here / 'physical_defaults.h', Path(__file__).resolve(),
                     root / 'rust/crates/xp-ffi/src/app/mod.rs']

@@ -47,16 +47,14 @@ const XpAppRuntime sessionRuntime = [] {
 void testRealSession(const XpEpubLeaves& pageLeaves, XpAppText wire, GfxRenderer& renderer, bool faults) {
   static XpEpubLeaves leaves;
   leaves = pageLeaves;
-  leaves.bookmarks_open = []() -> void* {
+  leaves.popup_open = []() -> void* {
     ++sessionChecks.handles;
     return &sessionChecks;
   };
-  leaves.bookmarks_close = [](void* p) {
+  leaves.popup_close = [](void* p) {
     assert(p == &sessionChecks);
     --sessionChecks.handles;
   };
-  leaves.popup_open = leaves.bookmarks_open;
-  leaves.popup_close = leaves.bookmarks_close;
   leaves.settings_snapshot = [](uint8_t, XpEpubSettings* out) {
     *out = {};
     out->font = 24;

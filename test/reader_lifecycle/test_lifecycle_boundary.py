@@ -139,7 +139,7 @@ def main():
                                       '--evidence-dir', evidence / 'app-owned'], timeout=1200)
         child = json.loads((evidence / 'app-owned/result.json').read_text())
         expected = ['compile', 'rust-failure-0', 'rust-failure-1',
-                    'native-failure-0', 'native-failure-1', 'native-failure-2', 'native-failure-3',
+                    'native-failure-0', 'native-failure-1', 'native-failure-2',
                     'entry', 'active-pending']
         assert [case['case'] for case in child['cases']] == expected, 'owned acquisition case matrix changed'
         assert all(case['returncode'] == 0 for case in child['cases'])
@@ -147,11 +147,11 @@ def main():
         summary = {
             'declaration': 'reader_lifecycle_abi', 'phase': 'atomic-retirement',
             'original_executable': str(original), 'supported_shared_assertions_retained': True,
-            'current_header_languages': ['C11', 'C++17'], 'physical_leaf_slots': 200,
+            'current_header_languages': ['C11', 'C++17'], 'physical_leaf_slots': 158,
             'owned_cases': expected[1:], 'policy_hooks': 0,
             'retired_name_removal': True, 'retirement_absence': absence, 'new_epub_null_or_incomplete_table_calls': 0,
             'results': results,
-            'scope': 'retained shared ABI + manifest-exact name absence + current boundary + eight owned acquisition cases',
+            'scope': 'retained shared ABI + manifest-exact name absence + current boundary + seven owned acquisition cases',
             'limit': 'no full App render/input/child-result composition claim',
         }
         (evidence / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')

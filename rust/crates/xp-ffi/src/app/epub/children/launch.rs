@@ -108,6 +108,16 @@ impl EpubSession {
         );
     }
 
+    #[inline(never)]
+    pub(in crate::app::epub) fn launch_owned_bookmarks(&self) {
+        self.push_owned_child(
+            super::bookmark_owned::Bookmarks::try_new(self.runtime)
+                .map(StableOwner::from)
+                .map(ReaderChild::Bookmarks),
+            ChildIntent::Bookmarks,
+        );
+    }
+
     pub(in crate::app::epub) fn launch_owned_percent(&self, value: i32) {
         self.push_owned_child(
             Percent::try_new(self.runtime, value)

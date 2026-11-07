@@ -390,6 +390,60 @@ unsafe extern "C" fn no_selection_delivery(
 }
 
 #[test]
+fn bookmark_result_slot_moves_once_after_producer_drop() {
+    use crate::app::resources::Text;
+    use children::bookmark_owned::{Bookmarks, Position};
+    for cancelled in [false, true] {
+        for consume_result in [false, true] {
+            let app = app_fixture();
+            let owner = StableOwner::from(Bookmarks::try_new(app.runtime).unwrap());
+            let xpath = Text::copy(b"/body/section/paragraph").unwrap();
+            let original = xpath.bytes().as_ptr();
+            let result = (!cancelled).then_some(Position {
+                xpath,
+                percentage: 0.375,
+                spine: 4,
+                page: 3,
+                total_pages: 10,
+                visible_offset: Some(321),
+            });
+            unsafe { owner.finish(result) };
+            let target = app::Target::ReaderChild {
+                child: children::ChildTarget::Bookmarks(owner.pointer()),
+                parent: NonNull::dangling(),
+            };
+            let mut moved = None;
+            app.with_result(target, |result| {
+                drop(owner);
+                let app::ActivityResult::Child(slot) = result else {
+                    panic!("wrong result route")
+                };
+                if consume_result {
+                    let Some(children::ReaderChildResult::Bookmarks(position)) =
+                        (unsafe { slot.take() })
+                    else {
+                        panic!("wrong child result")
+                    };
+                    moved = position;
+                }
+            });
+            if let Some(position) = moved {
+                assert_eq!(position.xpath.bytes().as_ptr(), original);
+                assert_eq!(position.xpath.bytes(), b"/body/section/paragraph");
+                assert_eq!(
+                    (position.spine, position.page, position.total_pages),
+                    (4, 3, 10)
+                );
+                assert_eq!(position.percentage, 0.375);
+                assert_eq!(position.visible_offset, Some(321));
+            } else {
+                assert!(cancelled || !consume_result);
+            }
+        }
+    }
+}
+
+#[test]
 fn reader_result_slot_moves_once_after_producer_drop() {
     use children::selection_owned::Footnote;
     for cancelled in [false, true] {

@@ -63,6 +63,11 @@ impl Commands {
         }
     }
 
+    pub(super) fn failed_allocation_bytes(&self) -> Option<usize> {
+        (self.storage.is_none() && self.capacity != 0)
+            .then_some(usize::from(self.capacity) * core::mem::size_of::<Command>())
+    }
+
     pub(crate) fn clear(&mut self) {
         self.storage = None;
         self.capacity = 0;

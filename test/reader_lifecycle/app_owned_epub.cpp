@@ -21,9 +21,9 @@ size_t xp_test_allocation_attempts();
 }
 
 namespace {
-enum class Kind : unsigned { Root, Bookmarks, OverlayPopup, FailurePopup, Book, File, Legacy, Count };
+enum class Kind : unsigned { Root, OverlayPopup, FailurePopup, Book, File, Legacy, Count };
 constexpr unsigned kinds = unsigned(Kind::Count);
-const char* names[] = {"root", "bookmarks", "overlay-popup", "failure-popup", "book", "file", "legacy"};
+const char* names[] = {"root", "overlay-popup", "failure-popup", "book", "file", "legacy"};
 struct Handle {
   Kind kind;
   unsigned generation, id;
@@ -82,7 +82,7 @@ struct Fixture {
   void* component(Kind kind) {
     assert(renderDepth == 0 && modelDepth == 0);
     const unsigned ordinal = componentAttempt++;
-    assert(ordinal == unsigned(kind) && ordinal < 4);
+    assert(ordinal == unsigned(kind) && ordinal < 3);
     if (int(ordinal) == failComponent) {
       physical(std::string("fail:") + names[ordinal], generation);
       return nullptr;
@@ -102,7 +102,7 @@ struct Fixture {
     std::vector<std::string> actual;
     for (const auto& event : events) {
       if (event.generation != ownerGeneration) continue;
-      for (unsigned i = 0; i < 4; ++i) {
+      for (unsigned i = 0; i < 3; ++i) {
         if (event.name == std::string("open:") + names[i] || event.name == std::string("close:") + names[i] ||
             event.name == std::string("fail:") + names[i])
           actual.push_back(event.name);
@@ -152,6 +152,15 @@ static XpAppLegacy legacy;
 static XpAppResources resources;
 static XpAppRuntime runtime;
 static XpAppPlatform platform;
+
+std::string fixtureBookmarkPath() {
+  auto name = f().path.substr(1);
+  const auto dot = name.rfind('.');
+  if (dot != std::string::npos) name.resize(dot);
+  for (auto& byte : name)
+    if (byte == '/' || byte == '\\') byte = '_';
+  return "/.crosspoint/bookmarks/" + name + ".json";
+}
 
 void bind() {
   leaves = unexpectedEpubLeaves();
@@ -239,9 +248,8 @@ void bind() {
   };
 
   legacyBook.section.page.resources_open = [] { return f().component(Kind::Root); };
-  leaves.bookmarks_open = [] { return f().component(Kind::Bookmarks); };
   leaves.popup_open = [] {
-    assert(f().componentAttempt == 2 || f().componentAttempt == 3);
+    assert(f().componentAttempt == 1 || f().componentAttempt == 2);
     return f().component(Kind(f().componentAttempt));
   };
   leaves.popup_close = [](void* raw) {
@@ -251,7 +259,6 @@ void bind() {
     assert(kind == Kind::OverlayPopup || kind == Kind::FailurePopup);
     f().release(raw, kind);
   };
-  leaves.bookmarks_close = [](void* raw) { f().release(raw, Kind::Bookmarks); };
   legacyBook.section.page.resources_close = [](void* raw) {
     auto& root = f().handle(raw, Kind::Root);
     for (const auto& entry : f().handles) assert(entry.first == raw || entry.second->generation != root.generation);
@@ -294,7 +301,9 @@ void bind() {
   resources.path_exists = [](XpAppText path) -> uint8_t {
     const auto value = text(path);
     f().physical("path-exists");
-    if (value == f().path || value == "/cache/book.bin") return 1;
+    if (value == f().path || value == "/cache/book.bin" ||
+        value == "/.crosspoint/bookmarks/" + f().path.substr(1, f().path.size() - 6) + ".json")
+      return 1;
     assert(value == "/cache/links.bin");
     return 0;
   };
@@ -366,18 +375,12 @@ void bind() {
     f().release(raw, Kind::File);
     return 1;
   };
-  leaves.bookmarks_clear = [](void* raw) {
-    auto& h = f().handle(raw, Kind::Bookmarks);
-    assert(!f().renderDepth);
-    f().physical("bookmarks-clear", h.generation, h.id);
-  };
-  legacyBook.bookmarks_load = [](void* raw, void* bookRaw) -> uint8_t {
-    auto& h = f().handle(raw, Kind::Bookmarks);
-    auto& book = f().handle(bookRaw, Kind::Book);
-    assert(h.generation == book.generation && !f().renderDepth);
+  leaves.storage_read_file = [](XpAppText path, XpAppTextSink sink, void* context) -> uint8_t {
+    assert(text(path) == fixtureBookmarkPath());
+    assert(f().extractor && !f().modelDepth);
     ++f().bookmarkLoads;
-    f().physical("bookmarks-load", h.generation, h.id);
-    return 1;
+    f().physical("bookmarks-load", f().extractor->generation, f().extractor->id);
+    return deliver(sink, context, "[]");
   };
   legacyBook.clippings_load = [](void* raw) -> uint8_t {
     auto& book = f().handle(raw, Kind::Book);
@@ -510,9 +513,8 @@ void popFinalSleep() {
   assert(f().events[end].render == 0);
   std::printf("fallback-home allocation-attempts=%zu drained=%u\n", attempts, drained);
 }
-const std::vector<std::string> completeComponents{"open:root",          "open:bookmarks",      "open:overlay-popup",
-                                                  "open:failure-popup", "close:failure-popup", "close:overlay-popup",
-                                                  "close:bookmarks",    "close:root"};
+const std::vector<std::string> completeComponents{"open:root",           "open:overlay-popup",  "open:failure-popup",
+                                                  "close:failure-popup", "close:overlay-popup", "close:root"};
 void assertPendingClean(unsigned generation) {
   f().componentOrder(generation, completeComponents);
   for (const auto& event : f().events)
@@ -529,7 +531,7 @@ void assertEntered() {
   f().count(Kind::File, 1, 1);
   f().count(Kind::Book, 1, 0);
   f().ordered(1, {"entry", "fonts-load", "open:book", "book-load", "image-clear", "extractor-install", "cache-setup",
-                  "open:file", "progress-read", "bookmarks-clear", "bookmarks-load", "clippings-load", "close:file"});
+                  "open:file", "progress-read", "bookmarks-load", "clippings-load", "close:file"});
 }
 void assertExited() {
   assert(f().exited == 1 && f().clearedExtractor == 1 && f().unloadedClippings == 1);
@@ -537,7 +539,7 @@ void assertExited() {
   f().count(Kind::Book, 1, 1);
   f().componentOrder(1, completeComponents);
   f().ordered(1, {"exit", "fonts-release", "reader-count-reset", "state-save", "extractor-clear", "clippings-unload",
-                  "close:book", "close:failure-popup", "close:overlay-popup", "close:bookmarks", "close:root"});
+                  "close:book", "close:failure-popup", "close:overlay-popup", "close:root"});
   const auto first = f().find("exit", 1), last = f().find("close:root", 1);
   for (size_t i = first; i <= last; ++i) assert(f().events[i].render == 1);
 }
@@ -567,7 +569,7 @@ int main(int argc, char** argv) {
   } else if (mode == "native-failure") {
     assert(argc == 3);
     const unsigned stage = unsigned(std::strtoul(argv[2], nullptr, 10));
-    assert(stage < 4);
+    assert(stage < 3);
     state.startAttempt(int(stage));
     assert(install() == 0);
     assert(state.componentAttempt == stage + 1 && !xp_app_test_current_epub() && state.handles.empty());
@@ -576,7 +578,7 @@ int main(int argc, char** argv) {
     expected.push_back(std::string("fail:") + names[stage]);
     for (unsigned i = stage; i > 0; --i) expected.push_back(std::string("close:") + names[i - 1]);
     state.componentOrder(1, expected);
-    for (unsigned i = 0; i < 4; ++i) state.count(Kind(i), i < stage, i < stage);
+    for (unsigned i = 0; i < 3; ++i) state.count(Kind(i), i < stage, i < stage);
     assert(!state.entered && !state.exited && !state.clearedExtractor && !state.unloadedClippings);
     assert(xp_test_live_allocations() == originalLive);
   } else if (mode == "entry" || mode == "active-pending") {
@@ -597,12 +599,12 @@ int main(int argc, char** argv) {
       assertPendingClean(3);
       assert(state.extractor == activeBook && state.clippings == activeBook);
       assert(state.entered == 1 && !state.exited && !state.clearedExtractor && !state.unloadedClippings);
-      for (unsigned i = 0; i < 4; ++i) state.count(Kind(i), 3, 2);
+      for (unsigned i = 0; i < 3; ++i) state.count(Kind(i), 3, 2);
     }
     drainToSleep();
     assertExited();
     const unsigned total = mode == "entry" ? 1 : 3;
-    for (unsigned i = 0; i < 4; ++i) state.count(Kind(i), total, total);
+    for (unsigned i = 0; i < 3; ++i) state.count(Kind(i), total, total);
     // Pop the physical Sleep through the real result continuation and fail Home allocation.
     popFinalSleep();
     assert(state.handles.empty() && xp_test_live_allocations() == originalLive);

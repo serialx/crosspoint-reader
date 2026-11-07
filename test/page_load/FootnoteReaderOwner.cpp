@@ -555,12 +555,7 @@ void bindReader() {
     if (!parent.availabilityProbe) ++parent.fixture->menuRequests;
     return child(std::make_unique<Activity>("Menu", parent.fixture->renderer, parent.fixture->mappedInput), false);
   };
-  leaves.bookmarks_count = [](void* raw) -> uint32_t {
-    physical();
-    f().handle(raw, Kind::Bookmarks);
-    return 0;
-  };
-  leaves.progress_save = [](void* raw, const XpEpubPosition*) -> uint8_t {
+  legacyBook.progress_save = [](void* raw, const XpEpubPosition*) -> uint8_t {
     book(raw);
     return 1;
   };

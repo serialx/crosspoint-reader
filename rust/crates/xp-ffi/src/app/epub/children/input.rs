@@ -43,7 +43,6 @@ impl ListPublication {
     }
 
     #[inline(never)]
-    #[allow(dead_code)]
     pub(super) fn bookmark_input(
         &mut self,
         input: Input,

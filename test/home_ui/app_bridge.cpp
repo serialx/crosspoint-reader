@@ -1,4 +1,5 @@
 #include <xp_dialog.h>
+#include <xp_ui_keyboard.h>
 
 #include <cassert>
 #include <cstdio>
@@ -77,6 +78,8 @@ enum class StrId : uint16_t {};
 using CrashActivity = Stub<XP_APP_CRASH>;
 using FrontlightPanelActivity = Stub<XP_APP_FRONTLIGHT_PANEL>;
 using BmpViewerActivity = Stub<XP_APP_BITMAP>;
+using KeyboardEntryActivity = Stub<XP_APP_KEYBOARD>;
+enum class InputType : uint8_t { Text };
 struct ReaderActivity : Stub<XP_APP_READER> {
   using Stub::Stub;
   static std::unique_ptr<Activity> create(GfxRenderer& r, MappedInputManager& i, std::string p, bool fast) {
@@ -123,6 +126,7 @@ auto makeUniqueNoThrow(Args&&... args) {
 }
 // LEGACY_OWNER
 // OWNED_TEXT
+// KEYBOARD_FACTORY
 static XpAppLegacy legacy = appTestLegacy();
 static XpAppResources resources = appTestResources();
 static XpAppRuntime runtime = appTestRuntime();

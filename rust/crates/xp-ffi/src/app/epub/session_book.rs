@@ -424,43 +424,6 @@ pub(super) unsafe fn add_recent(raw: *mut c_void, leaves: &'static abi::XpEpubLe
     unsafe { (leaves.recents_add)(&value) };
 }
 
-pub(super) unsafe fn load_bookmarks(
-    raw: *mut c_void,
-    rows: *mut c_void,
-    leaves: &'static abi::XpEpubLeaves,
-) -> u8 {
-    #[cfg(feature = "app-test")]
-    let raw = match unsafe { &*raw.cast::<Loaded>() } {
-        Loaded::Reader(book) => book.as_ptr(),
-        Loaded::Legacy {
-            handle, services, ..
-        } => return unsafe { (services.bookmarks_load)(rows, handle.as_ptr()) },
-    };
-    unsafe { (leaves.bookmarks_load)(rows, queries::path_text(raw).wire()) }
-}
-pub(super) unsafe fn save_bookmarks(
-    raw: *mut c_void,
-    rows: *mut c_void,
-    leaves: &'static abi::XpEpubLeaves,
-) -> u8 {
-    #[cfg(feature = "app-test")]
-    let raw = match unsafe { &*raw.cast::<Loaded>() } {
-        Loaded::Reader(book) => book.as_ptr(),
-        Loaded::Legacy {
-            handle, services, ..
-        } => return unsafe { (services.bookmarks_save)(rows, handle.as_ptr()) },
-    };
-    unsafe { (leaves.bookmarks_save)(rows, queries::path_text(raw).wire()) }
-}
-
-#[cfg(feature = "app-test")]
-pub(super) unsafe fn assert_real(raw: NonNull<c_void>) {
-    assert!(matches!(
-        unsafe { &*raw.cast::<Loaded>().as_ptr() },
-        Loaded::Reader(_)
-    ));
-}
-
 pub(super) unsafe fn reader_pointer(raw: NonNull<c_void>) -> Option<NonNull<c_void>> {
     #[cfg(feature = "app-test")]
     return match unsafe { &*raw.cast::<Loaded>().as_ptr() } {
@@ -469,4 +432,12 @@ pub(super) unsafe fn reader_pointer(raw: NonNull<c_void>) -> Option<NonNull<c_vo
     };
     #[cfg(not(feature = "app-test"))]
     Some(raw)
+}
+
+#[cfg(feature = "app-test")]
+pub(super) unsafe fn assert_real(raw: NonNull<c_void>) {
+    assert!(matches!(
+        unsafe { &*raw.cast::<Loaded>().as_ptr() },
+        Loaded::Reader(_)
+    ));
 }

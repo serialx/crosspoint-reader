@@ -157,7 +157,7 @@ inline XpAppRuntime overlayUnexpectedRuntime() {
 
 inline XpEpubLeaves overlayUnexpectedLeaves() {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 168 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 158 * sizeof(void (*)()));
   table.render_margins = &OverlayUnexpected<decltype(table.render_margins)>::call;
   table.render_geometry = &OverlayUnexpected<decltype(table.render_geometry)>::call;
   table.render_restore_bw = &OverlayUnexpected<decltype(table.render_restore_bw)>::call;
@@ -218,7 +218,6 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.restart_reader = &OverlayUnexpected<decltype(table.restart_reader)>::call;
   table.child_text_settings = &OverlayUnexpected<decltype(table.child_text_settings)>::call;
   table.child_selection = &OverlayUnexpected<decltype(table.child_selection)>::call;
-  table.child_bookmarks = &OverlayUnexpected<decltype(table.child_bookmarks)>::call;
   table.child_wifi = &OverlayUnexpected<decltype(table.child_wifi)>::call;
   table.child_sync = &OverlayUnexpected<decltype(table.child_sync)>::call;
   table.popup_open = &OverlayUnexpected<decltype(table.popup_open)>::call;
@@ -235,15 +234,6 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.end_menu_active = &OverlayUnexpected<decltype(table.end_menu_active)>::call;
   table.end_input = &OverlayUnexpected<decltype(table.end_input)>::call;
   table.end_paint = &OverlayUnexpected<decltype(table.end_paint)>::call;
-  table.bookmarks_open = &OverlayUnexpected<decltype(table.bookmarks_open)>::call;
-  table.bookmarks_close = &OverlayUnexpected<decltype(table.bookmarks_close)>::call;
-  table.bookmarks_clear = &OverlayUnexpected<decltype(table.bookmarks_clear)>::call;
-  table.bookmarks_load = &OverlayUnexpected<decltype(table.bookmarks_load)>::call;
-  table.bookmarks_save = &OverlayUnexpected<decltype(table.bookmarks_save)>::call;
-  table.bookmarks_count = &OverlayUnexpected<decltype(table.bookmarks_count)>::call;
-  table.bookmarks_row = &OverlayUnexpected<decltype(table.bookmarks_row)>::call;
-  table.bookmarks_retain = &OverlayUnexpected<decltype(table.bookmarks_retain)>::call;
-  table.bookmarks_insert_front = &OverlayUnexpected<decltype(table.bookmarks_insert_front)>::call;
   table.recents_remove = &OverlayUnexpected<decltype(table.recents_remove)>::call;
   table.recents_add = &OverlayUnexpected<decltype(table.recents_add)>::call;
   table.recents_update_path = &OverlayUnexpected<decltype(table.recents_update_path)>::call;

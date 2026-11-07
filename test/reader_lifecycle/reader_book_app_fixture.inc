@@ -48,7 +48,7 @@ void assertReaderEntered() {
   assert(f().bookLoads == 1 && f().bookmarkLoads == 1 && f().progressReads == 1);
   f().count(Kind::File, 1, 1); f().count(Kind::Book, 1, 0);
   f().ordered(1, {"entry", "fonts-load", "cache-read", "open:book", "extractor-install",
-                  "open:file", "progress-read", "bookmarks-clear", "bookmarks-load", "clippings-load", "close:file"});
+                  "open:file", "progress-read", "bookmarks-load", "clippings-load", "close:file"});
   assert(readerFacades.size() == 1 && readerFiles.size() == 1 && readerBuffers.empty() && !readerCacheLocked);
 }
 void bindReaderBook() {
@@ -58,9 +58,16 @@ void bindReaderBook() {
   legacyBook.section.page = pageFixture;
   legacyBook.children = childFixture;
   leaves.native_path_hash = [](XpAppText path) -> uint64_t { assert(text(path) == f().path); return 42; };
+  leaves.progress_save = [](XpAppText path, const uint8_t* bytes, uint32_t size) -> uint8_t {
+    assert(f().renderDepth == 1 && !f().modelDepth);
+    f().physical("progress-save");
+    assert(text(path) == readerCache && bytes && (size == 6 || size == 10));
+    return 1;
+  };
   resources.path_exists = [](XpAppText path) -> uint8_t {
     const auto value = text(path);
-    return readerSectionFiles.count(value) || value == f().path || value == readerCache + "/book.bin" ||
+    return value == fixtureBookmarkPath() ||
+           readerSectionFiles.count(value) || value == f().path || value == readerCache + "/book.bin" ||
            value == readerCache + "/css_rules.cache" || value == readerCache + "/html/0.html";
   };
   resources.buffer_allocate = [](uint8_t, size_t size) -> uint8_t* {
@@ -117,8 +124,11 @@ void bindReaderBook() {
     }
     return progressClose(raw);
   };
+  static auto mkdir = leaves.path_mkdir;
   leaves.path_mkdir = [](XpAppText path) -> uint8_t {
-    const auto value = text(path); assert(value == readerCache || value == readerCache + "/sections"); return 1;
+    const auto value = text(path);
+    if (value == readerCache || value == readerCache + "/sections") return 1;
+    return mkdir(path);
   };
   leaves.book_facade_open = [](void* owner, const XpEpubBookView* view, const XpEpubBookBorrow* callbacks) -> void* {
     assert(view->spine_count == 7 && view->toc_count == 5 && text(view->cache_path) == readerCache);
@@ -136,10 +146,6 @@ void bindReaderBook() {
   leaves.book_facade_close = [](void* raw) {
     assert(f().renderDepth == 1 && !f().extractor && !f().clippings);
     auto* marker = readerFacades.at(raw).marker; testNativeFacadeClose(raw); readerFacades.erase(raw); f().release(marker, Kind::Book);
-  };
-  leaves.bookmarks_load = [](void* raw, XpAppText path) -> uint8_t {
-    auto& marker = f().handle(raw, Kind::Bookmarks); assert(text(path) == f().path && !f().renderDepth);
-    ++f().bookmarkLoads; f().physical("bookmarks-load", marker.generation, marker.id); return 1;
   };
   clipping_fixture::appStoreRequested = true;
   clipping_fixture::preserveBookHash = true;

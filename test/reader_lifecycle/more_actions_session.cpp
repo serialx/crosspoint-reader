@@ -7,7 +7,7 @@
 #include "overlay_actions_session_fixture.h"
 
 extern "C" {
-uint8_t xp_epub_test_overlay_build_more(void*, void*, uint8_t[19], uint8_t*);
+uint8_t xp_epub_test_overlay_build_more(void*, size_t, uint8_t[19], uint8_t*);
 void xp_epub_test_overlay_reject(void*);
 void xp_epub_test_overlay_publish(void*);
 }
@@ -40,7 +40,7 @@ struct EpubReaderMenuActivity {
 
 namespace candidate {
 static void* owner;
-static int native, bookmarks, lockToken;
+static int native, lockToken;
 static unsigned renderDepth, modelDepth, acquisitions, releases, rejectAt;
 static std::vector<unsigned> probes;
 enum Probe { Footnotes, Bookmarks, Clippings, FrontlightPresent, InputFacts, Radio, Settings };
@@ -87,12 +87,6 @@ static const LegacyEpubLeaves leaves = [] {
     assert(value == &native && acquisitions == 1);
     probes.push_back(Footnotes);
     return (flags & 1) != 0;
-  };
-  table.physical.bookmarks_count = [](void* value) -> uint32_t {
-    leaf(0);
-    assert(value == &bookmarks);
-    probes.push_back(Bookmarks);
-    return (flags & 2) ? 3 : 0;
   };
   table.physical.input_facts = [](XpEpubInputFacts* out) {
     leaf(0);
@@ -162,13 +156,13 @@ static Output build(unsigned rejection = 0) {
     probes.push_back(Clippings);
     assert(count == ((flags & 4) ? 2u : 0u));
   });
-  out.built = xp_epub_test_overlay_build_more(owner, &bookmarks, out.actions.data(), &out.count) != 0;
+  out.built = xp_epub_test_overlay_build_more(owner, (flags & 2) ? 3 : 0, out.actions.data(), &out.count) != 0;
   leaf(0);
   assert(acquisitions == releases && out.count <= out.actions.size());
   return out;
 }
 static void assertProbes() {
-  std::vector<unsigned> expected{Footnotes, Bookmarks, Clippings, FrontlightPresent};
+  std::vector<unsigned> expected{Footnotes, Clippings, FrontlightPresent};
   if (flags & 8) expected.push_back(InputFacts);
   expected.push_back(Radio);
   expected.push_back(Settings);

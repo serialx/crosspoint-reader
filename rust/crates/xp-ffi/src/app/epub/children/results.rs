@@ -20,6 +20,7 @@ pub(crate) enum ReaderChildResult {
     },
     Chapter(Option<ChapterSelection>),
     Clippings(Option<ClippingPosition>),
+    Bookmarks(Option<super::bookmark_owned::Position>),
     Percent(Option<u8>),
     QrClosed,
     Footnote(Option<Text>),
@@ -30,3 +31,6 @@ pub(crate) enum ReaderChildResult {
         cancelled: bool,
     },
 }
+
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::size_of::<ReaderChildResult>() == 36);

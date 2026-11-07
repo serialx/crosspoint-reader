@@ -11,13 +11,13 @@ use core::{
 extern crate alloc;
 use alloc::boxed::Box;
 
-pub(super) struct Position {
-    pub(super) xpath: Text,
-    pub(super) percentage: f32,
-    pub(super) spine: i32,
-    pub(super) page: i32,
-    pub(super) total_pages: i32,
-    pub(super) visible_offset: Option<u32>,
+pub(crate) struct Position {
+    pub(crate) xpath: Text,
+    pub(crate) percentage: f32,
+    pub(crate) spine: i32,
+    pub(crate) page: i32,
+    pub(crate) total_pages: i32,
+    pub(crate) visible_offset: Option<u32>,
 }
 pub(super) struct Frame {
     pub(super) list: ListFrame,
@@ -91,6 +91,9 @@ impl Bookmarks {
     /// The loop owns the result; Application extracts it while excluding render.
     pub(super) unsafe fn finish(&self, result: Option<Position>) {
         unsafe { *self.result.get() = Some(result) };
+    }
+    pub(super) unsafe fn finished(&self) -> bool {
+        unsafe { (*self.result.get()).is_some() }
     }
     /// Called once before child destruction under the render lifetime lock.
     pub(super) unsafe fn take_result(&self) -> Option<Option<Position>> {

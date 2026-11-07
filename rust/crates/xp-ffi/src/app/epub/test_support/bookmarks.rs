@@ -3,14 +3,15 @@ extern crate alloc;
 use super::super::{abi, app_abi, state::Position, EpubSession};
 use super::{BookmarkOverrides, EstimateObserver};
 use alloc::boxed::Box;
-use core::{ffi::c_void, ptr::NonNull};
+use core::ffi::c_void;
 use xp_ui::reader::bookmark::{self, BookmarkPosition, ProgressRange};
 
 #[repr(C)]
 pub struct BookmarkSeed {
     pub book: *mut c_void,
     pub section: *mut c_void,
-    pub bookmarks: *mut c_void,
+    pub bookmarks: *const abi::XpEpubBookmark,
+    pub bookmark_count: usize,
     pub spine: i32,
     pub page: i32,
     pub visible_offset: u32,
@@ -47,7 +48,8 @@ pub unsafe extern "C" fn xp_epub_test_bookmark_create_legacy_book(
     legacy_book: &'static super::legacy_book::LegacyBookServices,
 ) -> *mut c_void {
     let seed = &*seed;
-    let Some(mut owner) = EpubSession::try_new(b"", false, 3, &*leaves, &*runtime, &*resources)
+    let Some(mut owner) =
+        EpubSession::try_new(b"/fixture.epub", false, 3, &*leaves, &*runtime, &*resources)
     else {
         return core::ptr::null_mut();
     };
@@ -80,7 +82,27 @@ pub unsafe extern "C" fn xp_epub_test_bookmark_create_legacy_book(
     let guarded = owner.guarded.get_mut();
     guarded.section =
         super::legacy_section::SectionSlot::legacy(seed.section, &legacy_book.section);
-    guarded.bookmarks = Some(NonNull::new(seed.bookmarks).expect("fixture bookmarks"));
+    let rows = if seed.bookmark_count == 0 {
+        &[]
+    } else {
+        core::slice::from_raw_parts(seed.bookmarks, seed.bookmark_count)
+    };
+    guarded.bookmarks = rows
+        .iter()
+        .map(|row| {
+            assert_eq!(row.name.len, 0, "legacy fixture names are empty");
+            crate::app::bookmarks::Record {
+                xpath: crate::app::resources::Text::copy(row.xpath.bytes().unwrap()).unwrap(),
+                summary: crate::app::resources::Text::copy(row.summary.bytes().unwrap()).unwrap(),
+                name: Default::default(),
+                percentage: row.percentage,
+                spine: row.spine,
+                page_count: row.page_count,
+                page: row.chapter_page,
+                visible_offset: (row.has_offset != 0).then_some(row.offset),
+            }
+        })
+        .collect();
     owner.bookmark_overrides = Some(BookmarkOverrides {
         context: seed.context,
         position: seed.position,
@@ -104,7 +126,7 @@ pub unsafe extern "C" fn xp_epub_test_bookmark_destroy(owner: *mut c_void) {
         let access = owner.borrowed_resources();
         owner.drop_section(&access);
     }
-    // Book and bookmark vector remain fixture-owned.
+    // The Rust reader owns the records; the synthetic book remains fixture-owned.
     drop(owner);
 }
 #[no_mangle]
@@ -217,4 +239,81 @@ pub unsafe extern "C" fn xp_epub_test_bookmark_matches(
             end: range.end,
         },
     ))
+}
+
+// Count-only menu fixtures seed real empty-name rows; no native handle is retained.
+pub(super) fn seed_count(count: usize) -> alloc::vec::Vec<super::super::bookmark_storage::Row> {
+    (0..count)
+        .map(|_| crate::app::bookmarks::Record {
+            xpath: Default::default(),
+            summary: Default::default(),
+            name: Default::default(),
+            percentage: 0.0,
+            spine: 0,
+            page_count: 0,
+            page: 0,
+            visible_offset: None,
+        })
+        .collect()
+}
+
+// Snapshot helpers observe actual Rust records between operations. The C++ vector is
+// oracle output or simulated disk content, never the reader's live backing store.
+type RowSink = unsafe extern "C" fn(*mut c_void, *const abi::XpEpubBookmark) -> u8;
+fn wire<N: AsRef<[u8]>>(row: &crate::app::bookmarks::Record<N>) -> abi::XpEpubBookmark {
+    abi::XpEpubBookmark {
+        xpath: row.xpath.wire(),
+        summary: row.summary.wire(),
+        name: app_abi::Text::from_bytes(row.name.as_ref()),
+        percentage: row.percentage,
+        spine: row.spine,
+        page_count: row.page_count,
+        chapter_page: row.page,
+        has_offset: u8::from(row.visible_offset.is_some()),
+        offset: row.visible_offset.unwrap_or(0),
+    }
+}
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_bookmark_rows(
+    owner: *mut c_void,
+    sink: RowSink,
+    context: *mut c_void,
+) {
+    let owner = unsafe { &*owner.cast::<EpubSession>() };
+    let access = unsafe { owner.borrowed_resources() };
+    owner.with_bookmarks(&access, |rows| {
+        for row in rows {
+            assert_ne!(unsafe { sink(context, &wire(row)) }, 0);
+        }
+    });
+}
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_bookmark_encode(
+    rows: *const abi::XpEpubBookmark,
+    count: usize,
+    sink: app_abi::TextSink,
+    context: *mut c_void,
+) -> u8 {
+    let rows = if count == 0 {
+        &[]
+    } else {
+        unsafe { core::slice::from_raw_parts(rows, count) }
+    };
+    let rows: alloc::vec::Vec<crate::app::bookmarks::Record<crate::app::resources::Text>> = rows
+        .iter()
+        .map(|row| crate::app::bookmarks::Record {
+            xpath: crate::app::resources::Text::copy(unsafe { row.xpath.bytes() }.unwrap())
+                .unwrap(),
+            summary: crate::app::resources::Text::copy(unsafe { row.summary.bytes() }.unwrap())
+                .unwrap(),
+            name: crate::app::resources::Text::copy(unsafe { row.name.bytes() }.unwrap()).unwrap(),
+            percentage: row.percentage,
+            spine: row.spine,
+            page: row.chapter_page,
+            page_count: row.page_count,
+            visible_offset: (row.has_offset != 0).then_some(row.offset),
+        })
+        .collect();
+    let bytes = crate::app::bookmarks::encode(&rows).unwrap();
+    unsafe { sink(context, app_abi::Text::from_bytes(&bytes)) }
 }

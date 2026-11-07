@@ -67,9 +67,7 @@ impl EpubSession {
         };
         let Some(book) = self.loop_book() else { return };
         with_book_text(book, super::session_book::title, |title| {
-            let bookmarks = self.loop_bookmark_handle().is_some_and(|bookmarks| unsafe {
-                (self.leaves.bookmarks_count)(bookmarks.as_ptr()) != 0
-            });
+            let bookmarks = self.loop_bookmark_count() != 0;
             let args = abi::XpEpubMenuArgs {
                 title,
                 display_page: position.display_page(),
@@ -205,15 +203,15 @@ impl EpubSession {
     }
 
     fn open_bookmarks(&self) {
-        let Some(book) = self.loop_book() else { return };
-        with_book_text(book, super::session_book::path, |path| {
-            self.launch_menu_child(
-                unsafe {
-                    (self.leaves.child_bookmarks)(super::session_book::facade(book.as_ptr()), path)
-                },
-                ChildIntent::Bookmarks,
-            );
-        });
+        if self.loop_book().is_some() {
+            #[cfg(feature = "app-test")]
+            if let Some(hooks) = self.menu_hooks {
+                self.model(|state| state.child = ChildIntent::Bookmarks);
+                unsafe { (hooks.bookmarks)(hooks.context) };
+                return;
+            }
+            self.launch_owned_bookmarks();
+        }
     }
 
     pub(super) fn confirm_reader_menu(&self, action: i32, origin: MenuOrigin) {

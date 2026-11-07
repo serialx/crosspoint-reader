@@ -430,7 +430,7 @@ void closeToSleep() {
       f().componentOrder(generation, completeComponents);
       f().ordered(generation, {"exit", "fonts-release", "reader-count-reset", "state-save", "extractor-clear",
                               "clippings-unload", "close:book", "close:failure-popup", "close:overlay-popup",
-                              "close:bookmarks", "close:root"});
+                              "close:root"});
     }
   } else {
     assertExited();

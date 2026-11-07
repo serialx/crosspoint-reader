@@ -253,6 +253,7 @@ pub unsafe extern "C" fn xp_epub_test_loop_create_legacy_book(
         sync: unexpected0,
         selection: seed.selection,
         clippings: unexpected0,
+        bookmarks: unexpected0,
         bookmark: seed.bookmark,
         bluetooth: unexpected0,
         build_items: unexpected4,

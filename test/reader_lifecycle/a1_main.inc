@@ -86,7 +86,7 @@ int main() {
   const auto rootEnd = a1Find("root-drop-end", rootBegin + 1);
   assert(finalUpdate < a1Find("section-close", finalUpdate + 1) && rootBegin < rootEnd);
   f().ordered(1, {"exit", "extractor-clear", "section-close", "clippings-unload", "close:book",
-                  "close:failure-popup", "close:overlay-popup", "close:bookmarks", "close:root"});
+                  "close:failure-popup", "close:overlay-popup", "close:root"});
   for (unsigned kind = 0; kind < unsigned(Kind::Legacy); ++kind) f().count(Kind(kind), 1, 1);
   popFinalSleep(); assert(appState.handles.empty()); fixture = nullptr;
   for (const auto& array : arrays) assert(!array.pointer);

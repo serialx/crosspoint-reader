@@ -64,12 +64,9 @@ void checkChildBookLoan(const std::string& kind, bool held) {
     addition = r'''
 void bindReaderResults() {
   bindReaderSections();
-  leaves.bookmarks_load = [](void* raw, XpAppText path)->uint8_t {
-    auto& h = f().handle(raw, Kind::Bookmarks); assert(text(path) == f().path && f().extractor);
-    ++f().bookmarkLoads; f().physical("bookmarks-load", h.generation, h.id); return 1;
-  };
-  leaves.bookmarks_save = [](void*, XpAppText path)->uint8_t {
-    borrowedUse("bookmark-save"); assert(text(path) == f().path); return 1;
+  leaves.local_calendar = [](XpEpubCalendar*) -> uint8_t {
+    borrowedUse("clip-export"); assert(!f().renderDepth && results.borrowedText);
+    ++results.exports; return 0;
   };
   static auto write = leaves.file_open_write;
   leaves.file_open_write = [](XpAppText path, XpAppText origin)->void* {

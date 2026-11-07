@@ -245,6 +245,7 @@ pub struct XpEpubStatus {
     pub building: u8,
 }
 
+#[cfg(feature = "app-test")]
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct XpEpubBookmark {
@@ -273,8 +274,6 @@ pub type XpEpubSpineSink =
     unsafe extern "C" fn(context: *mut core::ffi::c_void, value: *const XpEpubSpine) -> u8;
 pub type XpEpubTocSink =
     unsafe extern "C" fn(context: *mut core::ffi::c_void, value: *const XpEpubToc) -> u8;
-pub type XpEpubBookmarkSink =
-    unsafe extern "C" fn(context: *mut core::ffi::c_void, value: *const XpEpubBookmark) -> u8;
 #[cfg(feature = "app-test")]
 pub type XpEpubToolbarRowSink =
     unsafe extern "C" fn(context: *mut core::ffi::c_void, value: *const XpEpubToolbarRow) -> u8;
@@ -442,10 +441,7 @@ pub struct XpEpubLeaves {
         count: u8,
         args: *const XpEpubSelectionArgs,
     ) -> *mut core::ffi::c_void,
-    pub child_bookmarks: unsafe extern "C" fn(
-        book: *mut core::ffi::c_void,
-        path: XpAppText,
-    ) -> *mut core::ffi::c_void,
+
     pub child_wifi: unsafe extern "C" fn() -> *mut core::ffi::c_void,
     pub child_sync: unsafe extern "C" fn(
         path: XpAppText,
@@ -489,27 +485,6 @@ pub struct XpEpubLeaves {
         context: *mut core::ffi::c_void,
     ),
     pub end_paint: unsafe extern "C" fn(r#end: *mut core::ffi::c_void),
-    pub bookmarks_open: unsafe extern "C" fn() -> *mut core::ffi::c_void,
-    pub bookmarks_close: unsafe extern "C" fn(bookmarks: *mut core::ffi::c_void),
-    pub bookmarks_clear: unsafe extern "C" fn(bookmarks: *mut core::ffi::c_void),
-    pub bookmarks_load:
-        unsafe extern "C" fn(bookmarks: *mut core::ffi::c_void, path: XpAppText) -> u8,
-    pub bookmarks_save:
-        unsafe extern "C" fn(bookmarks: *mut core::ffi::c_void, path: XpAppText) -> u8,
-    pub bookmarks_count: unsafe extern "C" fn(bookmarks: *mut core::ffi::c_void) -> u32,
-    pub bookmarks_row: unsafe extern "C" fn(
-        bookmarks: *mut core::ffi::c_void,
-        index: u32,
-        sink: XpEpubBookmarkSink,
-        context: *mut core::ffi::c_void,
-    ) -> u8,
-    pub bookmarks_retain: unsafe extern "C" fn(
-        bookmarks: *mut core::ffi::c_void,
-        keep: unsafe extern "C" fn(*mut core::ffi::c_void, *const XpEpubBookmark) -> u8,
-        context: *mut core::ffi::c_void,
-    ) -> u32,
-    pub bookmarks_insert_front:
-        unsafe extern "C" fn(bookmarks: *mut core::ffi::c_void, row: *const XpEpubBookmark) -> u8,
 
     pub recents_remove: unsafe extern "C" fn(path: XpAppText) -> u8,
     pub recents_add: unsafe extern "C" fn(book: *const app_abi::Book),
@@ -602,15 +577,15 @@ const _: () = {
     );
     assert!(
         core::mem::size_of::<XpEpubLeaves>()
-            == 168 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 158 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
     assert!(
         core::mem::offset_of!(XpEpubLeaves, log)
-            == 111 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 101 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
     assert!(
         core::mem::offset_of!(XpEpubLeaves, font_text_advance)
-            == 112 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 102 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
 };
 
@@ -627,7 +602,7 @@ const _: fn(&XpEpubLeaves) = |leaves| {
 const _: () = {
     assert!(
         core::mem::offset_of!(XpEpubLeaves, log_enabled)
-            == 113 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 103 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
 };
 const _: fn(&XpEpubLeaves) = |leaves| {
@@ -692,7 +667,7 @@ const _: () = {
 const _: () = {
     assert!(
         core::mem::offset_of!(XpEpubLeaves, input_snapshot)
-            == 114 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 104 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
 };
 const _: fn(&XpEpubLeaves) = |leaves| {
@@ -728,18 +703,18 @@ const _: () = {
     assert!(
         core::mem::offset_of!(XpEpubLeaves, path_remove_tree) == 16 * core::mem::size_of::<usize>()
     );
-    assert!(core::mem::offset_of!(XpEpubLeaves, cache_lock) == 115 * core::mem::size_of::<usize>());
+    assert!(core::mem::offset_of!(XpEpubLeaves, cache_lock) == 105 * core::mem::size_of::<usize>());
     assert!(
-        core::mem::offset_of!(XpEpubLeaves, cache_unlock) == 116 * core::mem::size_of::<usize>()
+        core::mem::offset_of!(XpEpubLeaves, cache_unlock) == 106 * core::mem::size_of::<usize>()
     );
     assert!(
-        core::mem::offset_of!(XpEpubLeaves, scratch_claim) == 117 * core::mem::size_of::<usize>()
+        core::mem::offset_of!(XpEpubLeaves, scratch_claim) == 107 * core::mem::size_of::<usize>()
     );
     assert!(
-        core::mem::offset_of!(XpEpubLeaves, scratch_release) == 118 * core::mem::size_of::<usize>()
+        core::mem::offset_of!(XpEpubLeaves, scratch_release) == 108 * core::mem::size_of::<usize>()
     );
     assert!(
-        core::mem::offset_of!(XpEpubLeaves, inflate_oom_log) == 119 * core::mem::size_of::<usize>()
+        core::mem::offset_of!(XpEpubLeaves, inflate_oom_log) == 109 * core::mem::size_of::<usize>()
     );
 };
 
@@ -816,86 +791,76 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, restart_reader) == 68 * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, child_text_settings) == 69 * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, child_selection) == 70 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, child_bookmarks) == 71 * pointer);
 
-    assert!(core::mem::offset_of!(XpEpubLeaves, child_wifi) == 72 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, child_sync) == 73 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, popup_open) == 74 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, popup_close) == 75 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, popup_active) == 76 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, popup_show) == 77 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, popup_dismiss) == 78 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, popup_input) == 79 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, popup_paint) == 80 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, popup_process_render) == 81 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, end_open) == 82 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, end_close) == 83 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, end_load) == 84 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, end_menu_active) == 85 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, end_input) == 86 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, end_paint) == 87 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, bookmarks_open) == 88 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, bookmarks_close) == 89 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, bookmarks_clear) == 90 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, bookmarks_load) == 91 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, bookmarks_save) == 92 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, bookmarks_count) == 93 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, bookmarks_row) == 94 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, bookmarks_retain) == 95 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, bookmarks_insert_front) == 96 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, child_wifi) == 71 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, child_sync) == 72 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, popup_open) == 73 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, popup_close) == 74 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, popup_active) == 75 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, popup_show) == 76 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, popup_dismiss) == 77 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, popup_input) == 78 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, popup_paint) == 79 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, popup_process_render) == 80 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, end_open) == 81 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, end_close) == 82 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, end_load) == 83 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, end_menu_active) == 84 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, end_input) == 85 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, end_paint) == 86 * pointer);
 
-    assert!(core::mem::offset_of!(XpEpubLeaves, recents_remove) == 97 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, recents_add) == 98 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, recents_update_path) == 99 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, state_open_path) == 100 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, state_set_open_path) == 101 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, state_reset_reader_count) == 102 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, state_save) == 103 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, has_sync_credentials) == 104 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, has_exit_subscriber) == 105 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, has_session_subscriber) == 106 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, document_id) == 107 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, emit_open) == 108 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, emit_exit) == 109 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, emit_session) == 110 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, log) == 111 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, font_text_advance) == 112 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, log_enabled) == 113 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, input_snapshot) == 114 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, cache_lock) == 115 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, cache_unlock) == 116 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, scratch_claim) == 117 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, scratch_release) == 118 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, inflate_oom_log) == 119 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, build_metrics) == 120 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, build_allocator) == 121 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, font_variant) == 122 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, font_line_height) == 123 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, font_ready) == 124 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, font_codepoint) == 125 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, hyphen_language) == 126 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, file_position) == 127 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, file_flush) == 128 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, image_supported) == 129 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, image_dimensions) == 130 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, framebuffer_lend) == 131 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, framebuffer_restore) == 132 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, paint_arena) == 133 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, image_needs_decode) == 134 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, font_ascent) == 135 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, render_physical_query) == 136 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, render_physical_operation) == 137 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, render_plan) == 138 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, image_read_window) == 139 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, display_source) == 140 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, framebuffer_view) == 141 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, child_drawing) == 142 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, clipping_physical) == 162 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, child_list_help) == 163 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, child_list_icon) == 164 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, local_calendar) == 165 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, storage_read_file) == 166 * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, storage_write_file_atomic) == 167 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, recents_remove) == 87 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, recents_add) == 88 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, recents_update_path) == 89 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, state_open_path) == 90 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, state_set_open_path) == 91 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, state_reset_reader_count) == 92 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, state_save) == 93 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, has_sync_credentials) == 94 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, has_exit_subscriber) == 95 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, has_session_subscriber) == 96 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, document_id) == 97 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, emit_open) == 98 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, emit_exit) == 99 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, emit_session) == 100 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, log) == 101 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, font_text_advance) == 102 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, log_enabled) == 103 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, input_snapshot) == 104 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, cache_lock) == 105 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, cache_unlock) == 106 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, scratch_claim) == 107 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, scratch_release) == 108 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, inflate_oom_log) == 109 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, build_metrics) == 110 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, build_allocator) == 111 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, font_variant) == 112 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, font_line_height) == 113 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, font_ready) == 114 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, font_codepoint) == 115 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, hyphen_language) == 116 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, file_position) == 117 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, file_flush) == 118 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, image_supported) == 119 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, image_dimensions) == 120 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, framebuffer_lend) == 121 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, framebuffer_restore) == 122 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, paint_arena) == 123 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, image_needs_decode) == 124 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, font_ascent) == 125 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, render_physical_query) == 126 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, render_physical_operation) == 127 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, render_plan) == 128 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, image_read_window) == 129 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, display_source) == 130 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, framebuffer_view) == 131 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, child_drawing) == 132 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, clipping_physical) == 152 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, child_list_help) == 153 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, child_list_icon) == 154 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, local_calendar) == 155 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, storage_read_file) == 156 * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, storage_write_file_atomic) == 157 * pointer);
 
     assert!(
         core::mem::align_of::<XpEpubLeaves>() == core::mem::align_of::<unsafe extern "C" fn()>()
@@ -904,5 +869,5 @@ const _: () = {
 
 const _: () = assert!(
     core::mem::offset_of!(XpEpubLeaves, child_selection_physical)
-        == 150 * core::mem::size_of::<usize>()
+        == 140 * core::mem::size_of::<usize>()
 );

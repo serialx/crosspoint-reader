@@ -12,9 +12,10 @@ import subprocess
 import sys
 import tempfile
 
+# Bookmarks now uses the actual owned App composition in reader_children/test_owned_app.py.
 MODES = ('menu', 'chapter', 'percent', 'text', 'text-overlay', 'footnote',
          'footnote-page', 'clip', 'lookup', 'bookmark', 'dictionary',
-         'bookmarks', 'clippings', 'qr', 'wifi')
+         'clippings', 'qr', 'wifi')
 WIFI_MATRIX = ('wifi-success', 'wifi-reopen-failure', 'wifi-disconnected', 'wifi-cancelled')
 
 

@@ -6,7 +6,8 @@
 struct XpEpubTestBookmarkSeed {
   void* book;
   void* section;
-  void* bookmarks;
+  const XpEpubBookmark* bookmarks;
+  size_t bookmark_count;
   int32_t spine, page;
   uint32_t visible_offset;
   int32_t history[6];
@@ -28,6 +29,8 @@ void* xp_epub_test_bookmark_create_legacy_book(const XpEpubTestBookmarkSeed*, co
                                                const XpAppResources*, const XpEpubLegacyBookServices*);
 void xp_epub_test_bookmark_destroy(void*);
 void xp_epub_test_bookmark_observe(void*, XpEpubTestBookmarkObservation*);
+void xp_epub_test_bookmark_rows(void*, XpEpubBookmarkSink, void*);
+uint8_t xp_epub_test_bookmark_encode(const XpEpubBookmark*, size_t, XpAppTextSink, void*);
 void xp_epub_test_bookmark_flag(void*);
 void xp_epub_test_bookmark_add(void*);
 void xp_epub_test_bookmark_load(void*);

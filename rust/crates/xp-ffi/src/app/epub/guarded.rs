@@ -21,7 +21,7 @@ pub(super) struct Guarded {
     pub(super) failure_popup: Option<NonNull<c_void>>,
     pub(super) end_options: Option<NonNull<c_void>>,
     // Loop is the sole writer; mutations and render reads hold ResourceAccess.
-    pub(super) bookmarks: Option<NonNull<c_void>>,
+    pub(super) bookmarks: Vec<super::bookmark_storage::Row>,
     pub(super) active_frame: Option<NonNull<RenderFrame>>,
     pub(super) anchor: Text,
     pub(super) more_actions: [u8; 19],
@@ -215,20 +215,20 @@ impl EpubSession {
         unsafe { (*self.guarded_ptr(access)).end_options.take() }
     }
 
-    pub(super) fn bookmarks(&self, access: &ResourceAccess<'_>) -> Option<NonNull<c_void>> {
-        unsafe { (*self.guarded_ptr(access)).bookmarks }
-    }
-
-    pub(super) fn set_bookmarks(
+    pub(super) fn with_bookmarks<R>(
         &self,
         access: &ResourceAccess<'_>,
-        value: Option<NonNull<c_void>>,
-    ) {
-        unsafe { (*self.guarded_ptr(access)).bookmarks = value };
+        apply: impl FnOnce(&[super::bookmark_storage::Row]) -> R,
+    ) -> R {
+        apply(unsafe { &(*self.guarded_ptr(access)).bookmarks })
     }
 
-    pub(super) fn take_bookmarks(&self, access: &ResourceAccess<'_>) -> Option<NonNull<c_void>> {
-        unsafe { (*self.guarded_ptr(access)).bookmarks.take() }
+    pub(super) fn mutate_bookmarks<R>(
+        &self,
+        access: &ResourceAccess<'_>,
+        apply: impl FnOnce(&mut Vec<super::bookmark_storage::Row>) -> R,
+    ) -> R {
+        apply(unsafe { &mut (*self.guarded_ptr(access)).bookmarks })
     }
 
     #[cfg(feature = "app-test")]
@@ -310,8 +310,9 @@ impl EpubSession {
         book
     }
 
-    pub(super) fn loop_bookmark_handle(&self) -> Option<NonNull<c_void>> {
-        unsafe { core::ptr::addr_of!((*self.guarded.0.get()).bookmarks).read() }
+    // Only the loop mutates the vector; render only borrows it under ResourceAccess.
+    pub(super) fn loop_bookmark_count(&self) -> usize {
+        unsafe { (*self.guarded.0.get()).bookmarks.len() }
     }
 
     pub(super) fn loop_toolbar(&self) -> Option<ToolbarTarget> {

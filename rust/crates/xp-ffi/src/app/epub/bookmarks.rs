@@ -1,39 +1,29 @@
-use super::session_section::Section as ReaderSection;
 use super::{
-    abi, app_abi, state::Position, text::sanitize_summary, EpubSession, ResourceAccess, Text,
+    bookmark_storage::{Name, Row},
+    session_section::Section as ReaderSection,
+    state::Position,
+    text::sanitize_summary,
+    EpubSession, ResourceAccess, Text,
 };
+use crate::app::bookmarks::mutations;
 use core::{ffi::c_void, ptr::NonNull};
 use xp_ui::reader::bookmark::{self, BookmarkPosition, ProgressRange};
 
-struct Match {
-    position: Position,
-    count: i32,
-    range: ProgressRange,
-    found: bool,
+fn matches(row: &Row, position: Position, count: i32, range: ProgressRange) -> bool {
+    bookmark::matches(
+        BookmarkPosition {
+            percentage: row.percentage,
+            spine: i32::from(row.spine),
+            page: i32::from(row.page),
+            count: i32::from(row.page_count),
+        },
+        position.spine,
+        position.page,
+        count,
+        range,
+    )
 }
-impl Match {
-    fn matches(&self, row: &abi::XpEpubBookmark) -> bool {
-        bookmark::matches(
-            BookmarkPosition {
-                percentage: row.percentage,
-                spine: i32::from(row.spine),
-                page: i32::from(row.chapter_page),
-                count: i32::from(row.page_count),
-            },
-            self.position.spine,
-            self.position.page,
-            self.count,
-            self.range,
-        )
-    }
-}
-
 impl EpubSession {
-    // Only the loop installs/destroys this handle or mutates its vector.
-    fn loop_bookmarks(&self) -> NonNull<c_void> {
-        self.loop_bookmark_handle().expect("reader bookmarks")
-    }
-
     fn bookmark_range(
         &self,
         book: NonNull<c_void>,
@@ -43,114 +33,53 @@ impl EpubSession {
         let local = bookmark::range(position.page, count);
         unsafe {
             ProgressRange {
-                start: (super::session_book::progress)(book.as_ptr(), position.spine, local.start),
-                end: (super::session_book::progress)(book.as_ptr(), position.spine, local.end),
+                start: super::session_book::progress(book.as_ptr(), position.spine, local.start),
+                end: super::session_book::progress(book.as_ptr(), position.spine, local.end),
             }
         }
     }
-
-    fn bookmark_flag(&self, access: Option<&ResourceAccess<'_>>) {
-        if !self.model(|state| state.facts.section.is_some()) {
-            self.model(|state| state.bookmarked = false);
-            return;
-        }
-        let book = match access {
-            Some(access) => self.book(access),
-            None => self.loop_book(),
-        };
-        let Some(book) = book else {
-            self.model(|state| state.bookmarked = false);
-            return;
-        };
-        let bookmarks = match access {
-            Some(access) => self.bookmarks(access).expect("reader bookmarks"),
-            None => self.loop_bookmarks(),
-        };
-        let length = unsafe { (self.leaves.bookmarks_count)(bookmarks.as_ptr()) };
-        if length == 0 {
-            self.model(|state| state.bookmarked = false);
-            return;
-        }
-        let count = match access {
-            Some(access) => self
-                .section(access)
-                .map(|section| unsafe { ReaderSection::estimated_pages(section) }),
-            None => self.estimated_pages(),
-        }
-        .unwrap_or(0);
-        let position = self.model(|state| state.current);
-        let range = self.bookmark_range(book, position, count);
-        let mut search = Match {
-            position,
-            count,
-            range,
-            found: false,
-        };
-        unsafe extern "C" fn row(context: *mut c_void, row: *const abi::XpEpubBookmark) -> u8 {
-            let search = &mut *context.cast::<Match>();
-            search.found = search.matches(&*row);
-            1
-        }
-        for index in 0..length {
-            unsafe {
-                (self.leaves.bookmarks_row)(
-                    bookmarks.as_ptr(),
-                    index,
-                    row,
-                    (&mut search as *mut Match).cast(),
-                )
-            };
-            if search.found {
-                break;
-            }
-        }
-        self.model(|state| state.bookmarked = search.found);
-    }
-
     pub(super) fn update_bookmark_flag(&self, access: &ResourceAccess<'_>) {
-        self.bookmark_flag(Some(access));
+        if self.with_bookmarks(access, |rows| rows.is_empty()) {
+            self.model(|state| state.bookmarked = false);
+            return;
+        }
+        let found = self.book(access).is_some_and(|book| {
+            let Some(section) = self.section(access) else {
+                return false;
+            };
+            let count = unsafe { ReaderSection::estimated_pages(section) };
+            let position = self.model(|state| state.current);
+            let range = self.bookmark_range(book, position, count);
+            self.with_bookmarks(access, |rows| {
+                rows.iter().any(|row| matches(row, position, count, range))
+            })
+        });
+        self.model(|state| state.bookmarked = found);
     }
     #[cfg(feature = "app-test")]
     pub(super) fn loop_update_bookmark_flag(&self) {
-        self.bookmark_flag(None);
+        self.update_bookmark_flag(&self.lock_resources());
     }
-
-    fn load_bookmark_rows(&self, access: &ResourceAccess<'_>) {
-        let bookmarks = self.bookmarks(access).expect("reader bookmarks");
-        unsafe { (self.leaves.bookmarks_clear)(bookmarks.as_ptr()) };
-        if let Some(book) = self.book(access) {
-            unsafe {
-                super::session_book::load_bookmarks(book.as_ptr(), bookmarks.as_ptr(), self.leaves)
-            };
-        }
-    }
-
     pub(super) fn load_cached_bookmarks(&self, access: &ResourceAccess<'_>) {
         #[cfg(feature = "app-test")]
         if let Some(hook) = self.lifetime_overrides {
             unsafe { (hook.load_bookmarks)(hook.context) };
             return;
         }
-        self.load_bookmark_rows(access);
+        self.read_bookmarks(access);
         self.update_bookmark_flag(access);
     }
-
     #[cfg(feature = "app-test")]
     pub(super) fn loop_load_cached_bookmarks(&self) {
-        {
-            let access = self.lock_resources();
-            self.load_bookmark_rows(&access);
-        }
-        self.loop_update_bookmark_flag();
+        self.load_cached_bookmarks(&self.lock_resources());
     }
-
     fn section_text(&self, access: &ResourceAccess<'_>, page: i32) -> Option<Text> {
-        let Some(section) = self.section(access) else {
-            return Some(Text::default());
-        };
-        unsafe { self.page_text(section, page) }
+        match self.section(access) {
+            Some(section) => unsafe { self.page_text(section, page) },
+            None => Some(Text::default()),
+        }
     }
-
+    #[inline(never)]
     pub(super) fn add_bookmark(&self) {
         #[cfg(feature = "app-test")]
         if let Some(hooks) = self.menu_hooks {
@@ -181,21 +110,37 @@ impl EpubSession {
             let Some(section) = self.section(&access) else {
                 return;
             };
-            let count = unsafe { ReaderSection::estimated_pages(section) };
-            (self.model(|state| state.current.page), count)
+            (self.model(|state| state.current.page), unsafe {
+                ReaderSection::estimated_pages(section)
+            })
         };
         let position = self.loop_current_position();
         #[cfg(feature = "app-test")]
-        if unsafe {
-            super::test_support::legacy_progress::saved(book, &position, |saved| {
-                u8::from(self.commit_bookmark(book, page, count, saved))
-            })
-        }
-        .is_some()
         {
-            return;
+            let mut saved = None;
+            if unsafe {
+                super::test_support::legacy_progress::saved(book, &position, |row| {
+                    let Some(bytes) = row.xpath.bytes() else {
+                        return 0;
+                    };
+                    let Ok(xpath) = Text::copy(bytes) else {
+                        return 0;
+                    };
+                    saved = Some(super::progress_mapping::Saved {
+                        xpath,
+                        percentage: row.percentage,
+                    });
+                    1
+                })
+            }
+            .is_some()
+            {
+                if let Some(saved) = saved {
+                    self.commit_bookmark(book, page, count, saved);
+                }
+                return;
+            }
         }
-
         let saved = {
             let access = self.lock_resources();
             let Some(reader) = (unsafe { super::session_book::reader_pointer(book) }) else {
@@ -204,46 +149,28 @@ impl EpubSession {
             unsafe { self.saved_progress(&access, reader, &position) }
         };
         if let Some(saved) = saved {
-            let wire = abi::XpEpubSavedProgress {
-                xpath: saved.xpath.wire(),
-                percentage: saved.percentage,
-            };
-            self.commit_bookmark(book, page, count, &wire);
+            self.commit_bookmark(book, page, count, saved);
         }
     }
 
+    #[inline(never)]
     fn commit_bookmark(
         &self,
         book: NonNull<c_void>,
         page: i32,
         count: i32,
-        saved: &abi::XpEpubSavedProgress,
+        saved: super::progress_mapping::Saved,
     ) -> bool {
         let position = Position {
             spine: self.model(|state| state.current.spine),
             page,
         };
         let range = self.bookmark_range(book, position, count);
-        let bookmarks = self.loop_bookmarks();
         let removed = {
-            let _access = self.lock_resources();
-            let mut predicate = Match {
-                position,
-                count,
-                range,
-                found: false,
-            };
-            unsafe extern "C" fn keep(context: *mut c_void, row: *const abi::XpEpubBookmark) -> u8 {
-                let predicate = &*context.cast::<Match>();
-                u8::from(!predicate.matches(&*row))
-            }
-            (unsafe {
-                (self.leaves.bookmarks_retain)(
-                    bookmarks.as_ptr(),
-                    keep,
-                    (&mut predicate as *mut Match).cast(),
-                )
-            }) != 0
+            let access = self.lock_resources();
+            self.mutate_bookmarks(&access, |rows| {
+                mutations::retain(rows, |row| !matches(row, position, count, range)) != 0
+            })
         };
         if removed {
             self.model(|state| {
@@ -260,22 +187,14 @@ impl EpubSession {
             } else {
                 Text::default()
             };
-            let mut summary = [0; 72];
             #[cfg(feature = "app-test")]
             if let Some(hook) = self.bookmark_overrides {
                 unsafe { (hook.sanitize)(hook.context, text.wire()) };
             }
+            let mut summary = [0; 72];
             let length = sanitize_summary(text.bytes(), &mut summary);
-            let mut entry = abi::XpEpubBookmark {
-                xpath: saved.xpath,
-                summary: app_abi::Text::from_bytes(&summary[..length]),
-                name: app_abi::Text::from_bytes(b""),
-                percentage: saved.percentage,
-                spine: self.model(|state| state.current.spine) as u16,
-                page_count: count as u16,
-                chapter_page: page as u16,
-                has_offset: 0,
-                offset: 0,
+            let Ok(summary) = Text::copy(&summary[..length]) else {
+                return false;
             };
             let mut offset = self.model(|state| state.visible_offset);
             if offset.is_none()
@@ -289,13 +208,21 @@ impl EpubSession {
                 let access = self.lock_resources();
                 offset = self.section_offset(&access, page as u16);
             }
-            if let Some(offset) = offset {
-                entry.has_offset = 1;
-                entry.offset = offset;
-            }
+            let entry = Row {
+                xpath: saved.xpath,
+                summary,
+                name: Name::default(),
+                percentage: saved.percentage,
+                spine: position.spine as u16,
+                page_count: count as u16,
+                page: page as u16,
+                visible_offset: offset,
+            };
             {
-                let _access = self.lock_resources();
-                if unsafe { (self.leaves.bookmarks_insert_front)(bookmarks.as_ptr(), &entry) } == 0
+                let access = self.lock_resources();
+                if self
+                    .mutate_bookmarks(&access, |rows| mutations::insert_front(rows, entry))
+                    .is_err()
                 {
                     return false;
                 }
@@ -305,10 +232,7 @@ impl EpubSession {
                 state.bookmarked = true;
             });
         }
-        let saved = unsafe {
-            super::session_book::save_bookmarks(book.as_ptr(), bookmarks.as_ptr(), self.leaves)
-        };
-        if saved == 0 {
+        if !self.save_bookmarks() {
             self.loop_log_parts(1, &[b"Failed to save bookmarks"]);
         }
         unsafe { (self.runtime.notify_render)() };

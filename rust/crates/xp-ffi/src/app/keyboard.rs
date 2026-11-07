@@ -266,7 +266,6 @@ pub(super) fn create(app: &'static App, object: NonNull<c_void>) -> Option<Stabl
     Some(keyboard)
 }
 #[inline(never)]
-#[allow(dead_code)] // Activated by the Bookmarks owner switch.
 pub(super) fn launch(descriptor: &Launch) -> bool {
     let Some(app) = app() else { return false };
     let launch = abi::Launch::new(abi::KEYBOARD, abi::LaunchPayload::Keyboard(descriptor));
@@ -346,8 +345,16 @@ pub(super) unsafe fn with_result(
 }
 #[inline(never)]
 pub(super) fn deliver(app: &App, parent: super::Target, mut result: Option<Result>) {
-    if let super::Target::Legacy(parent) = parent {
-        deliver_native(app, parent, &mut result);
+    match parent {
+        super::Target::ReaderChild { .. } => deliver_bookmarks(parent, &mut result),
+        super::Target::Legacy(parent) => deliver_native(app, parent, &mut result),
+        _ => {}
+    }
+}
+#[inline(never)]
+fn deliver_bookmarks(parent: super::Target, result: &mut Option<Result>) {
+    if let super::Target::ReaderChild { child, parent } = parent {
+        unsafe { child.keyboard_returned(parent.as_ref(), result.take()) };
     }
 }
 #[inline(never)]

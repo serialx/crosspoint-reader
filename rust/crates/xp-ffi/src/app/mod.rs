@@ -1326,6 +1326,7 @@ mod probe {
             ChildTarget::Footnote(p) => (5, p.as_ptr().cast()),
             ChildTarget::Lookup(p) => (6, p.as_ptr().cast()),
             ChildTarget::Clippings(p) => (7, p.as_ptr().cast()),
+            ChildTarget::Bookmarks(p) => (8, p.as_ptr().cast()),
         };
         if let Some(kind) = unsafe { kind.as_mut() } {
             *kind = tag;

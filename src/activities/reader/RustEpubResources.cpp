@@ -21,7 +21,6 @@
 #include <KOReaderDocumentId.h>
 #include <Logging.h>
 #include <Memory.h>
-#include <ProgressMapper.h>
 #include <SdCardFont.h>
 #include <SdCardFontSystem.h>
 #include <TrustedTime.h>
@@ -37,13 +36,11 @@
 #include <string_view>
 #include <vector>
 
-#include "BookmarkEntry.h"
 #include "ClipSelectionActivity.h"
 #include "ClippingStore.h"
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "EndOfBookOptions.h"
-#include "EpubReaderBookmarksActivity.h"
 #include "KOReaderCredentialStore.h"
 #include "KOReaderSyncActivity.h"
 #include "MappedInputManager.h"
@@ -65,7 +62,6 @@
 #include "components/UITheme.h"
 #include "components/UiAppHelpers.h"
 #include "fontIds.h"
-#include "util/BookmarkFile.h"
 #include "util/HomeButtonInput.h"
 #include "util/PluginEvents.h"
 #include "util/QrUtils.h"
@@ -395,32 +391,12 @@ struct BookHandle {
   }
 };
 BookHandle& book(void* handle) { return *static_cast<BookHandle*>(handle); }
-using Bookmarks = std::vector<BookmarkEntry>;
-Bookmarks& bookmarkRows(void* handle) { return *static_cast<Bookmarks*>(handle); }
-XpEpubBookmark bookmarkView(const BookmarkEntry& row) {
-  return {text(row.xpath),
-          text(row.summary),
-          text(row.name),
-          row.percentage,
-          row.computedSpineIndex,
-          row.computedChapterPageCount,
-          row.computedChapterProgress,
-          row.hasVisibleTextOffset,
-          row.visibleTextOffset};
-}
-
 MappedInputManager::Button inputButton(uint32_t index) {
   using Button = MappedInputManager::Button;
   constexpr Button buttons[] = {Button::Back, Button::Confirm, Button::Left, Button::Right,
                                 Button::Up,   Button::Down,    Button::Power};
   assert(index < std::size(buttons));
   return buttons[index];
-}
-
-void readMargins(GfxRenderer& renderer, int32_t* out) {
-  int margins[4]{};
-  renderer.getOrientedViewableTRBL(&margins[0], &margins[1], &margins[2], &margins[3]);
-  for (size_t i = 0; i < std::size(margins); ++i) out[i] = margins[i];
 }
 
 CrossPointPosition position(const XpEpubPosition& value) {
@@ -436,6 +412,12 @@ CrossPointPosition position(const XpEpubPosition& value) {
   static_assert(sizeof(result.xpathAnchorId) == sizeof(value.anchor));
   memcpy(result.xpathAnchorId, value.anchor, sizeof(result.xpathAnchorId));
   return result;
+}
+
+void readMargins(GfxRenderer& renderer, int32_t* out) {
+  int margins[4]{};
+  renderer.getOrientedViewableTRBL(&margins[0], &margins[1], &margins[2], &margins[3]);
+  for (size_t i = 0; i < std::size(margins); ++i) out[i] = margins[i];
 }
 
 }  // namespace
@@ -718,10 +700,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .child_selection = [](XpEpubOwnedPage* pages, uint8_t count, const XpEpubSelectionArgs* args) -> void* {
         return epubPage::selection(*target, *mapped, pages, count, *args);
       },
-      .child_bookmarks = [](void* handle, XpAppText path) -> void* {
-        return makeLegacyActivity<EpubReaderBookmarksActivity>(*target, *mapped, book(handle).book, owned(path))
-            .release();
-      },
+
       .child_wifi = []() -> void* { return makeLegacyActivity<WifiSelectionActivity>(*target, *mapped).release(); },
       .child_sync = [](XpAppText path, const XpEpubPosition* current, const XpEpubSavedProgress* saved,
                        XpAppText chapter, uint8_t eventsOnly) -> void* {
@@ -774,47 +753,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
             result(context, static_cast<uint8_t>(action), text(path));
           },
       .end_paint = [](void* handle) { static_cast<EndOfBookOptions*>(handle)->render(*target, *mapped); },
-      .bookmarks_open = []() -> void* { return makeUniqueNoThrow<Bookmarks>().release(); },
-      .bookmarks_close = [](void* handle) { delete static_cast<Bookmarks*>(handle); },
-      .bookmarks_clear = [](void* handle) { bookmarkRows(handle).clear(); },
-      .bookmarks_load = [](void* handle, XpAppText path) -> uint8_t {
-        return BookmarkFile::load(owned(path), bookmarkRows(handle));
-      },
-      .bookmarks_save = [](void* handle, XpAppText path) -> uint8_t {
-        return BookmarkFile::save(owned(path), bookmarkRows(handle));
-      },
-      .bookmarks_count = [](void* handle) -> uint32_t { return bookmarkRows(handle).size(); },
-      .bookmarks_row = [](void* handle, uint32_t index, XpEpubBookmarkSink sink, void* context) -> uint8_t {
-        const auto& rows = bookmarkRows(handle);
-        if (index >= rows.size()) return 0;
-        const auto row = bookmarkView(rows[index]);
-        return sink(context, &row);
-      },
-      .bookmarks_retain = [](void* handle, uint8_t (*keep)(void*, const XpEpubBookmark*), void* context) -> uint32_t {
-        auto& rows = bookmarkRows(handle);
-        const size_t before = rows.size();
-        rows.erase(std::remove_if(rows.begin(), rows.end(),
-                                  [&](const BookmarkEntry& entry) {
-                                    const auto row = bookmarkView(entry);
-                                    return keep(context, &row) == 0;
-                                  }),
-                   rows.end());
-        return before - rows.size();
-      },
-      .bookmarks_insert_front = [](void* handle, const XpEpubBookmark* row) -> uint8_t {
-        BookmarkEntry entry;
-        entry.xpath = owned(row->xpath);
-        entry.summary = owned(row->summary);
-        entry.name = owned(row->name);
-        entry.percentage = row->percentage;
-        entry.computedSpineIndex = row->spine;
-        entry.computedChapterPageCount = row->page_count;
-        entry.computedChapterProgress = row->chapter_page;
-        entry.hasVisibleTextOffset = row->has_offset != 0;
-        entry.visibleTextOffset = row->offset;
-        bookmarkRows(handle).insert(bookmarkRows(handle).begin(), std::move(entry));
-        return 1;
-      },
 
       .recents_remove = [](XpAppText path) -> uint8_t { return RECENT_BOOKS.removeByPath(owned(path)); },
       .recents_add =
@@ -1011,7 +949,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
                           fui::Paint::solid(paint == 1 ? fui::Color::White : fui::Color::Black));
             target->setClipRect(previous[0], previous[1], previous[2], previous[3]);
           },
-
       .local_calendar = [](XpEpubCalendar* out) -> uint8_t {
         struct tm local;
         if (!halClock.localTime(local)) return 0;
@@ -1026,7 +963,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .storage_write_file_atomic = [](XpAppText path, const uint8_t* bytes, uint32_t size) -> uint8_t {
         return Storage.writeFileAtomic(pathText(path), bytes, size);
       },
-
   };
   if (!sectionMetrics.context) sectionMetrics.context = target;
   return leaves;

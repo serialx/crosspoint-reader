@@ -5,6 +5,7 @@
 struct String {
   std::string value;
   const char* c_str() const { return value.c_str(); }
+  friend String operator+(const String& left, const char* right) { return {left.value + right}; }
 };
 struct Print {
   virtual ~Print() = default;

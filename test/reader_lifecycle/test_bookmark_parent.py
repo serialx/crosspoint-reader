@@ -98,6 +98,24 @@ def project(original):
     return projected, counts
 
 
+def logical_trace(trace):
+    """Keep every case, record, outcome and native log; omit retired facade calls.
+
+    Guard entry/exit counts and callback lock observations remain in the raw
+    trace and assertions. Negative controls compare raw traces, so removing a
+    required guard still fails. D0 separately checks real BookmarkFile logs.
+    """
+    lines = []
+    for line in trace.splitlines():
+        if line in (b'lock 1 0', b'unlock 1 0', b'path 0 0'):
+            continue
+        match = re.fullmatch(rb'(estimate|text|offset|map) (-?\d+) [01]', line)
+        if match:
+            line = match[1] + b' ' + match[2] + b' 0'
+        lines.append(line)
+    return b'\n'.join(lines) + b'\n'
+
+
 def replace_once(source, before, after):
     assert source.count(before) == 1, f'mutant must match one production site: {before!r}'
     return source.replace(before, after, 1)
@@ -124,9 +142,9 @@ mutations = [
         b'(self.leaves.path_remove)(path.wire())', b'0u8')),
     ('text-lock-omitted', BOOKMARK, text_omission),
     ('insert-lock-omitted', BOOKMARK, lambda s: omit_lock(s,
-        rb'if unsafe \{\s*\(self\.leaves\.bookmarks_insert_front\)')),
+        rb'if self\s*\.mutate_bookmarks')),
     ('retain-predicate-inverted', BOOKMARK, lambda s: replace_once(s,
-        b'u8::from(!predicate.matches(&*row))', b'u8::from(predicate.matches(&*row))')),
+        b'|row| !matches(row, position, count, range)', b'|row| matches(row, position, count, range)')),
     ('epsilon-zero', MATH, lambda s: replace_once(s,
         b'progress + 0.0001 >= range.start && progress - 0.0001 <= range.end',
         b'progress + 0.0 >= range.start && progress - 0.0 <= range.end')),
@@ -169,10 +187,15 @@ with tempfile.TemporaryDirectory(prefix='reader-bookmarks-') as directory:
         assert b'sanitize []\n' in actual and b'\ntext ' not in actual and b'\noffset ' not in actual
         assert b'save [/fixture.epub] 1\n' in actual
     else:
-        assert actual == projected, (TEST_NAME, digest(actual), digest(projected))
+        actual_lines, expected_lines = logical_trace(actual).splitlines(), logical_trace(original).splitlines()
+        mismatch = next((i for i, (left, right) in enumerate(zip(actual_lines, expected_lines)) if left != right), min(len(actual_lines), len(expected_lines)))
+        assert actual_lines == expected_lines, (
+            TEST_NAME, mismatch, actual_lines[max(0, mismatch - 3):mismatch + 8],
+            expected_lines[max(0, mismatch - 3):mismatch + 8])
     print(json.dumps({'test_name': TEST_NAME, 'release': release, 'section_drop': section_drop,
                       'original_gzip_sha256': digest(compressed), 'original_trace_sha256': digest(original),
                       'projected_trace_sha256': digest(projected), 'actual_trace_sha256': digest(actual),
+                      'logical_projection_sha256': digest(logical_trace(actual)),
                       'original_lines': len(original.splitlines()), 'projected_lines': len(projected.splitlines()),
                       'projection_event_counts': projection_counts,
                       'original_case_counts': case_counts,
@@ -202,4 +225,4 @@ with tempfile.TemporaryDirectory(prefix='reader-bookmarks-') as directory:
     assert golden.read_bytes() == compressed
     for path, data in production.items():
         assert (ROOT / 'rust' / path).read_bytes() == data
-    print(f'{TEST_NAME}: exact approved trace projection; {len(mutations)} actual Rust mutants rejected')
+    print(f'{TEST_NAME}: frozen semantic trace and raw guard negative controls; {len(mutations)} actual Rust mutants rejected')

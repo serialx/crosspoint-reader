@@ -96,12 +96,12 @@ int main(int argc, char** argv) {
     const bool owned = expectedKind < 0;
     if (owned) {
       assertEntered();
-      assert(!factoryCalls && state.componentAttempt == 4);
+      assert(!factoryCalls && state.componentAttempt == 3);
       assert(frequencyQueries == unsigned(fastInitial));
       XpEpubPublicationObservation observation{};
       xp_epub_test_publication_observe(xp_app_test_current_epub(), &observation);
       assert(observation.refresh_counter == (fastInitial ? std::max(frequency, 2) : 0));
-      if (fastInitial) state.ordered(1, {"open:root", "frequency", "open:bookmarks", "open:overlay-popup",
+      if (fastInitial) state.ordered(1, {"open:root", "frequency", "open:overlay-popup",
                                        "open:failure-popup", "entry"});
     } else {
       assert(!xp_app_test_current_epub() && xp_app_test_current_legacy());
@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
     const size_t activeLive = xp_test_live_allocations();
     if (mode == "invalid-span") {
       assert(navigate({nullptr, 1}, true) == XP_APP_REJECTED);
-      assert(state.componentAttempt == 4 && !frequencyQueries);
+      assert(state.componentAttempt == 3 && !frequencyQueries);
     } else {
       assert(argc == 5);
       const std::string fault = argv[2];

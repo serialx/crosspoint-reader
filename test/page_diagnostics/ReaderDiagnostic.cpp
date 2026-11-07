@@ -121,11 +121,6 @@ void bindDiagnostic() {
     ++diagnostic.clears;
     return 1;
   };
-  leaves.bookmarks_count = [](void* raw) -> uint32_t {
-    physical();
-    f().handle(raw, Kind::Bookmarks);
-    return 0;
-  };
   leaves.radio_settle_start = [] { physical(); };
   leaves.render_margins = [](int32_t* out) {
     physical();

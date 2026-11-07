@@ -12,9 +12,9 @@ macro_rules! unused_leaves {
     };
 }
 unused_leaves! {
-    storage_write_file_atomic(path: XpAppText, bytes: *const u8, size: u32) -> u8;
-    storage_read_file(path: XpAppText, sink: XpAppTextSink, context: *mut core::ffi::c_void) -> u8;
     local_calendar(out: *mut crate::app::bookmarks::export::Calendar) -> u8;
+    storage_read_file(path: XpAppText, sink: XpAppTextSink, context: *mut core::ffi::c_void) -> u8;
+    storage_write_file_atomic(path: XpAppText, bytes: *const u8, size: u32) -> u8;
     child_list_help(bounds: xp_ui::scene::Rect, text: XpAppText);
     child_list_icon(kind: u8, bounds: xp_ui::scene::Rect, clip: xp_ui::scene::Rect, paint: u8);
     render_margins(_a0: *mut i32) ;
@@ -34,7 +34,7 @@ unused_leaves! {
     file_seek(_a0: *mut core::ffi::c_void, _a1: u32) -> u8;
     file_size(_a0: *mut core::ffi::c_void) -> u32;
     path_remove_tree(_a0: XpAppText) -> u8;
-    progress_save(_a0: XpAppText, _a1: *const u8, _a2: u32) -> u8;
+    progress_save(_path: XpAppText, _bytes: *const u8, _size: u32) -> u8;
     paint_dither(_a0: i32, _a1: i32, _a2: i32, _a3: i32) ;
     paint_pixel(_a0: i32, _a1: i32) ;
     paint_status(_a0: *const XpEpubStatus) ;
@@ -88,7 +88,6 @@ unused_leaves! {
     restart_reader() ;
     child_text_settings() -> *mut core::ffi::c_void;
     child_selection(_a0: *mut XpEpubOwnedPage, _a1: u8, _a2: *const XpEpubSelectionArgs) -> *mut core::ffi::c_void;
-    child_bookmarks(_a0: *mut core::ffi::c_void, _a1: XpAppText) -> *mut core::ffi::c_void;
     child_wifi() -> *mut core::ffi::c_void;
     child_sync(_a0: XpAppText, _a1: *const XpEpubPosition, _a2: *const XpEpubSavedProgress, _a3: XpAppText, _a4: u8) -> *mut core::ffi::c_void;
     popup_open() -> *mut core::ffi::c_void;
@@ -105,15 +104,6 @@ unused_leaves! {
     end_menu_active(_a0: *mut core::ffi::c_void) -> u8;
     end_input(_a0: *mut core::ffi::c_void, _a1: unsafe extern "C" fn(*mut core::ffi::c_void, u8, XpAppText), _a2: *mut core::ffi::c_void) ;
     end_paint(_a0: *mut core::ffi::c_void) ;
-    bookmarks_open() -> *mut core::ffi::c_void;
-    bookmarks_close(_a0: *mut core::ffi::c_void) ;
-    bookmarks_clear(_a0: *mut core::ffi::c_void) ;
-    bookmarks_load(_a0: *mut core::ffi::c_void, _a1: XpAppText) -> u8;
-    bookmarks_save(_a0: *mut core::ffi::c_void, _a1: XpAppText) -> u8;
-    bookmarks_count(_a0: *mut core::ffi::c_void) -> u32;
-    bookmarks_row(_a0: *mut core::ffi::c_void, _a1: u32, _a2: XpEpubBookmarkSink, _a3: *mut core::ffi::c_void) -> u8;
-    bookmarks_retain(_a0: *mut core::ffi::c_void, _a1: unsafe extern "C" fn(*mut core::ffi::c_void, *const XpEpubBookmark) -> u8, context: *mut core::ffi::c_void,) -> u32;
-    bookmarks_insert_front(_a0: *mut core::ffi::c_void, _a1: *const XpEpubBookmark) -> u8;
     recents_remove(_a0: XpAppText) -> u8;
     recents_add(_a0: *const app_abi::Book) ;
     recents_update_path(_a0: XpAppText, _a1: XpAppText, _a2: XpAppText, _a3: XpAppText) ;

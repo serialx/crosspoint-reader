@@ -18,6 +18,7 @@ struct XpEpubTestMenuHooks {
   void (*sync)(void*);
   void (*selection)(void*, int32_t, int32_t, uint8_t);
   void (*clippings)(void*);
+  void (*bookmarks)(void*);
   void (*bookmark)(void*);
   void (*bluetooth)(void*);
   uint8_t (*build_items)(void*, uint8_t, uint8_t, uint8_t, uint8_t*);
@@ -30,7 +31,7 @@ struct XpEpubTestMenuSeed {
   void* section;
   void* toolbar;
   void* popup;
-  void* bookmarks;
+  size_t bookmark_count;
   int32_t spine;
   int32_t page;
   int32_t cached_spine;

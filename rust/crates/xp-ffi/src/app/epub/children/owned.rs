@@ -1,6 +1,7 @@
 extern crate alloc;
 
 use super::{
+    bookmark_owned::Bookmarks,
     chapters,
     child_result::ReaderChildResult,
     clipping_window,
@@ -37,6 +38,7 @@ pub(crate) enum ReaderChild {
     Menu(StableOwner<Menu>),
     Chapters(StableOwner<Chapters>),
     Clippings(StableOwner<Clippings>),
+    Bookmarks(StableOwner<Bookmarks>),
     Percent(StableOwner<Percent>),
     Qr(StableOwner<Qr>),
     Footnote(StableOwner<Footnote>),
@@ -49,6 +51,7 @@ impl ReaderChild {
             Self::Menu(owner) => ChildTarget::Menu(owner.pointer()),
             Self::Chapters(owner) => ChildTarget::Chapters(owner.pointer()),
             Self::Clippings(owner) => ChildTarget::Clippings(owner.pointer()),
+            Self::Bookmarks(owner) => ChildTarget::Bookmarks(owner.pointer()),
             Self::Percent(owner) => ChildTarget::Percent(owner.pointer()),
             Self::Qr(owner) => ChildTarget::Qr(owner.pointer()),
             Self::Footnote(owner) => ChildTarget::Footnote(owner.pointer()),
@@ -68,6 +71,7 @@ pub(crate) enum ChildTarget {
     Menu(NonNull<Menu>),
     Chapters(NonNull<Chapters>),
     Clippings(NonNull<Clippings>),
+    Bookmarks(NonNull<Bookmarks>),
     Percent(NonNull<Percent>),
     Qr(NonNull<Qr>),
     Footnote(NonNull<Footnote>),
@@ -77,6 +81,9 @@ pub(crate) enum ChildTarget {
 impl ChildTarget {
     pub(crate) unsafe fn take_result(self) -> Option<ReaderChildResult> {
         let result = match self {
+            Self::Bookmarks(owner) => {
+                return unsafe { owner.as_ref().take_result() }.map(ReaderChildResult::Bookmarks)
+            }
             Self::Menu(owner) => unsafe { &owner.as_ref().result },
             Self::Chapters(owner) => unsafe { &owner.as_ref().result },
             Self::Clippings(owner) => unsafe { &owner.as_ref().result },
@@ -159,14 +166,10 @@ impl Menu {
     ) -> Option<Box<Self>> {
         unsafe {
             allocate(|out: *mut Self| {
-                ModelCell::initialize(
-                    ptr::addr_of_mut!((*out).model),
-                    runtime,
-                    |model| {
-                        ListPublication::initialize(ptr::addr_of_mut!((*model).list), 0);
-                        ptr::addr_of_mut!((*model).menu).write(menu::State::new(orientation));
-                    },
-                );
+                ModelCell::initialize(ptr::addr_of_mut!((*out).model), runtime, |model| {
+                    ListPublication::initialize(ptr::addr_of_mut!((*model).list), 0);
+                    ptr::addr_of_mut!((*model).menu).write(menu::State::new(orientation));
+                });
                 let frame = ptr::addr_of_mut!((*out).frame).cast::<MenuFrame>();
                 ListFrame::initialize(ptr::addr_of_mut!((*frame).list), 48);
                 ptr::addr_of_mut!((*frame).menu).write(menu::State::new(orientation));

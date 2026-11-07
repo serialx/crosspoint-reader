@@ -27,6 +27,8 @@ impl ChildTarget {
             (Self::Menu(_), false) => b"Exiting activity: EpubReaderMenu",
             (Self::Chapters(_), true) => b"Entering activity: EpubReaderChapterSelection",
             (Self::Chapters(_), false) => b"Exiting activity: EpubReaderChapterSelection",
+            (Self::Bookmarks(_), true) => b"Entering activity: EpubReaderBookmarks",
+            (Self::Bookmarks(_), false) => b"Exiting activity: EpubReaderBookmarks",
             (Self::Clippings(_), true) => b"Entering activity: EpubReaderClippings",
             (Self::Clippings(_), false) => b"Exiting activity: EpubReaderClippings",
             (Self::Percent(_), true) => b"Entering activity: EpubReaderPercentSelection",
@@ -76,6 +78,7 @@ impl ChildTarget {
                 .recover(parent.resources),
             Self::Chapters(owner) => unsafe { owner.as_ref().enter(parent.resources, physical) },
             Self::Clippings(owner) => unsafe { owner.as_ref().enter_clippings(parent) },
+            Self::Bookmarks(owner) => unsafe { owner.as_ref().enter_bookmarks(parent, &_access) },
             Self::Percent(owner) => {
                 let owner = unsafe { owner.as_ref() };
                 let frame = unsafe { &mut *owner.frame.get() };
@@ -120,6 +123,11 @@ impl ChildTarget {
                 unsafe { &mut *owner.frame.get() }.list.commands.clear();
             }
             Self::Clippings(owner) => unsafe { owner.as_ref().exit_clippings(parent) },
+            Self::Bookmarks(owner) => unsafe {
+                owner
+                    .as_ref()
+                    .exit(|handle| (parent.leaves.popup_close)(handle))
+            },
             Self::Percent(owner) => unsafe { owner.as_ref() }
                 .model
                 .with(|model| model.controls = None),
@@ -172,6 +180,9 @@ impl ChildTarget {
             }
             .is_ok(),
             Self::Clippings(owner) => unsafe { owner.as_ref().render_clippings(parent, physical) },
+            Self::Bookmarks(owner) => unsafe {
+                owner.as_ref().render_bookmarks(parent, &access, physical)
+            },
             Self::Percent(owner) => unsafe {
                 owner
                     .as_ref()
@@ -194,6 +205,7 @@ impl ChildTarget {
 
     pub(in crate::app) unsafe fn cancel(self) {
         match self {
+            Self::Bookmarks(owner) => unsafe { owner.as_ref().finish(None) },
             Self::Menu(owner) => {
                 let owner = unsafe { owner.as_ref() };
                 let state = owner.model.with(|model| model.menu);
@@ -234,6 +246,9 @@ impl ChildTarget {
         home_gesture: bool,
     ) -> bool {
         match self {
+            Self::Bookmarks(owner) => unsafe {
+                owner.as_ref().input_bookmarks(parent, input, home_gesture)
+            },
             Self::Menu(owner) => unsafe { owner.as_ref().input(parent, input, home_gesture) },
             Self::Footnote(owner) => unsafe { owner.as_ref().activity_input(parent, &input) },
             Self::Lookup(owner) => unsafe { owner.as_ref().activity_input(parent, input.now_ms) },

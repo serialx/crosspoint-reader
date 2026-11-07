@@ -31,10 +31,10 @@ def main():
     cases = [('route', path, str(kind), str(fast), '15') for path, kind in paths for fast in (0, 1)]
     cases += [('route', '/frequency.epub', '-1', '1', str(frequency)) for frequency in (-1, 0, 1, 2, 3)]
     cases += [('failure', fault, str(index), str(fast))
-              for fault, count in [('rust', 2), ('native', 4)]
+              for fault, count in [('rust', 2), ('native', 3)]
               for index in range(count) for fast in (0, 1)]
     cases += [('invalid-span',), ('null-table',)]
-    assert len(cases) == 57
+    assert len(cases) == 55
     scaffold = (here / 'app_owned_epub.cpp').read_text().split('int main(int argc, char** argv) {', 1)[0]
     routing = (here / 'app_routing.inc').read_text()
     routing = routing.replace('  bindRouting();',

@@ -78,7 +78,8 @@ static void bindOwnedChildren() {
          value.find("EpubReaderChapterSelection") != std::string::npos ||
          value.find("EpubReaderPercentSelection") != std::string::npos ||
          value.find("QrDisplay") != std::string::npos ||
-         value.find("EpubReaderClippings") != std::string::npos)) {
+         value.find("EpubReaderClippings") != std::string::npos ||
+         value.find("EpubReaderBookmarks") != std::string::npos)) {
       assert(childDebugEnabled && severity == 0);
       if (value.rfind("Entering activity: ", 0) == 0) {
         assert(activeChildMarker.empty());
@@ -261,10 +262,12 @@ int main(int argc, char** argv) {
   bind(); bindResultsLifecycle(); bindResultsPhysical(); bindProductionChildren();
   bindReaderBook(); bindReaderResults(); BookStoreAdapters::bind(); bindOwnedChildren();
   if (mode.starts_with("clippings")) bindOwnedClippings();
+  if (mode.starts_with("bookmarks")) bindOwnedBookmarks();
   initialize();
   enterCompositionReader();
   xp_epub_test_legacy_children(results.owner, nullptr);
   if (mode.starts_with("clippings")) return runOwnedClippings(mode, cancelled);
+  if (mode.starts_with("bookmarks")) return runOwnedBookmarks(mode, cancelled);
   if (mode == "text" || mode == "text-overlay") {
     const bool overlay = mode == "text-overlay";
     if (overlay) {

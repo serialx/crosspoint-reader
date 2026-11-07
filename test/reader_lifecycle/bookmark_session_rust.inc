@@ -86,7 +86,10 @@ static const XpAppResources resources = [] {
   UNUSED_LEAF(refresh);
   UNUSED_LEAF(buffer_allocate);
   UNUSED_LEAF(buffer_release);
-  table.path_exists = [](XpAppText path) -> uint8_t { unlocked(); return Storage.exists(nativeText(path).c_str()); };
+  table.path_exists = [](XpAppText path) -> uint8_t {
+    if (nativeText(path) == "/.crosspoint/bookmarks/fixture.json") { locked(); return 1; }
+    unlocked(); return Storage.exists(nativeText(path).c_str());
+  };
   return table;
 }();
 
@@ -144,7 +147,7 @@ static const XpAppRuntime runtime = [] {
 
 static const LegacyEpubLeaves leaves = [] {
   LegacyEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 168 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 158 * sizeof(void (*)()));
   UNUSED_LEAF(physical.render_margins);
   UNUSED_LEAF(physical.render_geometry);
   UNUSED_LEAF(physical.render_restore_bw);
@@ -265,7 +268,6 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(book.children.child_percent);
   UNUSED_LEAF(physical.child_text_settings);
   UNUSED_LEAF(physical.child_selection);
-  UNUSED_LEAF(physical.child_bookmarks);
 
   UNUSED_LEAF(book.children.child_qr);
   UNUSED_LEAF(physical.child_wifi);
@@ -291,15 +293,8 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(physical.end_menu_active);
   UNUSED_LEAF(physical.end_input);
   UNUSED_LEAF(physical.end_paint);
-  UNUSED_LEAF(physical.bookmarks_open);
-  UNUSED_LEAF(physical.bookmarks_close);
-  UNUSED_LEAF(physical.bookmarks_clear);
   UNUSED_LEAF(book.bookmarks_load);
   UNUSED_LEAF(book.bookmarks_save);
-  UNUSED_LEAF(physical.bookmarks_count);
-  UNUSED_LEAF(physical.bookmarks_row);
-  UNUSED_LEAF(physical.bookmarks_retain);
-  UNUSED_LEAF(physical.bookmarks_insert_front);
   UNUSED_LEAF(book.clippings_load);
 
 
@@ -327,7 +322,14 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(book.section.page.page_word_y_offset);
   UNUSED_LEAF(book.section.page.page_line_ruby_shift);
   UNUSED_LEAF(physical.font_text_advance);
-  UNUSED_LEAF(physical.log_enabled);
+  table.physical.log_enabled = [](uint8_t severity) -> uint8_t {
+    leaf(); assert(severity <= 1);
+#ifdef BOOKMARK_RELEASE_LOG
+    return severity != 0;
+#else
+    return 1;
+#endif
+  };
   UNUSED_LEAF(book.children.toolbar_reset_navigation);
   UNUSED_LEAF(physical.input_snapshot);
   UNUSED_LEAF(book.section.page.page_render);
@@ -388,7 +390,7 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(physical.child_dictionary_popup_layout);
   UNUSED_LEAF(physical.child_wait_paint);
   table.book.book_progress = [](void* book, int32_t spine, float fraction) -> float {
-    unlocked(); assert(book); return static_cast<Epub*>(book)->calculateProgress(spine, fraction);
+    leaf(); assert(book && lockDepth <= 1); return static_cast<Epub*>(book)->calculateProgress(spine, fraction);
   };
   table.book.book_spine_count = [](void* book) -> int32_t {
     unlocked(); assert(book); return static_cast<Epub*>(book)->getSpineItemsCount();
@@ -430,28 +432,42 @@ static const LegacyEpubLeaves leaves = [] {
     const auto result = sink(context, &value);
     unlocked(); return result;
   };
-  table.physical.bookmarks_count = [](void* handle) -> uint32_t { unlocked(); return rows(handle).size(); };
-  table.physical.bookmarks_row = [](void* handle, uint32_t index, XpEpubBookmarkSink sink, void* context) -> uint8_t {
-    unlocked(); auto& entries = rows(handle); assert(index < entries.size() && sink);
-    const auto row = wire(entries[index]); const auto result = sink(context, &row); unlocked(); return result;
+  table.physical.path_mkdir = [](XpAppText path) -> uint8_t {
+    leaf(); const auto value = nativeText(path);
+    assert(value == "/.crosspoint/bookmarks/" || value == "/.crosspoint"); return 1;
   };
-  // Vector mutations require owner ResourceAccess; matching and persistence reads stay outside it.
-  table.physical.bookmarks_clear = [](void* handle) { locked(); rows(handle).clear(); };
-  table.book.bookmarks_load = [](void* handle, void* book) -> uint8_t {
-    locked(); assert(book); return BookmarkFile::load(static_cast<Epub*>(book)->getPath(), rows(handle));
+  table.physical.storage_read_file = [](XpAppText path, XpAppTextSink sink, void* context) -> uint8_t {
+    locked(); assert(nativeText(path) == "/.crosspoint/bookmarks/fixture.json");
+    std::puts("load [/fixture.epub]");
+    std::vector<XpEpubBookmark> rows;
+    for (const auto& row : stored) rows.push_back(wire(row));
+    std::string json;
+    assert(xp_epub_test_bookmark_encode(rows.data(), rows.size(), [](void* output, XpAppText bytes) -> uint8_t {
+      *static_cast<std::string*>(output) = nativeText(bytes); return 1;
+    }, &json));
+    // The old fake disk stored f32 directly; preserve those exact input values.
+    // D0 independently covers native JSON writer rounding.
+    size_t cursor = 0;
+    for (const auto& row : rows) {
+      const auto start = json.find("\"percentage\":", cursor) + 13;
+      assert(start >= 13 && start < json.size());
+      const auto end = json.find_first_of(",}", start);
+      char value[32];
+      const int length = std::snprintf(value, sizeof(value), "%.17g", double(row.percentage));
+      assert(length > 0 && size_t(length) < sizeof(value));
+      json.replace(start, end - start, value, size_t(length));
+      cursor = start + size_t(length);
+    }
+    return sink(context, wire(json));
   };
-  table.book.bookmarks_save = [](void* handle, void* book) -> uint8_t {
-    unlocked(); assert(book); return BookmarkFile::save(static_cast<Epub*>(book)->getPath(), rows(handle));
-  };
-  table.physical.bookmarks_retain = [](void* handle, uint8_t (*keep)(void*, const XpEpubBookmark*), void* context) -> uint32_t {
-    locked(); assert(keep); auto& entries = rows(handle); const auto before = entries.size();
-    const auto end = std::remove_if(entries.begin(), entries.end(), [&](const auto& entry) {
-      const auto value = wire(entry); const auto retained = keep(context, &value); locked(); return retained == 0;
-    });
-    entries.erase(end, entries.end()); return before - entries.size();
-  };
-  table.physical.bookmarks_insert_front = [](void* handle, const XpEpubBookmark* entry) -> uint8_t {
-    locked(); assert(entry); auto& entries = rows(handle); entries.insert(entries.begin(), nativeRow(*entry)); return 1;
+  table.physical.storage_write_file_atomic = [](XpAppText path, const uint8_t* data, uint32_t length) -> uint8_t {
+    unlocked(); assert(nativeText(path) == "/.crosspoint/bookmarks/fixture.json");
+    assert(data && length != 0);
+    std::vector<BookmarkEntry> observed;
+    xp_epub_test_bookmark_rows(activeFixture->owner, [](void* context, const XpEpubBookmark* row) -> uint8_t {
+      static_cast<std::vector<BookmarkEntry>*>(context)->push_back(nativeRow(*row)); return 1;
+    }, &observed);
+    return BookmarkFile::save("/fixture.epub", observed);
   };
   table.physical.file_open_read = [](XpAppText path, XpAppText origin) -> void* {
     assert(origin.len == 3 && std::memcmp(origin.data, "ERS", 3) == 0);
@@ -478,7 +494,17 @@ static const LegacyEpubLeaves leaves = [] {
     unlocked(); assert(!liveFile); return Storage.remove(nativeText(path).c_str());
   };
   table.physical.log = [](uint8_t severity, XpAppText origin, XpAppText text) {
-    unlocked(); assert(severity <= 1 && nativeText(origin) == "ERS");
+    leaf(); assert(severity <= 1);
+    const auto tag = nativeText(origin), message = nativeText(text);
+    if (tag == "BKM") {
+      assert(severity == 0 && (message.find("Saving ") == 0 || message.find("Loaded ") == 0));
+      return;  // Native fake BookmarkFile omitted its diagnostics; D0 checks their exact bytes.
+    }
+    if (tag == "PERSIST") {
+      assert(severity == 1 && !saveOk && message == "Failed to write /.crosspoint/bookmarks/fixture.json");
+      return;
+    }
+    unlocked(); assert(tag == "ERS");
 #ifdef BOOKMARK_RELEASE_LOG
     if (severity == 0) return;
 #endif
@@ -499,7 +525,10 @@ void BookmarkFixture::initialize() {
   if (owner) { assert(activeFixture == this); return; }
   bookmark_adapter::unlocked(); assert(!activeFixture && !publishing); activeFixture = this;
   XpEpubTestBookmarkSeed seed{};
-  seed.book = epub.get(); seed.section = section.get(); seed.bookmarks = &cachedBookmarks;
+  std::vector<XpEpubBookmark> initial;
+  for (const auto& row : cachedBookmarks) initial.push_back(bookmark_adapter::wire(row));
+  seed.book = epub.get(); seed.section = section.get(); seed.bookmarks = initial.data();
+  seed.bookmark_count = initial.size();
   seed.spine = currentSpineIndex; seed.page = activePage; seed.visible_offset = currentPageVisibleOffset.value_or(0);
   seed.has_visible_offset = currentPageVisibleOffset.has_value(); seed.removed = bookmarkRemoved;
   seed.bookmarked = currentPageBookmarked; seed.history_depth = footnoteDepth;
@@ -534,8 +563,14 @@ void BookmarkFixture::seedHistory() {
   xp_epub_test_bookmark_seed_history(owner, footnoteDepth, values);
 }
 void BookmarkFixture::updateBookmarkFlag() { initialize(); xp_epub_test_bookmark_flag(owner); }
-void BookmarkFixture::addBookmark() { initialize(); xp_epub_test_bookmark_add(owner); }
-void BookmarkFixture::loadCachedBookmarks() { initialize(); xp_epub_test_bookmark_load(owner); }
+static void observeRows(BookmarkFixture& fixture) {
+  fixture.cachedBookmarks.clear();
+  xp_epub_test_bookmark_rows(fixture.owner, [](void* context, const XpEpubBookmark* row) -> uint8_t {
+    static_cast<BookmarkFixture*>(context)->cachedBookmarks.push_back(bookmark_adapter::nativeRow(*row)); return 1;
+  }, &fixture);
+}
+void BookmarkFixture::addBookmark() { initialize(); xp_epub_test_bookmark_add(owner); observeRows(*this); }
+void BookmarkFixture::loadCachedBookmarks() { initialize(); xp_epub_test_bookmark_load(owner); observeRows(*this); }
 void BookmarkFixture::saveLinkStack() { initialize(); xp_epub_test_bookmark_save_links(owner); }
 void BookmarkFixture::loadLinkStack() { initialize(); xp_epub_test_bookmark_load_links(owner); }
 

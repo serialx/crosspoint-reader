@@ -7,22 +7,10 @@ def store_adapters(root):
     source = r'''
 #include <string_view>
 namespace BookStoreAdapters {
-static uint8_t (*load)(void*, XpAppText);
-static uint8_t (*save)(void*, XpAppText);
 static void (*recents)(const XpAppBook*);
 XpAppText wire(std::string_view value) {
   return {reinterpret_cast<const uint8_t*>(value.data()), value.size()};
 }
-// The unchanged stores are physical boundaries; keep the existing observations.
-void* bookmarkRows(void* raw) { return raw; }
-struct BookmarkFile {
-  static uint8_t load(const std::string& path, void* rows) {
-    return BookStoreAdapters::load(rows, wire(path));
-  }
-  static uint8_t save(const std::string& path, void* rows) {
-    return BookStoreAdapters::save(rows, wire(path));
-  }
-};
 struct Recents {
   void addBook(std::string_view path, std::string_view title,
                std::string_view author, std::string_view cover) {
@@ -34,8 +22,7 @@ struct Recents {
     source += definition(native, 'std::string owned(XpAppText value)') + '\n'
     source += definition(native, 'std::string_view view(XpAppText value)') + '\n'
     source += ('void bind() {\n'
-               'load = leaves.bookmarks_load; save = leaves.bookmarks_save;\n'
                'recents = leaves.recents_add;\n')
-    for field in ('bookmarks_load', 'bookmarks_save', 'recents_add'):
+    for field in ('recents_add',):
         source += f'leaves.{field} = {native_leaf(native, field)};\n'
     return source + '}\n} // namespace BookStoreAdapters\n'

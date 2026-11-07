@@ -141,7 +141,6 @@ static void bindScenePhysical() {
   legacyBook.section.page.page_close = [](void* page) { sceneLeaf(1); assert(page && scene.boundPage != page); delete static_cast<ScenePage*>(page); };
   legacyBook.section.page.metadata_assign = [](void*, void* page) -> uint8_t { sceneLeaf(1); assert(page); return 1; };
   legacyBook.section.page.metadata_clear = [](void*) { sceneLeaf(1); };
-  leaves.bookmarks_count = [](void*) -> uint32_t { sceneLeaf(); return 0; };
 
   legacyBook.progress_save = [](void*, const XpEpubPosition* position) -> uint8_t { sceneLeaf(1); assert(position); return 1; };
   leaves.paint_status = [](const XpEpubStatus* status) { sceneLeaf(1); assert(status); };

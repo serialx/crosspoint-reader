@@ -12,7 +12,7 @@ use xp_core::i18n::ids::{
 use xp_ui::{
     reader_chrome::{
         list,
-        runtime::{RowSlot, ThemeMode},
+        runtime::{PreparedList, RowSlot, ThemeMode},
     },
     scene::{Command, Error, Kind, Rect},
 };
@@ -30,6 +30,13 @@ impl Label for Text {
 pub(super) struct Details {
     pub(super) help: unsafe extern "C" fn(Rect, abi::Text),
     pub(super) icon: unsafe extern "C" fn(u8, Rect, Rect, u8),
+}
+impl<M: xp_ui::keyboard::owner::storage::Memory> Label
+    for crate::app::bookmarks::keyboard_name::KeyboardName<M>
+{
+    fn wire(&self) -> abi::Text {
+        abi::Text::from_terminated(self.terminated())
+    }
 }
 struct BookmarkRows<'a, N> {
     services: &'a abi::Resources,
@@ -157,14 +164,14 @@ impl Bookmarks {
     }
     /// All records, TOC and text loans end before the caller's resource guard.
     #[inline(never)]
-    pub(super) unsafe fn render<N: Label>(
+    pub(super) unsafe fn paint<N: Label>(
         &self,
         services: &'static abi::Resources,
         physical: &Physical,
         details: &Details,
         records: &[Record<N>],
         toc: &mut dyn Toc,
-    ) -> Result<u16, Error> {
+    ) -> Result<PreparedList, Error> {
         let frame = unsafe { &mut *self.frame.get() };
         let Ok(count) = u16::try_from(records.len()) else {
             self.model.with(|model| model.painted(&frame.list, false));
@@ -192,9 +199,19 @@ impl Bookmarks {
         });
         self.model
             .with(|model| model.painted(&frame.list, result.is_ok()));
-        if let Ok(prepared) = result {
-            unsafe { (services.refresh)(prepared.refresh as u8) };
-        }
-        result.map(|prepared| prepared.command_count)
+        result
+    }
+    #[cfg(any(test, feature = "app-test"))]
+    pub(super) unsafe fn render<N: Label>(
+        &self,
+        services: &'static abi::Resources,
+        physical: &Physical,
+        details: &Details,
+        records: &[Record<N>],
+        toc: &mut dyn Toc,
+    ) -> Result<u16, Error> {
+        let prepared = unsafe { self.paint(services, physical, details, records, toc) }?;
+        unsafe { (services.refresh)(prepared.refresh as u8) };
+        Ok(prepared.command_count)
     }
 }

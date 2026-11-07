@@ -215,13 +215,13 @@ pub unsafe extern "C" fn xp_epub_test_overlay_consume_rejected(raw: *mut c_void)
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_overlay_build_more(
     raw: *mut c_void,
-    bookmarks: *mut c_void,
+    bookmark_count: usize,
     actions: *mut u8,
     count: *mut u8,
 ) -> u8 {
     let owner = &mut *raw.cast::<EpubSession>();
     owner.overlay_hooks = None;
-    owner.guarded.get_mut().bookmarks = NonNull::new(bookmarks);
+    owner.guarded.get_mut().bookmarks = super::bookmarks::seed_count(bookmark_count);
     let built = owner.build_more_actions();
     let guarded = owner.guarded.get_mut();
     core::ptr::copy_nonoverlapping(
@@ -230,8 +230,7 @@ pub unsafe extern "C" fn xp_epub_test_overlay_build_more(
         guarded.more_actions.len(),
     );
     *count = guarded.more_count;
-    // The single-threaded fixture retains its fake bookmark resource.
-    guarded.bookmarks = None;
+    guarded.bookmarks.clear();
     u8::from(built)
 }
 

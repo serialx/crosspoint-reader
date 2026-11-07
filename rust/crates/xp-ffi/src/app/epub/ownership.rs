@@ -59,8 +59,6 @@ impl EpubSession {
         if fast_initial {
             unsafe { owner.initialize_refresh_counter(owner.refresh_frequency(&access)) };
         }
-        let bookmarks = NonNull::new(unsafe { (leaves.bookmarks_open)() })?;
-        owner.set_bookmarks(&access, Some(bookmarks));
         let overlay = NonNull::new(unsafe { (leaves.popup_open)() })?;
         owner.set_overlay_popup(&access, Some(overlay));
         let failure = NonNull::new(unsafe { (leaves.popup_open)() })?;
@@ -80,9 +78,7 @@ impl EpubSession {
         if let Some(popup) = self.take_overlay_popup(access) {
             unsafe { (self.leaves.popup_close)(popup.as_ptr()) };
         }
-        if let Some(bookmarks) = self.take_bookmarks(access) {
-            unsafe { (self.leaves.bookmarks_close)(bookmarks.as_ptr()) };
-        }
+        self.mutate_bookmarks(access, |rows| *rows = Default::default());
         #[cfg(feature = "app-test")]
         if let Some(native) = self.take_native(access) {
             unsafe { (self.legacy_render().resources_close)(native.as_ptr()) };

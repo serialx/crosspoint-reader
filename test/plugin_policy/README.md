@@ -1,7 +1,7 @@
 # Plugin policy oracle
 
 This test compiles the public C++ plugin interfaces with scripted storage, HTTP,
-clock, random-number and UI leaves. It compares the resulting logs, HTTP calls,
+clock, random-number, radio, diagnostics and UI leaves. It compares the resulting logs, HTTP calls,
 storage operations and persisted bytes with traces captured from revision
 `386e3c45108357d8445c0b21410e072045970594`, before moving the policy to Rust.
 The initial oracle was committed separately in `da4c1b8b`.

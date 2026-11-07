@@ -725,6 +725,14 @@ compare complete public results, errors and line diagnostics across 30 inputs
 and six chunk schedules. Focused tests cover C++ and Rust allocation failures,
 buffer ownership, long writes and callback cancellation.
 
+## HTTP transfer boundary
+
+`xp-ffi/src/http_transfer` owns HTTP transfer/resume, URL/header policy and WiFi guard ordering; `HttpDownloader` and `OpdsHttpTransport` retain the native consumer interfaces.
+
+The [HTTP ABI](../../rust/crates/xp-ffi/include/xp_http_transfer.h) lends one request whose text, body and callbacks expire before the transfer returns; its five descriptors provide SDK socket/TLS/parser operations, HalFile operations, radio get/set, native `std::string` storage and diagnostics. Log strings stay in `src/network/HttpTransfer.cpp`; Rust selects the diagnostic events and their order.
+
+The `retire_` suffix names the migration cards that must release the last native consumer before removing a facade: N5 OTA, N6 fonts, C2 OPDS, C4 plugin catalog actions, B2 protection/LCP, N7 plugin services, S1 KOReader sync, S2 KOReader UI, W3b web relay/jobs and C1 shared catalog/settings; Z1 marks compatibility cleanup and P19 the final physical-leaf audit.
+
 ## Shared text helpers
 
 `lib/Utf8` and `CjkBreaks` retain their C++ signatures and delegate to

@@ -19,7 +19,7 @@ p.add_argument('--lcp', action='store_true')
 p.add_argument('--no-enroll-key', action='store_true')
 a = p.parse_args()
 a.build.mkdir(parents=True, exist_ok=True)
-# The SDK resume engine stays real; replace only its HTTP leaf in the build copy.
+# Retained SDK header copy; the current HTTP oracle uses Rust resume policy and scripted client leaves.
 sdk = ROOT / 'freeink-sdk/libs/network/SecureNet/include/ResumableFetch.h'
 (a.build / 'ResumableFetch.h').write_bytes(sdk.read_bytes())
 sources = [HERE / 'oracle.cpp'] + [a.source / 'src/network' / (s + '.cpp') for s in ('FirmwareBoardTag', 'FirmwareFlasher', 'HttpDownloader')]

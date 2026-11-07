@@ -8,9 +8,8 @@
 #include <vector>
 
 /**
- * HTTP client utility for fetching content and downloading files. Built on
- * esp_http_client: https is verified against the CA bundle, plain http is
- * used for local servers (transport is chosen from the URL scheme).
+ * Native consumer facade for the Rust common HTTP transfer owner.
+ * The SDK client retains the existing timeout and insecure-TLS policy.
  */
 class HttpDownloader {
  public:

@@ -12,17 +12,19 @@ fn span(bytes: &[u8]) -> Bytes {
 
 #[inline(never)]
 pub unsafe fn origin<'a>(pool: &'a Pool<'a>, url: Bytes) -> Text<'a> {
+    let slots = text::slots::<2>();
+    let scratch = pool.scope(&slots);
     let url = url.slice();
     let Some(end) = find(url, b"://") else {
         return pool.empty();
     };
-    let mut scheme = pool.copy(span(&url[..end]));
+    let mut scheme = scratch.copy(span(&url[..end]));
     let host_start = end + 3;
     let host_end = url[host_start..]
         .iter()
         .position(|c| b"/?#".contains(c))
         .map_or(url.len(), |i| i + host_start);
-    let mut authority = pool.copy(span(&url[host_start..host_end]));
+    let mut authority = scratch.copy(span(&url[host_start..host_end]));
     if let Some(at) = authority.slice().iter().rposition(|c| *c == b'@') {
         authority.remove_prefix(at + 1);
     }
@@ -130,7 +132,9 @@ pub unsafe fn resolve<'a>(pool: &'a Pool<'a>, current: &mut Text<'a>, location: 
         current.assign(location);
         return true;
     }
-    let Some(parsed) = parse(pool, current.bytes()) else {
+    let slots = text::slots::<6>();
+    let scratch = pool.scope(&slots);
+    let Some(parsed) = parse(&scratch, current.bytes()) else {
         return false;
     };
     let default = if parsed.scheme.slice() == b"https" {
@@ -139,9 +143,9 @@ pub unsafe fn resolve<'a>(pool: &'a Pool<'a>, current: &mut Text<'a>, location: 
         80
     };
     let authority = if parsed.port == 0 || parsed.port == default {
-        pool.copy(parsed.host.bytes())
+        scratch.copy(parsed.host.bytes())
     } else {
-        let mut value = pool.concat(parsed.host.bytes(), span(b":"));
+        let mut value = scratch.concat(parsed.host.bytes(), span(b":"));
         let mut buffer = [0; 20];
         value.append(span(decimal(usize::from(parsed.port), &mut buffer)));
         value
@@ -153,9 +157,9 @@ pub unsafe fn resolve<'a>(pool: &'a Pool<'a>, current: &mut Text<'a>, location: 
         current.assign_move(value);
         return true;
     }
-    let mut parent = pool.copy(parsed.path.bytes());
+    let mut parent = scratch.copy(parsed.path.bytes());
     if let Some(slash) = parent.slice().iter().rposition(|c| *c == b'/') {
-        let next = pool.copy(span(&parent.slice()[..slash + 1]));
+        let next = scratch.copy(span(&parent.slice()[..slash + 1]));
         parent.assign_move(next);
     } else {
         parent.assign(span(b"/"));
@@ -263,7 +267,8 @@ pub unsafe extern "C" fn xp_url_build_retire_c2(
         encode(path.bytes, out, &*leaves);
         return;
     }
-    let pool = Pool::new(&*leaves);
+    let slots = text::slots::<3>();
+    let pool = Pool::new(&*leaves, &slots);
     let normalized = protocol(&pool, base.bytes);
     if path.bytes.length == 0 {
         encode(normalized.bytes(), out, &*leaves);
@@ -340,7 +345,8 @@ pub unsafe extern "C" fn xp_http_header_format_retire_c1_s2(
     ((*leaves).resize)(out, 0);
     text::output_append(&*leaves, out, name.bytes);
     text::output_append(&*leaves, out, span(b": "));
-    let pool = Pool::new(&*leaves);
+    let slots = text::slots::<1>();
+    let pool = Pool::new(&*leaves, &slots);
     let copy = pool.copy(if masked { span(b"******") } else { value.bytes });
     text::output_append(&*leaves, out, copy.bytes());
 }

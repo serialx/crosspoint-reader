@@ -1,4 +1,4 @@
-use core::ffi::{c_char, c_void};
+use core::ffi::{c_char, c_int, c_void};
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -187,7 +187,7 @@ pub struct Request {
     pub form_response: *mut MutableText,
     pub consumer: *const Consumer,
     pub cancel_flag: *const bool,
-    pub status_output: *mut i32,
+    pub status_output: *mut c_int,
     pub last_status: *mut i32,
     pub last_redirected: *mut bool,
     pub capture_error_body: bool,

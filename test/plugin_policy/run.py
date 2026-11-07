@@ -31,6 +31,7 @@ if a.json_faults:
     cmd.append('-DPLUGIN_JSON_FAULTS')
 if not a.contract:
     cmd += [str(a.source/'src/util'/f'{name}.cpp') for name in ('PluginEvents','PluginHttp','PluginLocations')]
+    cmd += ['-I'+str(ROOT/'lib/HttpHeader'), str(HERE/'HttpGuardLeaves.cpp')]
 cmd += [str(ROOT/'test/cmake/xp_ffi_host.cpp'), str(a.archive), '-o', str(a.build/'oracle')]
 subprocess.run(cmd, check=True)
 if a.contract:

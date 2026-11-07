@@ -11,30 +11,9 @@
 #include <new>
 
 namespace httptransfer {
-XpHttpNativeText nativeText(const std::string& value) {
-  return {&value, {reinterpret_cast<const uint8_t*>(value.data()), value.size()}};
-}
-XpHttpMutableText mutableText(std::string& value) {
-  return {&value, reinterpret_cast<uint8_t*>(value.data()), value.size(), value.capacity()};
-}
 namespace {
 const std::string& string(XpHttpNativeText value) { return *static_cast<const std::string*>(value.native_string); }
 freeink::SecureHttpClient& client(void* storage) { return *static_cast<freeink::SecureHttpClient*>(storage); }
-void initializeText(XpHttpTextStorageRetireP19* storage, size_t length, XpHttpMutableText* output) {
-  static_assert(sizeof(std::string) <= sizeof(*storage));
-  static_assert(alignof(std::string) <= alignof(XpHttpTextStorageRetireP19));
-  auto* value = new (storage) std::string(length, '\0');
-  *output = mutableText(*value);
-}
-void resizeText(XpHttpMutableText* value, size_t length) {
-  auto& text = *static_cast<std::string*>(value->native_string);
-  text.resize(length);
-  *value = mutableText(text);
-}
-void releaseText(XpHttpMutableText* value) {
-  std::destroy_at(static_cast<std::string*>(value->native_string));
-  *value = {};
-}
 bool acquire(void* storage, XpHttpNativeText url) {
   auto* http = new (storage) freeink::SecureHttpClient;
   return http->begin(string(url));
@@ -163,7 +142,6 @@ void diagnostic(XpHttpDiagnostic event, XpHttpBytes url, XpHttpBytes destination
       break;
   }
 }
-constexpr XpHttpTextLeaves textLeaves{initializeText, resizeText, releaseText};
 constexpr XpHttpSdkLeaves sdkLeaves{acquire, release, configure, addHeader, send, responseHeader};
 constexpr XpHttpFileLeaves fileLeaves{openWrite, write, close, remove, replace};
 constexpr XpHttpRadioLeaves radioLeaves{getPowerSave, setPowerSave};

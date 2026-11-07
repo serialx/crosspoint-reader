@@ -5,11 +5,12 @@ use core::{
     ptr,
 };
 
-// At most ten native temporaries coexist in redirect resolution. These are
-// call-local placement slots, not another string/body allocation.
-const SLOTS: usize = 12;
+pub type Slot = UnsafeCell<MaybeUninit<TextStorage>>;
+pub const fn slots<const N: usize>() -> [Slot; N] {
+    [const { UnsafeCell::new(MaybeUninit::uninit()) }; N]
+}
 pub struct Pool<'a> {
-    slots: [UnsafeCell<MaybeUninit<TextStorage>>; SLOTS],
+    slots: &'a [Slot],
     used: Cell<u16>,
     small: usize,
     pub leaves: &'a TextLeaves,
@@ -20,7 +21,8 @@ pub struct Text<'a> {
     pub value: MutableText,
 }
 impl<'a> Pool<'a> {
-    pub unsafe fn new(leaves: &'a TextLeaves) -> Self {
+    #[inline(never)]
+    pub unsafe fn new(leaves: &'a TextLeaves, slots: &'a [Slot]) -> Self {
         let mut slot = MaybeUninit::<TextStorage>::uninit();
         let mut value = MaybeUninit::<MutableText>::uninit();
         (leaves.initialize)(slot.as_mut_ptr(), 0, value.as_mut_ptr());
@@ -28,15 +30,23 @@ impl<'a> Pool<'a> {
         let small = value.capacity;
         (leaves.release)(&mut value);
         Self {
-            slots: [const { UnsafeCell::new(MaybeUninit::uninit()) }; SLOTS],
+            slots,
             used: Cell::new(0),
             small,
             leaves,
         }
     }
+    pub fn scope<'s>(&'s self, slots: &'s [Slot]) -> Pool<'s> {
+        Pool {
+            slots,
+            used: Cell::new(0),
+            small: self.small,
+            leaves: self.leaves,
+        }
+    }
     fn take(&self) -> usize {
         let slot = (!self.used.get()).trailing_zeros() as usize;
-        assert!(slot < SLOTS, "HTTP native text temporary bound");
+        assert!(slot < self.slots.len(), "HTTP native text temporary bound");
         self.used.set(self.used.get() | (1 << slot));
         slot
     }

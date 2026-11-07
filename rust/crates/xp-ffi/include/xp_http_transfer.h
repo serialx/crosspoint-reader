@@ -149,7 +149,7 @@ typedef struct {
   XpHttpMutableText* form_response;
   const XpHttpConsumerRetireN5N6C2C4B2* consumer;
   const bool* cancel_flag;
-  int32_t* status_output;
+  int* status_output;
   int32_t* last_status;
   bool* last_redirected;
   bool capture_error_body;

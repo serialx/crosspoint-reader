@@ -29,8 +29,11 @@ if a.system_policy:
     sources = [HERE / 'system_item_policy.cpp', a.source / 'src/network/WebDAVHandler.cpp']
 if a.lcp:
     sources = [HERE/'lcp.cpp', a.source/'src/network/LcpDevice.cpp', ROOT/'freeink-sdk/libs/network/JsonSax/src/StreamingJsonParser.cpp']
+if not (a.dav or a.dav_allocation or a.system_policy or a.lcp):
+    sources += [a.source/'src/network/HttpTransfer.cpp', a.source/'lib/HttpHeader/HttpText.cpp']
 cmd = ['c++', '-std=c++20', '-O2', '-DCROSSPOINT_VERSION="oracle"', '-I'+str(HERE/'stubs'), '-I'+str(a.build), '-I'+str(a.source/'src'), '-I'+str(ROOT/'rust/crates/xp-ffi/include')]
 cmd.append('-I' + str(ROOT / 'lib/FsHelpers'))
+cmd.append('-I' + str(a.source / 'lib/HttpHeader'))
 if a.dav_allocation:
     cmd.append('-DORACLE_FALLIBLE_STRING')
 if a.lcp:

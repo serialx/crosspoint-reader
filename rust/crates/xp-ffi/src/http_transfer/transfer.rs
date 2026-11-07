@@ -24,6 +24,34 @@ struct Transfer<'a> {
     end: usize,
     attempt_start: usize,
 }
+impl<'a> Transfer<'a> {
+    #[inline(always)]
+    fn new(
+        request: &'a Request,
+        leaves: &'a Leaves,
+        pool: &'a Pool<'a>,
+        part: Option<Text<'a>>,
+    ) -> Self {
+        Self {
+            request,
+            leaves,
+            pool,
+            part,
+            bytes: 0,
+            total: 0,
+            status: 0,
+            known: false,
+            complete: false,
+            stopped: false,
+            aborted: false,
+            same_origin: true,
+            first: true,
+            invalid: false,
+            end: 0,
+            attempt_start: 0,
+        }
+    }
+}
 fn success(status: i32) -> bool {
     (200..300).contains(&status)
 }
@@ -199,19 +227,34 @@ unsafe extern "C" fn chunk(context: *mut c_void, bytes: Bytes, facts: *const Fac
         }
     }
 }
-unsafe fn add_header(t: *const Transfer<'_>, name: &[u8], value: NativeText) {
-    let name = (*t).pool.copy(Bytes::from_slice(name));
-    ((*(*t).leaves.sdk).add_header)((*t).request.client_storage, name.native(), value);
+unsafe fn add_header(
+    pool: &Pool<'_>,
+    sdk: &SdkLeaves,
+    client: *mut c_void,
+    name: &[u8],
+    value: NativeText,
+) {
+    let slots = text::slots::<1>();
+    let scratch = pool.scope(&slots);
+    let name = scratch.copy(Bytes::from_slice(name));
+    (sdk.add_header)(client, name.native(), value);
 }
 #[inline(never)]
-unsafe fn configure(t: *mut Transfer<'_>, catalog: bool) {
-    let r = (*t).request;
-    let sdk = &*(*t).leaves.sdk;
+unsafe fn configure(
+    r: &Request,
+    leaves: &Leaves,
+    pool: &Pool<'_>,
+    same_origin: bool,
+    catalog: bool,
+) {
+    let slots = text::slots::<1>();
+    let scratch = pool.scope(&slots);
+    let sdk = &*leaves.sdk;
     let bearer = catalog && r.bearer.bytes.length != 0;
     let config = Configuration {
         timeout_ms: 60000,
         insecure: true,
-        basic_auth: (*t).same_origin
+        basic_auth: same_origin
             && !bearer
             && r.username.bytes.length != 0
             && r.password.bytes.length != 0,
@@ -220,12 +263,16 @@ unsafe fn configure(t: *mut Transfer<'_>, catalog: bool) {
         password: r.password,
     };
     (sdk.configure)(r.client_storage, &config);
-    if (*t).same_origin {
+    if same_origin {
         if bearer {
-            let token = (*t)
-                .pool
-                .concat(Bytes::from_slice(b"Bearer "), r.bearer.bytes);
-            add_header(t, b"Authorization", token.native());
+            let token = scratch.concat(Bytes::from_slice(b"Bearer "), r.bearer.bytes);
+            add_header(
+                pool,
+                sdk,
+                r.client_storage,
+                b"Authorization",
+                token.native(),
+            );
         }
         let c = &*r.consumer;
         for i in 0..c.header_count {
@@ -237,13 +284,20 @@ unsafe fn configure(t: *mut Transfer<'_>, catalog: bool) {
     }
     if catalog {
         if r.accept.bytes.length != 0 {
-            add_header(t, b"Accept", r.accept);
+            add_header(pool, sdk, r.client_storage, b"Accept", r.accept);
         }
         if r.accept_language.bytes.length != 0 {
-            add_header(t, b"Accept-Language", r.accept_language);
+            add_header(
+                pool,
+                sdk,
+                r.client_storage,
+                b"Accept-Language",
+                r.accept_language,
+            );
         }
     }
 }
+#[inline(always)]
 unsafe fn send(t: *mut Transfer<'_>, get: bool, catalog: bool) -> Facts {
     let callbacks = Callbacks {
         context: t.cast(),
@@ -272,7 +326,7 @@ unsafe fn send(t: *mut Transfer<'_>, get: bool, catalog: bool) -> Facts {
     (*t).aborted = facts.aborted;
     facts
 }
-#[inline(never)]
+#[inline(always)]
 unsafe fn resumable(t: *mut Transfer<'_>) {
     let pool = (*t).pool;
     let sdk = &*(*t).leaves.sdk;
@@ -291,7 +345,7 @@ unsafe fn resumable(t: *mut Transfer<'_>) {
         }
         let hop_origin = url::origin(pool, current.bytes());
         (*t).same_origin = hop_origin.slice() == start_origin.slice();
-        configure(t, false);
+        configure(r, (*t).leaves, pool, (*t).same_origin, false);
         event(t, Diagnostic::GetHeap, 0, 0);
         drop(hop_origin);
         (*t).attempt_start = (*t).bytes;
@@ -303,7 +357,7 @@ unsafe fn resumable(t: *mut Transfer<'_>) {
             let digits = url::decimal((*t).attempt_start, &mut buffer);
             let mut value = pool.concat(Bytes::from_slice(b"bytes="), Bytes::from_slice(digits));
             value.append(Bytes::from_slice(b"-"));
-            add_header(t, b"Range", value.native());
+            add_header(pool, sdk, r.client_storage, b"Range", value.native());
         }
         let facts = send(t, true, false);
         if (*t).aborted {
@@ -360,7 +414,7 @@ unsafe fn resumable(t: *mut Transfer<'_>) {
         };
     }
 }
-#[inline(never)]
+#[inline(always)]
 unsafe fn direct<'a>(t: *mut Transfer<'a>, current: NativeText, catalog: bool) -> Option<Text<'a>> {
     let r = (*t).request;
     let sdk = &*(*t).leaves.sdk;
@@ -374,18 +428,30 @@ unsafe fn direct<'a>(t: *mut Transfer<'a>, current: NativeText, catalog: bool) -
         (sdk.release)(r.client_storage);
         return None;
     }
-    configure(t, catalog);
+    configure(r, (*t).leaves, (*t).pool, (*t).same_origin, catalog);
     if catalog {
         ((*(*t).leaves.diagnostics).emit)(Diagnostic::Get, current.bytes, Bytes::EMPTY, 0, 0);
     } else if r.kind == Kind::Form {
         let value = (*t)
             .pool
             .copy(Bytes::from_slice(b"application/x-www-form-urlencoded"));
-        add_header(t, b"Content-Type", value.native());
+        add_header(
+            (*t).pool,
+            sdk,
+            r.client_storage,
+            b"Content-Type",
+            value.native(),
+        );
         drop(value);
         event(t, Diagnostic::Post, 0, 0);
     } else {
-        add_header(t, b"Content-Type", r.content_type);
+        add_header(
+            (*t).pool,
+            sdk,
+            r.client_storage,
+            b"Content-Type",
+            r.content_type,
+        );
     }
     let facts = send(t, catalog, catalog);
     let location = if catalog && redirect(facts.status) {
@@ -411,34 +477,6 @@ unsafe fn publish(t: *const Transfer<'_>, same: bool) {
         *r.last_redirected = !same;
     }
 }
-#[inline(never)]
-unsafe fn catalog(t: *mut Transfer<'_>) {
-    let pool = (*t).pool;
-    let mut current = pool.empty();
-    current.assign((*t).request.url.bytes);
-    let origin = url::origin(pool, (*t).request.url.bytes);
-    for hop in 0..=5 {
-        {
-            let value = url::origin(pool, current.bytes());
-            (*t).same_origin = value.slice() == origin.slice();
-        }
-        let location = direct(t, current.native(), true);
-        let resolved = location.as_ref().is_some_and(|value| {
-            value.value.length != 0 && url::resolve(pool, &mut current, value.bytes())
-        });
-        drop(location);
-        if !resolved || hop == 5 {
-            break;
-        }
-    }
-    {
-        let final_origin = url::origin(pool, current.bytes());
-        publish(t, final_origin.slice() == origin.slice());
-    }
-    if !(*t).request.status_output.is_null() {
-        *(*t).request.status_output = (*t).status.max(0);
-    }
-}
 unsafe fn get_result(t: *const Transfer<'_>) -> u32 {
     if (*t).aborted {
         return 3;
@@ -460,7 +498,7 @@ unsafe fn get_result(t: *const Transfer<'_>) -> u32 {
     }
     0
 }
-#[inline(never)]
+#[inline(always)]
 unsafe fn run(t: *mut Transfer<'_>) -> u32 {
     let r = (*t).request;
     let file = &*(*t).leaves.file;
@@ -480,7 +518,7 @@ unsafe fn run(t: *mut Transfer<'_>) -> u32 {
             resumable(t);
             publish(t, (*t).same_origin);
         }
-        Kind::Catalog => catalog(t),
+        Kind::Catalog => unreachable!("catalog has its own entry"),
         Kind::Form | Kind::PostFile => {
             direct(t, r.url, false);
         }
@@ -542,14 +580,111 @@ unsafe fn run(t: *mut Transfer<'_>) -> u32 {
     event(t, Diagnostic::Downloaded, (*t).bytes, 0);
     0
 }
-#[no_mangle]
+struct CatalogTransfer<'a> {
+    request: &'a Request,
+    stopped: bool,
+}
+unsafe extern "C" fn catalog_chunk(
+    context: *mut c_void,
+    bytes: Bytes,
+    facts: *const Facts,
+) -> bool {
+    let transfer = context.cast::<CatalogTransfer<'_>>();
+    let r = (*transfer).request;
+    if !success((*facts).status) && !(r.capture_error_body && (*facts).status == 401) {
+        return true;
+    }
+    let consumer = &*r.consumer;
+    if !consumer.sink.is_some_and(|f| f(consumer.context, bytes)) {
+        (*transfer).stopped = true;
+        return false;
+    }
+    true
+}
+
 #[inline(never)]
-pub unsafe extern "C" fn xp_http_transfer_retire_n5_n6_c2_c4_b2(
-    request: *const Request,
-    leaves: *const Leaves,
-) -> u32 {
-    let r = &*request;
-    let leaves = &*leaves;
+unsafe fn catalog_entry(r: &Request, leaves: &Leaves) -> u32 {
+    let guard = enter_guard(leaves.radio, leaves.diagnostics);
+    // Current URL, origin, location and replacement; no file staging slot.
+    let slots = text::slots::<4>();
+    let pool = Pool::new(&*leaves.text, &slots);
+    let mut transfer = CatalogTransfer {
+        request: r,
+        stopped: false,
+    };
+    let mut status = 0;
+    {
+        let mut current = pool.empty();
+        current.assign(r.url.bytes);
+        let origin = url::origin(&pool, r.url.bytes);
+        let sdk = &*leaves.sdk;
+        for hop in 0..=5 {
+            let same_origin = {
+                let value = url::origin(&pool, current.bytes());
+                value.slice() == origin.slice()
+            };
+            if !(sdk.acquire)(r.client_storage, current.native()) {
+                ((*leaves.diagnostics).emit)(
+                    Diagnostic::BadUrl,
+                    current.bytes(),
+                    Bytes::EMPTY,
+                    0,
+                    0,
+                );
+                status = 0;
+                (sdk.release)(r.client_storage);
+                break;
+            }
+            configure(r, leaves, &pool, same_origin, true);
+            ((*leaves.diagnostics).emit)(Diagnostic::Get, current.bytes(), Bytes::EMPTY, 0, 0);
+            let callbacks = Callbacks {
+                context: ptr::addr_of_mut!(transfer).cast(),
+                chunk: catalog_chunk,
+                should_abort: None,
+            };
+            let mut facts = Facts::default();
+            status = (sdk.send)(
+                r.client_storage,
+                c"GET".as_ptr(),
+                Bytes::EMPTY,
+                &callbacks,
+                &mut facts,
+            );
+            let location =
+                redirect(status).then(|| pool.header(sdk, r.client_storage, c"location".as_ptr()));
+            (sdk.release)(r.client_storage);
+            let resolved = location.as_ref().is_some_and(|value| {
+                value.value.length != 0 && url::resolve(&pool, &mut current, value.bytes())
+            });
+            drop(location);
+            if !resolved || hop == 5 {
+                break;
+            }
+        }
+        {
+            let final_origin = url::origin(&pool, current.bytes());
+            if !r.last_status.is_null() {
+                *r.last_status = status.max(0);
+            }
+            if !r.last_redirected.is_null() {
+                *r.last_redirected = final_origin.slice() != origin.slice();
+            }
+        }
+        if !r.status_output.is_null() {
+            *r.status_output = status.max(0);
+        }
+    }
+    if !r.status_output.is_null() {
+        *r.status_output = status.max(0);
+    }
+    let result = u32::from(!success(status) || transfer.stopped);
+    drop(pool);
+    exit_guard(guard, leaves.radio, leaves.diagnostics);
+    result
+}
+
+#[inline(never)]
+unsafe fn common_entry(r: &Request, leaves: &Leaves) -> u32 {
     let initial = match r.kind {
         Kind::Fetch => Some(Diagnostic::Fetching),
         Kind::Download => Some(Diagnostic::Downloading),
@@ -564,30 +699,15 @@ pub unsafe extern "C" fn xp_http_transfer_retire_n5_n6_c2_c4_b2(
     if r.kind == Kind::Form {
         ((*leaves.text).resize)(r.form_response, 0);
     }
-    let pool = Pool::new(&*leaves.text);
+    // Redirect parsing and header construction use their own scoped slots.
+    let slots = text::slots::<5>();
+    let pool = Pool::new(&*leaves.text, &slots);
     let part = if matches!(r.kind, Kind::Download | Kind::PostFile) {
         Some(pool.concat(r.destination.bytes, Bytes::from_slice(b".part")))
     } else {
         None
     };
-    let mut transfer = Transfer {
-        request: r,
-        leaves,
-        pool: &pool,
-        part,
-        bytes: 0,
-        total: 0,
-        status: 0,
-        known: false,
-        complete: false,
-        stopped: false,
-        aborted: false,
-        same_origin: true,
-        first: true,
-        invalid: false,
-        end: 0,
-        attempt_start: 0,
-    };
+    let mut transfer = Transfer::new(r, leaves, &pool, part);
     // The native call can invoke chunk/abort. No Rust owner reference spans it.
     let result = run(ptr::addr_of_mut!(transfer));
     if matches!(r.kind, Kind::Download | Kind::PostFile) {
@@ -599,4 +719,19 @@ pub unsafe extern "C" fn xp_http_transfer_retire_n5_n6_c2_c4_b2(
         exit_guard(guard, leaves.radio, leaves.diagnostics);
     }
     result
+}
+
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_http_transfer_retire_n5_n6_c2_c4_b2(
+    request: *const Request,
+    leaves: *const Leaves,
+) -> u32 {
+    let r = &*request;
+    let leaves = &*leaves;
+    if r.kind == Kind::Catalog {
+        catalog_entry(r, leaves)
+    } else {
+        common_entry(r, leaves)
+    }
 }

@@ -16,9 +16,6 @@ enum Event {
     Missing,
     Oom,
     Prepare(u8),
-    PagesReleased,
-    OwnedText,
-    NativeResultDropped,
 }
 
 type Log = Rc<RefCell<Vec<Event>>>;
@@ -55,7 +52,6 @@ struct Host<'a> {
     radio_ready: Cell<bool>,
     enter_push: Cell<Option<u8>>,
     result_push: Cell<Option<u8>>,
-    definition: Cell<bool>,
 }
 impl<'a> Host<'a> {
     fn new(app: &'a Application<Owner>) -> Self {
@@ -66,7 +62,6 @@ impl<'a> Host<'a> {
             radio_ready: Cell::new(true),
             enter_push: Cell::new(None),
             result_push: Cell::new(None),
-            definition: Cell::new(false),
         }
     }
     fn owner(&self, id: u8) -> Owner {
@@ -122,25 +117,11 @@ impl Services<Owner> for Host<'_> {
     }
     fn deliver_result(&self, parent: u8, result: u8) {
         assert!(!self.locked.get());
+        assert_eq!(self.app.current(), Some(parent));
         self.record(Event::Deliver(parent, result));
         if let Some(child) = self.result_push.take() {
             self.app.queue(Transition::Push(self.owner(child)));
         }
-    }
-    fn definition_selection_route(&self, child: u8, parent: Option<u8>) -> bool {
-        self.definition.get() && child == 3 && parent == Some(2)
-    }
-    fn with_definition_selection_result(&self, child: u8, pop: impl FnOnce() -> Option<u8>) {
-        assert!(self.locked.get());
-        self.record(Event::Result(child));
-        let parent = pop();
-        assert!(!self.locked.get());
-        assert_eq!(parent, Some(2));
-        assert_eq!(self.app.current(), parent);
-        self.record(Event::PagesReleased);
-        self.record(Event::OwnedText);
-        self.record(Event::Deliver(parent.unwrap(), child));
-        self.record(Event::NativeResultDropped);
     }
     fn home(&self) -> Option<Owner> {
         assert!(!self.locked.get());
@@ -337,32 +318,4 @@ fn replacing_pending_owner_never_enters_or_exits_it() {
     app.queue(Transition::Pop);
     assert_eq!(host.events(), vec![Event::Drop(1), Event::Drop(2)]);
     assert_eq!(app.pending_kind(), TransitionKind::Pop);
-}
-
-#[test]
-fn definition_pop_separates_native_take_from_post_release_owned_delivery() {
-    let app = Application::new();
-    let host = Host::new(&app);
-    host.definition.set(true);
-    app.replace(host.owner(2), &host);
-    app.queue(Transition::Push(host.owner(3)));
-    app.drain(&host);
-    host.events();
-    app.queue(Transition::Pop);
-    app.drain(&host);
-    assert_eq!(
-        host.events(),
-        vec![
-            Event::Result(3),
-            Event::Exit(3),
-            Event::Drop(3),
-            Event::Clear,
-            Event::Publish(Some(2), 2),
-            Event::PagesReleased,
-            Event::OwnedText,
-            Event::Deliver(2, 3),
-            Event::NativeResultDropped,
-            Event::Update,
-        ]
-    );
 }

@@ -2,6 +2,13 @@
 // Wire retained only for frozen native reference harnesses.
 #include <xp_app.h>
 #include <xp_ui_dictionary.h>
+// Historical transfer wire with its allocator-matched release callback.
+typedef void (*XpDefinitionTextRelease)(uint8_t* data, uint32_t capacity);
+typedef struct {
+  uint8_t* data;
+  uint32_t len, capacity;
+  XpDefinitionTextRelease release;
+} XpDefinitionOwnedText;
 enum {
   XP_DEFINITION_SELECTION_CANCELLED,
   XP_DEFINITION_SELECTION_SELECTED,

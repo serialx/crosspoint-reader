@@ -218,14 +218,6 @@ typedef struct {
   uint8_t kind, reader, remote_input, prevent_sleep, exclusive_storage, skip_delay, input_over_page;
 } XpAppLegacyFacts;
 
-// Definition selection transfer. No native ActivityResult or string address crosses.
-// The final owner must release data with its supplied allocator-matched callback.
-typedef void (*XpDefinitionTextRelease)(uint8_t* data, uint32_t capacity);
-typedef struct {
-  uint8_t* data;
-  uint32_t len, capacity;
-  XpDefinitionTextRelease release;
-} XpDefinitionOwnedText;
 // The token borrows the existing C++ RenderLock and power scope for one render call.
 typedef struct {
   void* lock;

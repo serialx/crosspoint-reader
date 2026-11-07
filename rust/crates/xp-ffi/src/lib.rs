@@ -51,6 +51,7 @@ mod web;
 mod web_jobs;
 mod xml;
 mod xtc;
+mod xtc_owner;
 mod zip;
 
 pub use xp_ui::ffi;

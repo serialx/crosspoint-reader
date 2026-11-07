@@ -1,0 +1,19 @@
+{
+  "parent": "516386afd8bf78d421a7d9649c08dfa5fed4f116",
+  "producer": "test/xtc_owner/run.py --capture-parent (before active parser switch)",
+  "oracle": "parent-results.txt.gz",
+  "oracle_sha256": "f6cc6bd5769eb3b22a17e5f2ccac84a47cd9d4e0bd8b5c558547942f555e0878",
+  "source_sha256": {
+    "lib/Xtc/Xtc/XtcParser.cpp": "8cc2d2cfe801f2d0dd9e818d579c92008d3c8079b8fe9d6da743a0da6c882493",
+    "lib/Xtc/Xtc/XtcParser.h": "1d76577c61219190cff4031c317869477898124d637bfd3e9df9d4678f154313",
+    "lib/Xtc/Xtc/XtcTypes.h": "a1f1eaf084d152b8516bed6bf21e4c0f9988d1621bb026dc69a3eca9d5339e87",
+    "rust/crates/xp-core/src/book_io/xtc_reader.rs": "4fbf78b9648603ff2c5f41736010d5dbd4336a598c2e44d596365a9d303a3f8c",
+    "test/book_io/stubs/HalStorage.h": "5f365f04eea72da87b16fb93464a791ae393b1b9ca54d6bbd5e71899b232810c",
+    "test/xtc_owner/Contract.cpp": "b99c3e63cc27a9c1c7aaee7a2dcaecdf05c5b7854ade6383c1c77fe25cf936a0",
+    "test/xtc_owner/stubs/Logging.h": "e56276f9b03cc207f8e19a6a8b10ff48bcbb5d5e7371e1f73c420b8ee29d1d83",
+    "test/xtc_diff/generate.py": "d5fbd135b9b11b4e5fe7c8bec2373e8383de8906119424ca3d9033805fe06e6f"
+  },
+  "scope": "4490 exact host value/read/log/page/stream/reopen outputs; no allocation profiles or physical-device claim",
+  "capture_contract_snapshot": "CaptureContract.cpp.txt",
+  "snapshot_bytes": 3495
+}

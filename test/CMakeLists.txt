@@ -213,3 +213,5 @@ add_subdirectory(koreader_ui)
 add_subdirectory(ui_updates)
 
 add_subdirectory(ui_header)
+
+add_subdirectory(xtc_owner)

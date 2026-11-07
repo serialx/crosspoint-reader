@@ -1,0 +1,10 @@
+[package]
+name = "xtc-owner-tests"
+version = "0.0.0"
+edition = "2021"
+publish = false
+[workspace]
+[dependencies]
+xp-core = { path = "../../../rust/crates/xp-core" }
+[lib]
+path = "lib.rs"

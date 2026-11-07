@@ -26,7 +26,7 @@ pub unsafe extern "C" fn xp_epub_test_scratch(
             storage.state.as_ptr().cast(),
             history.as_ptr(),
             history.len(),
-            u8::from(storage.lease.is_some()),
+            u8::from(storage._lease.is_some()),
         )
     } == 0
     {

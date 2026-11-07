@@ -30,9 +30,9 @@ impl Drop for ScratchLease {
 pub(super) struct InflateStorage {
     state: NonNull<InflateState>,
     window: Option<NonNull<u8>>,
-    lease: Option<ScratchLease>,
+    _lease: Option<ScratchLease>,
     _heap_state: Option<Buffer>,
-    heap_window: Option<Buffer>,
+    _heap_window: Option<Buffer>,
 }
 
 impl InflateStorage {
@@ -67,15 +67,10 @@ impl InflateStorage {
         } else {
             NonNull::new(heap_state.as_ref()?.as_ptr().cast())?
         };
-        let mut storage = Self {
-            state,
-            window: None,
-            lease,
-            _heap_state: heap_state,
-            heap_window: None,
-        };
+        let mut heap_window = None;
+        let mut window = None;
         if streaming {
-            storage.window = if let Some(lease) = &storage.lease {
+            window = if let Some(lease) = &lease {
                 NonNull::new(unsafe { lease.bytes.as_ptr().add(aligned) })
             } else {
                 let Some(window) = Buffer::allocate(resources, abi::MEMORY_DEFAULT, WINDOW) else {
@@ -87,14 +82,21 @@ impl InflateStorage {
                     };
                     return None;
                 };
-                storage.heap_window = Some(window);
-                NonNull::new(storage.heap_window.as_ref()?.as_ptr())
+                heap_window = Some(window);
+                NonNull::new(heap_window.as_ref()?.as_ptr())
             };
-            let window = storage.window?;
+            let window = window?;
             unsafe { window.as_ptr().write_bytes(0, WINDOW) };
         }
-        unsafe { InflateState::init_in_place(storage.state.as_ptr(), false) };
-        Some(storage)
+        unsafe { InflateState::init_in_place(state.as_ptr(), false) };
+        // Avoid materializing the owner for cleanup during fallible allocation.
+        Some(Self {
+            state,
+            window,
+            _lease: lease,
+            _heap_state: heap_state,
+            _heap_window: heap_window,
+        })
     }
 
     pub(super) fn step(

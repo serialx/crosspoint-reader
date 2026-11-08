@@ -3,8 +3,8 @@
 The standalone CMake suite compiles the production native HAL adapter and the
 current Rust archive. It compares values, physical read/seek/open/close traces,
 ordered diagnostic strings, page bytes, streamed chunks and reopen outcomes
-against immutable parent output hashes. The active `XtcParser` facade now aliases
-`RustXtcParser`; this branch still needs the CP2 qualification and review gates.
+against immutable parent output hashes. The active `XtcParser` facade aliases
+`RustXtcParser`.
 
 ```
 cmake -S test/xtc_owner -B /tmp/xtc-owner

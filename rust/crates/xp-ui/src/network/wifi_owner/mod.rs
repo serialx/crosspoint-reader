@@ -40,7 +40,7 @@ pub unsafe trait Host {
     fn request_update(&self);
     fn haptic(&self, long: bool);
     fn complete(&self);
-    fn keyboard(&self, hidden: bool);
+    fn keyboard(&self, hidden: bool) -> bool;
     fn paint(&self, scene: &Scene<'_>, resources: &Paint) -> bool;
     fn refresh(&self, refresh: Refresh);
 }
@@ -236,7 +236,10 @@ impl<H: Host> Wifi<H> {
     }
     pub fn exit(&self) {
         self.host.exit();
-        self.run(1, 0, None);
+        {
+            let mut call = effects::Call::new(self, 0, None);
+            wifi::EffectHost::call(&mut call, wifi::Call::Exit, 0);
+        }
         self.retire_rows();
         self.model(|m| {
             m.exited = true;
@@ -266,6 +269,11 @@ impl<H: Host> Wifi<H> {
             });
             self.reject();
             self.host.request_update();
+        }
+        let keyboard_failed = call.keyboard_failed();
+        drop(call);
+        if keyboard_failed {
+            self.keyboard_returned(None);
         }
     }
     pub fn poll(&self) {
@@ -344,7 +352,7 @@ impl<H: Host> Wifi<H> {
         let mut cancelled = bytes.is_none();
         let mut empty = false;
         if let Some(bytes) = bytes {
-            let hidden = self.model(|m| m.state.phase == Phase::HiddenSsid as u8);
+            let hidden = self.model(|m| m.keyboard);
             let _guard = self.resource();
             let owned = unsafe { &mut *self.owned() };
             let target = if hidden {
@@ -360,8 +368,25 @@ impl<H: Host> Wifi<H> {
                 }
             }
         }
-        // A failed copy follows cancel semantics; the destroyed child cannot be retried.
-        self.run(3, u32::from(cancelled) | (u32::from(empty) << 1), None);
+        if cancelled || empty && self.model(|m| m.keyboard) {
+            // Delivery has consumed the child. Commit cancellation even if list
+            // storage is unavailable; the next loop can prepare its repaint.
+            let state = self.model(|m| {
+                m.state.keyboard_result(true, false);
+                m.ready = false;
+                m.state
+            });
+            if self.prepare(&state).is_err() {
+                {
+                    let _guard = self.resource();
+                    unsafe { (*self.frame()).needs_capacity = 1 };
+                }
+                self.reject();
+            }
+            self.host.request_update();
+            return;
+        }
+        self.run(3, 0, None);
     }
     fn reject(&self) {
         self.model(|m| {

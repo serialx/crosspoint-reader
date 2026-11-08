@@ -38,6 +38,9 @@ struct State {
     delivered: usize,
     cancelled: bool,
     paint_failure: bool,
+    wifi_mode: bool,
+    wifi_initial: Vec<u8>,
+    wifi_descriptors: Vec<(Vec<u8>, usize, u8)>,
     errors: Vec<(u8, Vec<u8>, Vec<u8>)>,
 }
 std::thread_local! { static STATE: RefCell<State> = RefCell::new(State::default()); }
@@ -55,6 +58,7 @@ struct Context {
     initial: Vec<u8>,
     title: Vec<u8>,
     keyboard: bool,
+    wifi: bool,
     maximum: usize,
     input_type: u8,
     entered: bool,
@@ -65,6 +69,7 @@ fn context(initial: &[u8], keyboard: bool) -> *mut c_void {
         initial: initial.to_vec(),
         title: b"Title".to_vec(),
         keyboard,
+        wifi: false,
         maximum: 0,
         input_type: 0,
         entered: false,
@@ -86,6 +91,9 @@ unsafe extern "C" fn destroy(p: *mut c_void) {
             s.destroyed += 1;
         });
     } else {
+        if c.wifi {
+            super::wifi::tests::native_dropped();
+        }
         state(|s| s.parent_drops += 1);
     }
 }
@@ -119,26 +127,48 @@ unsafe extern "C" fn create(launch: *const abi::Launch) -> *mut c_void {
     owned.title = unsafe { launch.title.bytes() }.unwrap().to_vec();
     owned.maximum = launch.maximum;
     owned.input_type = launch.input_type;
+    if matches!(
+        app().and_then(|app| app.navigation.current()),
+        Some(Target::Wifi(_))
+    ) {
+        state(|s| {
+            s.wifi_descriptors
+                .push((owned.title.clone(), launch.maximum, launch.input_type));
+            owned.initial = s.wifi_initial.clone();
+        });
+    }
     object
 }
 unsafe extern "C" fn old_render(_: *mut c_void, _: *mut abi::RenderToken) {
     panic!("legacy render")
 }
-unsafe extern "C" fn old_result(_: *mut c_void, _: abi::ResultSink, _: *mut c_void) {
-    panic!("legacy result")
+unsafe extern "C" fn old_result(object: *mut c_void, sink: abi::ResultSink, context: *mut c_void) {
+    if unsafe { ctx(object).wifi } {
+        super::wifi::tests::with_result(object, sink, context);
+    } else {
+        panic!("legacy result");
+    }
 }
-unsafe extern "C" fn delivery(_: *mut c_void, _: *const c_void) {
-    panic!("native projection stub")
+unsafe extern "C" fn delivery(parent: *mut c_void, result: *const c_void) {
+    if state(|s| s.wifi_mode) {
+        super::wifi::tests::legacy_deliver(parent, result);
+    } else {
+        panic!("native projection stub");
+    }
 }
 unsafe extern "C" fn shot(_: *const c_void, _: abi::ScreenshotSink, _: *mut c_void) {
     panic!("shot")
 }
 unsafe extern "C" fn facts(p: *const c_void, _: u8, _: u8) -> abi::LegacyFacts {
     abi::LegacyFacts {
-        kind: 255,
+        kind: if unsafe { ctx(p.cast_mut()).wifi } {
+            abi::WIFI
+        } else {
+            255
+        },
         reader: 0,
         remote_input: 0,
-        prevent_sleep: u8::from(unsafe { ctx(p.cast_mut()).keyboard }),
+        prevent_sleep: u8::from(unsafe { ctx(p.cast_mut()).keyboard || ctx(p.cast_mut()).wifi }),
         exclusive_storage: 0,
         skip_delay: 0,
         input_over_page: 0,
@@ -177,7 +207,11 @@ unsafe extern "C" fn frontlight() -> u8 {
 }
 unsafe extern "C" fn snapshot(poll: u8, full: u8, _: u8, out: *mut abi::MappedSnapshot) {
     assert_eq!(poll, 0);
-    assert_eq!(full, 1);
+    let wifi = matches!(
+        app().and_then(|app| app.navigation.current()),
+        Some(Target::Wifi(_))
+    );
+    assert_eq!(full, u8::from(!wifi));
     unsafe {
         out.write(core::mem::zeroed());
         (*out).input = state(|s| s.input);
@@ -421,6 +455,12 @@ unsafe extern "C" fn xp_keyboard_deliver(
     });
 }
 fn build_app() -> &'static App {
+    build_app_kind(false)
+}
+pub(super) fn wifi_app() -> &'static App {
+    build_app_kind(true)
+}
+fn build_app_kind(wifi: bool) -> &'static App {
     let legacy = Box::into_raw(Box::new(abi::Legacy {
         create,
         destroy,
@@ -454,11 +494,19 @@ fn build_app() -> &'static App {
     runtime.input_mapped_snapshot = snapshot;
     runtime.frontlight_present = frontlight;
     runtime.touch_feedback = feedback;
+    let mut epub = leaves::leaves();
+    if wifi {
+        state(|s| s.wifi_mode = true);
+        runtime.now_ms = super::wifi::tests::now;
+        runtime.delay_ms = super::wifi::tests::delay;
+        epub.input_snapshot = super::wifi::tests::input_snapshot;
+        epub.input_screen_point = super::wifi::tests::long_point;
+    }
     let platform = abi::Platform {
         legacy,
         resources: Box::into_raw(Box::new(resources)),
         runtime: Box::into_raw(Box::new(runtime)),
-        epub: Box::into_raw(Box::new(leaves::leaves())),
+        epub: Box::into_raw(Box::new(epub)),
     };
     super::dialog_tests::record_tables(&platform);
     let mut compatibility = core::mem::MaybeUninit::uninit();
@@ -781,4 +829,50 @@ impl Services<Owner> for RustParent<'_> {
     fn prepare_sleep(&self, t: Target) {
         self.app.prepare_sleep(t)
     }
+}
+
+pub(super) fn wifi_context() -> NonNull<c_void> {
+    let p = context(b"", false);
+    unsafe { ctx(p).wifi = true };
+    NonNull::new(p).unwrap()
+}
+pub(super) fn wifi_parent(app: &App) {
+    app.navigation
+        .replace(app.adopt(context(b"", false)).unwrap(), app);
+}
+pub(super) fn wifi_locked() -> bool {
+    state(|s| s.locked)
+}
+pub(super) fn wifi_key(app: &App, input: Input) {
+    send_input(app, input);
+}
+pub(super) fn wifi_paint(app: &App) {
+    paint_current(app);
+}
+pub(super) fn wifi_text(text: &[u8]) {
+    state(|s| s.wifi_initial = text.to_vec());
+}
+pub(super) fn wifi_fail_keyboard(shell: bool) {
+    state(|s| {
+        if shell {
+            s.shell_fail = true
+        } else {
+            s.factory_fail = true
+        }
+    });
+}
+pub(super) fn wifi_descriptor() -> Vec<(Vec<u8>, usize, u8)> {
+    state(|s| s.wifi_descriptors.clone())
+}
+pub(super) fn wifi_destroy(object: NonNull<c_void>) {
+    unsafe { destroy(object.as_ptr()) };
+}
+pub(super) fn wifi_received(text: Option<&[u8]>) {
+    state(|s| {
+        assert!(!s.locked);
+        assert_eq!(s.entered, s.closed);
+        if let Some(text) = text {
+            assert!(s.live.contains_key(&text.as_ptr().addr()));
+        }
+    });
 }

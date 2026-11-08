@@ -28,6 +28,7 @@ pub(super) struct Call<'a, H: Host> {
     scratch: MaybeUninit<Scratch>,
     revision: u32,
     flags: u8,
+    keyboard_failed: bool,
 }
 impl<'a, H: Host> Call<'a, H> {
     pub fn new(owner: &'a Wifi<H>, revision: u32, input: Option<Input>) -> Self {
@@ -44,7 +45,11 @@ impl<'a, H: Host> Call<'a, H> {
             scratch: MaybeUninit::uninit(),
             revision,
             flags: if action { INPUT } else { 0 },
+            keyboard_failed: false,
         }
+    }
+    pub fn keyboard_failed(&self) -> bool {
+        self.keyboard_failed
     }
     pub fn failed(&self) -> bool {
         self.flags & FAILED != 0
@@ -462,14 +467,16 @@ impl<'a, H: Host> Call<'a, H> {
                 self.flags |= COMMITTED;
             }
             Keyboard => {
+                self.drop_credential();
                 o.model(|m| m.keyboard = value != 0);
-                o.host.keyboard(value != 0);
+                self.keyboard_failed = !o.host.keyboard(value != 0);
             }
             ConnectionReset => {
                 let _guard = o.resource();
                 if !self.current() {
                     return Ok(0);
                 }
+                self.drop_credential();
                 let r = unsafe { &mut *o.owned() };
                 r.ip = [0; 16];
                 r.error = c"".as_ptr();

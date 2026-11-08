@@ -455,3 +455,102 @@ fn credential_copy_oom_retries_entry_or_restarts_a_completed_auto_scan() {
         assert_eq!(live(), 0);
     }
 }
+
+#[test]
+fn cancelled_child_commits_list_even_if_its_repaint_storage_cannot_be_allocated() {
+    let (owner, f) = rig();
+    owner.enter();
+    scanned(&owner, &f, vec![]);
+    assert!(owner.render());
+    f.keyboard_fail.set(true);
+    fail_after(0);
+    key(&f, 0, model::CONFIRM);
+    owner.poll();
+    assert_eq!(phase(&owner), Phase::List as u8);
+    assert!(owner.model(|m| m.gate.failed()));
+    key(&f, model::BACK, 0);
+    owner.poll();
+    assert_eq!(f.data.borrow().results, vec![false]);
+    drop(owner);
+    assert_eq!(live(), 0);
+}
+#[test]
+fn manual_and_hidden_saved_passwords_drop_native_loans_before_connect_and_complete() {
+    for hidden in [false, true] {
+        let (owner, f) = rig();
+        f.data
+            .borrow_mut()
+            .credentials
+            .push((b"saved".to_vec(), b"saved-password".to_vec()));
+        owner.enter();
+        scanned(
+            &owner,
+            &f,
+            if hidden {
+                vec![]
+            } else {
+                vec![row(b"saved", -40, true)]
+            },
+        );
+        assert!(owner.render());
+        key(&f, 0, model::CONFIRM);
+        owner.poll();
+        if hidden {
+            owner.keyboard_returned(Some(b"saved"));
+            key(&f, 0, 0);
+            owner.poll();
+        }
+        assert_eq!(phase(&owner), Phase::Connecting as u8);
+        assert!(!f.credential.get());
+        assert_eq!(
+            f.data.borrow().connects,
+            vec![(b"saved".to_vec(), b"saved-password".to_vec())]
+        );
+        f.data.borrow_mut().connection = 3;
+        key(&f, 0, 0);
+        owner.poll();
+        assert_eq!(f.data.borrow().results, vec![true]);
+        assert!(!f.events.borrow().contains(&"store_save"));
+        drop(owner);
+        assert_eq!(live(), 0);
+    }
+}
+#[test]
+fn open_connect_and_all_manual_failure_kinds_keep_native_cancel_and_retry_behavior() {
+    for status in [1, 4, 0, 3] {
+        let (owner, f) = rig();
+        owner.enter();
+        scanned(&owner, &f, vec![row(b"open", -40, false)]);
+        assert!(owner.render());
+        key(&f, 0, model::CONFIRM);
+        owner.poll();
+        assert_eq!(phase(&owner), Phase::Connecting as u8);
+        f.data.borrow_mut().connection = status;
+        if status == 0 {
+            f.now.set(16001);
+        }
+        key(&f, 0, 0);
+        owner.poll();
+        if status == 3 {
+            assert_eq!(f.data.borrow().results, vec![true]);
+        } else {
+            assert_eq!(phase(&owner), Phase::Failed as u8);
+            let id = match status {
+                1 => xp_core::i18n::ids::STR_ERROR_NETWORK_NOT_FOUND,
+                4 => xp_core::i18n::ids::STR_ERROR_GENERAL_FAILURE,
+                _ => xp_core::i18n::ids::STR_ERROR_CONNECTION_TIMEOUT,
+            };
+            let _guard = owner.resource();
+            assert_eq!(unsafe { CStr::from_ptr((*owner.owned()).error) }, unsafe {
+                CStr::from_ptr(xp_core::i18n::get(0, id))
+            });
+            drop(_guard);
+            key(&f, model::CONFIRM, 0);
+            owner.poll();
+            assert_eq!(phase(&owner), Phase::List as u8);
+            assert!(owner.render());
+        }
+        drop(owner);
+        assert_eq!(live(), 0);
+    }
+}

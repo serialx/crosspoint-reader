@@ -347,6 +347,7 @@ pub(super) unsafe fn with_result(
 pub(super) fn deliver(app: &App, parent: super::Target, mut result: Option<Result>) {
     match parent {
         super::Target::ReaderChild { .. } => deliver_bookmarks(parent, &mut result),
+        super::Target::Wifi(wifi) => super::wifi::keyboard_returned(wifi, result.take()),
         super::Target::Legacy(parent) | super::Target::SettingsSection(parent) => {
             deliver_native(app, parent, &mut result)
         }

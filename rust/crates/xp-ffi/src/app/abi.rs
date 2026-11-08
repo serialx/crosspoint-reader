@@ -656,6 +656,7 @@ pub const FRONTLIGHT_PANEL: u8 = 14;
 pub const NETWORK_MODE: u8 = 15;
 pub const DIALOG: u8 = 16;
 pub const KEYBOARD: u8 = 17;
+pub const WIFI: u8 = 18;
 pub const SETTINGS_SECTION: u8 = 19;
 pub const ADOPT_REPLACE: u8 = 0;
 pub const ADOPT_PUSH: u8 = 1;

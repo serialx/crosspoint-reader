@@ -30,6 +30,8 @@ mod stable_owner;
 mod sync;
 #[cfg(test)]
 mod test_resources;
+#[allow(dead_code)] // Dormant until the N2w switch.
+mod wifi;
 
 use abi::LaunchPayload;
 use alloc::{alloc::alloc, boxed::Box};
@@ -59,6 +61,7 @@ enum Target {
     Home(NonNull<home::Home>),
     Keyboard(NonNull<keyboard::Keyboard>),
     NetworkModes(NonNull<network_modes::Modes>),
+    Wifi(NonNull<wifi::Wifi>),
     Dialog(dialog::Target),
     Epub(NonNull<epub::EpubSession>),
     Legacy(NonNull<c_void>),
@@ -103,6 +106,8 @@ enum Owner {
     Home(StableOwner<home::Home>),
     Keyboard(StableOwner<keyboard::Keyboard>),
     NetworkModes(StableOwner<network_modes::Modes>),
+    #[allow(dead_code)] // Dormant until the N2w switch.
+    Wifi(StableOwner<wifi::Wifi>),
     Dialog(dialog::Owned),
     Epub(StableOwner<epub::EpubSession>),
     ReaderChild {
@@ -126,6 +131,7 @@ impl Activity for Owner {
             Self::Epub(epub) => Target::Epub(epub.pointer()),
             Self::Keyboard(keyboard) => Target::Keyboard(keyboard.pointer()),
             Self::NetworkModes(modes) => Target::NetworkModes(modes.pointer()),
+            Self::Wifi(wifi) => Target::Wifi(wifi.pointer()),
             Self::Dialog(dialog) => Target::Dialog(dialog.target()),
             Self::Legacy {
                 object, section, ..
@@ -160,6 +166,7 @@ impl Drop for Owner {
             Self::Home(_)
             | Self::Keyboard(_)
             | Self::NetworkModes(_)
+            | Self::Wifi(_)
             | Self::Dialog(_)
             | Self::ReaderChild { .. }
             | Self::Definition(_)
@@ -274,6 +281,7 @@ impl App {
             Target::Keyboard(keyboard) => Some(keyboard::facts(unsafe { keyboard.as_ref() })),
             Target::Dialog(dialog) => Some(dialog.facts()),
             Target::NetworkModes(modes) => Some(network_modes::facts(modes)),
+            Target::Wifi(wifi) => Some(wifi::facts(wifi)),
             Target::Home(_) => None,
             Target::Settings(_) => Some(settings::facts()),
         }
@@ -574,6 +582,7 @@ impl App {
                 Target::Keyboard(keyboard) => Some(keyboard::facts(unsafe { keyboard.as_ref() })),
                 Target::Dialog(dialog) => Some(dialog.facts()),
                 Target::NetworkModes(modes) => Some(network_modes::facts(modes)),
+                Target::Wifi(wifi) => Some(wifi::facts(wifi)),
                 Target::Home(_) => None,
                 Target::Settings(_) => Some(settings::facts()),
             };
@@ -597,6 +606,7 @@ impl App {
                     | Target::Dialog(_)
                     | Target::Definition(_)
                     | Target::NetworkModes(_)
+                    | Target::Wifi(_)
                     | Target::Settings(_) => {
                         self.go_home(0, false);
                         return;
@@ -644,6 +654,7 @@ impl App {
                 Target::Epub(epub) => unsafe { epub.as_ref() }.loop_reader(),
                 Target::Dialog(dialog) => dialog.input(frame.input),
                 Target::NetworkModes(modes) => network_modes::input(modes, frame.input),
+                Target::Wifi(wifi) => wifi::poll(wifi),
                 Target::Settings(root) => settings::input(unsafe { root.as_ref() }, frame.input),
                 Target::Keyboard(keyboard) => {
                     keyboard::input_complete(self, unsafe { keyboard.as_ref() }, frame.input)
@@ -798,6 +809,7 @@ impl Services<Owner> for App {
             Target::Home(home) => unsafe { home.as_ref() }.enter(),
             Target::Dialog(dialog) => dialog.enter(),
             Target::NetworkModes(modes) => network_modes::enter(modes),
+            Target::Wifi(wifi) => wifi::enter(wifi),
             Target::Settings(root) => settings::enter(unsafe { root.as_ref() }),
             Target::Keyboard(keyboard) => {
                 if !keyboard::enter(unsafe { keyboard.as_ref() }) {
@@ -827,6 +839,7 @@ impl Services<Owner> for App {
             Target::Home(home) => unsafe { home.as_ref() }.exit(),
             Target::Dialog(dialog) => dialog.exit(),
             Target::NetworkModes(modes) => network_modes::exit(modes),
+            Target::Wifi(wifi) => wifi::exit(wifi),
             Target::Settings(root) => unsafe { root.as_ref() }.exit(),
             Target::Keyboard(keyboard) => keyboard::exit(unsafe { keyboard.as_ref() }),
             Target::Definition(target) => self.definition_exit(target),
@@ -865,6 +878,11 @@ impl Services<Owner> for App {
             Target::NetworkModes(modes) => {
                 let object = network_modes::object(modes);
                 invoke(self, object, |result| {
+                    consume(ActivityResult::Legacy(result))
+                });
+            }
+            Target::Wifi(wifi) => {
+                invoke(self, wifi::object(wifi), |result| {
                     consume(ActivityResult::Legacy(result))
                 });
             }
@@ -950,6 +968,7 @@ impl Services<Owner> for App {
             },
             Target::Home(_)
             | Target::NetworkModes(_)
+            | Target::Wifi(_)
             | Target::Keyboard(_)
             | Target::Dialog(_)
             | Target::ReaderChild { .. }
@@ -1006,6 +1025,10 @@ unsafe extern "C" fn screenshot_info(sink: abi::ScreenshotSink, context: *mut c_
                         context,
                     )
                 };
+                return;
+            }
+            Some(Target::Wifi(wifi)) => {
+                unsafe { (app.legacy.screenshot_info)(wifi::object(wifi).as_ptr(), sink, context) };
                 return;
             }
             Some(Target::Epub(epub)) => {
@@ -1129,6 +1152,7 @@ pub unsafe extern "C" fn xp_app_render(token: *mut abi::RenderToken) {
         Some(Target::Keyboard(keyboard)) => keyboard::render(unsafe { keyboard.as_ref() }),
         Some(Target::Dialog(dialog)) => dialog.render(),
         Some(Target::NetworkModes(modes)) => network_modes::render(modes),
+        Some(Target::Wifi(wifi)) => wifi::render(wifi),
         Some(Target::Settings(root)) => settings::render(unsafe { root.as_ref() }),
         Some(Target::ReaderChild { child, parent }) => unsafe {
             child.render(
@@ -1226,6 +1250,7 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
                 | Target::Keyboard(_)
                 | Target::Dialog(_)
                 | Target::NetworkModes(_)
+                | Target::Wifi(_)
                 | Target::Settings(_) => return abi::REJECTED,
             };
             if event.kind == abi::REMOTE_SHORTCUT {
@@ -1246,6 +1271,7 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
                         .dispatch_remote_shortcut(unsafe { event.value.reader_menu } != 0),
                     Target::Home(_)
                     | Target::NetworkModes(_)
+                    | Target::Wifi(_)
                     | Target::Keyboard(_)
                     | Target::Dialog(_)
                     | Target::Settings(_)
@@ -1276,6 +1302,7 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
                             .app_remote_turn(turn.forward != 0, turn.chapter != 0),
                         Target::Home(_)
                         | Target::NetworkModes(_)
+                        | Target::Wifi(_)
                         | Target::Keyboard(_)
                         | Target::Dialog(_)
                         | Target::ReaderChild { .. }

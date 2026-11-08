@@ -83,6 +83,7 @@ pub struct Fixture {
     pub layout: Cell<wifi_view::Layout>,
     pub auto: Cell<bool>,
     pub paint_ok: Cell<bool>,
+    pub keyboard_fail: Cell<bool>,
     pub capture: Cell<bool>,
     pub labels: RefCell<Vec<Vec<u8>>>,
     pub now: Cell<u32>,
@@ -158,9 +159,10 @@ unsafe impl Host for TestHost {
     fn complete(&self) {
         self.0.event("pop");
     }
-    fn keyboard(&self, hidden: bool) {
+    fn keyboard(&self, hidden: bool) -> bool {
         self.0.event("keyboard");
         self.0.data.borrow_mut().keyboard.push(hidden);
+        !self.0.keyboard_fail.replace(false)
     }
     fn paint(&self, scene: &Scene<'_>, paint: &Paint) -> bool {
         self.0.event("paint");
@@ -416,6 +418,7 @@ pub fn rig() -> (StableOwner<Wifi<TestHost>>, Rc<Fixture>) {
         layout: Cell::new(layout),
         auto: Cell::new(false),
         paint_ok: Cell::new(true),
+        keyboard_fail: Cell::new(false),
         capture: Cell::new(false),
         labels: RefCell::new(Vec::new()),
         now: Cell::new(1000),

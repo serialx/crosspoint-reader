@@ -1261,6 +1261,8 @@ impl Cache {
     ) -> i32 {
         self.prewarm_input(PrewarmInput::Span(text), mask, metadata, kern, accumulate)
     }
+    // Keep each ABI entry's input adapter in its existing render-stack frame.
+    #[inline(always)]
     unsafe fn prewarm_input(
         &mut self,
         input: PrewarmInput<'_>,

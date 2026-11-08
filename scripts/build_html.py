@@ -68,11 +68,19 @@ def sanitize_identifier(name: str) -> str:
         sanitized = f"_{sanitized}"
     return sanitized
 
-parser = argparse.ArgumentParser(description="Generate PROGMEM headers for web assets.")
-parser.add_argument("--output-root", default=os.curdir,
-                    help="Write generated headers under this directory, mirroring their path below "
-                         "the source root (default: the source tree, used by the firmware pre-build).")
-output_root = parser.parse_args().output_root
+def resolve_output_root():
+    """Read --output-root from a standalone run only: the firmware pre-build
+    execs this file under SCons, whose argv holds the PlatformIO flags."""
+    if __name__ != "__main__":
+        return os.curdir
+    parser = argparse.ArgumentParser(description="Generate PROGMEM headers for web assets.")
+    parser.add_argument("--output-root", default=os.curdir,
+                        help="Write generated headers under this directory, mirroring their path below "
+                             "the source root (default: the source tree, used by the firmware pre-build).")
+    return parser.parse_args().output_root
+
+
+output_root = resolve_output_root()
 
 for root, _, files in os.walk(SRC_DIR):
     for file in files:

@@ -9,8 +9,7 @@
 #include <algorithm>
 #include <cstring>
 
-FontCacheManager::FontCacheManager(const std::map<int, EpdFontFamily>& fontMap,
-                                   const std::map<int, SdCardFont*>& sdCardFonts,
+FontCacheManager::FontCacheManager(const FontRegistry& fontMap, const std::map<int, SdCardFont*>& sdCardFonts,
                                    const std::map<int, TtfEpdFont*>& ttfFonts)
     : fontMap_(fontMap), sdCardFonts_(sdCardFonts), ttfFonts_(ttfFonts) {}
 
@@ -74,7 +73,7 @@ void FontCacheManager::prewarmCache(int fontId, const char* utf8Text, uint8_t st
   for (uint8_t i = 0; i < 4; i++) {
     if (!(styleMask & (1 << i))) continue;
     auto style = static_cast<EpdFontFamily::Style>(i);
-    const EpdFontData* data = fontMap_.at(fontId).getData(style);
+    const EpdFontData* data = fontMap_.data(fontId, style);
     if (!data || !data->groups) continue;
     int missed = fontDecompressor_->prewarmCache(data, utf8Text);
     if (missed > 0) {
@@ -98,17 +97,22 @@ uint8_t FontCacheManager::resolveScanStyle(int fontId, EpdFontFamily::Style styl
   const auto sdFont = sdCardFonts_.find(fontId);
   if (sdFont != sdCardFonts_.end()) return sdFont->second->resolveStyle(baseStyle);
 
-  const auto font = fontMap_.find(fontId);
-  if (font == fontMap_.end()) return baseStyle;
-
-  const EpdFontData* resolvedData = font->second.getData(static_cast<EpdFontFamily::Style>(baseStyle));
+  const EpdFontData* resolvedData = fontMap_.data(fontId, static_cast<EpdFontFamily::Style>(baseStyle));
+  if (!resolvedData) return baseStyle;
   for (uint8_t candidate = 0; candidate < 4; candidate++) {
-    if (font->second.getData(static_cast<EpdFontFamily::Style>(candidate)) == resolvedData) return candidate;
+    if (fontMap_.data(fontId, static_cast<EpdFontFamily::Style>(candidate)) == resolvedData) return candidate;
   }
   return baseStyle;
 }
 
 void FontCacheManager::recordText(const char* text, int fontId, EpdFontFamily::Style style) {
+  if (!text || *text == '\0') return;
+  const auto resolved =
+      static_cast<EpdFontFamily::Style>(resolveScanStyle(fontId, style) | (style & EpdFontFamily::SMALL_CAPS));
+  recordResolvedText(text, fontId, resolved);
+}
+
+void FontCacheManager::recordResolvedText(const char* text, int fontId, EpdFontFamily::Style style) {
   if (!text || *text == '\0') return;
 
   uint8_t fontSlot = scanFontCount_;
@@ -123,7 +127,7 @@ void FontCacheManager::recordText(const char* text, int fontId, EpdFontFamily::S
     scanFontIds_[scanFontCount_++] = fontId;
   }
 
-  const uint8_t resolvedStyle = resolveScanStyle(fontId, style);
+  const uint8_t resolvedStyle = static_cast<uint8_t>(style) & 3;
   const uint8_t group = fontSlot * 4 + resolvedStyle;
   const unsigned char* cursor = reinterpret_cast<const unsigned char*>(text);
   while (*cursor) {

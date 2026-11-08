@@ -303,6 +303,15 @@ struct ImageState(UnsafeCell<image::State>);
 // SAFETY: all image entry points require the existing serialized render/cache owner.
 unsafe impl Sync for ImageState {}
 static IMAGE_STATE: ImageState = ImageState(UnsafeCell::new(image::State::new()));
+
+// All native and Rust page entries use this one serialized cache owner.
+pub(crate) unsafe fn render_image(
+    path: &[u8],
+    config: image::Config,
+    services: &mut dyn ImageServices,
+) -> u32 {
+    (&mut *IMAGE_STATE.0.get()).render(path, config, services)
+}
 #[no_mangle]
 pub unsafe extern "C" fn xp_assets_image_reset(release: bool) {
     let state = unsafe { &mut *IMAGE_STATE.0.get() };
@@ -348,9 +357,7 @@ pub unsafe extern "C" fn xp_assets_image_render(
         return 0;
     }
     let mut services = unsafe { *callbacks };
-    unsafe {
-        (&mut *IMAGE_STATE.0.get()).render(slice::from_raw_parts(path, len), *config, &mut services)
-    }
+    unsafe { render_image(slice::from_raw_parts(path, len), *config, &mut services) }
 }
 
 #[no_mangle]

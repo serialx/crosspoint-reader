@@ -4,6 +4,7 @@
 //! measurement operation; drop it before calling any loader or cache mutator.
 
 mod layout;
+pub mod loaded;
 pub mod raw;
 
 use raw::{Advance, BmpInterval, FontData, Glyph, Interval, KernClass};

@@ -172,3 +172,37 @@ __attribute__((weak)) void xp_settings_shell_snapshot(XpUiSettingsLayout*) { std
 __attribute__((weak)) void xp_settings_shell_paint(const XpUiCommand*, XpUiRect, const char*, uint8_t) { std::abort(); }
 __attribute__((weak)) void xp_settings_shell_theme_reload(void) { std::abort(); }
 }
+
+// Isolated core/ABI suites do not instantiate the physical renderer. Real
+// renderer fixtures override these leaves; unexpected routing must fail.
+#include <xp_font_registry.h>
+extern "C" {
+__attribute__((weak)) void xp_native_font_cache_view(void*, XpGlyphSource*) { std::abort(); }
+__attribute__((weak)) XpGlyphBitmap xp_native_font_bitmap_miss(void*, const void*, const void*) { std::abort(); }
+__attribute__((weak)) void xp_native_font_record_resolved_text(void*, int32_t, uint8_t, const uint8_t*) {
+  std::abort();
+}
+__attribute__((weak)) void xp_native_sd_font_view(void*, int32_t, XpNativeFamily*, XpGlyphSource*) { std::abort(); }
+__attribute__((weak)) void xp_native_sd_font_resident_slice(void*, int32_t, uint8_t, const uint8_t*, size_t, uint8_t) {
+  std::abort();
+}
+__attribute__((weak)) uint8_t xp_native_sd_font_load(void*, int32_t) { std::abort(); }
+__attribute__((weak)) void xp_native_font_diagnostic(void*, uint32_t, uint32_t) { std::abort(); }
+__attribute__((weak)) void* xp_native_bidi_acquire() { std::abort(); }
+__attribute__((weak)) void xp_native_bidi_release() { std::abort(); }
+}
+
+#include <xp_page_paint.h>
+extern "C" {
+__attribute__((weak)) void xp_native_render_target(XpPageTarget*) { std::abort(); }
+__attribute__((weak)) size_t xp_native_page_image_file(XpPageImageFile*, XpPageImageFileOp, const uint8_t*, uint8_t*,
+                                                       size_t) {
+  std::abort();
+}
+__attribute__((weak)) uint8_t xp_native_page_image_decode(void*, const XpPageImage*, const uint8_t*) { std::abort(); }
+__attribute__((weak)) uint8_t xp_native_page_image_extract(const XpPageImage*, uint8_t) { std::abort(); }
+__attribute__((weak)) void xp_native_page_image_log(void*, const XpPageImage*, const uint8_t*, uint32_t, int32_t,
+                                                    int32_t) {
+  std::abort();
+}
+}

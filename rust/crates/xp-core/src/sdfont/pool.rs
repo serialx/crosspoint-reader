@@ -1205,6 +1205,26 @@ impl Resident {
 }
 
 pub type TextGetter = unsafe extern "C" fn(*const c_void, u32) -> *const u8;
+
+enum PrewarmInput<'a> {
+    Strings(TextGetter, *const c_void, u32),
+    Span(&'a [u8]),
+}
+impl PrewarmInput<'_> {
+    fn count(&self) -> u32 {
+        match self {
+            Self::Strings(_, _, count) => *count,
+            Self::Span(_) => 1,
+        }
+    }
+    unsafe fn text(&self, index: u32) -> &[u8] {
+        match *self {
+            Self::Strings(getter, context, _) => ctext(getter(context, index)),
+            Self::Span(text) => text,
+        }
+    }
+}
+
 impl Cache {
     /// # Safety
     /// Input callback returns terminated strings valid until its next invocation.
@@ -1220,9 +1240,39 @@ impl Cache {
         kern: bool,
         accumulate: bool,
     ) -> i32 {
+        self.prewarm_input(
+            PrewarmInput::Strings(getter, context, text_count),
+            mask,
+            metadata,
+            kern,
+            accumulate,
+        )
+    }
+    /// # Safety
+    /// The cache is exclusively lent; services cannot reenter it. Text is a
+    /// bounded visual span and is consumed before any physical font mutation.
+    pub unsafe fn prewarm_span(
+        &mut self,
+        text: &[u8],
+        mask: u8,
+        metadata: bool,
+        kern: bool,
+        accumulate: bool,
+    ) -> i32 {
+        self.prewarm_input(PrewarmInput::Span(text), mask, metadata, kern, accumulate)
+    }
+    unsafe fn prewarm_input(
+        &mut self,
+        input: PrewarmInput<'_>,
+        mask: u8,
+        metadata: bool,
+        kern: bool,
+        accumulate: bool,
+    ) -> i32 {
         if !self.loaded {
             return -1;
         }
+        let text_count = input.count();
         let mask = unsafe { self.mask(mask) };
         if mask == 0 {
             return 0;
@@ -1263,7 +1313,7 @@ impl Cache {
             if count >= budget {
                 break;
             }
-            let text = unsafe { ctext(getter(context, i)) };
+            let text = unsafe { input.text(i) };
             let mut at = 0;
             while count < budget {
                 let Some(cp) = crate::utf8::next(text, &mut at) else {

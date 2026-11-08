@@ -176,6 +176,76 @@ void diagnostic(void* raw, uint32_t event, [[maybe_unused]] int32_t a, [[maybe_u
   }
 }
 }  // namespace
+
+extern "C" size_t xp_native_page_image_file(XpPageImageFile* storage, XpPageImageFileOp operation, const uint8_t* path,
+                                            uint8_t* bytes, size_t value) {
+  static_assert(sizeof(HalFile) <= sizeof(XpPageImageFile));
+  static_assert(alignof(HalFile) <= alignof(XpPageImageFile));
+  auto* file = reinterpret_cast<HalFile*>(storage);
+  switch (operation) {
+    case XP_IMAGE_FILE_INIT:
+      new (storage) HalFile();
+      return 0;
+    case XP_IMAGE_FILE_DROP:
+      file->~HalFile();
+      return 0;
+    case XP_IMAGE_FILE_OPEN:
+      return Storage.openFileForRead("IMG", reinterpret_cast<const char*>(path), *file);
+    case XP_IMAGE_FILE_READ: {
+      const int count = file->read(bytes, value);
+      return count > 0 ? count : 0;
+    }
+    case XP_IMAGE_FILE_SEEK:
+      return file->seek(value);
+    case XP_IMAGE_FILE_SIZE:
+      return file->size();
+    case XP_IMAGE_FILE_CLOSE:
+      file->close();
+      return 0;
+    case XP_IMAGE_FILE_EXISTS:
+      return Storage.exists(reinterpret_cast<const char*>(path));
+    case XP_IMAGE_FILE_FREE_HEAP:
+      return ESP.getFreeHeap();
+    case XP_IMAGE_FILE_LARGEST_BLOCK:
+      return ESP.getMaxAllocHeap();
+  }
+  return 0;
+}
+extern "C" uint8_t xp_native_page_image_decode(void* raw, const XpPageImage* image, const uint8_t* cache) {
+  const std::string path(reinterpret_cast<const char*>(image->path), image->path_len);
+  auto* decoder = ImageDecoderFactory::getDecoder(path);
+  if (!decoder) return 0;
+  LOG_DBG("IMG", "Using %s decoder", decoder->getFormatName());
+  RenderConfig config;
+  config.x = image->x;
+  config.y = image->y;
+  config.maxWidth = image->width;
+  config.maxHeight = image->height;
+  config.useExactDimensions = true;
+  config.cachePath = reinterpret_cast<const char*>(cache);
+  return decoder->decodeToFramebuffer(path, *static_cast<GfxRenderer*>(raw), config) ? 2 : 1;
+}
+extern "C" uint8_t xp_native_page_image_extract(const XpPageImage* image, uint8_t query) {
+  if (query) return ImageBlock::extractFn != nullptr;
+  return ImageBlock::extractFn &&
+         ImageBlock::extractFn(ImageBlock::extractCtx, reinterpret_cast<const char*>(image->source),
+                               reinterpret_cast<const char*>(image->path));
+}
+extern "C" void xp_native_page_image_log(void* raw, const XpPageImage* image, const uint8_t* cache, uint32_t event,
+                                         int32_t a, int32_t b) {
+  Context context{static_cast<GfxRenderer*>(raw),
+                  {reinterpret_cast<const char*>(image->path), image->path_len},
+                  {reinterpret_cast<const char*>(image->source), image->source_len},
+                  image->x,
+                  image->y,
+                  image->width,
+                  image->height,
+                  nullptr,
+                  nullptr};
+  context.cache = reinterpret_cast<const char*>(cache);
+  diagnostic(&context, event, a, b);
+}
+
 bool ImageBlock::hasValidCache() const {
   Context context{nullptr, imagePath, srcPath, 0, 0, width, height, extractCtx, extractFn};
   const XpAssetImageCallbacks services{&context, io, target, diagnostic};

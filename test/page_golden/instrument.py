@@ -1,5 +1,6 @@
 """Build-only observers; production code and headers remain unchanged."""
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -20,20 +21,12 @@ for anchor, index in (
     ('        // Fallback residency accepts substrings, including focus and ruby tokens.', 3),
     ('        renderer.fontCacheManager_->recordText(reinterpret_cast<const char*>(text), id,', 4),
     ('        c.image(c.images, index, x, y, placeholder);', 5),
-    ('          [](void* ctx, int32_t id, XpNativeFamily* out) {', 6),
-    ('          [](void* ctx, int32_t id, uint32_t cp, uint8_t style, XpTextmGlyph* out) -> uint8_t {', 7),
-    ('          [](void* ctx, int32_t id, uint32_t cp, uint8_t style) -> uint8_t {', 8),
-    ('          [](void* ctx, int32_t id, uint32_t left, uint32_t right, uint8_t style) -> int8_t {', 9),
+
 ):
     if source.count(anchor) != 1:
         raise SystemExit('Page owner counter anchor changed: ' + anchor)
     hook = f'pageGoldenOwner({index});'
     source = source.replace(anchor, anchor + '\n' + hook if index >= 6 else hook + '\n' + anchor)
-for name, index in (('xp_native_bidi_acquire', 10), ('xp_native_bidi_release', 11)):
-    anchor = '          ' + name + ','
-    if source.count(anchor) != 1:
-        raise SystemExit('Page bidi counter anchor changed: ' + anchor)
-    source = source.replace(anchor, f'          [] {{ pageGoldenOwner({index}); return {name}(); }},')
 source = '#ifdef XP_STRIP_SPIKE\n#include "StripTrace.h"\n#endif\n' + source
 anchor = '  const auto status = xp_page_render_traced('
 source = source.replace(anchor, """  const auto status =
@@ -47,7 +40,22 @@ source = source.replace(anchor, """  const auto status =
 #endif
       xp_page_render_traced(""")
 (out / 'GfxRenderer.cpp').write_text(source)
-(out / 'Page.cpp').write_text((root / 'lib/Epub/Epub/Page.cpp').read_text())
+page_source = (root / 'lib/Epub/Epub/Page.cpp').read_text()
+anchor = '                       const PageRenderMode mode) const {'
+if page_source.count(anchor) != 1:
+    raise SystemExit('Page direct-path observer anchor changed')
+page_source = '#include <cstdlib>\n#include <xp_page_paint.h>\n' + page_source
+page_source = page_source.replace(anchor, anchor + '''
+  if (std::getenv("XP_PAGE_DIRECT")) {
+    XpPageTarget target{};
+    renderer.pageTarget(target);
+    XpPagePaint request{fontId, x, y, static_cast<uint8_t>(mode)};
+    renderer.pagePlanLoan(request);
+    if (xp_page_paint(arena, arenaSize, &target, &request)) std::abort();
+    return;
+  }
+''')
+(out / 'Page.cpp').write_text(page_source)
 
 source = (root / 'lib/Epub/Epub/blocks/TextBlock.cpp').read_text()
 (out / 'TextBlock.cpp').write_text(source)
@@ -77,4 +85,26 @@ source = source.replace(render, render + """
   } allocationScope;
 """)
 source = '#include <cstddef>\nextern "C" size_t xp_test_allocation_attempts();\n' + source
+# Direct Rust image policy still owns the same excluded image allocations. The
+# inline physical file cell marks that owner window without a firmware test hook.
+init = re.compile(r'case XP_IMAGE_FILE_INIT:\s*new \(storage\) HalFile\(\);\s*return 0;')
+drop = re.compile(r'case XP_IMAGE_FILE_DROP:\s*file->~HalFile\(\);\s*return 0;')
+if len(init.findall(source)) != 1 or len(drop.findall(source)) != 1:
+    raise SystemExit('Direct image allocation window changed')
+source = init.sub('''case XP_IMAGE_FILE_INIT: {
+      extern size_t pageGoldenImageAllocations;
+      static_assert(sizeof(HalFile) + sizeof(size_t) <= sizeof(XpPageImageFile));
+      new (storage) HalFile();
+      const size_t start = xp_test_allocation_attempts();
+      std::memcpy(reinterpret_cast<uint8_t*>(storage) + sizeof(*storage) - sizeof(start), &start, sizeof(start));
+      return 0;
+    }''', source)
+source = drop.sub('''case XP_IMAGE_FILE_DROP: {
+      extern size_t pageGoldenImageAllocations;
+      size_t start;
+      std::memcpy(&start, reinterpret_cast<uint8_t*>(storage) + sizeof(*storage) - sizeof(start), sizeof(start));
+      file->~HalFile();
+      pageGoldenImageAllocations += xp_test_allocation_attempts() - start;
+      return 0;
+    }''', source)
 (out / 'ImageBlock.cpp').write_text(source)

@@ -1,5 +1,6 @@
 #pragma once
 #include <HalStorage.h>
+#include <xp_page_paint.h>
 
 #include <memory>
 #include <string>
@@ -8,6 +9,8 @@
 #include "Block.h"
 
 class ImageBlock final : public Block {
+  friend uint8_t xp_native_page_image_extract(const XpPageImage*, uint8_t);
+
  public:
   ImageBlock(const std::string& imagePath, const std::string& srcPath, int16_t width, int16_t height);
   struct View {};

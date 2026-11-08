@@ -466,6 +466,14 @@ int SdCardFont::prewarm(const char* utf8Text, uint8_t styleMask, bool metadataOn
   return prewarm(&singleTextGetter, utf8Text, 1, styleMask, metadataOnly, loadKernLig, accumulate);
 }
 
+int SdCardFont::prewarmSpan(const uint8_t* text, size_t length, uint8_t styleMask, bool metadataOnly) {
+  ++fontTableGeneration;
+  PoolIo io{this, {}};
+  auto services = cacheServices(&io);
+  auto pool = cacheView(&services);
+  return xp_sdfont_pool_prewarm_span(&pool, text, length, styleMask, metadataOnly, false, true);
+}
+
 int SdCardFont::prewarm(TextGetter getter, const void* ctx, uint32_t textCount, uint8_t styleMask, bool metadataOnly,
                         bool loadKernLig, bool accumulate) {
   ++fontTableGeneration;

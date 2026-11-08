@@ -1,6 +1,7 @@
 #pragma once
 
 #include <EpdFontFamily.h>
+#include <FontRegistry.h>
 
 #include <cstdint>
 #include <map>
@@ -11,7 +12,7 @@ class TtfEpdFont;
 
 class FontCacheManager {
  public:
-  FontCacheManager(const std::map<int, EpdFontFamily>& fontMap, const std::map<int, SdCardFont*>& sdCardFonts,
+  FontCacheManager(const FontRegistry& fontMap, const std::map<int, SdCardFont*>& sdCardFonts,
                    const std::map<int, TtfEpdFont*>& ttfFonts);
 
   void setFontDecompressor(FontDecompressor* d);
@@ -31,6 +32,7 @@ class FontCacheManager {
   // Scan-mode API: called by GfxRenderer::drawText() during scan pass
   bool isScanning() const;
   void recordText(const char* text, int fontId, EpdFontFamily::Style style);
+  void recordResolvedText(const char* text, int fontId, EpdFontFamily::Style style);
 
   // The FontDecompressor pointer, needed by GfxRenderer::getGlyphBitmap()
   FontDecompressor* getDecompressor() const { return fontDecompressor_; }
@@ -53,7 +55,7 @@ class FontCacheManager {
   PrewarmScope createPrewarmScope();
 
  private:
-  const std::map<int, EpdFontFamily>& fontMap_;
+  const FontRegistry& fontMap_;
   const std::map<int, SdCardFont*>& sdCardFonts_;
   // Read only when CROSSPOINT_VECTOR_FONTS is on (PSRAM boards).
   [[maybe_unused]] const std::map<int, TtfEpdFont*>& ttfFonts_;

@@ -238,6 +238,13 @@ impl<'a> View<'a> {
             unsafe { (services.page_render)(raw.as_ptr(), font, left, top) };
             return;
         }
-        unsafe { (leaves.paint_arena)(&self.wire(), font, left, top, 0) };
+        if crate::page_render::DIRECT_PAGE_PAINT {
+            let status = unsafe {
+                crate::page_render::direct::paint_current(self.arena(), font, left, top, 0)
+            };
+            assert_eq!(status, 0, "validated page target");
+        } else {
+            unsafe { (leaves.paint_arena)(&self.wire(), font, left, top, 0) };
+        }
     }
 }

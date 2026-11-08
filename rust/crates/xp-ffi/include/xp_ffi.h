@@ -1081,7 +1081,7 @@ typedef struct {
 // bit pattern; BidiLimit: a is the codepoint limit (128). b/c/d are zero.
 // NULL is silent. The callback must not reenter Rust or retain borrowed pointers.
 #ifdef __cplusplus
-enum class XpNativeDiagnostic : uint32_t { MissingFont = 1, BidiLimit = 2 };
+enum class XpNativeDiagnostic : uint32_t { MissingFont = 1, BidiLimit = 2, MissingGlyph = 3 };
 #endif
 typedef void (*XpNativeDiagnosticFn)(void*, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
 struct XpNativeProvider {
@@ -1367,6 +1367,10 @@ typedef struct {
 } XpSdfontTexts;
 int32_t xp_sdfont_pool_prewarm(XpSdfontPool*, const char* (*getter)(const void*, uint32_t), const void*, uint32_t,
                                uint8_t, bool metadata, bool kern, bool accumulate);
+// Bounded nonterminated visual text; same pool loan and allocation policy.
+int32_t xp_sdfont_pool_prewarm_span(XpSdfontPool*, const uint8_t*, size_t, uint8_t mask, bool metadata, bool kern,
+                                    bool accumulate);
+
 int32_t xp_sdfont_pool_advances(XpSdfontPool*, const XpSdfontTexts*, uint8_t mask);
 bool xp_sdfont_pool_lookup(const XpSdfontPool*, uint32_t cp, uint8_t style, uint16_t* outAdvance);
 uint16_t xp_sdfont_pool_advance(const XpSdfontPool*, uint32_t cp, uint8_t style);

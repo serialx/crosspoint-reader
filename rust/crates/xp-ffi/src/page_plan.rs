@@ -69,7 +69,7 @@ impl Command {
             [i32::from(index), x, y, i32::from(placeholder), 0],
         )
     }
-    unsafe fn draw(self, renderer: &mut Renderer<'_>, images_only: bool) {
+    unsafe fn draw<R: Resources>(self, renderer: &mut Renderer<'_, R>, images_only: bool) {
         if images_only && self.kind != CommandKind::Image {
             return;
         }
@@ -118,7 +118,7 @@ impl Plan {
         command.end = height as i16;
     }
 }
-impl Renderer<'_> {
+impl<R: Resources> Renderer<'_, R> {
     pub(super) fn record_command(&mut self, mut command: Command) {
         let Some(plan) = self.plan.as_mut() else {
             return;
@@ -171,6 +171,26 @@ pub unsafe extern "C" fn xp_page_plan_render(
     len: usize,
     provider: *const Provider,
     services: *const Services,
+    paint: *mut GlyphPaint,
+    font: i32,
+    x: i32,
+    y: i32,
+    mode: u8,
+    bounds: *mut strip_state::RowBounds,
+    count: usize,
+    plan: *mut Plan,
+    prepare: u8,
+) -> u32 {
+    render_plan(
+        arena, len, provider, services, paint, font, x, y, mode, bounds, count, plan, prepare,
+    )
+}
+#[allow(clippy::too_many_arguments)]
+pub(super) unsafe fn render_plan<R: Resources>(
+    arena: *const u8,
+    len: usize,
+    provider: *const Provider,
+    services: *const R,
     paint: *mut GlyphPaint,
     font: i32,
     x: i32,

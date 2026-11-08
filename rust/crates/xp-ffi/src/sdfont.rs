@@ -186,6 +186,26 @@ pub unsafe extern "C" fn xp_sdfont_pool_prewarm(
     pool.prewarm(getter, context, count, mask, metadata, kern, accumulate)
 }
 #[no_mangle]
+pub unsafe extern "C" fn xp_sdfont_pool_prewarm_span(
+    pool: *mut Cache,
+    text: *const u8,
+    len: usize,
+    mask: u8,
+    metadata: bool,
+    kern: bool,
+    accumulate: bool,
+) -> i32 {
+    if pool.is_null() || (text.is_null() && len != 0) || len > isize::MAX as usize {
+        return -1;
+    }
+    let text = if len == 0 {
+        &[]
+    } else {
+        core::slice::from_raw_parts(text, len)
+    };
+    (*pool).prewarm_span(text, mask, metadata, kern, accumulate)
+}
+#[no_mangle]
 pub unsafe extern "C" fn xp_sdfont_pool_advances(
     pool: *mut Cache,
     texts: *const Texts,

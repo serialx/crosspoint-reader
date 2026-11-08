@@ -16,7 +16,7 @@ if source.count(anchor) != 1:
 source = source.replace(anchor, '''
       &paint, &glyphMiss, [](void* raw, const XpGlyphPlacement* glyph) {
         const auto& c = *static_cast<GlyphContext*>(raw);
-        textGoldenGlyph(*c.font, glyph->codepoint, c.paint->x + glyph->x, c.paint->y + glyph->y, c.style);
+        textGoldenGlyph(EpdFontFamily(c.font), glyph->codepoint, c.paint->x + glyph->x, c.paint->y + glyph->y, c.style);
       });''')
 # Page draws share the same glyph observer without routing through drawText.
 anchor = 'renderPage(arena, size, &provider, &services, &paint, fontId, x, y, renderMode)'
@@ -25,7 +25,7 @@ if source.count(anchor) != 1:
 source = source.replace(anchor, """xp_page_render_traced(arena, size, &provider, &services, &paint, fontId, x, y, renderMode,
       [](void* raw, const XpGlyphPlacement* glyph) {
         const auto& c = static_cast<PageContext*>(raw)->glyph;
-        textGoldenGlyph(*c.font, glyph->codepoint, c.paint->x + glyph->x, c.paint->y + glyph->y, c.style);
+        textGoldenGlyph(EpdFontFamily(c.font), glyph->codepoint, c.paint->x + glyph->x, c.paint->y + glyph->y, c.style);
       })""")
 # Drop caps bypass both helper entries; observe their actual API entry too.
 anchor = '  if (scale256 <= 0) return 0;'

@@ -67,7 +67,7 @@ struct Fixture {
     };
     renderer.insertFont(3, family);
     renderer.registerTtfFont(3, &ttf);
-    baseline.fontMap = renderer.getFontMap();
+    for (const auto& entry : renderer.getFontMap()) baseline.fontMap.emplace(entry.first, entry.second);
     baseline.sdCardFonts_ = renderer.getSdCardFonts();
     raw = renderer.textProvider();
   }

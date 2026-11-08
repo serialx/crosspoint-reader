@@ -22,7 +22,7 @@ void textGoldenGlyph(const EpdFontFamily& family, uint32_t cp, int x, int y, Epd
   if (!trace) return;
   int id = 0;
   for (const auto& entry : activeRenderer->getFontMap()) {
-    if (&entry.second == &family) {
+    if (entry.second.getData(style) == family.getData(style)) {
       id = entry.first;
       break;
     }

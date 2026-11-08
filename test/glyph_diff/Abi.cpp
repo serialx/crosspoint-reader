@@ -1,5 +1,6 @@
 #include <EpdFontData.h>
 #include <xp_ffi.h>
+#include <xp_page_paint.h>
 
 #include <cstddef>
 
@@ -21,3 +22,10 @@ static_assert(sizeof(XpGlyphPageSlot) == (sizeof(void*) == 4 ? 16 : 32));
 static_assert(sizeof(XpGlyphBitmap) == (sizeof(void*) == 4 ? 8 : 16));
 
 static_assert(sizeof(XpGlyphPaint) == (sizeof(void*) == 4 ? 104 : 136));
+static_assert(sizeof(XpLoadedFonts) == 99 * sizeof(void*));
+static_assert(sizeof(XpRegisteredFont) == (sizeof(void*) == 4 ? 24 : 48));
+static_assert(sizeof(XpFontQueryResult) == sizeof(void*));
+static_assert(sizeof(XpPageTarget) == (sizeof(void*) == 4 ? 64 : 80));
+static_assert(offsetof(XpPageTarget, fonts) == sizeof(XpGlyphTarget));
+static_assert(sizeof(XpPagePaint) == (sizeof(void*) == 4 ? 32 : 48));
+static_assert(offsetof(XpPagePaint, plan) == 16);

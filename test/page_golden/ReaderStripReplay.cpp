@@ -20,6 +20,19 @@ static void require(bool ok, const char* message) {
 
 #include "StripDisplayReplay.h"
 
+static std::vector<uint8_t> arenaFrom(const std::vector<uint8_t>& bytes) {
+  XpPageInfo info{};
+  require(xp_page_arena_size(bytes.data(), bytes.size(), &info) == 0, "size direct arena");
+  std::vector<uint8_t> arena(info.arena_size);
+  require(xp_page_decode(bytes.data(), bytes.size(), 0, arena.data(), arena.size(), &info) == 0, "decode direct arena");
+  return arena;
+}
+static void paintDirect(GfxRenderer& renderer, const std::vector<uint8_t>& arena, XpPagePaint& request) {
+  XpPageTarget target{};
+  renderer.pageTarget(target);
+  require(xp_page_paint(arena.data(), arena.size(), &target, &request) == 0, "direct page paint");
+}
+
 int main(int argc, char** argv) {
   require(argc == 2, "usage: ReaderStripReplay FONT.cpfont (run in a scratch directory)");
   std::filesystem::copy_file(argv[1], "font.cpfont", std::filesystem::copy_options::overwrite_existing);
@@ -53,6 +66,36 @@ int main(int argc, char** argv) {
   renderer.usePagePlan(&plan, bounds.data(), bounds.size(), true);
   page->render(renderer, 100, 12, 12);
   require(plan.valid, "prepare production plan");
+  const auto directArena = arenaFrom(bytes);
+  alignas(8) std::array<uint8_t, 16384> directCommands{};
+  std::vector<XpPageRowBounds> directBounds(page->elementCount());
+  XpPagePlan directPlan{directCommands.data(), directCommands.size(), 0, 0};
+  XpPagePaint directRequest{100, 12, 12, 0, &directPlan, directBounds.data(), directBounds.size(), 1};
+  paintDirect(renderer, directArena, directRequest);
+  require(directPlan.valid && directPlan.count == plan.count, "direct plan records differ");
+  for (size_t i = 0; i < bounds.size(); ++i) {
+    require(bounds[i].start == directBounds[i].start && bounds[i].end == directBounds[i].end,
+            "direct row bounds differ");
+  }
+  directRequest.prepare = 0;
+  renderer.usePagePlan(&plan, bounds.data(), bounds.size());
+  std::array<uint8_t, 8000> directScratch{};
+  for (int plane = 0; plane < 3; ++plane) {
+    renderer.setRenderMode(static_cast<GfxRenderer::RenderMode>(plane));
+    for (int y = 0; y < display.getDisplayHeight(); y += 80) {
+      const int rows = std::min<int>(80, display.getDisplayHeight() - y);
+      renderer.beginStripTarget(directScratch.data(), y, rows);
+      renderer.clearScreen();
+      page->render(renderer, 100, 12, 12);
+      const auto legacy = directScratch;
+      renderer.clearScreen();
+      paintDirect(renderer, directArena, directRequest);
+      require(directScratch == legacy, "direct plan replay pixels differ");
+      renderer.endStripTarget();
+    }
+  }
+  renderer.setRenderMode(GfxRenderer::BW);
+  std::cout << "PASS direct Rust plan prepare/replay: BW/LSB/MSB strip bytes equal native adapter\n";
   renderer.usePagePlan(&plan, bounds.data(), bounds.size());
   renderer.clearScreen();
   std::array<uint8_t, 8000> scratch{};
@@ -128,6 +171,35 @@ int main(int argc, char** argv) {
   std::vector<uint8_t> imageBytes{std::istreambuf_iterator<char>(input), {}};
   auto imagePage = Page::fromBytes(imageBytes.data(), imageBytes.size());
   require(bool(imagePage), "decode image page");
+  const auto imageArena = arenaFrom(imageBytes);
+  XpPagePaint imageRequest{100, 0, 0, 0};
+  for (bool inverted : {false, true}) {
+    display.inverted = inverted;
+    for (int orientation = 0; orientation < 4; ++orientation) {
+      renderer.setOrientation(static_cast<GfxRenderer::Orientation>(orientation));
+      for (int plane = 0; plane < 3; ++plane) {
+        renderer.setRenderMode(static_cast<GfxRenderer::RenderMode>(plane));
+        for (bool strip : {false, true}) {
+          if (strip) renderer.beginStripTarget(directScratch.data(), 17, 80);
+          ImageBlock::releaseRenderCache();
+          renderer.clearScreen();
+          imagePage->render(renderer, 100, 0, 0);
+          const auto legacyFrame = display.pixels;
+          const auto legacyStrip = directScratch;
+          ImageBlock::releaseRenderCache();
+          renderer.clearScreen();
+          paintDirect(renderer, imageArena, imageRequest);
+          require(display.pixels == legacyFrame && (!strip || directScratch == legacyStrip),
+                  "direct cached-image pixels differ");
+          if (strip) renderer.endStripTarget();
+        }
+      }
+    }
+  }
+  display.inverted = false;
+  renderer.setOrientation(GfxRenderer::LandscapeCounterClockwise);
+  renderer.setRenderMode(GfxRenderer::BW);
+  std::cout << "PASS direct cached images: four orientations, inverted display, three planes, full/strip targets\n";
   ImageBlock::clearRenderFailures();
   renderer.clearScreen();
   imagePage->render(renderer, 100, 0, 0);

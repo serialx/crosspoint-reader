@@ -67,25 +67,7 @@ XpGlyphTarget GfxRenderer::glyphTarget() const {
 }
 
 void GfxRenderer::glyphSource(const EpdFontData* font, XpGlyphSource& source) const {
-  source = {};
-  source.generation = &fontTableGeneration;
-  source.capturedGeneration = fontTableGeneration.load(std::memory_order_relaxed);
-  source.font = font;
-  if (font->vectorBitmapHandler) return;
-  if (font->intervalCount) {
-    const auto& last = font->intervals[font->intervalCount - 1];
-    source.glyphCount = last.offset + last.last - last.first + 1;
-    if (!font->groups && source.glyphCount) {
-      const auto& glyph = font->glyph[source.glyphCount - 1];
-      source.bitmapLen = glyph.dataOffset + glyph.dataLength;
-    }
-  }
-  if (fontCacheManager_ && fontCacheManager_->getDecompressor()) {
-    const auto* decompressor = fontCacheManager_->getDecompressor();
-    source.slots = static_cast<const XpGlyphPageSlot*>(decompressor->pageSlotView());
-    source.slotCount = decompressor->pageSlotViewCount();
-  }
-  if (font->glyphMissCtx) SdCardFont::fromMissCtx(font->glyphMissCtx)->bitmapView(font, source);
+  xp_font_registry_source(fontMap.raw(), font, &source);
 }
 
 XpGlyphBitmap GfxRenderer::glyphMiss(void* raw, uint32_t cp, const void* resolved, XpGlyphDraw* draw,
@@ -94,13 +76,12 @@ XpGlyphBitmap GfxRenderer::glyphMiss(void* raw, uint32_t cp, const void* resolve
   EpdGlyph fallback;
   const auto* glyph = static_cast<const EpdGlyph*>(resolved);
   if (!glyph) {
-    glyph = draw->kind == XP_GLYPH_BILINEAR ? c.font->getGlyph(cp, c.style)
-                                            : c.font->getGlyphMetrics(cp, fallback, c.style);
+    glyph = draw->kind == XP_GLYPH_BILINEAR ? c.font->getGlyph(cp) : c.font->getGlyphMetrics(cp, fallback);
   }
   if (!glyph && (draw->kind == XP_GLYPH_NORMAL || draw->kind == XP_GLYPH_ROTATED)) {
     LOG_ERR("GFX", "No glyph for codepoint %d", static_cast<int32_t>(cp));
   }
-  const auto* font = c.font->getData(c.style);
+  const auto* font = c.font->data;
   XpGlyphBitmap bitmap{};
   if (glyph) {
     memcpy(&draw->glyph, glyph, sizeof(*glyph));
@@ -112,7 +93,7 @@ XpGlyphBitmap GfxRenderer::glyphMiss(void* raw, uint32_t cp, const void* resolve
       if (bitmap.data) bitmap.len = (glyph->width * glyph->height * (font->is2Bit ? 2 : 1) + 7) / 8;
     }
   }
-  c.renderer.glyphSource(c.font->getData(c.style), *source);
+  c.renderer.glyphSource(c.font->data, *source);
   return bitmap;
 }
 
@@ -262,7 +243,7 @@ void GfxRenderer::insertFont(const int fontId, EpdFontFamily font) {
 }
 
 int GfxRenderer::resolveTextFontId(const int fontId, const char* text, const EpdFontFamily::Style style) const {
-  if (!text || !*text || fallbackFontMap_.find(fontId) == fallbackFontMap_.end()) return fontId;
+  if (!text || !*text || fontMap.fallback(fontId) == 0) return fontId;
   const auto provider = textProvider();
   return xp_native_resolve(&provider, fontId, reinterpret_cast<const uint8_t*>(text), text ? strlen(text) : 0, style);
 }
@@ -487,8 +468,8 @@ void GfxRenderer::drawGlyphRun(const int fontId, const int x, const int y, const
   const int resolvedFontId = resolveTextFontId(fontId, text, style);
   int baseline = 0;
   if (!rotated) {
-    const auto font = fontMap.find(resolvedFontId);
-    if (font != fontMap.end()) baseline = font->second.getData(EpdFontFamily::REGULAR)->ascender;
+    const auto* font = fontMap.data(resolvedFontId);
+    if (font) baseline = font->ascender;
   }
   if (!rotated && resolvedFontId != fontId) baseline += (getLineHeight(fontId) - getLineHeight(resolvedFontId)) / 2;
   XpGlyphPaint paint{glyphTarget(), {}, x, y + baseline, static_cast<uint8_t>(black)};
@@ -506,14 +487,13 @@ void GfxRenderer::drawGlyphRun(const int fontId, const int x, const int y, const
           return nullptr;
         }
         if (resolved != c.requestedFont) c.renderer.ensureSdGlyphsResident(resolved, text, c.style, false);
-        const auto font = c.renderer.fontMap.find(resolved);
-        if (font == c.renderer.fontMap.end()) {
+        c.font = c.renderer.fontMap.font(resolved, c.style);
+        if (!c.font) {
           LOG_ERR("GFX", "Font %d not found", resolved);
           return nullptr;
         }
-        c.font = &font->second;
-        c.renderer.glyphSource(c.font->getData(c.style), c.paint->source);
-        return reinterpret_cast<const void* const*>(c.font->getDataSlot(c.style));
+        c.renderer.glyphSource(c.font->data, c.paint->source);
+        return reinterpret_cast<const void* const*>(&c.font->data);
       },
       &paint, &glyphMiss);
 }
@@ -531,16 +511,15 @@ void GfxRenderer::drawPage(const uint8_t* arena, const size_t size, const int fo
       },
       [](void* raw, int32_t id, uint8_t style, XpGlyphSource* source) -> const void* const* {
         auto& c = static_cast<PageContext*>(raw)->glyph;
-        const auto font = c.renderer.fontMap.find(id);
-        if (font == c.renderer.fontMap.end()) {
+        c.font = c.renderer.fontMap.font(id, static_cast<EpdFontFamily::Style>(style));
+        if (!c.font) {
           LOG_ERR("GFX", "Font %d not found", id);
           return nullptr;
         }
-        c.font = &font->second;
         c.resolvedFont = id;
         c.style = static_cast<EpdFontFamily::Style>(style);
-        c.renderer.glyphSource(c.font->getData(c.style), *source);
-        return reinterpret_cast<const void* const*>(c.font->getDataSlot(c.style));
+        c.renderer.glyphSource(c.font->data, *source);
+        return reinterpret_cast<const void* const*>(&c.font->data);
       },
       [](void* raw, int32_t id, uint8_t style, const uint8_t* text, size_t length) {
         const auto& renderer = static_cast<PageContext*>(raw)->glyph.renderer;
@@ -1839,35 +1818,34 @@ int GfxRenderer::drawScaledCodepoint(const int fontId, const uint32_t cp, const 
     fontCacheManager_->recordText(utf8, fontId, style);
     return 0;
   }
-  const auto font = fontMap.find(fontId);
-  if (font == fontMap.end()) return 0;
+  const auto* font = fontMap.font(fontId, style);
+  if (!font) return 0;
   XpGlyphPaint paint{glyphTarget(), {}, x, baselineY, true};
-  glyphSource(font->second.getData(style), paint.source);
-  GlyphContext context{*this, &font->second, fontId, fontId, style, false, &paint};
+  glyphSource(font->data, paint.source);
+  GlyphContext context{*this, font, fontId, fontId, style, false, &paint};
   const auto provider = textProvider();
   return xp_native_draw_scaled_pixels(&provider, fontId, cp, style, scale256,
-                                      reinterpret_cast<const void* const*>(font->second.getDataSlot(style)), &context,
-                                      &paint, &glyphMiss);
+                                      reinterpret_cast<const void* const*>(&font->data), &context, &paint, &glyphMiss);
 }
 
 int GfxRenderer::getFontAscenderSize(const int fontId) const {
-  const auto fontIt = fontMap.find(fontId);
-  if (fontIt == fontMap.end()) {
+  const auto* font = fontMap.data(fontId);
+  if (!font) {
     LOG_ERR("GFX", "Font %d not found", fontId);
     return 0;
   }
 
-  return fontIt->second.getData(EpdFontFamily::REGULAR)->ascender;
+  return font->ascender;
 }
 
 int GfxRenderer::getLineHeight(const int fontId) const {
-  const auto fontIt = fontMap.find(fontId);
-  if (fontIt == fontMap.end()) {
+  const auto* font = fontMap.data(fontId);
+  if (!font) {
     LOG_ERR("GFX", "Font %d not found", fontId);
     return 0;
   }
 
-  return fontIt->second.getData(EpdFontFamily::REGULAR)->advanceY;
+  return font->advanceY;
 }
 
 int GfxRenderer::getLineHeight(const int fontId, const float compression) const {
@@ -1875,12 +1853,12 @@ int GfxRenderer::getLineHeight(const int fontId, const float compression) const 
 }
 
 int GfxRenderer::getTextHeight(const int fontId) const {
-  const auto fontIt = fontMap.find(fontId);
-  if (fontIt == fontMap.end()) {
+  const auto* font = fontMap.data(fontId);
+  if (!font) {
     LOG_ERR("GFX", "Font %d not found", fontId);
     return 0;
   }
-  return fontIt->second.getData(EpdFontFamily::REGULAR)->ascender;
+  return font->ascender;
 }
 
 void GfxRenderer::drawTextRotated90CW(const int fontId, const int x, const int y, const char* text, const bool black,
@@ -2075,65 +2053,79 @@ void GfxRenderer::getOrientedViewableTRBL(int* outTop, int* outRight, int* outBo
   }
 }
 
-XpNativeProvider GfxRenderer::textProvider() const {
-  return {const_cast<GfxRenderer*>(this),
-          &fontTableGeneration,
-          [](void* ctx, int32_t id, XpNativeFamily* out) {
-            const auto& self = *static_cast<const GfxRenderer*>(ctx);
-            const auto font = self.fontMap.find(id);
-            if (font == self.fontMap.end()) return;
-            const auto fallback = self.fallbackFontMap_.find(id);
-            if (fallback != self.fallbackFontMap_.end()) {
-              out->fallback = fallback->second;
-              out->hasFallback = true;
-            }
-            for (uint8_t style = 0; style < 4; ++style) {
-              out->styles[style].data = font->second.getData(static_cast<EpdFontFamily::Style>(style));
-              out->resolved[style] = style;
-            }
-            const auto sd = self.sdCardFonts_.find(id);
-            if (sd != self.sdCardFonts_.end()) sd->second->metricViews(*out);
-          },
-          [](void* ctx, int32_t id, uint32_t cp, uint8_t style, XpTextmGlyph* out) -> uint8_t {
-            const auto& self = *static_cast<const GfxRenderer*>(ctx);
-            const auto font = self.fontMap.find(id);
-            if (font == self.fontMap.end()) return false;
-            // TTF lazy styles can replace metrics and tables while faulting.
-            ++fontTableGeneration;
-            const auto* glyph = font->second.getGlyph(cp, static_cast<EpdFontFamily::Style>(style));
-            if (!glyph) return false;
-            *out = {glyph->advanceX, glyph->width, glyph->height, glyph->left, glyph->top};
-            return true;
-          },
-          [](void* ctx, int32_t id, uint32_t cp, uint8_t style) -> uint8_t {
-            const auto& fonts = static_cast<const GfxRenderer*>(ctx)->fontMap;
-            const auto font = fonts.find(id);
-            return font != fonts.end() && font->second.hasCodepoint(cp, static_cast<EpdFontFamily::Style>(style));
-          },
-          [](void* ctx, int32_t id, uint32_t left, uint32_t right, uint8_t style) -> int8_t {
-            const auto& fonts = static_cast<const GfxRenderer*>(ctx)->fontMap;
-            const auto font = fonts.find(id);
-            ++fontTableGeneration;
-            return font == fonts.end() ? 0
-                                       : font->second.getKerning(left, right, static_cast<EpdFontFamily::Style>(style));
-          },
-          xp_native_bidi_acquire,
-          xp_native_bidi_release,
-          [](void* ctx, int32_t id, const uint8_t* text, size_t, uint8_t style) {
-            static_cast<const GfxRenderer*>(ctx)->ensureSdGlyphsResident(
-                id, reinterpret_cast<const char*>(text), static_cast<EpdFontFamily::Style>(style), true);
-          },
-          [](void*, uint32_t event, uint32_t a, uint32_t, uint32_t, uint32_t) {
-            switch (static_cast<XpNativeDiagnostic>(event)) {
-              case XpNativeDiagnostic::MissingFont:
-                LOG_ERR("GFX", "Font %d not found", static_cast<int32_t>(a));
-                break;
-              case XpNativeDiagnostic::BidiLimit:
-                LOG_DBG("BIDI", "applyBidiVisual: input exceeds BIDI_MAX_LINE (%d chars), returning unprocessed",
-                        static_cast<int>(a));
-                break;
-            }
-          }};
+XpNativeProvider GfxRenderer::textProvider() const { return xp_font_registry_provider(fontMap.raw()); }
+
+void GfxRenderer::pageTarget(XpPageTarget& out) const {
+  out.glyphs = glyphTarget();
+  out.fonts = fontMap.raw();
+  out.native = const_cast<GfxRenderer*>(this);
+  out.inverted = display.isInverted();
+}
+void GfxRenderer::pagePlanLoan(XpPagePaint& out) const {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  out.plan = pagePlan;
+  out.bounds = pageBounds;
+  out.count = pageBoundsCount;
+  out.prepare = preparePagePlan;
+#else
+  (void)out;
+#endif
+}
+
+extern "C" void xp_native_font_cache_view(void* raw, XpGlyphSource* source) {
+  const auto* manager = static_cast<const GfxRenderer*>(raw)->getFontCacheManager();
+  const auto* decompressor = manager ? manager->getDecompressor() : nullptr;
+  if (!decompressor) return;
+  source->slots = static_cast<const XpGlyphPageSlot*>(decompressor->pageSlotView());
+  source->slotCount = decompressor->pageSlotViewCount();
+}
+extern "C" XpGlyphBitmap xp_native_font_bitmap_miss(void* raw, const void* font, const void* glyph) {
+  const auto* data = static_cast<const EpdFontData*>(font);
+  const auto* g = static_cast<const EpdGlyph*>(glyph);
+  const auto* bitmap = static_cast<const GfxRenderer*>(raw)->getGlyphBitmap(data, g);
+  return {bitmap, bitmap ? static_cast<uint32_t>((g->width * g->height * (data->is2Bit ? 2 : 1) + 7) / 8) : 0};
+}
+extern "C" void xp_native_font_record_resolved_text(void* raw, int32_t font, uint8_t style, const uint8_t* text) {
+  auto* manager = static_cast<const GfxRenderer*>(raw)->getFontCacheManager();
+  if (manager)
+    manager->recordResolvedText(reinterpret_cast<const char*>(text), font, static_cast<EpdFontFamily::Style>(style));
+}
+extern "C" void xp_native_sd_font_view(void* raw, int32_t font, XpNativeFamily* family, XpGlyphSource* source) {
+  if (family) {
+    const auto& fonts = static_cast<const GfxRenderer*>(raw)->getSdCardFonts();
+    const auto found = fonts.find(font);
+    if (found != fonts.end()) found->second->metricViews(*family);
+  }
+  if (source && source->font) {
+    const auto* data = static_cast<const EpdFontData*>(source->font);
+    if (data->glyphMissCtx) SdCardFont::fromMissCtx(data->glyphMissCtx)->bitmapView(data, *source);
+  }
+}
+extern "C" void xp_native_sd_font_resident_slice(void* raw, int32_t font, uint8_t style, const uint8_t* text,
+                                                 size_t length, uint8_t metadata) {
+  const auto& fonts = static_cast<const GfxRenderer*>(raw)->getSdCardFonts();
+  const auto found = fonts.find(font);
+  if (found == fonts.end()) return;
+  found->second->prewarmSpan(text, length, static_cast<uint8_t>(1u << (style & 3)), metadata != 0);
+}
+extern "C" uint8_t xp_native_sd_font_load(void* raw, int32_t font) {
+  const auto& renderer = *static_cast<const GfxRenderer*>(raw);
+  const auto& provider = renderer.fontVariantProvider_;
+  return provider.load && provider.load(provider.ctx, font);
+}
+extern "C" void xp_native_font_diagnostic(void*, uint32_t event, uint32_t value) {
+  switch (static_cast<XpNativeDiagnostic>(event)) {
+    case XpNativeDiagnostic::MissingFont:
+      LOG_ERR("GFX", "Font %d not found", static_cast<int32_t>(value));
+      break;
+    case XpNativeDiagnostic::MissingGlyph:
+      LOG_ERR("GFX", "No glyph for codepoint %d", static_cast<int32_t>(value));
+      break;
+    case XpNativeDiagnostic::BidiLimit:
+      LOG_DBG("BIDI", "applyBidiVisual: input exceeds BIDI_MAX_LINE (%d chars), returning unprocessed",
+              static_cast<int>(value));
+      break;
+  }
 }
 
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER

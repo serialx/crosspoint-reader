@@ -19,6 +19,7 @@ mod chapter;
 mod css;
 mod dictionary;
 mod font;
+mod font_registry;
 mod gif;
 mod glyph;
 mod hal;

@@ -1,4 +1,10 @@
 //! Synchronous page draw: one font cache and one bitmap-source loan per pass.
+#[path = "page_render/direct.rs"]
+pub(crate) mod direct;
+#[path = "page_render/images.rs"]
+mod images;
+// CP1 keeps the original entry active until the coordinator's switch review.
+pub(crate) const DIRECT_PAGE_PAINT: bool = false;
 #[cfg(feature = "reader-strips")]
 #[path = "page_plan.rs"]
 mod page_plan;
@@ -34,11 +40,53 @@ pub struct Services {
     image: unsafe extern "C" fn(*mut c_void, u16, i32, i32, u8),
     miss: Miss,
 }
+trait Resources {
+    fn context(&self) -> *mut c_void;
+    unsafe fn ensure(&self, font: i32) -> bool;
+    unsafe fn source(
+        &self,
+        font: i32,
+        style: u8,
+        source: *mut BitmapSource,
+    ) -> *const *const FontData;
+    unsafe fn resident(&self, font: i32, style: u8, text: *const u8, len: usize);
+    unsafe fn scan(&self, font: i32, style: u8, text: *const u8);
+    unsafe fn image(&self, index: u16, x: i32, y: i32, placeholder: bool);
+    fn miss(&self) -> Miss;
+}
+impl Resources for Services {
+    fn context(&self) -> *mut c_void {
+        self.context
+    }
+    unsafe fn ensure(&self, font: i32) -> bool {
+        (self.ensure)(self.context, font) != 0
+    }
+    unsafe fn source(
+        &self,
+        font: i32,
+        style: u8,
+        source: *mut BitmapSource,
+    ) -> *const *const FontData {
+        (self.source)(self.context, font, style, source)
+    }
+    unsafe fn resident(&self, font: i32, style: u8, text: *const u8, len: usize) {
+        (self.resident)(self.context, font, style, text, len)
+    }
+    unsafe fn scan(&self, font: i32, style: u8, text: *const u8) {
+        (self.scan)(self.context, font, style, text)
+    }
+    unsafe fn image(&self, index: u16, x: i32, y: i32, placeholder: bool) {
+        (self.image)(self.context, index, x, y, u8::from(placeholder))
+    }
+    fn miss(&self) -> Miss {
+        self.miss
+    }
+}
 type Observer = unsafe extern "C" fn(*mut c_void, *const textm::draw::Placement);
-struct Renderer<'a> {
+struct Renderer<'a, R: Resources> {
     engine: Engine,
     provider: &'a Provider,
-    services: &'a Services,
+    services: &'a R,
     paint: *mut GlyphPaint,
     slot: *const *const FontData,
     font: i32,
@@ -53,19 +101,15 @@ struct Renderer<'a> {
     #[cfg(feature = "strip-spike")]
     strip: Option<strip_state::State<'a>>,
 }
-impl Renderer<'_> {
+impl<R: Resources> Renderer<'_, R> {
     fn flush_scan(&mut self) {
         if self.scan_len == 0 {
             return;
         }
         self.scan[self.scan_len] = 0;
         unsafe {
-            (self.services.scan)(
-                self.services.context,
-                self.scan_font,
-                self.scan_style,
-                self.scan.as_ptr(),
-            );
+            self.services
+                .scan(self.scan_font, self.scan_style, self.scan.as_ptr());
         }
         self.scan_len = 0;
     }
@@ -93,19 +137,16 @@ impl Renderer<'_> {
             || (*source.generation).load(core::sync::atomic::Ordering::Relaxed)
                 != source.captured_generation;
         if self.slot.is_null() || self.font != font || self.style != style || stale {
-            self.slot = (self.services.source)(
-                self.services.context,
-                font,
-                style,
-                ptr::addr_of_mut!((*self.paint).source),
-            );
+            self.slot = self
+                .services
+                .source(font, style, ptr::addr_of_mut!((*self.paint).source));
             self.font = font;
             self.style = style;
         }
         !self.slot.is_null()
     }
 }
-impl Canvas for Renderer<'_> {
+impl<R: Resources> Canvas for Renderer<'_, R> {
     #[cfg(feature = "strip-spike")]
     fn element(&mut self, index: u16, e: page::Element<'_>, x: i32, y: i32) -> bool {
         match self.strip.as_mut() {
@@ -120,7 +161,7 @@ impl Canvas for Renderer<'_> {
     fn font(&mut self, requested: i32, section: i32) -> i32 {
         if requested == section
             || self.engine.exists(requested)
-            || unsafe { (self.services.ensure)(self.services.context, requested) != 0 }
+            || unsafe { self.services.ensure(requested) }
         {
             requested
         } else {
@@ -157,13 +198,8 @@ impl Canvas for Renderer<'_> {
             }
             unsafe {
                 if font != t.font && self.engine.is_sd(font) {
-                    (self.services.resident)(
-                        self.services.context,
-                        font,
-                        t.style,
-                        visual.as_ptr(),
-                        visual.len(),
-                    );
+                    self.services
+                        .resident(font, t.style, visual.as_ptr(), visual.len());
                 }
                 if !self.select(font, t.style) {
                     return;
@@ -212,7 +248,7 @@ impl Canvas for Renderer<'_> {
                             }
                         }
                         if let Some(observer) = self.observer {
-                            observer(self.services.context, &placement);
+                            observer(self.services.context(), &placement);
                         }
                         let kind = if placement.scale_num != placement.scale_den {
                             Kind::Coverage
@@ -221,8 +257,8 @@ impl Canvas for Renderer<'_> {
                         };
                         paint_glyph(
                             self.paint,
-                            self.services.context,
-                            self.services.miss,
+                            self.services.context(),
+                            self.services.miss(),
                             placement,
                             kind,
                             256,
@@ -323,9 +359,9 @@ impl Canvas for Renderer<'_> {
                     style,
                     scale,
                     self.slot,
-                    self.services.context,
+                    self.services.context(),
                     self.paint,
-                    self.services.miss,
+                    self.services.miss(),
                 );
             }
         }
@@ -339,18 +375,18 @@ impl Canvas for Renderer<'_> {
             return;
         }
         unsafe {
-            (self.services.image)(self.services.context, i, x, y, u8::from(placeholder));
+            self.services.image(i, x, y, placeholder);
         }
         // Image decoders may evict font caches before the next text element.
         self.slot = ptr::null();
     }
 }
 #[allow(clippy::too_many_arguments)]
-unsafe fn render(
+unsafe fn render<R: Resources>(
     arena: *const u8,
     len: usize,
     provider: *const Provider,
-    services: *const Services,
+    services: *const R,
     paint: *mut GlyphPaint,
     font: i32,
     x: i32,

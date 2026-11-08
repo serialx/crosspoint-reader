@@ -57,6 +57,19 @@ impl Context for RenderContext<'_, '_> {
     }
     fn paint(&self, mode: u8) {
         let geometry = self.geometry();
+        if crate::page_render::DIRECT_PAGE_PAINT {
+            let status = unsafe {
+                crate::page_render::direct::paint_current(
+                    self.page.arena(),
+                    geometry.font,
+                    geometry.left,
+                    geometry.top,
+                    mode,
+                )
+            };
+            assert_eq!(status, 0, "validated page target");
+            return;
+        }
         let view = super::abi::XpEpubPageView {
             arena: geometry.arena,
             size: geometry.length,

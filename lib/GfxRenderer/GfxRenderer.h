@@ -19,6 +19,8 @@ class FontCacheManager;
 class SdCardFont;
 class TtfEpdFont;
 
+#include <xp_page_paint.h>
+
 #include <array>
 #include <cstring>
 #include <map>
@@ -26,6 +28,7 @@ class TtfEpdFont;
 #include <vector>
 
 #include "Bitmap.h"
+#include "FontRegistry.h"
 #include "FontVariantProvider.h"
 
 // Color representation: uint8_t mapped to 4x4 Bayer matrix dithering levels
@@ -35,6 +38,8 @@ enum Color : uint8_t { Clear = 0x00, White = 0x01, LightGray = 0x05, DarkGray = 
 enum class PageRenderMode : uint8_t { All, Images, Placeholders };
 
 class GfxRenderer {
+  friend uint8_t xp_native_sd_font_load(void*, int32_t);
+
  public:
   enum RenderMode { BW, GRAYSCALE_LSB, GRAYSCALE_MSB };
 
@@ -61,7 +66,7 @@ class GfxRenderer {
   uint16_t panelWidthBytes = HalDisplay::DISPLAY_WIDTH_BYTES;
   uint32_t frameBufferSize = HalDisplay::BUFFER_SIZE;
   std::vector<uint8_t*> bwBufferChunks;
-  std::map<int, EpdFontFamily> fontMap;
+  FontRegistry fontMap;
   // Mutable because ensureSdCardFontReady() is const (called from layout code
   // that holds a const GfxRenderer&) but triggers SD card reads and heap
   // allocation inside the SdCardFont objects. Same pragmatic compromise as
@@ -112,7 +117,6 @@ class GfxRenderer {
   // cannot render, the whole string is routed to the mapped fallback so it
   // appears at the same point size as the surrounding UI text. Populated by the
   // app-level SD font setup when an SD family is loaded. See resolveTextFontId().
-  std::map<int, int> fallbackFontMap_;
   FontVariantProvider fontVariantProvider_;
 
   // If `text` contains a CJK codepoint that `fontId` cannot render and `fontId`
@@ -121,7 +125,7 @@ class GfxRenderer {
   // call stays single-font (consistent bit depth, metrics, wrapping).
   struct GlyphContext {
     const GfxRenderer& renderer;
-    const EpdFontFamily* font;
+    const EpdFont* font;
     int requestedFont, resolvedFont;
     EpdFontFamily::Style style;
     bool rotated;
@@ -205,11 +209,13 @@ class GfxRenderer {
 
  public:
   explicit GfxRenderer(HalDisplay& halDisplay)
-      : display(halDisplay), renderMode(BW), orientation(Portrait), fadingFix(false) {}
+      : display(halDisplay), renderMode(BW), orientation(Portrait), fadingFix(false), fontMap(this) {}
   ~GfxRenderer() { freeBwBufferChunks(); }
 
   // Setup
   XpNativeProvider textProvider() const;
+  void pageTarget(XpPageTarget& out) const;
+  void pagePlanLoan(XpPagePaint& out) const;
   bool drawUiScene(const XpUiScene& scene, const XpUiPaint* resources = nullptr) const;
   // Shared text/resource services follow this target for the whole synchronous call.
   bool drawUiScene(const XpUiScene& scene, const XpGlyphTarget& target, const XpUiPaint* resources) const;
@@ -242,7 +248,7 @@ class GfxRenderer {
   void prewarmFallbackText(int fontId, TextGetter getter, const void* ctx, uint32_t textCount,
                            EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
   void prewarmFallbackText(int fontId, const char* text, EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
-  const std::map<int, EpdFontFamily>& getFontMap() const { return fontMap; }
+  const FontRegistry& getFontMap() const { return fontMap; }
   void registerSdCardFont(int fontId, SdCardFont* font) {
     ++fontTableGeneration;
     sdCardFonts_[fontId] = font;
@@ -271,11 +277,11 @@ class GfxRenderer {
   // setFallbackFont maps a primary UI font id to an SD font id of the same size.
   void setFallbackFont(int primaryFontId, int fallbackFontId) {
     ++fontTableGeneration;
-    fallbackFontMap_[primaryFontId] = fallbackFontId;
+    fontMap.setFallback(primaryFontId, fallbackFontId);
   }
   void clearFallbackFonts() {
     ++fontTableGeneration;
-    fallbackFontMap_.clear();
+    fontMap.clearFallbacks();
   }
 
   void setFontVariantProvider(const FontVariantProvider& provider) { fontVariantProvider_ = provider; }

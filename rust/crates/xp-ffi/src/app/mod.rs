@@ -100,7 +100,7 @@ unsafe fn receive_child_result(child: ChildTarget, consume: impl FnOnce(Activity
 
 enum Owner {
     Definition(Definition),
-    Home(Box<home::Home>),
+    Home(StableOwner<home::Home>),
     Keyboard(StableOwner<keyboard::Keyboard>),
     NetworkModes(StableOwner<network_modes::Modes>),
     Dialog(dialog::Owned),
@@ -122,7 +122,7 @@ impl Activity for Owner {
     type Target = Target;
     fn target(&self) -> Target {
         match self {
-            Self::Home(home) => Target::Home(NonNull::from(home.as_ref())),
+            Self::Home(home) => Target::Home(home.pointer()),
             Self::Epub(epub) => Target::Epub(epub.pointer()),
             Self::Keyboard(keyboard) => Target::Keyboard(keyboard.pointer()),
             Self::NetworkModes(modes) => Target::NetworkModes(modes.pointer()),
@@ -316,6 +316,7 @@ impl App {
             menu,
             clean_initial,
         ))
+        .map(StableOwner::from)
         .map(Owner::Home)
     }
 

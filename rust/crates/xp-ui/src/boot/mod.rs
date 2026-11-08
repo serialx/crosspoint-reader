@@ -295,6 +295,8 @@ pub fn image_hints(s: &ImageState) -> u8 {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+pub(crate) use tests::count_allocations;
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]

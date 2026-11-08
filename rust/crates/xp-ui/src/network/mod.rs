@@ -13,3 +13,4 @@ pub mod wifi;
 pub mod wifi_view;
 
 pub mod wifi_physical;
+pub mod wifi_resources;

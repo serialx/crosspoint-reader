@@ -27,3 +27,7 @@ path = "../../../test/ui_utility/owned.rs"
 [[test]]
 name = "settings_owned"
 path = "../../../test/ui_settings/owned.rs"
+
+[[test]]
+name = "wifi_resources_oracle"
+path = "../../../test/ui_network/resources_oracle.rs"

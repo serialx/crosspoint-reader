@@ -285,8 +285,27 @@ fn rejected_scene_leaves_output_unpublished() {
 
 struct GuardedAllocator;
 std::thread_local! { static NO_ALLOC: core::cell::Cell<bool> = const { core::cell::Cell::new(false) }; }
+std::thread_local! { static ALLOCATION_COUNT: core::cell::Cell<Option<usize>> = const { core::cell::Cell::new(None) }; }
+pub(crate) fn count_allocations<T>(work: impl FnOnce() -> T) -> (T, usize) {
+    struct Window(Option<usize>);
+    impl Drop for Window {
+        fn drop(&mut self) {
+            ALLOCATION_COUNT.with(|count| count.set(self.0));
+        }
+    }
+    let window = Window(ALLOCATION_COUNT.with(|count| count.replace(Some(0))));
+    let result = work();
+    let calls = ALLOCATION_COUNT.with(|count| count.get().unwrap_or(0));
+    drop(window);
+    (result, calls)
+}
 unsafe impl std::alloc::GlobalAlloc for GuardedAllocator {
     unsafe fn alloc(&self, l: std::alloc::Layout) -> *mut u8 {
+        let _ = ALLOCATION_COUNT.try_with(|count| {
+            if let Some(value) = count.get() {
+                count.set(Some(value.saturating_add(1)));
+            }
+        });
         if NO_ALLOC.try_with(|v| v.get()).unwrap_or(false) {
             return core::ptr::null_mut();
         }

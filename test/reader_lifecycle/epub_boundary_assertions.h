@@ -383,7 +383,7 @@ static_assert(std::is_pointer_v<decltype(XpEpubLeaves::scratch_release)> &&
 static_assert(offsetof(XpEpubLeaves, inflate_oom_log) == 109 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::inflate_oom_log)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::inflate_oom_log)>>);
-static_assert(sizeof(XpEpubLeaves) == 170 * sizeof(void (*)()));
+static_assert(sizeof(XpEpubLeaves) == 168 * sizeof(void (*)()));
 static_assert(alignof(XpEpubLeaves) == alignof(void (*)()));
 static_assert(sizeof(XpAppResultView::kind) == 1);
 static_assert(sizeof(XpAppResultView::cancelled) == 1);
@@ -414,15 +414,11 @@ static_assert(offsetof(XpEpubLegacyPageServices, page_load) == 15 * sizeof(void 
 static_assert(offsetof(XpEpubLeaves, framebuffer_lend) == 121 * sizeof(void (*)()));
 static_assert(offsetof(XpEpubLeaves, framebuffer_restore) == 122 * sizeof(void (*)()));
 
-static_assert(offsetof(XpEpubLeaves, paint_arena) == 123 * sizeof(void (*)()));
-static_assert(std::is_pointer_v<decltype(XpEpubLeaves::paint_arena)> &&
-              std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::paint_arena)>>);
-
-static_assert(offsetof(XpEpubLeaves, image_needs_decode) == 124 * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, image_needs_decode) == 123 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::image_needs_decode)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::image_needs_decode)>>);
 
-static_assert(offsetof(XpEpubLeaves, font_ascent) == 125 * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, font_ascent) == 124 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::font_ascent)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::font_ascent)>>);
 template <class T, class = void>
@@ -506,9 +502,8 @@ template <class T>
 struct Has_page_load<T, std::void_t<decltype(&T::page_load)>> : std::true_type {};
 static_assert(!Has_page_load<XpEpubLeaves>::value);
 
-static_assert(offsetof(XpEpubLeaves, render_physical_query) == 126 * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, render_physical_operation) == 127 * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, render_plan) == 128 * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, image_read_window) == 129 * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, display_source) == 130 * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, framebuffer_view) == 131 * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, render_physical_query) == 125 * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, render_physical_operation) == 126 * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, image_read_window) == 127 * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, display_source) == 128 * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, framebuffer_view) == 129 * sizeof(void (*)()));

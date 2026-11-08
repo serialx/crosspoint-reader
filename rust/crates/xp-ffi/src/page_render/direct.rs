@@ -49,11 +49,43 @@ struct Direct<'a> {
 }
 extern "C" {
     fn xp_native_render_target(out: *mut Target);
+    #[cfg(feature = "chapter-test")]
+    fn xp_native_page_test_glyph(
+        font: *const FontData,
+        placement: *const textm::draw::Placement,
+        x: i32,
+        y: i32,
+        style: u8,
+    );
 }
 
+#[inline(always)]
+pub(super) fn observer() -> Option<Observer> {
+    #[cfg(feature = "chapter-test")]
+    return Some(observe);
+    #[cfg(not(feature = "chapter-test"))]
+    None
+}
+
+#[cfg(feature = "chapter-test")]
+unsafe extern "C" fn observe(
+    raw: *mut c_void,
+    placement: *const textm::draw::Placement,
+    x: i32,
+    y: i32,
+) {
+    let resources = &*raw.cast::<Direct<'_>>();
+    let font = Owner::slot(
+        resources.target.fonts,
+        resources.font.get(),
+        resources.style.get(),
+    )
+    .read();
+    xp_native_page_test_glyph(font, placement, x, y, resources.style.get());
+}
+
+#[inline(never)]
 pub(crate) unsafe fn paint_current(arena: &[u8], font: i32, x: i32, y: i32, mode: u8) -> u32 {
-    let mut target = core::mem::MaybeUninit::uninit();
-    xp_native_render_target(target.as_mut_ptr());
     let request = Request {
         font,
         x,
@@ -64,7 +96,14 @@ pub(crate) unsafe fn paint_current(arena: &[u8], font: i32, x: i32, y: i32, mode
         count: 0,
         prepare: 0,
     };
-    paint(arena, target.assume_init_ref(), &request)
+    paint_request_current(arena, &request)
+}
+
+#[inline(never)]
+pub(crate) unsafe fn paint_request_current(arena: &[u8], request: &Request) -> u32 {
+    let mut target = core::mem::MaybeUninit::uninit();
+    xp_native_render_target(target.as_mut_ptr());
+    paint(arena, target.assume_init_ref(), request)
 }
 impl Resources for Direct<'_> {
     fn context(&self) -> *mut c_void {
@@ -114,19 +153,10 @@ impl Resources for Direct<'_> {
         }
     }
     unsafe fn scan(&self, font: i32, style: u8, text: *const u8) {
-        let Some(entry) = (*self.target.fonts).registry.find(font) else {
+        let Some(resolved) = resolved_scan_style(self.target.fonts, font, style) else {
             return;
         };
-        let data = entry.slot(style).read();
-        let resolved = (0..4)
-            .find(|&candidate| entry.slot(candidate).read() == data)
-            .unwrap_or(style & 3);
-        fonts::xp_native_font_record_resolved_text(
-            self.target.native,
-            font,
-            resolved | (style & 128),
-            text,
-        );
+        fonts::xp_native_font_record_resolved_text(self.target.native, font, resolved, text);
     }
     unsafe fn image(&self, index: u16, x: i32, y: i32, placeholder: bool) {
         let Ok(page) = page::Page::open(self.arena) else {
@@ -153,6 +183,17 @@ impl Resources for Direct<'_> {
         miss
     }
 }
+// Registry scratch ends before the native prewarm handoff.
+#[inline(never)]
+unsafe fn resolved_scan_style(owner: *const Owner, font: i32, style: u8) -> Option<u8> {
+    let entry = (*owner).registry.find(font)?;
+    let data = entry.slot(style).read();
+    let resolved = (0..4)
+        .find(|&candidate| entry.slot(candidate).read() == data)
+        .unwrap_or(style & 3);
+    Some(resolved | (style & 128))
+}
+
 unsafe extern "C" fn miss(
     context: *mut c_void,
     cp: u32,
@@ -181,7 +222,11 @@ unsafe extern "C" fn miss(
     };
     if glyph.is_null() {
         if (*draw).kind == Kind::Normal as u8 || (*draw).kind == Kind::Rotated as u8 {
-            fonts::report(context.target.fonts, 3, cp);
+            fonts::report(
+                context.target.fonts,
+                xp_core::textm::native::DiagnosticEvent::MissingGlyph as u32,
+                cp,
+            );
         }
     } else {
         (*draw).glyph = glyph.read();
@@ -198,6 +243,7 @@ unsafe extern "C" fn miss(
 
 /// The caller holds the Page, physical target and font owners for the pass.
 /// This function creates no native Page facade and no page callback table.
+#[inline(never)]
 pub(crate) unsafe fn paint(arena: &[u8], target: &Target, request: &Request) -> u32 {
     if !target.glyphs.valid() || target.glyphs.buffer.is_null() || target.fonts.is_null() {
         return 1;
@@ -244,7 +290,7 @@ pub(crate) unsafe fn paint(arena: &[u8], target: &Target, request: &Request) -> 
         request.x,
         request.y,
         request.mode,
-        None,
+        observer(),
         #[cfg(feature = "strip-spike")]
         None,
     )

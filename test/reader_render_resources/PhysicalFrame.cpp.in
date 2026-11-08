@@ -6,7 +6,6 @@ struct ResourceCallbacks {
   uint8_t (*prewarmBegin)(void*, XpEpubPrewarm*);
   void (*prewarmFinish)(void*, XpEpubPrewarm*);
   void (*prewarmDrop)(void*, XpEpubPrewarm*);
-  void (*plan)(void*, void*, uint8_t*, uint16_t, uint8_t);
   void (*window)(void*, uint8_t*, uint32_t);
   uint8_t (*source)(void*, void*);
   uint8_t* (*framebuffer)(void*, size_t*);
@@ -49,14 +48,6 @@ ResourceCallbacks callbacks(Content& context) {
     [](void* c, XpEpubPrewarm* p) { return physicalPrewarmBegin(content(c).renderer, p); },
     [](void*, XpEpubPrewarm* p) { physicalPrewarmFinish(p); },
     [](void*, XpEpubPrewarm* p) { physicalPrewarmDrop(p); },
-    [](void* c, void* plan, uint8_t* bounds, uint16_t count, uint8_t record) {
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-      physicalRenderPlan(content(c).renderer, static_cast<XpPagePlan*>(plan),
-                         reinterpret_cast<XpPageRowBounds*>(bounds), count, record);
-#else
-      (void)c; (void)plan; (void)bounds; (void)count; (void)record;
-#endif
-    },
     [](void*, uint8_t* bytes, uint32_t length) { physicalImageWindow(bytes, length); },
     [](void*, void* source) { return physicalDisplaySource(static_cast<XpDisplaySource*>(source)); },
     [](void* c, size_t* length) {

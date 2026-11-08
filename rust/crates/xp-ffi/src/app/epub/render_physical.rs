@@ -21,9 +21,6 @@ impl PhysicalResources for XpEpubLeaves {
     fn detach_source(&self) {
         unsafe { (self.display_source)(ptr::null_mut()) };
     }
-    fn clear_plan(&self) {
-        unsafe { (self.render_plan)(ptr::null_mut(), ptr::null_mut(), 0, 0) };
-    }
     fn clear_window(&self) {
         unsafe { (self.image_read_window)(ptr::null_mut(), 0) };
     }
@@ -37,16 +34,6 @@ impl physical::Physical for XpEpubLeaves {
     }
     fn operation(&self, op: &Op) -> u32 {
         unsafe { (self.render_physical_operation)(op) }
-    }
-    #[cfg(feature = "reader-strips")]
-    fn plan(
-        &self,
-        plan: *mut crate::page_render::Plan,
-        bounds: *mut u8,
-        count: u16,
-        recording: bool,
-    ) {
-        unsafe { (self.render_plan)(plan, bounds, count, u8::from(recording)) };
     }
     #[cfg(feature = "reader-strips")]
     fn image_window(&self, bytes: *mut u8, length: u32) {

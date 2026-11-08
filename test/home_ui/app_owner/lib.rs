@@ -37,11 +37,49 @@ mod display_source;
 mod page_plan_storage;
 mod page_render {
     pub use crate::page_plan_storage::Plan;
-    // This ownership fixture exercises the native page leaf until PT1b switches it.
-    pub const DIRECT_PAGE_PAINT: bool = false;
     pub mod direct {
-        pub unsafe fn paint_current(_: &[u8], _: i32, _: i32, _: i32, _: u8) -> u32 {
-            panic!("direct page painting is outside this ownership fixture")
+        use core::{cell::Cell, ffi::c_void};
+        // Only the ownership contract is observed in this fixture.
+        #[allow(dead_code)]
+        pub(crate) struct Request {
+            pub font: i32,
+            pub x: i32,
+            pub y: i32,
+            pub mode: u8,
+            pub plan: *mut super::Plan,
+            pub bounds: *mut c_void,
+            pub count: usize,
+            pub prepare: u8,
+        }
+        type Paint = fn(&[u8]);
+        thread_local! { static OBSERVER: Cell<Option<Paint>> = const { Cell::new(None) }; }
+        #[cfg(feature = "app-test")]
+        pub(crate) fn observe(paint: Paint) {
+            OBSERVER.with(|v| v.set(Some(paint)));
+        }
+        pub unsafe fn paint_current(bytes: &[u8], font: i32, x: i32, y: i32, mode: u8) -> u32 {
+            paint_request_current(
+                bytes,
+                &Request {
+                    font,
+                    x,
+                    y,
+                    mode,
+                    plan: core::ptr::null_mut(),
+                    bounds: core::ptr::null_mut(),
+                    count: 0,
+                    prepare: 0,
+                },
+            )
+        }
+        pub(crate) unsafe fn paint_request_current(bytes: &[u8], _: &Request) -> u32 {
+            assert!(xp_core::page::Page::open(bytes).is_ok());
+            OBSERVER.with(|v| {
+                if let Some(paint) = v.get() {
+                    paint(bytes)
+                }
+            });
+            0
         }
     }
 }

@@ -14,8 +14,6 @@
 #include "blocks/ImageBlock.h"
 #include "blocks/TextBlock.h"
 
-enum class PageRenderMode : uint8_t;
-
 enum PageElementTag : uint8_t {
   TAG_PageLine = 1,
   TAG_PageImage = 2,
@@ -178,7 +176,6 @@ class Page {
   static size_t allocationSize(size_t arenaBytes, size_t elements);
   static std::unique_ptr<Page> allocate(const XpPageInfo& info);
   bool resolveViews();
-  void renderArena(GfxRenderer& renderer, int fontId, int x, int y, PageRenderMode mode) const;
 #ifdef XP_PAGE_CODEC_TEST
   std::vector<FootnoteEntry> footnotes;
   std::vector<PageLink> links;
@@ -270,9 +267,15 @@ class Page {
 #endif
 
   void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) const;
-  void renderImages(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) const;
-  void renderWithImagePlaceholders(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) const;
-#ifdef XP_PAGE_CODEC_TEST
+#if defined(XP_PAGE_CODEC_TEST) || defined(XP_EPUB_PAGE_OWNER_TEST)
+  // Host codec fixtures exercise the image modes through the same Rust painter.
+  void renderModeForTest(GfxRenderer& renderer, int fontId, int x, int y, uint8_t mode) const;
+  void renderImages(GfxRenderer& renderer, int fontId, int x, int y) const {
+    renderModeForTest(renderer, fontId, x, y, 1);
+  }
+  void renderWithImagePlaceholders(GfxRenderer& renderer, int fontId, int x, int y) const {
+    renderModeForTest(renderer, fontId, x, y, 2);
+  }
   bool serialize(HalFile& file) const;
 #endif
 

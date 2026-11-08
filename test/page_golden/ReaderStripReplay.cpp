@@ -60,25 +60,14 @@ int main(int argc, char** argv) {
   std::vector<uint8_t> bytes{std::istreambuf_iterator<char>(file), {}};
   auto page = Page::fromBytes(bytes.data(), bytes.size());
   require(bool(page), "decode fixture");
-  alignas(8) std::array<uint8_t, 16384> commands{};
-  std::vector<XpPageRowBounds> bounds(page->elementCount());
-  XpPagePlan plan{commands.data(), commands.size(), 0, 0};
-  renderer.usePagePlan(&plan, bounds.data(), bounds.size(), true);
-  page->render(renderer, 100, 12, 12);
-  require(plan.valid, "prepare production plan");
   const auto directArena = arenaFrom(bytes);
   alignas(8) std::array<uint8_t, 16384> directCommands{};
   std::vector<XpPageRowBounds> directBounds(page->elementCount());
   XpPagePlan directPlan{directCommands.data(), directCommands.size(), 0, 0};
   XpPagePaint directRequest{100, 12, 12, 0, &directPlan, directBounds.data(), directBounds.size(), 1};
   paintDirect(renderer, directArena, directRequest);
-  require(directPlan.valid && directPlan.count == plan.count, "direct plan records differ");
-  for (size_t i = 0; i < bounds.size(); ++i) {
-    require(bounds[i].start == directBounds[i].start && bounds[i].end == directBounds[i].end,
-            "direct row bounds differ");
-  }
+  require(directPlan.valid && directPlan.count, "prepare direct plan");
   directRequest.prepare = 0;
-  renderer.usePagePlan(&plan, bounds.data(), bounds.size());
   std::array<uint8_t, 8000> directScratch{};
   for (int plane = 0; plane < 3; ++plane) {
     renderer.setRenderMode(static_cast<GfxRenderer::RenderMode>(plane));
@@ -87,16 +76,15 @@ int main(int argc, char** argv) {
       renderer.beginStripTarget(directScratch.data(), y, rows);
       renderer.clearScreen();
       page->render(renderer, 100, 12, 12);
-      const auto legacy = directScratch;
+      const auto unplanned = directScratch;
       renderer.clearScreen();
       paintDirect(renderer, directArena, directRequest);
-      require(directScratch == legacy, "direct plan replay pixels differ");
+      require(directScratch == unplanned, "planned and unplanned page pixels differ");
       renderer.endStripTarget();
     }
   }
   renderer.setRenderMode(GfxRenderer::BW);
   std::cout << "PASS direct Rust plan prepare/replay: BW/LSB/MSB strip bytes equal native adapter\n";
-  renderer.usePagePlan(&plan, bounds.data(), bounds.size());
   renderer.clearScreen();
   std::array<uint8_t, 8000> scratch{};
   ReaderStripPainter painter{renderer, *page, 100, 12, 12, renderer.getScreenHeight(), false};
@@ -149,7 +137,6 @@ int main(int argc, char** argv) {
   }
   std::cout << "PASS real UC8253/SSD1677 source: every display/reseed/next FAST bus byte matches no-fault control\n";
   // A streamed image succeeds before a late cache failure; the retained BW stays intact.
-  renderer.usePagePlan(nullptr, nullptr, 0);
   renderer.setOrientation(GfxRenderer::LandscapeCounterClockwise);
   ESP.freeHeap = 24 * 1024;
   std::vector<uint8_t> image(4 + 90 * 380, 0x1b);
@@ -184,12 +171,12 @@ int main(int argc, char** argv) {
           ImageBlock::releaseRenderCache();
           renderer.clearScreen();
           imagePage->render(renderer, 100, 0, 0);
-          const auto legacyFrame = display.pixels;
-          const auto legacyStrip = directScratch;
+          const auto adapterFrame = display.pixels;
+          const auto adapterStrip = directScratch;
           ImageBlock::releaseRenderCache();
           renderer.clearScreen();
           paintDirect(renderer, imageArena, imageRequest);
-          require(display.pixels == legacyFrame && (!strip || directScratch == legacyStrip),
+          require(display.pixels == adapterFrame && (!strip || directScratch == adapterStrip),
                   "direct cached-image pixels differ");
           if (strip) renderer.endStripTarget();
         }

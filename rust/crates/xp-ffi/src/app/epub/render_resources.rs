@@ -30,8 +30,6 @@ pub(crate) trait PhysicalResources {
     #[cfg_attr(not(feature = "reader-strips"), allow(dead_code))]
     fn detach_source(&self);
     #[cfg_attr(not(feature = "reader-strips"), allow(dead_code))]
-    fn clear_plan(&self);
-    #[cfg_attr(not(feature = "reader-strips"), allow(dead_code))]
     fn clear_window(&self);
     fn release_images(&self);
 }
@@ -133,7 +131,6 @@ struct Frame {
 pub(crate) struct PageGeometry {
     pub(crate) arena: *const u8,
     pub(crate) length: usize,
-    pub(crate) visible_offset: u32,
     pub(crate) font: i32,
     pub(crate) left: i32,
     pub(crate) top: i32,
@@ -147,7 +144,6 @@ impl PageGeometry {
     pub(crate) const EMPTY: Self = Self {
         arena: ptr::null(),
         length: 0,
-        visible_offset: 0,
         font: 0,
         left: 0,
         top: 0,
@@ -194,13 +190,22 @@ impl Frame {
 }
 
 #[cfg(feature = "reader-strips")]
+#[repr(u8)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PlanPhase {
+    Idle,
+    Recording,
+    Replay,
+}
+
+#[cfg(feature = "reader-strips")]
 struct Strips {
     scratch: Slot,
     commands: Slot,
     bounds: Slot,
     image_window: Slot,
     source_loan: Cell<bool>,
-    plan_loan: Cell<bool>,
+    plan_phase: Cell<PlanPhase>,
     window_loan: Cell<bool>,
 }
 #[cfg(feature = "reader-strips")]
@@ -218,11 +223,11 @@ impl Strips {
         ptr::addr_of_mut!((*out).bounds).write(Slot::empty());
         ptr::addr_of_mut!((*out).image_window).write(Slot::empty());
         ptr::addr_of_mut!((*out).source_loan).write(Cell::new(false));
-        ptr::addr_of_mut!((*out).plan_loan).write(Cell::new(false));
+        ptr::addr_of_mut!((*out).plan_phase).write(Cell::new(PlanPhase::Idle));
         ptr::addr_of_mut!((*out).window_loan).write(Cell::new(false));
     }
     fn loaned(&self) -> bool {
-        self.source_loan.get() || self.plan_loan.get() || self.window_loan.get()
+        self.source_loan.get() || self.plan_phase.get() != PlanPhase::Idle || self.window_loan.get()
     }
     fn release_idle(&self) -> bool {
         if self.loaned() {
@@ -292,6 +297,20 @@ impl PageResources {
     pub(crate) fn geometry(self: Pin<&Self>) -> PageGeometry {
         assert!(self.frame.active.get());
         self.frame.page.get()
+    }
+    #[cfg(feature = "reader-strips")]
+    pub(crate) fn plan_loan(
+        self: Pin<&Self>,
+    ) -> Option<(*mut crate::page_render::Plan, *mut u8, bool)> {
+        assert!(self.frame.active.get());
+        let phase = self.strips.plan_phase.get();
+        (phase != PlanPhase::Idle).then(|| {
+            (
+                self.frame.strips.plan.get().cast(),
+                self.strips.bounds.pointer(),
+                phase == PlanPhase::Recording,
+            )
+        })
     }
     pub(crate) fn begin_frame<'a>(
         self: Pin<&'a Self>,
@@ -420,8 +439,47 @@ impl FrameLease<'_> {
         self.owner.strips.source_loan.set(installed);
     }
     #[cfg(feature = "reader-strips")]
-    pub(crate) fn plan_installed(&self) {
-        self.owner.strips.plan_loan.set(true);
+    pub(crate) fn record_begin(&self) {
+        let owner = self.owner;
+        assert!(!owner.strips.commands.pointer().is_null());
+        assert!(!owner.strips.bounds.pointer().is_null());
+        let plan = owner
+            .frame
+            .strips
+            .plan
+            .get()
+            .cast::<crate::page_render::Plan>();
+        unsafe {
+            plan.write(crate::page_render::Plan {
+                storage: owner.strips.commands.pointer().cast(),
+                capacity_bytes: Strips::COMMAND_BYTES,
+                count: 0,
+                valid: 0,
+            });
+        }
+        owner.strips.plan_phase.set(PlanPhase::Recording);
+    }
+    #[cfg(feature = "reader-strips")]
+    pub(crate) fn record_end(&self) -> bool {
+        assert!(self.owner.strips.plan_phase.get() == PlanPhase::Recording);
+        let plan = self
+            .owner
+            .frame
+            .strips
+            .plan
+            .get()
+            .cast::<crate::page_render::Plan>();
+        let valid = unsafe { (*plan).valid } != 0;
+        self.owner.strips.plan_phase.set(if valid {
+            PlanPhase::Replay
+        } else {
+            PlanPhase::Idle
+        });
+        valid
+    }
+    #[cfg(feature = "reader-strips")]
+    pub(crate) fn clear_plan(&self) {
+        self.owner.strips.plan_phase.set(PlanPhase::Idle);
     }
     #[cfg(feature = "reader-strips")]
     pub(crate) fn window_installed(&self) {
@@ -442,8 +500,7 @@ impl Drop for FrameLease<'_> {
             }
             strips.source_loan.set(false);
             frame.borrowed_scratch.set(ptr::null_mut());
-            self.physical.clear_plan();
-            strips.plan_loan.set(false);
+            strips.plan_phase.set(PlanPhase::Idle);
             self.physical.clear_window();
             strips.window_loan.set(false);
         }

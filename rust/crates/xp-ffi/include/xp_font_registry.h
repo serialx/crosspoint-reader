@@ -44,13 +44,17 @@ XpFontQueryResult xp_font_registry_query(const XpLoadedFonts*, XpFontQuery, int3
 XpNativeProvider xp_font_registry_provider(const XpLoadedFonts*);
 // Fills a synchronous glyph-source loan from a registered FontData and the current generation.
 void xp_font_registry_source(const XpLoadedFonts*, const void* font, XpGlyphSource* out);
-// Temporary font boundaries: cache view/bitmap/scan retire in PT2; SD table,
-// residency and absent-font loading retire in PT3. No input is retained.
+// PT2 removes this leaf when Rust owns decompressor page slots. No input is retained.
 void xp_native_font_cache_view(void*, XpGlyphSource*);
+// PT2 removes compressed built-ins; PT3 removes the remaining SD overflow/lifetime branch.
 XpGlyphBitmap xp_native_font_bitmap_miss(void*, const void* font, const void* glyph);
+// PT2 removes this leaf when its one Rust prewarm owner consumes resolved batches.
 void xp_native_font_record_resolved_text(void*, int32_t font, uint8_t style, const uint8_t*);
+// PT3 removes this leaf when Rust owns mini/advance/overflow tables.
 void xp_native_sd_font_view(void*, int32_t font, XpNativeFamily*, XpGlyphSource*);
+// PT3 removes this leaf when Rust residency uses physical file reads directly.
 void xp_native_sd_font_resident_slice(void*, int32_t font, uint8_t style, const uint8_t*, size_t, uint8_t metadata);
+// PT3 removes this leaf when Rust owns SD loading, registration and eviction together.
 uint8_t xp_native_sd_font_load(void*, int32_t font);
 void xp_native_font_diagnostic(void*, uint32_t event, uint32_t value);
 #ifdef __cplusplus

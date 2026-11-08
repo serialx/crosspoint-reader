@@ -3,8 +3,6 @@
 pub(crate) mod direct;
 #[path = "page_render/images.rs"]
 mod images;
-// The legacy page entry remains active; PT1b owns the direct-paint switch and retirement.
-pub(crate) const DIRECT_PAGE_PAINT: bool = false;
 #[cfg(feature = "reader-strips")]
 #[path = "page_plan.rs"]
 mod page_plan;
@@ -30,16 +28,6 @@ use xp_core::{
     },
 };
 
-#[repr(C)]
-pub struct Services {
-    context: *mut c_void,
-    ensure: unsafe extern "C" fn(*mut c_void, i32) -> u8,
-    source: unsafe extern "C" fn(*mut c_void, i32, u8, *mut BitmapSource) -> *const *const FontData,
-    resident: unsafe extern "C" fn(*mut c_void, i32, u8, *const u8, usize),
-    scan: unsafe extern "C" fn(*mut c_void, i32, u8, *const u8),
-    image: unsafe extern "C" fn(*mut c_void, u16, i32, i32, u8),
-    miss: Miss,
-}
 trait Resources {
     fn context(&self) -> *mut c_void;
     unsafe fn ensure(&self, font: i32) -> bool;
@@ -54,35 +42,7 @@ trait Resources {
     unsafe fn image(&self, index: u16, x: i32, y: i32, placeholder: bool);
     fn miss(&self) -> Miss;
 }
-impl Resources for Services {
-    fn context(&self) -> *mut c_void {
-        self.context
-    }
-    unsafe fn ensure(&self, font: i32) -> bool {
-        (self.ensure)(self.context, font) != 0
-    }
-    unsafe fn source(
-        &self,
-        font: i32,
-        style: u8,
-        source: *mut BitmapSource,
-    ) -> *const *const FontData {
-        (self.source)(self.context, font, style, source)
-    }
-    unsafe fn resident(&self, font: i32, style: u8, text: *const u8, len: usize) {
-        (self.resident)(self.context, font, style, text, len)
-    }
-    unsafe fn scan(&self, font: i32, style: u8, text: *const u8) {
-        (self.scan)(self.context, font, style, text)
-    }
-    unsafe fn image(&self, index: u16, x: i32, y: i32, placeholder: bool) {
-        (self.image)(self.context, index, x, y, u8::from(placeholder))
-    }
-    fn miss(&self) -> Miss {
-        self.miss
-    }
-}
-type Observer = unsafe extern "C" fn(*mut c_void, *const textm::draw::Placement);
+type Observer = unsafe extern "C" fn(*mut c_void, *const textm::draw::Placement, i32, i32);
 struct Renderer<'a, R: Resources> {
     engine: Engine,
     provider: &'a Provider,
@@ -248,7 +208,12 @@ impl<R: Resources> Canvas for Renderer<'_, R> {
                             }
                         }
                         if let Some(observer) = self.observer {
-                            observer(self.services.context(), &placement);
+                            observer(
+                                self.services.context(),
+                                &placement,
+                                (*self.paint).x,
+                                (*self.paint).y,
+                            );
                         }
                         let kind = if placement.scale_num != placement.scale_den {
                             Kind::Coverage
@@ -424,68 +389,6 @@ unsafe fn render<R: Resources>(
     };
     u32::from(page::render::page(page, &mut renderer, font, x, y, mode).is_err())
 }
-/// # Safety
-/// The arena is decoded and immutable; services, provider and paint follow the
-/// synchronous owner/validated-target contract declared in xp_ffi.h.
-#[no_mangle]
-pub unsafe extern "C" fn xp_page_render(
-    arena: *const u8,
-    len: usize,
-    provider: *const Provider,
-    services: *const Services,
-    paint: *mut GlyphPaint,
-    font: i32,
-    x: i32,
-    y: i32,
-    mode: u8,
-) -> u32 {
-    render(
-        arena,
-        len,
-        provider,
-        services,
-        paint,
-        font,
-        x,
-        y,
-        mode,
-        None,
-        #[cfg(feature = "strip-spike")]
-        None,
-    )
-}
-/// # Safety
-/// Same as xp_page_render; the observer cannot mutate font owners or retain loans.
-#[cfg(feature = "chapter-test")]
-#[no_mangle]
-pub unsafe extern "C" fn xp_page_render_traced(
-    arena: *const u8,
-    len: usize,
-    provider: *const Provider,
-    services: *const Services,
-    paint: *mut GlyphPaint,
-    font: i32,
-    x: i32,
-    y: i32,
-    mode: u8,
-    observer: Observer,
-) -> u32 {
-    render(
-        arena,
-        len,
-        provider,
-        services,
-        paint,
-        font,
-        x,
-        y,
-        mode,
-        Some(observer),
-        #[cfg(feature = "strip-spike")]
-        None,
-    )
-}
-
 // The chapter host renderer has synthetic metrics and no framebuffer. Observe
 // primitive ordering through the production traversal, rather than reimplement it.
 #[cfg(feature = "chapter-test")]
@@ -551,69 +454,4 @@ pub unsafe extern "C" fn xp_page_render_rects(
         };
         let _ = page::render::page(page, &mut observer, 0, x, y, mode);
     }
-}
-
-/// # Safety
-/// Same loans as xp_page_render. Bounds has one entry per element, stats is writable.
-/// prepare=1 initializes bounds without pixels; reuse only with identical page, fonts,
-/// orientation and origin. prepare=0 renders into the validated borrowed strip.
-#[cfg(feature = "strip-spike")]
-#[no_mangle]
-pub unsafe extern "C" fn xp_page_strip_render(
-    arena: *const u8,
-    len: usize,
-    provider: *const Provider,
-    services: *const Services,
-    paint: *mut GlyphPaint,
-    font: i32,
-    x: i32,
-    y: i32,
-    mode: u8,
-    bounds: *mut strip_state::RowBounds,
-    count: usize,
-    stats: *mut strip_state::Stats,
-    prepare: u8,
-) -> u32 {
-    if arena.is_null()
-        || provider.is_null()
-        || services.is_null()
-        || paint.is_null()
-        || bounds.is_null()
-        || stats.is_null()
-    {
-        return 1;
-    }
-    let Ok(page) = page::Page::open(slice::from_raw_parts(arena, len)) else {
-        return 1;
-    };
-    let n = usize::from(page.element_count());
-    if count < n || !(*paint).target.valid() {
-        return 1;
-    }
-    let bounds = slice::from_raw_parts_mut(bounds, n);
-    if prepare != 0 {
-        bounds.fill(strip_state::RowBounds {
-            start: (*paint).target.height,
-            end: 0,
-        });
-    }
-    let state = strip_state::State {
-        bounds,
-        stats: &mut *stats,
-        prepare: prepare != 0,
-        current: 0,
-    };
-    render(
-        arena,
-        len,
-        provider,
-        services,
-        paint,
-        font,
-        x,
-        y,
-        mode,
-        None,
-        Some(state),
-    )
 }

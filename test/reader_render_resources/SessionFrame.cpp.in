@@ -1,5 +1,7 @@
 // Real session/RenderContext composition, using the physical adapters above.
 #include "owner_tables.h"
+#include <xp_page_paint.h>
+#undef xp_page_paint
 extern "C" uint8_t xp_epub_test_session_render(const XpAppResources*, const XpEpubLeaves*, const XpAppRuntime*,
                                                XpAppText, uint8_t);
 namespace {
@@ -44,6 +46,26 @@ const XpAppRuntime sessionRuntime = [] {
   return table;
 }();
 }  // namespace
+// Lifecycle composition uses the same empty-font metrics fixture as the native
+// parent. Full font and image pixels are covered by PageGolden/ReaderStripReplay.
+extern "C" void xp_native_render_target(XpPageTarget* out) {
+  assert(!retirement_fixture::modelDepth && sessionChecks.renderer);
+  ++sessionChecks.paints;
+  static XpLoadedFonts fonts;
+  static uint32_t generation = 0;
+  xp_font_registry_init(&fonts, &generation, sessionChecks.renderer);
+  auto& r = *sessionChecks.renderer;
+  *out = {};
+  out->fonts = &fonts;
+  out->native = &r;
+  out->glyphs = {r.stripPixels ? r.stripPixels : r.framePixels,
+      static_cast<uint32_t>(r.stripPixels ? r.stripRows * r.frameStride : sizeof(r.framePixels)),
+      r.frameStride * 8, 800, r.frameStride, 0, r.stripPixels ? r.stripRows : 800,
+      {0, 0, r.frameStride * 8, 800}, 3, static_cast<uint8_t>(r.frameMode), 0,
+      static_cast<uint8_t>(r.stripPixels != nullptr), 0};
+}
+extern "C" uint8_t xp_native_sd_font_load(void*, int32_t) { return 0; }
+extern "C" void xp_native_font_diagnostic(void*, uint32_t, uint32_t) {}
 void testRealSession(const XpEpubLeaves& pageLeaves, XpAppText wire, GfxRenderer& renderer, bool faults) {
   static XpEpubLeaves leaves;
   leaves = pageLeaves;
@@ -74,16 +96,6 @@ void testRealSession(const XpEpubLeaves& pageLeaves, XpAppText wire, GfxRenderer
     assert(!retirement_fixture::modelDepth);
     return physicalRenderOperation(*sessionChecks.renderer, *op);
   };
-  leaves.render_plan = [](XpPagePlan* plan, XpPageRowBounds* bounds, uint16_t count, uint8_t record) {
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-    physicalRenderPlan(*sessionChecks.renderer, plan, bounds, count, record);
-#else
-    (void)plan;
-    (void)bounds;
-    (void)count;
-    (void)record;
-#endif
-  };
   leaves.image_read_window = physicalImageWindow;
   leaves.display_source = physicalDisplaySource;
   leaves.framebuffer_view = [](uint32_t* size) { return physicalFramebuffer(*sessionChecks.renderer, size); };
@@ -94,25 +106,6 @@ void testRealSession(const XpEpubLeaves& pageLeaves, XpAppText wire, GfxRenderer
   leaves.fonts_prewarm_drop = physicalPrewarmDrop;
   leaves.image_clear_failures = FrameImageBlock::clearRenderFailures;
   leaves.image_release_cache = FrameImageBlock::releaseRenderCache;
-  leaves.paint_arena = [](const XpEpubPageView* view, int32_t font, int32_t left, int32_t top, uint8_t mode) {
-    assert(!retirement_fixture::modelDepth && view && font == 24 && left == 7 && top == 11);
-    ++sessionChecks.paints;
-    Page page(Page::Borrowed{}, view->arena, view->size, view->visible_offset);
-    assert(page.visibleTextOffset == 37);
-    switch (mode) {
-      case 0:
-        page.render(*sessionChecks.renderer, font, left, top);
-        break;
-      case 1:
-        page.renderImages(*sessionChecks.renderer, font, left, top);
-        break;
-      case 2:
-        page.renderWithImagePlaceholders(*sessionChecks.renderer, font, left, top);
-        break;
-      default:
-        std::abort();
-    }
-  };
   leaves.paint_status = [](const XpEpubStatus* status) {
     assert(!retirement_fixture::modelDepth && status && status->page == 1 && status->pages == 1);
     ++sessionChecks.statuses;

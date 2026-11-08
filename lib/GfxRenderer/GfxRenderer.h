@@ -35,8 +35,6 @@ class TtfEpdFont;
 // 0 = transparent, 1-16 = gray levels (white to black)
 enum Color : uint8_t { Clear = 0x00, White = 0x01, LightGray = 0x05, DarkGray = 0x0A, Black = 0x10 };
 
-enum class PageRenderMode : uint8_t { All, Images, Placeholders };
-
 class GfxRenderer {
   friend uint8_t xp_native_sd_font_load(void*, int32_t);
 
@@ -100,12 +98,6 @@ class GfxRenderer {
   mutable int _stripY0 = 0;
   mutable int _stripRows = 0;
   mutable bool _stripActive = false;
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-  mutable XpPagePlan* pagePlan = nullptr;
-  mutable XpPageRowBounds* pageBounds = nullptr;
-  mutable size_t pageBoundsCount = 0;
-  mutable bool preparePagePlan = false;
-#endif
   mutable int clipLeft_ = 0;
   mutable int clipTop_ = 0;
   mutable int clipRight_ = 32767;
@@ -126,22 +118,6 @@ class GfxRenderer {
     bool rotated;
     XpGlyphPaint* paint;
   };
-  struct PageContext {
-    GlyphContext glyph;
-    void* images;
-    void (*image)(void*, uint16_t, int32_t, int32_t, uint8_t);
-  };
-  uint32_t renderPage(const uint8_t* arena, size_t size, const XpNativeProvider* provider,
-                      const XpPageRenderServices* services, XpGlyphPaint* paint, int32_t font, int32_t x, int32_t y,
-                      uint8_t mode) const {
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-    if (pagePlan)
-      return xp_page_plan_render(arena, size, provider, services, paint, font, x, y, mode, pageBounds, pageBoundsCount,
-                                 pagePlan, preparePagePlan);
-#endif
-    return xp_page_render(arena, size, provider, services, paint, font, x, y, mode);
-  }
-
   // Image polarity follows the strip target only in the opt-in reader path.
   bool skipImageStrip() const {
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
@@ -211,8 +187,6 @@ class GfxRenderer {
   XpNativeProvider textProvider() const;
   // Borrows the current framebuffer/strip target and Rust font owner for a synchronous paint.
   void pageTarget(XpPageTarget& out) const;
-  // Copies the active strip-plan loan into out; leaves out unchanged when strips are disabled.
-  void pagePlanLoan(XpPagePaint& out) const;
   bool drawUiScene(const XpUiScene& scene, const XpUiPaint* resources = nullptr) const;
   // Shared text/resource services follow this target for the whole synchronous call.
   bool drawUiScene(const XpUiScene& scene, const XpGlyphTarget& target, const XpUiPaint* resources) const;
@@ -354,7 +328,6 @@ class GfxRenderer {
   // after the orientation rotate, so it is orientation-agnostic. Used to render
   // grayscale planes band-by-band without a full second buffer.
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-  void usePagePlan(XpPagePlan* plan, XpPageRowBounds* bounds, size_t count, bool prepare = false) const;
   void copyStatusToStrip(int top, bool sourceInverted) const;
 #endif
   void beginStripTarget(uint8_t* scratch, int stripY0, int stripRows) const;
@@ -429,8 +402,6 @@ class GfxRenderer {
   void drawCenteredText(int fontId, int y, const char* text, bool black = true,
                         EpdFontFamily::Style style = EpdFontFamily::REGULAR,
                         BidiUtils::BidiBaseDir baseDir = BidiUtils::BidiBaseDir::AUTO) const;
-  void drawPage(const uint8_t* arena, size_t size, int fontId, int x, int y, PageRenderMode mode, void* images,
-                void (*image)(void*, uint16_t, int32_t, int32_t, uint8_t)) const;
   void drawText(int fontId, int x, int y, const char* text, bool black = true,
                 EpdFontFamily::Style style = EpdFontFamily::REGULAR,
                 BidiUtils::BidiBaseDir baseDir = BidiUtils::BidiBaseDir::AUTO, int8_t tracking = 0) const;

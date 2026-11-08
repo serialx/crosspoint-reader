@@ -28,7 +28,6 @@ prefix = frame_template.split('// ACTUAL_FRAME')[0]
 signatures = [
     'uint32_t physicalRenderQuery(',
     'uint32_t physicalRenderOperation(',
-    'void physicalRenderPlan(',
     'void physicalImageWindow(',
     'uint8_t physicalDisplaySource(',
     'uint8_t* physicalFramebuffer(',
@@ -38,7 +37,6 @@ signatures = [
 ]
 prefix = '#include <xp_epub_session.h>\n' + prefix
 fragments = [definition(native, signature) for signature in signatures]
-fragments[2] = '#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER\n' + fragments[2] + '\n#endif'
 (out / 'ResourceFrame.cpp').write_text(prefix + '\n'.join(fragments)
     + '\n#undef ImageBlock\n}\n' + (here / 'PhysicalFrame.cpp.in').read_text())
 bridge = (here / 'PhysicalFrame.cpp.in').read_text()
@@ -49,7 +47,7 @@ log = definition((here / 'parent_frame.inc').read_text(), '[[gnu::noinline]] voi
 (out / 'LogParity.cpp').write_text(replace_once((here / 'LogParity.cpp.in').read_text(), '// ACTUAL_LOG', log))
 pixels = (here / 'PixelPhysical.cpp.in').read_text()
 pixels = replace_once(pixels, '// ACTUAL_OPERATION', definition(native, signatures[1]))
-pixels = replace_once(pixels, '// ACTUAL_FRAMEBUFFER', definition(native, signatures[5]))
+pixels = replace_once(pixels, '// ACTUAL_FRAMEBUFFER', definition(native, 'uint8_t* physicalFramebuffer('))
 (out / 'PixelPhysical.cpp').write_text(pixels)
 # Keep all of the original oracle's assertions and failure controls unchanged.
 oracle = (root / 'test/page_golden/ReaderStripReplay.cpp').read_text()

@@ -14,47 +14,12 @@ for anchor, hook in (
     if source.count(anchor) != 1:
         raise SystemExit('Page counter anchor changed: ' + anchor)
     source = source.replace(anchor, hook + anchor if 'xp_native' in anchor else anchor + hook)
-for anchor, index in (
-    ('  const auto status = xp_page_render_traced(', 0),
-    ('        return static_cast<PageContext*>(raw)->glyph.renderer.ensureFontLoaded(id);', 1),
-    ('        auto& c = static_cast<PageContext*>(raw)->glyph;', 2),
-    ('        // Fallback residency accepts substrings, including focus and ruby tokens.', 3),
-    ('        renderer.fontCacheManager_->recordText(reinterpret_cast<const char*>(text), id,', 4),
-    ('        c.image(c.images, index, x, y, placeholder);', 5),
-
-):
-    if source.count(anchor) != 1:
-        raise SystemExit('Page owner counter anchor changed: ' + anchor)
-    hook = f'pageGoldenOwner({index});'
-    source = source.replace(anchor, anchor + '\n' + hook if index >= 6 else hook + '\n' + anchor)
-source = '#ifdef XP_STRIP_SPIKE\n#include "StripTrace.h"\n#endif\n' + source
-anchor = '  const auto status = xp_page_render_traced('
-source = source.replace(anchor, """  const auto status =
-#ifdef XP_STRIP_SPIKE
-#ifdef XP_STRIP_PLAN
-      stripPhase ? pageGoldenPlan(arena, size, &provider, &services, &paint, fontId, x, y, renderMode) :
-#else
-      stripPhase ? xp_page_strip_render(arena, size, &provider, &services, &paint, fontId, x, y, renderMode,
-          stripBounds.data(), stripBounds.size(), &stripStats, stripPhase == 1) :
-#endif
-#endif
-      xp_page_render_traced(""")
 (out / 'GfxRenderer.cpp').write_text(source)
 page_source = (root / 'lib/Epub/Epub/Page.cpp').read_text()
-anchor = '                       const PageRenderMode mode) const {'
-if page_source.count(anchor) != 1:
-    raise SystemExit('Page direct-path observer anchor changed')
-page_source = '#include <cstdlib>\n#include <xp_page_paint.h>\n' + page_source
-page_source = page_source.replace(anchor, anchor + '''
-  if (std::getenv("XP_PAGE_DIRECT")) {
-    XpPageTarget target{};
-    renderer.pageTarget(target);
-    XpPagePaint request{fontId, x, y, static_cast<uint8_t>(mode)};
-    renderer.pagePlanLoan(request);
-    if (xp_page_paint(arena, arenaSize, &target, &request)) std::abort();
-    return;
-  }
-''')
+anchor = 'const auto status = xp_page_paint('
+if page_source.count(anchor) != 2:
+    raise SystemExit('Native Page adapter observer anchor changed')
+page_source = '#include "StripTrace.h"\n' + page_source.replace(anchor, 'const auto status = pageGoldenPaint(')
 (out / 'Page.cpp').write_text(page_source)
 
 source = (root / 'lib/Epub/Epub/blocks/TextBlock.cpp').read_text()

@@ -22,8 +22,8 @@ using Section = ReaderSectionFixture;
 
 #include "../section_io/SectionTestCodec.h"
 #include "PageTrace.h"
-#ifdef XP_STRIP_SPIKE
 #include "StripTrace.h"
+#ifdef XP_STRIP_SPIKE
 std::vector<StripBounds> stripBounds;
 StripStats stripStats{};
 int stripPhase = 0;
@@ -37,6 +37,9 @@ static uint64_t nativeCalls = 0, emissions = 0, scaledCalls = 0;
 void pageGoldenNativeDraw() { ++nativeCalls; }
 void pageGoldenEmission() { ++emissions; }
 void textGoldenGlyph(const EpdFontFamily&, uint32_t, int, int, EpdFontFamily::Style) {}
+extern "C" void xp_native_page_test_glyph(const void*, const XpGlyphPlacement*, int32_t, int32_t, uint8_t) {
+  ++emissions;
+}
 void textGoldenScaled(int, uint32_t, int, int, EpdFontFamily::Style) { ++scaledCalls; }
 
 static uint64_t hashBytes(const uint8_t* bytes, size_t length) {
@@ -608,41 +611,45 @@ int main(int argc, char** argv) {
   return std::cout.good() ? 0 : 19;
 }
 
-#ifdef XP_STRIP_PLAN
-struct PlanStorage {
-  void* storage;
-  size_t capacity_bytes, count;
-  uint8_t valid;
-};
-extern "C" uint32_t xp_page_plan_render(const uint8_t*, size_t, const XpNativeProvider*, const XpPageRenderServices*,
-                                        XpGlyphPaint*, int32_t, int32_t, int32_t, uint8_t, StripBounds*, size_t,
-                                        PlanStorage*, uint8_t);
-uint32_t pageGoldenPlan(const uint8_t* arena, size_t size, const XpNativeProvider* provider,
-                        const XpPageRenderServices* services, XpGlyphPaint* paint, int32_t font, int32_t x, int32_t y,
-                        uint8_t mode) {
-  static uint64_t commands[16384 / sizeof(uint64_t)];
-  static PlanStorage plan{commands, sizeof(commands), 0, 0};
-  static bool faultsChecked = false;
-  if (stripPhase == 1 && !faultsChecked && !stripBounds.empty()) {
-    const auto attempt = [&](PlanStorage& probe, StripBounds* bounds, size_t count) {
-      return xp_page_plan_render(arena, size, provider, services, paint, font, x, y, mode, bounds, count, &probe, 1);
-    };
-    PlanStorage probe{nullptr, sizeof(commands), 0, 1};
-    if (attempt(probe, stripBounds.data(), stripBounds.size()) != 1 || probe.valid) std::abort();
-    probe = {commands, sizeof(commands), 0, 1};
-    if (attempt(probe, nullptr, stripBounds.size()) != 1 || probe.valid) std::abort();
-    probe = {commands, sizeof(commands), 0, 1};
-    if (attempt(probe, stripBounds.data(), 0) != 1 || probe.valid) std::abort();
-    probe = {commands, 0, 0, 1};
-    if (attempt(probe, stripBounds.data(), stripBounds.size()) != 2 || probe.valid) std::abort();
-    faultsChecked = true;
+uint32_t pageGoldenPaint(const uint8_t* arena, size_t size, const XpPageTarget* target, const XpPagePaint* request) {
+#ifdef XP_STRIP_SPIKE
+  if (stripPhase != 0) {
+    static uint64_t commands[16384 / sizeof(uint64_t)];
+    static XpPagePlan plan{commands, sizeof(commands), 0, 0};
+    static bool faultsChecked = false;
+    XpPagePaint paint = *request;
+    paint.plan = &plan;
+    paint.bounds = stripBounds.data();
+    paint.count = stripBounds.size();
+    paint.prepare = stripPhase == 1;
+    if (paint.prepare && !faultsChecked && !stripBounds.empty()) {
+      const auto attempt = [&](XpPagePlan& probe, XpPageRowBounds* bounds, size_t count) {
+        auto check = paint;
+        check.plan = &probe;
+        check.bounds = bounds;
+        check.count = count;
+        return xp_page_paint(arena, size, target, &check);
+      };
+      XpPagePlan probe{nullptr, sizeof(commands), 0, 1};
+      if (attempt(probe, stripBounds.data(), stripBounds.size()) != 1 || probe.valid) std::abort();
+      probe = {commands, sizeof(commands), 0, 1};
+      if (attempt(probe, nullptr, stripBounds.size()) != 1 || probe.valid) std::abort();
+      probe = {commands, sizeof(commands), 0, 1};
+      if (attempt(probe, stripBounds.data(), 0) != 1 || probe.valid) std::abort();
+      probe = {commands, 0, 0, 1};
+      if (attempt(probe, stripBounds.data(), stripBounds.size()) != 2 || probe.valid) std::abort();
+      faultsChecked = true;
+    }
+    if (!paint.prepare && !plan.valid) {
+      paint.plan = nullptr;
+      return xp_page_paint(arena, size, target, &paint);
+    }
+    const auto status = xp_page_paint(arena, size, target, &paint);
+    stripStats.records += plan.count;
+    if (!paint.prepare) stripStats.drawn += plan.count;
+    // A full preparation walk has completed bounds even when command storage fills.
+    return status == 2 ? 0 : status;
   }
-  const auto status = xp_page_plan_render(arena, size, provider, services, paint, font, x, y, mode, stripBounds.data(),
-                                          stripBounds.size(), &plan, stripPhase == 1);
-  if (status == 2 || (!plan.valid && stripPhase != 1)) {
-    return xp_page_strip_render(arena, size, provider, services, paint, font, x, y, mode, stripBounds.data(),
-                                stripBounds.size(), &stripStats, stripPhase == 1);
-  }
-  return status;
-}
 #endif
+  return xp_page_paint(arena, size, target, request);
+}

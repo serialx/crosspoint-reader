@@ -19,6 +19,7 @@ impl<'a> View<'a> {
         Self::Arena(unsafe { core::slice::from_raw_parts(wire.arena, wire.size) })
     }
 
+    #[cfg(feature = "app-test")]
     pub(super) fn wire(self) -> abi::XpEpubPageView {
         let arena = self.arena();
         abi::XpEpubPageView {
@@ -238,13 +239,8 @@ impl<'a> View<'a> {
             unsafe { (services.page_render)(raw.as_ptr(), font, left, top) };
             return;
         }
-        if crate::page_render::DIRECT_PAGE_PAINT {
-            let status = unsafe {
-                crate::page_render::direct::paint_current(self.arena(), font, left, top, 0)
-            };
-            assert_eq!(status, 0, "validated page target");
-        } else {
-            unsafe { (leaves.paint_arena)(&self.wire(), font, left, top, 0) };
-        }
+        let status =
+            unsafe { crate::page_render::direct::paint_current(self.arena(), font, left, top, 0) };
+        super::render::log_page_status(leaves, status);
     }
 }

@@ -1,0 +1,17 @@
+[package]
+name = "page-image-pin"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+path = "lib.rs"
+
+[workspace]
+
+[dependencies]
+xp-core = { path = "../../rust/crates/xp-core" }
+
+[features]
+reader-strips = ["xp-core/reader-strips"]
+strip-spike = ["xp-core/strip-spike"]

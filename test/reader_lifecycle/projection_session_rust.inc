@@ -133,7 +133,7 @@ static const XpAppRuntime runtime = [] {
 }();
 static const LegacyEpubLeaves leaves = [] {
   LegacyEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 170 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 168 * sizeof(void (*)()));
   UNUSED_LEAF(physical.render_margins);
   UNUSED_LEAF(physical.render_geometry);
   UNUSED_LEAF(physical.render_restore_bw);
@@ -339,12 +339,10 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(book.section.page.page_load);
   UNUSED_LEAF(physical.framebuffer_lend);
   UNUSED_LEAF(physical.framebuffer_restore);
-  UNUSED_LEAF(physical.paint_arena);
   UNUSED_LEAF(physical.image_needs_decode);
   UNUSED_LEAF(physical.font_ascent);
   UNUSED_LEAF(physical.render_physical_query);
   UNUSED_LEAF(physical.render_physical_operation);
-  UNUSED_LEAF(physical.render_plan);
   UNUSED_LEAF(physical.image_read_window);
   UNUSED_LEAF(physical.display_source);
   UNUSED_LEAF(physical.framebuffer_view);

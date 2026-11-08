@@ -67,7 +67,7 @@ static_assert(offsetof(XpEpubLeaves, input_snapshot) == 104 * sizeof(void (*)(vo
 static_assert(
     std::is_same_v<decltype(XpEpubLegacyPageServices::page_render), void (*)(void*, int32_t, int32_t, int32_t)>);
 static_assert(offsetof(XpEpubLegacyPageServices, page_render) == 14 * sizeof(void (*)(void)));
-static_assert(sizeof(XpEpubLeaves) == 170 * sizeof(void (*)(void)));
+static_assert(sizeof(XpEpubLeaves) == 168 * sizeof(void (*)(void)));
 static_assert(std::is_same_v<decltype(XpEpubLeaves::log_enabled), uint8_t (*)(uint8_t)>);
 static_assert(offsetof(XpEpubLeaves, log_enabled) == 103 * sizeof(void (*)(void)));
 static_assert(XP_UI_READER_RENDER_NOW == 0);
@@ -302,8 +302,6 @@ int main() {
   assert(xp_ui_reader_session_worthy(&session));
 }
 
-static_assert(std::is_same_v<decltype(XpEpubLeaves::paint_arena),
-                             void (*)(const XpEpubPageView*, int32_t, int32_t, int32_t, uint8_t)>);
 static_assert(
     std::is_same_v<decltype(XpEpubLeaves::image_needs_decode), uint8_t (*)(XpAppText, XpAppText, int16_t, int16_t)>);
 static_assert(std::is_same_v<decltype(XpEpubLeaves::font_ascent), int32_t (*)(int32_t)>);
@@ -311,8 +309,6 @@ static_assert(std::is_same_v<decltype(XpEpubOwnedPage::destroy), void (*)(void*)
 
 static_assert(std::is_same_v<decltype(XpEpubLeaves::render_physical_query), uint32_t (*)(uint8_t)>);
 static_assert(std::is_same_v<decltype(XpEpubLeaves::render_physical_operation), uint32_t (*)(const XpEpubPhysicalOp*)>);
-static_assert(
-    std::is_same_v<decltype(XpEpubLeaves::render_plan), void (*)(XpPagePlan*, XpPageRowBounds*, uint16_t, uint8_t)>);
 static_assert(std::is_same_v<decltype(XpEpubLeaves::image_read_window), void (*)(uint8_t*, uint32_t)>);
 static_assert(std::is_same_v<decltype(XpEpubLeaves::display_source), uint8_t (*)(XpDisplaySource*)>);
 static_assert(std::is_same_v<decltype(XpEpubLeaves::framebuffer_view), uint8_t* (*)(uint32_t*)>);

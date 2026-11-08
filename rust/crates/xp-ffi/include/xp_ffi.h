@@ -1217,30 +1217,6 @@ void xp_native_draw_pixels_traced(const XpNativeProvider*, int32_t, const uint8_
                                   XpGlyphMiss, void (*)(void*, const XpGlyphPlacement*));
 #endif
 
-// Page painting borrows a decoded arena and the existing framebuffer for one pass.
-// Callbacks are synchronous, retain no input, and must not reenter page drawing.
-// Source slots remain stable until return; table/bitmap loans end before owner callbacks.
-// The target obeys xp_native_draw_pixels geometry and exclusive-buffer requirements.
-// scan receives NUL-terminated visual text, batched within each line/font/style.
-// resident receives a bounded visual slice (not necessarily NUL-terminated).
-// mode: 0 all, 1 images only, 2 image placeholders. Returns 0 on success.
-typedef struct {
-  void* context;
-  uint8_t (*ensure)(void*, int32_t);
-  const void* const* (*source)(void*, int32_t, uint8_t, XpGlyphSource*);
-  void (*resident)(void*, int32_t, uint8_t, const uint8_t*, size_t);
-  void (*scan)(void*, int32_t, uint8_t, const uint8_t*);
-  void (*image)(void*, uint16_t, int32_t, int32_t, uint8_t);
-  XpGlyphMiss miss;
-} XpPageRenderServices;
-uint32_t xp_page_render(const uint8_t*, size_t, const XpNativeProvider*, const XpPageRenderServices*, XpGlyphPaint*,
-                        int32_t font, int32_t x, int32_t y, uint8_t mode);
-#ifdef XP_FFI_HOST_FAULT_INJECTION
-uint32_t xp_page_render_traced(const uint8_t*, size_t, const XpNativeProvider*, const XpPageRenderServices*,
-                               XpGlyphPaint*, int32_t, int32_t, int32_t, uint8_t,
-                               void (*)(void*, const XpGlyphPlacement*));
-#endif
-
 // SD font v4 parsing. No allocation, I/O, callbacks or retained pointers.
 // Byte spans are readable for len bytes (len <= PTRDIFF_MAX), NULL only if empty.
 // Typed outputs/state are live, aligned and exclusive for the call. State is
@@ -2547,10 +2523,6 @@ typedef struct {
 void xp_assets_image_read_window(uint8_t* data, size_t len);
 void xp_strip_packed_row(const XpImageTarget* target, int32_t x, int32_t y, int32_t width, const uint8_t* row,
                          size_t len);
-uint32_t xp_page_plan_render(const uint8_t* arena, size_t size, const XpNativeProvider* provider,
-                             const XpPageRenderServices* services, XpGlyphPaint* paint, int32_t font, int32_t x,
-                             int32_t y, uint8_t mode, XpPageRowBounds* bounds, size_t count, XpPagePlan* plan,
-                             uint8_t prepare);
 #endif
 
 // Book adapters: call-local borrowed buffers; callbacks may not retain pointers

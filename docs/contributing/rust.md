@@ -941,18 +941,29 @@ codec/consumer compositions and their host-only limits.
 
 ## Page rendering
 
-For cached EPUB and rich dictionary pages, `Page::renderArena` lends the page
-arena to `GfxRenderer::drawPage`, which enters Rust once per render pass through
-`xp_page_render`. Each physical strip is a separate pass.
+The Rust EPUB owner calls `page_render::direct::paint` as a Rust function,
+using its decoded arena and a synchronous physical target loan. Footnote and
+lookup page views use the same direct path. Native Page clients (rich dictionary,
+selection and settings preview) enter that painter through `xp_page_paint`.
+Each physical strip is a separate pass. The pinned Rust page-resource owner
+holds plan recording/replay state and detaches all page/plan/source loans before
+releasing their storage; no native page-service table or plan-routing callback
+is involved.
 [`page::render`](../../rust/crates/xp-core/src/page/render.rs) walks the records
 and draws text lines, rules, borders, backgrounds and drop caps. It controls word
-offsets, focus splits, ruby and SUP/SUB shifts. Images use one C++ callback per
-image element per pass for the existing decode/cache or placeholder path.
+offsets, focus splits, ruby and SUP/SUB shifts. Rust owns image cache,
+placeholder and polarity policy. Typed native file operations and one
+JPEGDEC/converter decode/raster leaf provide physical work; image leaves receive
+paths and dimensions rather than a Page or image index. Inline native file
+storage is pinned before placement construction and stays at that address
+through its destructor. B3 owns the remaining book-extraction facade.
 
-Prewarm scanning batches visual codepoints in a fixed 192-byte buffer, flushing
-at line, font or style boundaries and when full. C++ `FontCacheManager` receives
-the batches and dispatches to the font owners, including the Rust SD pool through
-its C++ facade. The synchronous render borrows existing font and framebuffer
+Prewarm scanning batches visual codepoints in a fixed 192-byte Rust buffer,
+flushing at line, font or style boundaries and when full. Rust resolves the
+canonical style before the temporary `FontCacheManager::recordResolvedText`
+handoff; PT2 owns its retirement. Redirected SD residency borrows UTF-8 spans in
+at most 191-byte batches without a native string copy; PT3 owns that remaining
+SD boundary. The synchronous render borrows existing font and framebuffer
 storage; page traversal adds no heap allocation. Prewarm and bitmap misses use
 the cache operations described above.
 

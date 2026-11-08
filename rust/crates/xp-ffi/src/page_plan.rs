@@ -161,30 +161,8 @@ impl<R: Resources> Renderer<'_, R> {
     }
 }
 /// # Safety
-/// All page render loans apply. Plan storage is aligned to a pointer and exclusively
-/// writable for capacity_bytes. Prepared commands borrow the unchanged page arena;
-/// fonts, origin and orientation must stay fixed until the plan is discarded.
-#[allow(clippy::too_many_arguments)]
-#[no_mangle]
-pub unsafe extern "C" fn xp_page_plan_render(
-    arena: *const u8,
-    len: usize,
-    provider: *const Provider,
-    services: *const Services,
-    paint: *mut GlyphPaint,
-    font: i32,
-    x: i32,
-    y: i32,
-    mode: u8,
-    bounds: *mut strip_state::RowBounds,
-    count: usize,
-    plan: *mut Plan,
-    prepare: u8,
-) -> u32 {
-    render_plan(
-        arena, len, provider, services, paint, font, x, y, mode, bounds, count, plan, prepare,
-    )
-}
+/// Plan/bounds storage is exclusive and aligned; commands borrow the unchanged
+/// page arena, font state, origin and orientation until the owner detaches it.
 #[allow(clippy::too_many_arguments)]
 pub(super) unsafe fn render_plan<R: Resources>(
     arena: *const u8,
@@ -260,7 +238,7 @@ pub(super) unsafe fn render_plan<R: Resources>(
         scan_len: 0,
         scan_font: 0,
         scan_style: 0,
-        observer: None,
+        observer: direct::observer(),
         strip: Some(state),
         plan: None,
     };

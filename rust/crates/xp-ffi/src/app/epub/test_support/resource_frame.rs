@@ -17,7 +17,6 @@ pub struct Callbacks {
     prewarm_begin: unsafe extern "C" fn(*mut c_void, *mut PrewarmStorage) -> u8,
     prewarm_finish: unsafe extern "C" fn(*mut c_void, *mut PrewarmStorage),
     prewarm_drop: unsafe extern "C" fn(*mut c_void, *mut PrewarmStorage),
-    plan: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut u8, u16, u8),
     window: unsafe extern "C" fn(*mut c_void, *mut u8, u32),
     source: unsafe extern "C" fn(*mut c_void, *mut c_void) -> u8,
     framebuffer: unsafe extern "C" fn(*mut c_void, *mut usize) -> *mut u8,
@@ -40,17 +39,6 @@ impl render_resources::PhysicalResources for Callbacks {
             (self.source)(self.context, core::ptr::null_mut());
         }
     }
-    fn clear_plan(&self) {
-        unsafe {
-            (self.plan)(
-                self.context,
-                core::ptr::null_mut(),
-                core::ptr::null_mut(),
-                0,
-                0,
-            );
-        }
-    }
     fn clear_window(&self) {
         unsafe {
             (self.window)(self.context, core::ptr::null_mut(), 0);
@@ -68,12 +56,6 @@ impl physical::Physical for Callbacks {
     }
     fn operation(&self, op: &physical::Op) -> u32 {
         unsafe { (self.operation)(self.context, op) }
-    }
-    #[cfg(feature = "reader-strips")]
-    fn plan(&self, p: *mut crate::page_render::Plan, bounds: *mut u8, count: u16, recording: bool) {
-        unsafe {
-            (self.plan)(self.context, p.cast(), bounds, count, u8::from(recording));
-        }
     }
     #[cfg(feature = "reader-strips")]
     fn image_window(&self, bytes: *mut u8, length: u32) {
@@ -136,7 +118,13 @@ impl renderer::Context for Callbacks {
     fn image_reset(&self) {
         self.command(Kind::ImageReset, 0);
     }
-    fn paint(&self, mode: u8) {
+    fn paint(&self, owner: Pin<&PageResources>, mode: u8) {
+        #[cfg(not(feature = "reader-strips"))]
+        let _ = owner;
+        #[cfg(feature = "reader-strips")]
+        if let Some((plan, _, true)) = owner.plan_loan() {
+            unsafe { (*plan).valid = 1 };
+        }
         self.command(
             match mode {
                 0 => Kind::Page,
@@ -194,7 +182,7 @@ pub unsafe extern "C" fn xp_epub_test_strip_replay(
         &*committed.cast::<core::cell::Cell<u16>>(),
         (scratch, y, rows),
         || renderer::Context::highlights(c),
-        || renderer::Context::paint(c, 0),
+        || c.command(Kind::Page, 0),
     )
 }
 

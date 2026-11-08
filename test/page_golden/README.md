@@ -224,16 +224,16 @@ contracts. No shipped firmware or firmware build configuration changes here.
 
 ## Strip-rendering host spike
 
-`STRIP_SPIKE` enables a host-only Rust entry point (`strip-spike` Cargo feature).
-The firmware build does not enable it. The normal oracle and its frozen archive
-remain unchanged. This mode adds byte-for-byte comparisons against the current
+`STRIP_SPIKE` exercises the direct Rust painter with the `reader-strips` Cargo
+feature. The native Page adapter supplies the plan and physical row bounds.
+The normal oracle and its frozen archive remain unchanged. This mode adds
+byte-for-byte comparisons against the current
 full-frame draw for native row heights 1, 8, 16, 32, 37, 48, 64 and 480, in all
 four orientations and BW/LSB/MSB, with both overlay and absolute planes.
 
 ```sh
 cmake -S test/page_golden -B build/strip -DCMAKE_BUILD_TYPE=Release \
-  -DSTRIP_SPIKE=ON \
-  -DXP_FFI_HOST_FEATURES=chapter-test,chapter-trace,package-trace,strip-spike
+  -DSTRIP_SPIKE=ON -DSTRIP_PLAN=ON
 cmake --build build/strip -j 6
 python3 test/page_golden/run.py check --binary build/strip/PageGolden \
   --strips --work-dir /external/strip-public

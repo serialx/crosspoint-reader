@@ -46,7 +46,6 @@ impl PhysicalResources for Panel {
         record("detach:leave");
         self.source.set(std::ptr::null_mut());
     }
-    fn clear_plan(&self) {}
     fn clear_window(&self) {}
     fn release_images(&self) {}
 }
@@ -102,13 +101,6 @@ impl physical::Physical for Panel {
         }
         0
     }
-    fn plan(&self, plan: *mut crate::page_render::Plan, _: *mut u8, _: u16, recording: bool) {
-        if recording {
-            unsafe {
-                (*plan).valid = 1;
-            }
-        }
-    }
     fn image_window(&self, _: *mut u8, _: u32) {}
     fn source(&self, source: *mut crate::display_source::DisplaySource) -> bool {
         self.seen_width.set(unsafe { (*source).width });
@@ -157,7 +149,10 @@ impl crate::render_resources::renderer::Context for Content {
         true
     }
     fn image_reset(&self) {}
-    fn paint(&self, _: u8) {
+    fn paint(&self, owner: Pin<&PageResources>, _: u8) {
+        if let Some((plan, _, true)) = owner.plan_loan() {
+            unsafe { (*plan).valid = 1 };
+        }
         record("page:paint");
     }
     fn highlights(&self) {

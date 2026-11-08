@@ -3,6 +3,7 @@
 #include <EpdFontFamily.h>
 #include <GfxRenderer/FontVariantProvider.h>
 #include <Utf8.h>
+#include <xp_page_paint.h>
 
 #include <deque>
 #include <functional>
@@ -20,8 +21,6 @@ enum Color : uint8_t { Clear = 0x00, White = 0x01, LightGray = 0x05, DarkGray = 
 extern "C" void xp_page_render_rects(const uint8_t*, size_t, void*,
                                      void (*)(void*, int32_t, int32_t, int32_t, int32_t, uint8_t), int32_t, int32_t,
                                      uint8_t);
-
-enum class PageRenderMode : uint8_t { All, Images, Placeholders };
 
 class GfxRenderer {
  public:
@@ -48,10 +47,15 @@ class GfxRenderer {
   static int trackingBetween(uint32_t left, uint32_t right, int8_t tracking) {
     return left == 0 || left == ' ' || right == ' ' ? 0 : tracking;
   }
-  void drawPage(const uint8_t* arena, size_t size, int, int x, int y, PageRenderMode mode, void*,
-                void (*)(void*, uint16_t, int32_t, int32_t, uint8_t)) const {
+  void pageTarget(XpPageTarget& out) const {
+    out = {};
+    out.native = const_cast<GfxRenderer*>(this);
+  }
+  // This metrics fixture observes primitive order; raster fixtures use the real painter.
+  static uint32_t paintPrimitives(const uint8_t* arena, size_t size, const XpPageTarget* target,
+                                  const XpPagePaint* request) {
     xp_page_render_rects(
-        arena, size, const_cast<GfxRenderer*>(this),
+        arena, size, target->native,
         [](void* raw, int32_t x, int32_t y, int32_t w, int32_t h, uint8_t shade) {
           const auto& self = *static_cast<GfxRenderer*>(raw);
           if (shade)
@@ -59,7 +63,8 @@ class GfxRenderer {
           else
             self.fillRect(x, y, w, h);
         },
-        x, y, static_cast<uint8_t>(mode));
+        request->x, request->y, request->mode);
+    return 0;
   }
   mutable int lastLineY = -1;
   mutable int drawnLineCount = 0;
@@ -164,3 +169,6 @@ class GfxRenderer {
  private:
   FontVariantProvider fontVariantProvider_;
 };
+
+// Compile-only Page adapters in this metrics fixture retain the primitive observer.
+#define xp_page_paint GfxRenderer::paintPrimitives

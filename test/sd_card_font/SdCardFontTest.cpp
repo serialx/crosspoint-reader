@@ -233,6 +233,21 @@ TEST(SdCardFontTest, BoundedVisualSpanDoesNotReadPastItsEnd) {
   expectPageBitmaps(font, FIRST, 5);
 }
 
+TEST(SdCardFontTest, BoundedPrefixExcludesReadableValidGlyphAfterItsEnd) {
+  makeFont();
+  SdCardFont font;
+  ASSERT_TRUE(font.load("fixture"));
+  const auto prefix = page(FIRST, 5);
+  const auto readable = prefix + page(FIRST + 20, 1);
+  ASSERT_EQ(0, font.prewarmSpan(reinterpret_cast<const uint8_t*>(readable.c_str()), prefix.size(), 1, false));
+  EXPECT_EQ(6U, residentCount(font));
+  expectPageBitmaps(font, FIRST, 5);
+  const auto* data = font.getEpdFont()->data;
+  for (uint32_t i = 0; i < data->intervalCount; ++i) {
+    EXPECT_FALSE(data->intervals[i].first <= FIRST + 20 && FIRST + 20 <= data->intervals[i].last);
+  }
+}
+
 TEST(SdCardFontTest, UnderusedBuffersKeepTheFreshlyPrewarmedPageUntilItIsDrawn) {
   makeFont();
   SdCardFont font;

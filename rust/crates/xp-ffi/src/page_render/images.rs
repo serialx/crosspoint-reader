@@ -1,6 +1,6 @@
 //! Page image/cache policy stays in Rust; native leaves own only file/decoder work.
 use super::{direct::Target, *};
-use core::mem::MaybeUninit;
+use core::{marker::PhantomPinned, mem::MaybeUninit, pin::Pin};
 use xp_core::{
     assets::image::{Config, Services},
     image::frame::Target as ImageTarget,
@@ -18,8 +18,19 @@ struct Image {
     height: i32,
 }
 #[repr(C)]
-struct File {
+struct FileStorage {
     words: [MaybeUninit<usize>; if size_of::<usize>() == 4 { 3 } else { 8 }],
+}
+#[repr(C)]
+struct File {
+    storage: FileStorage,
+    pinned: PhantomPinned,
+}
+impl File {
+    fn pointer(self: Pin<&mut Self>) -> *mut FileStorage {
+        // Native placement construction and destruction use this pinned address.
+        unsafe { ptr::addr_of_mut!(self.get_unchecked_mut().storage) }
+    }
 }
 #[repr(u32)]
 enum FileOp {
@@ -36,7 +47,7 @@ enum FileOp {
 }
 extern "C" {
     fn xp_native_page_image_file(
-        file: *mut File,
+        file: *mut FileStorage,
         op: FileOp,
         path: *const u8,
         bytes: *mut u8,
@@ -61,19 +72,31 @@ use core::mem::size_of;
 struct Physical<'a> {
     target: &'a Target,
     image: Image,
-    file: File,
+    file: Pin<&'a mut File>,
     cache: *const u8,
     initialized: bool,
 }
 impl Physical<'_> {
     fn scalar(&mut self, op: FileOp, value: usize) -> usize {
         unsafe {
-            xp_native_page_image_file(&mut self.file, op, ptr::null(), ptr::null_mut(), value)
+            xp_native_page_image_file(
+                self.file.as_mut().pointer(),
+                op,
+                ptr::null(),
+                ptr::null_mut(),
+                value,
+            )
         }
     }
     fn open(&mut self, path: *const u8) -> bool {
         unsafe {
-            xp_native_page_image_file(&mut self.file, FileOp::Open, path, ptr::null_mut(), 0) != 0
+            xp_native_page_image_file(
+                self.file.as_mut().pointer(),
+                FileOp::Open,
+                path,
+                ptr::null_mut(),
+                0,
+            ) != 0
         }
     }
 }
@@ -94,7 +117,7 @@ unsafe impl Services for Physical<'_> {
     fn read(&mut self, bytes: &mut [u8]) -> usize {
         unsafe {
             xp_native_page_image_file(
-                &mut self.file,
+                self.file.as_mut().pointer(),
                 FileOp::Read,
                 ptr::null(),
                 bytes.as_mut_ptr(),
@@ -144,7 +167,7 @@ unsafe impl Services for Physical<'_> {
         }
         if unsafe {
             xp_native_page_image_file(
-                &mut self.file,
+                self.file.as_mut().pointer(),
                 FileOp::Exists,
                 self.image.path,
                 ptr::null_mut(),
@@ -285,6 +308,12 @@ pub(super) unsafe fn paint(
         return;
     }
     let t = &target.glyphs;
+    let mut file = core::pin::pin!(File {
+        storage: FileStorage {
+            words: [MaybeUninit::uninit(); if size_of::<usize>() == 4 { 3 } else { 8 }],
+        },
+        pinned: PhantomPinned,
+    });
     let mut physical = Physical {
         target,
         image: Image {
@@ -297,9 +326,7 @@ pub(super) unsafe fn paint(
             width,
             height,
         },
-        file: File {
-            words: [MaybeUninit::uninit(); if size_of::<usize>() == 4 { 3 } else { 8 }],
-        },
+        file: file.as_mut(),
         cache: c"".as_ptr().cast(),
         initialized: false,
     };

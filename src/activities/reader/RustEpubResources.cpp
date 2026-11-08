@@ -196,18 +196,6 @@ uint32_t physicalRenderOperation(GfxRenderer& renderer, const XpEpubPhysicalOp& 
   return 0;
 }
 
-void physicalRenderPlan(GfxRenderer& renderer, XpPagePlan* plan, XpPageRowBounds* bounds, uint16_t count,
-                        uint8_t recording) {
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-  renderer.usePagePlan(plan, bounds, count, recording != 0);
-#else
-  (void)renderer;
-  (void)plan;
-  (void)bounds;
-  (void)count;
-  (void)recording;
-#endif
-}
 void physicalImageWindow(uint8_t* bytes, uint32_t length) {
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
   ImageBlock::setRenderReadWindow(bytes, length);
@@ -888,16 +876,12 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
               ESP.restart();
             }
           },
-      .paint_arena = [](const XpEpubPageView* page, int32_t font, int32_t left, int32_t top,
-                        uint8_t mode) { epubPage::paint(*target, *page, font, left, top, mode); },
       .image_needs_decode = epubPage::imageNeedsDecode,
       .font_ascent = [](int32_t font) -> int32_t { return epubPage::fontAscent(*target, font); },
       .render_physical_query = [](uint8_t query) -> uint32_t { return physicalRenderQuery(*target, query); },
       .render_physical_operation = [](const XpEpubPhysicalOp* op) -> uint32_t {
         return physicalRenderOperation(*target, *op);
       },
-      .render_plan = [](XpPagePlan* plan, XpPageRowBounds* bounds, uint16_t count,
-                        uint8_t recording) { physicalRenderPlan(*target, plan, bounds, count, recording); },
       .image_read_window = physicalImageWindow,
       .display_source = physicalDisplaySource,
       .framebuffer_view = [](uint32_t* bytes) -> uint8_t* { return physicalFramebuffer(*target, bytes); },

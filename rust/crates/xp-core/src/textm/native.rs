@@ -39,6 +39,7 @@ impl Family {
 pub enum DiagnosticEvent {
     MissingFont = 1,
     BidiLimit = 2,
+    MissingGlyph = 3,
 }
 pub type Diagnostic = unsafe extern "C" fn(*mut c_void, u32, u32, u32, u32, u32);
 

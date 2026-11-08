@@ -1,8 +1,8 @@
 //! Execute the existing reader command stream using the session resource owner.
 use super::{abi, physical, FrameLease, PageGeometry, PageResources, PlaneBuffer};
-use core::pin::Pin;
 #[cfg(feature = "reader-strips")]
-use core::{ffi::c_void, ptr};
+use core::ffi::c_void;
+use core::pin::Pin;
 use xp_ui::reader::render::{self, Buffer, Command, Plane, Query, Renderer};
 
 pub(crate) trait Context {
@@ -17,7 +17,7 @@ pub(crate) trait Context {
     fn text_aa(&self) -> bool;
     fn is_a4(&self) -> bool;
     fn image_reset(&self);
-    fn paint(&self, mode: u8);
+    fn paint(&self, owner: Pin<&PageResources>, mode: u8);
     fn highlights(&self);
     fn status(&self);
     fn log_enabled(&self, severity: u8) -> bool;
@@ -94,7 +94,7 @@ unsafe extern "C" fn paint<P: physical::Physical, C: Context>(
             y,
             rows,
             || replay.context.highlights(),
-            || replay.context.paint(0),
+            || replay.context.paint(replay.owner, 0),
         )
     }
 }
@@ -153,15 +153,15 @@ impl<P: physical::Physical, C: Context> Renderer for Call<'_, P, C> {
                 return 0;
             }
             Command::Page => {
-                context.paint(0);
+                context.paint(self.frame.owner, 0);
                 return 0;
             }
             Command::Images => {
-                context.paint(1);
+                context.paint(self.frame.owner, 1);
                 return 0;
             }
             Command::Placeholders => {
-                context.paint(2);
+                context.paint(self.frame.owner, 2);
                 return 0;
             }
             Command::Highlights => {
@@ -212,51 +212,12 @@ impl<P: physical::Physical, C: Context> Renderer for Call<'_, P, C> {
             }
             Command::RecordBegin => {
                 #[cfg(feature = "reader-strips")]
-                {
-                    let owner = self.frame.owner;
-                    let plan = owner
-                        .frame
-                        .strips
-                        .plan
-                        .get()
-                        .cast::<crate::page_render::Plan>();
-                    unsafe {
-                        plan.write(crate::page_render::Plan {
-                            storage: owner.strips.commands.pointer().cast(),
-                            capacity_bytes: 16384,
-                            count: 0,
-                            valid: 0,
-                        });
-                    }
-                    physical.plan(
-                        plan,
-                        owner.strips.bounds.pointer(),
-                        context.elements(),
-                        true,
-                    );
-                    self.frame.plan_installed();
-                }
+                self.frame.record_begin();
                 return 0;
             }
             Command::RecordEnd => {
                 #[cfg(feature = "reader-strips")]
-                {
-                    let owner = self.frame.owner;
-                    let plan = owner
-                        .frame
-                        .strips
-                        .plan
-                        .get()
-                        .cast::<crate::page_render::Plan>();
-                    let valid = unsafe { (*plan).valid } != 0;
-                    physical.plan(
-                        if valid { plan } else { ptr::null_mut() },
-                        owner.strips.bounds.pointer(),
-                        context.elements(),
-                        false,
-                    );
-                    return u32::from(valid);
-                }
+                return u32::from(self.frame.record_end());
                 #[cfg(not(feature = "reader-strips"))]
                 return 0;
             }
@@ -294,10 +255,7 @@ impl<P: physical::Physical, C: Context> Renderer for Call<'_, P, C> {
             }
             Command::ClearPlan => {
                 #[cfg(feature = "reader-strips")]
-                {
-                    physical.clear_plan();
-                    self.frame.owner.strips.plan_loan.set(false);
-                }
+                self.frame.clear_plan();
                 return 0;
             }
             Command::ClearWindow => {

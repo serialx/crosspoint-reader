@@ -55,35 +55,32 @@ impl Context for RenderContext<'_, '_> {
     fn image_reset(&self) {
         unsafe { (self.access.owner.leaves.image_clear_failures)() };
     }
-    fn paint(&self, mode: u8) {
+    fn paint(&self, owner: core::pin::Pin<&super::render_resources::PageResources>, mode: u8) {
+        #[cfg(not(feature = "reader-strips"))]
+        let _ = owner;
         let geometry = self.geometry();
-        if crate::page_render::DIRECT_PAGE_PAINT {
-            let status = unsafe {
-                crate::page_render::direct::paint_current(
-                    self.page.arena(),
-                    geometry.font,
-                    geometry.left,
-                    geometry.top,
-                    mode,
-                )
-            };
-            assert_eq!(status, 0, "validated page target");
-            return;
+        #[allow(unused_mut)]
+        let mut request = crate::page_render::direct::Request {
+            font: geometry.font,
+            x: geometry.left,
+            y: geometry.top,
+            mode,
+            plan: core::ptr::null_mut(),
+            bounds: core::ptr::null_mut(),
+            count: 0,
+            prepare: 0,
+        };
+        #[cfg(feature = "reader-strips")]
+        if let Some((plan, bounds, preparing)) = owner.plan_loan() {
+            request.plan = plan;
+            request.bounds = bounds.cast();
+            request.count = usize::from(self.page.element_count());
+            request.prepare = u8::from(preparing);
         }
-        let view = super::abi::XpEpubPageView {
-            arena: geometry.arena,
-            size: geometry.length,
-            visible_offset: geometry.visible_offset,
+        let status = unsafe {
+            crate::page_render::direct::paint_request_current(self.page.arena(), &request)
         };
-        unsafe {
-            (self.access.owner.leaves.paint_arena)(
-                &view,
-                geometry.font,
-                geometry.left,
-                geometry.top,
-                mode,
-            )
-        };
+        log_page_status(self.access.owner.leaves, status);
     }
     fn highlights(&self) {
         let geometry = self.geometry();
@@ -117,6 +114,21 @@ impl Context for RenderContext<'_, '_> {
         };
     }
 }
+
+pub(super) fn log_page_status(leaves: &super::abi::XpEpubLeaves, status: u32) {
+    let message: &[u8] = match status {
+        1 => b"Invalid page render (1)",
+        2 => b"Invalid page render (2)",
+        _ => return,
+    };
+    unsafe {
+        (leaves.log)(
+            1,
+            app_abi::Text::from_bytes(b"GFX"),
+            app_abi::Text::from_bytes(message),
+        );
+    }
+}
 impl EpubSession {
     pub(super) fn render_contents(
         &self,
@@ -136,7 +148,6 @@ impl EpubSession {
         let view = page.borrow();
         let context = RenderContext { access, page: view };
         let geometry = PageGeometry {
-            visible_offset: view.wire().visible_offset,
             font,
             left: margins[3],
             top: margins[0],

@@ -164,23 +164,13 @@ void* factory(XpEpubOwnedPage* pages, uint8_t count, void* raw) {
       renderer.boxPaints.clear();
       renderer.lastLineY = -1;
       renderer.drawnLineCount = 0;
-      switch (static_cast<PageRenderMode>(mode)) {
-        case PageRenderMode::All:
-          native->render(renderer, 24, 7, 11);
-          break;
-        case PageRenderMode::Images:
-          native->renderImages(renderer, 24, 7, 11);
-          break;
-        case PageRenderMode::Placeholders:
-          native->renderWithImagePlaceholders(renderer, 24, 7, 11);
-          break;
-      }
+      native->renderModeForTest(renderer, 24, 7, 11, mode);
       const auto boxes = renderer.boxPaints;
       const auto y = renderer.lastLineY, lines = renderer.drawnLineCount;
       renderer.boxPaints.clear();
       renderer.lastLineY = -1;
       renderer.drawnLineCount = 0;
-      epubPage::paint(renderer, pages[i].view, 24, 7, 11, mode);
+      borrowed.renderModeForTest(renderer, 24, 7, 11, mode);
       assert(renderer.boxPaints == boxes && renderer.lastLineY == y && renderer.drawnLineCount == lines);
     }
     for (uint16_t element = 0; element < native->elementCount(); ++element) {

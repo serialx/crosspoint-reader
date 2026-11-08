@@ -107,34 +107,24 @@ void Page::adopt(void* owner, void (*destroy)(void*)) {
   ownership = Ownership::Transferred;
 }
 
-void Page::renderArena(GfxRenderer& renderer, const int fontId, const int x, const int y,
-                       const PageRenderMode mode) const {
-  struct Images {
-    const Page& page;
-    GfxRenderer& renderer;
-  } images{*this, renderer};
-  renderer.drawPage(arena, arenaSize, fontId, x, y, mode, &images,
-                    [](void* raw, uint16_t index, int32_t x, int32_t y, uint8_t placeholder) {
-                      const auto& c = *static_cast<Images*>(raw);
-                      auto block = c.page.element(index).imageBlock();
-                      if (placeholder)
-                        block.renderPlaceholder(c.renderer, x, y);
-                      else
-                        block.render(c.renderer, x, y);
-                    });
-}
-
 void Page::render(GfxRenderer& renderer, const int fontId, const int x, const int y) const {
-  renderArena(renderer, fontId, x, y, PageRenderMode::All);
+  const XpPagePaint request{fontId, x, y, 0, nullptr, nullptr, 0, 0};
+  XpPageTarget target;
+  renderer.pageTarget(target);
+  const auto status = xp_page_paint(arena, arenaSize, &target, &request);
+  if (status) LOG_ERR("GFX", "Invalid page render (%u)", static_cast<unsigned>(status));
 }
 
-void Page::renderImages(GfxRenderer& renderer, const int fontId, const int x, const int y) const {
-  renderArena(renderer, fontId, x, y, PageRenderMode::Images);
+#if defined(XP_PAGE_CODEC_TEST) || defined(XP_EPUB_PAGE_OWNER_TEST)
+void Page::renderModeForTest(GfxRenderer& renderer, const int fontId, const int x, const int y,
+                             const uint8_t mode) const {
+  const XpPagePaint request{fontId, x, y, mode, nullptr, nullptr, 0, 0};
+  XpPageTarget target;
+  renderer.pageTarget(target);
+  const auto status = xp_page_paint(arena, arenaSize, &target, &request);
+  if (status) LOG_ERR("GFX", "Invalid page render (%u)", static_cast<unsigned>(status));
 }
-
-void Page::renderWithImagePlaceholders(GfxRenderer& renderer, const int fontId, const int x, const int y) const {
-  renderArena(renderer, fontId, x, y, PageRenderMode::Placeholders);
-}
+#endif
 
 size_t Page::allocationSize(const size_t arenaBytes, const size_t elements) {
   return xp_book_page_allocation(sizeof(Page), arenaBytes, alignof(ElementData), elements, sizeof(ElementData));

@@ -15,3 +15,7 @@ path = "lib.rs"
 
 [features]
 app-test = []
+
+[lints.rust]
+# Production modules reference firmware-only features disabled in this owner fixture.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("reader-strips", "chapter-test"))'] }

@@ -19,7 +19,7 @@ struct AppFixtureUnexpected<R (*)(A...), Slot> {
 
 inline XpEpubLeaves unexpectedEpubLeaves() {
   XpEpubLeaves value{};
-  static_assert(sizeof(XpEpubLeaves) == 170 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 168 * sizeof(void (*)()));
   value.render_margins = &AppFixtureUnexpected<decltype(value.render_margins), 5>::call;
   value.render_geometry = &AppFixtureUnexpected<decltype(value.render_geometry), 6>::call;
   value.render_restore_bw = &AppFixtureUnexpected<decltype(value.render_restore_bw), 7>::call;
@@ -143,12 +143,10 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.image_dimensions = &AppFixtureUnexpected<decltype(value.image_dimensions), 176>::call;
   value.framebuffer_lend = &AppFixtureUnexpected<decltype(value.framebuffer_lend), 178>::call;
   value.framebuffer_restore = &AppFixtureUnexpected<decltype(value.framebuffer_restore), 179>::call;
-  value.paint_arena = &AppFixtureUnexpected<decltype(value.paint_arena), 164>::call;
   value.image_needs_decode = &AppFixtureUnexpected<decltype(value.image_needs_decode), 165>::call;
   value.font_ascent = &AppFixtureUnexpected<decltype(value.font_ascent), 166>::call;
   value.render_physical_query = &AppFixtureUnexpected<decltype(value.render_physical_query), 166>::call;
   value.render_physical_operation = &AppFixtureUnexpected<decltype(value.render_physical_operation), 166>::call;
-  value.render_plan = &AppFixtureUnexpected<decltype(value.render_plan), 166>::call;
   value.image_read_window = &AppFixtureUnexpected<decltype(value.image_read_window), 166>::call;
   value.display_source = &AppFixtureUnexpected<decltype(value.display_source), 166>::call;
   value.framebuffer_view = &AppFixtureUnexpected<decltype(value.framebuffer_view), 166>::call;

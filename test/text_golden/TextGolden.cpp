@@ -29,6 +29,13 @@ void textGoldenGlyph(const EpdFontFamily& family, uint32_t cp, int x, int y, Epd
   }
   *trace << cp << ',' << x << ',' << y << ',' << id << ',' << int(style) << ';';
 }
+extern "C" void xp_native_page_test_glyph(const void* font, const XpGlyphPlacement* glyph, int32_t x, int32_t y,
+                                          uint8_t style) {
+  const EpdFont selected(static_cast<const EpdFontData*>(font));
+  textGoldenGlyph(EpdFontFamily(&selected), glyph->codepoint, x + glyph->x, y + glyph->y,
+                  static_cast<EpdFontFamily::Style>(style));
+}
+
 void textGoldenScaled(int fontId, uint32_t cp, int x, int y, EpdFontFamily::Style style) {
   if (trace) *trace << cp << ',' << x << ',' << y << ',' << fontId << ',' << int(style) << ';';
 }

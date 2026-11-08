@@ -121,7 +121,7 @@ static const XpAppRuntime runtime = [] {
 static auto legacyPage = unexpectedLegacyPageServices();
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 170 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 168 * sizeof(void (*)()));
   UNUSED_LEAF(render_margins);
   UNUSED_LEAF(render_geometry);
   UNUSED_LEAF(render_restore_bw);
@@ -249,12 +249,10 @@ static const XpEpubLeaves leaves = [] {
 
   UNUSED_LEAF(framebuffer_lend);
   UNUSED_LEAF(framebuffer_restore);
-  UNUSED_LEAF(paint_arena);
   UNUSED_LEAF(image_needs_decode);
   UNUSED_LEAF(font_ascent);
   UNUSED_LEAF(render_physical_query);
   UNUSED_LEAF(render_physical_operation);
-  UNUSED_LEAF(render_plan);
   UNUSED_LEAF(image_read_window);
   UNUSED_LEAF(display_source);
   UNUSED_LEAF(framebuffer_view);

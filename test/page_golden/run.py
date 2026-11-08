@@ -221,7 +221,7 @@ def main():
         if len(result['chapters']) != len(spine):
             raise ValueError(f'Missing chapters in {key}')
         result['spine'] = spine
-        if not private and not args.strips and not args.decoded_images:
+        if not private and not args.decoded_images:
             paths.check_parent_case(key, result, destination / 'cache')
         cases[key] = result
         print(f"{key}: {len(spine)} chapters, {result['counts']['pages']} pages", flush=True)
@@ -234,7 +234,7 @@ def main():
         args.golden.write_bytes(archive)
     else:
         expected = json.loads(gzip.decompress(args.golden.read_bytes()))
-        if not private and not args.strips and not args.decoded_images:
+        if not private and not args.decoded_images:
             expected = paths.production_expectation(expected, args.golden)
         if args.case:
             expected['cases'] = {args.case: expected['cases'][args.case]}

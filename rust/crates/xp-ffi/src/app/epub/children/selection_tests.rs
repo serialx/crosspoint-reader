@@ -372,11 +372,8 @@ unsafe extern "C" fn paint_scene(
     }
     1
 }
-unsafe extern "C" fn paint_page(view: *const abi::XpEpubPageView, _: i32, _: i32, _: i32, _: u8) {
-    assert!(xp_core::page::Page::open(unsafe {
-        core::slice::from_raw_parts((*view).arena, (*view).size)
-    })
-    .is_ok());
+fn paint_page(bytes: &[u8]) {
+    assert!(xp_core::page::Page::open(bytes).is_ok());
     call("page");
 }
 unsafe extern "C" fn translate(_: u16) -> app_abi::Text {
@@ -456,7 +453,7 @@ fn drawing_resources() -> app_abi::Resources {
 #[test]
 fn lookup_render_page_loan_and_prewarm_end_after_popup_refresh() {
     let mut leaves = test_leaves::leaves();
-    leaves.paint_arena = paint_page;
+    crate::page_render::direct::observe(paint_page);
     leaves.fonts_prewarm_begin = prewarm_begin;
     leaves.fonts_prewarm_finish_scan = prewarm_finish;
     leaves.fonts_prewarm_drop = prewarm_drop;
@@ -610,7 +607,7 @@ fn footnote_render_borrows_number_and_uses_differential_snapshot() {
         ..drawing_resources()
     });
     let mut leaves = test_leaves::leaves();
-    leaves.paint_arena = paint_page;
+    crate::page_render::direct::observe(paint_page);
     leaves.child_selection_physical.directional_hints = hints;
     unsafe { owner.enter(resources) };
     CALLS.with(|v| v.borrow_mut().clear());
@@ -675,7 +672,7 @@ fn footnote_snapshot_oom_keeps_full_page_fallback() {
         ..drawing_resources()
     });
     let mut leaves = test_leaves::leaves();
-    leaves.paint_arena = paint_page;
+    crate::page_render::direct::observe(paint_page);
     leaves.child_selection_physical.directional_hints = hints;
     unsafe { owner.enter(resources) };
     assert!(unsafe { (*owner.frame.get()).snapshot.is_none() });

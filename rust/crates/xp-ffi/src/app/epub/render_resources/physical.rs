@@ -71,18 +71,10 @@ impl Op {
     }
 }
 
-/// Synchronous physical calls; retained plan/source loans end at explicit detach.
+/// Synchronous physical calls; retained source loans end at explicit detach.
 pub(crate) trait Physical: PhysicalResources {
     fn query(&self, query: Query) -> u32;
     fn operation(&self, op: &Op) -> u32;
-    #[cfg(feature = "reader-strips")]
-    fn plan(
-        &self,
-        plan: *mut crate::page_render::Plan,
-        bounds: *mut u8,
-        count: u16,
-        recording: bool,
-    );
     #[cfg(feature = "reader-strips")]
     fn image_window(&self, bytes: *mut u8, length: u32);
     #[cfg(feature = "reader-strips")]

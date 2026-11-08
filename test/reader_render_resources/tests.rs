@@ -96,9 +96,6 @@ impl PhysicalResources for Physical {
     fn detach_source(&self) {
         record("source:detach");
     }
-    fn clear_plan(&self) {
-        record("plan:clear");
-    }
     fn clear_window(&self) {
         record("window:clear");
     }
@@ -123,10 +120,47 @@ fn frame_frees_owned_planes_before_scope_and_image_cleanup() {
     drop(frame);
     let mut expected = vec!["free:103", "free:102", "free:101"];
     if cfg!(feature = "reader-strips") {
-        expected.extend(["plan:clear", "window:clear"]);
+        expected.extend(["window:clear"]);
     }
     expected.extend(["prewarm:drop", "images:release"]);
     assert_eq!(events(), expected);
+    drop(resources);
+    reset(0);
+}
+
+#[cfg(feature = "reader-strips")]
+#[test]
+fn plan_recording_replay_and_detach_stay_with_the_pinned_rust_owner() {
+    reset(0);
+    let resources = pinned();
+    let physical = Physical { fail_begin: false };
+    assert!(resources.as_ref().prepare_strips(&RESOURCES, 100, false));
+    {
+        let frame = resources.as_ref().begin_frame(&[], &physical);
+        assert!(resources.as_ref().plan_loan().is_none());
+        frame.record_begin();
+        let (plan, bounds, preparing) = resources.as_ref().plan_loan().unwrap();
+        assert!(preparing && !bounds.is_null());
+        assert_eq!(unsafe { (*plan).capacity_bytes }, 16_384);
+        assert_eq!(unsafe { (*plan).valid }, 0);
+        unsafe { (*plan).valid = 1 };
+        assert!(frame.record_end());
+        let (replay, replay_bounds, preparing) = resources.as_ref().plan_loan().unwrap();
+        assert_eq!((replay, replay_bounds), (plan, bounds));
+        assert!(!preparing);
+        frame.clear_plan();
+        assert!(resources.as_ref().plan_loan().is_none());
+        frame.record_begin();
+        assert!(!frame.record_end());
+        assert!(resources.as_ref().plan_loan().is_none());
+        frame.record_begin();
+        let (plan, _, _) = resources.as_ref().plan_loan().unwrap();
+        unsafe { (*plan).valid = 1 };
+        assert!(frame.record_end());
+    }
+    let next = resources.as_ref().begin_frame(&[], &physical);
+    assert!(resources.as_ref().plan_loan().is_none());
+    drop(next);
     drop(resources);
     reset(0);
 }
@@ -222,16 +256,11 @@ fn source_loan_keeps_borrowed_scratch_until_detach() {
     drop(frame);
     assert_eq!(
         events(),
-        [
-            "source:detach",
-            "plan:clear",
-            "window:clear",
-            "images:release"
-        ]
+        ["source:detach", "window:clear", "images:release"]
     );
     assert!(resources.as_ref().release_idle_strips());
     assert_eq!(
-        &events()[4..],
+        &events()[3..],
         ["free:8000", "free:16384", "free:4096", "free:4096"]
     );
     drop(resources);
@@ -343,16 +372,16 @@ fn rejected_source_retains_plan_and_window_storage_until_frame_cleanup() {
     assert!(resources.as_ref().prepare_strips(&RESOURCES, 99, true));
     let physical = Physical { fail_begin: false };
     let frame = resources.as_ref().begin_frame(&[], &physical);
-    frame.plan_installed();
+    frame.record_begin();
     frame.window_installed();
     frame.source_installed(false);
     clear_events();
     assert!(!resources.as_ref().release_idle_strips());
     drop(frame);
-    assert_eq!(events(), ["plan:clear", "window:clear", "images:release"]);
+    assert_eq!(events(), ["window:clear", "images:release"]);
     drop(resources);
     assert_eq!(
-        &events()[3..],
+        &events()[2..],
         ["free:8000", "free:16384", "free:4096", "free:4096"]
     );
     reset(0);
@@ -377,9 +406,6 @@ impl PhysicalResources for Detach<'_> {
     fn detach_source(&self) {
         (self.check)();
         self.base.detach_source();
-    }
-    fn clear_plan(&self) {
-        self.base.clear_plan();
     }
     fn clear_window(&self) {
         self.base.clear_window();
@@ -428,7 +454,6 @@ fn detach_callback_reborrows_live_storage_after_owned_planes_are_released() {
             "free:34",
             "free:33",
             "source:detach",
-            "plan:clear",
             "window:clear",
             "prewarm:drop",
             "images:release"

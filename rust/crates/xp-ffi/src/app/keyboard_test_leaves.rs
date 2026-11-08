@@ -149,12 +149,10 @@ unused_leaves! {
     image_dimensions(_a0: XpAppText, _a1: *mut u16, _a2: *mut u16) -> u8;
     framebuffer_lend() -> u8;
     framebuffer_restore(_a0: u8) ;
-    paint_arena(_a0: *const XpEpubPageView, _a1: i32, _a2: i32, _a3: i32, _a4: u8) ;
     image_needs_decode(_a0: XpAppText, _a1: XpAppText, _a2: i16, _a3: i16) -> u8;
     font_ascent(_a0: i32) -> i32;
     render_physical_query(_a0: u8) -> u32;
 
-    render_plan(_a0: *mut crate::page_render::Plan, _a1: *mut u8, _a2: u16, _a3: u8) ;
     image_read_window(_a0: *mut u8, _a1: u32) ;
     display_source(_a0: *mut crate::display_source::DisplaySource) -> u8;
     framebuffer_view(_a0: *mut u32) -> *mut u8;

@@ -42,22 +42,6 @@ inline void* selection(GfxRenderer& renderer, MappedInputManager& input, XpEpubO
   return child.release();
 }
 
-inline void paint(GfxRenderer& renderer, const XpEpubPageView& view, int32_t font, int32_t left, int32_t top,
-                  uint8_t mode) {
-  Page page(Page::Borrowed{}, view.arena, view.size, view.visible_offset);
-  switch (static_cast<PageRenderMode>(mode)) {
-    case PageRenderMode::All:
-      page.render(renderer, font, left, top);
-      break;
-    case PageRenderMode::Images:
-      page.renderImages(renderer, font, left, top);
-      break;
-    case PageRenderMode::Placeholders:
-      page.renderWithImagePlaceholders(renderer, font, left, top);
-      break;
-  }
-}
-
 inline uint8_t imageNeedsDecode(XpAppText path, XpAppText source, int16_t width, int16_t height) {
   const std::string_view imagePath{reinterpret_cast<const char*>(path.data), path.len};
   const std::string_view sourcePath{reinterpret_cast<const char*>(source.data), source.len};

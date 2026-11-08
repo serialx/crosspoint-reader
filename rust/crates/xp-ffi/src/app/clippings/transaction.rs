@@ -50,6 +50,7 @@ impl Change {
     }
 }
 
+// Keep the copy buffer out of Store::persist's frame across LTO links.
 #[inline(never)]
 fn copy_text(source: &mut impl File, destination: &mut impl File, mut length: usize) -> Result<()> {
     let mut bytes = [0; 128];

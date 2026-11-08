@@ -155,6 +155,7 @@ impl<H: Host> Root<H> {
     pub fn ready(&self) -> bool {
         self.model(|m| m.ready)
     }
+    // Keep label storage and the model copy out of the Settings entry frame.
     #[inline(never)]
     fn rebuild_rows(&self) {
         let labels = rows::TITLES.map(|id| self.host.translate(id));

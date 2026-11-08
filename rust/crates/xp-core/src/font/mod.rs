@@ -6,6 +6,8 @@
 mod layout;
 pub mod loaded;
 pub mod raw;
+#[cfg(test)]
+pub mod runtime;
 
 use raw::{Advance, BmpInterval, FontData, Glyph, Interval, KernClass};
 

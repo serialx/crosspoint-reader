@@ -129,17 +129,6 @@ unsafe extern "C" fn deliver(p: *mut c_void, r: *const c_void) {
 unsafe extern "C" fn shot(_: *const c_void, sink: abi::ScreenshotSink, c: *mut c_void) {
     unsafe { sink(c, &core::mem::zeroed()) };
 }
-unsafe extern "C" fn unused_definition(
-    _: *mut c_void,
-    _: abi::DefinitionPop,
-    _: abi::DefinitionSelectionSink,
-    _: *mut c_void,
-) {
-    panic!("definition");
-}
-unsafe extern "C" fn unused_selection(_: *mut c_void, _: abi::DefinitionSelection) -> u8 {
-    panic!("selection");
-}
 unsafe extern "C" fn lock() -> *mut c_void {
     state(|s| {
         assert!(!s.locked);
@@ -327,9 +316,6 @@ fn setup() -> &'static App {
         forced_refresh: no,
         reader_turn: no_turn,
         screenshot_info: shot,
-        with_definition_selection_result: unused_definition,
-        deliver_definition_selection_result: unused_selection,
-        definition_selection_install_failed: ignored,
     };
     let mut physical = test_resources::resources();
     physical.paint_scene = paint;

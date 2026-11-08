@@ -209,6 +209,7 @@ impl Decoration {
     }
 }
 
+#[inline(always)]
 fn render_line(element: Element<'_>) -> Result<Line<'_>> {
     let h = element.data.get(5..12).ok_or(super::Error::Invalid)?;
     Ok(Line {
@@ -245,6 +246,7 @@ struct RenderWord<'a> {
     focus_suffix: u16,
 }
 impl<'a> RenderLine<'a> {
+    #[inline(always)]
     fn new(line: Line<'a>, section: i32) -> Result<Self> {
         let n = usize::from(line.count);
         let packed = line.packed_data()?;

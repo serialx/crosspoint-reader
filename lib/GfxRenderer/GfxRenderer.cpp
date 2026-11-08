@@ -465,6 +465,7 @@ void GfxRenderer::drawGlyphRun(const int fontId, const int x, const int y, const
                                const EpdFontFamily::Style style, const BidiUtils::BidiBaseDir baseDir,
                                const int8_t tracking, const bool rotated) const {
   if (!text || !*text) return;
+  const auto provider = textProvider();
   const int resolvedFontId = resolveTextFontId(fontId, text, style);
   int baseline = 0;
   if (!rotated) {
@@ -474,7 +475,6 @@ void GfxRenderer::drawGlyphRun(const int fontId, const int x, const int y, const
   if (!rotated && resolvedFontId != fontId) baseline += (getLineHeight(fontId) - getLineHeight(resolvedFontId)) / 2;
   XpGlyphPaint paint{glyphTarget(), {}, x, y + baseline, static_cast<uint8_t>(black)};
   GlyphContext context{*this, nullptr, fontId, resolvedFontId, style, rotated, &paint};
-  const auto provider = textProvider();
   xp_native_draw_pixels(
       &provider, resolvedFontId, reinterpret_cast<const uint8_t*>(text), strlen(text), style, tracking,
       static_cast<int32_t>(baseDir), rotated, &context,

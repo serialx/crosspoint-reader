@@ -5,7 +5,7 @@
 
 #include <utility>
 
-// Native UI clients query the Rust owner. Iterators hold one copied descriptor;
+// Native UI clients query the Rust owner. Dereferences copy one descriptor;
 // they never expose an address into the registry across a loader or mutation.
 class FontRegistry {
   XpLoadedFonts storage;
@@ -15,10 +15,25 @@ class FontRegistry {
     int first;
     EpdFontFamily second;
   };
+  struct FamilyView {
+    const FontRegistry* owner;
+    int id;
+    const EpdGlyph* getGlyph(uint32_t cp, EpdFontFamily::Style style = EpdFontFamily::REGULAR) const {
+      const auto* selected = owner->font(id, style);
+      return selected ? selected->getGlyph(cp) : nullptr;
+    }
+    bool hasCodepoint(uint32_t cp, EpdFontFamily::Style style = EpdFontFamily::REGULAR) const {
+      const auto* selected = owner->font(id, style);
+      return selected && selected->hasCodepoint(cp);
+    }
+  };
+  struct Arrow {
+    FamilyView second;
+    const Arrow* operator->() const { return this; }
+  };
   class Iterator {
     const FontRegistry* owner;
     uint32_t index;
-    mutable Value value{0, EpdFontFamily(nullptr)};
 
    public:
     Iterator(const FontRegistry* owner, uint32_t index) : owner(owner), index(index) {}
@@ -28,13 +43,12 @@ class FontRegistry {
       ++index;
       return *this;
     }
-    const Value& operator*() const {
+    Value operator*() const {
       XpRegisteredFont entry{};
       xp_font_registry_query(owner->raw(), XP_FONT_AT, 0, index, &entry);
-      value = {entry.id, family(entry)};
-      return value;
+      return {entry.id, family(entry)};
     }
-    const Value* operator->() const { return &operator*(); }
+    Arrow operator->() const { return {{owner, owner->idAt(index)}}; }
   };
   explicit FontRegistry(void* native) { xp_font_registry_init(&storage, &fontTableGeneration, native); }
   FontRegistry(const FontRegistry&) = delete;
@@ -43,6 +57,11 @@ class FontRegistry {
   FontRegistry& operator=(FontRegistry&&) = delete;
   const XpLoadedFonts* raw() const { return &storage; }
   XpLoadedFonts* raw() { return &storage; }
+  __attribute__((noinline)) int idAt(uint32_t index) const {
+    XpRegisteredFont entry{};
+    xp_font_registry_query(raw(), XP_FONT_AT, 0, index, &entry);
+    return entry.id;
+  }
   static EpdFontFamily family(const XpRegisteredFont& e) {
     return EpdFontFamily(reinterpret_cast<const EpdFont*>(e.slots[0]), reinterpret_cast<const EpdFont*>(e.slots[1]),
                          reinterpret_cast<const EpdFont*>(e.slots[2]), reinterpret_cast<const EpdFont*>(e.slots[3]));

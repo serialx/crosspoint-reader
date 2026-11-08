@@ -16,7 +16,11 @@ for name, directory in [('GfxRenderer', 'GfxRenderer'), ('FontDecompressor', 'Ep
     source = (root / 'lib' / directory / (name + '.cpp')).read_text()
     source = source.replace('#include "../Memory/Memory.h"', '#include <Memory.h>')
     if name == 'GfxRenderer':
-        source += (root / 'test/glyph_diff/reference/Raster.inc').read_text()
+        reference = (root / 'test/glyph_diff/reference/Raster.inc').read_text()
+        # Borrow no arrow temporary after its expression; keep the raster oracle unchanged.
+        reference = reference.replace('const auto& font = fontIt->second;',
+                                      'const auto font = fontMap.at(fontId);')
+        source += reference
         source += '''
 void referenceGlyph(const GfxRenderer& renderer, const EpdFontFamily& family, uint32_t cp,
                     const EpdGlyph* glyph, int x, int y, int kind, int num, int den, bool state) {

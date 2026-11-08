@@ -694,6 +694,7 @@ fn grid_layout(theme: abi::Theme, progress: i32, services: &abi::Resources) -> g
 
 #[cfg(test)]
 mod tests {
+    use super::super::stable_owner::StableOwner;
     use super::*;
     use alloc::boxed::Box;
     use core::sync::atomic::{AtomicU8, Ordering};
@@ -723,7 +724,9 @@ mod tests {
         let mut services = super::super::test_resources::resources();
         services.text_wrap = wrap;
         services.text_width = width;
-        let services = Box::leak(Box::new(services));
+        let services_owner = StableOwner::from(Box::new(services));
+        // All table users below drop before this scoped owner.
+        let services = unsafe { services_owner.pointer().as_ref() };
         let identities: Vec<_> = [b"2", b"3", b"1"]
             .into_iter()
             .map(|title| Identity {
@@ -894,7 +897,18 @@ mod tests {
         20
     }
     unsafe extern "C" fn refresh(_: u8) {}
-    fn fixture() -> Home {
+    struct Fixture {
+        home: Home,
+        _services: StableOwner<abi::Resources>,
+        _runtime: StableOwner<abi::Runtime>,
+    }
+    impl core::ops::Deref for Fixture {
+        type Target = Home;
+        fn deref(&self) -> &Home {
+            &self.home
+        }
+    }
+    fn fixture() -> Fixture {
         let mut services = super::super::test_resources::resources();
         services.settings_snapshot = settings;
         services.recents_visit = recents;
@@ -913,13 +927,20 @@ mod tests {
         runtime.model_unlock = noop;
         runtime.diagnostic = diagnostic;
         runtime.display_geometry = display_geometry;
-        Home::new(
-            Box::leak(Box::new(services)),
-            Box::leak(Box::new(runtime)),
-            || {},
-            0,
-            false,
-        )
+        let services = StableOwner::from(Box::new(services));
+        let runtime = StableOwner::from(Box::new(runtime));
+        Fixture {
+            // Home drops before the table owners in this fixture.
+            home: Home::new(
+                unsafe { services.pointer().as_ref() },
+                unsafe { runtime.pointer().as_ref() },
+                || {},
+                0,
+                false,
+            ),
+            _services: services,
+            _runtime: runtime,
+        }
     }
 
     #[test]
@@ -929,7 +950,7 @@ mod tests {
                 BUILD_OK.store(true, Ordering::Relaxed);
                 PAINT_OK.store(true, Ordering::Relaxed);
                 let home = fixture();
-                ENTERING.store((&home as *const Home).cast_mut(), Ordering::Relaxed);
+                ENTERING.store((&*home as *const Home).cast_mut(), Ordering::Relaxed);
                 home.enter();
                 ENTERING.store(core::ptr::null_mut(), Ordering::Relaxed);
                 let mut widths = view::Widths::default();
@@ -1036,6 +1057,7 @@ mod tests {
 
 #[cfg(test)]
 mod backup_lifetime_tests {
+    use super::super::stable_owner::StableOwner;
     use super::*;
     use alloc::{boxed::Box, vec};
     use core::sync::atomic::{AtomicBool, AtomicU8, Ordering::Relaxed};
@@ -1117,11 +1139,14 @@ mod backup_lifetime_tests {
         services.popup_progress = progress;
         services.recent_update = recent;
         // Unexpected region reads/writes retain the panic leaves: no popup restore.
-        let services = Box::leak(Box::new(services));
+        let services_owner = StableOwner::from(Box::new(services));
+        // Each loop's Home and buffer drop before these fake tables.
+        let services = unsafe { services_owner.pointer().as_ref() };
         let mut runtime = super::super::test_resources::runtime();
         runtime.model_lock = noop;
         runtime.model_unlock = noop;
-        let runtime = Box::leak(Box::new(runtime));
+        let runtime_owner = StableOwner::from(Box::new(runtime));
+        let runtime = unsafe { runtime_owner.pointer().as_ref() };
         for mode in 0..5 {
             MODE.store(mode, Relaxed);
             RELEASED.store(false, Relaxed);

@@ -339,7 +339,11 @@ pub(super) mod tests {
     fn duplicate_and_missing_rows_do_not_read_corrupt_metadata() {
         IO_FAILED.store(false, Ordering::Relaxed);
         METADATA_READS.store(0, Ordering::Relaxed);
-        let services = Box::leak(Box::new(super::super::test_resources::resources()));
+        let services_owner = super::super::stable_owner::StableOwner::from(Box::new(
+            super::super::test_resources::resources(),
+        ));
+        // The collection drops before its fake resource table.
+        let services = unsafe { services_owner.pointer().as_ref() };
         let mut collection = Collection {
             identities: vec![Identity {
                 path: Text::copy(b"/duplicate").unwrap(),

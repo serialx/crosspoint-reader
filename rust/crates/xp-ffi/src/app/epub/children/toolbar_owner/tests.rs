@@ -37,6 +37,9 @@ pub(in crate::app::epub::children) fn fail_next_allocation() {
 struct Allocator;
 unsafe impl GlobalAlloc for Allocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        if crate::app::home_test_allocator::denied(layout) {
+            return core::ptr::null_mut();
+        }
         if FAIL_ANY.try_with(|v| v.replace(false)).unwrap_or(false) {
             return core::ptr::null_mut();
         }
@@ -60,6 +63,7 @@ unsafe impl GlobalAlloc for Allocator {
             return core::ptr::null_mut();
         }
         let pointer = unsafe { System.alloc(layout) };
+        crate::app::home_test_allocator::allocated(pointer, layout);
         if !pointer.is_null() && layout == Layout::new::<Toolbar>() {
             let _ = ALLOCATIONS.try_with(|trace| {
                 let mut a = trace.get();
@@ -72,6 +76,7 @@ unsafe impl GlobalAlloc for Allocator {
         pointer
     }
     unsafe fn dealloc(&self, pointer: *mut u8, layout: Layout) {
+        crate::app::home_test_allocator::deallocated(pointer);
         if layout == Layout::new::<Toolbar>() {
             let _ = ALLOCATIONS.try_with(|trace| {
                 let mut a = trace.get();

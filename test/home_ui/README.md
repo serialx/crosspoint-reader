@@ -12,6 +12,21 @@ during entry, and Home build/paint rejection with the original input matrix.
 `home_app_owners` runs these cases through CTest. The portable navigation, owned
 result and Home timing tests live in `xp-ui::app`.
 
+The production-App Home target-retention cases in `app/home_tests.rs` run in the
+ordinary host suite. Miri runs them explicitly so the same witnesses can record
+the unfixed parent's expected failure separately from other owner checks:
+
+```sh
+MIRIFLAGS=-Zmiri-strict-provenance cargo +nightly miri test \
+  --manifest-path test/home_ui/app_owner/Cargo.toml --locked app::home_tests:: \
+  -- --ignored --test-threads=1
+```
+
+A broad Miri pass alone excludes these installation cases. The scoped fake
+service tables and Home allocation probes retain normal leak checking. Their
+fixed thread-local observer uses the existing toolbar test allocator; it adds
+no allocation inside allocator callbacks.
+
 `facade_oracle.py` retains the FileBrowser/Library native binding assertions and
 runs Home resource validation through the production Rust owner. The USB manager
 and remote-input oracles likewise drive the real Rust application. The real

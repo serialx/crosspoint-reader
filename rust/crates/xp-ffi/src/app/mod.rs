@@ -1495,3 +1495,9 @@ mod dialog_tests;
 
 #[cfg(test)]
 mod settings_tests;
+
+#[cfg(test)]
+mod home_tests;
+
+#[cfg(test)]
+mod home_test_allocator;

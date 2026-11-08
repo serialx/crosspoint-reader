@@ -155,6 +155,7 @@ impl<H: Host> Root<H> {
     pub fn ready(&self) -> bool {
         self.model(|m| m.ready)
     }
+    #[inline(never)]
     fn rebuild_rows(&self) {
         let labels = rows::TITLES.map(|id| self.host.translate(id));
         self.model(|m| m.labels = labels);

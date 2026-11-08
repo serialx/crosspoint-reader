@@ -50,6 +50,7 @@ impl Change {
     }
 }
 
+#[inline(never)]
 fn copy_text(source: &mut impl File, destination: &mut impl File, mut length: usize) -> Result<()> {
     let mut bytes = [0; 128];
     while length > 0 {

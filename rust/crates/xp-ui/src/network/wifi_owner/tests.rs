@@ -31,6 +31,46 @@ fn names(owner: &Wifi<TestHost>) -> Vec<Vec<u8>> {
         .collect()
 }
 #[test]
+fn native_storage_requires_a_pin_and_survives_moving_the_handle() {
+    // Either impl would make the inferred marker ambiguous and fail compilation.
+    trait AmbiguousIfMovable<A> {
+        fn check() {}
+    }
+    impl<T: ?Sized> AmbiguousIfMovable<()> for T {}
+    impl<T: ?Sized + Unpin> AmbiguousIfMovable<u8> for T {}
+    impl<T: ?Sized + wifi::EffectHost> AmbiguousIfMovable<u16> for T {}
+    let _ = <effects::Call<'_, TestHost> as AmbiguousIfMovable<_>>::check;
+
+    let (owner, f) = rig();
+    {
+        let mut data = f.data.borrow_mut();
+        data.last = b"1".to_vec();
+        data.credentials.push((b"1".to_vec(), b"pw".to_vec()));
+    }
+    {
+        let mut call = core::pin::pin!(effects::Call::new(&owner, 0, None));
+        assert_eq!(
+            wifi::EffectHost::call(&mut call, wifi::Call::LastCredential, 0),
+            1
+        );
+        assert!(!f.last_slot.get().is_null() && !f.credential_slot.get().is_null());
+        let mut moved = core::convert::identity(call);
+        assert_eq!(
+            wifi::EffectHost::call(&mut moved, wifi::Call::CredentialFlags, 0),
+            2
+        );
+    }
+    assert!(f.last_slot.get().is_null() && f.credential_slot.get().is_null());
+    let events = f.events.borrow();
+    assert!(
+        events.iter().position(|e| *e == "credential_drop").unwrap()
+            < events.iter().position(|e| *e == "last_drop").unwrap()
+    );
+    drop(events);
+    drop(owner);
+    assert_eq!(live(), 0);
+}
+#[test]
 fn saved_load_hidden_connect_failure_and_forget_keep_native_storage_in_place() {
     let (owner, f) = rig();
     f.auto.set(true);
@@ -278,13 +318,14 @@ fn forget_preserves_status_until_rebuild_and_uses_render_resource_transaction() 
         let _guard = owner.resource();
         (unsafe { (*owner.owned()).rows.as_slice() })[0].status()
     };
-    let mut call = effects::Call::new(
-        &owner,
-        owner.model(|m| m.state.list.navigation_revision),
-        None,
-    );
-    wifi::EffectHost::call(&mut call, wifi::Call::Forget, 0);
-    drop(call);
+    {
+        let mut call = core::pin::pin!(effects::Call::new(
+            &owner,
+            owner.model(|m| m.state.list.navigation_revision),
+            None,
+        ));
+        wifi::EffectHost::call(&mut call, wifi::Call::Forget, 0);
+    }
     {
         let _guard = owner.resource();
         let rows = unsafe { (*owner.owned()).rows.as_slice() };

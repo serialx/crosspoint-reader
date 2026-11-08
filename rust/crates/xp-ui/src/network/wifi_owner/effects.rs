@@ -1,7 +1,9 @@
 use super::super::wifi_physical::{CredentialStorage, CredentialView, LastStorage};
 use super::super::wifi_resources::sort_rows;
 use super::*;
+use core::marker::PhantomPinned;
 use core::mem::MaybeUninit;
+use core::pin::Pin;
 use xp_core::i18n::{self, ids};
 const LAST: u8 = 1;
 const CREDENTIAL: u8 = 2;
@@ -29,6 +31,7 @@ pub(super) struct Call<'a, H: Host> {
     revision: u32,
     flags: u8,
     keyboard_failed: bool,
+    _pin: PhantomPinned,
 }
 impl<'a, H: Host> Call<'a, H> {
     pub fn new(owner: &'a Wifi<H>, revision: u32, input: Option<Input>) -> Self {
@@ -46,6 +49,7 @@ impl<'a, H: Host> Call<'a, H> {
             revision,
             flags: if action { INPUT } else { 0 },
             keyboard_failed: false,
+            _pin: PhantomPinned,
         }
     }
     pub fn keyboard_failed(&self) -> bool {
@@ -57,7 +61,11 @@ impl<'a, H: Host> Call<'a, H> {
     pub fn scan_deleted(&self) -> bool {
         self.flags & SCAN_DELETED != 0
     }
-    pub fn current(&mut self) -> bool {
+    pub fn check_current(self: Pin<&mut Self>) -> bool {
+        // No method moves the native placement values out of their pinned slots.
+        unsafe { self.get_unchecked_mut().current() }
+    }
+    fn current(&mut self) -> bool {
         if self.failed() {
             return false;
         }
@@ -562,7 +570,7 @@ impl<H: Host> Drop for Call<'_, H> {
         }
     }
 }
-impl<H: Host> wifi::EffectHost for Call<'_, H> {
+impl<H: Host> Call<'_, H> {
     fn publish(&mut self, next: &mut wifi::State) {
         if !self.current() {
             return;
@@ -610,5 +618,15 @@ impl<H: Host> wifi::EffectHost for Call<'_, H> {
                 0
             }
         }
+    }
+}
+impl<H: Host> wifi::EffectHost for Pin<&mut Call<'_, H>> {
+    fn publish(&mut self, next: &mut wifi::State) {
+        // The private implementation mutates fields without moving the native slots.
+        unsafe { self.as_mut().get_unchecked_mut().publish(next) }
+    }
+    fn call(&mut self, operation: wifi::Call, value: u32) -> u32 {
+        // Placement construction is reachable only after the caller pins the storage.
+        unsafe { self.as_mut().get_unchecked_mut().call(operation, value) }
     }
 }

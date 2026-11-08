@@ -237,7 +237,7 @@ impl<H: Host> Wifi<H> {
     pub fn exit(&self) {
         self.host.exit();
         {
-            let mut call = effects::Call::new(self, 0, None);
+            let mut call = core::pin::pin!(effects::Call::new(self, 0, None));
             wifi::EffectHost::call(&mut call, wifi::Call::Exit, 0);
         }
         self.retire_rows();
@@ -249,11 +249,13 @@ impl<H: Host> Wifi<H> {
     fn run(&self, event: u8, value: u32, input: Option<Input>) {
         let mut state = self.model(|m| m.state);
         let scanning = state.phase == Phase::Scanning as u8;
-        // `Call` holds C++ placement values (SSO strings point into themselves):
-        // let it drop in place at block end, never move it (e.g. `drop(call)`).
         let keyboard_failed = {
-            let mut call = effects::Call::new(self, state.list.navigation_revision, input);
-            if call.current() {
+            let mut call = core::pin::pin!(effects::Call::new(
+                self,
+                state.list.navigation_revision,
+                input
+            ));
+            if call.as_mut().check_current() {
                 if event == 4 {
                     let automatic = state.automatic != 0;
                     state.scan(&mut call, automatic);

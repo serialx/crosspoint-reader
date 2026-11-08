@@ -27,10 +27,10 @@ __attribute__((noinline)) void paintFlowText(GfxRenderer& renderer, const XpUiCo
     renderer.drawUiText(lineCommand, clip, line);
   });
 }
-}  // namespace
-
-void networkui::paint(GfxRenderer& renderer, MappedInputManager& input, const XpUiCommand& command, XpUiRect clip,
-                      const Resource& resource) {
+__attribute__((noinline)) void paintOtherKinds(GfxRenderer& renderer, MappedInputManager& input,
+                                               const XpUiCommand& command, XpUiRect clip,
+                                               const networkui::Resource& resource) {
+  using networkui::Kind;
   const auto& r = command.rect;
   const Rect bounds{r.x, r.y, r.w, r.h};
   switch (resource.kind) {
@@ -42,7 +42,6 @@ void networkui::paint(GfxRenderer& renderer, MappedInputManager& input, const Xp
         renderer.drawUiText(command, clip, resource.labels[0]);
       break;
     case Kind::FlowText:
-      paintFlowText(renderer, command, clip, resource.labels[0]);
       break;
     case Kind::Centered:
       UITheme::drawCenteredText(renderer, bounds, command.font, r.y, resource.labels[0], command.paint != 1,
@@ -77,4 +76,13 @@ void networkui::paint(GfxRenderer& renderer, MappedInputManager& input, const Xp
       QrUtils::drawQrCode(renderer, bounds, *resource.qr);
       break;
   }
+}
+}  // namespace
+
+void networkui::paint(GfxRenderer& renderer, MappedInputManager& input, const XpUiCommand& command, XpUiRect clip,
+                      const Resource& resource) {
+  if (resource.kind == Kind::FlowText)
+    paintFlowText(renderer, command, clip, resource.labels[0]);
+  else
+    paintOtherKinds(renderer, input, command, clip, resource);
 }

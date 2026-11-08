@@ -34,4 +34,14 @@ pub unsafe extern "C" fn xp_crc32(data: *const u8, len: usize) -> u32 {
 #[path = "../../../rust/crates/xp-ffi/src/display/source.rs"]
 mod display_source;
 #[path = "../../../rust/crates/xp-ffi/src/page_plan/storage.rs"]
-mod page_render;
+mod page_plan_storage;
+mod page_render {
+    pub use crate::page_plan_storage::Plan;
+    // This ownership fixture exercises the native page leaf until PT1b switches it.
+    pub const DIRECT_PAGE_PAINT: bool = false;
+    pub mod direct {
+        pub unsafe fn paint_current(_: &[u8], _: i32, _: i32, _: i32, _: u8) -> u32 {
+            panic!("direct page painting is outside this ownership fixture")
+        }
+    }
+}

@@ -1,6 +1,7 @@
 use super::*;
 use crate::font::raw::{FontData, Glyph, Group};
 use core::{
+    cell::UnsafeCell,
     ptr,
     sync::atomic::{AtomicU32, Ordering},
 };
@@ -177,10 +178,11 @@ fn source_misses_and_generation_reject_before_dereference() {
     font.glyph = &glyph;
     font.bitmap = bytes.as_ptr();
     font.is2_bit = true;
+    let font = UnsafeCell::new(font);
     let mut source = BitmapSource {
         generation: &generation,
         captured_generation: 1,
-        font: &font,
+        font: font.get(),
         glyph_count: 1,
         bitmap_len: 16,
         slots: ptr::null(),
@@ -192,9 +194,9 @@ fn source_misses_and_generation_reject_before_dereference() {
     unsafe extern "C" fn vector_miss(_: *mut core::ffi::c_void, _: *const Glyph) -> *const u8 {
         panic!("The bitmap view must not invoke vector callbacks");
     }
-    font.vector_bitmap_handler = Some(vector_miss);
+    unsafe { (*font.get()).vector_bitmap_handler = Some(vector_miss) };
     assert!(unsafe { source.resolve(ptr::dangling()) }.is_none());
-    font.vector_bitmap_handler = None;
+    unsafe { (*font.get()).vector_bitmap_handler = None };
     let resolved = unsafe { source.resolve(&glyph) }.unwrap();
     assert_eq!(resolved.data, bytes.as_ptr());
     assert_eq!(resolved.len, 16);
@@ -215,48 +217,52 @@ fn source_misses_and_generation_reject_before_dereference() {
         glyph_count: 1,
         first_glyph_index: 0,
     };
-    font.groups = &group;
-    font.group_count = 1;
+    unsafe {
+        (*font.get()).groups = &group;
+        (*font.get()).group_count = 1;
+    }
     assert!(unsafe { source.resolve(&glyph) }.is_none());
-    let mut entries = [PageEntry {
+    let entries = UnsafeCell::new([PageEntry {
         glyph_index: 0,
         buffer_offset: 0,
         aligned_offset: 0,
-    }];
-    let mut slots = [
+    }]);
+    let slots = UnsafeCell::new([
         PageSlot {
             buffer: bytes.as_ptr(),
-            font: &font,
-            entries: entries.as_ptr(),
+            font: font.get(),
+            entries: entries.get().cast(),
             count: 1,
         },
         PageSlot {
             buffer: bytes.as_ptr(),
-            font: &font,
-            entries: entries.as_ptr(),
+            font: font.get(),
+            entries: entries.get().cast(),
             count: 1,
         },
-    ];
-    source.slots = slots.as_ptr();
+    ]);
+    source.slots = slots.get().cast();
     source.slot_count = 2;
     assert_eq!(
         unsafe { source.resolve(&glyph) }.unwrap().data,
         bytes.as_ptr()
     );
-    entries[0].buffer_offset = u32::MAX;
+    unsafe { (*entries.get())[0].buffer_offset = u32::MAX };
     assert!(unsafe { source.resolve(&glyph) }.is_none());
-    entries[0].buffer_offset = 0;
-    slots[1].entries = entries.as_ptr();
+    unsafe {
+        (*entries.get())[0].buffer_offset = 0;
+        (*slots.get())[1].entries = entries.get().cast();
+    }
     // The first nonempty matching slot wins, even if later slots have the glyph.
     let missing = [PageEntry {
         glyph_index: 1,
         buffer_offset: 0,
         aligned_offset: 0,
     }];
-    slots[0].entries = missing.as_ptr();
+    unsafe { (*slots.get())[0].entries = missing.as_ptr() };
     assert!(unsafe { source.resolve(&glyph) }.is_none());
-    slots[0].count = 0;
-    source.slots = slots.as_ptr();
+    unsafe { (*slots.get())[0].count = 0 };
+    source.slots = slots.get().cast();
     assert!(unsafe { source.resolve(&glyph) }.is_some());
     generation.store(2, Ordering::Relaxed);
     source.font = ptr::dangling();

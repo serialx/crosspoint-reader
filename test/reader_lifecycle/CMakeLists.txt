@@ -14,8 +14,18 @@ endforeach()
 add_executable(ReaderLifecycleAbi abi.cpp)
 target_link_libraries(ReaderLifecycleAbi PRIVATE crosspoint_test_common)
 target_compile_options(ReaderLifecycleAbi PRIVATE -UNDEBUG)
+# The boundary test lists the Rust archive's symbols. Apple's nm rejects objects
+# written by a newer LLVM than its own (rustc 1.99 emits LLVM 23), so resolve an
+# llvm-nm here instead of relying on NM being exported by hand.
+find_program(XP_TEST_NM NAMES llvm-nm
+  HINTS /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin)
+if(NOT XP_TEST_NM)
+  find_program(XP_TEST_NM NAMES nm REQUIRED)
+  message(STATUS "reader_lifecycle_abi reads archive symbols with ${XP_TEST_NM}; install llvm-nm if it rejects the archive")
+endif()
 add_test(NAME reader_lifecycle_abi
-  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_lifecycle_boundary.py
+  COMMAND ${CMAKE_COMMAND} -E env "NM=${XP_TEST_NM}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_lifecycle_boundary.py
     --repo ${REPO_ROOT} --archive ${XP_FFI_HOST_ARCHIVE}
     --original-executable $<TARGET_FILE:ReaderLifecycleAbi>)
 

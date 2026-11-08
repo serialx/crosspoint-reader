@@ -30,6 +30,7 @@ class RustXtcParser {
   XtcError open(const char* path);
   void close();
   bool isOpen() const { return view().state->opened; }
+  // Borrowed header/text/rows expire on close/open/drop or lazy chapter mutation.
   const XtcHeader& getHeader() const { return view().state->header; }
   uint16_t getPageCount() const { return view().state->header.pageCount; }
   uint16_t getWidth() const { return view().state->width; }
@@ -39,6 +40,7 @@ class RustXtcParser {
   std::string_view getTitle() const;
   std::string_view getAuthor() const;
   bool hasChapters() const { return view().state->has_chapters; }
+  // Chapter names are NUL-terminated; lengths exclude the terminator.
   std::span<const XpXtcChapterRow> getChapters();
   bool getPageInfo(uint32_t index, PageInfo& info);
   size_t loadPage(uint32_t index, uint8_t* bytes, size_t capacity);

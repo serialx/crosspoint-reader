@@ -13,7 +13,8 @@ typedef struct {
   uintptr_t words[XP_XTC_OWNER_WORDS];
 } XpXtcOwnerStorage;
 
-// Borrowed rows, including names, remain valid until close, reopen, or owner drop.
+// Borrowed rows and names expire on close/open/drop or a lazy view mutation.
+// Names are NUL-terminated; name_len excludes the terminator.
 // inline_name is owner-private storage preserving the native short-name allocation shape.
 // Copying a row never transfers ownership of its name.
 typedef struct {
@@ -23,6 +24,7 @@ typedef struct {
   uint16_t start_page, end_page;
 } XpXtcChapterRow;
 
+// All snapshot pointers are loans invalidated by close/open/drop or lazy mutation.
 typedef struct {
   const XpBookXtcState* state;
   const uint8_t* title;
@@ -39,7 +41,8 @@ enum { XP_XTC_ALLOC_TEXT, XP_XTC_ALLOC_SHRINK, XP_XTC_ALLOC_CHAPTERS, XP_XTC_ALL
 // allocate takes bytes except CHAPTERS takes row count, preserving native max_size checks.
 // TEXT/CHAPTERS/STREAM preserve native throwing failure; SHRINK is optional storage
 // and returns null when native shrink would not allocate or would fail.
-// release matches allocate. Diagnostics may borrow view(), never mutate or reenter IO.
+// release always takes bytes, including chapter storage.
+// Diagnostics may borrow view(), never mutate or reenter IO.
 typedef struct {
   bool (*open)(void*, const uint8_t*);
   bool (*is_open)(void*);

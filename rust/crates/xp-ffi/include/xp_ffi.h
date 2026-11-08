@@ -2607,31 +2607,6 @@ typedef struct {
   bool opened, has_chapters, chapters_loaded;
   int32_t error;
 } XpBookXtcState;
-typedef struct {
-  void* context;
-  bool (*open)(void*);
-  bool (*is_open)(void*);
-  void (*close)(void*);
-  int32_t (*read)(void*, uint8_t*, size_t);
-  bool (*seek)(void*, uint64_t);
-  uint64_t (*size)(void*);
-  void (*metadata)(void*, uint32_t, const uint8_t*, size_t);
-  size_t (*chapters)(void*, uint32_t, size_t, const uint8_t*, uint16_t, uint16_t);
-  void (*diagnostic)(void*, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
-} XpBookXtcServices;
-typedef struct {
-  void* context;
-  uint8_t* (*allocate)(void*, size_t);
-  void (*emit)(void*, const uint8_t*, size_t, size_t);
-} XpBookXtcStream;
-int32_t xp_book_xtc_open(const XpBookXtcState*, const XpBookXtcServices*);
-void xp_book_xtc_close(const XpBookXtcState*, const XpBookXtcServices*);
-void xp_book_xtc_chapters(const XpBookXtcState*, const XpBookXtcServices*);
-bool xp_book_xtc_page_info(const XpBookXtcState*, const XpBookXtcServices*, uint32_t index, XpXtcEntry*);
-size_t xp_book_xtc_load(const XpBookXtcState*, const XpBookXtcServices*, uint32_t index, uint8_t*, size_t);
-int32_t xp_book_xtc_stream(const XpBookXtcState*, const XpBookXtcServices*, uint32_t index, size_t,
-                           const XpBookXtcStream*);
-
 // ZIP extraction uses the existing C allocator and InflateStream scratch owner.
 // Callback spans are borrowed; inflater fill context is valid only until return.
 typedef size_t (*XpBookZipFill)(void*, const uint8_t**);

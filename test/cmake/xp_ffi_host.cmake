@@ -36,17 +36,20 @@ add_custom_target(xp_ffi_host_build
   VERBATIM
 )
 # Publish the archive's own I18nKeys.h so C++ consumers never read a header that
-# a firmware build happened to generate in lib/I18n.
-add_custom_command(OUTPUT ${XP_FFI_HOST_I18N_HEADER}
+# a firmware build happened to generate in lib/I18n. Cargo rewrites that header
+# with the archive but gives CMake no file to depend on, so publication runs on
+# every build and the script copies only when the bytes differ. xp_ffi_host carries
+# the dependency, so every consumer compiles after publication.
+add_custom_target(xp_ffi_host_i18n
   COMMAND ${CMAKE_COMMAND} -DARCHIVE=${XP_FFI_HOST_ARCHIVE} -DOUTPUT=${XP_FFI_HOST_I18N_HEADER}
     -P ${CMAKE_CURRENT_LIST_DIR}/generated_i18n.cmake
   DEPENDS xp_ffi_host_build ${CMAKE_CURRENT_LIST_DIR}/generated_i18n.cmake
   COMMENT "Publishing the host archive's generated I18nKeys.h"
+  BYPRODUCTS ${XP_FFI_HOST_I18N_HEADER}
   VERBATIM
 )
-add_custom_target(xp_ffi_host_i18n DEPENDS ${XP_FFI_HOST_I18N_HEADER})
 add_library(xp_ffi_host INTERFACE)
-add_dependencies(xp_ffi_host xp_ffi_host_build)
+add_dependencies(xp_ffi_host xp_ffi_host_build xp_ffi_host_i18n)
 target_sources(xp_ffi_host INTERFACE ${CMAKE_CURRENT_LIST_DIR}/xp_ffi_host.cpp)
 target_include_directories(xp_ffi_host INTERFACE ${XP_FFI_HOST_I18N_DIR}
   ${XP_FFI_HOST_WORKSPACE}/crates/xp-ffi/include

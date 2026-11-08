@@ -3,9 +3,10 @@
 # The oracles compile against the release the firmware pins in platformio.ini
 # (bblanchon/ArduinoJson 7.4.2). Fetching it into the build tree keeps the suite
 # independent of a PlatformIO install: .pio/libdeps only exists after a firmware
-# build, so it cannot be a test input. Set XP_TEST_ARDUINOJSON_SRC (or
-# FETCHCONTENT_SOURCE_DIR_ARDUINOJSON) to an existing ArduinoJson "src"
-# directory to reuse a checkout, for example offline.
+# build, so it cannot be a test input. To reuse a checkout offline, set
+# XP_TEST_ARDUINOJSON_SRC to its "src" directory, or set
+# FETCHCONTENT_SOURCE_DIR_ARDUINOJSON to the checkout root (this file appends
+# "/src" to it).
 if(XP_TEST_ARDUINOJSON_SRC)
   if(NOT EXISTS "${XP_TEST_ARDUINOJSON_SRC}/ArduinoJson.h")
     message(FATAL_ERROR

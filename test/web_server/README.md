@@ -189,12 +189,14 @@ observed, run:
 
 ```sh
 python3 test/web_server/mutate_fetch.py --build build/web-mutations \
-  --arduinojson /path/to/ArduinoJson/src
+  --arduinojson /path/to/ArduinoJson/src \
+  --html-root build/test/generated/web
 ```
 
 It builds isolated Rust copies with each comparison changed by one operator and
-requires a transcript mismatch. The String substitute now also stops lowercasing
-at the first NUL, matching the pinned ESP32 core.
+requires a transcript mismatch. `--html-root` is the same generated web asset
+root the CMake build writes for `web_server_oracle`. The String substitute now
+also stops lowercasing at the first NUL, matching the pinned ESP32 core.
 
 Nine static-route fixtures compare exact ETags, embedded NUL followed by matching
 or different suffixes, initial NUL, and ordinary mismatches. Their body bytes are

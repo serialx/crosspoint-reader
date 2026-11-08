@@ -12,6 +12,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--build", type=pathlib.Path, required=True)
     parser.add_argument("--arduinojson", type=pathlib.Path, required=True)
+    parser.add_argument("--html-root", type=pathlib.Path, required=True,
+                        help="root of the generated web asset headers (build tree)")
     args = parser.parse_args()
     root = pathlib.Path(__file__).resolve().parents[2]
     workspace = args.build.resolve() / "rust"
@@ -42,6 +44,7 @@ def main():
         result = subprocess.run([
             sys.executable, str(root / "test/web_server/extract.py"),
             "--build", str(args.build / name), "--arduinojson", str(args.arduinojson),
+            "--html-root", str(args.html_root),
             "--archive", str(target / host / "release/libxp_ffi.a")],
             text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         (args.build / f"{name}.log").write_text(result.stdout)

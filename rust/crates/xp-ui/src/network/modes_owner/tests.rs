@@ -1,5 +1,6 @@
 extern crate std;
 use super::*;
+use crate::network::stable_owner::StableOwner;
 use crate::{
     list::Style,
     scene::{Error, Rect},
@@ -11,9 +12,6 @@ use std::{
     vec,
     vec::Vec,
 };
-#[path = "../../../../xp-ffi/src/app/stable_owner.rs"]
-mod stable_owner;
-use stable_owner::StableOwner;
 
 std::thread_local! {
     static FAIL_OWNER: Cell<bool> = const { Cell::new(false) };

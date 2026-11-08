@@ -730,7 +730,7 @@ impl State {
             Operation::None => {}
         }
     }
-    fn scan(&mut self, c: &mut impl EffectHost, automatic: bool) {
+    pub(super) fn scan(&mut self, c: &mut impl EffectHost, automatic: bool) {
         self.begin_scan(automatic);
         // Leave List before releasing its rows to concurrent rendering.
         self.paint(c);

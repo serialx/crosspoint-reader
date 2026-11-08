@@ -12,5 +12,10 @@ mod view;
 pub mod wifi;
 pub mod wifi_view;
 
+pub mod wifi_owner;
 pub mod wifi_physical;
 pub mod wifi_resources;
+
+#[cfg(test)]
+#[path = "../../../xp-ffi/src/app/stable_owner.rs"]
+mod stable_owner;

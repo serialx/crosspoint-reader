@@ -96,12 +96,39 @@ impl<M: Memory> Row<M> {
 /// Call before appending the hidden row. First scan indices survive replacements.
 #[inline(never)]
 pub fn sort_rows<M: Memory>(rows: &mut [Row<M>]) {
-    rows.sort_unstable_by(|a, b| {
-        b.saved()
-            .cmp(&a.saved())
-            .then_with(|| b.rssi.cmp(&a.rssi))
-            .then_with(|| a.first_scan.cmp(&b.first_scan))
-    });
+    let length = rows.len();
+    if length < 2 {
+        return;
+    }
+    // Heap root is last in display order; extraction fills the sorted suffix.
+    for root in (0..length / 2).rev() {
+        sift_down(rows, root, length);
+    }
+    for end in (1..length).rev() {
+        rows.swap(0, end);
+        sift_down(rows, 0, end);
+    }
+}
+fn after<M: Memory>(a: &Row<M>, b: &Row<M>) -> bool {
+    b.saved()
+        .cmp(&a.saved())
+        .then_with(|| b.rssi.cmp(&a.rssi))
+        .then_with(|| a.first_scan.cmp(&b.first_scan))
+        .is_gt()
+}
+#[inline(never)]
+fn sift_down<M: Memory>(rows: &mut [Row<M>], mut root: usize, end: usize) {
+    while root < end / 2 {
+        let mut child = root * 2 + 1;
+        if child + 1 < end && after(&rows[child + 1], &rows[child]) {
+            child += 1;
+        }
+        if !after(&rows[child], &rows[root]) {
+            break;
+        }
+        rows.swap(root, child);
+        root = child;
+    }
 }
 #[cfg(target_pointer_width = "32")]
 const _: () = assert!(core::mem::size_of::<Row>() == 28);

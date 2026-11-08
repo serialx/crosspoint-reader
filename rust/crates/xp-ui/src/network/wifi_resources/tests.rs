@@ -251,6 +251,78 @@ fn tied_rows_keep_scan_order_at_partition_boundaries() {
 }
 
 #[test]
+fn row_sort_matches_the_total_key_for_mixed_ranks_and_owned_names() {
+    use super::{sort_rows, Row};
+    use core::cmp::Reverse;
+    let sizes: &[u16] = if cfg!(miri) {
+        &[0, 1, 2, 3, 8, 17, 33]
+    } else {
+        &[
+            0, 1, 2, 3, 7, 8, 15, 16, 17, 31, 32, 33, 64, 127, 128, 1024, 32767,
+        ]
+    };
+    for &size in sizes {
+        for profile in 0..5 {
+            let facts = |index: u16| match profile {
+                0 => (true, -60),
+                1 => (index.is_multiple_of(3), -30 - i32::from(index % 7)),
+                2 => (
+                    index.is_multiple_of(2),
+                    [i32::MIN, i32::MAX, -127, 0, -30][usize::from(index % 5)],
+                ),
+                3 => (false, i32::from(index)),
+                _ => (false, -i32::from(index)),
+            };
+            let mut expected: Vec<_> = (0..size).collect();
+            expected.sort_by_key(|&index| {
+                let (saved, rssi) = facts(index);
+                (Reverse(saved), Reverse(rssi), index)
+            });
+            for order in 0..3 {
+                {
+                    let mut indices: Vec<_> = (0..size).collect();
+                    if order == 1 {
+                        indices.reverse();
+                    } else if order == 2 {
+                        let mut seed = 12345u32;
+                        for i in (1..indices.len()).rev() {
+                            seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+                            indices.swap(i, seed as usize % (i + 1));
+                        }
+                    }
+                    let mut rows = Buffer::<Row<Heap>, Heap>::new();
+                    rows.try_reserve(usize::from(size)).unwrap();
+                    for index in indices {
+                        let (saved, rssi) = facts(index);
+                        let name = std::format!("long-owned-network-name-{index}");
+                        rows.try_push(
+                            Row::scan(name.as_bytes(), rssi, index % 2 != 0, saved, index).unwrap(),
+                        )
+                        .unwrap();
+                    }
+                    let before = requests();
+                    let (_, allocations) =
+                        crate::boot::count_allocations(|| sort_rows(rows.as_mut_slice()));
+                    assert_eq!(allocations, 0);
+                    assert_eq!(requests(), before);
+                    for (row, &index) in rows.as_slice().iter().zip(&expected) {
+                        let (saved, rssi) = facts(index);
+                        assert_eq!(row.scan_index(), index);
+                        assert_eq!((row.saved(), row.rssi()), (saved, rssi));
+                        assert_eq!(row.encrypted(), index % 2 != 0);
+                        assert_eq!(
+                            row.ssid(),
+                            std::format!("long-owned-network-name-{index}").as_bytes()
+                        );
+                    }
+                }
+                no_leaks();
+            }
+        }
+    }
+}
+
+#[test]
 fn truncation_uses_native_strict_width_and_preserves_utf8_boundaries_without_growth() {
     use super::text;
     {

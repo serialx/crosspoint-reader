@@ -1,3 +1,5 @@
+#[path = "legacy_oracle.rs"]
+mod legacy_oracle;
 use super::*;
 use crate::{
     ffi::{Buffer, SceneView},
@@ -60,8 +62,20 @@ fn layout() -> Layout {
     l
 }
 
+fn built(
+    commands: &mut [Command],
+    state: &State,
+    layout: &Layout,
+    resources: &mut Services,
+) -> Result<(ListState, Hits, usize, Refresh), Error> {
+    let mut next = ListState::default();
+    let mut hits = Hits::default();
+    let (count, refresh) = build(commands, state, layout, resources, &mut next, &mut hits)?;
+    Ok((next, hits, count, refresh))
+}
+
 #[test]
-fn dormant_safe_builder_matches_parent_wrapper_in_all_phases_and_held_touch() {
+fn canonical_builder_matches_frozen_parent_in_all_phases_and_held_touch() {
     for phase in 0..=9 {
         for active in [-1, 1] {
             let s = State {
@@ -79,7 +93,7 @@ fn dormant_safe_builder_matches_parent_wrapper_in_all_phases_and_held_touch() {
             let l = layout();
             let mut safe_commands = [Command::default(); 256];
             let (next, hits, count, refresh) =
-                build(&mut safe_commands, &s, &l, &mut services(s.count)).unwrap();
+                built(&mut safe_commands, &s, &l, &mut services(s.count)).unwrap();
             let mut legacy_commands = [Command::default(); 256];
             let buffer = Buffer {
                 commands: legacy_commands.as_mut_ptr(),
@@ -92,7 +106,7 @@ fn dormant_safe_builder_matches_parent_wrapper_in_all_phases_and_held_touch() {
             let mut scene = MaybeUninit::<SceneView>::uninit();
             assert_eq!(
                 unsafe {
-                    ffi::wifi_view(
+                    legacy_oracle::wifi_view(
                         &s,
                         &l,
                         &services(s.count),
@@ -126,23 +140,66 @@ fn dormant_safe_builder_matches_parent_wrapper_in_all_phases_and_held_touch() {
 }
 
 #[test]
-fn dormant_safe_builder_rejects_short_storage_and_invalid_state() {
+fn canonical_builder_rejects_short_storage_and_invalid_state() {
     let s = State {
         phase: Phase::Scanning as u8,
         ..State::default()
     };
     assert!(matches!(
-        build(&mut [], &s, &layout(), &mut services(0)),
+        built(&mut [], &s, &layout(), &mut services(0)),
         Err(Error::Capacity)
     ));
     let mut commands = [Command::default(); 257];
     assert!(matches!(
-        build(&mut commands, &s, &layout(), &mut services(0)),
+        built(&mut commands, &s, &layout(), &mut services(0)),
         Err(Error::Invalid)
     ));
     let invalid = State { phase: 255, ..s };
     assert!(matches!(
-        build(&mut commands[..256], &invalid, &layout(), &mut services(0)),
+        built(&mut commands[..256], &invalid, &layout(), &mut services(0)),
         Err(Error::Invalid)
     ));
+}
+
+#[test]
+fn ffi_adapter_keeps_descriptor_validation_and_capacity_results() {
+    let state = State {
+        phase: Phase::Scanning as u8,
+        ..State::default()
+    };
+    let layout = layout();
+    let mut resources = services(0);
+    let mut commands = [Command::default(); 256];
+    let mut buffer = Buffer {
+        commands: commands.as_mut_ptr(),
+        command_capacity: 256,
+        hits: ptr::null_mut(),
+        hit_capacity: 0,
+    };
+    let mut next = ListState::new(0);
+    let mut hits = Hits::default();
+    let mut scene = MaybeUninit::<SceneView>::uninit();
+    let mut invoke = |state, resources: &Services, buffer: &Buffer| unsafe {
+        ffi::wifi_view(
+            state,
+            &layout,
+            resources,
+            buffer,
+            &mut next,
+            scene.as_mut_ptr(),
+            &mut hits,
+        )
+    };
+    assert_eq!(invoke(ptr::null(), &resources, &buffer), 0);
+    assert_eq!(invoke(&state, &resources, &buffer), 1);
+    buffer.command_capacity = 0;
+    assert_eq!(invoke(&state, &resources, &buffer), 2);
+    buffer.command_capacity = 257;
+    assert_eq!(invoke(&state, &resources, &buffer), 0);
+    buffer.command_capacity = 256;
+    buffer.hit_capacity = 1;
+    assert_eq!(invoke(&state, &resources, &buffer), 0);
+    buffer.hit_capacity = 0;
+    resources.rows.row = None;
+    assert_eq!(invoke(&state, &resources, &buffer), 0);
 }

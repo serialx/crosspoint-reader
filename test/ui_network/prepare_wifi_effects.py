@@ -1,3 +1,4 @@
+import prepare_wifi_parent
 from pathlib import Path
 import re
 import prepare, prepare_wifi_extra
@@ -59,7 +60,7 @@ def candidate(core=False):
  s=s[:a]+cls+s[b:]
  names=prepare.METHODS['WifiSelectionActivity']+['onEnter','onExit','onRowEvent','onScanEvent','onPromptEvent','promptPasswordEntry','promptHiddenSsid','rebuildNetworkRowItems','getSignalStrengthIndicator']
  for name in names:s=s.replace(prepare.extract(s,'WifiSelectionActivity',name),'')
- code=(ROOT/'src/activities/network/WifiSelectionActivity.cpp').read_text()
+ code=prepare_wifi_parent.source(ROOT)
  methods='\n'.join(prepare.extract(code,'WifiSelectionActivity',m) for m in METHODS).replace('void WifiSelectionActivity::loop()','void WifiSelectionActivity::productionLoop()')
  s=s.replace('namespace haptic_feedback {void touchAction(bool longPress){record("haptic:"+std::to_string(longPress));}}\n','')
  s=s.replace('static void start(','namespace haptic_feedback {void touchAction(bool longPress){record("haptic:"+std::to_string(longPress));}}\n'+methods+'\nstatic void start(')

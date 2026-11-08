@@ -83,6 +83,7 @@ pub struct Fixture {
     pub layout: Cell<wifi_view::Layout>,
     pub auto: Cell<bool>,
     pub paint_ok: Cell<bool>,
+    pub paint_change: Cell<u8>,
     pub keyboard_fail: Cell<bool>,
     pub capture: Cell<bool>,
     pub labels: RefCell<Vec<Vec<u8>>>,
@@ -166,6 +167,26 @@ unsafe impl Host for TestHost {
     }
     fn paint(&self, scene: &Scene<'_>, paint: &Paint) -> bool {
         self.0.event("paint");
+        let change = self.0.paint_change.replace(0);
+        if change == 4 {
+            let owner = unsafe { &*self.0.target.get() };
+            owner.retire_rows();
+            {
+                let _guard = owner.resource();
+                unsafe {
+                    (*owner.owned()).rows.clear();
+                    assert!(!(*owner.frame()).rows.as_slice().is_empty());
+                }
+            }
+        }
+        if change != 0 {
+            unsafe { &*self.0.target.get() }.model(|m| match change {
+                1 | 4 => m.state.phase = Phase::Connecting as u8,
+                2 => m.state.generation = m.state.generation.wrapping_add(1),
+                3 => m.state.count += 1,
+                _ => unreachable!(),
+            });
+        }
         if !self.0.paint_ok.get() {
             return false;
         }
@@ -418,6 +439,7 @@ pub fn rig() -> (StableOwner<Wifi<TestHost>>, Rc<Fixture>) {
         layout: Cell::new(layout),
         auto: Cell::new(false),
         paint_ok: Cell::new(true),
+        paint_change: Cell::new(0),
         keyboard_fail: Cell::new(false),
         capture: Cell::new(false),
         labels: RefCell::new(Vec::new()),

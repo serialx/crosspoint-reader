@@ -474,10 +474,11 @@ impl<H: Host> Wifi<H> {
     #[inline(never)]
     fn build(&self) -> Result<(usize, Refresh, bool), Error> {
         let f = self.frame();
-        let state = self.model(|m| {
+        self.model(|m| {
             m.state.prepare_view();
-            m.state
+            unsafe { (*f).state = m.state };
         });
+        let state = unsafe { &(*f).state };
         let mut layout = self.layout();
         let owned = self.owned();
         let list = state.phase == Phase::List as u8;
@@ -485,7 +486,6 @@ impl<H: Host> Wifi<H> {
             if list && usize::from(state.count) != (*owned).rows.as_slice().len() {
                 return Err(Error::Invalid);
             }
-            (*f).state = state;
             (*f).language = layout.language;
             (*f).mac = (*owned).mac;
             layout.base.flags = (*owned)
@@ -495,7 +495,7 @@ impl<H: Host> Wifi<H> {
                 .is_some_and(Row::saved)
                 .into();
             let line = (self.physical().line)(self.object(), layout.base.list.font);
-            let budget = wifi_view::budget(&state, &layout, line)?;
+            let budget = wifi_view::budget(state, &layout, line)?;
             let text_need = (*owned)
                 .selected
                 .len()
@@ -519,14 +519,14 @@ impl<H: Host> Wifi<H> {
                 row.index = u16::MAX;
             }
             view::count(&mut (*f).count_text, layout.language, state.real_count)?;
-            let (next, hits, count, refresh) = wifi_view::build(
+            let (count, refresh) = wifi_view::build(
                 (*f).commands.as_mut_slice(),
-                &state,
+                state,
                 &layout,
                 &mut view::View { owner: self },
+                &mut (*f).next,
+                &mut (*f).hits,
             )?;
-            (*f).next = next;
-            (*f).hits = hits;
             Ok((count, refresh, list))
         }
     }

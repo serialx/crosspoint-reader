@@ -1,4 +1,5 @@
-"""Exercise production custom renderers and snapshot guards with fixed resource leaves."""
+import prepare_wifi_parent
+"""Exercise current custom renderers and the frozen native Wi-Fi predecessor."""
 from pathlib import Path
 import os
 import subprocess
@@ -11,7 +12,7 @@ SOURCE = Path(os.environ.get("XP_REJECTION_SOURCE_ROOT", ROOT))
 
 def method(family, name):
     path = SOURCE / "src/activities/network" / (family + ".cpp")
-    source = path.read_text()
+    source = prepare_wifi_parent.source(SOURCE) if family == "WifiSelectionActivity" else path.read_text()
     marker = family + "::" + name + "("
     if marker not in source:
         return ""

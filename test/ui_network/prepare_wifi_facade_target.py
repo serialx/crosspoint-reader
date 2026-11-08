@@ -1,3 +1,4 @@
+import prepare_wifi_parent
 from pathlib import Path
 import re,sys
 import prepare
@@ -62,7 +63,7 @@ adapter=(ROOT/'src/activities/RustActivityAdapter.cpp').read_text()
 support=support.replace('// ADAPTER_METHODS','\n'.join(prepare.extract(adapter,'RustActivityAdapter',m)for m in ['rejectRustScene','rustSceneRejected','consumeRejectedInput','publishRustScene']).replace('RustActivityAdapter','FakeBase'))
 header=re.sub(r'^#(?:include|pragma)[^\n]*\n','',(ROOT/'src/activities/network/WifiSelectionActivity.h').read_text(),flags=re.M)
 header=header.replace('WifiSelectionActivity','Candidate').replace('class Candidate final : public RustActivityAdapter','struct Candidate final : public FakeBase')
-production=(ROOT/'src/activities/network/WifiSelectionActivity.cpp').read_text()
+production=prepare_wifi_parent.source(ROOT)
 methods='\n'.join(prepare.extract(production,'WifiSelectionActivity',m)for m in ['WifiSelectionActivity','~WifiSelectionActivity','releaseResources','text','resources','buildRustScene','render','rustResources','rustPublished','rustSceneFailed','rustSceneCurrent','retireRows','publish','run','loop','CallContext::inputCurrent']).replace('WifiSelectionActivity','Candidate').replace('RustActivityAdapter(', 'FakeBase(').replace('makeUniqueNoThrow<','fixtureAllocate<').replace('millis()','fixtureMillis()')
 methods+='\nvoid Candidate::onEnter(){} void Candidate::onExit(){} \n'
 nh=re.sub(r'^#(?:include|pragma)[^\n]*\n','',(ROOT/'src/activities/network/NetworkUiBinding.h').read_text(),flags=re.M)

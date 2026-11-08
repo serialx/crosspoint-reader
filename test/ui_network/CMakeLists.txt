@@ -115,9 +115,12 @@ target_link_libraries(NetworkWifiTarget PRIVATE xp_ffi_host)
 add_test(NAME ui_network_wifi_pixels COMMAND NetworkWifiTarget)
 
 set(WIFI_FACADE_TARGET ${CMAKE_CURRENT_BINARY_DIR}/WifiFacadeTarget.cpp)
+set(WIFI_PARENT_ORACLE
+  ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_parent.py
+  ${CMAKE_CURRENT_SOURCE_DIR}/native_oracle/wifi_pre_owner_roots.cpp.txt)
 add_custom_command(OUTPUT ${WIFI_FACADE_TARGET}
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_facade_target.py ${WIFI_FACADE_TARGET}
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/WifiTarget.cpp ${CMAKE_CURRENT_SOURCE_DIR}/wifi_facade_support.inc
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/WifiTarget.cpp ${CMAKE_CURRENT_SOURCE_DIR}/wifi_facade_support.inc ${WIFI_PARENT_ORACLE}
     ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_facade_target.py ${CMAKE_CURRENT_SOURCE_DIR}/prepare.py ${CMAKE_CURRENT_SOURCE_DIR}/wifi_render_original.inc
     ${REPO_ROOT}/src/activities/network/WifiSelectionActivity.h ${REPO_ROOT}/src/activities/network/WifiSelectionActivity.cpp
     ${REPO_ROOT}/src/activities/network/NetworkUiBinding.h ${REPO_ROOT}/src/activities/network/NetworkUiBinding.cpp)
@@ -149,7 +152,7 @@ add_custom_command(OUTPUT ${WIFI_LEGACY_TARGET}
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_facade_target.py ${WIFI_LEGACY_TARGET} legacy
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/WifiTarget.cpp ${CMAKE_CURRENT_SOURCE_DIR}/wifi_facade_support.inc
     ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_facade_target.py ${CMAKE_CURRENT_SOURCE_DIR}/prepare.py ${CMAKE_CURRENT_SOURCE_DIR}/wifi_render_original.inc
-    ${CMAKE_CURRENT_SOURCE_DIR}/wifi_theme_original.inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/wifi_theme_original.inc ${WIFI_PARENT_ORACLE}
     ${REPO_ROOT}/src/activities/network/WifiSelectionActivity.h ${REPO_ROOT}/src/activities/network/WifiSelectionActivity.cpp
     ${REPO_ROOT}/src/activities/network/NetworkUiBinding.h ${REPO_ROOT}/src/activities/network/NetworkUiBinding.cpp)
 foreach(WIFI_PANEL X3 X4)

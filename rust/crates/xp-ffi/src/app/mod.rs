@@ -30,7 +30,6 @@ mod stable_owner;
 mod sync;
 #[cfg(test)]
 mod test_resources;
-#[allow(dead_code)] // Dormant until the N2w switch.
 mod wifi;
 
 use abi::LaunchPayload;
@@ -106,7 +105,6 @@ enum Owner {
     Home(StableOwner<home::Home>),
     Keyboard(StableOwner<keyboard::Keyboard>),
     NetworkModes(StableOwner<network_modes::Modes>),
-    #[allow(dead_code)] // Dormant until the N2w switch.
     Wifi(StableOwner<wifi::Wifi>),
     Dialog(dialog::Owned),
     Epub(StableOwner<epub::EpubSession>),
@@ -332,6 +330,9 @@ impl App {
         let facts = self.legacy_facts(object);
         if facts.kind == abi::NETWORK_MODE {
             return network_modes::create(object).map(Owner::NetworkModes);
+        }
+        if facts.kind == abi::WIFI {
+            return wifi::create(object).map(Owner::Wifi);
         }
         let reader = facts.reader != 0;
         Some(Owner::Legacy {

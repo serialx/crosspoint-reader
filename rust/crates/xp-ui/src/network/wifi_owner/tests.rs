@@ -554,3 +554,76 @@ fn open_connect_and_all_manual_failure_kinds_keep_native_cancel_and_retry_behavi
         assert_eq!(live(), 0);
     }
 }
+
+#[test]
+fn phase_generation_and_count_changes_during_paint_never_publish_old_hits() {
+    for change in 1..=3 {
+        let (owner, f) = rig();
+        owner.enter();
+        scanned(&owner, &f, vec![row(b"public", -40, false)]);
+        assert!(owner.render());
+        f.paint_change.set(change);
+        assert!(owner.render());
+        assert!(!owner.model(|m| m.ready));
+        assert!(f.events.borrow().contains(&"update"));
+        assert!(f.data.borrow().connects.is_empty());
+        drop(owner);
+        assert_eq!(live(), 0);
+    }
+}
+
+#[test]
+fn list_paint_keeps_visible_rows_until_source_retirement_and_paint_return() {
+    let (owner, f) = rig();
+    owner.enter();
+    scanned(&owner, &f, vec![row(b"visible-network", -40, false)]);
+    assert!(owner.render());
+    f.capture.set(true);
+    f.paint_change.set(4);
+    assert!(owner.render());
+    assert!(f
+        .labels
+        .borrow()
+        .iter()
+        .any(|label| label == b"visible-network"));
+    assert!(!owner.model(|m| m.ready));
+    let _guard = owner.resource();
+    assert!(unsafe { (*owner.frame()).rows.as_slice().is_empty() });
+    assert!(!unsafe { (*owner.frame()).painting_rows });
+    drop(_guard);
+    drop(owner);
+    assert_eq!(live(), 0);
+}
+
+#[test]
+fn failed_paint_recovery_discards_a_held_confirm_release_but_accepts_the_next_gesture() {
+    let (owner, f) = rig();
+    owner.enter();
+    scanned(&owner, &f, vec![row(b"private", -40, true)]);
+    assert!(owner.render());
+    f.input.set((
+        Input {
+            pressed: model::CONFIRM,
+            held: model::CONFIRM,
+            ..Input::default()
+        },
+        false,
+    ));
+    owner.poll();
+    f.paint_ok.set(false);
+    assert!(!owner.render());
+    f.paint_ok.set(true);
+    assert!(owner.render());
+    key(&f, 0, model::CONFIRM);
+    owner.poll();
+    assert_eq!(phase(&owner), Phase::List as u8);
+    assert!(f.data.borrow().keyboard.is_empty());
+    key(&f, model::CONFIRM, 0);
+    owner.poll();
+    key(&f, 0, model::CONFIRM);
+    owner.poll();
+    assert_eq!(phase(&owner), Phase::Password as u8);
+    assert_eq!(f.data.borrow().keyboard, vec![false]);
+    drop(owner);
+    assert_eq!(live(), 0);
+}

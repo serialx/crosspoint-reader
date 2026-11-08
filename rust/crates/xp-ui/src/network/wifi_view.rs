@@ -395,12 +395,21 @@ fn body(l: &Layout) -> Result<Rect, Error> {
         i32::from(safe.y + safe.h - b.spacing * 2).min(i32::from(device_safe.y + device_safe.h));
     rect(left, top, (right - left).max(0), (bottom - top).max(0))
 }
-#[inline(never)]
 pub fn view(
     a: &mut Arena<'_>,
     s: &State,
     l: &Layout,
     r: &mut dyn Resources,
+) -> Result<(ListState, Refresh), Error> {
+    view_at(a, s, l, r, s.list.active)
+}
+#[inline(never)]
+fn view_at(
+    a: &mut Arena<'_>,
+    s: &State,
+    l: &Layout,
+    r: &mut dyn Resources,
+    active: i32,
 ) -> Result<(ListState, Refresh), Error> {
     let phase = Phase::read(s.phase).ok_or(Error::Invalid)?;
     let b = &l.base;
@@ -451,6 +460,7 @@ pub fn view(
     )?;
     let body = body(l)?;
     let mut next = s.list;
+    next.active = active;
     match phase {
         Phase::List => {
             if s.count == 0 {
@@ -483,7 +493,7 @@ pub fn view(
                             id: RETRY,
                             font: b.list.font,
                             selected: false,
-                            active: s.list.active == 0,
+                            active: active == 0,
                             action: 2,
                             value: 0,
                             min_touch: narrow((r.line(b.list.font)? + 14).max(44))?,
@@ -525,9 +535,9 @@ pub fn view(
                 let mut rows = WifiRows {
                     content,
                     flash: s.flash_index,
-                    active: s.list.active,
+                    active,
                 };
-                next = list::view_rows(a, s.list, style, s.count, 1, &mut rows)?;
+                next = list::view_rows(a, next, style, s.count, 1, &mut rows)?;
             }
             resource(
                 a,
@@ -736,30 +746,32 @@ pub fn budget(state: &State, l: &Layout, line: i32) -> Result<Budget, Error> {
 }
 
 /// Build once, or repeat the layout with the original held-touch index.
-// Dormant until the N2w CP2 switch commit removes the legacy FFI duplicate.
 #[inline(always)]
 pub fn build(
     commands: &mut [Command],
     s: &State,
     l: &Layout,
     resources: &mut dyn Resources,
-) -> Result<(ListState, Hits, usize, Refresh), Error> {
+    next: &mut ListState,
+    routing: &mut Hits,
+) -> Result<(usize, Refresh), Error> {
     if commands.len() > 256 {
         return Err(Error::Invalid);
     }
-    let mut working = *s;
-    if s.phase == Phase::List as u8 {
-        working.list.active = -1;
-    }
+    let mut active = if s.phase == Phase::List as u8 {
+        -1
+    } else {
+        s.list.active
+    };
     for pass in 0..2 {
-        let mut routing = Hits {
+        *routing = Hits {
             generation: s.generation,
             count: s.count,
             phase: s.phase,
             ..Hits::default()
         };
-        let mut arena = Arena::with_hit_sink(commands, &mut routing)?;
-        let (mut updated, refresh) = view(&mut arena, &working, l, resources)?;
+        let mut arena = Arena::with_hit_sink(commands, routing)?;
+        let (mut updated, refresh) = view_at(&mut arena, s, l, resources, active)?;
         let scene = arena.finish(refresh, 1)?;
         let count = scene.commands.len();
         if pass == 0
@@ -767,11 +779,12 @@ pub fn build(
             && s.list.active >= 0
             && routing.rows.count != 0
         {
-            working.list.active = s.list.active + routing.rows.first_index;
+            active = s.list.active + routing.rows.first_index;
             continue;
         }
         updated.active = s.list.active;
-        return Ok((updated, routing, count, refresh));
+        *next = updated;
+        return Ok((count, refresh));
     }
     Err(Error::Invalid)
 }

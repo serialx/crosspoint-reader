@@ -173,9 +173,12 @@ fn native_host_keeps_three_pointer_sized_words() {
     );
 }
 fn install(app: &'static App) -> NonNull<Wifi> {
-    let owner = create(kb::wifi_context()).unwrap();
-    let p = owner.pointer();
-    app.navigation.queue(Transition::Push(Owner::Wifi(owner)));
+    let owner = app.adopt(kb::wifi_context().as_ptr()).unwrap();
+    let Owner::Wifi(wifi) = &owner else {
+        panic!("native Wi-Fi wrapper was not adopted by Rust");
+    };
+    let p = wifi.pointer();
+    app.navigation.queue(Transition::Push(owner));
     assert!(app.navigation.drain(app));
     p
 }
@@ -285,7 +288,7 @@ fn allocation_rejection_keeps_the_native_owner_and_keyboard_launch_failure_cance
     kb::wifi_parent(app);
     let native = kb::wifi_context();
     state(|s| s.fail_owner = true);
-    assert!(create(native).is_none());
+    assert!(app.adopt(native.as_ptr()).is_none());
     assert!(!state(|s| s.events.contains(&"native_drop")));
     kb::wifi_destroy(native);
     let target = install(app);

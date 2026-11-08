@@ -166,6 +166,48 @@ const XpNetworkModesPhysical XP_NETWORK_MODES_PHYSICAL = {[](void*, XpUiSettings
                                                           [](uint8_t) { std::abort(); },
                                                           [](void*, uint8_t, uint8_t) { std::abort(); }};
 
+// Wi-Fi App fixtures provide their own table; unrelated suites must not enter it.
+extern "C" __attribute__((weak)) const XpWifiPhysical XP_WIFI_PHYSICAL = {
+    [](void*) -> uint8_t { std::abort(); },
+    [](void*, uint8_t) { std::abort(); },
+    [](void*) { std::abort(); },
+    [](void*, XpUiWifiLayout*) { std::abort(); },
+    [](void*, const char*, int32_t, uint8_t) -> int32_t { std::abort(); },
+    [](void*, const char*, int32_t, uint8_t, uint8_t, int16_t) -> int32_t { std::abort(); },
+    [](void*, int32_t) -> int32_t { std::abort(); },
+    [](void*, const XpUiCommand*, XpUiRect, const XpWifiPaintData*) { std::abort(); },
+    [](uint8_t*) -> int32_t { std::abort(); },
+    [](XpWifiLastSsidStorage*) { std::abort(); },
+    [](XpWifiLastSsidStorage*) -> XpAppText { std::abort(); },
+    [](XpWifiCredentialStorage*, XpAppText, XpWifiCredentialView*) -> uint8_t { std::abort(); },
+    [](XpWifiCredentialStorage*) { std::abort(); },
+    [] { std::abort(); },
+    [](XpAppText, XpAppText) { std::abort(); },
+    [](XpAppText) { std::abort(); },
+    [](XpAppText) { std::abort(); },
+    []() -> uint32_t { std::abort(); },
+    [](XpAppText) -> uint8_t { std::abort(); },
+    [] { std::abort(); },
+    [] { std::abort(); },
+    [] { std::abort(); },
+    []() -> int32_t { std::abort(); },
+    [](uint32_t, char*) { std::abort(); },
+    [](uint32_t) -> int32_t { std::abort(); },
+    [](uint32_t) -> uint8_t { std::abort(); },
+    [] { std::abort(); },
+    [](const char*, const char*, uint8_t) { std::abort(); },
+    []() -> int32_t { std::abort(); },
+    [](char*) { std::abort(); },
+    [] { std::abort(); },
+    []() -> uint8_t { std::abort(); },
+    []() -> uint8_t { std::abort(); },
+    []() -> uint8_t { std::abort(); },
+    [] { std::abort(); },
+    [] { std::abort(); },
+    [](void*) { std::abort(); },
+    [](XpWifiDiagnostic, XpAppText, uint32_t) { std::abort(); },
+    [](void*, uint8_t, XpAppText, XpAppText) { std::abort(); }};
+
 #include <xp_settings_shell.h>
 extern "C" {
 __attribute__((weak)) void xp_settings_shell_snapshot(XpUiSettingsLayout*) { std::abort(); }

@@ -275,62 +275,33 @@ pub unsafe fn wifi_view(
     {
         return 0;
     }
-    let mut working = *s;
+    let commands =
+        unsafe { core::slice::from_raw_parts_mut(b.commands, usize::from(b.command_capacity)) };
     let mut resources = *c;
-    if s.phase == wifi::Phase::List as u8 {
-        working.list.active = -1;
-    }
-    // Wi-Fi's original SDK caller paints once and retains follow feedback for
-    // the next requested frame. Re-emit that same layout only for a held touch.
-    for pass in 0..2 {
-        let commands =
-            unsafe { core::slice::from_raw_parts_mut(b.commands, usize::from(b.command_capacity)) };
-        let mut routing = wifi_view::Hits {
-            generation: s.generation,
-            count: s.count,
-            phase: s.phase,
-            ..wifi_view::Hits::default()
-        };
-        let Ok(mut arena) = Arena::with_hit_sink(commands, &mut routing) else {
-            return 0;
-        };
-        let (mut updated, refresh) = match wifi_view::view(&mut arena, &working, l, &mut resources)
-        {
+    let mut updated = ListState::default();
+    let mut routing = wifi_view::Hits::default();
+    let (count, refresh) =
+        match wifi_view::build(commands, s, l, &mut resources, &mut updated, &mut routing) {
             Ok(result) => result,
             Err(Error::Capacity) => return 2,
             Err(_) => return 0,
         };
-        let Ok(scene) = arena.finish(refresh, 1) else {
-            return 0;
-        };
-        let count = scene.commands.len() as u16;
-        if pass == 0
-            && s.phase == wifi::Phase::List as u8
-            && s.list.active >= 0
-            && routing.rows.count != 0
-        {
-            working.list.active = s.list.active + routing.rows.first_index;
-            continue;
-        }
-        updated.active = s.list.active;
-        unsafe {
-            next.write(updated);
-            hits.write(routing);
-            out.write(SceneView {
-                commands: b.commands,
-                text: core::ptr::null(),
-                interactions: core::ptr::null(),
-                generation: 1,
-                command_count: count,
-                text_len: 0,
-                interaction_count: 0,
-                refresh: refresh as u8,
-                reserved: 0,
-            });
-        }
-        return 1;
+    unsafe {
+        next.write(updated);
+        hits.write(routing);
+        out.write(SceneView {
+            commands: b.commands,
+            text: core::ptr::null(),
+            interactions: core::ptr::null(),
+            generation: 1,
+            command_count: count as u16,
+            text_len: 0,
+            interaction_count: 0,
+            refresh: refresh as u8,
+            reserved: 0,
+        });
     }
-    0
+    1
 }
 /// # Safety
 /// State and services are aligned, live and disjoint. Publishing may update the

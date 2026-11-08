@@ -1,3 +1,4 @@
+"""Keep native compatibility traces; the active Rust owner has separate tests."""
 from pathlib import Path
 import sys,subprocess,tempfile,difflib
 import prepare_wifi_effects

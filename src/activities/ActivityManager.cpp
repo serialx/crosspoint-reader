@@ -192,6 +192,8 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
             owner.kind = XP_APP_SETTINGS;
           else if (name == "NetworkModeSelection")
             owner.kind = XP_APP_NETWORK_MODE;
+          else if (name == "WifiSelection")
+            owner.kind = XP_APP_WIFI;
           else if (name == "FrontlightPanel")
             owner.kind = XP_APP_FRONTLIGHT_PANEL;
           owner.reader = activity->isReaderActivity();

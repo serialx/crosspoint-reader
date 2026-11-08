@@ -202,3 +202,6 @@ add_test(NAME ui_network_wifi_resource_teardown COMMAND ${Python3_EXECUTABLE}
 
 add_test(NAME ui_network_fixture_constructor COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_prepare_constructor.py)
+
+add_test(NAME ui_network_wifi_app_adoption COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_wifi_adoption.py ${XP_FFI_HOST_ARCHIVE})

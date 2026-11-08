@@ -316,7 +316,7 @@ typedef struct {
 typedef struct {
   XpUiSettingsLayout base;
   int32_t legacy_body_font;
-  uint8_t popup_border, popup_radius, reserved[2];
+  uint8_t popup_border, popup_radius, language, reserved;
 } XpUiWifiLayout;
 typedef struct {
   XpUiSettingsResources rows;

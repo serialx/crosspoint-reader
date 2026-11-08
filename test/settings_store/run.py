@@ -99,6 +99,11 @@ def main():
                 if result != expected[kind][i]:
                     raise AssertionError(f'{kind} case {i}: {corpus()[kind][i]!r}\nexpected {expected[kind][i]}\nactual {result}')
     print(f'{sum(map(len, actual.values()))} cases passed', flush=True)
+    borrowed = subprocess.run([str(args.build/'oracle'), 'wifi-borrowed'],
+                              input='3\n7\n1024\n', text=True, capture_output=True, check=True)
+    assert all(json.loads(line)['valid'] for line in borrowed.stdout.splitlines())
+    assert len(borrowed.stdout.splitlines()) == 3
+    print('3 borrowed Wi-Fi store cases passed', flush=True)
     scaling = {}
     for kind in ['tokens-null', 'tokens-empty', 'wifi-invalid']:
         sizes = [256, 512, 1024, 2048, 4096]

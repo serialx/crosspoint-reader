@@ -1,9 +1,6 @@
-//! Borrowed native storage views; valid only within their original guard scopes.
+//! Physical Wi-Fi leaves and short native-store loans; Rust owns visit resources.
 use super::wifi_view;
-use crate::{
-    scene::{Command, Rect},
-    settings::settings_ffi::Services,
-};
+use crate::scene::{Command, Rect};
 use core::ffi::{c_char, c_void};
 pub const ERROR_GENERAL: u32 = 0x200000;
 pub const ERROR_MISSING: u32 = 0x200001;
@@ -38,30 +35,9 @@ impl Bytes {
 }
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct Text {
-    pub string: *const c_void,
-    pub bytes: Bytes,
-}
-impl Text {
-    pub const EMPTY: Self = Self {
-        string: core::ptr::null(),
-        bytes: Bytes::EMPTY,
-    };
-}
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct Row {
-    pub ssid: Text,
-    pub rssi: i32,
-    pub encrypted: u8,
-    pub saved: u8,
-    pub hidden: u8,
-}
-#[repr(C)]
-#[derive(Clone, Copy)]
 pub struct CredentialView {
-    pub ssid: Text,
-    pub password: Text,
+    pub ssid: Bytes,
+    pub password: Bytes,
 }
 #[repr(C)]
 pub struct LastStorage {
@@ -71,37 +47,23 @@ pub struct LastStorage {
 pub struct CredentialStorage {
     pub words: [usize; 13],
 }
-#[repr(C)]
-pub struct KeyboardStorage {
-    pub words: [usize; 6],
+#[repr(u8)]
+#[derive(Clone, Copy)]
+pub enum DrawKind {
+    Text,
+    Centered,
+    FlowText,
+    Wrapped,
+    WrappedBottom,
+    Header,
+    Subheader,
+    Footer,
+    Help,
 }
 #[repr(C)]
-pub struct Snapshot {
-    pub strings: [Text; 5],
-    pub row: Row,
-    pub status: Bytes,
-    pub row_count: u32,
-    pub row_valid: u8,
-    pub attempted: u8,
-}
-#[repr(C)]
-pub struct Edits {
-    pub attempt: *const Text,
-    pub assign: [*const Text; 4],
-}
-impl Edits {
-    pub fn empty() -> Self {
-        Self {
-            attempt: core::ptr::null(),
-            assign: [core::ptr::null(); 4],
-        }
-    }
-}
-#[repr(C)]
-pub struct PaintSnapshot {
-    pub row_text: *const c_char,
-    pub mac: *const c_char,
-    pub real_count: u16,
+pub struct PaintData {
+    pub labels: [*const c_char; 4],
+    pub kind: DrawKind,
 }
 #[repr(u32)]
 #[derive(Clone, Copy)]
@@ -126,36 +88,31 @@ pub struct Physical {
     pub resource_lock: unsafe extern "C" fn(*mut c_void, u8),
     pub release_resources: unsafe extern "C" fn(*mut c_void),
     pub layout: unsafe extern "C" fn(*mut c_void, *mut wifi_view::Layout),
-    pub metrics: unsafe extern "C" fn(*mut c_void) -> Services,
-    pub view_text: unsafe extern "C" fn(*mut c_void, u32) -> *const c_char,
-    pub paint: unsafe extern "C" fn(*mut c_void, *const Command, Rect, *const PaintSnapshot),
-    pub paint_strings_clear: unsafe extern "C" fn(*mut c_void),
-    pub prompt_label: unsafe extern "C" fn(*mut c_void),
-    pub read_mac: unsafe extern "C" fn(*mut c_void),
+    pub width: unsafe extern "C" fn(*mut c_void, *const c_char, i32, u8) -> i32,
+    pub height: unsafe extern "C" fn(*mut c_void, *const c_char, i32, u8, u8, i16) -> i32,
+    pub line: unsafe extern "C" fn(*mut c_void, i32) -> i32,
+    pub paint: unsafe extern "C" fn(*mut c_void, *const Command, Rect, *const PaintData),
+    pub read_mac: unsafe extern "C" fn(*mut u8) -> i32,
     pub last_ssid_drop: unsafe extern "C" fn(*mut LastStorage),
-    pub last_ssid: unsafe extern "C" fn(*mut LastStorage) -> Text,
+    pub last_ssid: unsafe extern "C" fn(*mut LastStorage) -> Bytes,
     pub credential_lookup:
-        unsafe extern "C" fn(*mut CredentialStorage, Text, *mut CredentialView) -> u8,
+        unsafe extern "C" fn(*mut CredentialStorage, Bytes, *mut CredentialView) -> u8,
     pub credential_drop: unsafe extern "C" fn(*mut CredentialStorage),
     pub store_load: unsafe extern "C" fn(),
-    pub store_save: unsafe extern "C" fn(Text, Text),
-    pub store_remove: unsafe extern "C" fn(*mut c_void, Text),
-    pub store_last: unsafe extern "C" fn(Text),
-    pub snapshot: unsafe extern "C" fn(*mut c_void, u32, *const Text, *mut Snapshot),
-    pub text_apply: unsafe extern "C" fn(*mut c_void, *const Edits),
-    pub rows_reset: unsafe extern "C" fn(*mut c_void, u32, u8),
-    pub row_write: unsafe extern "C" fn(*mut c_void, u32, *const Row, *const u32),
-    pub rows_sort: unsafe extern "C" fn(*mut c_void, unsafe extern "C" fn(u8, i32, u8, i32) -> u8),
-    pub statuses_rebuild: unsafe extern "C" fn(*mut c_void, unsafe extern "C" fn(i32) -> u8),
-    pub attempts_reset: unsafe extern "C" fn(*mut c_void) -> u32,
+    pub store_save: unsafe extern "C" fn(Bytes, Bytes),
+    pub store_remove: unsafe extern "C" fn(Bytes),
+    pub store_last: unsafe extern "C" fn(Bytes),
+    pub store_count: unsafe extern "C" fn() -> u32,
+    pub store_has: unsafe extern "C" fn(Bytes) -> u8,
     pub station_mode: unsafe extern "C" fn(),
     pub disconnect: unsafe extern "C" fn(),
     pub scan_begin: unsafe extern "C" fn(),
     pub scan_complete: unsafe extern "C" fn() -> i32,
     pub scan_ssid: unsafe extern "C" fn(u32, *mut c_char),
     pub scan_rssi: unsafe extern "C" fn(u32) -> i32,
+    pub scan_encrypted: unsafe extern "C" fn(u32) -> u8,
     pub scan_delete: unsafe extern "C" fn(),
-    pub connect: unsafe extern "C" fn(Text, Text, u8),
+    pub connect: unsafe extern "C" fn(*const c_char, *const c_char, u8),
     pub connection_status: unsafe extern "C" fn() -> i32,
     pub connection_ip: unsafe extern "C" fn(*mut c_char),
     pub connected_diagnostic: unsafe extern "C" fn(),
@@ -165,18 +122,15 @@ pub struct Physical {
     pub clock_mark_and_save: unsafe extern "C" fn(),
     pub trusted_time_start: unsafe extern "C" fn(),
     pub plugin_drain: unsafe extern "C" fn(*mut c_void),
-    pub diagnostic: unsafe extern "C" fn(*mut c_void, Diagnostic, u32),
-    pub prepare_result_retire_zc1: unsafe extern "C" fn(*mut c_void, u8),
-    pub keyboard_text: unsafe extern "C" fn(*mut KeyboardStorage, Bytes) -> Text,
-    pub keyboard_text_drop: unsafe extern "C" fn(*mut KeyboardStorage),
+    pub diagnostic: unsafe extern "C" fn(Diagnostic, Bytes, u32),
+    pub prepare_result_retire_zc1: unsafe extern "C" fn(*mut c_void, u8, Bytes, Bytes),
 }
 const _: () = {
-    assert!(core::mem::size_of::<Physical>() == 46 * core::mem::size_of::<usize>());
+    assert!(core::mem::size_of::<Physical>() == 39 * core::mem::size_of::<usize>());
     #[cfg(target_pointer_width = "32")]
     {
-        assert!(core::mem::size_of::<Snapshot>() == 96);
-        assert!(core::mem::size_of::<Row>() == 20);
-        assert!(core::mem::size_of::<CredentialView>() == 24);
+        assert!(core::mem::size_of::<CredentialView>() == 16);
+        assert!(core::mem::size_of::<PaintData>() == 20);
     }
 };
 

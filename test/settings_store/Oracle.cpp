@@ -5,6 +5,8 @@
 #include <StoreTestSettings.h>
 
 #include <iostream>
+#include <stdexcept>
+#include <string_view>
 
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
@@ -235,6 +237,40 @@ void buffered(JsonDocument& result, size_t capacity, bool failAlloc, bool shortI
   actions.add(in.position());
   result["bytes"] = std::string(file.bytes.begin(), file.bytes.end());
 }
+void wifiBorrowed(JsonDocument& result, size_t length) {
+  auto& wifi = WIFI_STORE;
+  JsonDocument empty;
+  deserializeJson(empty, "{}");
+  wifi.fromJson(empty.as<JsonVariantConst>());
+  std::string key(length + 2, 'k'), password(length + 2, 'p');
+  key.front() = '!';
+  key.back() = '?';
+  password.front() = '!';
+  password.back() = '?';
+  if (length > 4) key[3] = '\0';
+  const std::string_view keyLoan(key.data() + 1, length);
+  const std::string_view passwordLoan(password.data() + 1, length);
+  const std::string expectedKey(keyLoan), expectedPassword(passwordLoan);
+  const auto require = [](bool valid) {
+    if (!valid) throw std::runtime_error("borrowed Wi-Fi key/password contract");
+  };
+  require(wifi.addCredential(keyLoan, passwordLoan));
+  require(wifi.hasSavedCredential(keyLoan));
+  const auto copy = wifi.findCredential(keyLoan);
+  require(copy && copy->ssid == expectedKey && copy->password == expectedPassword);
+  wifi.setLastConnectedSsid(keyLoan);
+  require(wifi.getLastConnectedSsid() == expectedKey);
+  key.assign(key.size(), 'x');
+  password.assign(password.size(), 'y');
+  const std::string_view ownedKey(expectedKey);
+  const auto retained = wifi.findCredential(ownedKey);
+  require(retained && retained->password == expectedPassword);
+  require(!wifi.findCredential(std::string_view(expectedKey.data(), length - 1)));
+  require(wifi.removeCredential(ownedKey));
+  require(!wifi.hasSavedCredential(ownedKey));
+  require(wifi.getLastConnectedSsid().empty());
+  result["valid"] = true;
+}
 }  // namespace
 int main(int argc, char** argv) {
   if (argc != 2) return 2;
@@ -244,7 +280,9 @@ int main(int argc, char** argv) {
     store_test::logs.clear();
     store_test::io.clear();
     JsonDocument result;
-    if (kind.starts_with("scaling-")) {
+    if (kind == "wifi-borrowed") {
+      wifiBorrowed(result, std::stoul(input));
+    } else if (kind.starts_with("scaling-")) {
       scaling(result, kind, std::stoul(input));
     } else if (kind == "alloc-recent") {
       roundTrip<RecentBooksStore>(

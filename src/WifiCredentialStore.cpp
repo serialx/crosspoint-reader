@@ -72,7 +72,7 @@ bool WifiCredentialStore::fromJson(JsonVariantConst doc) {
   return true;
 }
 
-bool WifiCredentialStore::addCredential(const std::string& ssid, const std::string& password) {
+bool WifiCredentialStore::addCredential(std::string_view ssid, std::string_view password) {
   {
     std::lock_guard<std::mutex> lock(credentialMutex);
     WifiCredential scratch;
@@ -84,13 +84,15 @@ bool WifiCredentialStore::addCredential(const std::string& ssid, const std::stri
       LOG_DBG("WCS", "Cannot add more networks, limit of %zu reached", MAX_NETWORKS);
       return false;
     }
-    if (action == XP_MUTATIONRESULT_UPDATED) LOG_DBG("WCS", "Updated credentials for: %s", ssid.c_str());
-    if (action == XP_MUTATIONRESULT_INSERTED) LOG_DBG("WCS", "Added credentials for: %s", ssid.c_str());
+    if (action == XP_MUTATIONRESULT_UPDATED)
+      LOG_DBG("WCS", "Updated credentials for: %.*s", static_cast<int>(ssid.size()), ssid.empty() ? "" : ssid.data());
+    if (action == XP_MUTATIONRESULT_INSERTED)
+      LOG_DBG("WCS", "Added credentials for: %.*s", static_cast<int>(ssid.size()), ssid.empty() ? "" : ssid.data());
   }
   return saveToFile();
 }
 
-bool WifiCredentialStore::removeCredential(const std::string& ssid) {
+bool WifiCredentialStore::removeCredential(std::string_view ssid) {
   {
     std::lock_guard<std::mutex> lock(credentialMutex);
     store_bridge::Rows<WifiCredential, XP_STOREKIND_WIFI> rows{credentials, nullptr, rowField<WifiCredential>,
@@ -98,12 +100,12 @@ bool WifiCredentialStore::removeCredential(const std::string& ssid) {
     const auto ops = rows.ops(nullptr);
     const auto key = store_bridge::bytes(ssid);
     if (xp_store_mutate(&ops, XP_MUTATION_WIFIREMOVE, &key) == XP_MUTATIONRESULT_REJECTED) return false;
-    LOG_DBG("WCS", "Removed credentials for: %s", ssid.c_str());
+    LOG_DBG("WCS", "Removed credentials for: %.*s", static_cast<int>(ssid.size()), ssid.empty() ? "" : ssid.data());
   }
   return saveToFile();
 }
 
-std::optional<WifiCredential> WifiCredentialStore::findCredential(const std::string& ssid) const {
+std::optional<WifiCredential> WifiCredentialStore::findCredential(std::string_view ssid) const {
   std::lock_guard<std::mutex> lock(credentialMutex);
   store_bridge::Rows<WifiCredential, XP_STOREKIND_WIFI> rows{const_cast<std::vector<WifiCredential>&>(credentials),
                                                              nullptr, rowField<WifiCredential>};
@@ -139,7 +141,7 @@ std::vector<WifiCredentialSummary> WifiCredentialStore::getCredentialSummaries()
   return summaries;
 }
 
-bool WifiCredentialStore::hasSavedCredential(const std::string& ssid) const {
+bool WifiCredentialStore::hasSavedCredential(std::string_view ssid) const {
   std::lock_guard<std::mutex> lock(credentialMutex);
   store_bridge::Rows<WifiCredential, XP_STOREKIND_WIFI> rows{const_cast<std::vector<WifiCredential>&>(credentials),
                                                              nullptr, rowField<WifiCredential>};
@@ -147,7 +149,7 @@ bool WifiCredentialStore::hasSavedCredential(const std::string& ssid) const {
   return xp_store_find(&ops, 0, store_bridge::bytes(ssid)) != SIZE_MAX;
 }
 
-void WifiCredentialStore::setLastConnectedSsid(const std::string& ssid) {
+void WifiCredentialStore::setLastConnectedSsid(std::string_view ssid) {
   {
     std::lock_guard<std::mutex> lock(credentialMutex);
     store_bridge::Rows<WifiCredential, XP_STOREKIND_WIFI> rows{credentials, nullptr, rowField<WifiCredential>,

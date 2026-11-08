@@ -19,7 +19,8 @@ pub struct Layout {
     pub legacy_body_font: i32,
     pub popup_border: u8,
     pub popup_radius: u8,
-    pub reserved: [u8; 2],
+    pub language: u8,
+    pub reserved: u8,
 }
 pub const HEADER: u32 = 0x100000;
 pub const SUBHEADER: u32 = 0x100001;

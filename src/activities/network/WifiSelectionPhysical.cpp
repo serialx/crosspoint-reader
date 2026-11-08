@@ -4,8 +4,8 @@
 #include <WiFi.h>
 #include <esp_mac.h>
 
-#include <algorithm>
 #include <new>
+#include <string_view>
 
 #include "CrossPointSettings.h"
 #include "NetworkUiBinding.h"
@@ -16,51 +16,18 @@
 #include "util/PluginEvents.h"
 
 struct WifiPhysical {
-  static constexpr uint32_t ERROR_GENERAL = 0x200000;
-  static constexpr uint32_t ERROR_MISSING = 0x200001;
-  static constexpr uint32_t ERROR_TIMEOUT = 0x200002;
-  static constexpr uint32_t HIDDEN_LABEL = 0x200003;
   using Last = std::optional<std::string>;
   using Credential = std::optional<WifiCredential>;
   static WifiSelectionActivity& get(void* object) {
     return *static_cast<WifiSelectionActivity*>(nativeActivity(object));
   }
-  static XpWifiText text(const std::string& s) { return {&s, {reinterpret_cast<const uint8_t*>(s.data()), s.size()}}; }
-  static const std::string& string(XpWifiText s) { return *static_cast<const std::string*>(s.string); }
-  static void assign(std::string& target, const XpWifiText* value) {
-    if (!value) return;
-    if (value->string)
-      target = string(*value);
-    else if (!value->bytes.data)
-      target.clear();
-    else
-      target.assign(reinterpret_cast<const char*>(value->bytes.data), value->bytes.len);
+  static XpAppText bytes(const std::string& s) { return {reinterpret_cast<const uint8_t*>(s.data()), s.size()}; }
+  static std::string_view view(XpAppText s) {
+    return s.len ? std::string_view(reinterpret_cast<const char*>(s.data), s.len) : std::string_view();
   }
-  static void snapshot(void* object, uint32_t index, const XpWifiText* attempted, XpWifiSnapshot* out) {
-    auto& s = get(object);
-    *out = {};
-    out->strings[XP_WIFI_SELECTED] = text(s.selectedSSID);
-    out->strings[XP_WIFI_IP] = text(s.connectedIP);
-    out->strings[XP_WIFI_ERROR] = text(s.connectionError);
-    out->strings[XP_WIFI_PASSWORD] = text(s.enteredPassword);
-    out->strings[XP_WIFI_MAC] = text(s.cachedMacAddress);
-    out->row_count = s.networks.size();
-    if (index < s.networks.size()) {
-      const auto& n = s.networks[index];
-      out->row = {text(n.ssid), n.rssi, n.isEncrypted, n.hasSavedPassword, n.isHiddenPlaceholder};
-      out->row_valid = true;
-      if (index < s.networkStatuses.size()) {
-        const auto& status = s.networkStatuses[index];
-        out->status = {reinterpret_cast<const uint8_t*>(status.data()), status.size()};
-      }
-    }
-    if (attempted)
-      out->attempted = std::find(s.autoAttemptedSsids.begin(), s.autoAttemptedSsids.end(), string(*attempted)) !=
-                       s.autoAttemptedSsids.end();
-  }
-  static void layout(void* object, XpUiWifiLayout* out);
-  static void paint(void* object, const XpUiCommand* command, XpUiRect clip, const XpWifiPaintSnapshot* snapshot);
-  static void diagnostic(void* object, XpWifiDiagnostic event, uint32_t bytes);
+  static void layout(void*, XpUiWifiLayout*);
+  static void paint(void*, const XpUiCommand*, XpUiRect, const XpWifiPaintData*);
+  static void diagnostic(XpWifiDiagnostic, XpAppText, uint32_t);
   static constexpr XpWifiPhysical table() {
     return {[](void* o) -> uint8_t { return get(o).allowAutoConnect; },
             [](void* o, uint8_t acquire) {
@@ -71,145 +38,57 @@ struct WifiPhysical {
             },
             [](void* o) { get(o).releaseResources(); },
             layout,
-            [](void* o) {
-              auto out = get(o).resources().rows;
-              out.count = get(o).networkStatuses.size();
-              return out;
+            [](void* o, const char* text, int32_t font, uint8_t bold) -> int32_t {
+              return get(o).renderer.getTextWidth(font, text, static_cast<EpdFontFamily::Style>(bold));
             },
-            [](void* o, uint32_t id) {
-              switch (id) {
-                case ERROR_GENERAL:
-                  return tr(STR_ERROR_GENERAL_FAILURE);
-                case ERROR_MISSING:
-                  return tr(STR_ERROR_NETWORK_NOT_FOUND);
-                case ERROR_TIMEOUT:
-                  return tr(STR_ERROR_CONNECTION_TIMEOUT);
-                case HIDDEN_LABEL:
-                  return tr(STR_ADD_HIDDEN_NETWORK);
-                default:
-                  return get(o).text(id);
-              }
+            [](void* o, const char* text, int32_t font, uint8_t bold, uint8_t lines, int16_t width) -> int32_t {
+              auto& target = get(o).textTarget;
+              target.setFont(3, font);
+              freeink::ui::TextStyle style;
+              style.font = 3;
+              style.bold = bold;
+              style.maxLines = lines;
+              return freeink::ui::measureWrappedText(target, text, style, width).height;
             },
+            [](void* o, int32_t font) -> int32_t { return get(o).renderer.getLineHeight(font); },
             paint,
-            [](void* o) {
-              auto& s = get(o);
-              s.paintingIp.reset();
-              s.paintingSsid.reset();
-              s.promptLabel.reset();
-            },
-            [](void* o) {
-              auto& s = get(o);
-              s.promptLabel.emplace(std::string(tr(STR_NETWORK_PREFIX)) + s.selectedSSID);
-            },
-            [](void* o) {
-              uint8_t mac[6] = {};
-              char macStr[64];
-              const esp_err_t macResult = esp_read_mac(mac, ESP_MAC_WIFI_STA);
-              if (macResult == ESP_OK) {
-                snprintf(macStr, sizeof(macStr), "%s %02x-%02x-%02x-%02x-%02x-%02x", tr(STR_MAC_ADDRESS), mac[0],
-                         mac[1], mac[2], mac[3], mac[4], mac[5]);
-              } else {
-                LOG_ERR("WIFI", "Failed to read station MAC (err=%d)", static_cast<int>(macResult));
-                snprintf(macStr, sizeof(macStr), "%s --", tr(STR_MAC_ADDRESS));
-              }
-              get(o).cachedMacAddress = std::string(macStr);
+            [](uint8_t out[6]) -> int32_t {
+              const auto result = esp_read_mac(out, ESP_MAC_WIFI_STA);
+              if (result != ESP_OK) LOG_ERR("WIFI", "Failed to read station MAC (err=%d)", static_cast<int>(result));
+              return result;
             },
             [](XpWifiLastSsidStorage* slot) { reinterpret_cast<Last*>(slot)->~Last(); },
             [](XpWifiLastSsidStorage* slot) {
               auto& last = *new (slot) Last{};
               last.emplace(WIFI_STORE.getLastConnectedSsid());
-              return text(*last);
+              return bytes(*last);
             },
-            [](XpWifiCredentialStorage* slot, XpWifiText ssid, XpWifiCredentialView* out) -> uint8_t {
+            [](XpWifiCredentialStorage* slot, XpAppText ssid, XpWifiCredentialView* out) -> uint8_t {
               auto& credential = *new (slot) Credential{};
-              credential = WIFI_STORE.findCredential(string(ssid));
+              credential = WIFI_STORE.findCredential(view(ssid));
               if (!credential) {
                 *out = {};
                 return false;
               }
-              *out = {text(credential->ssid), text(credential->password)};
+              *out = {bytes(credential->ssid), bytes(credential->password)};
               return true;
             },
             [](XpWifiCredentialStorage* slot) { reinterpret_cast<Credential*>(slot)->~Credential(); },
             [] { WIFI_STORE.loadFromFile(); },
-            [](XpWifiText ssid, XpWifiText password) { WIFI_STORE.addCredential(string(ssid), string(password)); },
-            [](void* o, XpWifiText ssid) {
-              WIFI_STORE.removeCredential(string(ssid));
-              auto& rows = get(o).networks;
-              auto n = std::find_if(rows.begin(), rows.end(),
-                                    [&](const WifiNetworkInfo& n) { return n.ssid == string(ssid); });
-              if (n != rows.end()) n->hasSavedPassword = false;
-            },
-            [](XpWifiText ssid) { WIFI_STORE.setLastConnectedSsid(string(ssid)); },
-            snapshot,
-            [](void* o, const XpWifiTextEdits* edits) {
-              auto& s = get(o);
-              if (edits->attempt) s.autoAttemptedSsids.push_back(string(*edits->attempt));
-              assign(s.selectedSSID, edits->assign[0]);
-              assign(s.connectedIP, edits->assign[1]);
-              assign(s.connectionError, edits->assign[2]);
-              assign(s.enteredPassword, edits->assign[3]);
-            },
-            [](void* o, uint32_t reserve, uint8_t statuses) {
-              auto& s = get(o);
-              s.networks.clear();
-              if (statuses) s.networkStatuses.clear();
-              s.networks.reserve(reserve);
-            },
-            [](void* o, uint32_t target, const XpWifiRow* row, const uint32_t* scan) {
-              auto& s = get(o);
-              if (target != UINT32_MAX) {
-                auto& n = s.networks[target];
-                n.rssi = row->rssi;
-                n.isEncrypted = WiFi.encryptionType(*scan) != WIFI_AUTH_OPEN;
-                return;
-              }
-              WifiNetworkInfo n;
-              if (scan) {
-                assign(n.ssid, &row->ssid);
-                n.rssi = row->rssi;
-                n.isEncrypted = WiFi.encryptionType(*scan) != WIFI_AUTH_OPEN;
-                n.hasSavedPassword = WIFI_STORE.hasSavedCredential(n.ssid);
-              } else {
-                n.rssi = row->rssi;
-                n.isEncrypted = row->encrypted;
-                n.hasSavedPassword = row->saved;
-                n.isHiddenPlaceholder = row->hidden;
-              }
-              s.networks.push_back(std::move(n));
-            },
-            [](void* o, uint8_t (*before)(uint8_t, int32_t, uint8_t, int32_t)) {
-              auto& n = get(o).networks;
-              std::sort(n.begin(), n.end(), [before](const WifiNetworkInfo& a, const WifiNetworkInfo& b) {
-                return before(a.hasSavedPassword, a.rssi, b.hasSavedPassword, b.rssi) != 0;
-              });
-            },
-            [](void* o, uint8_t (*strength)(int32_t)) {
-              auto& s = get(o);
-              s.networkStatuses.assign(s.networks.size(), std::string());
-              static constexpr const char* bars[] = {"||||", " |||", "  ||", "   |"};
-              for (size_t i = 0; i < s.networks.size(); ++i) {
-                const auto& n = s.networks[i];
-                if (!n.isHiddenPlaceholder)
-                  s.networkStatuses[i] = std::string(n.hasSavedPassword ? "+ " : "") + (n.isEncrypted ? "* " : "") +
-                                         std::string(bars[strength(n.rssi)]);
-              }
-            },
-            [](void* o) -> uint32_t {
-              auto& a = get(o).autoAttemptedSsids;
-              a.clear();
-              const auto count = WIFI_STORE.getCredentialCount();
-              a.reserve(count);
-              return count;
-            },
+            [](XpAppText ssid, XpAppText password) { WIFI_STORE.addCredential(view(ssid), view(password)); },
+            [](XpAppText ssid) { WIFI_STORE.removeCredential(view(ssid)); },
+            [](XpAppText ssid) { WIFI_STORE.setLastConnectedSsid(view(ssid)); },
+            []() -> uint32_t { return WIFI_STORE.getCredentialCount(); },
+            [](XpAppText ssid) -> uint8_t { return WIFI_STORE.hasSavedCredential(view(ssid)); },
             [] { WiFi.mode(WIFI_STA); },
             [] { WiFi.disconnect(); },
             [] { WiFi.scanNetworks(true); },
             [] { return static_cast<int32_t>(WiFi.scanComplete()); },
             [](uint32_t i, char out[33]) { strlcpy(out, WiFi.SSID(i).c_str(), 33); },
             [](uint32_t i) { return WiFi.RSSI(i); },
+            [](uint32_t i) -> uint8_t { return WiFi.encryptionType(i) != WIFI_AUTH_OPEN; },
             [] { WiFi.scanDelete(); },
-            [](XpWifiText ssid, XpWifiText password, uint8_t usePassword) {
+            [](const char* ssid, const char* password, uint8_t usePassword) {
               WiFi.persistent(false);
               WiFi.mode(WIFI_STA);
               WiFi.disconnect(true, true);
@@ -226,9 +105,9 @@ struct WifiPhysical {
               } else
                 LOG_ERR("WIFI", "Failed to read station MAC for hostname (err=%d)", static_cast<int>(macResult));
               if (usePassword)
-                WiFi.begin(string(ssid).c_str(), string(password).c_str());
+                WiFi.begin(ssid, password);
               else
-                WiFi.begin(string(ssid).c_str());
+                WiFi.begin(ssid);
             },
             [] { return static_cast<int32_t>(WiFi.status()); },
             [](char out[16]) {
@@ -256,28 +135,21 @@ struct WifiPhysical {
             [] { trustedtime::startSync(); },
             [](void* o) { pluginevents::drain(&get(o).renderer); },
             diagnostic,
-            [](void* o, uint8_t connected) {
-              auto& s = get(o);
+            [](void* o, uint8_t connected, XpAppText ssid, XpAppText ip) {
               ActivityResult result;
               result.isCancelled = !connected;
-              if (connected) result.data = WifiResult{true, s.selectedSSID, s.connectedIP};
-              s.setResult(std::move(result));
-            },
-            [](XpWifiKeyboardStorage* slot, XpAppText bytes) {
-              auto& s = *new (slot) std::string(
-                  bytes.len ? std::string(reinterpret_cast<const char*>(bytes.data), bytes.len) : std::string());
-              return text(s);
-            },
-            [](XpWifiKeyboardStorage* slot) { reinterpret_cast<std::string*>(slot)->~basic_string(); }};
+              if (connected) result.data = WifiResult{true, std::string(view(ssid)), std::string(view(ip))};
+              get(o).setResult(std::move(result));
+            }};
   }
 };
 const XpWifiPhysical XP_WIFI_PHYSICAL = WifiPhysical::table();
 #if defined(CONFIG_IDF_TARGET_ESP32C3)
 static_assert(sizeof(WifiPhysical::Last) == sizeof(XpWifiLastSsidStorage));
 static_assert(sizeof(WifiPhysical::Credential) == sizeof(XpWifiCredentialStorage));
-static_assert(sizeof(std::string) == sizeof(XpWifiKeyboardStorage));
-static_assert(sizeof(XpWifiSnapshot) == 96);
-static_assert(sizeof(XpWifiPhysical) == 184);
+static_assert(sizeof(XpWifiCredentialView) == 16);
+static_assert(sizeof(XpWifiPaintData) == 20);
+static_assert(sizeof(XpWifiPhysical) == 156);
 #endif
 
 void WifiPhysical::layout(void* object, XpUiWifiLayout* out) {
@@ -316,86 +188,49 @@ void WifiPhysical::layout(void* object, XpUiWifiLayout* out) {
   layout.legacy_body_font = UI_12_FONT_ID;
   layout.popup_border = m.popupFrameThickness;
   layout.popup_radius = m.popupCornerRadius;
+  layout.language = static_cast<uint8_t>(I18N.getLanguage());
   *out = layout;
 }
 
-void WifiPhysical::paint(void* object, const XpUiCommand* command, XpUiRect clip, const XpWifiPaintSnapshot* snapshot) {
-  auto& self = get(object);
+void WifiPhysical::paint(void* object, const XpUiCommand* command, XpUiRect clip, const XpWifiPaintData* data) {
   using networkui::Kind;
-  networkui::Resource resource{Kind::Text};
-  switch (command->resource) {
-    case XP_UI_WIFI_HEADER: {
-      char count[64];
-      snprintf(count, sizeof(count), tr(STR_NETWORKS_FOUND), static_cast<size_t>(snapshot->real_count));
-      networkui::paint(self.renderer, self.mappedInput, *command, clip, {Kind::Header, {tr(STR_WIFI_NETWORKS), count}});
-      return;
-    }
-    case XP_UI_WIFI_SUBHEADER:
-      resource = {Kind::Subheader, {snapshot->mac}};
+  Kind kind = Kind::Text;
+  switch (static_cast<XpWifiDrawKind>(data->kind)) {
+    case XP_WIFI_DRAW_TEXT:
+      kind = Kind::Text;
       break;
-    case XP_UI_WIFI_LIST_FOOTER:
-      resource = {Kind::Footer, {tr(STR_BACK), tr(STR_CONNECT), "", tr(STR_RETRY)}};
+    case XP_WIFI_DRAW_CENTERED:
+      kind = Kind::Centered;
       break;
-    case XP_UI_WIFI_SAVED_FOOTER:
-      resource = {Kind::Footer, {tr(STR_BACK), tr(STR_CONNECT), tr(STR_FORGET_BUTTON), tr(STR_RETRY)}};
+    case XP_WIFI_DRAW_FLOW_TEXT:
+      kind = Kind::FlowText;
       break;
-    case XP_UI_WIFI_AUTO_FOOTER:
-      resource = {Kind::Footer, {tr(STR_CANCEL), tr(STR_SHOW_NETWORKS), "", ""}};
+    case XP_WIFI_DRAW_WRAPPED:
+      kind = Kind::Wrapped;
       break;
-    case XP_UI_WIFI_SAVE_FOOTER:
-      self.promptLabel.reset();
-      resource = {Kind::Footer, {tr(STR_CANCEL), tr(STR_SELECT), tr(STR_DIR_LEFT), tr(STR_DIR_RIGHT)}};
+    case XP_WIFI_DRAW_WRAPPED_BOTTOM:
+      kind = Kind::WrappedBottom;
       break;
-    case XP_UI_WIFI_FORGET_FOOTER:
-      self.promptLabel.reset();
-      resource = {Kind::Footer, {tr(STR_BACK), tr(STR_SELECT), tr(STR_DIR_LEFT), tr(STR_DIR_RIGHT)}};
+    case XP_WIFI_DRAW_HEADER:
+      kind = Kind::Header;
       break;
-    case XP_UI_WIFI_CONNECTED_FOOTER:
-      resource = {Kind::Footer, {"", tr(STR_DONE), "", ""}};
+    case XP_WIFI_DRAW_SUBHEADER:
+      kind = Kind::Subheader;
       break;
-    case XP_UI_WIFI_FAILED_FOOTER:
-      resource = {Kind::Footer, {tr(STR_BACK), tr(STR_DONE), "", ""}};
+    case XP_WIFI_DRAW_FOOTER:
+      kind = Kind::Footer;
       break;
-    case XP_UI_WIFI_LEGEND:
-      resource = {Kind::Help, {tr(STR_NETWORK_LEGEND)}};
-      break;
-    case XP_UI_WIFI_SCANNING:
-    case XP_UI_WIFI_FINDING_SAVED:
-      resource = {Kind::Wrapped, {self.text(command->resource)}};
-      break;
-    case XP_UI_WIFI_CONNECTING:
-    case XP_UI_WIFI_CONNECTING_SAVED:
-      resource = {Kind::WrappedBottom, {self.text(command->resource)}};
-      break;
-    case XP_UI_WIFI_PROMPT_SSID:
-    case XP_UI_WIFI_PROMPT_CONNECTED:
-    case XP_UI_WIFI_PROMPT_FORGET:
-      resource = {Kind::FlowText, {self.text(command->resource)}};
-      break;
-    case XP_UI_WIFI_TO_SSID:
-    case XP_UI_WIFI_NETWORK_SSID: {
-      self.paintingSsid.emplace(self.renderer.truncatedText(
-          command->font,
-          (std::string(command->resource == XP_UI_WIFI_TO_SSID ? tr(STR_TO_PREFIX) : tr(STR_NETWORK_PREFIX)) +
-           self.selectedSSID)
-              .c_str(),
-          command->rect.w));
-      resource = {Kind::Centered, {self.paintingSsid->c_str()}};
-      break;
-    }
-    case XP_UI_WIFI_IP:
-      self.paintingIp.emplace(std::string(tr(STR_IP_ADDRESS_PREFIX)) + self.connectedIP);
-      resource = {Kind::Centered, {self.paintingIp->c_str()}};
-      break;
-    default:
-      resource.labels[0] = command->resource < XP_UI_WIFI_HEADER ? snapshot->row_text : self.text(command->resource);
-      if (command->max_lines == 0 && command->align == 1) resource.kind = Kind::Centered;
+    case XP_WIFI_DRAW_HELP:
+      kind = Kind::Help;
       break;
   }
-  networkui::paint(self.renderer, self.mappedInput, *command, clip, resource);
+  auto& self = get(object);
+  networkui::paint(self.renderer, self.mappedInput, *command, clip,
+                   {kind, {data->labels[0], data->labels[1], data->labels[2], data->labels[3]}});
 }
 
-void WifiPhysical::diagnostic(void* object, XpWifiDiagnostic event, uint32_t bytes) {
+void WifiPhysical::diagnostic(XpWifiDiagnostic event, XpAppText text, uint32_t bytes) {
+  const char* label = text.len ? reinterpret_cast<const char*>(text.data) : "";
   switch (event) {
     case XP_WIFI_LOG_EXIT_START:
       LOG_DBG("WIFI", "Free heap at onExit start: %d bytes", ESP.getFreeHeap());
@@ -410,21 +245,20 @@ void WifiPhysical::diagnostic(void* object, XpWifiDiagnostic event, uint32_t byt
       LOG_DBG("WIFI", "Free heap at onExit end: %d bytes", ESP.getFreeHeap());
       break;
     case XP_WIFI_LOG_AUTO_ATTEMPT:
-      // This diagnostic borrows the credential string before selectedSSID is assigned.
-      LOG_DBG("WIFI", "Attempting saved network: %s", static_cast<const std::string*>(object)->c_str());
+      LOG_DBG("WIFI", "Attempting saved network: %.*s", static_cast<int>(text.len), label);
       break;
     case XP_WIFI_LOG_SAVED:
-      LOG_DBG("WiFi", "Using saved password for %s, length: %zu", get(object).selectedSSID.c_str(),
-              get(object).enteredPassword.size());
+      LOG_DBG("WiFi", "Using saved password for %.*s, length: %zu", static_cast<int>(text.len), label,
+              static_cast<size_t>(bytes));
       break;
     case XP_WIFI_LOG_HIDDEN_SAVED:
-      LOG_DBG("WiFi", "Using saved password for hidden network %s", get(object).selectedSSID.c_str());
+      LOG_DBG("WiFi", "Using saved password for hidden network %.*s", static_cast<int>(text.len), label);
       break;
     case XP_WIFI_LOG_CONNECTED:
       LOG_DBG("WIFI", "Connected with saved/open credentials, completing immediately");
       break;
     case XP_WIFI_LOG_AUTO_FAILURE:
-      LOG_DBG("WIFI", "Saved network failed: %s", get(object).selectedSSID.c_str());
+      LOG_DBG("WIFI", "Saved network failed: %.*s", static_cast<int>(text.len), label);
       break;
     case XP_WIFI_LOG_MANUAL:
       LOG_DBG("WIFI", "User requested manual network list");

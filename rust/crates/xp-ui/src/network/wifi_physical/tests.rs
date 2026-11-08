@@ -8,56 +8,33 @@ use crate::{
 use alloc::{boxed::Box, vec::Vec};
 use core::{
     ffi::c_void,
-    mem::{align_of, size_of, MaybeUninit},
-    ptr,
+    mem::{align_of, size_of},
 };
 
 #[test]
-fn native_wire_slots_and_callback_table_have_pointer_sized_layouts() {
-    assert_eq!(size_of::<Physical>(), 46 * size_of::<usize>());
+fn byte_only_store_loans_and_narrow_drawing_have_the_frozen_layout() {
+    assert_eq!(size_of::<Physical>(), 39 * size_of::<usize>());
     assert_eq!(size_of::<LastStorage>(), 7 * size_of::<usize>());
     assert_eq!(size_of::<CredentialStorage>(), 13 * size_of::<usize>());
-    assert_eq!(size_of::<KeyboardStorage>(), 6 * size_of::<usize>());
-    assert_eq!(align_of::<Snapshot>(), align_of::<usize>());
-    assert_eq!(core::mem::offset_of!(Text, bytes), size_of::<usize>());
-    assert_eq!(core::mem::offset_of!(Edits, assign), size_of::<usize>());
+    assert_eq!(size_of::<CredentialView>(), 4 * size_of::<usize>());
+    assert_eq!(
+        core::mem::offset_of!(PaintData, kind),
+        4 * size_of::<usize>()
+    );
+    assert_eq!(align_of::<PaintData>(), align_of::<usize>());
 }
 #[test]
-fn bounded_snapshot_loans_keep_identity_and_explicit_empty_text() {
-    let ssid = Box::new(*b"network");
+fn store_loans_preserve_bytes_without_native_string_tokens() {
+    let ssid = Box::new(*b"n\0etwork");
     let password = Box::new(*b"password");
-    // Raw POD copyout does not own native strings or extend their loans.
-    let mut snapshot: Snapshot = unsafe { MaybeUninit::zeroed().assume_init() };
-    snapshot.strings[0] = Text {
-        string: ssid.as_ptr().cast(),
-        bytes: Bytes::from_slice(ssid.as_slice()),
+    let view = CredentialView {
+        ssid: Bytes::from_slice(ssid.as_slice()),
+        password: Bytes::from_slice(password.as_slice()),
     };
-    snapshot.strings[3] = Text {
-        string: password.as_ptr().cast(),
-        bytes: Bytes::from_slice(password.as_slice()),
-    };
-    snapshot.row.ssid = snapshot.strings[0];
-    snapshot.row_valid = 1;
-    snapshot.row_count = 1;
-    assert_eq!(snapshot.strings[0].string, ssid.as_ptr().cast());
-    assert_eq!(unsafe { snapshot.row.ssid.bytes.as_slice() }, b"network");
-    assert_eq!(unsafe { snapshot.strings[3].bytes.as_slice() }, b"password");
+    assert_eq!(unsafe { view.ssid.as_slice() }, b"n\0etwork");
+    assert_eq!(unsafe { view.password.as_slice() }, b"password");
     assert!(unsafe { Bytes::EMPTY.as_slice() }.is_empty());
-    assert!(Text::EMPTY.string.is_null());
-    let empty = Text::EMPTY;
-    let edits = Edits {
-        attempt: ptr::null(),
-        assign: [
-            &snapshot.strings[0],
-            ptr::null(),
-            &empty,
-            &snapshot.strings[3],
-        ],
-    };
-    assert_eq!(unsafe { (*edits.assign[0]).bytes.as_slice() }, b"network");
-    assert!(edits.assign[1].is_null());
-    assert!(unsafe { (*edits.assign[2]).bytes.as_slice() }.is_empty());
-    // Every reference ends before the native allocations are released.
+    // The native slots are dropped only after these byte loans end.
     drop(password);
     drop(ssid);
 }

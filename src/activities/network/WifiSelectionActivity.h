@@ -2,6 +2,7 @@
 #include <FreeInkUIGfxRenderer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
+#include <xp_network_owner.h>
 #include <xp_ui_network.h>
 
 #include <memory>
@@ -20,18 +21,50 @@ struct WifiNetworkInfo {
   bool isHiddenPlaceholder = false;
 };
 class WifiSelectionActivity final : public RustActivityAdapter {
+  friend struct WifiPhysical;
   XpUiWifiState model{}, renderingState{};
   XpUiListState next{};
   XpUiWifiHits hits{}, nextHits{};
   bool routingReady = false;
   std::unique_ptr<XpUiCommand[]> commands;
   uint16_t commandCapacity = 0;
-  freeink::ui::GfxRendererTarget textTarget;
-  std::vector<WifiNetworkInfo> networks;
-  std::vector<std::string> networkStatuses;
-  std::vector<std::string> autoAttemptedSsids;
-  std::string selectedSSID, connectedIP, connectionError, enteredPassword, cachedMacAddress;
-  std::optional<std::string> promptLabel, paintingSsid, paintingIp;
+  // Explicit lifetimes let native resources end before the command buffer.
+  union {
+    freeink::ui::GfxRendererTarget textTarget;
+  };
+  union {
+    std::vector<WifiNetworkInfo> networks;
+  };
+  union {
+    std::vector<std::string> networkStatuses;
+  };
+  union {
+    std::vector<std::string> autoAttemptedSsids;
+  };
+  union {
+    std::string selectedSSID;
+  };
+  union {
+    std::string connectedIP;
+  };
+  union {
+    std::string connectionError;
+  };
+  union {
+    std::string enteredPassword;
+  };
+  union {
+    std::string cachedMacAddress;
+  };
+  union {
+    std::optional<std::string> promptLabel;
+  };
+  union {
+    std::optional<std::string> paintingSsid;
+  };
+  union {
+    std::optional<std::string> paintingIp;
+  };
   char renderingMac[64]{};
   struct VisibleRow {
     char ssid[33]{};
@@ -43,6 +76,8 @@ class WifiSelectionActivity final : public RustActivityAdapter {
   uint16_t rowCapacity = 0;
   bool paintingRows = false, retireRequested = false;
   void retireRows();
+  bool resourcesLive = true;
+  void releaseResources();
   const bool allowAutoConnect;
   StaticSemaphore_t resourceMutexStorage{};
   SemaphoreHandle_t resourceMutex = xSemaphoreCreateMutexStatic(&resourceMutexStorage);
@@ -92,6 +127,7 @@ class WifiSelectionActivity final : public RustActivityAdapter {
 
  public:
   WifiSelectionActivity(GfxRenderer&, MappedInputManager&, bool autoConnect = true);
+  ~WifiSelectionActivity() override;
   void onEnter() override;
   void onExit() override;
   void loop() override;

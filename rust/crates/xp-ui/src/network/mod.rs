@@ -11,3 +11,5 @@ pub mod web_view;
 mod view;
 pub mod wifi;
 pub mod wifi_view;
+
+pub mod wifi_physical;

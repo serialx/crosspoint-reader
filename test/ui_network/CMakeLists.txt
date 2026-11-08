@@ -118,7 +118,7 @@ set(WIFI_FACADE_TARGET ${CMAKE_CURRENT_BINARY_DIR}/WifiFacadeTarget.cpp)
 add_custom_command(OUTPUT ${WIFI_FACADE_TARGET}
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_facade_target.py ${WIFI_FACADE_TARGET}
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/WifiTarget.cpp ${CMAKE_CURRENT_SOURCE_DIR}/wifi_facade_support.inc
-    ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_facade_target.py ${CMAKE_CURRENT_SOURCE_DIR}/wifi_render_original.inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_facade_target.py ${CMAKE_CURRENT_SOURCE_DIR}/prepare.py ${CMAKE_CURRENT_SOURCE_DIR}/wifi_render_original.inc
     ${REPO_ROOT}/src/activities/network/WifiSelectionActivity.h ${REPO_ROOT}/src/activities/network/WifiSelectionActivity.cpp
     ${REPO_ROOT}/src/activities/network/NetworkUiBinding.h ${REPO_ROOT}/src/activities/network/NetworkUiBinding.cpp)
 add_executable(NetworkWifiFacadeTarget ${WIFI_FACADE_TARGET} ${NETWORK_RENDER_SOURCES})
@@ -148,7 +148,7 @@ set(WIFI_LEGACY_TARGET ${CMAKE_CURRENT_BINARY_DIR}/WifiLegacyTarget.cpp)
 add_custom_command(OUTPUT ${WIFI_LEGACY_TARGET}
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_facade_target.py ${WIFI_LEGACY_TARGET} legacy
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/WifiTarget.cpp ${CMAKE_CURRENT_SOURCE_DIR}/wifi_facade_support.inc
-    ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_facade_target.py ${CMAKE_CURRENT_SOURCE_DIR}/wifi_render_original.inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_facade_target.py ${CMAKE_CURRENT_SOURCE_DIR}/prepare.py ${CMAKE_CURRENT_SOURCE_DIR}/wifi_render_original.inc
     ${CMAKE_CURRENT_SOURCE_DIR}/wifi_theme_original.inc
     ${REPO_ROOT}/src/activities/network/WifiSelectionActivity.h ${REPO_ROOT}/src/activities/network/WifiSelectionActivity.cpp
     ${REPO_ROOT}/src/activities/network/NetworkUiBinding.h ${REPO_ROOT}/src/activities/network/NetworkUiBinding.cpp)
@@ -191,3 +191,11 @@ foreach(WIFI_BOUNDARY scan password hidden connect save forget cancel cancel-bac
       COMMAND NetworkWifiPartialTarget ${WIFI_BOUNDARY} ${WIFI_REJECTION})
   endforeach()
 endforeach()
+
+add_test(NAME ui_network_wifi_ip_leaf COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_wifi_ip_leaf.py)
+add_test(NAME ui_network_wifi_resource_teardown COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_wifi_resource_teardown.py)
+
+add_test(NAME ui_network_fixture_constructor COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_prepare_constructor.py)

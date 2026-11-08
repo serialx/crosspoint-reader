@@ -19,11 +19,15 @@ def extract(source, cls, name):
         raise ValueError(f'Missing {cls}::{name}')
     start = match.start()
     begin = source.index('{', match.end())
-    level, i = 1, begin+1
-    while level:
-        level += (source[i] == '{') - (source[i] == '}')
-        i += 1
-    return source[start:i]
+    while True:
+        level, i = 1, begin+1
+        while level:
+            level += (source[i] == '{') - (source[i] == '}')
+            i += 1
+        if name != cls or not source[i:].lstrip().startswith(','):
+            return source[start:i]
+        # A constructor's empty member initializer precedes its actual body.
+        begin = source.index('{', i)
 def helper(source, name):
     match = re.search(r'^(?:void|int) '+name+r'\(', source, re.M)
     start = match.start()

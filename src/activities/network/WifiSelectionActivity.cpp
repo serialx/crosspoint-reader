@@ -22,7 +22,38 @@ namespace fui = freeink::ui;
 WifiSelectionActivity::WifiSelectionActivity(GfxRenderer& renderer, MappedInputManager& input, bool automatic)
     : RustActivityAdapter("WifiSelection", renderer, input),
       textTarget(makeUiTarget(renderer)),
+      networks{},
+      networkStatuses{},
+      autoAttemptedSsids{},
+      selectedSSID{},
+      connectedIP{},
+      connectionError{},
+      enteredPassword{},
+      cachedMacAddress{},
+      promptLabel{},
+      paintingSsid{},
+      paintingIp{},
       allowAutoConnect(automatic) {}
+WifiSelectionActivity::~WifiSelectionActivity() {
+  visibleRows.reset();
+  releaseResources();
+}
+void WifiSelectionActivity::releaseResources() {
+  if (!resourcesLive) return;
+  resourcesLive = false;
+  paintingIp.~optional();
+  paintingSsid.~optional();
+  promptLabel.~optional();
+  cachedMacAddress.~basic_string();
+  enteredPassword.~basic_string();
+  connectionError.~basic_string();
+  connectedIP.~basic_string();
+  selectedSSID.~basic_string();
+  autoAttemptedSsids.~vector();
+  networkStatuses.~vector();
+  networks.~vector();
+  textTarget.~GfxRendererTarget();
+}
 void WifiSelectionActivity::onEnter() {
   Activity::onEnter();
   {

@@ -63,7 +63,7 @@ support=support.replace('// ADAPTER_METHODS','\n'.join(prepare.extract(adapter,'
 header=re.sub(r'^#(?:include|pragma)[^\n]*\n','',(ROOT/'src/activities/network/WifiSelectionActivity.h').read_text(),flags=re.M)
 header=header.replace('WifiSelectionActivity','Candidate').replace('class Candidate final : public RustActivityAdapter','struct Candidate final : public FakeBase')
 production=(ROOT/'src/activities/network/WifiSelectionActivity.cpp').read_text()
-methods='\n'.join(prepare.extract(production,'WifiSelectionActivity',m)for m in ['WifiSelectionActivity','text','resources','buildRustScene','render','rustResources','rustPublished','rustSceneFailed','rustSceneCurrent','retireRows','publish','run','loop','CallContext::inputCurrent']).replace('WifiSelectionActivity','Candidate').replace('RustActivityAdapter(', 'FakeBase(').replace('makeUniqueNoThrow<','fixtureAllocate<').replace('millis()','fixtureMillis()')
+methods='\n'.join(prepare.extract(production,'WifiSelectionActivity',m)for m in ['WifiSelectionActivity','~WifiSelectionActivity','releaseResources','text','resources','buildRustScene','render','rustResources','rustPublished','rustSceneFailed','rustSceneCurrent','retireRows','publish','run','loop','CallContext::inputCurrent']).replace('WifiSelectionActivity','Candidate').replace('RustActivityAdapter(', 'FakeBase(').replace('makeUniqueNoThrow<','fixtureAllocate<').replace('millis()','fixtureMillis()')
 methods+='\nvoid Candidate::onEnter(){} void Candidate::onExit(){} \n'
 nh=re.sub(r'^#(?:include|pragma)[^\n]*\n','',(ROOT/'src/activities/network/NetworkUiBinding.h').read_text(),flags=re.M)
 nb=re.sub(r'^#include[^\n]*\n','',(ROOT/'src/activities/network/NetworkUiBinding.cpp').read_text(),flags=re.M)
@@ -75,7 +75,7 @@ s=s.replace('// ORIGINAL_BODY','\n'.join(prepare.extract(frozen,'WifiSelectionAc
 s=s.replace('  unsigned cases =', '  checkWifiFailureAndPanel(renderer);\n  unsigned cases =')
 if legacy:
  s=s.replace('for (int phase : {2, 7, 9})','for (int phase : {0, 1, 5, 6, 8})').replace('for (int count : {0, 1, 17, 60})','for (int count : {0})').replace('for (int style = 0; style < 4; ++style)','for (int style = 0; style < 1; ++style)')
- s=s.replace('  std::string selectedSSID;', '  std::string selectedSSID,connectedIP="192.168.1.123",connectionError="STR_ERROR_NETWORK_NOT_FOUND"; bool autoConnecting=false;')
+ s=s.replace('  std::string selectedSSID;', '  std::string selectedSSID,connectedIP="192.168.1.123",connectionError="STR_ERROR_NETWORK_NOT_FOUND"; bool autoConnecting=false;',1)
  s=s.replace('    bool hasTouch() { return touch; }','    bool hasTouch() { return touch; }\n    MappedInputManager::Labels mapLabels(const char*a,const char*b,const char*c,const char*d)const{return{a,b,c,d};}')
  # The native original body declarations precede the candidate support.
  s=s.replace('MappedInputManager::Labels mapLabels','struct Labels{const char* btn1;const char* btn2;const char* btn3;const char* btn4;};Labels mapLabels')

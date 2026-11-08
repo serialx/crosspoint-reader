@@ -734,6 +734,50 @@ pub fn budget(state: &State, l: &Layout, line: i32) -> Result<Budget, Error> {
     Ok(Budget { rows: 0, commands })
 }
 
+/// Build once, or repeat the layout with the original held-touch index.
+// Dormant until the N2w CP2 switch commit removes the legacy FFI duplicate.
+#[inline(always)]
+pub fn build(
+    commands: &mut [Command],
+    s: &State,
+    l: &Layout,
+    resources: &mut dyn Resources,
+) -> Result<(ListState, Hits, usize, Refresh), Error> {
+    if commands.len() > 256 {
+        return Err(Error::Invalid);
+    }
+    let mut working = *s;
+    if s.phase == Phase::List as u8 {
+        working.list.active = -1;
+    }
+    for pass in 0..2 {
+        let mut routing = Hits {
+            generation: s.generation,
+            count: s.count,
+            phase: s.phase,
+            ..Hits::default()
+        };
+        let mut arena = Arena::with_hit_sink(commands, &mut routing)?;
+        let (mut updated, refresh) = view(&mut arena, &working, l, resources)?;
+        let scene = arena.finish(refresh, 1)?;
+        let count = scene.commands.len();
+        if pass == 0
+            && s.phase == Phase::List as u8
+            && s.list.active >= 0
+            && routing.rows.count != 0
+        {
+            working.list.active = s.list.active + routing.rows.first_index;
+            continue;
+        }
+        updated.active = s.list.active;
+        return Ok((updated, routing, count, refresh));
+    }
+    Err(Error::Invalid)
+}
+
+#[cfg(test)]
+mod tests;
+
 const _: () = {
     assert!(core::mem::size_of::<Layout>() == 88);
     assert!(core::mem::size_of::<Hits>() == 108);

@@ -546,7 +546,12 @@ pub struct Services {
     pub call: Option<unsafe extern "C" fn(*mut c_void, u32, u32) -> u32>,
     pub publish: Option<unsafe extern "C" fn(*mut c_void, *mut State)>,
 }
-impl Services {
+/// Rust-internal effects; physical storage and radio adapters retain no policy.
+pub trait EffectHost {
+    fn call(&mut self, operation: Call, value: u32) -> u32;
+    fn publish(&mut self, state: &mut State);
+}
+impl EffectHost for Services {
     #[inline(never)]
     fn call(&mut self, operation: Call, value: u32) -> u32 {
         self.call
@@ -560,11 +565,11 @@ impl Services {
     }
 }
 impl State {
-    fn paint(&mut self, c: &mut Services) {
+    fn paint(&mut self, c: &mut impl EffectHost) {
         c.publish(self);
         c.call(Call::Paint, 0);
     }
-    pub fn run(&mut self, c: &mut Services, event: u8, value: u32, input: Input) {
+    pub fn run(&mut self, c: &mut impl EffectHost, event: u8, value: u32, input: Input) {
         match event {
             0 => {
                 let auto = self.allow_auto != 0;
@@ -617,7 +622,7 @@ impl State {
         }
         c.publish(self);
     }
-    fn apply(&mut self, c: &mut Services, u: Update) {
+    fn apply(&mut self, c: &mut impl EffectHost, u: Update) {
         if u.invalidate != 0 && !matches!(u.operation, Operation::ForgetSelected) {
             self.paint(c);
         }
@@ -725,7 +730,7 @@ impl State {
             Operation::None => {}
         }
     }
-    fn scan(&mut self, c: &mut Services, automatic: bool) {
+    fn scan(&mut self, c: &mut impl EffectHost, automatic: bool) {
         self.begin_scan(automatic);
         // Leave List before releasing its rows to concurrent rendering.
         self.paint(c);
@@ -735,7 +740,7 @@ impl State {
         c.call(Call::Delay, 100);
         c.call(Call::ScanBegin, 0);
     }
-    fn check_scan(&mut self, c: &mut Services) {
+    fn check_scan(&mut self, c: &mut impl EffectHost) {
         let result = c.call(Call::ScanComplete, 0) as i32;
         if result == -1 {
             return;
@@ -776,7 +781,7 @@ impl State {
         self.show_list();
         self.paint(c);
     }
-    fn select_row(&mut self, c: &mut Services, index: i32) {
+    fn select_row(&mut self, c: &mut impl EffectHost, index: i32) {
         if index < 0 || index >= i32::from(self.count) {
             return;
         }
@@ -799,14 +804,14 @@ impl State {
         self.apply(c, update);
         c.call(Call::DropCredential, 0);
     }
-    fn connect(&mut self, c: &mut Services) {
+    fn connect(&mut self, c: &mut impl EffectHost) {
         self.connecting(c.call(Call::Now, 0));
         c.call(Call::ConnectionReset, 0);
         self.paint(c);
         let password = self.requires_password != 0 && c.call(Call::PasswordPresent, 0) != 0;
         c.call(Call::ConnectionStart, u32::from(password));
     }
-    fn try_credential(&mut self, c: &mut Services) -> bool {
+    fn try_credential(&mut self, c: &mut impl EffectHost) -> bool {
         let flags = c.call(Call::CredentialFlags, 0);
         if flags & 1 != 0 {
             return false;
@@ -817,7 +822,7 @@ impl State {
         self.paint(c);
         true
     }
-    fn try_next(&mut self, c: &mut Services) -> bool {
+    fn try_next(&mut self, c: &mut impl EffectHost) -> bool {
         for index in 0..self.count {
             if c.call(Call::RowFlags, u32::from(index)) & 1 == 0
                 || c.call(Call::RowAttempted, u32::from(index)) != 0
@@ -833,7 +838,7 @@ impl State {
         }
         false
     }
-    fn check_connection(&mut self, c: &mut Services) {
+    fn check_connection(&mut self, c: &mut impl EffectHost) {
         let status = c.call(Call::ConnectionStatus, 0) as i32;
         let now = if matches!(status, 1 | 3 | 4) {
             0

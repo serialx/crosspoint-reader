@@ -7,6 +7,28 @@
 #include "components/UITheme.h"
 #include "util/QrUtils.h"
 
+namespace {
+// Keep layout scratch out of the other paint kinds' stack frames.
+__attribute__((noinline)) void paintFlowText(GfxRenderer& renderer, const XpUiCommand& command, XpUiRect clip,
+                                             const char* label) {
+  const auto& r = command.rect;
+  freeink::ui::GfxRendererTarget target(renderer);
+  target.setFont(0, command.font);
+  freeink::ui::TextStyle style;
+  style.font = 0;
+  style.bold = command.style & 1;
+  style.maxLines = command.max_lines;
+  style.align = static_cast<freeink::ui::TextAlign>(command.align);
+  auto lineCommand = command;
+  lineCommand.max_lines = 1;
+  lineCommand.align = 0;
+  freeink::ui::layoutText(target, {r.x, r.y, r.w, r.h}, label, style, [&](const char* line, freeink::ui::Rect rect) {
+    lineCommand.rect = {rect.x, rect.y, rect.width, rect.height};
+    renderer.drawUiText(lineCommand, clip, line);
+  });
+}
+}  // namespace
+
 void networkui::paint(GfxRenderer& renderer, MappedInputManager& input, const XpUiCommand& command, XpUiRect clip,
                       const Resource& resource) {
   const auto& r = command.rect;
@@ -19,24 +41,9 @@ void networkui::paint(GfxRenderer& renderer, MappedInputManager& input, const Xp
       else
         renderer.drawUiText(command, clip, resource.labels[0]);
       break;
-    case Kind::FlowText: {
-      freeink::ui::GfxRendererTarget target(renderer);
-      target.setFont(0, command.font);
-      freeink::ui::TextStyle style;
-      style.font = 0;
-      style.bold = command.style & 1;
-      style.maxLines = command.max_lines;
-      style.align = static_cast<freeink::ui::TextAlign>(command.align);
-      auto lineCommand = command;
-      lineCommand.max_lines = 1;
-      lineCommand.align = 0;
-      freeink::ui::layoutText(target, {r.x, r.y, r.w, r.h}, resource.labels[0], style,
-                              [&](const char* line, freeink::ui::Rect rect) {
-                                lineCommand.rect = {rect.x, rect.y, rect.width, rect.height};
-                                renderer.drawUiText(lineCommand, clip, line);
-                              });
+    case Kind::FlowText:
+      paintFlowText(renderer, command, clip, resource.labels[0]);
       break;
-    }
     case Kind::Centered:
       UITheme::drawCenteredText(renderer, bounds, command.font, r.y, resource.labels[0], command.paint != 1,
                                 static_cast<EpdFontFamily::Style>(command.style));

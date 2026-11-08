@@ -205,14 +205,6 @@ fn app() -> Option<&'static App> {
     unsafe { &*APP.0.get() }.as_ref()
 }
 
-fn try_box<T>(value: T) -> Option<Box<T>> {
-    let pointer = NonNull::new(unsafe { alloc(Layout::new::<T>()) }.cast::<T>())?;
-    unsafe {
-        pointer.as_ptr().write(value);
-        Some(Box::from_raw(pointer.as_ptr()))
-    }
-}
-
 struct RenderGuard {
     token: *mut c_void,
     runtime: &'static abi::Runtime,
@@ -309,15 +301,22 @@ impl App {
     }
 
     fn new_home(&self, menu: u8, clean_initial: bool) -> Option<Owner> {
-        try_box(home::Home::new(
-            self.resources,
-            self.runtime,
-            request_update,
-            menu,
-            clean_initial,
-        ))
-        .map(StableOwner::from)
-        .map(Owner::Home)
+        let pointer = NonNull::new(
+            unsafe { alloc(Layout::new::<home::Home>()) }
+                .cast::<core::mem::MaybeUninit<home::Home>>(),
+        )?;
+        unsafe {
+            home::Home::initialize(
+                pointer.as_ptr().cast(),
+                self.resources,
+                self.runtime,
+                request_update,
+                menu,
+                clean_initial,
+            );
+            let home = Box::from_raw(pointer.as_ptr()).assume_init();
+            Some(Owner::Home(StableOwner::from(home)))
+        }
     }
 
     fn adopt(&self, object: *mut c_void) -> Option<Owner> {

@@ -55,6 +55,7 @@ struct PaintState {
     buffer_stored: bool,
 }
 
+#[cfg(test)]
 impl Default for PaintState {
     fn default() -> Self {
         Self {
@@ -76,6 +77,33 @@ impl Default for PaintState {
 }
 
 impl Home {
+    /// # Safety
+    /// `out` is aligned, writable, uninitialized storage for one Home.
+    #[inline(never)]
+    pub unsafe fn initialize(
+        out: *mut Self,
+        services: &'static abi::Resources,
+        runtime: &'static abi::Runtime,
+        request_update: fn(),
+        initial_menu: u8,
+        clean_initial: bool,
+    ) {
+        use core::ptr::addr_of_mut;
+        addr_of_mut!((*out).identities).write(UnsafeCell::new(Vec::new()));
+        ModelCell::initialize(addr_of_mut!((*out).model), runtime, |model| {
+            model.write(Model::default());
+        });
+        let frame = addr_of_mut!((*out).render).cast::<Frame>();
+        addr_of_mut!((*frame).commands).write(Vec::new());
+        PaintState::initialize(addr_of_mut!((*frame).paint));
+        addr_of_mut!((*out).services).write(services);
+        addr_of_mut!((*out).runtime).write(runtime);
+        addr_of_mut!((*out).request_update).write(request_update);
+        addr_of_mut!((*out).initial_menu).write(initial_menu);
+        addr_of_mut!((*out).clean_initial).write(clean_initial);
+    }
+
+    #[cfg(test)]
     pub fn new(
         services: &'static abi::Resources,
         runtime: &'static abi::Runtime,
@@ -385,6 +413,31 @@ impl Home {
             frame.paint.refresh_paths(self.services);
             (self.request_update)();
         }
+    }
+}
+
+impl PaintState {
+    /// # Safety
+    /// `out` is aligned, writable, uninitialized storage for one PaintState.
+    #[inline(never)]
+    unsafe fn initialize(out: *mut Self) {
+        use core::ptr::addr_of_mut;
+        addr_of_mut!((*out).covers).write(Vec::new());
+        let paths = addr_of_mut!((*out).grid_paths).cast::<Text>();
+        for index in 0..7 {
+            paths.add(index).write(Text::default());
+        }
+        addr_of_mut!((*out).grid_cache).write(None);
+        addr_of_mut!((*out).grid_height).write(0);
+        addr_of_mut!((*out).progress).write(-1);
+        addr_of_mut!((*out).texts).write(PreparedTexts::new(-1, false));
+        addr_of_mut!((*out).layout).write(view::Layout::default());
+        addr_of_mut!((*out).snapshot).write(HomeState::default());
+        addr_of_mut!((*out).buffer).write(None);
+        addr_of_mut!((*out).cover_rect).write(Rect::default());
+        addr_of_mut!((*out).restore_rect).write(Rect::default());
+        addr_of_mut!((*out).cover_rendered).write(false);
+        addr_of_mut!((*out).buffer_stored).write(false);
     }
 }
 
@@ -941,6 +994,68 @@ mod tests {
             _services: services,
             _runtime: runtime,
         }
+    }
+
+    #[test]
+    fn in_place_home_matches_constructor() {
+        let fixture = fixture();
+        for menu in [0, 3, 5] {
+            for clean in [false, true] {
+                let expected = Home::new(fixture.services, fixture.runtime, || {}, menu, clean);
+                let mut storage = Box::<Home>::new_uninit();
+                unsafe {
+                    Home::initialize(
+                        storage.as_mut_ptr(),
+                        expected.services,
+                        expected.runtime,
+                        expected.request_update,
+                        menu,
+                        clean,
+                    );
+                }
+                let actual = unsafe { storage.assume_init() };
+                assert!(core::ptr::eq(actual.services, expected.services));
+                assert!(core::ptr::eq(actual.runtime, expected.runtime));
+                assert_eq!(
+                    actual.request_update as usize,
+                    expected.request_update as usize
+                );
+                assert_eq!(actual.initial_menu, expected.initial_menu);
+                assert_eq!(actual.clean_initial, expected.clean_initial);
+                assert!(unsafe { &*actual.identities.get() }.is_empty());
+                let frame = unsafe { &*actual.render.get() };
+                assert!(frame.commands.is_empty());
+                let paint = &frame.paint;
+                assert!(paint.covers.is_empty());
+                assert!(paint.grid_paths.iter().all(Text::is_empty));
+                assert!(paint.grid_cache.is_none());
+                assert_eq!(paint.grid_height, 0);
+                assert_eq!(paint.progress, -1);
+                assert!(paint.buffer.is_none());
+                assert_eq!(paint.cover_rect, Rect::default());
+                assert_eq!(paint.restore_rect, Rect::default());
+                assert!(!paint.cover_rendered);
+                assert!(!paint.buffer_stored);
+                // Exercise the initialized model without the shared paint-test leaves.
+                assert!(actual.model.with(Model::begin_render).is_none());
+                assert!(expected.model.with(Model::begin_render).is_none());
+                let state = HomeState::new(3, false, true, false, true);
+                assert!(actual.model.with(|model| model.complete_entry(state)));
+                assert!(expected.model.with(|model| model.complete_entry(state)));
+                assert_eq!(
+                    actual.model.with(Model::begin_render).unwrap().books,
+                    expected.model.with(Model::begin_render).unwrap().books
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[ignore = "Miri negative control: uninitialized Home field must fail"]
+    fn in_place_home_read_before_init_negative_control() {
+        let storage = Box::<Home>::new_uninit();
+        let menu = unsafe { core::ptr::addr_of!((*storage.as_ptr()).initial_menu).read() };
+        core::hint::black_box(menu);
     }
 
     #[test]

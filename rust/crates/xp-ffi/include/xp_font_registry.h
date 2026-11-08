@@ -6,8 +6,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-// Serialized owner storage, initialized in place. No allocation or owned font bytes.
+// In-place owner, no allocation or font bytes: 16 families * 6 words (id, four
+// slots, fallback) + count + generation pointer + native context = 99 words.
 typedef struct {
   uintptr_t words[99];
 } XpLoadedFonts;
@@ -29,10 +29,10 @@ typedef union {
   uintptr_t value;
   const void* const* slot;
 } XpFontQueryResult;
-
 // Generation and native context outlive the owner. Each nonnull slot is a stable,
 // aligned FontData pointer cell, live until unregister. No loans cross mutation.
 void xp_font_registry_init(XpLoadedFonts*, const void* generation, void* native);
+// Applies registration/fallback changes and invalidates source loans; owns no font bytes.
 uint8_t xp_font_registry_update(XpLoadedFonts*, XpFontUpdate, const XpRegisteredFont*);
 // Copies one descriptor; BY_ID returns index+1, AT returns 1, absent returns 0.
 // COUNT/EXISTS/FALLBACK_ID return scalars. SLOT returns a stable data-slot address,
@@ -42,8 +42,8 @@ XpFontQueryResult xp_font_registry_query(const XpLoadedFonts*, XpFontQuery, int3
 // Rust callbacks read this owner directly; native context is used only for the
 // named temporary SD/cache operations. The provider is borrowed synchronously.
 XpNativeProvider xp_font_registry_provider(const XpLoadedFonts*);
+// Fills a synchronous glyph-source loan from a registered FontData and the current generation.
 void xp_font_registry_source(const XpLoadedFonts*, const void* font, XpGlyphSource* out);
-
 // Temporary font boundaries: cache view/bitmap/scan retire in PT2; SD table,
 // residency and absent-font loading retire in PT3. No input is retained.
 void xp_native_font_cache_view(void*, XpGlyphSource*);

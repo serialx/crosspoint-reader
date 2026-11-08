@@ -3,7 +3,7 @@
 pub(crate) mod direct;
 #[path = "page_render/images.rs"]
 mod images;
-// CP1 keeps the original entry active until the coordinator's switch review.
+// The legacy page entry remains active; PT1b owns the direct-paint switch and retirement.
 pub(crate) const DIRECT_PAGE_PAINT: bool = false;
 #[cfg(feature = "reader-strips")]
 #[path = "page_plan.rs"]

@@ -14,10 +14,12 @@ Rust owns the EPUB parsers and layout, page records, build/load codecs, page
 rendering, PNG/GIF decoding and image row processing, text measurement, glyph
 rasterization and bitmap views, SD font parsing and cache policy, XTC parsing,
 and the shared inflater for ZIP, PNG, ContentProtection, fonts and DictZip.
-C++ retains file I/O, font containers and platform callbacks,
-JPEGDEC integration, page storage and views, and legacy screen resources. The
-Rust application owns loop/navigation policy, Home and the EPUB session; native ActivityManager
-forwards into that owner and retains the physical render task and lock. See the
+Rust also owns the loaded-font registry, including family/style slots and fallback
+IDs. C++ retains file I/O, physical SD/TTF font objects and glyph caches, font
+facades and platform callbacks, JPEGDEC integration, page storage and views, and
+legacy screen resources. The Rust application owns loop/navigation policy, Home
+and the EPUB session; native ActivityManager forwards into that owner and retains
+the physical render task and lock. See the
 [Rust UI ownership guide](rust-ui.md) and the
 [chapter pipeline](chapter-pipeline.md) for page ownership and lifetime.
 
@@ -816,11 +818,14 @@ the page sink only crosses into C++ for the operations described in the
 Production paragraph/chapter layout and `GfxRenderer` measurements use
 [`textm::native::Engine`](../../rust/crates/xp-core/src/textm/native.rs).
 Rust executes measurement rules, resident font-table reads, bidi shaping and
-word ordering. Rust also owns font discovery, registration policy, built-in/TTF
-caches and SD buffer lifetimes. C++ retains the font facades, containers and
-platform callbacks. [`GfxRenderer::textProvider`](../../lib/GfxRenderer/GfxRenderer.cpp)
-supplies resolved style descriptors and dynamic handlers; SD glyphs that are
-not resident and TTF glyph/coverage/kerning work still use those handlers.
+word ordering. The Rust loaded-font registry owns family/style slots and fallback
+IDs. C++ font facades query this owner; native SD/TTF objects and decompressor
+caches retain their physical storage lifetimes. PT2 owns the remaining built-in
+cache handoff, and PT3 owns SD loading, registration and eviction.
+[`GfxRenderer::textProvider`](../../lib/GfxRenderer/GfxRenderer.cpp) obtains the
+Rust registry provider, which supplies style descriptors and dynamic handlers.
+SD glyphs that are not resident and TTF glyph/coverage/kerning work still use
+those handlers.
 The [paragraph binding](../../lib/Epub/Epub/Paragraph.cpp) and
 [chapter sink](../../lib/Epub/Epub/parsers/ChapterPlatform.cpp) leave the
 production per-word metric callbacks null. Host synthetic renderers and

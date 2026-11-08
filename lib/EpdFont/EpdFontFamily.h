@@ -29,6 +29,7 @@ class EpdFontFamily {
   ~EpdFontFamily() = default;
   void getTextDimensions(const char* string, int* w, int* h, Style style = REGULAR) const;
   const EpdFontData* getData(Style style = REGULAR) const;
+  // Slots alias EpdFont::data cells; their owners stay at stable addresses until unregister.
   XpRegisteredFont registration(int id) const {
     static_assert(sizeof(EpdFont) == sizeof(const EpdFontData*));
     static_assert(offsetof(EpdFont, data) == 0);

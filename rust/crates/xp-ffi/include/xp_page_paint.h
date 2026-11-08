@@ -3,8 +3,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-// Reusable by UI-SCENE: no Page, text or command pointer is retained here.
-// Geometry and pixel storage are an exclusive synchronous renderer loan.
+// Exclusive synchronous geometry/pixel loan, reusable by UI-SCENE; no Page/text/command pointer is retained.
 typedef struct {
   XpGlyphTarget glyphs;
   const XpLoadedFonts* fonts;
@@ -19,9 +18,9 @@ typedef struct {
   size_t count;
   uint8_t prepare;
 } XpPagePaint;
-// Native-origin Definition/selection adapter. Rust page owners call the Rust
-// function directly. Arena/plan/source loans follow the existing page contract.
+// Native-origin Definition/selection adapter; Rust owners call Rust directly. Loans follow the page contract.
 uint32_t xp_page_paint(const uint8_t* arena, size_t, const XpPageTarget*, const XpPagePaint*);
+// Borrows the current native renderer target for one synchronous paint.
 void xp_native_render_target(XpPageTarget* out);
 typedef struct {
   const uint8_t* path;
@@ -51,6 +50,7 @@ size_t xp_native_page_image_file(XpPageImageFile*, XpPageImageFileOp, const uint
 uint8_t xp_native_page_image_decode(void* native, const XpPageImage*, const uint8_t* cache);
 // Inherited book extraction facade, retired by B3 when Rust owns extraction.
 uint8_t xp_native_page_image_extract(const XpPageImage*, uint8_t query_only);
+// Formats an image event through the native logger without retaining borrowed paths.
 void xp_native_page_image_log(void* native, const XpPageImage*, const uint8_t* cache, uint32_t event, int32_t a,
                               int32_t b);
 #ifdef __cplusplus

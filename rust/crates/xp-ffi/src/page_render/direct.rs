@@ -90,7 +90,7 @@ impl Resources for Direct<'_> {
         slot
     }
     unsafe fn resident(&self, font: i32, style: u8, mut text: *const u8, mut len: usize) {
-        // Preserve the parent's fallback prewarm partitions without copying them.
+        // Residency batches borrow at most 191 bytes and end on UTF-8 codepoint boundaries.
         while len != 0 {
             let mut count = len.min(191);
             if count < len {

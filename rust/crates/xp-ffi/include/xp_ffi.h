@@ -1077,8 +1077,8 @@ typedef struct {
   int32_t fallback;
   uint8_t hasFallback, sd, advanceTable, resolved[4];
 } XpNativeFamily;
-// Failure-only, synchronous diagnostics. MissingFont: a is the signed font ID
-// bit pattern; BidiLimit: a is the codepoint limit (128). b/c/d are zero.
+// Failure-only synchronous diagnostics: MissingFont (1): a is the signed font ID
+// bit pattern; BidiLimit (2): a=128; MissingGlyph (3): a=codepoint. b/c/d are zero.
 // NULL is silent. The callback must not reenter Rust or retain borrowed pointers.
 #ifdef __cplusplus
 enum class XpNativeDiagnostic : uint32_t { MissingFont = 1, BidiLimit = 2, MissingGlyph = 3 };

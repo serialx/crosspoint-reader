@@ -111,12 +111,7 @@ class GfxRenderer {
   mutable int clipRight_ = 32767;
   mutable int clipBottom_ = 32767;
 
-  // CJK UI font fallback map: primary (built-in, Latin-only) UI font id -> a
-  // size-matched SD-card font id that carries CJK glyphs. When a string drawn
-  // or measured with a mapped primary font contains a CJK codepoint the primary
-  // cannot render, the whole string is routed to the mapped fallback so it
-  // appears at the same point size as the surrounding UI text. Populated by the
-  // app-level SD font setup when an SD family is loaded. See resolveTextFontId().
+  // Resolves sized reader-font variants and loads absent variants on demand.
   FontVariantProvider fontVariantProvider_;
 
   // If `text` contains a CJK codepoint that `fontId` cannot render and `fontId`
@@ -214,7 +209,9 @@ class GfxRenderer {
 
   // Setup
   XpNativeProvider textProvider() const;
+  // Borrows the current framebuffer/strip target and Rust font owner for a synchronous paint.
   void pageTarget(XpPageTarget& out) const;
+  // Copies the active strip-plan loan into out; leaves out unchanged when strips are disabled.
   void pagePlanLoan(XpPagePaint& out) const;
   bool drawUiScene(const XpUiScene& scene, const XpUiPaint* resources = nullptr) const;
   // Shared text/resource services follow this target for the whole synchronous call.
@@ -273,8 +270,9 @@ class GfxRenderer {
     ttfFonts_.erase(fontId);
   }
   const std::map<int, TtfEpdFont*>& getTtfFonts() const { return ttfFonts_; }
-  // Register/clear size-matched CJK UI fallbacks (see fallbackFontMap_).
-  // setFallbackFont maps a primary UI font id to an SD font id of the same size.
+  // Fallback IDs live in the Rust loaded-font registry via FontRegistry::setFallback.
+  // A size-matched SD fallback routes the whole UI string when the primary lacks CJK coverage.
+  // resolveTextFontId() queries that registry through fontMap.fallback().
   void setFallbackFont(int primaryFontId, int fallbackFontId) {
     ++fontTableGeneration;
     fontMap.setFallback(primaryFontId, fallbackFontId);

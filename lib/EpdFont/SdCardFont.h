@@ -56,6 +56,7 @@ class SdCardFont {
   int prewarm(const char* utf8Text, uint8_t styleMask = 0x0F, bool metadataOnly = false, bool loadKernLig = true,
               bool accumulate = true);
 
+  // Consumes exactly length borrowed UTF-8 bytes, accumulating residency without kern/ligature loads.
   int prewarmSpan(const uint8_t* text, size_t length, uint8_t styleMask, bool metadataOnly);
 
   // Multi-string variant: extracts codepoints from `textCount` strings fetched

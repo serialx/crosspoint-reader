@@ -32,6 +32,7 @@ class FontCacheManager {
   // Scan-mode API: called by GfxRenderer::drawText() during scan pass
   bool isScanning() const;
   void recordText(const char* text, int fontId, EpdFontFamily::Style style);
+  // Adds codepoints from terminated text to the scan using an already-resolved font/style.
   void recordResolvedText(const char* text, int fontId, EpdFontFamily::Style style);
 
   // The FontDecompressor pointer, needed by GfxRenderer::getGlyphBitmap()

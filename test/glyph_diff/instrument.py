@@ -17,7 +17,7 @@ for name, directory in [('GfxRenderer', 'GfxRenderer'), ('FontDecompressor', 'Ep
     source = source.replace('#include "../Memory/Memory.h"', '#include <Memory.h>')
     if name == 'GfxRenderer':
         reference = (root / 'test/glyph_diff/reference/Raster.inc').read_text()
-        # Borrow no arrow temporary after its expression; keep the raster oracle unchanged.
+        # The copied descriptor outlives the iterator's temporary arrow view.
         reference = reference.replace('const auto& font = fontIt->second;',
                                       'const auto font = fontMap.at(fontId);')
         source += reference

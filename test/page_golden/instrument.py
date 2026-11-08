@@ -85,8 +85,8 @@ source = source.replace(render, render + """
   } allocationScope;
 """)
 source = '#include <cstddef>\nextern "C" size_t xp_test_allocation_attempts();\n' + source
-# Direct Rust image policy still owns the same excluded image allocations. The
-# inline physical file cell marks that owner window without a firmware test hook.
+# The HalFile init/drop interval excludes image allocations from the text allocation
+# count, matching the ImageBlock::render scope above without a firmware test hook.
 init = re.compile(r'case XP_IMAGE_FILE_INIT:\s*new \(storage\) HalFile\(\);\s*return 0;')
 drop = re.compile(r'case XP_IMAGE_FILE_DROP:\s*file->~HalFile\(\);\s*return 0;')
 if len(init.findall(source)) != 1 or len(drop.findall(source)) != 1:

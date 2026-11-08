@@ -175,7 +175,8 @@ pub(super) fn render(target: NonNull<Wifi>) -> bool {
     unsafe { target.as_ref() }.render()
 }
 #[inline(never)]
-pub(super) fn keyboard_returned(target: NonNull<Wifi>, result: Option<keyboard::Result>) {
+pub(super) fn keyboard_returned(target: NonNull<Wifi>, result: &mut Option<keyboard::Result>) {
+    let result = result.take();
     #[cfg(test)]
     tests::received(target, result.as_ref().and_then(keyboard::Result::text));
     unsafe { target.as_ref() }.keyboard_returned(result.as_ref().and_then(keyboard::Result::text));

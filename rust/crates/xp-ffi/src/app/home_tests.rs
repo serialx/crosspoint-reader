@@ -278,10 +278,6 @@ impl Drop for Fixture {
 }
 
 #[test]
-#[cfg_attr(
-    miri,
-    ignore = "P17-H1 parent provenance witness; run explicitly before switch"
-)]
 fn home_bootstrap_publish_enter_render_input() {
     let _serial = super::dialog_tests::APP_LOCK.lock().unwrap();
     let fixture = Fixture::new();
@@ -298,10 +294,6 @@ fn home_bootstrap_publish_enter_render_input() {
 }
 
 #[test]
-#[cfg_attr(
-    miri,
-    ignore = "P17-H1 parent provenance witness; run explicitly before switch"
-)]
 fn home_queued_replace_drain_and_reopen() {
     let _serial = super::dialog_tests::APP_LOCK.lock().unwrap();
     let fixture = Fixture::new();
@@ -327,10 +319,6 @@ fn home_queued_replace_drain_and_reopen() {
 }
 
 #[test]
-#[cfg_attr(
-    miri,
-    ignore = "P17-H1 parent provenance witness; run explicitly before switch"
-)]
 fn home_retained_target_parent_growth_pop_and_nested_replace() {
     let _serial = super::dialog_tests::APP_LOCK.lock().unwrap();
     let fixture = Fixture::new();
@@ -370,10 +358,6 @@ fn home_retained_target_parent_growth_pop_and_nested_replace() {
 }
 
 #[test]
-#[cfg_attr(
-    miri,
-    ignore = "P17-H1 parent provenance witness; run explicitly before switch"
-)]
 fn home_superseded_pending_owner_never_enters() {
     let _serial = super::dialog_tests::APP_LOCK.lock().unwrap();
     let fixture = Fixture::new();
@@ -410,10 +394,6 @@ fn home_shell_failure_and_uninstalled_drop_counts() {
 }
 
 #[test]
-#[cfg_attr(
-    miri,
-    ignore = "P17-H1 parent provenance witness; run explicitly before switch"
-)]
 fn home_parent_reserve_failure_retry_and_counted_teardown() {
     let _serial = super::dialog_tests::APP_LOCK.lock().unwrap();
     let fixture = Fixture::new();
@@ -455,10 +435,6 @@ fn home_parent_reserve_failure_retry_and_counted_teardown() {
 }
 
 #[test]
-#[cfg_attr(
-    miri,
-    ignore = "P17-H1 parent provenance witness; run explicitly before switch"
-)]
 fn home_result_callback_completes_before_table_teardown() {
     let _serial = super::dialog_tests::APP_LOCK.lock().unwrap();
     let fixture = Fixture::new();

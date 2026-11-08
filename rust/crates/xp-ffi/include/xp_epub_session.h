@@ -454,12 +454,12 @@ typedef struct XpEpubLeaves {
   // Lend returns whether this scope owns restoration; nested scopes return zero.
   uint8_t (*framebuffer_lend)(void);
   void (*framebuffer_restore)(uint8_t owned);
-  // Painting borrows immutable arena bytes only for the synchronous call.
+  // Image readiness checks the decoded-cache state.
   uint8_t (*image_needs_decode)(XpAppText path, XpAppText source, int16_t width, int16_t height);
   int32_t (*font_ascent)(int32_t font);
   uint32_t (*render_physical_query)(uint8_t query);
   uint32_t (*render_physical_operation)(const XpEpubPhysicalOp* operation);
-  // Plan/window/source pointers remain borrowed only until explicit detach.
+  // Window/source pointers remain borrowed only until explicit detach.
   void (*image_read_window)(uint8_t* bytes, uint32_t length);
   uint8_t (*display_source)(XpDisplaySource* source);
   uint8_t* (*framebuffer_view)(uint32_t* bytes);

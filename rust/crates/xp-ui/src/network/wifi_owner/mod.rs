@@ -249,29 +249,32 @@ impl<H: Host> Wifi<H> {
     fn run(&self, event: u8, value: u32, input: Option<Input>) {
         let mut state = self.model(|m| m.state);
         let scanning = state.phase == Phase::Scanning as u8;
-        let mut call = effects::Call::new(self, state.list.navigation_revision, input);
-        if call.current() {
-            if event == 4 {
-                let automatic = state.automatic != 0;
-                state.scan(&mut call, automatic);
-                wifi::EffectHost::publish(&mut call, &mut state);
-            } else {
-                state.run(&mut call, event, value, input.unwrap_or_default());
-            }
-        }
-        if call.failed() {
-            self.model(|m| {
-                if event == 0 {
-                    m.retry = Retry::Entry;
-                } else if event == 4 || scanning && call.scan_deleted() {
-                    m.retry = Retry::Scan;
+        // `Call` holds C++ placement values (SSO strings point into themselves):
+        // let it drop in place at block end, never move it (e.g. `drop(call)`).
+        let keyboard_failed = {
+            let mut call = effects::Call::new(self, state.list.navigation_revision, input);
+            if call.current() {
+                if event == 4 {
+                    let automatic = state.automatic != 0;
+                    state.scan(&mut call, automatic);
+                    wifi::EffectHost::publish(&mut call, &mut state);
+                } else {
+                    state.run(&mut call, event, value, input.unwrap_or_default());
                 }
-            });
-            self.reject();
-            self.host.request_update();
-        }
-        let keyboard_failed = call.keyboard_failed();
-        drop(call);
+            }
+            if call.failed() {
+                self.model(|m| {
+                    if event == 0 {
+                        m.retry = Retry::Entry;
+                    } else if event == 4 || scanning && call.scan_deleted() {
+                        m.retry = Retry::Scan;
+                    }
+                });
+                self.reject();
+                self.host.request_update();
+            }
+            call.keyboard_failed()
+        };
         if keyboard_failed {
             self.keyboard_returned(None);
         }

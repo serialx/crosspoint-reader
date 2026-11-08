@@ -205,3 +205,10 @@ add_test(NAME ui_network_fixture_constructor COMMAND ${Python3_EXECUTABLE}
 
 add_test(NAME ui_network_wifi_app_adoption COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_wifi_adoption.py ${XP_FFI_HOST_ARCHIVE})
+
+if(STORE_TEST_MBEDTLS)
+  add_test(NAME ui_network_wifi_saved_loans COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_wifi_saved_loans.py
+    --archive ${XP_FFI_HOST_ARCHIVE} --arduinojson ${XP_TEST_ARDUINOJSON_SRC}
+    --mbedtls ${STORE_TEST_MBEDTLS})
+endif()

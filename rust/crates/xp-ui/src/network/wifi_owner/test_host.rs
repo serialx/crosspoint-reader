@@ -77,6 +77,8 @@ pub struct Fixture {
     pub resource: Cell<bool>,
     pub render: Cell<bool>,
     pub credential: Cell<bool>,
+    pub credential_slot: Cell<*mut CredentialStorage>,
+    pub last_slot: Cell<*mut LastStorage>,
     pub target: Cell<*const Wifi<TestHost>>,
     pub reject_at: Cell<Option<&'static str>>,
     pub input: Cell<(Input, bool)>,
@@ -228,6 +230,7 @@ unsafe extern "C" fn lookup(
     let f = current();
     f.event("credential");
     assert!(!f.credential.replace(true));
+    assert!(f.credential_slot.replace(slot).is_null());
     let found = f
         .data
         .borrow()
@@ -255,6 +258,11 @@ unsafe extern "C" fn lookup(
 }
 unsafe extern "C" fn drop_credential(slot: *mut CredentialStorage) {
     let f = current();
+    assert_eq!(
+        f.credential_slot.replace(ptr::null_mut()),
+        slot,
+        "native credential storage moved"
+    );
     assert!(f.credential.replace(false));
     f.event("credential_drop");
     unsafe { ptr::drop_in_place(slot.cast::<Option<(Vec<u8>, Vec<u8>)>>()) };
@@ -293,10 +301,12 @@ static PHYSICAL: Physical = Physical {
         0
     }),
     last_ssid_drop: c!(a0: *mut LastStorage; (); |slot| {
+        assert_eq!(current().last_slot.replace(ptr::null_mut()), slot, "native last-SSID storage moved");
         current().event("last_drop");
         unsafe { ptr::drop_in_place(slot.cast::<Vec<u8>>()) };
     }),
     last_ssid: c!(a0: *mut LastStorage; Bytes; |slot| {
+        assert!(current().last_slot.replace(slot).is_null());
         current().event("last");
         let value = current().data.borrow().last.clone();
         let out = slot.cast::<Vec<u8>>();
@@ -433,6 +443,8 @@ pub fn rig() -> (StableOwner<Wifi<TestHost>>, Rc<Fixture>) {
         resource: Cell::new(false),
         render: Cell::new(false),
         credential: Cell::new(false),
+        credential_slot: Cell::new(ptr::null_mut()),
+        last_slot: Cell::new(ptr::null_mut()),
         target: Cell::new(ptr::null()),
         reject_at: Cell::new(None),
         input: Cell::new((Input::default(), false)),

@@ -31,6 +31,44 @@ fn names(owner: &Wifi<TestHost>) -> Vec<Vec<u8>> {
         .collect()
 }
 #[test]
+fn saved_load_hidden_connect_failure_and_forget_keep_native_storage_in_place() {
+    let (owner, f) = rig();
+    f.auto.set(true);
+    f.data
+        .borrow_mut()
+        .credentials
+        .push((b"1".to_vec(), b"pw".to_vec()));
+    owner.enter();
+    assert_eq!(phase(&owner), Phase::Scanning as u8);
+    assert!(f.last_slot.get().is_null());
+    scanned(&owner, &f, vec![]);
+    assert!(owner.render());
+    key(&f, 0, model::CONFIRM);
+    owner.poll();
+    owner.keyboard_returned(Some(b"1"));
+    key(&f, 0, 0);
+    owner.poll();
+    assert_eq!(phase(&owner), Phase::Connecting as u8);
+    assert!(f.credential_slot.get().is_null());
+    f.data.borrow_mut().connection = 1;
+    owner.poll();
+    assert_eq!(phase(&owner), Phase::Failed as u8);
+    assert!(owner.render());
+    key(&f, model::BACK, 0);
+    owner.poll();
+    assert_eq!(phase(&owner), Phase::Forget as u8);
+    assert!(owner.render());
+    key(&f, model::RIGHT, 0);
+    owner.poll();
+    key(&f, model::CONFIRM, 0);
+    owner.poll();
+    assert!(f.data.borrow().credentials.is_empty());
+    assert!(f.credential_slot.get().is_null() && f.last_slot.get().is_null());
+    owner.exit();
+    drop(owner);
+    assert_eq!(live(), 0);
+}
+#[test]
 fn scan_dedup_ranking_ties_and_hidden_last_survive_a_stable_owner_move() {
     let (owner, f) = rig();
     f.data

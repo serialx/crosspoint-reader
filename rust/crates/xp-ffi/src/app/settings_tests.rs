@@ -72,17 +72,6 @@ unsafe extern "C" fn result(_: *mut c_void, sink: abi::ResultSink, context: *mut
 unsafe extern "C" fn deliver(_: *mut c_void, _: *const c_void) {
     panic!("section result must be owned")
 }
-unsafe extern "C" fn selection(
-    _: *mut c_void,
-    _: abi::DefinitionPop,
-    _: abi::DefinitionSelectionSink,
-    _: *mut c_void,
-) {
-    panic!("definition")
-}
-unsafe extern "C" fn accept(_: *mut c_void, _: abi::DefinitionSelection) -> u8 {
-    panic!("definition")
-}
 unsafe extern "C" fn facts(_: *const c_void, _: u8, _: u8) -> abi::LegacyFacts {
     settings::facts()
 }
@@ -259,9 +248,6 @@ fn build_app() -> &'static App {
         forced_refresh: no,
         reader_turn: no_turn,
         screenshot_info: shot,
-        with_definition_selection_result: selection,
-        deliver_definition_selection_result: accept,
-        definition_selection_install_failed: ignored,
     };
     let mut resources = test_resources::resources();
     resources.buffer_allocate = allocate;

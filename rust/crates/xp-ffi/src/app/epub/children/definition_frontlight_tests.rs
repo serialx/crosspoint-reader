@@ -246,6 +246,7 @@ fn exercise(entry: Entry) {
             object: NonNull::new(Box::into_raw(Box::new(Native { panel: false })).cast()).unwrap(),
             services: app.legacy,
             reader: matches!(entry, Entry::EpubLookup | Entry::PlainClipping),
+            section: false,
         },
         &app,
     );

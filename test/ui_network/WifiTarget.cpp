@@ -5,7 +5,6 @@
 #include <GfxRenderer.h>
 #include <builtinFonts/all.h>
 #include <fontIds.h>
-#include <xp_ui_network.h>
 
 #include <cassert>
 #include <cstdio>
@@ -14,6 +13,7 @@
 #include <vector>
 
 #include "Trace.h"
+#include "wifi_legacy.h"
 void textGoldenGlyph(const EpdFontFamily&, uint32_t, int, int, EpdFontFamily::Style) {}
 void textGoldenScaled(int, uint32_t, int, int, EpdFontFamily::Style) {}
 #include "AllocationTrace.h"
@@ -275,25 +275,25 @@ int main() {
                         XpUiListState next{};
                         XpUiWifiHits hits{};
                         XpUiWifiBudget budget{};
-                        assert(
-                            xp_ui_network_wifi_budget(&state, &layout, renderer.getLineHeight(UI_12_FONT_ID), &budget));
+                        assert(xp_test_network_wifi_budget(&state, &layout, renderer.getLineHeight(UI_12_FONT_ID),
+                                                           &budget));
                         for (int n = 0; n <= frameOrdinal; ++n) {
                           owner.rowCalls = 0;
-                          assert(xp_ui_network_wifi_view(&state, &layout, &services, &buffer, &next, &scene, &hits) ==
+                          assert(xp_test_network_wifi_view(&state, &layout, &services, &buffer, &next, &scene, &hits) ==
                                  1);
                           if (heldTouch) {
                             const auto heldCalls = owner.rowCalls;
                             auto unpressed = state;
                             unpressed.list.active = -1;
                             owner.rowCalls = 0;
-                            assert(xp_ui_network_wifi_view(&unpressed, &layout, &services, &buffer, &next, &scene,
-                                                           &hits) == 1);
+                            assert(xp_test_network_wifi_view(&unpressed, &layout, &services, &buffer, &next, &scene,
+                                                             &hits) == 1);
                             assert(heldCalls == 2 * owner.rowCalls);  // At most one re-emission of the same layout.
-                            assert(xp_ui_network_wifi_view(&state, &layout, &services, &buffer, &next, &scene, &hits) ==
-                                   1);
+                            assert(xp_test_network_wifi_view(&state, &layout, &services, &buffer, &next, &scene,
+                                                             &hits) == 1);
                           }
                           auto painted = state;
-                          xp_ui_network_wifi_view_publish(&state, &painted, &next);
+                          xp_test_network_wifi_view_publish(&state, &painted, &next);
                         }
                         assert(scene.command_count <= budget.commands);
                         maxCommands = std::max<unsigned>(maxCommands, scene.command_count);
@@ -305,11 +305,11 @@ int main() {
                           input.touch_x = originalHit.rect.x + originalHit.rect.width / 2;
                           input.touch_y = originalHit.rect.y + originalHit.rect.height / 2;
                           input.touch_flags = XP_UI_TOUCH_PRESSED;
-                          assert(xp_ui_network_wifi_hit(&hits, &state, &input));
+                          assert(xp_test_network_wifi_hit(&hits, &state, &input));
                           assert(input.action == originalHit.action &&
                                  input.value == (input.action == 1 ? static_cast<int>(i) : originalHit.value));
                           input.touch_flags = XP_UI_TOUCH_RELEASED;
-                          assert(xp_ui_network_wifi_hit(&hits, &state, &input));
+                          assert(xp_test_network_wifi_hit(&hits, &state, &input));
                           assert(input.action == originalHit.action && input.value == originalHit.value);
                         }
                         XpUiPaint paint{

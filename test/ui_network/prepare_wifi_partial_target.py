@@ -1,10 +1,11 @@
-"""Combine production Wi-Fi effects, renderer, and shared gate with host I/O leaves."""
+"""Combine frozen native Wi-Fi effects/rendering with the current shared gate."""
 from pathlib import Path
 import runpy
 import sys
 import tempfile
 import prepare
 import prepare_wifi_extra
+import prepare_wifi_parent
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
@@ -58,7 +59,7 @@ source = source.replace('struct FakeBase {', '''struct FakeBase {
 ''')
 source = source.replace('void xSemaphoreGive(SemaphoreHandle_t s){s->mutex.unlock();}', '''std::function<void()> unlockHook;
 void xSemaphoreGive(SemaphoreHandle_t s){s->mutex.unlock();if(unlockHook)unlockHook();}''')
-production = (ROOT / 'src/activities/network/WifiSelectionActivity.cpp').read_text()
+production = prepare_wifi_parent.source(ROOT)
 methods = '\n'.join(prepare.extract(production, 'WifiSelectionActivity', name) for name in [
     'service', 'keyboard', 'appendHiddenNetworkEntry', 'rebuildNetworkStatuses', 'getSignalStrengthIndicator', 'onComplete'
 ]).replace('WifiSelectionActivity', 'Candidate')

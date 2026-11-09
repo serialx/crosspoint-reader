@@ -54,7 +54,7 @@ def candidate(core=False):
  static void onRowEvent(const fui::ActionEvent& event,void* ctx){auto& a=*static_cast<WifiSelectionActivity*>(ctx);a.model.count=a.networks.size();XpUiInput i{};i.action=1;i.value=event.value;i.touch_flags=XP_UI_TOUCH_RELEASED;a.run(XP_UI_WIFI_EVENT_TICK,event.longPress|2,&i);}
  static void onPromptEvent(const fui::ActionEvent& event,void* ctx){auto& a=*static_cast<WifiSelectionActivity*>(ctx);XpUiInput i{};i.action=3;i.value=event.value;i.touch_flags=XP_UI_TOUCH_RELEASED;a.run(XP_UI_WIFI_EVENT_TICK,event.longPress|2,&i);}
 };'''.replace('XpUiInput*=','XpUiInput* =')
- header=(ROOT/'src/activities/network/WifiSelectionActivity.h').read_text()
+ header=prepare_wifi_parent.header()
  context=header[header.index('  struct CallContext {'):header.index('  void run(',header.index('  struct CallContext {'))]
  cls=cls.replace('// CALL_CONTEXT',context)
  s=s[:a]+cls+s[b:]
@@ -70,4 +70,4 @@ static void start(''',1)
  # Snapshot helper declaration must precede the extracted production loop.
  helper=s[s.index('namespace fui {struct InputSnapshot'):s.index('static void start(',s.index('namespace fui {struct InputSnapshot'))]
  s=s.replace(helper,'').replace(methods,helper+methods)
- return '#include <optional>\n#include "xp_ui_network.h"\n'+s
+ return '#include <optional>\n#include "wifi_legacy.h"\n'+s

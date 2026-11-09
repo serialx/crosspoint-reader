@@ -8,6 +8,8 @@ pub mod usb_view;
 pub mod web;
 pub mod web_view;
 
+#[cfg(any(test, feature = "legacy-network-oracles"))]
+pub mod legacy_wifi;
 mod view;
 pub mod wifi;
 pub mod wifi_view;

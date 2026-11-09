@@ -1,4 +1,4 @@
-#include <xp_ui_network.h>
+#include <wifi_legacy.h>
 
 #include <cstddef>
 static_assert(XP_UI_NETWORK_MODES == 0);

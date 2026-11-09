@@ -3,7 +3,7 @@ mod legacy_oracle;
 use super::*;
 use crate::{
     ffi::{Buffer, SceneView},
-    network::ffi,
+    network::legacy_wifi as ffi,
 };
 use core::{mem::MaybeUninit, ptr};
 

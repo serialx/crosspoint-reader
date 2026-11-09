@@ -27,7 +27,7 @@ def method(family, name):
 
 code = r'''
 #include "RustActivityAdapter.h"
-#include <xp_ui_network.h>
+#include "wifi_legacy.h"
 #include <cassert>
 #include <cstdio>
 #include <memory>
@@ -139,6 +139,7 @@ with tempfile.TemporaryDirectory(prefix="network-gate-") as directory:
     subprocess.run(["c++", "-std=c++20", "-pthread", "-I" + str(out),
                     "-I" + str(ROOT / "test/ui_runtime/stubs"),
                     "-I" + str(ROOT / "rust/crates/xp-ffi/include"),
+                    "-I" + str(ROOT / "test/ui_network"),
                     str(out / "check.cpp"), str(out / "RustActivityAdapter.cpp"),
                     str(ROOT / "test/cmake/xp_ffi_host.cpp"), sys.argv[1], "-o", str(out / "check")], check=True)
     failed = []

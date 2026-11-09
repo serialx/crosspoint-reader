@@ -22,7 +22,7 @@ def compile_checked(command, okay):
 with tempfile.TemporaryDirectory() as directory:
     out = Path(directory)
     header = (INCLUDE/'xp_ui_network.h').read_text()
-    cpp = ['c++', '-std=c++20', '-fsyntax-only', '-I'+str(out), '-I'+str(INCLUDE), str(HERE/'abi.cpp')]
+    cpp = ['c++', '-std=c++20', '-fsyntax-only', '-I'+str(out), '-I'+str(INCLUDE), '-I'+str(HERE), str(HERE/'abi.cpp')]
     for source, okay in [(header, True),
             (enum_value(header, 'XP_UI_USB_PREPARING_STATUS', 42), False),
             (header.replace('host_suspend_pending, reserved[2]', 'host_suspend_pending, reserved[6]'), False),
@@ -30,9 +30,16 @@ with tempfile.TemporaryDirectory() as directory:
             (header.replace('banner_width;', 'banner_width[3];'), False),
             (enum_value(header, 'XP_UI_WEB_SERVER_BEGIN', 42), False),
             (header.replace('wifi_connected, reserved[3]', 'wifi_connected, reserved[7]'), False),
-            (enum_value(header, 'XP_UI_WIFI_CALL_SCAN_RSSI', 42),False),
-            (header.replace('flash_ticks, ui_invalidated, reserved[2]','flash_ticks, ui_invalidated, reserved[6]'),False)]:
+            (header.replace('legacy_body_font;', 'legacy_body_font[2];'), False)]:
         (out/'xp_ui_network.h').write_text(source)
+        compile_checked(cpp, okay)
+    (out/'xp_ui_network.h').write_text(header)
+    legacy = (HERE/'wifi_legacy.h').read_text()
+    for source, okay in [(legacy, True),
+            (enum_value(legacy, 'XP_UI_WIFI_CALL_SCAN_RSSI', 42), False),
+            (legacy.replace('flash_ticks, ui_invalidated, reserved[2]',
+                            'flash_ticks, ui_invalidated, reserved[6]'), False)]:
+        (out/'wifi_legacy.h').write_text(source)
         compile_checked(cpp, okay)
     usb = (ROOT/'rust/crates/xp-ui/src/network/usb.rs').read_text()
     (out/'abi.rs').write_text('''#![allow(dead_code)]

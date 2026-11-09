@@ -486,6 +486,7 @@ pub fn row_before(saved_a: bool, rssi_a: i32, saved_b: bool, rssi_b: i32) -> boo
     }
 }
 
+#[cfg(any(test, feature = "legacy-network-oracles"))]
 use core::ffi::c_void;
 #[repr(u32)]
 #[derive(Clone, Copy)]
@@ -540,6 +541,7 @@ pub enum Call {
     CopySelected = 47,
     Haptic = 48,
 }
+#[cfg(any(test, feature = "legacy-network-oracles"))]
 #[repr(C)]
 pub struct Services {
     pub context: *mut c_void,
@@ -551,6 +553,7 @@ pub trait EffectHost {
     fn call(&mut self, operation: Call, value: u32) -> u32;
     fn publish(&mut self, state: &mut State);
 }
+#[cfg(any(test, feature = "legacy-network-oracles"))]
 impl EffectHost for Services {
     #[inline(never)]
     fn call(&mut self, operation: Call, value: u32) -> u32 {
@@ -930,6 +933,7 @@ const _: () = {
     assert!(core::mem::size_of::<State>() == 72);
     assert!(core::mem::offset_of!(State, phase) == 64);
     assert!(core::mem::offset_of!(State, generation) == 56);
+    #[cfg(any(test, feature = "legacy-network-oracles"))]
     assert!(core::mem::size_of::<Services>() == 3 * core::mem::size_of::<usize>());
     assert!(Phase::AutoConnecting as u32 == 0);
     assert!(Phase::Scanning as u32 == 1);

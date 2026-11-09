@@ -3,12 +3,14 @@
 #include <TrustedTime.h>
 #include <WiFi.h>
 #include <esp_mac.h>
+#include <xp_network_owner.h>
 
 #include <new>
 #include <string_view>
 
 #include "CrossPointSettings.h"
 #include "NetworkUiBinding.h"
+#include "WifiCredentialStore.h"
 #include "WifiSelectionActivity.h"
 #include "activities/OwnedLegacyActivity.h"
 #include "components/UiAppHelpers.h"

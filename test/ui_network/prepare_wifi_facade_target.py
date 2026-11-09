@@ -6,7 +6,7 @@ HERE=Path(__file__).resolve().parent
 ROOT=HERE.parents[1]
 legacy = len(sys.argv)>2 and sys.argv[2]=='legacy'
 s=(HERE/'WifiTarget.cpp').read_text().replace('for (int inset : {0, 7})','for (int inset : {0})')
-# The original body uses the SDK; the candidate below uses the actual facade methods.
+# Compare the frozen native facade against the SDK oracle.
 a=s.index('                Owner owner');b=s.index('                for (auto b : display.pixels)',a)
 s=s[:a]+'''                const auto expectedAllocations=allocations::events;const auto expectedCount=allocations::count;const auto expectedPeak=allocations::peak;
                 metrics.listRowHeight=theme.listMinRowHeight;metrics.listRowGap=theme.listRowGap;metrics.listInset=theme.listInset;
@@ -61,7 +61,7 @@ s=s.replace('struct UITheme {','''struct UITheme {
 support=(HERE/'wifi_facade_support.inc').read_text()
 adapter=(ROOT/'src/activities/RustActivityAdapter.cpp').read_text()
 support=support.replace('// ADAPTER_METHODS','\n'.join(prepare.extract(adapter,'RustActivityAdapter',m)for m in ['rejectRustScene','rustSceneRejected','consumeRejectedInput','publishRustScene']).replace('RustActivityAdapter','FakeBase'))
-header=re.sub(r'^#(?:include|pragma)[^\n]*\n','',(ROOT/'src/activities/network/WifiSelectionActivity.h').read_text(),flags=re.M)
+header=re.sub(r'^#(?:include|pragma)[^\n]*\n','',prepare_wifi_parent.header(),flags=re.M)
 header=header.replace('WifiSelectionActivity','Candidate').replace('class Candidate final : public RustActivityAdapter','struct Candidate final : public FakeBase')
 production=prepare_wifi_parent.source(ROOT)
 methods='\n'.join(prepare.extract(production,'WifiSelectionActivity',m)for m in ['WifiSelectionActivity','~WifiSelectionActivity','releaseResources','text','resources','buildRustScene','render','rustResources','rustPublished','rustSceneFailed','rustSceneCurrent','retireRows','publish','run','loop','CallContext::inputCurrent']).replace('WifiSelectionActivity','Candidate').replace('RustActivityAdapter(', 'FakeBase(').replace('makeUniqueNoThrow<','fixtureAllocate<').replace('millis()','fixtureMillis()')

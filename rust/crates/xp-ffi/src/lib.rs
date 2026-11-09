@@ -182,6 +182,9 @@ mod ui_catalog;
 mod ui_koreader;
 mod ui_updates;
 
+#[cfg(feature = "app-test")]
+#[path = "test_support/network_oracles.rs"]
+mod legacy_network_oracles;
 mod ui_network;
 
 mod ui_reader;

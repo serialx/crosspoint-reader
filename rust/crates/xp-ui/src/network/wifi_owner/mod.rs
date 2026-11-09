@@ -1,4 +1,4 @@
-//! Visit ownership for Wi-Fi; radio and native result transport remain physical.
+//! Wi-Fi visit ownership; radio stays physical, native results retain ZC1 compatibility.
 extern crate alloc;
 mod effects;
 mod view;

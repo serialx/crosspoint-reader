@@ -2,15 +2,18 @@ use super::{
     view::resource,
     wifi::{Phase, State},
 };
+#[cfg(any(test, feature = "legacy-network-oracles"))]
+use crate::settings::settings_ffi;
 use crate::{
     list,
     model::ListState,
     scene::{Arena, Command, Error, HitSink, Interaction, Kind, Rect, Refresh},
     settings::{
-        hits, settings_ffi,
+        hits,
         view::{self, Content, Resources},
     },
 };
+#[cfg(any(test, feature = "legacy-network-oracles"))]
 use core::ffi::{c_char, c_void};
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
@@ -54,12 +57,14 @@ pub const YES: u32 = 0x10001c;
 pub const NO: u32 = 0x10001d;
 pub const PROMPT_CONNECTED: u32 = 0x10001e;
 pub const PROMPT_FORGET: u32 = 0x10001f;
+#[cfg(any(test, feature = "legacy-network-oracles"))]
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Services {
     pub rows: settings_ffi::Services,
     pub text: Option<unsafe extern "C" fn(*mut c_void, u32) -> *const c_char>,
 }
+#[cfg(any(test, feature = "legacy-network-oracles"))]
 impl Services {
     #[inline(never)]
     fn text(&self, handle: u32) -> Result<*const c_char, Error> {
@@ -71,6 +76,7 @@ impl Services {
         }
     }
 }
+#[cfg(any(test, feature = "legacy-network-oracles"))]
 fn metric(v: i32) -> Result<i32, Error> {
     if (0..=32767).contains(&v) {
         Ok(v)
@@ -78,6 +84,7 @@ fn metric(v: i32) -> Result<i32, Error> {
         Err(Error::Invalid)
     }
 }
+#[cfg(any(test, feature = "legacy-network-oracles"))]
 impl Resources for Services {
     fn window(&mut self, first: u16, requested: u16) -> Result<(), Error> {
         self.rows.window(first, requested)
@@ -796,6 +803,7 @@ const _: () = {
     assert!(core::mem::size_of::<Layout>() == 88);
     assert!(core::mem::size_of::<Hits>() == 108);
     assert!(core::mem::size_of::<Budget>() == 4);
+    #[cfg(any(test, feature = "legacy-network-oracles"))]
     assert!(
         core::mem::size_of::<Services>()
             == core::mem::size_of::<settings_ffi::Services>() + core::mem::size_of::<usize>()

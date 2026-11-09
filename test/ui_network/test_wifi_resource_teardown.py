@@ -1,4 +1,4 @@
-"""Execute the production teardown bodies with observable resource destructors."""
+"""Check physical-target cleanup both after owner release and failed adoption."""
 from pathlib import Path
 import os
 import re
@@ -18,7 +18,7 @@ def body(signature):
         end+=1
     return source[opening:end]
 resources=re.findall(r'union\s*\{\s*([^;{}]+)\s+(\w+);\s*\};',header)
-assert len(resources)==12,resources
+assert len(resources)==1,resources
 names=[name for _,name in resources]
 release=body('void WifiSelectionActivity::releaseResources()')
 assert re.findall(r'\b(\w+)\.~\w+\(\);',release)==list(reversed(names))
@@ -39,16 +39,8 @@ struct vector:Probe{using Probe::Probe;};
 struct basic_string:Probe{using Probe::Probe;};
 struct optional:Probe{using Probe::Probe;};
 struct Activity{~Activity(){events.emplace_back("Activity");}};
-struct Rows{
- bool live=true;
- void reset(){if(live){events.emplace_back("rows");live=false;}}
- ~Rows(){reset();}
-};
-struct Commands{~Commands(){events.emplace_back("commands");}};
 struct WifiSelectionActivity:Activity {
- Commands commands;
  FIELDS
- Rows visibleRows;
  bool resourcesLive=true;
  WifiSelectionActivity():INITIALIZERS{}
  ~WifiSelectionActivity() DESTRUCTOR
@@ -59,14 +51,14 @@ int main(){
  {WifiSelectionActivity activity;}
  assert(events==expected);
  events.clear();
- {WifiSelectionActivity activity;activity.visibleRows.reset();activity.releaseResources();activity.releaseResources();}
+ {WifiSelectionActivity activity;activity.releaseResources();activity.releaseResources();}
  assert(events==expected);
 }
-'''.replace('FIELDS','\n'.join(fields)).replace('INITIALIZERS',','.join(initializers)).replace('DESTRUCTOR',body('WifiSelectionActivity::~WifiSelectionActivity()')).replace('RELEASE',release).replace('EXPECTED','{'+','.join('"'+name+'"' for name in ['rows']+list(reversed(names))+['commands','Activity'])+'}')
+'''.replace('FIELDS','\n'.join(fields)).replace('INITIALIZERS',','.join(initializers)).replace('DESTRUCTOR',body('WifiSelectionActivity::~WifiSelectionActivity()')).replace('RELEASE',release).replace('EXPECTED','{'+','.join('"'+name+'"' for name in list(reversed(names))+['Activity'])+'}')
 with tempfile.TemporaryDirectory(prefix='wifi-teardown-') as temporary:
     path=Path(temporary)
     (path/'test.cpp').write_text(program)
     binary=path/'test'
     subprocess.run([os.environ.get('CXX','c++'),'-std=c++20','-Wall','-Wextra','-Werror',str(path/'test.cpp'),'-o',str(binary)],check=True)
     subprocess.run([str(binary)],check=True)
-print('Production Wi-Fi teardown: row/native/command/Activity order and idempotent release PASS')
+print('Production Wi-Fi physical target teardown and idempotent release PASS')

@@ -45,6 +45,7 @@ with tempfile.TemporaryDirectory(prefix="wifi-wait-") as directory:
     out = Path(directory)
     (out / "check.cpp").write_text(source)
     subprocess.run(["c++", "-std=c++20", "-pthread", "-I" + str(ROOT / "rust/crates/xp-ffi/include"),
+                    "-I" + str(ROOT / "test/ui_network"),
                     str(out / "check.cpp"), str(ROOT / "test/cmake/xp_ffi_host.cpp"), sys.argv[1],
                     "-o", str(out / "check")], check=True)
     failed = []

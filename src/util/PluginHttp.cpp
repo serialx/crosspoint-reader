@@ -21,7 +21,8 @@ XpPluginSpan span(const char* s) { return {reinterpret_cast<const uint8_t*>(s), 
 constexpr size_t MAX_TOKEN_FILE_SIZE = 2 * 1024;
 
 // Token construction makes a single-member object chain, possibly cut short by OOM.
-void serializeToken(JsonVariantConst node, std::string& out) {
+// Keep traversal scratch out of the shared token-operation callback.
+__attribute__((noinline)) void serializeToken(JsonVariantConst node, std::string& out) {
   using Writer = ArduinoJson::detail::Writer<std::string>;
   ArduinoJson::detail::TextFormatter<Writer> formatter{Writer(out)};
   size_t depth = 0;

@@ -10,13 +10,13 @@ source = source.replace('#include "../Memory/Memory.h"', '#include <Memory.h>')
 source = '#ifndef XP_FFI_HOST_FAULT_INJECTION\n#define XP_FFI_HOST_FAULT_INJECTION\n#endif\n' + source
 source = source.replace('#include "GfxRenderer.h"', '#include "GfxRenderer.h"\n#include "Trace.h"')
 source = source.replace('  xp_native_draw_pixels(\n', '  xp_native_draw_pixels_traced(\n')
-anchor = '\n      &paint, &glyphMiss);'
+anchor = '\n      &paint, &xp_font_glyph_miss);'
 if source.count(anchor) != 1:
     raise SystemExit('Glyph paint observer anchor changed')
 source = source.replace(anchor, '''
-      &paint, &glyphMiss, [](void* raw, const XpGlyphPlacement* glyph) {
+      &paint, &xp_font_glyph_miss, [](void* raw, const XpGlyphPlacement* glyph) {
         const auto& c = *static_cast<GlyphContext*>(raw);
-        textGoldenGlyph(EpdFontFamily(c.font), glyph->codepoint, c.paint->x + glyph->x, c.paint->y + glyph->y, c.style);
+        textGoldenGlyph(EpdFontFamily(reinterpret_cast<const EpdFont*>(c.glyphs.slot)), glyph->codepoint, c.paint->x + glyph->x, c.paint->y + glyph->y, c.style);
       });''')
 # Drop caps bypass both helper entries; observe their actual API entry too.
 anchor = '  if (scale256 <= 0) return 0;'

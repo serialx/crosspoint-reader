@@ -146,7 +146,7 @@ impl ReaderSection {
             return false;
         }
         unsafe {
-            (leaves.fonts_release_caches)();
+            leaves.font_release();
             (*owner).complete = false;
             (*owner).readable.pages = if (*owner).readable.partial != 0 {
                 (*owner).readable.partial_pages

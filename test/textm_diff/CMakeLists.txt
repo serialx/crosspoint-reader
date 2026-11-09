@@ -30,9 +30,9 @@ add_test(NAME TextmDiff COMMAND TextmDiff)
 set(NATIVE_FONT_SDK ${REPO_ROOT}/freeink-sdk/libs/font/FreeInkFont)
 file(GLOB NATIVE_FT_SOURCES ${NATIVE_FONT_SDK}/src/freetype/*.c)
 add_executable(NativeCache NativeCache.cpp
-  ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.cpp ${REPO_ROOT}/lib/GfxRenderer/FontCacheManager.cpp
+  ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.cpp
   ${REPO_ROOT}/lib/EpdFont/EpdFont.cpp ${REPO_ROOT}/lib/EpdFont/EpdFontFamily.cpp
-  ${REPO_ROOT}/lib/EpdFont/SdCardFont.cpp ${REPO_ROOT}/lib/EpdFont/FontDecompressor.cpp
+  ${REPO_ROOT}/lib/EpdFont/SdCardFont.cpp ${REPO_ROOT}/test/font_cache/legacy/FontDecompressor.cpp
   ${REPO_ROOT}/lib/EpdFont/TtfEpdFont.cpp
   ${REPO_ROOT}/lib/MiniBidi/RustBidi.cpp ${REPO_ROOT}/lib/Utf8/Utf8.cpp
   ${REPO_ROOT}/lib/InflateReader/InflateReader.cpp

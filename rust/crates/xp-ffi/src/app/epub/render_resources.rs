@@ -18,8 +18,9 @@ use core::{
 };
 
 #[repr(C)]
-pub(crate) struct PrewarmStorage {
+pub(crate) union PrewarmStorage {
     pub(crate) words: [usize; 2],
+    pub(crate) owner: *const core::ffi::c_void,
 }
 
 /// Physical callbacks must not retain a Rust reference or move scope storage.

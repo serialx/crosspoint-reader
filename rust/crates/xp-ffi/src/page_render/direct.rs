@@ -103,7 +103,12 @@ pub(crate) unsafe fn paint_current(arena: &[u8], font: i32, x: i32, y: i32, mode
 pub(crate) unsafe fn paint_request_current(arena: &[u8], request: &Request) -> u32 {
     let mut target = core::mem::MaybeUninit::uninit();
     xp_native_render_target(target.as_mut_ptr());
-    paint(arena, target.assume_init_ref(), request)
+    let target = target.assume_init_mut();
+    // Scan state belongs to Rust; the native snapshot reads physical target facts only.
+    if !target.fonts.is_null() {
+        target.glyphs.scanning = crate::font_runtime::scanning(target.fonts);
+    }
+    paint(arena, target, request)
 }
 impl Resources for Direct<'_> {
     fn context(&self) -> *mut c_void {
@@ -156,7 +161,7 @@ impl Resources for Direct<'_> {
         let Some(resolved) = resolved_scan_style(self.target.fonts, font, style) else {
             return;
         };
-        fonts::xp_native_font_record_resolved_text(self.target.native, font, resolved, text);
+        crate::font_runtime::record_resolved(self.target.fonts, font, resolved, text);
     }
     unsafe fn image(&self, index: u16, x: i32, y: i32, placeholder: bool) {
         let Ok(page) = page::Page::open(self.arena) else {
@@ -184,7 +189,7 @@ impl Resources for Direct<'_> {
     }
 }
 // Return only the style byte so the registry-slot borrow and font pointer end
-// before scan calls xp_native_font_record_resolved_text.
+// before the scan owner consumes the resolved batch.
 #[inline(never)]
 unsafe fn resolved_scan_style(owner: *const Owner, font: i32, style: u8) -> Option<u8> {
     let entry = (*owner).registry.find(font)?;
@@ -208,38 +213,7 @@ unsafe extern "C" fn miss(
         context.font.get(),
         context.style.get(),
     );
-    let mut fallback = core::mem::zeroed();
-    let glyph = if !resolved.is_null() {
-        resolved
-    } else if (*draw).kind == Kind::Bilinear as u8 {
-        crate::font::xp_font_lookup(slot.read(), cp)
-    } else {
-        crate::font::xp_font_metrics(slot.read(), cp, &mut fallback)
-    };
-    let font = slot.read();
-    let mut bitmap = xp_core::glyph::Bitmap {
-        data: ptr::null(),
-        len: 0,
-    };
-    if glyph.is_null() {
-        if (*draw).kind == Kind::Normal as u8 || (*draw).kind == Kind::Rotated as u8 {
-            fonts::report(
-                context.target.fonts,
-                xp_core::textm::native::DiagnosticEvent::MissingGlyph as u32,
-                cp,
-            );
-        }
-    } else {
-        (*draw).glyph = glyph.read();
-        (*draw).ascender = (*font).ascender;
-        (*draw).two_bit = u8::from((*font).is2_bit);
-        (*draw).solid = u8::from(ptr::eq(glyph, &fallback));
-        if (*draw).solid == 0 {
-            bitmap = fonts::xp_native_font_bitmap_miss(context.target.native, font, glyph);
-        }
-    }
-    fonts::xp_font_registry_source(context.target.fonts, slot.read(), source);
-    bitmap
+    crate::font_runtime::miss(context.target.fonts, slot, cp, resolved, draw, source)
 }
 
 /// The caller holds the Page, physical target and font owners for the pass.

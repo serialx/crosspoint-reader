@@ -6,6 +6,10 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# The root host archive enables app-test; native oracle tables use the same ABI.
+add_compile_definitions(XP_APP_TEST)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/font_cache/legacy)
+
 option(CROSSPOINT_TEST_ASAN "Instrument C/C++ host tests with AddressSanitizer" OFF)
 if(CROSSPOINT_TEST_ASAN)
   add_compile_options(-fsanitize=address -fno-omit-frame-pointer)

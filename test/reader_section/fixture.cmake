@@ -15,6 +15,7 @@ function(reader_section_fixture target)
   target_sources(${target} PRIVATE ${fixture_dir}/ReaderSectionFixture.cpp ${physical})
   target_include_directories(${target} PRIVATE ${fixture_dir}
     ${REPO_ROOT}/test/reader_lifecycle ${REPO_ROOT}/test/ui_runtime)
+  target_compile_definitions(${target} PRIVATE XP_APP_TEST)
   target_compile_options(${target} PRIVATE -UNDEBUG)
 endfunction()
 
@@ -34,9 +35,11 @@ function(reader_section_trace_archive)
     BYPRODUCTS ${archive} ${observer}/ReaderSectionObserver.cpp
     VERBATIM)
   add_library(reader_section_trace INTERFACE)
+  target_compile_definitions(reader_section_trace INTERFACE XP_APP_TEST)
   add_dependencies(reader_section_trace reader_section_trace_build)
   target_sources(reader_section_trace INTERFACE ${REPO_ROOT}/test/cmake/xp_ffi_host.cpp
     ${observer}/ReaderSectionObserver.cpp)
-  target_include_directories(reader_section_trace INTERFACE ${REPO_ROOT}/rust/crates/xp-ffi/include)
+  target_include_directories(reader_section_trace INTERFACE ${REPO_ROOT}/rust/crates/xp-ffi/include
+    ${REPO_ROOT}/test/font_cache/legacy)
   target_link_libraries(reader_section_trace INTERFACE ${archive})
 endfunction()

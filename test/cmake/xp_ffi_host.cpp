@@ -219,11 +219,22 @@ __attribute__((weak)) void xp_settings_shell_theme_reload(void) { std::abort(); 
 // renderer fixtures override these leaves; unexpected routing must fail.
 #include <xp_font_registry.h>
 extern "C" {
-__attribute__((weak)) void xp_native_font_cache_view(void*, XpGlyphSource*) { std::abort(); }
-__attribute__((weak)) XpGlyphBitmap xp_native_font_bitmap_miss(void*, const void*, const void*) { std::abort(); }
-__attribute__((weak)) void xp_native_font_record_resolved_text(void*, int32_t, uint8_t, const uint8_t*) {
+__attribute__((weak)) size_t heap_caps_get_free_size(uint32_t) { return 200 * 1024; }
+__attribute__((weak)) int64_t esp_timer_get_time() { return 0; }
+__attribute__((weak)) void* fiFontMalloc(size_t n) { return std::malloc(n); }
+__attribute__((weak)) void fiFontFree(void* p) { std::free(p); }
+__attribute__((weak)) void xp_native_font_cache_diagnostic(const void*, uint32_t, uint32_t, uint32_t, uint32_t,
+                                                           uint32_t) {
   std::abort();
 }
+__attribute__((weak)) uint8_t xp_native_font_compat_resolve(void*, int32_t, uint8_t) { std::abort(); }
+__attribute__((weak)) int32_t xp_native_font_compat_prewarm(void*, int32_t, uint8_t, const char*, uint8_t, uint8_t,
+                                                            uint8_t, uint8_t) {
+  std::abort();
+}
+__attribute__((weak)) void xp_native_font_compat_clear(void*, int32_t, uint8_t, uint8_t) { std::abort(); }
+__attribute__((weak)) void xp_native_font_compat_reset(void*, int32_t) { std::abort(); }
+__attribute__((weak)) const uint8_t* xp_native_sd_font_bitmap(const void*, const void*) { std::abort(); }
 __attribute__((weak)) void xp_native_sd_font_view(void*, int32_t, XpNativeFamily*, XpGlyphSource*) { std::abort(); }
 __attribute__((weak)) void xp_native_sd_font_resident_slice(void*, int32_t, uint8_t, const uint8_t*, size_t, uint8_t) {
   std::abort();

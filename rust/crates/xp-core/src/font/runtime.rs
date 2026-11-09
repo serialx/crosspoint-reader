@@ -6,6 +6,7 @@ use super::{
 };
 use crate::inflate::SmallInflateState;
 use core::{
+    cell::UnsafeCell,
     ffi::{c_void, CStr},
     mem::{align_of, size_of},
     ptr, slice,
@@ -25,9 +26,17 @@ pub enum ManagerEvent {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
 pub enum ClearKind {
     Frame,
     Resident,
+}
+
+#[repr(u8)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Backend {
+    Sd,
+    Vector,
 }
 
 #[derive(Clone, Copy)]
@@ -40,17 +49,18 @@ pub struct Prewarm<'a> {
 }
 
 /// Temporary per-font operations. The caller chooses font, style and flags;
-/// implementations neither iterate registrations nor reenter the cache owner.
+/// implementations never iterate registrations. Vector pressure may evict caches,
+/// but cannot mutate the active scan, registrations or borrowed input text.
 pub trait SdFontCacheCompat {
     /// # Safety
     /// The registered SD font and its native resource remain live for the call.
     unsafe fn resolve_style(&mut self, font: i32, style: u8) -> u8;
     /// # Safety
     /// Text is borrowed synchronously; no view survives the font mutation.
-    unsafe fn prewarm(&mut self, font: i32, request: Prewarm<'_>) -> i32;
+    unsafe fn prewarm(&mut self, font: i32, backend: Backend, request: Prewarm<'_>) -> i32;
     /// # Safety
     /// All source/bitmap loans have ended before clearing this font.
-    unsafe fn clear(&mut self, font: i32, kind: ClearKind);
+    unsafe fn clear(&mut self, font: i32, backend: Backend, kind: ClearKind);
     /// # Safety
     /// Serialized access excludes any concurrent font operation.
     unsafe fn reset_stats(&mut self, font: i32);
@@ -159,6 +169,7 @@ enum ScanMode {
     None,
     Scanning,
 }
+#[repr(C)]
 struct Scan {
     fonts: [i32; FONTS],
     codepoints: [u32; CODEPOINTS + 1],
@@ -226,96 +237,121 @@ impl Scan {
             self.groups[group] += 1;
         }
     }
-    fn finish(&mut self, mut prewarm: impl FnMut(i32, Prewarm<'_>)) {
+    fn prepare(&mut self) -> usize {
         self.mode = ScanMode::None;
-        if self.count == 0 {
-            return;
-        }
         self.codepoints[..usize::from(self.count)].sort_unstable();
-        let mut start = usize::from(self.count);
-        // High groups go first: a UTF-8 terminator can overwrite only consumed words.
-        for group in (0..GROUPS).rev() {
-            let count = usize::from(self.groups[group]);
-            start -= count;
-            if count == 0 {
-                continue;
-            }
-            let words = self.codepoints.as_mut_ptr();
-            let bytes = unsafe { words.add(start).cast::<u8>() };
-            let mut written = 0;
-            for i in 0..count {
-                let cp = unsafe { words.add(start + i).read() } & CODEPOINT_MASK;
-                let mut encoded = [0; 4];
-                let len = crate::utf8::encode(cp, &mut encoded);
-                unsafe {
-                    ptr::copy_nonoverlapping(encoded.as_ptr(), bytes.add(written), len);
-                }
-                written += len;
-            }
-            unsafe {
-                bytes.add(written).write(0);
-                let text =
-                    CStr::from_bytes_with_nul_unchecked(slice::from_raw_parts(bytes, written + 1));
-                prewarm(
-                    self.fonts[group / 4],
-                    Prewarm {
-                        text,
-                        styles: 1 << (group & 3),
-                        metadata_only: false,
-                        load_kern_lig: true,
-                        accumulate: false,
-                    },
-                );
-            }
+        usize::from(self.count)
+    }
+    fn batch(&mut self, group: usize, start: &mut usize) -> Option<(i32, Prewarm<'_>)> {
+        let count = usize::from(self.groups[group]);
+        *start -= count;
+        if count == 0 {
+            return None;
         }
-        self.reset();
+        // High groups go first; the terminator touches only consumed words.
+        let words = self.codepoints.as_mut_ptr();
+        let bytes = unsafe { words.add(*start).cast::<u8>() };
+        let mut written = 0;
+        for i in 0..count {
+            let cp = unsafe { words.add(*start + i).read() } & CODEPOINT_MASK;
+            let mut encoded = [0; 4];
+            let len = crate::utf8::encode(cp, &mut encoded);
+            unsafe {
+                ptr::copy_nonoverlapping(encoded.as_ptr(), bytes.add(written), len);
+            }
+            written += len;
+        }
+        unsafe {
+            bytes.add(written).write(0);
+            let text =
+                CStr::from_bytes_with_nul_unchecked(slice::from_raw_parts(bytes, written + 1));
+            Some((
+                self.fonts[group / 4],
+                Prewarm {
+                    text,
+                    styles: 1 << (group & 3),
+                    metadata_only: false,
+                    load_kern_lig: true,
+                    accumulate: false,
+                },
+            ))
+        }
     }
 }
 
-/// Bitmap-font owner for the no-vector-font profile. Initialize in its final
-/// storage; calls are serialized and physical services must not reenter it.
+/// One cache/scan owner in final storage. Calls are serialized; vector pressure
+/// may reenter eviction while the scan's immutable input remains borrowed.
+#[repr(C)]
 pub struct FontCacheOwner {
-    cache: Cache,
-    decoder: Decoder,
-    scan: Scan,
-    // Retain the former native service/map-pointer footprint during the port.
-    _placement: [usize; 4],
+    cache: UnsafeCell<Cache>,
+    decoder: UnsafeCell<Decoder>,
+    scan: UnsafeCell<Scan>,
+    // Two former native pointer words now hold the native handle/current binding.
+    _placement: [usize; 2],
 }
 #[cfg(target_pointer_width = "32")]
-const _: () = assert!(size_of::<FontCacheOwner>() == 3612);
+const _: () = assert!(size_of::<FontCacheOwner>() == 3604);
 impl FontCacheOwner {
     /// # Safety
-    /// `out` is aligned final storage, exclusively writable and not initialized.
+    /// `out` is aligned final storage, exclusively writable and uninitialized.
     pub unsafe fn initialize(out: *mut Self) {
-        // Every field has a valid all-zero representation, including ScanMode::None.
         ptr::write_bytes(out, 0, 1);
-        ptr::addr_of_mut!((*out).cache.hot_index).write(u16::MAX);
+        ptr::addr_of_mut!((*(*out).cache.get()).hot_index).write(u16::MAX);
     }
     pub fn scanning(&self) -> bool {
-        self.scan.mode == ScanMode::Scanning
+        unsafe { (*self.scan.get()).mode == ScanMode::Scanning }
     }
     pub fn cache(&self) -> &Cache {
-        &self.cache
+        unsafe { &*self.cache.get() }
     }
     /// # Safety
-    /// Registry slots/SD resources remain live. No vector faces or source loans
-    /// may be present; callbacks are synchronous and cannot reenter this owner.
+    /// Host oracle only: no statistics loan survives this serialized reset.
+    #[cfg(feature = "chapter-test")]
+    pub unsafe fn reset_stats(&self) {
+        (*self.cache.get()).stats = Stats::default();
+    }
+    /// # Safety
+    /// Host oracle only: bitmap loans have ended; physical callbacks cannot reenter.
+    #[cfg(feature = "chapter-test")]
+    pub unsafe fn clear_builtin(&self, io: &Physical) {
+        let mut call = CacheCall {
+            decoder: &mut *self.decoder.get(),
+            physical: io,
+            font: ptr::null(),
+        };
+        (*self.cache.get()).clear(&call.services());
+    }
+    /// # Safety
+    /// Host oracle only: validated tables and non-reentrant physical callbacks.
+    #[cfg(feature = "chapter-test")]
+    pub unsafe fn prewarm_data(&self, font: &FontData, text: &[u8], io: &Physical) -> i32 {
+        let mut call = CacheCall {
+            decoder: &mut *self.decoder.get(),
+            physical: io,
+            font,
+        };
+        (*self.cache.get()).prewarm(font, text, &call.services())
+    }
+    /// # Safety
+    /// Live registrations/resources; all bitmap loans have ended. Compat may
+    /// evict caches, but cannot mutate the scan, registry or its borrowed text.
+    /// Physical allocator/clock/diagnostic callbacks cannot reenter this owner.
     pub unsafe fn begin(
-        &mut self,
+        &self,
         registry: *const Registry,
         io: &Physical,
         sd: &mut dyn SdFontCacheCompat,
     ) {
-        self.scan.mode = ScanMode::Scanning;
+        (*self.scan.get()).mode = ScanMode::Scanning;
         self.clear(registry, ClearKind::Frame, io, sd);
-        self.cache.stats = Stats::default();
-        for_sd(registry, |id| sd.reset_stats(id));
-        self.scan.reset();
+        (*self.cache.get()).stats = Stats::default();
+        for_backend(registry, Backend::Sd, |id| sd.reset_stats(id));
+        (*self.scan.get()).reset();
     }
     /// # Safety
-    /// Same resource/serialization contract as begin; text is used only in this call.
+    /// Same resource/serialization contract as begin; text is borrowed synchronously.
     pub unsafe fn record(
-        &mut self,
+        &self,
         registry: *const Registry,
         font: i32,
         text: &[u8],
@@ -344,32 +380,31 @@ impl FontCacheOwner {
         self.record_resolved(font, text, resolved | (style & SMALL_CAPS), io);
     }
     /// # Safety
-    /// Style is already canonical; services follow begin's non-reentry contract.
-    pub unsafe fn record_resolved(&mut self, font: i32, text: &[u8], style: u8, io: &Physical) {
-        self.scan.record(font, text, style, io);
+    /// Canonical style; scan mutation excludes every active batch/scan loan.
+    pub unsafe fn record_resolved(&self, font: i32, text: &[u8], style: u8, io: &Physical) {
+        (*self.scan.get()).record(font, text, style, io);
     }
     /// # Safety
-    /// Same resource/serialization contract as begin. No borrowed source survives prewarm.
+    /// Same contract as begin. No cache/decoder/scan reference crosses compat;
+    /// the immutable batch bytes remain live while vector pressure evicts caches.
     pub unsafe fn finish(
-        &mut self,
+        &self,
         registry: *const Registry,
         io: &Physical,
         sd: &mut dyn SdFontCacheCompat,
     ) {
-        let Self {
-            cache,
-            decoder,
-            scan,
-            ..
-        } = self;
-        scan.finish(|id, request| {
-            prewarm(cache, decoder, registry, id, request, io, sd);
-        });
+        let mut start = (*self.scan.get()).prepare();
+        for group in (0..GROUPS).rev() {
+            if let Some((font, request)) = (*self.scan.get()).batch(group, &mut start) {
+                prewarm(self, registry, font, request, io, sd);
+            }
+        }
+        (*self.scan.get()).reset();
     }
     /// # Safety
-    /// Same resource/serialization contract as begin; this closes one active scope.
+    /// Same contract as begin; closes one active native/Rust scope.
     pub unsafe fn end(
-        &mut self,
+        &self,
         registry: *const Registry,
         io: &Physical,
         sd: &mut dyn SdFontCacheCompat,
@@ -378,58 +413,65 @@ impl FontCacheOwner {
         self.clear(registry, ClearKind::Frame, io, sd);
     }
     /// # Safety
-    /// Same resource/serialization contract as begin. Bitmap/source loans have ended.
+    /// Same contract as begin; every bitmap/source loan has ended.
     pub unsafe fn clear(
-        &mut self,
+        &self,
         registry: *const Registry,
         kind: ClearKind,
         io: &Physical,
         sd: &mut dyn SdFontCacheCompat,
     ) {
-        let mut call = CacheCall {
-            decoder: &mut self.decoder,
-            physical: io,
-            font: ptr::null(),
-        };
-        self.cache.clear(&call.services());
-        for_sd(registry, |id| sd.clear(id, kind));
+        {
+            let mut call = CacheCall {
+                decoder: &mut *self.decoder.get(),
+                physical: io,
+                font: ptr::null(),
+            };
+            (*self.cache.get()).clear(&call.services());
+        }
+        for backend in [Backend::Sd, Backend::Vector] {
+            for_backend(registry, backend, |id| sd.clear(id, backend, kind));
+        }
     }
     /// # Safety
-    /// Same resource/serialization contract as begin. Text has a terminating zero.
+    /// Same loan/compat contract as clear; SDK eviction chooses one backend.
+    pub unsafe fn clear_backend(
+        &self,
+        registry: *const Registry,
+        backend: Backend,
+        kind: ClearKind,
+        sd: &mut dyn SdFontCacheCompat,
+    ) {
+        for_backend(registry, backend, |id| sd.clear(id, backend, kind));
+    }
+    /// # Safety
+    /// Same contract as begin; text is terminated and borrowed synchronously.
     pub unsafe fn prewarm(
-        &mut self,
+        &self,
         registry: *const Registry,
         font: i32,
         request: Prewarm<'_>,
         io: &Physical,
         sd: &mut dyn SdFontCacheCompat,
     ) -> i32 {
-        prewarm(
-            &mut self.cache,
-            &mut self.decoder,
-            registry,
-            font,
-            request,
-            io,
-            sd,
-        )
+        prewarm(self, registry, font, request, io, sd)
     }
     /// # Safety
-    /// Font/index/glyph refer to live resident tables. Consume the returned bytes
-    /// before another bitmap request or any cache/SD/registry mutation.
+    /// Live resident font/glyph tables. Consume bytes before any font mutation;
+    /// physical services cannot reenter the built-in decoder/cache operation.
     pub unsafe fn bitmap(
-        &mut self,
+        &self,
         font: &FontData,
         glyph: &Glyph,
         index: u32,
         io: &Physical,
     ) -> *const u8 {
         let mut call = CacheCall {
-            decoder: &mut self.decoder,
+            decoder: &mut *self.decoder.get(),
             physical: io,
             font,
         };
-        self.cache.bitmap(font, glyph, index, &call.services())
+        (*self.cache.get()).bitmap(font, glyph, index, &call.services())
     }
 }
 unsafe fn data(entry: Entry, style: u8) -> *const FontData {
@@ -443,17 +485,28 @@ unsafe fn data(entry: Entry, style: u8) -> *const FontData {
 unsafe fn is_sd(data: *const FontData) -> bool {
     !data.is_null() && !(*data).glyph_miss_ctx.is_null() && (*data).vector_bitmap_handler.is_none()
 }
-unsafe fn for_sd(registry: *const Registry, mut call: impl FnMut(i32)) {
+unsafe fn backend(data: *const FontData) -> Option<Backend> {
+    if data.is_null() {
+        None
+    } else if (*data).vector_bitmap_handler.is_some() {
+        Some(Backend::Vector)
+    } else if is_sd(data) {
+        Some(Backend::Sd)
+    } else {
+        None
+    }
+}
+unsafe fn for_backend(registry: *const Registry, kind: Backend, mut call: impl FnMut(i32)) {
     for i in 0..(*registry).len() {
         let entry = (*registry).at(i).unwrap();
-        if is_sd(data(entry, 0)) {
+        if backend(data(entry, 0)) == Some(kind) {
             call(entry.id);
         }
     }
 }
+#[inline(always)]
 unsafe fn prewarm(
-    cache: &mut Cache,
-    decoder: &mut Decoder,
+    owner: &FontCacheOwner,
     registry: *const Registry,
     font: i32,
     request: Prewarm<'_>,
@@ -464,8 +517,8 @@ unsafe fn prewarm(
     if slot.is_null() {
         return 0;
     }
-    if is_sd(slot.read()) {
-        let missed = sd.prewarm(font, request);
+    if let Some(backend) = backend(slot.read()) {
+        let missed = sd.prewarm(font, backend, request);
         if missed > 0 {
             io.log(
                 ptr::null(),
@@ -478,7 +531,14 @@ unsafe fn prewarm(
         }
         return missed;
     }
-    prewarm_builtin(cache, decoder, registry, font, request, io)
+    prewarm_builtin(
+        &mut *owner.cache.get(),
+        &mut *owner.decoder.get(),
+        registry,
+        font,
+        request,
+        io,
+    )
 }
 
 // SD prewarm must not pay for the built-in cache's call/service frame.

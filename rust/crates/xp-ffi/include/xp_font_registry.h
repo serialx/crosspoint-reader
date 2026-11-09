@@ -6,10 +6,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-// In-place owner, no allocation or font bytes: 16 families * 6 words (id, four
-// slots, fallback) + count + generation pointer + native context = 99 words.
+// Inline registry, cache, decoder and scan storage: 4,000 B on C3, 4,568 B on host.
+// Cache buffers use the font allocator; owner initialization allocates nothing.
 typedef struct {
-  uintptr_t words[99];
+  uintptr_t words[sizeof(void*) == 8 ? 571 : 1000];
 } XpLoadedFonts;
 typedef struct {
   int32_t id;
@@ -44,12 +44,36 @@ XpFontQueryResult xp_font_registry_query(const XpLoadedFonts*, XpFontQuery, int3
 XpNativeProvider xp_font_registry_provider(const XpLoadedFonts*);
 // Fills a synchronous glyph-source loan from a registered FontData and the current generation.
 void xp_font_registry_source(const XpLoadedFonts*, const void* font, XpGlyphSource* out);
-// PT2 removes this leaf when Rust owns decompressor page slots. No input is retained.
-void xp_native_font_cache_view(void*, XpGlyphSource*);
-// PT2 removes compressed built-ins; PT3 removes the remaining SD overflow/lifetime branch.
-XpGlyphBitmap xp_native_font_bitmap_miss(void*, const void* font, const void* glyph);
-// PT2 removes this leaf when its one Rust prewarm owner consumes resolved batches.
-void xp_native_font_record_resolved_text(void*, int32_t font, uint8_t style, const uint8_t*);
+// Native-origin cache scopes borrow the single Rust owner synchronously.
+void xp_font_frame_begin(const XpLoadedFonts*);
+void xp_font_frame_finish(const XpLoadedFonts*);
+void xp_font_frame_end(const XpLoadedFonts*);
+typedef enum {
+  XP_FONT_CLEAR_FRAME,
+  XP_FONT_CLEAR_RESIDENT,
+  XP_FONT_EVICT_RENDER,
+  XP_FONT_EVICT_SD,
+  XP_FONT_EVICT_VECTOR
+} XpFontRelease;
+size_t xp_font_cache_release(const XpLoadedFonts*, uint8_t operation);
+void xp_font_prewarm_text(const XpLoadedFonts*, int32_t font, const char* text, uint8_t styles, uint8_t accumulate);
+void xp_font_record_text(const XpLoadedFonts*, int32_t font, const char* text, uint8_t style);
+uint8_t xp_font_scanning(const XpLoadedFonts*);
+typedef struct {
+  const XpLoadedFonts* owner;
+  const void* const* slot;
+} XpFontGlyphContext;
+XpGlyphBitmap xp_font_glyph_miss(void*, uint32_t cp, const void* glyph, XpGlyphDraw*, XpGlyphSource*);
+// Temporary four-operation compat: Rust selects backend, ordering and flags.
+// PT3 removes SD; PT-VEC removes vector and native xp_vector policy routing.
+uint8_t xp_native_font_compat_resolve(void*, int32_t font, uint8_t style);
+int32_t xp_native_font_compat_prewarm(void*, int32_t font, uint8_t backend, const char* text, uint8_t styles,
+                                      uint8_t metadata, uint8_t kern_lig, uint8_t accumulate);
+void xp_native_font_compat_clear(void*, int32_t font, uint8_t backend, uint8_t resident);
+void xp_native_font_compat_reset(void*, int32_t font);
+void xp_native_font_cache_diagnostic(const void* font, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d);
+// PT3 removes the per-glyph SD bitmap leaf with its native overflow/cache owner.
+const uint8_t* xp_native_sd_font_bitmap(const void* font, const void* glyph);
 // PT3 removes this leaf when Rust owns mini/advance/overflow tables.
 void xp_native_sd_font_view(void*, int32_t font, XpNativeFamily*, XpGlyphSource*);
 // PT3 removes this leaf when Rust residency uses physical file reads directly.

@@ -160,9 +160,9 @@ not composite gray luminance.
 
 `instrument.py` makes build-directory copies of GfxRenderer, Page and TextBlock.
 Only the renderer receives observers: text_golden's host-only Rust placement
-observer, plus native draw entry and C++ bitmap-miss callback counters. The
-frozen archive counts the original per-glyph emissions; candidate counts measure
-miss callbacks after glyph integration. Page/TextBlock copies are unchanged and
+observer and native draw entry counters. Rust Page placements are counted by
+`xp_native_page_test_glyph`; the retired C++ bitmap-miss callback has no counter.
+Counts are recorded for inspection and excluded from pixel/semantic parity. Page/TextBlock copies are unchanged and
 exist for mutation testing.
 The page harness also asserts that Rust makes no allocation request during each
 scan or draw. This does not count allocations made by existing C++ font/image

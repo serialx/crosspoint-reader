@@ -9,11 +9,12 @@ subprocess.run([sys.executable, str(root / 'test/text_golden/instrument.py'), st
 source = (out / 'GfxRenderer.cpp').read_text().replace('#include "Trace.h"', '#include "PageTrace.h"')
 for anchor, hook in (
     ('  xp_native_draw_pixels_traced(\n', '  pageGoldenNativeDraw();\n'),
-    ('\n  const auto& c = *static_cast<GlyphContext*>(raw);\n', '  pageGoldenEmission();\n'),
 ):
     if source.count(anchor) != 1:
         raise SystemExit('Page counter anchor changed: ' + anchor)
     source = source.replace(anchor, hook + anchor if 'xp_native' in anchor else anchor + hook)
+if 'GfxRenderer::glyphMiss(' in source:
+    raise SystemExit('Retired native bitmap-miss callback returned')
 (out / 'GfxRenderer.cpp').write_text(source)
 page_source = (root / 'lib/Epub/Epub/Page.cpp').read_text()
 anchor = 'const auto status = xp_page_paint('

@@ -3,7 +3,7 @@ from pathlib import Path
 import sys
 root, out = map(Path, sys.argv[1:])
 out.mkdir(parents=True, exist_ok=True)
-for name, directory in [('GfxRenderer', 'GfxRenderer'), ('FontDecompressor', 'EpdFont'), ('SdCardFont', 'EpdFont')]:
+for name, directory in [('GfxRenderer', 'GfxRenderer'), ('FontDecompressor', '../test/font_cache/legacy'), ('SdCardFont', 'EpdFont')]:
     header = (root / 'lib' / directory / (name + '.h')).read_text()
     if name == 'GfxRenderer':
         header = '#include "GlyphBitmap.h"\n' + header
@@ -20,6 +20,12 @@ for name, directory in [('GfxRenderer', 'GfxRenderer'), ('FontDecompressor', 'Ep
         # The copied descriptor outlives the iterator's temporary arrow view.
         reference = reference.replace('const auto& font = fontIt->second;',
                                       'const auto font = fontMap.at(fontId);')
+        source += """
+#include <xp_font_cache_test.h>
+const uint8_t* GfxRenderer::getGlyphBitmap(const EpdFontData* font, const EpdGlyph* glyph) const {
+  return xp_font_test_owner_bitmap(fontMap.raw(), font, glyph);
+}
+"""
         source += reference
         source += '''
 void referenceGlyph(const GfxRenderer& renderer, const EpdFontFamily& family, uint32_t cp,

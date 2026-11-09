@@ -256,7 +256,7 @@ impl EpubSession {
                     }
                     self.model(|state| state.build_popup = !popup);
                     if self.book_geometry().has_ttf != 0 {
-                        unsafe { (self.leaves.fonts_release_caches)() };
+                        unsafe { self.leaves.font_release() };
                     }
                     if !self.book_room(access) {
                         self.drop_section(access);

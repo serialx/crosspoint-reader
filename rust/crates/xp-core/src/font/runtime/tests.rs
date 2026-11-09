@@ -2,7 +2,7 @@ extern crate std;
 use crate::font::{
     loaded::{Entry, Registry},
     raw::{FontData, Glyph, Group, Interval},
-    runtime::{ClearKind, FontCacheOwner, Physical, Prewarm, SdFontCacheCompat},
+    runtime::{Backend, ClearKind, FontCacheOwner, Physical, Prewarm, SdFontCacheCompat},
 };
 use core::{
     ffi::{c_void, CStr},
@@ -172,7 +172,7 @@ enum SdEvent {
     Resolve(i32, u8),
 }
 #[derive(Default)]
-struct Sd(Vec<SdEvent>);
+struct Sd(Vec<SdEvent>, Vec<(i32, Backend)>);
 impl SdFontCacheCompat for Sd {
     unsafe fn resolve_style(&mut self, id: i32, style: u8) -> u8 {
         self.0.push(SdEvent::Resolve(id, style));
@@ -182,7 +182,8 @@ impl SdFontCacheCompat for Sd {
             style
         }
     }
-    unsafe fn prewarm(&mut self, id: i32, p: Prewarm<'_>) -> i32 {
+    unsafe fn prewarm(&mut self, id: i32, backend: Backend, p: Prewarm<'_>) -> i32 {
+        self.1.push((id, backend));
         self.0.push(SdEvent::Prewarm(
             id,
             p.text.to_bytes().to_vec(),
@@ -193,7 +194,8 @@ impl SdFontCacheCompat for Sd {
         ));
         0
     }
-    unsafe fn clear(&mut self, id: i32, kind: ClearKind) {
+    unsafe fn clear(&mut self, id: i32, backend: Backend, kind: ClearKind) {
+        self.1.push((id, backend));
         self.0.push(SdEvent::Clear(id, kind));
     }
     unsafe fn reset_stats(&mut self, id: i32) {
@@ -218,7 +220,7 @@ fn direct_decoder_preserves_glyph_bytes_and_allocation_order() {
     let epoch = AtomicU32::new(0);
     let mut r = registry(&epoch);
     register(&mut r, 7, &slot);
-    let mut o = owner();
+    let o = owner();
     let io = physical();
     let mut sd = Sd::default();
     unsafe {
@@ -263,7 +265,7 @@ fn failures_keep_the_existing_free_order_and_recover() {
         let epoch = AtomicU32::new(0);
         let mut r = registry(&epoch);
         register(&mut r, 7, &slot);
-        let mut o = owner();
+        let o = owner();
         let io = physical();
         let mut sd = Sd::default();
         unsafe {
@@ -287,7 +289,7 @@ fn failures_keep_the_existing_free_order_and_recover() {
 fn hot_fallback_grows_free_first_and_does_not_retain_source_loans() {
     reset(0);
     let font = compressed();
-    let mut o = owner();
+    let o = owner();
     let io = physical();
     unsafe {
         assert_eq!(
@@ -358,7 +360,7 @@ fn corrupt_or_short_group_reports_failure_without_exposing_uninitialized_bytes()
         let epoch = AtomicU32::new(0);
         let mut r = registry(&epoch);
         register(&mut r, 7, &slot);
-        let mut o = owner();
+        let o = owner();
         let io = physical();
         let mut sd = Sd::default();
         unsafe {
@@ -383,7 +385,7 @@ fn scan_batches_resolve_aliases_small_caps_and_preserve_descending_group_order()
     let mut r = registry(&epoch);
     register(&mut r, -17, &slot);
     register(&mut r, 23, &slot);
-    let mut o = owner();
+    let o = owner();
     let io = physical();
     let mut sd = Sd::default();
     unsafe {
@@ -435,7 +437,7 @@ fn scan_cap_warns_once_and_preserves_512_multibyte_codepoints() {
     for id in 1..=5 {
         register(&mut r, id, &slot);
     }
-    let mut o = owner();
+    let o = owner();
     let io = physical();
     let mut sd = Sd::default();
     let text: String = (0x1000..0x1201)
@@ -489,7 +491,7 @@ fn fifth_scan_font_is_ignored_without_hiding_the_first_four() {
     for id in 1..=5 {
         register(&mut r, id, &slot);
     }
-    let mut o = owner();
+    let o = owner();
     let io = physical();
     let mut sd = Sd::default();
     unsafe {
@@ -526,7 +528,7 @@ fn builtin_aliases_share_a_batch_and_prewarm_high_styles_first() {
         slots: [&regular_slot, &bold_slot, &regular_slot, ptr::null()],
         fallback: 0
     }));
-    let mut o = owner();
+    let o = owner();
     let io = physical();
     let mut sd = Sd::default();
     unsafe {
@@ -563,7 +565,7 @@ fn null_style_cells_keep_their_requested_style_and_scan_capacity() {
     let text: String = (0x1000..0x1100)
         .map(|v| char::from_u32(v).unwrap())
         .collect();
-    let mut o = owner();
+    let o = owner();
     let io = physical();
     let mut sd = Sd::default();
     unsafe {
@@ -588,7 +590,7 @@ fn early_end_finishes_scan_before_release_and_keeps_resident_release_distinct() 
     let epoch = AtomicU32::new(0);
     let mut r = registry(&epoch);
     register(&mut r, 7, &slot);
-    let mut o = owner();
+    let o = owner();
     let io = physical();
     let mut sd = Sd::default();
     unsafe {
@@ -607,4 +609,133 @@ fn early_end_finishes_scan_before_release_and_keeps_resident_release_distinct() 
             SdEvent::Clear(7, ClearKind::Resident)
         ]
     );
+}
+
+#[test]
+fn clears_sd_before_vector_and_vector_prewarm_keeps_accumulation_choice() {
+    reset(0);
+    unsafe extern "C" fn bitmap(_: *mut c_void, _: *const Glyph) -> *const u8 {
+        ptr::null()
+    }
+    let mut sd_data = data();
+    sd_data.glyph_miss_ctx = ptr::without_provenance_mut(1);
+    let mut vec_data = data();
+    vec_data.vector_bitmap_handler = Some(bitmap);
+    let sd_slot = &sd_data as *const FontData;
+    let vec_slot = &vec_data as *const FontData;
+    let generation = AtomicU32::new(0);
+    let mut reg = registry(&generation);
+    register(&mut reg, 1, &vec_slot);
+    register(&mut reg, 2, &sd_slot);
+    let o = owner();
+    let mut bridge = Sd::default();
+    let io = physical();
+    unsafe {
+        o.begin(&reg, &io, &mut bridge);
+    }
+    assert_eq!(
+        bridge.0,
+        [
+            SdEvent::Clear(2, ClearKind::Frame),
+            SdEvent::Clear(1, ClearKind::Frame),
+            SdEvent::Reset(2)
+        ]
+    );
+    bridge.0.clear();
+    unsafe {
+        o.prewarm(&reg, 1, request(c"A", 15, false), &io, &mut bridge);
+        o.prewarm(&reg, 1, request(c"B", 1, true), &io, &mut bridge);
+        o.clear(&reg, ClearKind::Resident, &io, &mut bridge);
+    }
+    assert_eq!(
+        bridge.0,
+        [
+            SdEvent::Prewarm(1, b"A".to_vec(), 15, false, true, false),
+            SdEvent::Prewarm(1, b"B".to_vec(), 1, false, true, true),
+            SdEvent::Clear(2, ClearKind::Resident),
+            SdEvent::Clear(1, ClearKind::Resident)
+        ]
+    );
+    assert!(
+        bridge.1
+            == [
+                (2, Backend::Sd),
+                (1, Backend::Vector),
+                (1, Backend::Vector),
+                (1, Backend::Vector),
+                (2, Backend::Sd),
+                (1, Backend::Vector)
+            ]
+    );
+    HEAP.with(|heap| {
+        assert!(!heap
+            .borrow()
+            .events
+            .iter()
+            .any(|e| matches!(e, Event::Alloc(_))))
+    });
+}
+
+#[test]
+fn vector_pressure_can_reenter_eviction_while_the_scan_text_stays_live() {
+    reset(0);
+    unsafe extern "C" fn vector_bitmap(_: *mut c_void, _: *const Glyph) -> *const u8 {
+        ptr::null()
+    }
+    let builtin = compressed();
+    let mut vector = data();
+    vector.vector_bitmap_handler = Some(vector_bitmap);
+    let builtin_slot = &builtin as *const FontData;
+    let vector_slot = &vector as *const FontData;
+    let epoch = AtomicU32::new(0);
+    let mut reg = registry(&epoch);
+    register(&mut reg, 1, &builtin_slot);
+    register(&mut reg, 2, &vector_slot);
+    let o = owner();
+    let io = physical();
+    let mut ordinary = Sd::default();
+    unsafe {
+        o.begin(&reg, &io, &mut ordinary);
+        o.record_resolved(2, b"A", 0, &io);
+        o.record_resolved(1, b"AB", 0, &io);
+    }
+    struct Pressure {
+        owner: *const FontCacheOwner,
+        registry: *const Registry,
+        calls: usize,
+    }
+    impl SdFontCacheCompat for Pressure {
+        unsafe fn resolve_style(&mut self, _: i32, style: u8) -> u8 {
+            style
+        }
+        unsafe fn prewarm(&mut self, font: i32, backend: Backend, request: Prewarm<'_>) -> i32 {
+            assert_eq!(font, 2);
+            assert!(backend == Backend::Vector);
+            assert_eq!(request.text.to_bytes(), b"A");
+            assert_eq!((*self.owner).cache().count, 1);
+            // FreeType's pressure callback runs SDK eviction while this text is borrowed.
+            (*self.owner).clear(
+                self.registry,
+                ClearKind::Frame,
+                &physical(),
+                &mut Sd::default(),
+            );
+            assert_eq!(request.text.to_bytes(), b"A");
+            assert_eq!((*self.owner).cache().count, 0);
+            self.calls += 1;
+            0
+        }
+        unsafe fn clear(&mut self, _: i32, _: Backend, _: ClearKind) {}
+        unsafe fn reset_stats(&mut self, _: i32) {}
+    }
+    let mut pressure = Pressure {
+        owner: ptr::from_ref(&*o),
+        registry: &reg,
+        calls: 0,
+    };
+    unsafe {
+        o.finish(&reg, &io, &mut pressure);
+    }
+    assert_eq!(pressure.calls, 1);
+    HEAP.with(|h| assert!(h.borrow().live.is_empty()));
 }

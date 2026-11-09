@@ -119,12 +119,15 @@ pub unsafe extern "C" fn xp_font_resident_glyph(data: *const FontData, cp: u32) 
         .glyph_index(cp)
         .map_or(core::ptr::null(), |i| (*data).glyph.add(i))
 }
+#[cfg(feature = "chapter-test")]
 use xp_core::font::cache::{Cache, Services};
 
+#[cfg(feature = "chapter-test")]
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_cache_clear(cache: *mut Cache, io: *const Services) {
     (*cache).clear(&*io);
 }
+#[cfg(feature = "chapter-test")]
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_cache_bitmap(
     cache: *mut Cache,
@@ -135,6 +138,7 @@ pub unsafe extern "C" fn xp_font_cache_bitmap(
 ) -> *const u8 {
     (*cache).bitmap(&*data, &*glyph, index, &*io)
 }
+#[cfg(feature = "chapter-test")]
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_cache_prewarm(
     cache: *mut Cache,

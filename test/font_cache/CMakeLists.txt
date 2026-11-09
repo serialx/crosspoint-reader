@@ -6,7 +6,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   enable_testing()
 endif()
 include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
-set(FONT_CACHE_SOURCE_DIR "${REPO_ROOT}/lib/EpdFont" CACHE PATH "Cache implementation for oracle capture")
+set(FONT_CACHE_SOURCE_DIR "${REPO_ROOT}/test/font_cache/legacy" CACHE PATH "Cache implementation for oracle capture")
 add_executable(FontCacheOracle Oracle.cpp
   ${FONT_CACHE_SOURCE_DIR}/FontDecompressor.cpp
   ${REPO_ROOT}/lib/InflateReader/InflateReader.cpp

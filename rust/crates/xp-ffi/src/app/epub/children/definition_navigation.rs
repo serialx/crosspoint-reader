@@ -38,7 +38,7 @@ impl DefinitionSession {
     }
     pub(in crate::app) unsafe fn exit(&self, leaves: &XpEpubLeaves) {
         unsafe { Self::activity_log(leaves, false) };
-        unsafe { (leaves.fonts_release_caches)() };
+        unsafe { leaves.font_release() };
     }
     pub(in crate::app) unsafe fn selection_failed(&self, runtime: &abi::Runtime) {
         unsafe { (self.physical.selection_release)(self.payload.get()) };
@@ -226,7 +226,7 @@ impl DefinitionSession {
         nav.pending.clear();
         unsafe {
             (self.physical.payload_release)(self.payload.get(), PayloadSlot::Candidate as u8, 0);
-            (leaves.fonts_release_caches)();
+            leaves.font_release();
         }
         if back {
             unsafe {
@@ -295,7 +295,7 @@ impl DefinitionSession {
         });
         unsafe {
             (self.physical.payload_release)(self.payload.get(), PayloadSlot::Current as u8, 1);
-            (leaves.fonts_release_caches)();
+            leaves.font_release();
             Self::log_heap(leaves);
         }
         let nav = unsafe { &mut *self.navigation.get() };

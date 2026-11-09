@@ -111,13 +111,14 @@ class GfxRenderer {
   // fontId unchanged. The whole string is routed as a unit so each draw/measure
   // call stays single-font (consistent bit depth, metrics, wrapping).
   struct GlyphContext {
-    const GfxRenderer& renderer;
-    const EpdFont* font;
-    int requestedFont, resolvedFont;
+    XpFontGlyphContext glyphs;
+    const GfxRenderer* renderer;
+    int resolvedFont;
     EpdFontFamily::Style style;
-    bool rotated;
+    bool rotated, fallback;
     XpGlyphPaint* paint;
   };
+  static_assert(offsetof(GlyphContext, glyphs) == 0);
   // Image polarity follows the strip target only in the opt-in reader path.
   bool skipImageStrip() const {
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
@@ -148,9 +149,8 @@ class GfxRenderer {
 #endif
   }
 
-  XpGlyphTarget glyphTarget() const;
+  XpGlyphTarget glyphTarget(bool includeScanning = true) const;
   void glyphSource(const EpdFontData* font, XpGlyphSource& source) const;
-  static XpGlyphBitmap glyphMiss(void* raw, uint32_t cp, const void* glyph, XpGlyphDraw* draw, XpGlyphSource* source);
   void drawGlyphRun(int fontId, int x, int y, const char* text, bool black, EpdFontFamily::Style style,
                     BidiUtils::BidiBaseDir baseDir, int8_t tracking, bool rotated) const;
   int resolveTextFontId(int fontId, const char* text, EpdFontFamily::Style style) const;
@@ -186,7 +186,7 @@ class GfxRenderer {
   // Setup
   XpNativeProvider textProvider() const;
   // Borrows the current framebuffer/strip target and Rust font owner for a synchronous paint.
-  void pageTarget(XpPageTarget& out) const;
+  void pageTarget(XpPageTarget& out, bool includeScanning = true) const;
   bool drawUiScene(const XpUiScene& scene, const XpUiPaint* resources = nullptr) const;
   // Shared text/resource services follow this target for the whole synchronous call.
   bool drawUiScene(const XpUiScene& scene, const XpGlyphTarget& target, const XpUiPaint* resources) const;
@@ -481,7 +481,9 @@ class GfxRenderer {
   void cleanupGrayscaleWithFrameBuffer() const;
 
   // Font helpers
+#ifdef XP_APP_TEST
   const uint8_t* getGlyphBitmap(const EpdFontData* fontData, const EpdGlyph* glyph) const;
+#endif
 
   // Lend the 48 KB framebuffer's bytes to a memory-hungry phase (chapter
   // builds) WITHOUT freeing the allocation, so it never moves and repeated

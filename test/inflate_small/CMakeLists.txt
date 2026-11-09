@@ -28,7 +28,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/DictionaryReadDefinition.i
 set(FONT_SDK ${REPO_ROOT}/freeink-sdk/libs/font/FreeInkFont)
 add_executable(InflateRecoveryProbe RecoveryProbe.cpp ${CMAKE_CURRENT_BINARY_DIR}/DictionaryReadDefinition.inc
   ${REPO_ROOT}/src/util/DictZip.cpp ${REPO_ROOT}/lib/InflateReader/InflateReader.cpp
-  ${REPO_ROOT}/lib/EpdFont/FontDecompressor.cpp ${REPO_ROOT}/lib/Utf8/Utf8.cpp
+  ${REPO_ROOT}/test/font_cache/legacy/FontDecompressor.cpp ${REPO_ROOT}/lib/Utf8/Utf8.cpp
   ${FONT_SDK}/src/FontAlloc.c)
 target_include_directories(InflateRecoveryProbe PRIVATE stubs
   ${CMAKE_CURRENT_BINARY_DIR} ${REPO_ROOT}/src/util ${REPO_ROOT}/lib/Memory

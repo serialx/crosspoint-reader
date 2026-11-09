@@ -3,7 +3,6 @@
 #include <BoardConfig.h>
 #include <Epub.h>
 #include <FontCacheManager.h>
-#include <FontDecompressor.h>
 #include <GfxRenderer.h>
 #include <HalClock.h>
 #include <HalDisplay.h>
@@ -69,7 +68,6 @@ SET_LOOP_TASK_STACK_SIZE(24 * 1024)
 GfxRenderer renderer(display);
 MappedInputManager mappedInputManager(gpio, renderer);
 ActivityManager activityManager(renderer, mappedInputManager);
-FontDecompressor fontDecompressor;
 SdCardFontSystem sdFontSystem;
 FontCacheManager fontCacheManager(renderer.getFontMap(), renderer.getSdCardFonts(), renderer.getTtfFonts());
 static unsigned long allowSleepAt = 0;
@@ -709,11 +707,6 @@ void setupDisplayAndFonts(bool seamless = false) {
   activityManager.begin(appRuntime());
   LOG_DBG("MAIN", "Display initialized");
 
-  // Initialize font decompressor for compressed reader fonts
-  if (!fontDecompressor.init()) {
-    LOG_ERR("MAIN", "Font decompressor init failed");
-  }
-  fontCacheManager.setFontDecompressor(&fontDecompressor);
   renderer.setFontCacheManager(&fontCacheManager);
   renderer.insertFont(NOTOSANS_14_FONT_ID, notosans14FontFamily);
 #ifndef OMIT_FONTS

@@ -14,11 +14,11 @@ set(INSTRUMENTED ${CMAKE_CURRENT_BINARY_DIR}/instrumented)
 add_custom_command(OUTPUT ${INSTRUMENTED}/GfxRenderer.cpp ${INSTRUMENTED}/GfxRenderer.h ${INSTRUMENTED}/FontDecompressor.cpp ${INSTRUMENTED}/SdCardFont.cpp
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/instrument.py ${REPO_ROOT} ${INSTRUMENTED}
   DEPENDS instrument.py reference/Raster.inc reference/GlyphBitmap.h ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.cpp ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.h
-    ${REPO_ROOT}/lib/EpdFont/FontDecompressor.cpp ${REPO_ROOT}/lib/EpdFont/FontDecompressor.h
+    ${REPO_ROOT}/test/font_cache/legacy/FontDecompressor.cpp ${REPO_ROOT}/test/font_cache/legacy/FontDecompressor.h
     ${REPO_ROOT}/lib/EpdFont/SdCardFont.cpp ${REPO_ROOT}/lib/EpdFont/SdCardFont.h
   VERBATIM)
 add_executable(GlyphDiff GlyphDiff.cpp Abi.cpp ${INSTRUMENTED}/GfxRenderer.cpp
-  ${REPO_ROOT}/lib/GfxRenderer/FontCacheManager.cpp
+
   ${REPO_ROOT}/lib/EpdFont/EpdFont.cpp ${REPO_ROOT}/lib/EpdFont/EpdFontFamily.cpp
   ${INSTRUMENTED}/SdCardFont.cpp ${INSTRUMENTED}/FontDecompressor.cpp
   ${REPO_ROOT}/lib/EpdFont/TtfEpdFont.cpp

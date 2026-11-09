@@ -115,7 +115,7 @@ impl Chapters {
         if !frame.list.commands.recover(services) {
             return false;
         }
-        unsafe { (physical.clear_fonts)() };
+        unsafe { physical.clear_font_cache() };
         true
     }
     /// Caller holds the render lifetime lock and the book's resource guard.

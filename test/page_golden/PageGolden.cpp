@@ -35,7 +35,6 @@ static uint64_t owners[12]{};
 void pageGoldenOwner(unsigned kind) { ++owners[kind]; }
 static uint64_t nativeCalls = 0, emissions = 0, scaledCalls = 0;
 void pageGoldenNativeDraw() { ++nativeCalls; }
-void pageGoldenEmission() { ++emissions; }
 void textGoldenGlyph(const EpdFontFamily&, uint32_t, int, int, EpdFontFamily::Style) {}
 extern "C" void xp_native_page_test_glyph(const void*, const XpGlyphPlacement*, int32_t, int32_t, uint8_t) {
   ++emissions;

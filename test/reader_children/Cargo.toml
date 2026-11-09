@@ -7,6 +7,7 @@ publish = false
 [workspace]
 
 [features]
+default = ["app-test"]
 app-test = []
 
 [dependencies]

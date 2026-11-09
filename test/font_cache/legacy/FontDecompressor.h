@@ -1,16 +1,16 @@
 #pragma once
 
-#include <InflateReader.h>
-#include <xp_ffi.h>
+#include <cstdint>
 
 #include "EpdFontData.h"
+#include "xp_font_cache_test.h"
 
 class FontDecompressor {
  public:
   static constexpr uint16_t MAX_PAGE_GLYPHS = 512;
   static constexpr uint8_t MAX_PAGE_SLOTS = 8;  // One per font/style pair: body R/B/I/BI plus heading sizes
 
-  FontDecompressor() = default;
+  FontDecompressor() { xp_font_test_init(storage); }
   ~FontDecompressor();
 
   bool init();
@@ -28,14 +28,17 @@ class FontDecompressor {
   // Returns the number of glyphs that couldn't be loaded (0 on full success).
   int prewarmCache(const EpdFontData* fontData, const char* utf8Text);
 
-  const void* pageSlotView() const { return cache.pageSlots; }
-  uint32_t pageSlotViewCount() const { return cache.pageSlotCount; }
+  const void* pageSlotView() const { return xp_font_test_view(raw())->pageSlots; }
+  uint32_t pageSlotViewCount() const { return xp_font_test_view(raw())->pageSlotCount; }
 
   using Stats = XpFontCacheStats;
   void resetStats();
-  const Stats& getStats() const { return cache.stats; }
+  const Stats& getStats() const { return xp_font_test_view(raw())->stats; }
+
+  void bindOwner(const void* owner) { borrowed = xp_font_test_owner_cache(owner); }
 
  private:
-  XpFontCache cache{};
-  InflateReader inflateReader;
+  alignas(uintptr_t) uintptr_t storage[sizeof(void*) == 4 ? 901 : 472]{};
+  void* borrowed = nullptr;
+  void* raw() const { return borrowed ? borrowed : const_cast<uintptr_t*>(storage); }
 };

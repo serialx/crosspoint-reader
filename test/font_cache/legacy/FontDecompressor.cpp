@@ -6,7 +6,6 @@
 #include <Logging.h>
 
 struct FontCacheCall {
-  InflateReader* inflater;
   const EpdFontData* font;
 };
 
@@ -15,11 +14,8 @@ XpFontCacheServices services(FontCacheCall* call) {
   return {call,
           [](size_t bytes) { return static_cast<uint8_t*>(fiFontMalloc(bytes)); },
           [](uint8_t* ptr) { fiFontFree(ptr); },
-          [](void* ctx, const uint8_t* src, uint32_t size, uint8_t* dst, uint32_t out) -> int32_t {
-            auto& reader = *static_cast<FontCacheCall*>(ctx)->inflater;
-            if (!reader.init(false)) return -1;
-            reader.setSource(src, size);
-            return reader.read(dst, out);
+          [](void*, const uint8_t*, uint32_t, uint8_t*, uint32_t) -> int32_t {
+            return -1;  // The Rust owner decodes directly; this legacy callback is unused.
           },
           [](bool microseconds) -> uint32_t { return microseconds ? micros() : millis(); },
           [] { ++fontTableGeneration; },
@@ -70,17 +66,16 @@ bool FontDecompressor::init() {
 void FontDecompressor::deinit() { clearCache(); }
 void FontDecompressor::clearCache() {
   const auto io = services(nullptr);
-  xp_font_cache_clear(&cache, &io);
+  xp_font_test_clear(raw(), &io);
 }
 const uint8_t* FontDecompressor::getBitmap(const EpdFontData* fontData, const EpdGlyph* glyph, uint32_t glyphIndex) {
-  FontCacheCall call{&inflateReader, fontData};
+  FontCacheCall call{fontData};
   const auto io = services(&call);
-  return xp_font_cache_bitmap(&cache, fontData, glyph, glyphIndex, &io);
+  return xp_font_test_bitmap(raw(), fontData, glyph, glyphIndex, &io);
 }
 int FontDecompressor::prewarmCache(const EpdFontData* fontData, const char* utf8Text) {
-  FontCacheCall call{&inflateReader, fontData};
+  FontCacheCall call{fontData};
   const auto io = services(&call);
-  return xp_font_cache_prewarm(&cache, fontData, reinterpret_cast<const uint8_t*>(utf8Text),
-                               utf8Text ? strlen(utf8Text) : 0, &io);
+  return xp_font_test_prewarm(raw(), fontData, utf8Text, &io);
 }
-void FontDecompressor::resetStats() { cache.stats = {}; }
+void FontDecompressor::resetStats() { xp_font_test_reset_stats(raw()); }

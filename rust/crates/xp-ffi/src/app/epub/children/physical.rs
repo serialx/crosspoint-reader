@@ -20,6 +20,7 @@ pub(crate) struct Physical {
     pub(super) utility_footer: unsafe extern "C" fn(Rect, *const abi::Text),
     pub(super) qr: unsafe extern "C" fn(Rect, abi::Text),
     pub(super) toolbar_icon: unsafe extern "C" fn(u32, Rect, Rect),
+    #[cfg(feature = "app-test")]
     pub(super) clear_fonts: unsafe extern "C" fn(),
     pub(super) prewarm_rows: unsafe extern "C" fn(
         i32,
@@ -30,6 +31,12 @@ pub(crate) struct Physical {
 }
 
 impl Physical {
+    pub(super) unsafe fn clear_font_cache(&self) {
+        #[cfg(feature = "app-test")]
+        (self.clear_fonts)();
+        #[cfg(not(feature = "app-test"))]
+        crate::font_runtime::release(crate::font_runtime::current(), 0);
+    }
     // Keep theme facts off shared child dispatch and session render frames.
     #[inline(never)]
     pub(super) unsafe fn sample_theme(
@@ -55,8 +62,9 @@ impl Metrics for Fonts<'_> {
 }
 
 const _: () = {
+    let font_fields = if cfg!(feature = "app-test") { 1 } else { 0 };
     let pointer = core::mem::size_of::<unsafe extern "C" fn()>();
-    assert!(core::mem::size_of::<Physical>() == 8 * pointer);
+    assert!(core::mem::size_of::<Physical>() == (7 + font_fields) * pointer);
     assert!(core::mem::align_of::<Physical>() == core::mem::align_of::<unsafe extern "C" fn()>());
     assert!(core::mem::offset_of!(Physical, list_theme) == 0);
     assert!(core::mem::offset_of!(Physical, utility_layout) == pointer);
@@ -64,8 +72,9 @@ const _: () = {
     assert!(core::mem::offset_of!(Physical, utility_footer) == 3 * pointer);
     assert!(core::mem::offset_of!(Physical, qr) == 4 * pointer);
     assert!(core::mem::offset_of!(Physical, toolbar_icon) == 5 * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(Physical, clear_fonts) == 6 * pointer);
-    assert!(core::mem::offset_of!(Physical, prewarm_rows) == 7 * pointer);
+    assert!(core::mem::offset_of!(Physical, prewarm_rows) == (6 + font_fields) * pointer);
 };
 const _: fn(&Physical) = |p| {
     let _: unsafe extern "C" fn(*mut list::Theme, *mut ThemeFacts, u8) = p.list_theme;
@@ -74,6 +83,7 @@ const _: fn(&Physical) = |p| {
     let _: unsafe extern "C" fn(Rect, *const abi::Text) = p.utility_footer;
     let _: unsafe extern "C" fn(Rect, abi::Text) = p.qr;
     let _: unsafe extern "C" fn(u32, Rect, Rect) = p.toolbar_icon;
+    #[cfg(feature = "app-test")]
     let _: unsafe extern "C" fn() = p.clear_fonts;
     let _: unsafe extern "C" fn(
         i32,

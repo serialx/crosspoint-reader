@@ -14,6 +14,7 @@ add_test(NAME reader_native_oracle_include_paths
     ${CMAKE_BINARY_DIR}/compile_commands.json)
 foreach(language c cpp)
   add_executable(reader_child_leaf_abi_${language} leaf_contract.${language})
+  target_compile_options(reader_child_leaf_abi_${language} PRIVATE -UXP_APP_TEST)
   target_include_directories(reader_child_leaf_abi_${language} PRIVATE ${REPO_ROOT}/rust/crates/xp-ffi/include)
   add_test(NAME reader_child_leaf_abi_${language} COMMAND reader_child_leaf_abi_${language})
 endforeach()

@@ -49,9 +49,11 @@ add_custom_target(xp_ffi_host_i18n
   VERBATIM
 )
 add_library(xp_ffi_host INTERFACE)
+target_compile_definitions(xp_ffi_host INTERFACE XP_APP_TEST)
 add_dependencies(xp_ffi_host xp_ffi_host_build xp_ffi_host_i18n)
 target_sources(xp_ffi_host INTERFACE ${CMAKE_CURRENT_LIST_DIR}/xp_ffi_host.cpp)
 target_include_directories(xp_ffi_host INTERFACE ${XP_FFI_HOST_I18N_DIR}
+  ${XP_FFI_REPO_ROOT}/test/font_cache/legacy
   ${XP_FFI_HOST_WORKSPACE}/crates/xp-ffi/include
   ${XP_FFI_REPO_ROOT}/test/reader_lifecycle)
 target_link_libraries(xp_ffi_host INTERFACE ${XP_FFI_HOST_ARCHIVE})

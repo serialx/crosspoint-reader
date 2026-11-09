@@ -1,5 +1,6 @@
 //! Native-origin registration and UI queries share the Rust loaded-font owner.
 use core::{
+    cell::UnsafeCell,
     ffi::c_void,
     mem::{align_of, size_of},
     ptr,
@@ -8,7 +9,7 @@ use core::{
 use xp_core::font::loaded::{Entry, Registry};
 use xp_core::{
     font::raw::FontData,
-    glyph::{Bitmap, BitmapSource},
+    glyph::BitmapSource,
     textm::{
         native::{Family, Provider},
         Glyph,
@@ -21,18 +22,6 @@ extern "C" {
         font: i32,
         family: *mut Family,
         source: *mut BitmapSource,
-    );
-    fn xp_native_font_cache_view(native: *mut c_void, source: *mut BitmapSource);
-    pub(crate) fn xp_native_font_bitmap_miss(
-        native: *mut c_void,
-        font: *const FontData,
-        glyph: *const xp_core::font::raw::Glyph,
-    ) -> Bitmap;
-    pub(crate) fn xp_native_font_record_resolved_text(
-        native: *mut c_void,
-        font: i32,
-        style: u8,
-        text: *const u8,
     );
     pub(crate) fn xp_native_sd_font_resident_slice(
         native: *mut c_void,
@@ -52,6 +41,7 @@ extern "C" {
 pub(crate) struct Owner {
     pub(crate) registry: Registry,
     pub(crate) native: *mut c_void,
+    pub(crate) cache: UnsafeCell<xp_core::font::runtime::FontCacheOwner>,
 }
 #[repr(C)]
 pub union QueryResult {
@@ -209,14 +199,23 @@ pub unsafe extern "C" fn xp_font_registry_source(
             (*out).bitmap_len = glyph.data_offset.wrapping_add(u32::from(glyph.data_length));
         }
     }
-    xp_native_font_cache_view((*owner).native, out);
+    let cache = (&*(*owner).cache.get()).cache();
+    (*out).slots = cache.slots.as_ptr().cast();
+    (*out).slot_count = u32::from(cache.count);
     if !(*font).glyph_miss_ctx.is_null() {
         // The native SD view selects by the font pointer; no second family lookup.
         xp_native_sd_font_view((*owner).native, 0, ptr::null_mut(), out);
     }
 }
 const _: () = {
-    assert!(size_of::<Owner>() == 99 * size_of::<usize>());
+    assert!(
+        size_of::<Owner>()
+            == if cfg!(target_pointer_width = "32") {
+                4000
+            } else {
+                4568
+            }
+    );
     assert!(align_of::<Owner>() == align_of::<usize>());
     assert!(size_of::<QueryResult>() == size_of::<usize>());
 };
@@ -231,6 +230,8 @@ pub unsafe extern "C" fn xp_font_registry_init(
 ) {
     Registry::initialize(ptr::addr_of_mut!((*out).registry), generation);
     ptr::addr_of_mut!((*out).native).write(native);
+    xp_core::font::runtime::FontCacheOwner::initialize((*out).cache.get());
+    crate::font_runtime::register_current(out);
 }
 /// # Safety
 /// `owner` is initialized and exclusive; `entry` is readable for the call.

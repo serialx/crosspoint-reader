@@ -74,8 +74,11 @@
 const XpParaAllocator* paragraphAllocator();
 
 namespace {
+#ifdef XP_APP_TEST
 static_assert(sizeof(FontCacheManager::PrewarmScope) == 2 * sizeof(uintptr_t));
 static_assert(alignof(FontCacheManager::PrewarmScope) == alignof(uintptr_t));
+
+#endif
 
 uint32_t physicalRenderQuery(GfxRenderer& renderer, uint8_t query) {
   switch (query) {
@@ -216,6 +219,7 @@ uint8_t* physicalFramebuffer(GfxRenderer& renderer, uint32_t* bytes) {
   *bytes = renderer.getBufferSize();
   return renderer.getFrameBuffer();
 }
+#ifdef XP_APP_TEST
 uint8_t physicalPrewarmBegin(GfxRenderer& renderer, XpEpubPrewarm* storage) {
   auto* cache = renderer.getFontCacheManager();
   if (!cache) return 0;
@@ -228,6 +232,7 @@ void physicalPrewarmFinish(XpEpubPrewarm* storage) {
 void physicalPrewarmDrop(XpEpubPrewarm* storage) {
   std::launder(reinterpret_cast<FontCacheManager::PrewarmScope*>(storage))->~PrewarmScope();
 }
+#endif
 
 static const GfxRenderer& sectionRenderer(void* raw) { return *static_cast<GfxRenderer*>(raw); }
 [[maybe_unused]] int32_t textAdvance(void* context, int32_t font, XpParaSpan text, uint8_t style, int8_t tracking) {
@@ -415,7 +420,7 @@ void readMargins(GfxRenderer& renderer, int32_t* out) {
 }  // namespace
 
 extern GfxRenderer renderer;
-extern "C" void xp_native_render_target(XpPageTarget* out) { renderer.pageTarget(*out); }
+extern "C" void xp_native_render_target(XpPageTarget* out) { renderer.pageTarget(*out, false); }
 
 const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager& input) {
   static GfxRenderer* const target = &renderer;
@@ -516,6 +521,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .image_clear_failures = [] { ImageBlock::clearRenderFailures(); },
       .image_release_cache = [] { ImageBlock::releaseRenderCache(); },
       .fonts_ensure_loaded = [] { sdFontSystem.ensureLoaded(*target); },
+#ifdef XP_APP_TEST
       .fonts_release_caches =
           [] {
             if (auto* cache = target->getFontCacheManager()) cache->releaseSdFontCaches();
@@ -523,6 +529,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .fonts_prewarm_begin = [](XpEpubPrewarm* storage) -> uint8_t { return physicalPrewarmBegin(*target, storage); },
       .fonts_prewarm_finish_scan = physicalPrewarmFinish,
       .fonts_prewarm_drop = physicalPrewarmDrop,
+#endif
       .fonts_take_corrupt_notice = []() -> uint8_t { return SdCardFont::takeCorruptGlyphNotice(); },
       .font_sizes = [](XpAppText family, XpAppTextSink sink, void* context) -> uint8_t {
         // Families borrow NUL-terminated owner or settings storage.
@@ -900,10 +907,12 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
           },
       .child_toolbar_icon = [](uint32_t icon, XpUiRect bounds,
                                XpUiRect clip) { drawReaderToolbarIcon(*target, icon, bounds, clip); },
+#ifdef XP_APP_TEST
       .child_clear_fonts =
           [] {
             if (auto* cache = target->getFontCacheManager()) cache->clearCache();
           },
+#endif
       .child_prewarm_rows = [](int32_t font, const void* context, XpEpubChildRowText row,
                                uint32_t count) { prewarmReaderRows(*target, font, context, row, count); },
       .child_lookup_init = readerLookup::init,

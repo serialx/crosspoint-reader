@@ -10,13 +10,13 @@ use core::ptr;
 
 impl PhysicalResources for XpEpubLeaves {
     unsafe fn prewarm_begin(&self, storage: *mut PrewarmStorage) -> bool {
-        unsafe { (self.fonts_prewarm_begin)(storage) != 0 }
+        unsafe { self.font_begin(storage) }
     }
     unsafe fn prewarm_finish(&self, storage: *mut PrewarmStorage) {
-        unsafe { (self.fonts_prewarm_finish_scan)(storage) };
+        unsafe { self.font_finish(storage) };
     }
     unsafe fn prewarm_drop(&self, storage: *mut PrewarmStorage) {
-        unsafe { (self.fonts_prewarm_drop)(storage) };
+        unsafe { self.font_end(storage) };
     }
     fn detach_source(&self) {
         unsafe { (self.display_source)(ptr::null_mut()) };
@@ -154,5 +154,43 @@ impl EpubSession {
         self.page_resources(access)
             .begin_idle_prewarm(self.leaves)
             .map(|lease| IdlePrewarm::Reader(lease, core::marker::PhantomData))
+    }
+}
+
+impl XpEpubLeaves {
+    pub(crate) unsafe fn font_begin(&self, storage: *mut PrewarmStorage) -> bool {
+        #[cfg(feature = "app-test")]
+        return (self.fonts_prewarm_begin)(storage) != 0;
+        #[cfg(not(feature = "app-test"))]
+        {
+            let owner = crate::font_runtime::current();
+            if owner.is_null() {
+                return false;
+            }
+            (*storage).owner = owner.cast();
+            crate::font_runtime::begin(owner);
+            true
+        }
+    }
+    pub(crate) unsafe fn font_finish(&self, storage: *mut PrewarmStorage) {
+        #[cfg(feature = "app-test")]
+        (self.fonts_prewarm_finish_scan)(storage);
+        #[cfg(not(feature = "app-test"))]
+        crate::font_runtime::finish((*storage).owner.cast());
+    }
+    pub(crate) unsafe fn font_end(&self, storage: *mut PrewarmStorage) {
+        #[cfg(feature = "app-test")]
+        (self.fonts_prewarm_drop)(storage);
+        #[cfg(not(feature = "app-test"))]
+        {
+            crate::font_runtime::end((*storage).owner.cast());
+            (*storage).owner = core::ptr::null();
+        }
+    }
+    pub(crate) unsafe fn font_release(&self) {
+        #[cfg(feature = "app-test")]
+        (self.fonts_release_caches)();
+        #[cfg(not(feature = "app-test"))]
+        crate::font_runtime::release(crate::font_runtime::current(), 1);
     }
 }

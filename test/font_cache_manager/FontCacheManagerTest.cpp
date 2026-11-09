@@ -39,8 +39,9 @@ void operator delete(void* allocation, size_t) noexcept { std::free(allocation);
 TEST(FontCacheManagerTest, PrewarmScopeBatchesEachFontAndResolvedStyleSeparately) {
   SdCardFont readerFont;
   SdCardFont fallbackFont;
-  const FontRegistry noBuiltinFonts;
+  FontRegistry noBuiltinFonts;
   const std::map<int, SdCardFont*> sdFonts{{-17, &readerFont}, {23, &fallbackFont}};
+  noBuiltinFonts.attach(sdFonts);
   FontCacheManager manager(noBuiltinFonts, sdFonts, kNoTtfFonts);
 
   auto scope = manager.createPrewarmScope();
@@ -67,8 +68,9 @@ TEST(FontCacheManagerTest, PrewarmScopeBatchesEachFontAndResolvedStyleSeparately
 TEST(FontCacheManagerTest, PrewarmScopeMergesStylesThatResolveToTheSameSdFontData) {
   SdCardFont font;
   font.resolvedStyles[EpdFontFamily::BOLD] = EpdFontFamily::REGULAR;
-  const FontRegistry noBuiltinFonts;
+  FontRegistry noBuiltinFonts;
   const std::map<int, SdCardFont*> sdFonts{{7, &font}};
+  noBuiltinFonts.attach(sdFonts);
   FontCacheManager manager(noBuiltinFonts, sdFonts, kNoTtfFonts);
 
   auto scope = manager.createPrewarmScope();
@@ -82,12 +84,24 @@ TEST(FontCacheManagerTest, PrewarmScopeMergesStylesThatResolveToTheSameSdFontDat
 }
 
 TEST(FontCacheManagerTest, PrewarmScopeMergesBuiltInStylesThatShareFontData) {
-  EpdFontData regularData{reinterpret_cast<const void*>(1)};
-  EpdFontData boldData{reinterpret_cast<const void*>(1)};
+  static const EpdGlyph glyphs[] = {{4, 1, 16, 0, 1, 1, 0}, {4, 1, 16, 0, 1, 1, 1}, {4, 1, 16, 0, 1, 1, 2}};
+  static const EpdUnicodeInterval interval{65, 67, 0};
+  static const uint8_t bitmap[] = {1, 3, 0, 252, 255, 0, 64, 128};
+  static const EpdFontGroup group{0, sizeof(bitmap), 3, 3, 0};
+  EpdFontData regularData{};
+  regularData.bitmap = bitmap;
+  regularData.glyph = glyphs;
+  regularData.intervals = &interval;
+  regularData.intervalCount = 1;
+  regularData.groups = &group;
+  regularData.groupCount = 1;
+  regularData.is2Bit = true;
+  EpdFontData boldData = regularData;
   const EpdFontFamily family(&regularData, &boldData, &regularData, nullptr);
-  const FontRegistry builtinFonts{{5, family}};
+  FontRegistry builtinFonts{{5, family}};
   const std::map<int, SdCardFont*> noSdFonts;
   FontDecompressor decompressor;
+  builtinFonts.attach(noSdFonts);
   FontCacheManager manager(builtinFonts, noSdFonts, kNoTtfFonts);
   manager.setFontDecompressor(&decompressor);
 
@@ -97,19 +111,24 @@ TEST(FontCacheManagerTest, PrewarmScopeMergesBuiltInStylesThatShareFontData) {
   manager.recordText("C", 5, EpdFontFamily::ITALIC);
   scope.endScanAndPrewarm();
 
-  ASSERT_EQ(2, decompressor.prewarmCallCount);
-  const auto& first = decompressor.prewarmCalls[0];
-  const auto& second = decompressor.prewarmCalls[1];
-  const auto* regularCall = first.fontData == &regularData ? &first : &second;
-  const auto* boldCall = first.fontData == &boldData ? &first : &second;
-  EXPECT_STREQ("AC", regularCall->text);
-  EXPECT_STREQ("B", boldCall->text);
+  ASSERT_EQ(2U, decompressor.pageSlotViewCount());
+  const auto* slots = static_cast<const XpFontCacheSlot*>(decompressor.pageSlotView());
+  const auto& bold = slots[0];
+  const auto& regular = slots[1];
+  ASSERT_EQ(&boldData, bold.fontData);
+  ASSERT_EQ(1, bold.glyphCount);
+  EXPECT_EQ(1U, bold.glyphs[0].glyphIndex);
+  ASSERT_EQ(&regularData, regular.fontData);
+  ASSERT_EQ(2, regular.glyphCount);
+  EXPECT_EQ(0U, regular.glyphs[0].glyphIndex);
+  EXPECT_EQ(2U, regular.glyphs[1].glyphIndex);
 }
 
 TEST(FontCacheManagerTest, PrewarmScopePreservesUniqueMultibyteCodepoints) {
   SdCardFont font;
-  const FontRegistry noBuiltinFonts;
+  FontRegistry noBuiltinFonts;
   const std::map<int, SdCardFont*> sdFonts{{7, &font}};
+  noBuiltinFonts.attach(sdFonts);
   FontCacheManager manager(noBuiltinFonts, sdFonts, kNoTtfFonts);
 
   auto scope = manager.createPrewarmScope();
@@ -122,8 +141,9 @@ TEST(FontCacheManagerTest, PrewarmScopePreservesUniqueMultibyteCodepoints) {
 
 TEST(FontCacheManagerTest, PrewarmScanDoesNotAllocateHeapMemory) {
   SdCardFont font;
-  const FontRegistry noBuiltinFonts;
+  FontRegistry noBuiltinFonts;
   const std::map<int, SdCardFont*> sdFonts{{7, &font}};
+  noBuiltinFonts.attach(sdFonts);
   FontCacheManager manager(noBuiltinFonts, sdFonts, kNoTtfFonts);
 
   heapAllocationCount = 0;
@@ -138,10 +158,34 @@ TEST(FontCacheManagerTest, PrewarmScanDoesNotAllocateHeapMemory) {
 
 TEST(FontCacheManagerTest, IncrementalPrewarmRequestsAccumulation) {
   SdCardFont font;
-  const FontRegistry noBuiltinFonts;
+  FontRegistry noBuiltinFonts;
   const std::map<int, SdCardFont*> sdFonts{{7, &font}};
+  noBuiltinFonts.attach(sdFonts);
   FontCacheManager manager(noBuiltinFonts, sdFonts, kNoTtfFonts);
   manager.prewarmCache(7, "title", 1);
   ASSERT_EQ(1, font.prewarmCallCount);
   EXPECT_TRUE(font.prewarmCalls[0].accumulate);
 }
+
+extern "C" uint8_t xp_native_font_compat_resolve(void* context, int32_t font, uint8_t style) {
+  return static_cast<const std::map<int, SdCardFont*>*>(context)->at(font)->resolveStyle(style);
+}
+extern "C" int32_t xp_native_font_compat_prewarm(void* context, int32_t font, uint8_t backend, const char* text,
+                                                 uint8_t styles, uint8_t metadata, uint8_t kernLig,
+                                                 uint8_t accumulate) {
+  EXPECT_EQ(0, backend);
+  return static_cast<const std::map<int, SdCardFont*>*>(context)->at(font)->prewarm(text, styles, metadata != 0,
+                                                                                    kernLig != 0, accumulate != 0);
+}
+extern "C" void xp_native_font_compat_clear(void* context, int32_t font, uint8_t backend, uint8_t resident) {
+  EXPECT_EQ(0, backend);
+  auto* cache = static_cast<const std::map<int, SdCardFont*>*>(context)->at(font);
+  if (resident)
+    cache->releaseResidentCaches();
+  else
+    cache->clearCache();
+}
+extern "C" void xp_native_font_compat_reset(void* context, int32_t font) {
+  static_cast<const std::map<int, SdCardFont*>*>(context)->at(font)->resetStats();
+}
+extern "C" void xp_native_font_cache_diagnostic(const void*, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t) {}

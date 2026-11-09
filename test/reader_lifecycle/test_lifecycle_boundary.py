@@ -131,7 +131,7 @@ def main():
                                     '-fsyntax-only', '-I', include, c])
         cpp = evidence / 'current-boundary.cpp'
         cpp.write_text('#include "epub_boundary_assertions.h"\n')
-        run('current-cxx200-boundary', [os.environ.get('CXX', 'c++'), '-std=c++17', '-UNDEBUG',
+        run('current-cxx200-boundary', [os.environ.get('CXX', 'c++'), '-std=c++17', '-DXP_APP_TEST', '-UNDEBUG',
                                        '-Werror', '-fsyntax-only', '-I', evidence / 'sources/draft',
                                        '-I', include, cpp])
         # The existing repository driver records its own compile/run logs in this new child directory.

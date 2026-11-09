@@ -55,7 +55,7 @@ impl Drawing<'_> {
             unsafe { (this.services.text_draw)(command, clip, this.message) };
             return;
         }
-        let started = unsafe { (this.leaves.fonts_prewarm_begin)(this.prewarm) } != 0;
+        let started = unsafe { this.leaves.font_begin(this.prewarm) };
         this.started.set(started);
         let paint = || {
             if let Some(page) = unsafe { &*this.owner.page.get() } {
@@ -69,7 +69,7 @@ impl Drawing<'_> {
         };
         paint();
         if started {
-            unsafe { (this.leaves.fonts_prewarm_finish_scan)(this.prewarm) };
+            unsafe { this.leaves.font_finish(this.prewarm) };
         }
         paint();
     }
@@ -85,7 +85,7 @@ impl Metrics for Drawing<'_> {
 impl Drop for Drawing<'_> {
     fn drop(&mut self) {
         if self.started.get() {
-            unsafe { (self.leaves.fonts_prewarm_drop)(self.prewarm) };
+            unsafe { self.leaves.font_end(self.prewarm) };
         }
     }
 }

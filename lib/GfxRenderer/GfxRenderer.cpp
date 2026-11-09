@@ -3,7 +3,6 @@
 #include <BidiUtils.h>
 #include <BoardConfig.h>
 #include <BuildScratch.h>
-#include <FontDecompressor.h>
 #include <HalGPIO.h>
 #include <Logging.h>
 #include <MemoryManager.h>
@@ -16,41 +15,7 @@
 #include "../Memory/Memory.h"
 #include "FontCacheManager.h"
 
-const uint8_t* GfxRenderer::getGlyphBitmap(const EpdFontData* fontData, const EpdGlyph* glyph) const {
-  // Vector (TTF) fonts: the glyph bitmap lives in the font's own cache, keyed by
-  // the EpdGlyph the miss handler returned. Checked first so it never reaches the
-  // SdCardFont overflow cast below. nullptr = zero-width glyph (e.g. space).
-  if (fontData->vectorBitmapHandler != nullptr) {
-    return fontData->vectorBitmapHandler(fontData->glyphMissCtx, glyph);
-  }
-  if (fontData->groups != nullptr) {
-    auto* fd = fontCacheManager_ ? fontCacheManager_->getDecompressor() : nullptr;
-    if (!fd) {
-      LOG_ERR("GFX", "Compressed font but no FontDecompressor set");
-      return nullptr;
-    }
-    uint32_t glyphIndex = static_cast<uint32_t>(glyph - fontData->glyph);
-    // For page-buffer hits the pointer is stable for the page lifetime.
-    // For hot-group hits it is valid only until the next getBitmap() call — callers
-    // must consume it (draw the glyph) before requesting another bitmap.
-    return fd->getBitmap(fontData, glyph, glyphIndex);
-  }
-  // For SD card fonts, check if the glyph was loaded on demand into the overflow
-  // buffer.  getOverflowBitmap() returns:
-  //   - bitmap pointer for overflow glyphs with bitmap data
-  //   - nullptr for overflow glyphs without bitmap data (e.g. space: width=0, height=0)
-  //   - nullptr for non-overflow glyphs (normal prewarmed path)
-  // We distinguish overflow-with-no-bitmap from non-overflow by checking isOverflowGlyph().
-  if (fontData->glyphMissCtx) {
-    auto* sdFont = SdCardFont::fromMissCtx(fontData->glyphMissCtx);
-    if (sdFont->isOverflowGlyph(glyph)) {
-      return sdFont->getOverflowBitmap(glyph);  // may be nullptr for zero-width glyphs
-    }
-  }
-  return &fontData->bitmap[glyph->dataOffset];
-}
-
-XpGlyphTarget GfxRenderer::glyphTarget() const {
+XpGlyphTarget GfxRenderer::glyphTarget(bool includeScanning) const {
   return {getWriteTarget(),
           static_cast<uint32_t>(panelWidthBytes * getWriteRows()),
           panelWidth,
@@ -63,38 +28,11 @@ XpGlyphTarget GfxRenderer::glyphTarget() const {
           static_cast<uint8_t>(renderMode),
           static_cast<uint8_t>(grayPlanesAreAbsolute()),
           static_cast<uint8_t>(_stripActive),
-          static_cast<uint8_t>(fontCacheManager_ && fontCacheManager_->isScanning())};
+          static_cast<uint8_t>(includeScanning && fontCacheManager_ && fontCacheManager_->isScanning())};
 }
 
 void GfxRenderer::glyphSource(const EpdFontData* font, XpGlyphSource& source) const {
   xp_font_registry_source(fontMap.raw(), font, &source);
-}
-
-XpGlyphBitmap GfxRenderer::glyphMiss(void* raw, uint32_t cp, const void* resolved, XpGlyphDraw* draw,
-                                     XpGlyphSource* source) {
-  const auto& c = *static_cast<GlyphContext*>(raw);
-  EpdGlyph fallback;
-  const auto* glyph = static_cast<const EpdGlyph*>(resolved);
-  if (!glyph) {
-    glyph = draw->kind == XP_GLYPH_BILINEAR ? c.font->getGlyph(cp) : c.font->getGlyphMetrics(cp, fallback);
-  }
-  if (!glyph && (draw->kind == XP_GLYPH_NORMAL || draw->kind == XP_GLYPH_ROTATED)) {
-    LOG_ERR("GFX", "No glyph for codepoint %d", static_cast<int32_t>(cp));
-  }
-  const auto* font = c.font->data;
-  XpGlyphBitmap bitmap{};
-  if (glyph) {
-    memcpy(&draw->glyph, glyph, sizeof(*glyph));
-    draw->ascender = font->ascender;
-    draw->twoBit = font->is2Bit;
-    draw->solid = glyph == &fallback;
-    if (!draw->solid) {
-      bitmap.data = c.renderer.getGlyphBitmap(font, glyph);
-      if (bitmap.data) bitmap.len = (glyph->width * glyph->height * (font->is2Bit ? 2 : 1) + 7) / 8;
-    }
-  }
-  c.renderer.glyphSource(c.font->data, *source);
-  return bitmap;
 }
 
 void GfxRenderer::ensureSdCardFontReady(int fontId, const char* utf8Text, uint8_t styleMask) const {
@@ -163,31 +101,15 @@ void GfxRenderer::begin() {
   // measurements in the same layout pass return 0-width advances.
   auto& memoryManager = freeink::MemoryManager::instance();
   memoryManager.registerSink({"gfx.renderGlyphCache", 50, [this](size_t) -> size_t {
-                                if (!fontCacheManager_ || fontCacheManager_->isScanning()) return 0;
-                                const size_t before = freeink::MemoryManager::instance().freeBytes();
-                                fontCacheManager_->clearCache();
-                                const size_t after = freeink::MemoryManager::instance().freeBytes();
-                                return after > before ? after - before : 0;
+                                return fontCacheManager_ ? xp_font_cache_release(fontMap.raw(), XP_FONT_EVICT_RENDER)
+                                                         : 0;
                               }});
   memoryManager.registerSink({"gfx.sdFontMini", 60, [this](size_t) -> size_t {
-                                const size_t before = freeink::MemoryManager::instance().freeBytes();
-                                for (auto& entry : sdCardFonts_) {
-                                  if (entry.second) entry.second->clearCache();
-                                }
-                                const size_t after = freeink::MemoryManager::instance().freeBytes();
-                                return after > before ? after - before : 0;
+                                return xp_font_cache_release(fontMap.raw(), XP_FONT_EVICT_SD);
                               }});
 #if CROSSPOINT_VECTOR_FONTS
-  // TTF glyph arenas are safe to shed mid-layout, unlike the SD-font advance
-  // table: metrics re-fault through FreeType with identical values, so layout
-  // cannot silently corrupt — the cost is re-rasterizing on the next draw.
   memoryManager.registerSink({"gfx.ttfGlyphArenas", 70, [this](size_t) -> size_t {
-                                const size_t before = freeink::MemoryManager::instance().freeBytes();
-                                for (auto& entry : ttfFonts_) {
-                                  if (entry.second) entry.second->releaseResidentCaches();
-                                }
-                                const size_t after = freeink::MemoryManager::instance().freeBytes();
-                                return after > before ? after - before : 0;
+                                return xp_font_cache_release(fontMap.raw(), XP_FONT_EVICT_VECTOR);
                               }});
 #endif
 }
@@ -474,7 +396,8 @@ void GfxRenderer::drawGlyphRun(const int fontId, const int x, const int y, const
   }
   if (!rotated && resolvedFontId != fontId) baseline += (getLineHeight(fontId) - getLineHeight(resolvedFontId)) / 2;
   XpGlyphPaint paint{glyphTarget(), {}, x, y + baseline, static_cast<uint8_t>(black)};
-  GlyphContext context{*this, nullptr, fontId, resolvedFontId, style, rotated, &paint};
+  GlyphContext context{{fontMap.raw(), nullptr}, this,  resolvedFontId, style, rotated,
+                       resolvedFontId != fontId, &paint};
   xp_native_draw_pixels(
       &provider, resolvedFontId, reinterpret_cast<const uint8_t*>(text), strlen(text), style, tracking,
       static_cast<int32_t>(baseDir), rotated, &context,
@@ -482,20 +405,21 @@ void GfxRenderer::drawGlyphRun(const int fontId, const int x, const int y, const
         auto& c = *static_cast<GlyphContext*>(raw);
         const auto* text = reinterpret_cast<const char*>(visual);
         const int resolved = c.resolvedFont;
-        if (!c.rotated && c.renderer.fontCacheManager_ && c.renderer.fontCacheManager_->isScanning()) {
-          c.renderer.fontCacheManager_->recordText(text, resolved, c.style);
+        if (!c.rotated && c.renderer->fontCacheManager_ && c.renderer->fontCacheManager_->isScanning()) {
+          c.renderer->fontCacheManager_->recordText(text, resolved, c.style);
           return nullptr;
         }
-        if (resolved != c.requestedFont) c.renderer.ensureSdGlyphsResident(resolved, text, c.style, false);
-        c.font = c.renderer.fontMap.font(resolved, c.style);
-        if (!c.font) {
+        if (c.fallback) c.renderer->ensureSdGlyphsResident(resolved, text, c.style, false);
+        const auto* font = c.renderer->fontMap.font(resolved, c.style);
+        if (!font) {
           LOG_ERR("GFX", "Font %d not found", resolved);
           return nullptr;
         }
-        c.renderer.glyphSource(c.font->data, c.paint->source);
-        return reinterpret_cast<const void* const*>(&c.font->data);
+        c.glyphs.slot = reinterpret_cast<const void* const*>(&font->data);
+        c.renderer->glyphSource(font->data, c.paint->source);
+        return reinterpret_cast<const void* const*>(&font->data);
       },
-      &paint, &glyphMiss);
+      &paint, &xp_font_glyph_miss);
 }
 
 void GfxRenderer::drawLine(int x1, int y1, int x2, int y2, const bool state) const {
@@ -1766,10 +1690,12 @@ int GfxRenderer::drawScaledCodepoint(const int fontId, const uint32_t cp, const 
   if (!font) return 0;
   XpGlyphPaint paint{glyphTarget(), {}, x, baselineY, true};
   glyphSource(font->data, paint.source);
-  GlyphContext context{*this, font, fontId, fontId, style, false, &paint};
+  GlyphContext context{
+      {fontMap.raw(), reinterpret_cast<const void* const*>(&font->data)}, this, fontId, style, false, false, &paint};
   const auto provider = textProvider();
   return xp_native_draw_scaled_pixels(&provider, fontId, cp, style, scale256,
-                                      reinterpret_cast<const void* const*>(&font->data), &context, &paint, &glyphMiss);
+                                      reinterpret_cast<const void* const*>(&font->data), &context, &paint,
+                                      &xp_font_glyph_miss);
 }
 
 int GfxRenderer::getFontAscenderSize(const int fontId) const {
@@ -1999,31 +1925,13 @@ void GfxRenderer::getOrientedViewableTRBL(int* outTop, int* outRight, int* outBo
 
 XpNativeProvider GfxRenderer::textProvider() const { return xp_font_registry_provider(fontMap.raw()); }
 
-void GfxRenderer::pageTarget(XpPageTarget& out) const {
-  out.glyphs = glyphTarget();
+void GfxRenderer::pageTarget(XpPageTarget& out, bool includeScanning) const {
+  out.glyphs = glyphTarget(includeScanning);
   out.fonts = fontMap.raw();
   out.native = const_cast<GfxRenderer*>(this);
   out.inverted = display.isInverted();
 }
 
-extern "C" void xp_native_font_cache_view(void* raw, XpGlyphSource* source) {
-  const auto* manager = static_cast<const GfxRenderer*>(raw)->getFontCacheManager();
-  const auto* decompressor = manager ? manager->getDecompressor() : nullptr;
-  if (!decompressor) return;
-  source->slots = static_cast<const XpGlyphPageSlot*>(decompressor->pageSlotView());
-  source->slotCount = decompressor->pageSlotViewCount();
-}
-extern "C" XpGlyphBitmap xp_native_font_bitmap_miss(void* raw, const void* font, const void* glyph) {
-  const auto* data = static_cast<const EpdFontData*>(font);
-  const auto* g = static_cast<const EpdGlyph*>(glyph);
-  const auto* bitmap = static_cast<const GfxRenderer*>(raw)->getGlyphBitmap(data, g);
-  return {bitmap, bitmap ? static_cast<uint32_t>((g->width * g->height * (data->is2Bit ? 2 : 1) + 7) / 8) : 0};
-}
-extern "C" void xp_native_font_record_resolved_text(void* raw, int32_t font, uint8_t style, const uint8_t* text) {
-  auto* manager = static_cast<const GfxRenderer*>(raw)->getFontCacheManager();
-  if (manager)
-    manager->recordResolvedText(reinterpret_cast<const char*>(text), font, static_cast<EpdFontFamily::Style>(style));
-}
 extern "C" void xp_native_sd_font_view(void* raw, int32_t font, XpNativeFamily* family, XpGlyphSource* source) {
   if (family) {
     const auto& fonts = static_cast<const GfxRenderer*>(raw)->getSdCardFonts();
@@ -2084,3 +1992,110 @@ void GfxRenderer::copyStatusToStrip(int top, const bool sourceInverted) const {
   }
 }
 #endif
+
+extern "C" uint8_t xp_native_font_compat_resolve(void* raw, int32_t font, uint8_t style) {
+  const auto& fonts = static_cast<const GfxRenderer*>(raw)->getSdCardFonts();
+  const auto it = fonts.find(font);
+  return it != fonts.end() ? it->second->resolveStyle(style) : style;
+}
+extern "C" int32_t xp_native_font_compat_prewarm(void* raw, int32_t font, uint8_t backend, const char* text,
+                                                 uint8_t styles, uint8_t metadata, uint8_t kernLig,
+                                                 uint8_t accumulate) {
+  const auto& renderer = *static_cast<const GfxRenderer*>(raw);
+  if (backend == 0) {
+    const auto& fonts = renderer.getSdCardFonts();
+    const auto it = fonts.find(font);
+    return it != fonts.end() ? it->second->prewarm(text, styles, metadata != 0, kernLig != 0, accumulate != 0) : 0;
+  }
+#if CROSSPOINT_VECTOR_FONTS
+  const auto& fonts = renderer.getTtfFonts();
+  const auto it = fonts.find(font);
+  if (it != fonts.end() && it->second) {
+    if (accumulate)
+      it->second->addCoverage(text);
+    else
+      it->second->build(text);
+  }
+#endif
+  return 0;
+}
+extern "C" void xp_native_font_compat_clear(void* raw, int32_t font, uint8_t backend, uint8_t resident) {
+  const auto& renderer = *static_cast<const GfxRenderer*>(raw);
+  if (backend == 0) {
+    const auto& fonts = renderer.getSdCardFonts();
+    const auto it = fonts.find(font);
+    if (it != fonts.end()) {
+      if (resident)
+        it->second->releaseResidentCaches();
+      else
+        it->second->clearCache();
+    }
+    return;
+  }
+#if CROSSPOINT_VECTOR_FONTS
+  const auto& fonts = renderer.getTtfFonts();
+  const auto it = fonts.find(font);
+  if (it != fonts.end() && it->second) {
+    if (resident)
+      it->second->releaseResidentCaches();
+    else
+      it->second->clearCache();
+  }
+#endif
+}
+extern "C" void xp_native_font_compat_reset(void* raw, int32_t font) {
+  const auto& fonts = static_cast<const GfxRenderer*>(raw)->getSdCardFonts();
+  const auto it = fonts.find(font);
+  if (it != fonts.end()) it->second->resetStats();
+}
+extern "C" const uint8_t* xp_native_sd_font_bitmap(const void* rawFont, const void* rawGlyph) {
+  const auto* data = static_cast<const EpdFontData*>(rawFont);
+  const auto* glyph = static_cast<const EpdGlyph*>(rawGlyph);
+  const auto* font = SdCardFont::fromMissCtx(data->glyphMissCtx);
+  return font->isOverflowGlyph(glyph) ? font->getOverflowBitmap(glyph) : data->bitmap + glyph->dataOffset;
+}
+
+extern "C" void xp_native_font_cache_diagnostic(const void* font, uint32_t event, uint32_t a, uint32_t b, uint32_t c,
+                                                uint32_t d) {
+  switch (event) {
+    case 1:
+      LOG_ERR("FDC", "Decompression failed for group %u", a);
+      break;
+    case 2:
+      LOG_ERR("FDC", "Glyph %u not found in any group", a);
+      break;
+    case 3:
+      LOG_ERR("FDC", "Failed to allocate %u bytes for hot group %u", a, b);
+      break;
+    case 4:
+      LOG_ERR("FDC", "Failed to allocate %u bytes for glyph scratch", a);
+      break;
+    case 5:
+      LOG_ERR("FDC", "All %u page buffer slots full, cannot prewarm fontData=%p", a, const_cast<void*>(font));
+      break;
+    case 6:
+      LOG_DBG("FDC", "Glyph cap (%u) reached during prewarm; excess glyphs will use hot-group fallback", a);
+      break;
+    case 7:
+      LOG_DBG("FDC", "Group cap (128) reached during prewarm; some groups will use hot-group fallback");
+      break;
+    case 8:
+      LOG_ERR("FDC", "Failed to allocate page buffer (%u bytes, %u glyphs)", a, b);
+      break;
+    case 9:
+      LOG_ERR("FDC", "Failed to allocate temp buffer (%u bytes) for group %u", a, b);
+      break;
+    case 10:
+      LOG_DBG("FDC", "Prewarm: %u glyphs in %u bytes from %u groups (%d missed)", a, b, c, static_cast<int>(d));
+      break;
+    case 11:
+      LOG_DBG("FCM", "Scan codepoint cap (%u) reached; excess glyphs will load on demand", a);
+      break;
+    case 12:
+      LOG_DBG("FCM", "prewarmCache(SD): %d glyph(s) not found (styleMask=0x%02X)", static_cast<int>(a), b);
+      break;
+    case 13:
+      LOG_DBG("FCM", "prewarmCache: %d glyph(s) not cached for style %d", static_cast<int>(a), static_cast<int>(b));
+      break;
+  }
+}

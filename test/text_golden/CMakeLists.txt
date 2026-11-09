@@ -16,9 +16,9 @@ add_custom_command(OUTPUT ${INSTRUMENTED}/GfxRenderer.cpp ${INSTRUMENTED}/GfxRen
   DEPENDS instrument.py ${REPO_ROOT}/lib/GfxRenderer/RustUiRenderer.cpp ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.cpp ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.h
   VERBATIM)
 add_executable(TextGolden TextGolden.cpp ${INSTRUMENTED}/GfxRenderer.cpp
-  ${REPO_ROOT}/lib/GfxRenderer/FontCacheManager.cpp
+
   ${REPO_ROOT}/lib/EpdFont/EpdFont.cpp ${REPO_ROOT}/lib/EpdFont/EpdFontFamily.cpp
-  ${REPO_ROOT}/lib/EpdFont/SdCardFont.cpp ${REPO_ROOT}/lib/EpdFont/FontDecompressor.cpp
+  ${REPO_ROOT}/lib/EpdFont/SdCardFont.cpp ${REPO_ROOT}/test/font_cache/legacy/FontDecompressor.cpp
   ${REPO_ROOT}/lib/EpdFont/TtfEpdFont.cpp
   ${REPO_ROOT}/lib/MiniBidi/RustBidi.cpp
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp ${REPO_ROOT}/lib/InflateReader/InflateReader.cpp

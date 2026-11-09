@@ -20,6 +20,7 @@ mod css;
 mod dictionary;
 mod font;
 mod font_registry;
+mod font_runtime;
 mod gif;
 mod glyph;
 mod hal;

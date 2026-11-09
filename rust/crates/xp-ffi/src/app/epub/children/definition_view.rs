@@ -73,7 +73,7 @@ impl Drawing<'_> {
             },
             view::BODY => {
                 this.started
-                    .set(unsafe { (this.leaves.fonts_prewarm_begin)(this.prewarm) } != 0);
+                    .set(unsafe { this.leaves.font_begin(this.prewarm) });
                 let body = || unsafe {
                     (this.owner.physical.draw_body)(
                         this.owner.payload.get(),
@@ -89,7 +89,7 @@ impl Drawing<'_> {
                 };
                 body();
                 if this.started.get() {
-                    unsafe { (this.leaves.fonts_prewarm_finish_scan)(this.prewarm) };
+                    unsafe { this.leaves.font_finish(this.prewarm) };
                 }
                 body();
             }
@@ -132,7 +132,7 @@ impl Metrics for Drawing<'_> {
 impl Drop for Drawing<'_> {
     fn drop(&mut self) {
         if self.started.get() {
-            unsafe { (self.leaves.fonts_prewarm_drop)(self.prewarm) };
+            unsafe { self.leaves.font_end(self.prewarm) };
         }
     }
 }

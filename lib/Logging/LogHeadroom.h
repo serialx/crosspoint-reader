@@ -4,7 +4,7 @@
 #include <cstdint>
 
 namespace loglite {
-// X3 linked fatal bounds after the SP sample: drain 4000 B, wait 3536 B.
+// X3 linked fatal bounds after the SP sample: drain 4080 B, wait 3536 B.
 // Reaudit all post-sample continuations when changing the logger or SDK.
 constexpr size_t DrainReserve = 4096;
 // Preserve the render floor and loop gate; the extra 16 bytes keep both strict.

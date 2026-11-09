@@ -43,7 +43,9 @@ void logPrintf(const char* level, const char* origin, const char* format, ...);
 #ifdef ENABLE_SERIAL_LOG
 void registerLogRenderTask();
 void registerLogLoopTask();
-// Call only after a render/loop pass has unwound and released its locks.
+// Drain after render-pass locks are released, at loop entry, or inside the loop's
+// pre-sleep path with its power-saving lock held. No power/render lock is acquired;
+// a busy journal is skipped, and serial I/O uses the SDK's bounded waits.
 void drainLogs();
 #else
 inline void registerLogRenderTask() {}

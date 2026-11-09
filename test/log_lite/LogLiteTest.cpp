@@ -1,4 +1,5 @@
 #include <BoundedLog.h>
+#include <LogHeadroom.h>
 
 #include <climits>
 #include <cstdio>
@@ -21,10 +22,15 @@ static void formats(char* out, size_t size, const char* format, ...) {
   require(ok, "supported format rejected");
 }
 
+static char rtc[loglite::LineCount][loglite::LineSize]{};
+static size_t head;
+static uint32_t magic;
 static bool record(loglite::Journal& journal, const char* text, ...) {
   va_list args;
   va_start(args, text);
-  const bool result = journal.capture(42, "ERR", "FDC", text, args);
+  char line[loglite::LineSize];
+  const bool result = loglite::formatLine(line, 42, "ERR", "FDC", text, args);
+  if (result) journal.commit(rtc, line, std::strlen(line), head, magic, true);
   va_end(args);
   return result;
 }
@@ -40,56 +46,63 @@ static void rejectedFormat(const char* pattern, ...) {
 }
 
 static void journalTests() {
-  char rtc[loglite::LineCount][loglite::LineSize]{};
-  size_t head = 0;
-  uint32_t magic = 0;
-  loglite::Journal journal(rtc, head, magic);
+  head = magic = 0;
+  loglite::Journal journal;
   require(record(journal, "Failed to allocate %u bytes for hot group %u\n", 100u, 2u), "capture rejected");
   require(std::strcmp(rtc[0], "[42] [ERR] [FDC] Failed to allocate 100 bytes for hot group 2\n") == 0,
           "line not retained before transport");
   require(head == 1 && magic == loglite::RtcMagic, "RTC head/magic not committed");
   // Reset ordinary state without clearing the RTC region, as on panic reboot.
-  loglite::Journal afterReset(rtc, head, magic);
-  require(!afterReset.beginDrain(), "reset replayed an old crash line");
+  loglite::Journal afterReset;
+  require(afterReset.beginDrain(1) == loglite::DrainClaim::Acquired, "reset replayed an old crash line");
+  char resetCopy[loglite::LineSize];
+  require(!afterReset.copyNext(rtc, resetCopy, head), "reset replayed an old crash line");
+  afterReset.endDrain();
   require(std::strstr(rtc[0], "hot group 2") != nullptr, "reset lost committed diagnostic");
-  require(journal.beginDrain(), "pending record missing");
-  require(!journal.beginDrain(), "second drainer acquired an active stream");
+  require(journal.beginDrain(1) == loglite::DrainClaim::Acquired, "pending record missing");
+  require(journal.beginDrain(1) == loglite::DrainClaim::Reentrant, "second drainer acquired an active stream");
   char copy[loglite::LineSize];
-  require(journal.copyNext(copy), "pending copy missing");
+  require(journal.copyNext(rtc, copy, head), "pending copy missing");
   require(std::strcmp(copy, rtc[0]) == 0, "transport copy differs from crash line");
-  require(!journal.copyNext(copy), "same record drained twice");
+  require(!journal.copyNext(rtc, copy, head), "same record drained twice");
   journal.endDrain();
   for (unsigned i = 0; i < 20; ++i) require(record(journal, "line %u", i), "burst rejected");
   require(journal.takeDropped() == 4, "overflow did not count four overwritten pending lines");
   require(journal.takeDropped() == 0, "overflow count repeated");
-  require(journal.beginDrain(), "overflow lost all pending lines");
+  require(journal.beginDrain(1) == loglite::DrainClaim::Acquired, "overflow lost all pending lines");
   for (unsigned i = 4; i < 20; ++i) {
     char expected[80];
     std::snprintf(expected, sizeof(expected), "[42] [ERR] [FDC] line %u", i);
-    require(journal.copyNext(copy) && std::strcmp(copy, expected) == 0, "wraparound reordered retained lines");
+    require(journal.copyNext(rtc, copy, head) && std::strcmp(copy, expected) == 0,
+            "wraparound reordered retained lines");
   }
-  require(!journal.copyNext(copy), "drain exceeded retained lines");
+  require(!journal.copyNext(rtc, copy, head), "drain exceeded retained lines");
   journal.endDrain();
-  require(record(journal, "old") && journal.beginDrain(), "snapshot setup failed");
+  require(record(journal, "old") && journal.beginDrain(1) == loglite::DrainClaim::Acquired, "snapshot setup failed");
   require(record(journal, "new"), "interleaved capture failed");
-  require(journal.copyNext(copy) && std::strstr(copy, "old"), "snapshot lost original record");
-  require(!journal.copyNext(copy), "new record extended an active snapshot");
+  require(journal.copyNext(rtc, copy, head) && std::strstr(copy, "old"), "snapshot lost original record");
+  require(!journal.copyNext(rtc, copy, head), "new record extended an active snapshot");
   journal.endDrain();
-  require(journal.beginDrain() && journal.copyNext(copy) && std::strstr(copy, "new"), "next pass lost new record");
+  require(journal.beginDrain(1) == loglite::DrainClaim::Acquired && journal.copyNext(rtc, copy, head) &&
+              std::strstr(copy, "new"),
+          "next pass lost new record");
   journal.endDrain();
-  require(record(journal, "snapshot") && journal.beginDrain(), "overwrite snapshot setup failed");
+  require(record(journal, "snapshot") && journal.beginDrain(1) == loglite::DrainClaim::Acquired,
+          "overwrite snapshot setup failed");
   for (unsigned i = 0; i < 16; ++i) require(record(journal, "replacement %u", i), "replacement capture failed");
-  require(!journal.copyNext(copy), "overwritten snapshot slot admitted a new record");
+  require(!journal.copyNext(rtc, copy, head), "overwritten snapshot slot admitted a new record");
   journal.endDrain();
-  require(journal.beginDrain(), "replacement records lost");
-  for (unsigned i = 0; i < 16; ++i) require(journal.copyNext(copy), "replacement record missing");
-  require(!journal.copyNext(copy), "snapshot did not stop at sixteen");
+  require(journal.beginDrain(1) == loglite::DrainClaim::Acquired, "replacement records lost");
+  for (unsigned i = 0; i < 16; ++i) require(journal.copyNext(rtc, copy, head), "replacement record missing");
+  require(!journal.copyNext(rtc, copy, head), "snapshot did not stop at sixteen");
   journal.endDrain();
   const size_t savedHead = head;
   require(!record(journal, "unsupported %f", 1.0) && head == savedHead, "unsupported capture committed a record");
   head = 999;
   require(record(journal, "recovered") && head == 1, "invalid RTC head indexed outside ring");
-  require(journal.beginDrain() && journal.copyNext(copy) && std::strstr(copy, "recovered"), "recovery lost line");
+  require(journal.beginDrain(1) == loglite::DrainClaim::Acquired && journal.copyNext(rtc, copy, head) &&
+              std::strstr(copy, "recovered"),
+          "recovery lost line");
   journal.endDrain();
   magic = 0;
   require(record(journal, "cold") && head == 1 && rtc[1][0] == '\0', "cold RTC retained garbage records");
@@ -140,6 +153,17 @@ int main(int argc, char** argv) {
     std::snprintf(expected + 1, capacity, "[%013ld] %zu %8.3s %04X %.*s", LONG_MIN, SIZE_MAX, "abcdef", 65535u, 6,
                   "abcdefghi");
     require(std::memcmp(actual, expected, sizeof(actual)) == 0, "capacity sweep differs from native printf");
+  }
+  constexpr uintptr_t base = 0x10000;
+  constexpr auto render = loglite::DrainReserve + loglite::RenderReserve;
+  require(!loglite::emissionFits(base, base + render - 1), "render guard admitted one byte short");
+  require(loglite::emissionFits(base, base + render), "render guard rejected exact threshold");
+  require(loglite::emissionFits(base, base + render + 1), "render guard rejected spare byte");
+  require(!loglite::emissionFits(base, base - 1), "stack subtraction underflow admitted emission");
+  for (size_t bytes : {size_t{16384}, size_t{24576}}) {
+    const auto need = loglite::DrainReserve + bytes - loglite::LoopGate + 16;
+    require(!loglite::emissionFits(base, base + need - 1, bytes), "loop admitted below reserve");
+    require(loglite::emissionFits(base, base + need, bytes), "loop rejected threshold");
   }
   journalTests();
   return 0;

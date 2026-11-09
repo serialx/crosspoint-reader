@@ -17,3 +17,5 @@ class Print {
   virtual size_t write(const uint8_t*, size_t size) { return size; }
   virtual void flush() {}
 };
+inline size_t loopStackBytes = 16384;
+inline size_t getArduinoLoopTaskStackSize() { return loopStackBytes; }

@@ -228,22 +228,23 @@ bool formatLine(char (&destination)[LineSize], uint32_t milliseconds, const char
   return true;
 }
 
-void formatDropped(char (&destination)[LineSize], uint32_t dropped) noexcept {
+void formatCounter(char (&destination)[LineSize], uint32_t count, const char* event) noexcept {
   Writer writer(destination, LineSize);
-  writer.text("[LOG] Dropped ", {});
+  writer.text("[LOG] ", {});
   Conversion integer;
   integer.kind = 'u';
-  writer.number(dropped, false, integer);
-  writer.text(" pending serial lines\n", {});
+  writer.number(count, false, integer);
+  writer.text(event, {});
   writer.finish();
 }
 
 void Journal::clearPending() noexcept {
   pending = snapshot = 0;
-  dropped = 0;
+  dropped = waits = timeouts = 0;
 }
 
-void Journal::commit(const char* line, size_t length, bool defer) noexcept {
+void Journal::commit(char (&lines)[LineCount][LineSize], const char* line, size_t length, size_t& head, uint32_t& magic,
+                     bool defer) noexcept {
   if (magic != RtcMagic || head >= LineCount) {
     for (auto& entry : lines) entry[0] = '\0';
     head = 0;
@@ -262,36 +263,15 @@ void Journal::commit(const char* line, size_t length, bool defer) noexcept {
     pending &= static_cast<uint16_t>(~bit);
   head = (head + 1) % LineCount;
 }
-bool Journal::capture(uint32_t milliseconds, const char* level, const char* origin, const char* text,
-                      va_list args) noexcept {
-  if (!supports(text)) return false;
-  if (magic != RtcMagic || head >= LineCount) {
-    for (auto& line : lines) line[0] = '\0';
-    head = 0;
-    magic = RtcMagic;
-    pending = snapshot = 0;
-  }
-  Writer writer(lines[head], LineSize);
-  prefix(writer, milliseconds, level, origin);
-  write(writer, text, args);
-  writer.finish();
-  const auto bit = static_cast<uint16_t>(1u << head);
-  if ((pending & bit) && dropped != UINT32_MAX) ++dropped;
-  snapshot &= static_cast<uint16_t>(~bit);
-  pending |= bit;
-  head = (head + 1) % LineCount;
-  return true;
-}
-
-bool Journal::beginDrain() noexcept {
-  if (draining || (!pending && !dropped)) return false;
-  draining = true;
+DrainClaim Journal::beginDrain(uintptr_t task) noexcept {
+  if (owner) return owner == task ? DrainClaim::Reentrant : DrainClaim::Busy;
+  owner = task;
   snapshot = pending;
-  return true;
+  return DrainClaim::Acquired;
 }
 
-bool Journal::copyNext(char (&destination)[LineSize]) noexcept {
-  if (!draining) return false;
+bool Journal::copyNext(char (&lines)[LineCount][LineSize], char (&destination)[LineSize], size_t head) noexcept {
+  if (!owner) return false;
   for (size_t i = 0; i < LineCount; ++i) {
     const size_t index = (head + i) % LineCount;
     const auto bit = static_cast<uint16_t>(1u << index);
@@ -306,7 +286,13 @@ bool Journal::copyNext(char (&destination)[LineSize]) noexcept {
 
 void Journal::endDrain() noexcept {
   snapshot = 0;
-  draining = false;
+  owner = 0;
+}
+
+void Journal::takeContention(uint32_t& waitCount, uint32_t& timeoutCount) noexcept {
+  waitCount = waits;
+  timeoutCount = timeouts;
+  waits = timeouts = 0;
 }
 
 uint32_t Journal::takeDropped() noexcept {

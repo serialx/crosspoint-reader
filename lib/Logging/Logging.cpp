@@ -1,13 +1,16 @@
 #include "Logging.h"
 
 #include <BoardConfig.h>
+#include <esp_cpu.h>
 #include <esp_rom_sys.h>
+#include <freertos/idf_additions.h>
 #include <freertos/task.h>
 
 #include <string>
 
 #include "BoundedLog.h"
 #include "LogCriticalSection.h"
+#include "LogHeadroom.h"
 
 #define MAX_ENTRY_LEN 256
 #define MAX_LOG_LINES 16
@@ -31,7 +34,7 @@ struct TaskCapture {
 struct LoggerState {
   TaskCapture render;
   TaskCapture loop;
-  loglite::Journal journal{logMessages, logHead, rtcLogMagic};
+  loglite::Journal journal{};
 };
 constinit LoggerState state;
 #if UINTPTR_MAX == UINT32_MAX
@@ -43,6 +46,7 @@ __attribute__((noinline)) TaskCapture* currentCapture() {
   if (xPortInIsrContext()) return nullptr;
   const auto task = xTaskGetCurrentTaskHandle();
   loglite::CriticalSection lock;
+  if (task && state.journal.ownedBy(reinterpret_cast<uintptr_t>(task))) return nullptr;
   if (task && state.render.task == task) return &state.render;
   if (task && state.loop.task == task) return &state.loop;
   return nullptr;
@@ -51,7 +55,7 @@ __attribute__((noinline)) TaskCapture* currentCapture() {
 __attribute__((noinline)) void commitLine(const char* line, bool defer) {
   const size_t length = strnlen(line, MAX_ENTRY_LEN - 1);
   loglite::CriticalSection lock;
-  state.journal.commit(line, length, defer);
+  state.journal.commit(logMessages, line, length, logHead, rtcLogMagic, defer);
 }
 
 void writeLine(const char* line) {
@@ -71,11 +75,99 @@ __attribute__((noinline)) bool legacyFormat(char (&buf)[MAX_ENTRY_LEN], unsigned
   return vsnprintf(buf + used, sizeof(buf) - used, format, args) >= 0;
 }
 
+__attribute__((noinline)) void drainOwned() {
+  char line[MAX_ENTRY_LEN];
+  while (true) {
+    bool copied;
+    {
+      loglite::CriticalSection lock;
+      copied = state.journal.copyNext(logMessages, line, logHead);
+    }
+    if (!copied) break;
+    writeLine(line);
+  }
+  uint32_t dropped, waits, timeouts;
+  {
+    loglite::CriticalSection lock;
+    dropped = state.journal.takeDropped();
+    state.journal.takeContention(waits, timeouts);
+  }
+  if (dropped) {
+    loglite::formatCounter(line, dropped, " lines dropped\n");
+    writeLine(line);
+  }
+  if (waits) {
+    loglite::formatCounter(line, waits, " contention waits\n");
+    writeLine(line);
+  }
+  if (timeouts) {
+    loglite::formatCounter(line, timeouts, " contention timeouts\n");
+    writeLine(line);
+  }
+}
+
+__attribute__((noinline)) void finishLine(const char* line) {
+  const auto task = xTaskGetCurrentTaskHandle();
+  bool allowed = task && !xPortInIsrContext() && xPortCanYield() && xTaskGetSchedulerState() == taskSCHEDULER_RUNNING;
+#if CONFIG_IDF_TARGET_ARCH_RISCV
+  allowed = allowed && (RV_READ_CSR(mstatus) & MSTATUS_MIE);
+#endif
+  if (!allowed) {
+    commitLine(line, true);
+    return;
+  }
+  const auto base = reinterpret_cast<uintptr_t>(pxTaskGetStackStart(nullptr));
+  const size_t loopBytes = task == state.loop.task ? getArduinoLoopTaskStackSize() : 0;
+  const auto sp = reinterpret_cast<uintptr_t>(esp_cpu_get_sp());
+  if (!loglite::emissionFits(base, sp, loopBytes)) {
+    commitLine(line, true);
+    return;
+  }
+  loglite::DrainClaim claim;
+  {
+    loglite::CriticalSection lock;
+    claim = state.journal.beginDrain(reinterpret_cast<uintptr_t>(task));
+  }
+  if (claim == loglite::DrainClaim::Busy) {
+    // Match HWCDC's 1 ms tx_lock wait, configured in setup(); never wait masked.
+    constexpr auto waitTicks = pdMS_TO_TICKS(1);
+    if (waitTicks) {
+      {
+        loglite::CriticalSection lock;
+        state.journal.noteWait();
+      }
+      vTaskDelay(waitTicks);
+    }
+    loglite::CriticalSection lock;
+    claim = state.journal.beginDrain(reinterpret_cast<uintptr_t>(task));
+    if (claim == loglite::DrainClaim::Busy) state.journal.noteTimeout();
+  }
+  switch (claim) {
+    case loglite::DrainClaim::Acquired:
+      // Free a full FIFO before committing; preserve this writer's task scratch.
+      drainOwned();
+      commitLine(line, true);
+      {
+        loglite::CriticalSection lock;
+        state.journal.snapshotPending();
+      }
+      drainOwned();
+      {
+        loglite::CriticalSection lock;
+        state.journal.endDrain();
+      }
+      return;
+    case loglite::DrainClaim::Busy:
+    case loglite::DrainClaim::Reentrant:
+      commitLine(line, true);
+      return;
+  }
+}
+
 __attribute__((noinline)) void immediateLog(const char* level, const char* origin, const char* format, va_list args) {
   char buf[MAX_ENTRY_LEN];
   if (!legacyFormat(buf, millis(), level, origin, format, args)) return;
-  writeLine(buf);
-  commitLine(buf, false);
+  finishLine(buf);
 }
 }  // namespace
 
@@ -114,34 +206,17 @@ void logPrintf(const char* level, const char* origin, const char* format, ...) {
     return;
   }
   va_end(args);
-  commitLine(capture->line, true);
+  finishLine(capture->line);
 }
 
 #ifdef ENABLE_SERIAL_LOG
 void drainLogs() {
+  const auto task = xTaskGetCurrentTaskHandle();
   {
     loglite::CriticalSection lock;
-    if (!state.journal.beginDrain()) return;
+    if (state.journal.beginDrain(reinterpret_cast<uintptr_t>(task)) != loglite::DrainClaim::Acquired) return;
   }
-  char line[MAX_ENTRY_LEN];
-  while (true) {
-    bool copied;
-    {
-      loglite::CriticalSection lock;
-      copied = state.journal.copyNext(line);
-    }
-    if (!copied) break;
-    writeLine(line);
-  }
-  uint32_t dropped;
-  {
-    loglite::CriticalSection lock;
-    dropped = state.journal.takeDropped();
-  }
-  if (dropped) {
-    loglite::formatDropped(line, dropped);
-    writeLine(line);
-  }
+  drainOwned();
   loglite::CriticalSection lock;
   state.journal.endDrain();
 }

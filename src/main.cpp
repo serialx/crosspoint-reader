@@ -726,6 +726,7 @@ void setupDisplayAndFonts(bool seamless = false) {
 }
 
 void setup() {
+  registerLogLoopTask();
   BoardConfig::holdPowerRails();
 
 #ifdef ENABLE_SERIAL_LOG
@@ -1012,7 +1013,6 @@ void setup() {
 #ifdef CROSSPOINT_UI_ORACLE
   uiOracleEnter(renderer, mappedInputManager);  // Test-only activity fixtures.
 #endif
-  registerLogLoopTask();
 }
 
 void loop() {

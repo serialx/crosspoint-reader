@@ -1,4 +1,7 @@
-use super::{abi, ActivityResult, App, ChildResultSlot, Definition, DefinitionSession, Owner, ReaderChildResult};
+use super::{
+    abi, ActivityResult, App, ChildResultSlot, Definition, DefinitionSession, Owner,
+    ReaderChildResult,
+};
 use crate::app::epub::{abi::XpEpubSettings, children::definition_physical::NativeTransfer};
 use core::{mem::MaybeUninit, ptr::NonNull};
 use xp_ui::app::Transition;

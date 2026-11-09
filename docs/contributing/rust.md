@@ -15,7 +15,7 @@ rendering, PNG/GIF decoding and image row processing, text measurement, glyph
 rasterization and bitmap views, SD font parsing and cache policy, XTC parsing,
 and the shared inflater for ZIP, PNG, ContentProtection, fonts and DictZip.
 Rust also owns the loaded-font registry, including family/style slots and fallback
-IDs. C++ retains file I/O, physical SD/TTF font objects and glyph caches, font
+IDs. C++ retains file I/O, physical SD/TTF file and face resources, temporary font
 facades and platform callbacks, JPEGDEC integration, page storage and views, and
 legacy screen resources. The Rust application owns loop/navigation policy, Home
 and the EPUB session; native ActivityManager forwards into that owner and retains
@@ -305,10 +305,11 @@ shares one block parser, bit reader and match-copy loop between fast lookup
 tables and compact canonical tables. It owns no buffers; callers supply decoder
 storage and output history.
 
-`InflateReader` embeds compact Rust state for font decompression and DictZip.
-Font groups decode directly into the existing output allocation; DictZip supplies
-a 32 KiB history ring. C++ retains I/O and decompressed-font cache ownership.
-The facade's size and alignment are guarded because changing its footprint can
+`InflateReader` embeds compact Rust state for raw deflate. Its firmware caller is
+DictZip, which supplies a 32 KiB history ring through native file I/O. Built-in
+font groups decode through `font::runtime::Decoder` into Rust cache buffers.
+Both paths use the existing compact SmallTables inflater.
+`InflateReader`'s size and alignment are guarded because changing its footprint can
 shift heap boundaries. See the [compact inflater checks](../../test/inflate_small/README.md)
 for frozen outputs, malformed-input differences and recovery tests.
 
@@ -485,8 +486,9 @@ source accounting, ruby text, link targets and size-slot font tables. Ruby metad
 uses 16-entry chunks (512 bytes each on C3), with a small fallible pointer table;
 consuming a prefix releases whole chunks, and consuming all text releases the table.
 Long annotation/target text has separate fallible byte storage; short text stays
-inline. Rust executes measurement and bidi; C++ retains font/storage ownership
-and the shared bidi workspace and mutex. TextBlock is a borrowed page view in firmware.
+inline. Rust executes measurement and bidi and owns loaded-font and cache policy.
+C++ retains native SD/TTF file and face resources and the shared bidi workspace
+and mutex. TextBlock is a borrowed page view in firmware.
 The ABI adds no rendering/storage service, task or synchronization.
 
 ## Paragraph layout

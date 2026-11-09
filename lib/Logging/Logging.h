@@ -40,6 +40,16 @@ static HardwareSerial& logSerial = Serial;
 #endif
 
 void logPrintf(const char* level, const char* origin, const char* format, ...);
+#ifdef ENABLE_SERIAL_LOG
+void registerLogRenderTask();
+void registerLogLoopTask();
+// Call only after a render/loop pass has unwound and released its locks.
+void drainLogs();
+#else
+inline void registerLogRenderTask() {}
+inline void registerLogLoopTask() {}
+inline void drainLogs() {}
+#endif
 
 #ifdef ENABLE_SERIAL_LOG
 #if LOG_LEVEL >= 0

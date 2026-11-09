@@ -51,7 +51,7 @@ def build(output, allocation_faults=False, main_source=None):
                                   '  ~ContentDecryptor() { --liveDecryptors; }')
         (stubs / 'ContentProtection.h').write_text(protection)
     (stubs / 'HalStorage.h').write_text(storage)
-    # Preserve the production 256-byte serial formatter, including its prefix and newline.
+    # Keep the production legacy formatter as the immediate byte oracle; deferred transport is tested in log_lite.
     logging_cpp = (ROOT / 'lib/Logging/Logging.cpp').read_text()
     logging_header = (ROOT / 'lib/Logging/Logging.h').read_text()
     logging = """#pragma once
@@ -65,7 +65,16 @@ def build(output, allocation_faults=False, main_source=None):
 uint32_t millis();
 inline void addToLogRingBuffer(const char*) {}
 inline struct BookSerial { void print(const char* value) { fputs(value, stdout); } } logSerial;
-""" + 'inline ' + definition(logging_cpp, 'void logPrintf(') + '\n'
+""" + 'inline ' + definition(logging_cpp, 'bool legacyFormat(') + '''
+inline void logPrintf(const char* level, const char* origin, const char* format, ...) {
+  char buffer[MAX_ENTRY_LEN];
+  va_list args;
+  va_start(args, format);
+  const bool valid = legacyFormat(buffer, millis(), level, origin, format, args);
+  va_end(args);
+  if (valid) logSerial.print(buffer);
+}
+'''
     logging += logging_header[logging_header.index('#ifdef ENABLE_SERIAL_LOG'):logging_header.index('std::string getLastLogs();')]
     (stubs / 'Logging.h').write_text(logging)
     common = (HERE / 'book_items_oracle.cpp').read_text().split('extern "C" int64_t xp_epub_test_items')[0]

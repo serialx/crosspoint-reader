@@ -218,6 +218,50 @@ bool format(char* destination, size_t capacity, const char* format, va_list args
   writer.finish();
   return true;
 }
+bool formatLine(char (&destination)[LineSize], uint32_t milliseconds, const char* level, const char* origin,
+                const char* text, va_list args) noexcept {
+  if (!supports(text)) return false;
+  Writer writer(destination, LineSize);
+  prefix(writer, milliseconds, level, origin);
+  write(writer, text, args);
+  writer.finish();
+  return true;
+}
+
+void formatDropped(char (&destination)[LineSize], uint32_t dropped) noexcept {
+  Writer writer(destination, LineSize);
+  writer.text("[LOG] Dropped ", {});
+  Conversion integer;
+  integer.kind = 'u';
+  writer.number(dropped, false, integer);
+  writer.text(" pending serial lines\n", {});
+  writer.finish();
+}
+
+void Journal::clearPending() noexcept {
+  pending = snapshot = 0;
+  dropped = 0;
+}
+
+void Journal::commit(const char* line, size_t length, bool defer) noexcept {
+  if (magic != RtcMagic || head >= LineCount) {
+    for (auto& entry : lines) entry[0] = '\0';
+    head = 0;
+    magic = RtcMagic;
+    clearPending();
+  }
+  if (length > LineSize - 1) length = LineSize - 1;
+  std::memcpy(lines[head], line, length);
+  lines[head][length] = '\0';
+  const auto bit = static_cast<uint16_t>(1u << head);
+  if ((pending & bit) && dropped != UINT32_MAX) ++dropped;
+  snapshot &= static_cast<uint16_t>(~bit);
+  if (defer)
+    pending |= bit;
+  else
+    pending &= static_cast<uint16_t>(~bit);
+  head = (head + 1) % LineCount;
+}
 bool Journal::capture(uint32_t milliseconds, const char* level, const char* origin, const char* text,
                       va_list args) noexcept {
   if (!supports(text)) return false;
@@ -240,7 +284,7 @@ bool Journal::capture(uint32_t milliseconds, const char* level, const char* orig
 }
 
 bool Journal::beginDrain() noexcept {
-  if (draining || !pending) return false;
+  if (draining || (!pending && !dropped)) return false;
   draining = true;
   snapshot = pending;
   return true;

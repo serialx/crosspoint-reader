@@ -445,6 +445,7 @@ void enterDeepSleep(bool fromTimeout = false) {
   display.deepSleep();
   Storage.prepareForDeepSleep();
   LOG_DBG("MAIN", "Entering deep sleep");
+  drainLogs();
 
   powerManager.startDeepSleep(gpio, wakeOnHeldButton);
 }
@@ -1011,6 +1012,11 @@ void setup() {
 #ifdef CROSSPOINT_UI_ORACLE
   uiOracleEnter(renderer, mappedInputManager);  // Test-only activity fixtures.
 #endif
+  registerLogLoopTask();
 }
 
-void loop() { activityManager.loop(); }
+void loop() {
+  // Emit the previous pass before the next pass can produce immediate SDK logs.
+  drainLogs();
+  activityManager.loop();
+}

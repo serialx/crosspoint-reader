@@ -11,6 +11,9 @@ bool format(char* destination, size_t capacity, const char* format, va_list args
 constexpr size_t LineSize = 256;
 constexpr size_t LineCount = 16;
 constexpr uint32_t RtcMagic = 0xDEADBEEF;
+bool formatLine(char (&destination)[LineSize], uint32_t milliseconds, const char* level, const char* origin,
+                const char* format, va_list args) noexcept;
+void formatDropped(char (&destination)[LineSize], uint32_t dropped) noexcept;
 
 // Borrows the existing RTC ring. Callers serialize every operation; no transport runs here.
 class Journal {
@@ -20,6 +23,8 @@ class Journal {
   Journal(const Journal&) = delete;
   Journal& operator=(const Journal&) = delete;
   bool capture(uint32_t milliseconds, const char* level, const char* origin, const char* format, va_list args) noexcept;
+  void commit(const char* line, size_t length, bool defer) noexcept;
+  void clearPending() noexcept;
   bool beginDrain() noexcept;
   bool copyNext(char (&destination)[LineSize]) noexcept;
   void endDrain() noexcept;

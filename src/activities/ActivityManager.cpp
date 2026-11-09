@@ -7,6 +7,7 @@
 #include <HalDisplay.h>
 #include <HalFrontlight.h>
 #include <HalPowerManager.h>
+#include <Logging.h>
 #include <Memory.h>
 #include <VectorFontSupport.h>
 
@@ -298,19 +299,23 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
 
 void ActivityManager::renderTaskTrampoline(void* param) { static_cast<ActivityManager*>(param)->renderTaskLoop(); }
 void ActivityManager::renderTaskLoop() {
+  registerLogRenderTask();
   while (true) {
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-    RenderLock lock;
-    HalPowerManager::Lock powerLock;
-    display.setInverted(SETTINGS.screenInverted != 0);
-    XpAppRenderToken token{&lock};
-    xp_app_render(&token);
-    TaskHandle_t waiter = nullptr;
-    taskENTER_CRITICAL(&activityManagerSpinlock);
-    waiter = waitingTaskHandle;
-    waitingTaskHandle = nullptr;
-    taskEXIT_CRITICAL(&activityManagerSpinlock);
-    if (waiter) xTaskNotify(waiter, 1, eIncrement);
+    {
+      RenderLock lock;
+      HalPowerManager::Lock powerLock;
+      display.setInverted(SETTINGS.screenInverted != 0);
+      XpAppRenderToken token{&lock};
+      xp_app_render(&token);
+      TaskHandle_t waiter = nullptr;
+      taskENTER_CRITICAL(&activityManagerSpinlock);
+      waiter = waitingTaskHandle;
+      waitingTaskHandle = nullptr;
+      taskEXIT_CRITICAL(&activityManagerSpinlock);
+      if (waiter) xTaskNotify(waiter, 1, eIncrement);
+    }
+    drainLogs();
   }
 }
 

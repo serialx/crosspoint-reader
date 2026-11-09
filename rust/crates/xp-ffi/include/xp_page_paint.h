@@ -10,6 +10,9 @@ typedef struct {
   void* native;
   uint8_t inverted;
 } XpPageTarget;
+/* Native-origin xp_page_paint request for rich dictionary, selection, settings preview and Details HTML.
+ * Rust owners call Rust directly; loans follow the page contract.
+ * mode: 0 all elements, 1 images only, 2 all elements with image placeholders. */
 typedef struct {
   int32_t font, x, y;
   uint8_t mode;
@@ -18,7 +21,6 @@ typedef struct {
   size_t count;
   uint8_t prepare;
 } XpPagePaint;
-// Native-origin Definition/selection adapter; Rust owners call Rust directly. Loans follow the page contract.
 uint32_t xp_page_paint(const uint8_t* arena, size_t, const XpPageTarget*, const XpPagePaint*);
 // Borrows the current native renderer target for one synchronous paint.
 void xp_native_render_target(XpPageTarget* out);

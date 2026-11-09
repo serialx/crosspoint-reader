@@ -268,7 +268,8 @@ class Page {
 
   void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) const;
 #if defined(XP_PAGE_CODEC_TEST) || defined(XP_EPUB_PAGE_OWNER_TEST)
-  // Host codec fixtures exercise the image modes through the same Rust painter.
+  /* Host codec fixtures use the same Rust painter: renderImages uses mode 1 (images only);
+   * renderWithImagePlaceholders uses mode 2 (all elements with image placeholders). */
   void renderModeForTest(GfxRenderer& renderer, int fontId, int x, int y, uint8_t mode) const;
   void renderImages(GfxRenderer& renderer, int fontId, int x, int y) const {
     renderModeForTest(renderer, fontId, x, y, 1);

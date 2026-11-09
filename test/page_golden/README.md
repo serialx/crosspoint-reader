@@ -225,7 +225,8 @@ contracts. No shipped firmware or firmware build configuration changes here.
 ## Strip-rendering host spike
 
 `STRIP_SPIKE` exercises the direct Rust painter with the `reader-strips` Cargo
-feature. The native Page adapter supplies the plan and physical row bounds.
+feature. In this spike, the native Page adapter is instrumented to attach the
+plan and physical row bounds.
 The normal oracle and its frozen archive remain unchanged. This mode adds
 byte-for-byte comparisons against the current
 full-frame draw for native row heights 1, 8, 16, 32, 37, 48, 64 and 480, in all
@@ -295,8 +296,9 @@ callbacks do not allocate these buffers; existing image/font cache misses may
 still allocate. Device CPU and task-stack qualification are required before
 any default enablement.
 
-To exercise retained plans, add `-DSTRIP_PLAN=ON` and replace `strip-spike` with
-`reader-strips` in `XP_FFI_HOST_FEATURES` in the commands above. The expanded
+The commands above enable retained plans with `-DSTRIP_PLAN=ON`. CMake includes
+the `reader-strips` Cargo feature when `STRIP_SPIKE` or `STRIP_PLAN` is enabled;
+an explicit `XP_FFI_HOST_FEATURES` override must include it too. The expanded
 matrix also includes 80- and 160-row bands. `ReaderStripBuffersTest` in the full
 host suite checks every buffer allocation failure and retry. The retained-plan
 harness also checks null storage, missing/short bounds and exhausted capacity.

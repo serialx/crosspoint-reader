@@ -944,7 +944,8 @@ codec/consumer compositions and their host-only limits.
 The Rust EPUB owner calls `page_render::direct::paint` as a Rust function,
 using its decoded arena and a synchronous physical target loan. Footnote and
 lookup page views use the same direct path. Native Page clients (rich dictionary,
-selection and settings preview) enter that painter through `xp_page_paint`.
+selection, settings preview and library Details HTML descriptions) enter that
+painter through `xp_page_paint`.
 Each physical strip is a separate pass. The pinned Rust page-resource owner
 holds plan recording/replay state and detaches all page/plan/source loans before
 releasing their storage; no native page-service table or plan-routing callback
@@ -967,8 +968,7 @@ SD boundary. The synchronous render borrows existing font and framebuffer
 storage; page traversal adds no heap allocation. Prewarm and bitmap misses use
 the cache operations described above.
 
-Settings preview and dictionary selection pages use this same renderer. Clip
-selection reads positions and source ranges through borrowed page views.
+Clip selection reads positions and source ranges through borrowed page views.
 `TextBlock::render` and `PageLine::render` no longer exist. Use the
 [page oracle](../../test/page_golden/README.md) for page records and pixels and the
 [preview and selection oracle](../../test/line_render_golden/README.md) for those
@@ -1022,9 +1022,10 @@ cache packing, and header dimension probes. `xp-core::png` owns PNG decoding and
 BMP conversion; `xp-core::gif` exposes the local `xp-gif` decoder and BMP converter.
 Both feed rows directly into the Rust pipeline. JPEGDEC remains the C/C++ decoder.
 C++ owns HalFile input/output, renderer targets and cache I/O. `xp-core::assets`
-owns ImageBlock render/cache policy, JPEG-to-BMP conversion, screenshot packing,
-and QR layout. ImageBlock supplies synchronous storage/decoder callbacks and the
-existing placeholder drawing. Cache byte formats are unchanged.
+owns image render/cache policy, JPEG-to-BMP conversion, screenshot packing,
+and QR layout. The Rust page-image path in `page_render/images.rs` draws
+placeholders and preserves polarity. Native code supplies typed file, decode,
+extraction and logging operations. Cache byte formats are unchanged.
 
 PNG uses synchronous `xp_png_dimensions`, `xp_png_render`, `xp_png_bmp` and
 `xp_png_sleep_header` calls. GIF uses `xp_gif_inspect`, `xp_gif_frame` and

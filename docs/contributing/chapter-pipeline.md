@@ -155,10 +155,13 @@ increment uses the interrupt-masking `__atomic_fetch_add_4` helper. C++ also own
 the shared 3,072-byte bidi storage and mutex, leased exclusively to Rust during
 measurement, ordering and glyph drawing. Rust resolves bitmap views and paints
 glyphs; C++ routes bitmap misses through the font facades. SD misses use the Rust
-pool; built-in compressed groups use the C++ cache and shared Rust inflater. Cached EPUB,
-rich dictionary, settings preview and dictionary selection pages enter Rust through
-`GfxRenderer::drawPage` once per render pass. Rust traverses the records and calls
-C++ once per image element. Plain dictionary display still draws wrapped spans directly.
+pool; built-in compressed groups use the C++ cache and shared Rust inflater.
+Cached EPUB, footnote and lookup views call the Rust page painter directly.
+Native rich dictionary, selection and settings preview pages, plus library
+Details HTML descriptions, enter the same painter through `xp_page_paint`.
+Rust traverses page records and owns image cache, placeholder and polarity policy
+over typed native file, decode, extraction and logging operations. Plain
+dictionary display still draws wrapped spans directly.
 See the [page rendering contract](rust.md#page-rendering),
 [glyph drawing contract](rust.md#native-glyph-drawing) and
 [native measurement contract](rust.md#native-text-measurement) for

@@ -183,7 +183,8 @@ impl Resources for Direct<'_> {
         miss
     }
 }
-// Registry scratch ends before the native prewarm handoff.
+// Return only the style byte so the registry-slot borrow and font pointer end
+// before scan calls xp_native_font_record_resolved_text.
 #[inline(never)]
 unsafe fn resolved_scan_style(owner: *const Owner, font: i32, style: u8) -> Option<u8> {
     let entry = (*owner).registry.find(font)?;

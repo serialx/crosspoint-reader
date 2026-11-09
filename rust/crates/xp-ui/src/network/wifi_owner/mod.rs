@@ -19,8 +19,9 @@ use core::{alloc::Layout, cell::UnsafeCell, ffi::c_void, mem::ManuallyDrop, ptr}
 
 /// # Safety
 /// Model and Resource locks serialize their fields. App serializes rendering and
-/// excludes it during entry, exit and destruction. Callbacks retain no loans or
-/// recursively render. The returned owner allocation uses the global allocator.
+/// excludes it during exit and destruction. A fresh owner paints nothing until
+/// entry prepares its frame. Callbacks retain no loans and never render recursively.
+/// The returned owner allocation uses the global allocator.
 pub unsafe trait Host {
     type Memory: Memory;
     fn allocate_owner(layout: Layout) -> *mut u8 {

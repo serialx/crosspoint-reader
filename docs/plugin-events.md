@@ -22,10 +22,11 @@ Plugin event handlers need the network, and most events fire with WiFi down
 plugin's outbox (`<plugin dir>/events.jsonl`) — an SD append, nothing more —
 and the queue is drained through the declared requests whenever the device is
 already online: on any WiFi connection (the selection/auto-connect completion
-in `WifiSelectionActivity`), when the File Transfer web server comes up in Join
-Network mode, or on the way into sleep. Delivery is at-least-once and in order;
-every queued line carries a unique `id` (a per-boot nonce plus a counter, so it
-never repeats across queued events or reboots) — dedupe on `{event.id}`
+in the [Rust Wi-Fi owner](../rust/crates/xp-ui/src/network/wifi_owner/effects.rs),
+through the native `WifiSelectionPhysical` service), when the File Transfer web
+server comes up in Join Network mode, or on the way into sleep. Delivery is
+at-least-once and in order; every queued line carries a unique `id` (a per-boot
+nonce plus a counter, so it never repeats across queued events or reboots) — dedupe on `{event.id}`
 server-side if it matters.
 
 Event subscriptions need a plugin folder name of at most 23 bytes, with the

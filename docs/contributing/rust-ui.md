@@ -4,9 +4,9 @@ The Rust application in `xp-ffi/src/app` owns the main-loop policy, current acti
 retained parents, pending transition, Home gestures and screen, and EPUB session. `ActivityManager`
 forwards native callers through `xp_app.h`; it retains the physical render task,
 RenderLock and completion notification. There is one activity stack, owned by
-`xp-ui::app::Application`. Its entries are Rust Home, EPUB session and reader child
-owners, or owned legacy native activities such as XTC and the retained native
-children. A legacy pointer transfers only when the Rust event accepts it.
+`xp-ui::app::Application`. Its entries are Rust Home, Wi-Fi selection, EPUB session
+and reader child owners, or owned legacy native activities such as XTC and the
+retained native children. A legacy pointer transfers only when the Rust event accepts it.
 
 `xp_app_init`, `xp_app_loop`, `xp_app_render` and `xp_app_event` are the application
 boundary. Typed legacy, resource and runtime tables supply existing services;
@@ -20,8 +20,9 @@ The scene interface is `rust/crates/xp-ffi/include/xp_ui.h` (ABI version 2).
 `FullScreenMessageActivity` is the synchronous entry-only example;
 `XtcReaderChapterSelectionActivity` is the stateful list example.
 `SettingsUiActivity`, `UpdateUiActivity` and `CatalogUiActivity` share bindings
-within their families. Library, file browser and the remaining network screens use the
-`RustActivityAdapter` with their Rust models and native resource bindings.
+within their families. Library, file browser and network screens other than mode
+and Wi-Fi selection use `RustActivityAdapter` with their Rust models and native
+resource bindings.
 Home calls its Rust model and view directly and has no native activity class.
 
 Network mode selection is a Rust `StableOwner` in `app/network_modes`.
@@ -29,6 +30,12 @@ Network mode selection is a Rust `StableOwner` in `app/network_modes`.
 decision. `NetworkModeSelectionActivity` retains borrowed labels, measurement,
 drawing and native result projection through the six fields in `xp_network_owner.h`.
 The shared settings-list exports remain for `SettingsUiActivity` callers.
+
+Wi-Fi selection is a Rust `StableOwner` in `app/wifi`.
+`xp-ui::network::wifi_owner` owns its model, rows, input, scene and effect sequencing.
+`WifiSelectionActivity` derives from `Activity`; `ActivityManager` identifies it as
+`XP_APP_WIFI` and adopts it into this owner. The native shell retains the SDK target,
+static mutex and auto-connect input. Native result transport remains ZC1 compatibility.
 
 ## Application ownership
 

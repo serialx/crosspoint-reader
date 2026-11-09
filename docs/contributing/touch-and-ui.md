@@ -2,7 +2,7 @@
 
 CrossPoint runs on touch devices (Seeed Sticky, M5Paper, M5Stack PaperMono, LilyGo T5, Xteink X4 Pro) alongside the button-only Xteink X3/X4. Every screen must work with both input styles.
 
-New screens use the [Rust UI runtime](rust-ui.md). Rust owns state, layout and input policy; the Rust application owns navigation. Legacy `RustActivityAdapter` facades retain resource bindings and publication for their screens. Home, the keyboard, the EPUB session and its Menu, Chapters, Percent and QR children have direct Rust owners; the session also owns Toolbar. Use the existing family host when it fits the screen. FreeInkUI still supplies shared resource painters and supports remaining C++ surfaces.
+New screens use the [Rust UI runtime](rust-ui.md). Rust owns state, layout and input policy; the Rust application owns navigation. Legacy `RustActivityAdapter` facades retain resource bindings and publication for their screens. Home, the keyboard, Wi-Fi selection, the EPUB session and its Menu, Chapters, Percent and QR children have direct Rust owners; the session also owns Toolbar. Use the existing family host when it fits the screen. FreeInkUI still supplies shared resource painters and supports remaining C++ surfaces.
 
 ## Picking the right host
 
@@ -10,7 +10,7 @@ New screens use the [Rust UI runtime](rust-ui.md). Rust owns state, layout and i
 |---|---|---|
 | A settings list | `SettingsUiActivity` | [`LanguageSelectActivity`](../../src/activities/settings/LanguageSelectActivity.cpp) |
 | A file or library list | `RustActivityAdapter` with the shared Rust list and Home resources | [`FileBrowserActivity`](../../src/activities/home/FileBrowserActivity.cpp), [`LibraryListActivity`](../../src/activities/library/LibraryListActivity.cpp) |
-| A network state machine | `RustActivityAdapter` with a Rust scene and published input geometry | [`WifiSelectionActivity`](../../src/activities/network/WifiSelectionActivity.cpp) |
+| Wi-Fi selection | Rust `StableOwner` adopted from an `Activity` shell | [`wifi_owner`](../../rust/crates/xp-ui/src/network/wifi_owner/mod.rs), [`WifiSelectionActivity`](../../src/activities/network/WifiSelectionActivity.cpp) |
 | A download or update screen | `UpdateUiActivity` | [`OtaUpdateActivity`](../../src/activities/settings/OtaUpdateActivity.cpp) |
 | A modal picker inside an existing C++ facade | `OptionPopup` | [`SettingsActivity`](../../src/activities/settings/SettingsActivity.cpp) |
 | A separate Yes/No activity | `ConfirmationActivity` | [`FontDownloadActivity`](../../src/activities/settings/FontDownloadActivity.cpp) |
@@ -56,7 +56,7 @@ facade retains its static text semaphore and SDK/font drawing bindings. Its raw
 `fui::Frame` has no interactions and only paints one SDK key; it does not own the
 keyboard scene or input geometry.
 
-The twelve native constructor sites in these eight files still launch through
+The eleven native constructor sites in these seven files still launch through
 `Activity::startActivityForResult`. `ActivityManager::pushActivity` adopts the
 facade into the Rust keyboard owner without pushing an extra child.
 
@@ -64,7 +64,6 @@ facade into the Rust keyboard owner without pushing an extra child.
 |---|---|---|
 | [FileBrowserActivity](../../src/activities/home/FileBrowserActivity.cpp) | 376 | Rename |
 | [LibraryListActivity](../../src/activities/library/LibraryListActivity.cpp) | 350 | Search |
-| [WifiSelectionActivity](../../src/activities/network/WifiSelectionActivity.cpp) | 498 | SSID or credential entry |
 | [KOReaderSettingsActivity](../../src/activities/settings/KOReaderSettingsActivity.cpp) | 114 | Settings fields |
 | [CatalogActivity](../../src/activities/CatalogActivity.cpp) | 73 | Online catalog search |
 | [OpdsBookBrowserActivity](../../src/activities/browser/OpdsBookBrowserActivity.cpp) | 618 | LCP passphrase |

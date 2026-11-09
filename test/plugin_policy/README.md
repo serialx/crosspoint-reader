@@ -43,6 +43,13 @@ Use `--token-lifetime --record` against frozen baseline sources, then
 `--token-lifetime --memory-baseline <baseline build>` for byte-exact trace and
 peak/live allocation comparison. The ordinary 48/944-case goldens are unchanged.
 
+`plugin_policy_token_paths` checks exact saved bytes for empty and malformed paths,
+escaped and embedded-NUL keys/values, numeric keys, UTF-8, and 384/512/2048 segments.
+It runs the public save interface under ASan with function instrumentation and
+requires deep paths to use no more call depth than the shallow control plus four
+calls. This catches recursive serialization on hosts with larger stacks; the
+firmware's stack bound still comes from its linked image audit.
+
 `plugin_policy_contract` checks the persisted event IDs/wire names, each mask,
 sleep's implied-connect bit, writer bounds at 512/513 and 4096/4097 bytes, and
 64-bit rollback. `xp_plugin_contract.def` is the only event/limit definition:

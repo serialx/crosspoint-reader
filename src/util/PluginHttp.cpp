@@ -20,6 +20,31 @@ XpPluginSpan span(const std::string& s) { return {reinterpret_cast<const uint8_t
 XpPluginSpan span(const char* s) { return {reinterpret_cast<const uint8_t*>(s), s ? strlen(s) : 0}; }
 constexpr size_t MAX_TOKEN_FILE_SIZE = 2 * 1024;
 
+// Token construction makes a single-member object chain, possibly cut short by OOM.
+void serializeToken(JsonVariantConst node, std::string& out) {
+  using Writer = ArduinoJson::detail::Writer<std::string>;
+  ArduinoJson::detail::TextFormatter<Writer> formatter{Writer(out)};
+  size_t depth = 0;
+  while (node.is<JsonObjectConst>() && node.size() != 0) {
+    const auto pair = *node.as<JsonObjectConst>().begin();
+    formatter.writeRaw('{');
+    formatter.writeString(pair.key().c_str(), pair.key().size());
+    formatter.writeRaw(':');
+    node = pair.value();
+    ++depth;
+  }
+  if (node.is<JsonObjectConst>()) {
+    formatter.writeRaw('{');
+    formatter.writeRaw('}');
+  } else if (node.isNull())
+    formatter.writeRaw("null");
+  else {
+    const auto value = node.as<JsonString>();
+    formatter.writeString(value.c_str(), value.size());
+  }
+  for (; depth > 0; --depth) formatter.writeRaw('}');
+}
+
 // Resolves the caller's reused TLS session (or `tmp`) into a configured,
 // connected client, or nullptr if begin() failed.
 freeink::SecureHttpClient* openClient(freeink::SecureHttpClient* session, freeink::SecureHttpClient& tmp,
@@ -178,7 +203,7 @@ bool saveTokenToFile(const std::string& file, const std::string& path, const std
                             case XP_PLUGIN_TOKEN_ALLOWED:
                               return allowedFile(c.file);
                             case XP_PLUGIN_TOKEN_SERIALIZE:
-                              serializeJson(c.doc, c.out);
+                              serializeToken(c.doc, c.out);
                               return c.out.size();
                             case XP_PLUGIN_TOKEN_OPEN:
                               return Storage.openFileForWrite("PHTP", c.file, c.handle);

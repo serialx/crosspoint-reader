@@ -21,11 +21,14 @@ p.add_argument('--asan', action='store_true')
 p.add_argument('--token-lifetime', action='store_true')
 p.add_argument('--memory-baseline', type=pathlib.Path)
 p.add_argument('--contract', action='store_true')
+p.add_argument('--token-paths', action='store_true')
 a = p.parse_args()
 if not (a.json_include/'ArduinoJson.h').is_file():
     p.error(f"--json-include {a.json_include} has no ArduinoJson.h")
 a.build.mkdir(parents=True, exist_ok=True)
-cmd = ['c++', '-std=c++20', '-O2', '-I'+str(HERE/'stubs'), '-I'+str(a.source/'src'), '-I'+str(ROOT/'src'), '-I'+str(ROOT/'rust/crates/xp-ffi/include'), '-I'+str(a.json_include), str(HERE/('contract.cpp' if a.contract else 'oracle.cpp'))]
+cmd = ['c++', '-std=c++20', '-O2', '-I'+str(HERE/'stubs'), '-I'+str(a.source/'src'), '-I'+str(ROOT/'src'), '-I'+str(ROOT/'rust/crates/xp-ffi/include'), '-I'+str(a.json_include), str(HERE/('contract.cpp' if a.contract else 'token_paths.cpp' if a.token_paths else 'oracle.cpp'))]
+if a.token_paths:
+    cmd.append('-finstrument-functions')
 if a.token_lifetime:
     cmd += ['-DPLUGIN_TOKEN_LIFETIME', str(HERE/'allocation_probe.cpp')]
 if a.asan:
@@ -37,6 +40,10 @@ if not a.contract:
     cmd += ['-I'+str(ROOT/'lib/HttpHeader'), str(HERE/'HttpGuardLeaves.cpp')]
 cmd += [str(ROOT/'test/cmake/xp_ffi_host.cpp'), str(a.archive), '-o', str(a.build/'oracle')]
 subprocess.run(cmd, check=True)
+if a.token_paths:
+    subprocess.run([str(a.build/'oracle')], check=True)
+    print('plugin token paths: exact bytes and depth-independent call depth passed')
+    raise SystemExit(0)
 if a.contract:
     subprocess.run([str(a.build/'oracle')], check=True)
     print('plugin contract: event IDs/names/masks, implied connect, limits and rollback passed')

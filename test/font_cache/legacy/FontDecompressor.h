@@ -5,6 +5,7 @@
 #include "EpdFontData.h"
 #include "xp_font_cache_test.h"
 
+// Host-only compatibility adapter for frozen font-cache oracles; not shipped.
 class FontDecompressor {
  public:
   static constexpr uint16_t MAX_PAGE_GLYPHS = 512;

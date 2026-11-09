@@ -1,9 +1,10 @@
 # Real text renderer oracle
 
 This freezes the C++ text behavior at `c9330408c0ff5fd22a95d0dbb635b1ff5ffa5dca`
-with SDK `37d272d42732c31065ebed4d9cb90cef7bfa7416`. It compiles the production
-`GfxRenderer`, `EpdFont`, `EpdFontFamily`, `SdCardFont`, `FontDecompressor`,
-`FontCacheManager`, `TtfEpdFont`, MiniBidi and UTF-8 code. The SDK's vendored
+with SDK `37d272d42732c31065ebed4d9cb90cef7bfa7416`. The harness compiles production
+`GfxRenderer`, `EpdFont`, `EpdFontFamily`, `SdCardFont`, `TtfEpdFont`, MiniBidi and
+UTF-8 code, the header-only `FontCacheManager` loan handle, and the host-only
+`test/font_cache/legacy/FontDecompressor` compatibility adapter. The SDK's vendored
 FreeType, GSUB and GPOS code are included. At capture, the Rust archive supplied
 UTF-8 helpers; current checks also use its text measurement, glyph walking and
 rasterization. No measurement function is stubbed.

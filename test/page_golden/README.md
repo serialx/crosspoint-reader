@@ -47,9 +47,10 @@ The executable uses actual Rust ReaderBook/ReaderSection/Page ownership and nati
 Page facades, TextBlock, ImageBlock,
 `ChapterPlatform.cpp` (chapter facade, page assembler and native sink), Paragraph
 and CSS code, linked to the normal Rust host archive. Measurement and
-rasterization use real GfxRenderer, EpdFont, EpdFontFamily, SdCardFont,
-FontDecompressor, FontCacheManager and TtfEpdFont/SDK FreeType code. No text
-measurement is stubbed.
+rasterization use production GfxRenderer, EpdFont, EpdFontFamily, SdCardFont and
+TtfEpdFont/SDK FreeType code, the header-only FontCacheManager loan handle, and
+the host-only `test/font_cache/legacy/FontDecompressor` compatibility adapter.
+No text measurement is stubbed.
 
 The host storage adapter reads/writes ordinary files. OPF/ZIP discovery reuses
 `section_golden.run.prepare`; `ReaderSectionFixture` packages those extracted
@@ -142,7 +143,7 @@ Each raw `records.tsv` page has these ordered records; strings are UTF-8 hex:
   state machine are not executed.
 - `pixels`: orientation, placeholder path, absolute flag, strip height and plane,
   followed by FNV-1a-64 of all 48,000 assembled framebuffer bytes.
-- `calls`: native word-draw entries, glyph-miss callbacks, direct scaled-codepoint
+- `calls`: native word-draw entries, Rust page glyph-placement observations, direct scaled-codepoint
   entries, page-draw entries, font-load attempts, bitmap-source selections,
   fallback residency requests, scan batches, image callbacks and font-family
   descriptor requests, metric misses, coverage misses, kerning misses and bidi

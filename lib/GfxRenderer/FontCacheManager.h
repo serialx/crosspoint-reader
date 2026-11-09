@@ -23,7 +23,10 @@ class FontCacheManager {
 #ifdef XP_APP_TEST
   void setFontDecompressor(FontDecompressor* adapter) { adapter->bindOwner(owner_); }
 #endif
+  // Frame clear: XP_FONT_CLEAR_FRAME (0).
   void clearCache() { xp_font_cache_release(owner_, 0); }
+  // Resident release: XP_FONT_CLEAR_RESIDENT (1), including SD mini/kerning/ligature/overflow/advance
+  // tables and vector arenas. Faces stay registered; cache data reloads on demand.
   void releaseSdFontCaches() { xp_font_cache_release(owner_, 1); }
   bool isScanning() const { return xp_font_scanning(owner_) != 0; }
   void prewarmCache(int font, const char* text, uint8_t styles = 0x0f, bool accumulate = true) {

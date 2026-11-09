@@ -1,18 +1,18 @@
-//! Read-only bitmap sources. Misses are resolved by the C++ owner after the loan ends.
+//! Read-only bitmap sources. Miss recovery may mutate the owner only after the loan ends.
 use crate::font::raw::{FontData, Glyph};
 use core::{
     ptr,
     sync::atomic::{AtomicU32, Ordering},
 };
 
-/// Mirrors FontDecompressor::PageGlyphEntry, including its unused extraction offset.
+/// Borrowed layout of font::cache::Entry, including the offset used during extraction.
 #[repr(C)]
 pub struct PageEntry {
     pub glyph_index: u32,
     pub buffer_offset: u32,
     pub aligned_offset: u32,
 }
-/// Mirrors FontDecompressor::PageSlot without copying the page lookup table.
+/// Borrowed layout of font::cache::Slot without copying its lookup table.
 #[repr(C)]
 pub struct PageSlot {
     pub buffer: *const u8,
@@ -20,7 +20,7 @@ pub struct PageSlot {
     pub entries: *const PageEntry,
     pub count: u16,
 }
-/// Rebuild after generation changes, including FontDecompressor prewarm/clear.
+/// Rebuild after generation changes, including Rust font-cache prewarm/clear.
 /// Existing table-generation ownership is serialized; the atomic is not a lock.
 #[repr(C)]
 pub struct BitmapSource {
@@ -47,7 +47,7 @@ impl BitmapSource {
     /// The generation pointer is live and aligned. If the generation matches,
     /// all descriptors, font tables, slots and byte ranges must be live and
     /// immutable for the loan. Each slot's offsets and glyph lengths must fit its
-    /// buffer (the native PageSlot has no length). Slot entries are sorted.
+    /// buffer (the page-slot view has no length field). Slot entries are sorted.
     /// Every mutation invalidates generation before reuse; no callback, mutation,
     /// or concurrent access is permitted until the returned bytes are consumed.
     /// A stale view is rejected before font/glyph pointers are dereferenced.

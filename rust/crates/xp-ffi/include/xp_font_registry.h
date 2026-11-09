@@ -47,6 +47,7 @@ XpNativeProvider xp_font_registry_provider(const XpLoadedFonts*);
 // Fills a synchronous glyph-source loan from a registered FontData and the current generation.
 void xp_font_registry_source(const XpLoadedFonts*, const void* font, XpGlyphSource* out);
 // Native-origin cache scopes borrow the single Rust owner synchronously.
+// Begin starts scanning; finish prewarms; end finishes if needed and clears frame caches.
 void xp_font_frame_begin(const XpLoadedFonts*);
 void xp_font_frame_finish(const XpLoadedFonts*);
 void xp_font_frame_end(const XpLoadedFonts*);
@@ -57,6 +58,9 @@ typedef enum {
   XP_FONT_EVICT_SD,
   XP_FONT_EVICT_VECTOR
 } XpFontRelease;
+// operation is an XpFontRelease value. CLEAR_* return 0; EVICT_* report default-heap bytes freed.
+// CLEAR_RESIDENT also releases SD mini/kerning/ligature/overflow/advance tables and vector arenas.
+// Faces remain registered; cache data reloads on demand.
 size_t xp_font_cache_release(const XpLoadedFonts*, uint8_t operation);
 void xp_font_prewarm_text(const XpLoadedFonts*, int32_t font, const char* text, uint8_t styles, uint8_t accumulate);
 void xp_font_record_text(const XpLoadedFonts*, int32_t font, const char* text, uint8_t style);

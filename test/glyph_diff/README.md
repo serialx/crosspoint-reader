@@ -3,7 +3,8 @@
 `GlyphDiff` compares `xp_glyph_draw` with the C++ raster helpers frozen from
 `11be2799` in `reference/`. `instrument.py` exposes owner state in build copies
 and appends that independent raster reference. Firmware draws glyph pixels in
-Rust; bitmap loading, decompression and cache ownership remain in C++.
+Rust, and one Rust owner holds the built-in cache, decoder and scan state.
+Temporary SD/TTF handlers retain native font-resource work.
 
 ```sh
 cmake -S test/glyph_diff -B build/glyph-diff -DCMAKE_BUILD_TYPE=Release
@@ -34,8 +35,10 @@ inactive targets. Strip intersection results are compared separately.
 The Rust allocator is forced to fail during each draw and bitmap lookup, and
 its allocation-attempt count must remain zero.
 
-Bitmap checks prewarm production FontDecompressor and SdCardFont in batches,
-then compare resident pointers and lengths with GfxRenderer::getGlyphBitmap.
+Bitmap checks prewarm the Rust cache through the host-only
+`test/font_cache/legacy/FontDecompressor` adapter and use `SdCardFont` for SD
+batches. They compare resident pointers and lengths with the host-injected
+`GfxRenderer::getGlyphBitmap`, which calls `xp_font_test_owner_bitmap`.
 U+0000 cannot enter the null-terminated prewarm input; it correctly takes the
 compressed-font miss path. SD overflow glyphs deliberately return a miss, even
 when C++ already has their bitmap. Each source check also poisons font, glyph
@@ -61,23 +64,24 @@ requested algorithm; `solid` selects the existing rectangle fallback. Bilinear
 drop caps always paint black, as production does. Invalid descriptors return 0
 before painting; valid empty or clipped draws return 1.
 
-`XpGlyphSource` borrows the current EpdFontData and sorted FontDecompressor page
-slots. PageEntry and PageSlot mirror the native layouts, avoiding a new table
-or per-glyph allocation. C++ supplies resident glyph count and bitmap byte
-extent. Native page slots have no length field: their extracted offsets must
+`XpGlyphSource` borrows the current EpdFontData and sorted Rust cache page
+slots. PageEntry and PageSlot mirror the Rust `font::cache::Entry`/`Slot` layouts,
+avoiding a new table or per-glyph allocation. The Rust registry supplies resident
+glyph count and bitmap extent, with the temporary native SD view for SD fonts.
+Page-slot views have no buffer-length field: their extracted offsets must
 refer to valid glyph-sized ranges in the page allocation. This is a trusted
 resident-view contract, not an input-file parser.
 
 Use the existing serialized font-table generation rule. A generation change
 invalidates the whole descriptor before any borrowed font or glyph is read.
-FontDecompressor prewarm and page-buffer clear/free increment
-`fontTableGeneration`. Rebuild
+Rust font-cache prewarm and clear/free increment `fontTableGeneration`. Rebuild
 views after any owner callback or mutation. Do not retain a returned pointer
 across callbacks; the generation check is not synchronization or a lifetime
 extension. SD's overflow view identifies the first glyph address, entry stride
 and live entry count, so metadata fields inside an entry are never mistaken for
-a glyph. TTF and nonresident/hot-group/overflow sources return a miss; C++ owns
-loading and decompression. No miss callback is invoked while a Rust loan exists.
+a glyph. TTF and nonresident/hot-group/overflow sources return a miss. Rust
+handles built-in miss recovery and decoding; temporary native SD/TTF handlers
+provide loading and dynamic bitmaps. No miss callback runs while a Rust loan exists.
 
 The integrated draw test poisons a stale source view, then frees the consumed
 glyph table and replaces its stable data slot inside the bitmap-miss callback.

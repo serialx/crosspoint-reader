@@ -819,9 +819,10 @@ Production paragraph/chapter layout and `GfxRenderer` measurements use
 [`textm::native::Engine`](../../rust/crates/xp-core/src/textm/native.rs).
 Rust executes measurement rules, resident font-table reads, bidi shaping and
 word ordering. The Rust loaded-font registry owns family/style slots and fallback
-IDs. C++ font facades query this owner; native SD/TTF objects and decompressor
-caches retain their physical storage lifetimes. PT2 owns the remaining built-in
-cache handoff, and PT3 owns SD loading, registration and eviction.
+IDs. C++ font facades query this owner. One Rust `FontCacheOwner` holds the
+built-in bitmap cache, decoder and scan/prewarm state. Native SD/TTF objects
+retain file and face storage; PT3 owns the remaining SD loading, registration
+and eviction boundary, and PT-VEC owns the native vector cache facade.
 [`GfxRenderer::textProvider`](../../lib/GfxRenderer/GfxRenderer.cpp) obtains the
 Rust registry provider, which supplies style descriptors and dynamic handlers.
 SD glyphs that are not resident and TTF glyph/coverage/kerning work still use
@@ -880,10 +881,11 @@ C++ font facades dispatch preparation and cache work to Rust, retaining the
 existing containers and platform objects. The renderer lends the selected
 `EpdFont::data` pointer slot, bitmap-source view and exclusive
 framebuffer or strip target for one synchronous run. Rust resolves resident
-built-in/SD and decompressed page-buffer bitmap hits directly. Misses call C++
-for loading, the SD pool facade, hot-group decompression or TTF bitmaps, then
-refresh the view. `font::cache` owns the inline FontDecompressor state and buffer
-lifecycle, using the shared Rust inflater for compressed groups.
+built-in/SD and decompressed page-buffer bitmap hits directly. Built-in misses
+use the inline cache and decoder in `font::runtime::FontCacheOwner`, with the
+existing Rust SmallTables inflater. Temporary native SD load/view/bitmap leaves
+and TTF handlers provide the remaining font work. The source view is refreshed
+after miss recovery.
 Generation changes invalidate borrowed sources; no table or bitmap loan survives
 a callback that can mutate its owner. The EpdFont owner stays live and serialized;
 callbacks cannot unregister it, reenter drawing or change the target geometry.
@@ -961,8 +963,8 @@ through its destructor. B3 owns the remaining book-extraction facade.
 
 Prewarm scanning batches visual codepoints in a fixed 192-byte Rust buffer,
 flushing at line, font or style boundaries and when full. Rust resolves the
-canonical style before the temporary `FontCacheManager::recordResolvedText`
-handoff; PT2 owns its retirement. Redirected SD residency borrows UTF-8 spans in
+canonical style and records scan text directly in its font-cache owner.
+Redirected SD residency borrows UTF-8 spans in
 at most 191-byte batches without a native string copy; PT3 owns that remaining
 SD boundary. The synchronous render borrows existing font and framebuffer
 storage; page traversal adds no heap allocation. Prewarm and bitmap misses use

@@ -28,7 +28,9 @@ pub enum ManagerEvent {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum ClearKind {
+    /// Drop frame bitmaps; backends may keep reusable resident tables.
     Frame,
+    /// Also release SD resident tables and vector arenas; font faces stay registered.
     Resident,
 }
 

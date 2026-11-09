@@ -137,7 +137,7 @@ class SdCardFont {
   const uint8_t* getOverflowBitmap(const EpdGlyph* glyph) const;
 
   // Extract SdCardFont* from an opaque glyphMissCtx pointer.
-  // Used by GfxRenderer::getGlyphBitmap() to recover the SdCardFont from EpdFontData::glyphMissCtx.
+  // Used by the temporary SD bitmap leaf to recover the font for overflow bitmaps.
   static SdCardFont* fromMissCtx(void* ctx);
 
   // True once after a loaded font first hits a corrupt glyph entry, so the UI can tell the user.

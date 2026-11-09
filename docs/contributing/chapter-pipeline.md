@@ -145,8 +145,9 @@ allocate that wrapper; its Chapter is owned directly by the Rust build.
 Production measurement and bidi execute in Rust. The synchronous engine borrows
 font tables through a two-family descriptor cache. Chapter metrics borrow the
 cache stored in the stable chapter handle rather than constructing it in each
-metric frame. Other synchronous measurement entries retain their own cache. C++ owns the fonts,
-facade storage and preparation; Rust owns SD cache policy and buffer lifetimes.
+metric frame. Other synchronous measurement entries retain their own cache.
+C++ retains native SD/TTF file and face storage; Rust owns the loaded-font
+registry, cache/prewarm policy and buffer lifetimes.
 Nonresident glyphs and TTF work retain dynamic callbacks.
 Table loans end before handlers that can mutate storage, and generation changes
 invalidate descriptors before reuse. The generation counter relies on the existing
@@ -154,8 +155,9 @@ serialized owner; it does not make font access thread-safe. On single-core C3 it
 increment uses the interrupt-masking `__atomic_fetch_add_4` helper. C++ also owns
 the shared 3,072-byte bidi storage and mutex, leased exclusively to Rust during
 measurement, ordering and glyph drawing. Rust resolves bitmap views and paints
-glyphs; C++ routes bitmap misses through the font facades. SD misses use the Rust
-pool; built-in compressed groups use the C++ cache and shared Rust inflater.
+glyphs and resolves built-in bitmap misses through its inline cache and
+SmallTables decoder. SD misses use the Rust pool through the temporary native
+SD facade; TTF work retains native handlers.
 Cached EPUB, footnote and lookup views call the Rust page painter directly.
 Native rich dictionary, selection and settings preview pages, plus library
 Details HTML descriptions, enter the same painter through `xp_page_paint`.

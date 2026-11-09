@@ -71,7 +71,7 @@ pub struct Physical {
     pub alloc: unsafe extern "C" fn(usize) -> *mut u8,
     pub free: unsafe extern "C" fn(*mut u8),
     pub clock: unsafe extern "C" fn(bool) -> u32,
-    pub generation: unsafe extern "C" fn(),
+    pub generation: unsafe extern "C" fn(*mut c_void, *const Registry),
     pub diagnostic:
         Option<unsafe extern "C" fn(*mut c_void, *const FontData, u32, u32, u32, u32, u32)>,
 }
@@ -133,6 +133,7 @@ struct CacheCall<'a> {
     decoder: &'a mut Decoder,
     physical: &'a Physical,
     font: *const FontData,
+    registry: *const Registry,
 }
 unsafe extern "C" fn inflate(
     context: *mut c_void,
@@ -149,6 +150,10 @@ unsafe extern "C" fn diagnostic(context: *mut c_void, event: u32, a: u32, b: u32
     let call = &*context.cast::<CacheCall<'_>>();
     call.physical.log(call.font, event, a, b, c, d);
 }
+unsafe extern "C" fn generation(context: *mut c_void) {
+    let call = &*context.cast::<CacheCall<'_>>();
+    (call.physical.generation)(call.physical.context, call.registry);
+}
 impl CacheCall<'_> {
     fn services(&mut self) -> Services {
         Services {
@@ -157,7 +162,7 @@ impl CacheCall<'_> {
             free: self.physical.free,
             inflate,
             clock: self.physical.clock,
-            generation: self.physical.generation,
+            generation,
             diagnostic: Some(diagnostic),
         }
     }
@@ -286,7 +291,7 @@ pub struct FontCacheOwner {
     cache: UnsafeCell<Cache>,
     decoder: UnsafeCell<Decoder>,
     scan: UnsafeCell<Scan>,
-    // Two former native pointer words now hold the native handle/current binding.
+    // Reserved words keep the aggregate registry/cache footprint unchanged.
     _placement: [usize; 2],
 }
 #[cfg(target_pointer_width = "32")]
@@ -318,6 +323,7 @@ impl FontCacheOwner {
             decoder: &mut *self.decoder.get(),
             physical: io,
             font: ptr::null(),
+            registry: ptr::null(),
         };
         (*self.cache.get()).clear(&call.services());
     }
@@ -329,6 +335,7 @@ impl FontCacheOwner {
             decoder: &mut *self.decoder.get(),
             physical: io,
             font,
+            registry: ptr::null(),
         };
         (*self.cache.get()).prewarm(font, text, &call.services())
     }
@@ -426,6 +433,7 @@ impl FontCacheOwner {
                 decoder: &mut *self.decoder.get(),
                 physical: io,
                 font: ptr::null(),
+                registry,
             };
             (*self.cache.get()).clear(&call.services());
         }
@@ -470,6 +478,7 @@ impl FontCacheOwner {
             decoder: &mut *self.decoder.get(),
             physical: io,
             font,
+            registry: ptr::null(),
         };
         (*self.cache.get()).bitmap(font, glyph, index, &call.services())
     }
@@ -569,6 +578,7 @@ unsafe fn prewarm_builtin(
             decoder,
             physical: io,
             font: data,
+            registry,
         };
         let missed = cache.prewarm(&*data, request.text.to_bytes(), &call.services());
         if missed > 0 {

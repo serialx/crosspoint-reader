@@ -31,6 +31,8 @@ typedef union {
 } XpFontQueryResult;
 // Generation and native context outlive the owner. Each nonnull slot is a stable,
 // aligned FontData pointer cell, live until unregister. No loans cross mutation.
+// Initialization is serialized. The first owner binds the process singleton and remains
+// live. Later registries cannot replace it and use explicit-owner operations.
 void xp_font_registry_init(XpLoadedFonts*, const void* generation, void* native);
 // Applies registration/fallback changes and invalidates source loans; owns no font bytes.
 uint8_t xp_font_registry_update(XpLoadedFonts*, XpFontUpdate, const XpRegisteredFont*);

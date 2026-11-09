@@ -62,7 +62,7 @@ unsafe extern "C" fn release(p: *mut u8) {
 unsafe extern "C" fn clock(_: bool) -> u32 {
     0
 }
-unsafe extern "C" fn generation() {
+unsafe extern "C" fn generation(_: *mut c_void, _: *const Registry) {
     HEAP.with(|h| h.borrow_mut().events.push(Event::Generation));
 }
 unsafe extern "C" fn diagnostic(

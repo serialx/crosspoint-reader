@@ -63,7 +63,7 @@ typedef struct {
   // -1: initialization failed; 0: decoding failed; 1: exact output produced.
   int32_t (*inflate)(void*, const uint8_t*, uint32_t, uint8_t*, uint32_t);
   uint32_t (*clock)(bool microseconds);
-  void (*generation)();
+  void (*generation)(void*);
   void (*diagnostic)(void*, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d);
 } XpFontCacheServices;
 void xp_font_cache_clear(XpFontCache*, const XpFontCacheServices*);

@@ -1169,7 +1169,7 @@ typedef struct {
   uint16_t count;
 } XpGlyphPageSlot;
 // Generation is a live std::atomic<uint32_t>. Rebuild on any table/page-buffer
-// mutation, including FontDecompressor prewarm/clear. No view or
+// mutation, including Rust font-cache prewarm/clear. No view or
 // bitmap pointer may survive an owner callback. Page slots mirror the native
 // layout; their valid offsets and glyph sizes must fit their borrowed buffers.
 typedef struct {

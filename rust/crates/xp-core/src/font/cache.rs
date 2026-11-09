@@ -63,7 +63,7 @@ pub struct Services {
     pub free: unsafe extern "C" fn(*mut u8),
     pub inflate: unsafe extern "C" fn(*mut c_void, *const u8, u32, *mut u8, u32) -> i32,
     pub clock: unsafe extern "C" fn(bool) -> u32,
-    pub generation: unsafe extern "C" fn(),
+    pub generation: unsafe extern "C" fn(*mut c_void),
     pub diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, u32, u32, u32, u32)>,
 }
 impl Services {
@@ -184,7 +184,7 @@ impl Cache {
     /// # Safety
     /// All state buffers belong to this cache and were allocated by `io.alloc`.
     pub unsafe fn clear(&mut self, io: &Services) {
-        (io.generation)();
+        (io.generation)(io.ctx);
         for i in 0..usize::from(self.count) {
             let slot = self.slots.get_unchecked_mut(i);
             (io.free)(slot.buffer);
@@ -295,7 +295,7 @@ impl Cache {
             io.log(5, 8, 0, 0, 0);
             return -1;
         }
-        (io.generation)();
+        (io.generation)(io.ctx);
         let mut needed = [0u32; 512];
         let mut count = 0usize;
         let mut warned = false;

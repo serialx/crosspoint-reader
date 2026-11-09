@@ -18,7 +18,7 @@ XpFontCacheServices services(FontCacheCall* call) {
             return -1;  // The Rust owner decodes directly; this legacy callback is unused.
           },
           [](bool microseconds) -> uint32_t { return microseconds ? micros() : millis(); },
-          [] { ++fontTableGeneration; },
+          [](void*) { ++fontTableGeneration; },
           [](void* ctx, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
             switch (static_cast<XpFontCacheEvent>(event)) {
               case XpFontCacheEvent::Decompression:

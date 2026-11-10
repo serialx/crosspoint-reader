@@ -1,4 +1,4 @@
-use super::{abi, commands::Commands, test_resources};
+use crate::{abi, commands::Commands, test_resources};
 use std::{
     alloc::{alloc, dealloc, Layout},
     cell::RefCell,

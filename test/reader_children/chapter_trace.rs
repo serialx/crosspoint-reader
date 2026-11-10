@@ -1,4 +1,4 @@
-use crate::chapters::Window;
+use crate::app::epub::children::chapters::Window;
 use std::collections::VecDeque;
 use std::fmt::Write;
 

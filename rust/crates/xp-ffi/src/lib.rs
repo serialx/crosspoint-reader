@@ -142,11 +142,19 @@ pub unsafe extern "C" fn xp_crc32(data: *const u8, len: usize) -> u32 {
     xp_core::crc32(bytes)
 }
 
+/// # Safety
+/// size and align must form a valid Layout: align a power of two, size no
+/// larger than isize::MAX once padded. The result is null on failure, otherwise
+/// size bytes owned by the caller until freed with the same layout.
 #[cfg(feature = "chapter-test")]
 #[no_mangle]
 pub unsafe extern "C" fn xp_test_rust_alloc(size: usize, align: usize) -> *mut u8 {
     ALLOCATOR.alloc(Layout::from_size_align(size, align).unwrap())
 }
+/// # Safety
+/// p must be null or a live block from this allocator with layout (old, align),
+/// and align must be the power of two used to obtain it. On success the first
+/// min(old, size) bytes are preserved and p is released; null keeps p live.
 #[cfg(feature = "chapter-test")]
 #[no_mangle]
 pub unsafe extern "C" fn xp_test_rust_realloc(
@@ -157,6 +165,9 @@ pub unsafe extern "C" fn xp_test_rust_realloc(
 ) -> *mut u8 {
     ALLOCATOR.realloc(p, Layout::from_size_align(old, align).unwrap(), size)
 }
+/// # Safety
+/// p must be a live block from this allocator with layout (size, align), and
+/// align the power of two used to obtain it. It is freed exactly once here.
 #[cfg(feature = "chapter-test")]
 #[no_mangle]
 pub unsafe extern "C" fn xp_test_rust_free(p: *mut u8, size: usize, align: usize) {

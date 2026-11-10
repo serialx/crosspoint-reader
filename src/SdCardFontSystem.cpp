@@ -246,7 +246,7 @@ void SdCardFontSystem::setupUiFallbacks(GfxRenderer& renderer) {
     }
   }
   if (!hasFallbackScript) {
-    LOG_DBG("SDFS", "%s has no fallback-script coverage - skipping UI fallback sizes", familyName.c_str());
+    LOG_DBG("SDFS", "%s has no fallback-script coverage - skipping UI fallback sizes", familyName.data());
     return;
   }
 
@@ -257,7 +257,7 @@ void SdCardFontSystem::setupUiFallbacks(GfxRenderer& renderer) {
     if (sdFontId != 0) {
       renderer.setFallbackFont(ui.fontId, sdFontId);
     } else {
-      LOG_DBG("SDFS", "No %u pt SD glyphs for UI fallback in %s", ui.pointSize, familyName.c_str());
+      LOG_DBG("SDFS", "No %u pt SD glyphs for UI fallback in %s", ui.pointSize, familyName.data());
     }
   }
 }

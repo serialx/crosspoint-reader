@@ -19,7 +19,8 @@ target_include_directories(sdfont_catalog_oracle PRIVATE
   ${REPO_ROOT}/test/font_registry/stubs ${REPO_ROOT}/lib/EpdFont ${REPO_ROOT}/lib/Memory)
 target_link_libraries(sdfont_catalog_oracle PRIVATE xp_ffi_host)
 
-add_executable(sdfont_owner_switch switch.cpp)
+add_executable(sdfont_owner_switch switch.cpp ${REPO_ROOT}/lib/EpdFont/SdCardFontManager.cpp)
+target_include_directories(sdfont_owner_switch PRIVATE switch-stubs ${REPO_ROOT}/lib/EpdFont)
 target_link_libraries(sdfont_owner_switch PRIVATE xp_ffi_host)
 enable_testing()
 add_test(NAME SdFontOwnerSwitch COMMAND sdfont_owner_switch)

@@ -1,6 +1,9 @@
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
+#include <GfxRenderer.h>
+#include <SdCardFontManager.h>
+#include <SdCardFontRegistry.h>
 #include <xp_font_registry.h>
 #include <xp_sd_physical.h>
 
@@ -42,10 +45,6 @@ void fixture() {
 bool operation() { return ++operations != failOperation; }
 void fixed(XpSdFileSlot* slot) { assert(slot->words[0] == reinterpret_cast<uintptr_t>(slot)); }
 const char* text(const void*, uint32_t) { return "A"; }
-XpFontFile file(const void*, size_t index) {
-  assert(index == 0);
-  return {nullptr, 14, 0};
-}
 void run(size_t failAlloc, size_t failIo) {
   assert(live.empty() && handles == 0);
   allocations = operations = 0;
@@ -56,8 +55,19 @@ void run(size_t failAlloc, size_t failIo) {
   std::atomic<uint32_t> generation{1};
   xp_font_registry_init(&owner, &generation, nullptr);
   current = &owner;
-  const XpFontFamilyFiles family{familyName, sizeof(familyName) - 1, "/fonts", {nullptr, 1, file}, false};
-  const auto id = xp_sd_font_load(&owner, &family, 14, 0, 0);
+  GfxRenderer renderer(&owner);
+  SdCardFontManager manager;
+  SdCardFontFamilyInfo family;
+  family.name = familyName;
+  family.root = "/fonts";
+  family.files.push_back({nullptr, 14, 0});
+  const bool loaded = manager.loadFamily(family, renderer, 14);
+  const auto id = manager.getFontId(familyName);
+  assert(loaded == (id != 0));
+  if (loaded) {
+    assert(manager.currentFamilyName() == familyName && manager.currentPointSize() == 14);
+    assert(manager.loadFamilyExtraSize(family, renderer, 14, 123) == id);
+  }
   if (id) {
     assert(xp_sd_font_id(&owner, familyName, sizeof(familyName) - 1, 0) == id);
     uint8_t size = 0;
@@ -99,7 +109,7 @@ void run(size_t failAlloc, size_t failIo) {
     xp_font_cache_release(&owner, XP_FONT_CLEAR_RESIDENT);
     assert(xp_font_registry_query(&owner, XP_FONT_EXISTS, id, 0, nullptr).value == 1);
     if (corruptGlyph) assert(xp_sd_font_take_corrupt_notice() == 0);
-    xp_sd_font_unload(&owner, id, false);
+    manager.unloadFont(renderer, id);
     assert(xp_font_registry_query(&owner, XP_FONT_EXISTS, id, 0, nullptr).value == 0);
   }
   xp_font_registry_drop(&owner);
@@ -107,6 +117,12 @@ void run(size_t failAlloc, size_t failIo) {
   current = nullptr;
 }
 }  // namespace
+XpFontFiles sdFontFileView(const std::vector<SdCardFontFileInfo>& files) {
+  return {&files, files.size(), [](const void* raw, size_t index) -> XpFontFile {
+            const auto& file = (*static_cast<const std::vector<SdCardFontFileInfo>*>(raw))[index];
+            return {file.name.get(), file.pointSize, file.style};
+          }};
+}
 extern "C" uint8_t* xp_native_sd_allocate(size_t bytes, bool) {
   if (++allocations == failAllocation) return nullptr;
   auto* p = static_cast<uint8_t*>(std::malloc(bytes));

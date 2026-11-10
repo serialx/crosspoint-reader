@@ -23,6 +23,8 @@ use xp_core::{
 };
 
 extern "C" {
+    #[cfg(not(target_has_atomic = "8"))]
+    fn __atomic_exchange_1(value: *mut u8, desired: u8, order: i32) -> u8;
     fn xp_native_chapter_font_owner(context: *mut c_void) -> *const Owner;
     fn xp_native_sd_handle_init(slot: *mut Slot);
     fn xp_native_sd_handle_destroy(slot: *mut Slot);
@@ -150,7 +152,7 @@ unsafe extern "C" fn corrupt(raw: *mut c_void, glyph: *const Glyph, cp: u32) {
     let (mut face, _) = FaceOwner::from_context(io.face);
     let (first, log) = face.report_corrupt();
     if first {
-        CORRUPT_NOTICE.store(true, Ordering::Relaxed);
+        CORRUPT_NOTICE.store(true, Ordering::SeqCst);
     }
     if log {
         let g = &*glyph;
@@ -401,7 +403,15 @@ pub unsafe extern "C" fn xp_sd_font_prewarm(
 /// Process notice is shared only by the serialized font owner and reader.
 #[no_mangle]
 pub unsafe extern "C" fn xp_sd_font_take_corrupt_notice() -> u8 {
-    u8::from(CORRUPT_NOTICE.swap(false, Ordering::Relaxed))
+    #[cfg(target_has_atomic = "8")]
+    {
+        u8::from(CORRUPT_NOTICE.swap(false, Ordering::SeqCst))
+    }
+    #[cfg(not(target_has_atomic = "8"))]
+    {
+        // C3 uses std::atomic<bool>'s compiler runtime; 5 is __ATOMIC_SEQ_CST.
+        __atomic_exchange_1(CORRUPT_NOTICE.as_ptr().cast(), 0, 5)
+    }
 }
 
 pub(crate) unsafe fn bitmap(font: *const FontData, glyph: *const Glyph) -> *const u8 {

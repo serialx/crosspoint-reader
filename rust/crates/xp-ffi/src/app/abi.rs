@@ -515,6 +515,26 @@ pub struct TextLayout {
 
 pub type MemoryDomain = u8;
 pub type BookKind = u8;
+/// Address of an immutable, process-lifetime registry pointer in the native resource context.
+#[repr(transparent)]
+#[derive(Clone, Copy)]
+pub struct FontOwner(*const *const core::ffi::c_void);
+// Sharing this opaque slot grants no access to the serialized registry.
+unsafe impl Send for FontOwner {}
+unsafe impl Sync for FontOwner {}
+impl FontOwner {
+    #[allow(dead_code)] // ABI fixtures have no native registry.
+    pub const NONE: Self = Self(core::ptr::null());
+    #[allow(dead_code)] // Shared ABI fixtures do not use the font owner.
+    pub(crate) unsafe fn get(self) -> *const core::ffi::c_void {
+        if self.0.is_null() {
+            core::ptr::null()
+        } else {
+            self.0.read()
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Resources {
@@ -573,7 +593,10 @@ pub struct Resources {
     pub refresh: unsafe extern "C" fn(u8),
     pub buffer_allocate: unsafe extern "C" fn(MemoryDomain, usize) -> *mut u8,
     pub buffer_release: unsafe extern "C" fn(MemoryDomain, *mut u8),
+    pub font_owner: FontOwner,
 }
+
+const _: () = assert!(core::mem::size_of::<Resources>() == 47 * core::mem::size_of::<usize>());
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -686,5 +709,22 @@ mod launch_tests {
     #[should_panic(expected = "launch payload does not initialize its kind")]
     fn files_rejects_byte_payload() {
         Launch::new(FILES, LaunchPayload::Settings(0));
+    }
+
+    #[test]
+    fn font_owner_slots_keep_independent_pointer_provenance() {
+        let first = 11_u8;
+        let second = 22_u8;
+        let first_slot = core::ptr::addr_of!(first).cast();
+        let second_slot = core::ptr::addr_of!(second).cast();
+        let a = FontOwner(&first_slot);
+        let b = FontOwner(&second_slot);
+        unsafe {
+            let captured = a.get();
+            assert_eq!(b.get().cast::<u8>().read(), 22);
+            assert_eq!(captured.cast::<u8>().read(), 11);
+            assert_eq!(a.get(), captured);
+            assert!(FontOwner::NONE.get().is_null());
+        }
     }
 }

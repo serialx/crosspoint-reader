@@ -2,20 +2,24 @@ use super::{
     abi::XpEpubLeaves,
     render_resources::{
         physical::{self, Op, Query},
-        PhysicalResources, PrewarmStorage,
+        FontScan, PhysicalResources,
     },
     EpubSession, ResourceAccess,
 };
 use core::ptr;
 
 impl PhysicalResources for XpEpubLeaves {
-    unsafe fn prewarm_begin(&self, storage: *mut PrewarmStorage) -> bool {
-        unsafe { self.font_begin(storage) }
+    unsafe fn prewarm_begin(
+        &self,
+        storage: *mut FontScan,
+        owner: crate::app::abi::FontOwner,
+    ) -> bool {
+        unsafe { self.font_begin(storage, owner) }
     }
-    unsafe fn prewarm_finish(&self, storage: *mut PrewarmStorage) {
+    unsafe fn prewarm_finish(&self, storage: *mut FontScan) {
         unsafe { self.font_finish(storage) };
     }
-    unsafe fn prewarm_drop(&self, storage: *mut PrewarmStorage) {
+    unsafe fn prewarm_drop(&self, storage: *mut FontScan) {
         unsafe { self.font_end(storage) };
     }
     fn detach_source(&self) {
@@ -152,45 +156,55 @@ impl EpubSession {
                 .then_some(IdlePrewarm::Legacy(access));
         }
         self.page_resources(access)
-            .begin_idle_prewarm(self.leaves)
+            .begin_idle_prewarm(self.leaves, self.resources.font_owner)
             .map(|lease| IdlePrewarm::Reader(lease, core::marker::PhantomData))
     }
 }
 
 impl XpEpubLeaves {
-    pub(crate) unsafe fn font_begin(&self, storage: *mut PrewarmStorage) -> bool {
+    pub(crate) unsafe fn font_begin(
+        &self,
+        storage: *mut FontScan,
+        _owner: crate::app::abi::FontOwner,
+    ) -> bool {
         #[cfg(feature = "app-test")]
         return (self.fonts_prewarm_begin)(storage) != 0;
         #[cfg(not(feature = "app-test"))]
         {
-            let owner = crate::font_runtime::current();
+            let owner: *const crate::font_registry::Owner = _owner.get().cast();
             if owner.is_null() {
                 return false;
             }
-            (*storage).owner = owner.cast();
+            storage.write(FontScan {
+                owner: owner.cast(),
+                active: true,
+            });
             crate::font_runtime::begin(owner);
             true
         }
     }
-    pub(crate) unsafe fn font_finish(&self, storage: *mut PrewarmStorage) {
+    pub(crate) unsafe fn font_finish(&self, storage: *mut FontScan) {
         #[cfg(feature = "app-test")]
         (self.fonts_prewarm_finish_scan)(storage);
         #[cfg(not(feature = "app-test"))]
-        crate::font_runtime::finish((*storage).owner.cast());
+        if (*storage).active {
+            crate::font_runtime::finish((*storage).owner.cast());
+        }
     }
-    pub(crate) unsafe fn font_end(&self, storage: *mut PrewarmStorage) {
+    pub(crate) unsafe fn font_end(&self, storage: *mut FontScan) {
         #[cfg(feature = "app-test")]
         (self.fonts_prewarm_drop)(storage);
         #[cfg(not(feature = "app-test"))]
-        {
-            crate::font_runtime::end((*storage).owner.cast());
-            (*storage).owner = core::ptr::null();
+        if (*storage).active {
+            let owner = (*storage).owner;
+            storage.write(FontScan::EMPTY);
+            crate::font_runtime::end(owner.cast());
         }
     }
-    pub(crate) unsafe fn font_release(&self) {
+    pub(crate) unsafe fn font_release(&self, _owner: crate::app::abi::FontOwner) {
         #[cfg(feature = "app-test")]
         (self.fonts_release_caches)();
         #[cfg(not(feature = "app-test"))]
-        crate::font_runtime::release(crate::font_runtime::current(), 1);
+        crate::font_runtime::release(_owner.get().cast(), 1);
     }
 }

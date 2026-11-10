@@ -28,16 +28,15 @@ fn another_registry_cannot_redirect_generation_or_a_captured_scope() {
     unsafe {
         // Keep final storage raw after publication, as the native owner does.
         xp_font_registry_init(owner_ptr, &generation, ptr::null_mut());
-        let captured = font_runtime::current();
+        let captured = owner_ptr;
         assert!(ptr::eq(captured, owner_ptr));
         font_runtime::begin(captured);
         assert_eq!(generation.load(Ordering::Relaxed), 11);
         assert!(font_runtime::scanning(captured) != 0);
 
         xp_font_registry_init(other_ptr, &other_generation, ptr::null_mut());
-        assert!(ptr::eq(font_runtime::current(), captured));
 
-        // Even an unbound owner invalidates only its own source generation.
+        // An explicit second owner invalidates only its own source generation.
         font_runtime::release(other_ptr, 0);
         assert_eq!(generation.load(Ordering::Relaxed), 11);
         assert_eq!(other_generation.load(Ordering::Relaxed), 21);
@@ -51,9 +50,7 @@ fn another_registry_cannot_redirect_generation_or_a_captured_scope() {
         assert_eq!(font_runtime::scanning(captured), 0);
         assert_eq!(generation.load(Ordering::Relaxed), 13);
         assert_eq!(other_generation.load(Ordering::Relaxed), 21);
-        assert!(ptr::eq(font_runtime::current(), captured));
         assert_eq!(ALLOCATIONS.load(Ordering::Relaxed), 0);
-        font_runtime::reset_current();
     }
 }
 

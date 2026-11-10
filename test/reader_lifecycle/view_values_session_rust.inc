@@ -69,7 +69,7 @@ template <typename Result, typename... Args> struct Unexpected<Result (*)(Args..
 #define UNUSED_LEAF(field) table.field = &Unexpected<decltype(table.field)>::call
 static const XpAppResources resources = [] {
   XpAppResources table{};
-  static_assert(sizeof(XpAppResources) == 46 * sizeof(void (*)()));
+  static_assert(sizeof(XpAppResources) == 46 * sizeof(void (*)()) + sizeof(void*));
   UNUSED_LEAF(settings_snapshot);
   UNUSED_LEAF(recents_visit);
   UNUSED_LEAF(recent_missing);

@@ -206,6 +206,7 @@ pub fn resources() -> Resources {
         refresh,
         buffer_allocate,
         buffer_release,
+        font_owner: FontOwner::NONE,
     }
 }
 

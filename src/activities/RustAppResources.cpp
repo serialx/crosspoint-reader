@@ -70,10 +70,16 @@ struct BitmapReader {
   Bitmap bitmap{file};
   bool parsed = false;
 };
+struct AppTarget {
+  GfxRenderer& renderer;
+  const void* const fonts;
+  GfxRenderer* operator->() const { return &renderer; }
+  GfxRenderer& operator*() const { return renderer; }
+};
 }  // namespace
 
 const XpAppResources& rustAppResources(GfxRenderer& renderer, MappedInputManager& input) {
-  static GfxRenderer* const target = &renderer;
+  static const AppTarget target{renderer, renderer.getFontMap().raw()};
   static MappedInputManager* const mapped = &input;
   static const XpAppResources resources{
       .settings_snapshot = []() -> XpAppHomeSettings {
@@ -345,6 +351,7 @@ const XpAppResources& rustAppResources(GfxRenderer& renderer, MappedInputManager
                 break;
             }
           },
+      .font_owner = &target.fonts,
   };
   return resources;
 }

@@ -1,7 +1,5 @@
 use super::*;
-use crate::app::epub::{
-    children::definition_owned::DefinitionSession, render_resources::PrewarmStorage,
-};
+use crate::app::epub::{children::definition_owned::DefinitionSession, render_resources::FontScan};
 use xp_ui::{
     ffi::{Paint, SceneView},
     scene::{Command, Kind, Rect},
@@ -11,16 +9,16 @@ thread_local! {
     static PAINT_FAIL: Cell<bool> = const { Cell::new(false) };
     static SCANS: Cell<bool> = const { Cell::new(false) };
 }
-unsafe extern "C" fn begin(_: *mut PrewarmStorage) -> u8 {
+unsafe extern "C" fn begin(_: *mut FontScan) -> u8 {
     assert!(!SCANS.with(|v| v.replace(true)));
     event("scan");
     1
 }
-unsafe extern "C" fn finish(_: *mut PrewarmStorage) {
+unsafe extern "C" fn finish(_: *mut FontScan) {
     assert!(SCANS.with(Cell::get));
     event("prewarm");
 }
-unsafe extern "C" fn drop_scan(_: *mut PrewarmStorage) {
+unsafe extern "C" fn drop_scan(_: *mut FontScan) {
     assert!(SCANS.with(|v| v.replace(false)));
     event("prewarm-drop");
 }
@@ -165,7 +163,10 @@ fn render_publishes_before_refresh_and_drops_prewarm_after_both_scenes_or_reject
                     (*owner.navigation.get()).pending.assign(b"stale");
                 }
                 events();
-                assert!(unsafe { owner.input(runtime(), &leaves, true) }.is_null());
+                assert!(
+                    unsafe { owner.input(runtime(), &leaves, true, abi::FontOwner::NONE) }
+                        .is_null()
+                );
                 assert!(unsafe { (*owner.navigation.get()).pending.is_empty() });
                 assert!(!events().contains(&"find"));
             }

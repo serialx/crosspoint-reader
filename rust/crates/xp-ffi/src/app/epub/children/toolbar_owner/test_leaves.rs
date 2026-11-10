@@ -42,9 +42,9 @@ unused_leaves! {
     image_release_cache() ;
     fonts_ensure_loaded() ;
     fonts_release_caches() ;
-    fonts_prewarm_begin(_a0: *mut crate::app::epub::render_resources::PrewarmStorage) -> u8;
-    fonts_prewarm_finish_scan(_a0: *mut crate::app::epub::render_resources::PrewarmStorage) ;
-    fonts_prewarm_drop(_a0: *mut crate::app::epub::render_resources::PrewarmStorage) ;
+    fonts_prewarm_begin(_a0: *mut crate::app::epub::render_resources::FontScan) -> u8;
+    fonts_prewarm_finish_scan(_a0: *mut crate::app::epub::render_resources::FontScan) ;
+    fonts_prewarm_drop(_a0: *mut crate::app::epub::render_resources::FontScan) ;
     fonts_take_corrupt_notice() -> u8;
     font_sizes(_a0: XpAppText, _a1: XpAppTextSink, _a2: *mut core::ffi::c_void) -> u8;
     settings_snapshot(_a0: u8, _a1: *mut XpEpubSettings) ;

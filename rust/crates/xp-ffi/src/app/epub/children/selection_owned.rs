@@ -123,7 +123,7 @@ pub(super) struct LookupPublication {
 pub(super) struct LookupFrame {
     pub(super) commands: [Command; 3],
     pub(super) popup: popup::Layout,
-    pub(super) prewarm: [usize; 2],
+    pub(super) prewarm: super::super::render_resources::FontScan,
 }
 #[repr(C)]
 pub(crate) struct LookupData {
@@ -173,7 +173,7 @@ impl Lookup {
                 ptr::addr_of_mut!((*out).frame).write(UnsafeCell::new(LookupFrame {
                     commands: [Command::default(); 3],
                     popup: popup::Layout::default(),
-                    prewarm: [0; 2],
+                    prewarm: super::super::render_resources::FontScan::EMPTY,
                 }));
                 ptr::addr_of_mut!((*out).page).write(UnsafeCell::new(Some(page)));
                 ptr::addr_of_mut!((*out).margins).write(margins);

@@ -35,7 +35,7 @@ static const uint8_t indexingLabel[] = "indexing";
 
 static const XpAppResources resources = [] {
   XpAppResources table{};
-  static_assert(sizeof(XpAppResources) == 46 * sizeof(void (*)()));
+  static_assert(sizeof(XpAppResources) == 46 * sizeof(void (*)()) + sizeof(void*));
   UNUSED_LEAF(settings_snapshot);
   UNUSED_LEAF(recents_visit);
   UNUSED_LEAF(recent_missing);

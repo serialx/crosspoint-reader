@@ -396,25 +396,23 @@ unsafe extern "C" fn height(_: i32) -> i32 {
 unsafe extern "C" fn refresh(_: u8) {
     call("refresh");
 }
-unsafe extern "C" fn prewarm_begin(
-    p: *mut crate::app::epub::render_resources::PrewarmStorage,
-) -> u8 {
+unsafe extern "C" fn prewarm_begin(p: *mut crate::app::epub::render_resources::FontScan) -> u8 {
     unsafe {
-        p.cast::<*mut crate::app::epub::render_resources::PrewarmStorage>()
+        p.cast::<*mut crate::app::epub::render_resources::FontScan>()
             .write(p)
     };
     call("prewarm");
     1
 }
-unsafe extern "C" fn prewarm_finish(p: *mut crate::app::epub::render_resources::PrewarmStorage) {
-    let pointer = unsafe { *p.cast::<*mut crate::app::epub::render_resources::PrewarmStorage>() };
+unsafe extern "C" fn prewarm_finish(p: *mut crate::app::epub::render_resources::FontScan) {
+    let pointer = unsafe { *p.cast::<*mut crate::app::epub::render_resources::FontScan>() };
     assert_eq!(pointer, p);
     call("scan-end");
 }
-unsafe extern "C" fn prewarm_drop(p: *mut crate::app::epub::render_resources::PrewarmStorage) {
-    let pointer = unsafe { *p.cast::<*mut crate::app::epub::render_resources::PrewarmStorage>() };
+unsafe extern "C" fn prewarm_drop(p: *mut crate::app::epub::render_resources::FontScan) {
+    let pointer = unsafe { *p.cast::<*mut crate::app::epub::render_resources::FontScan>() };
     assert_eq!(
-        unsafe { *pointer.cast::<*mut crate::app::epub::render_resources::PrewarmStorage>() },
+        unsafe { *pointer.cast::<*mut crate::app::epub::render_resources::FontScan>() },
         p
     );
     call("prewarm-drop");

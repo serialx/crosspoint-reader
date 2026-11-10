@@ -19,7 +19,7 @@ inline unsigned modelDepth;
 #define UNUSED_LEAF(field) table.field = &Unexpected<decltype(table.field)>::call
 inline XpAppResources resourcesDefaults() {
   XpAppResources table{};
-  static_assert(sizeof(XpAppResources) == 46 * sizeof(void (*)()));
+  static_assert(sizeof(XpAppResources) == 46 * sizeof(void (*)()) + sizeof(void*));
   UNUSED_LEAF(settings_snapshot);
   UNUSED_LEAF(recents_visit);
   UNUSED_LEAF(recent_missing);

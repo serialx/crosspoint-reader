@@ -231,7 +231,6 @@ pub unsafe extern "C" fn xp_font_registry_init(
     Registry::initialize(ptr::addr_of_mut!((*out).registry), generation);
     ptr::addr_of_mut!((*out).native).write(native);
     xp_core::font::runtime::FontCacheOwner::initialize((*out).cache.get());
-    crate::font_runtime::register_current(out);
 }
 /// # Safety
 /// `owner` is initialized and exclusive; `entry` is readable for the call.

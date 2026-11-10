@@ -65,7 +65,7 @@ struct OverlayUnexpected<Result (*)(Args...)> {
 
 inline XpAppResources overlayUnexpectedResources() {
   XpAppResources table{};
-  static_assert(sizeof(XpAppResources) == 46 * sizeof(void (*)()));
+  static_assert(sizeof(XpAppResources) == 46 * sizeof(void (*)()) + sizeof(void*));
   table.settings_snapshot = &OverlayUnexpected<decltype(table.settings_snapshot)>::call;
   table.recents_visit = &OverlayUnexpected<decltype(table.recents_visit)>::call;
   table.recent_missing = &OverlayUnexpected<decltype(table.recent_missing)>::call;

@@ -200,7 +200,7 @@ impl EpubSession {
             self.set_book_extractor(&access, None);
         }
         self.drop_section(&access);
-        unsafe { self.leaves.font_release() };
+        unsafe { self.leaves.font_release(self.resources.font_owner) };
         let Some(saved) = self.sync_saved(&access, book, &position) else {
             self.set_book_extractor(&access, Some(book));
             self.request_update();

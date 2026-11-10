@@ -24,7 +24,7 @@ impl App {
     }
     #[inline(never)]
     pub(super) fn definition_exit(&self, target: NonNull<DefinitionSession>) {
-        unsafe { target.as_ref().exit(self.epub) };
+        unsafe { target.as_ref().exit(self.epub, self.resources.font_owner) };
     }
     #[inline(never)]
     pub(super) fn definition_input(
@@ -51,7 +51,11 @@ impl App {
         let mut settings = MaybeUninit::<XpEpubSettings>::uninit();
         unsafe { (self.epub.settings_snapshot)(0, settings.as_mut_ptr()) };
         let touch = unsafe { settings.assume_init() }.touch_controls != 0;
-        let child = unsafe { target.as_ref().input(self.runtime, self.epub, touch) };
+        let child = unsafe {
+            target
+                .as_ref()
+                .input(self.runtime, self.epub, touch, self.resources.font_owner)
+        };
         if !child.is_null() {
             let owner = self.adopt(child).expect("native selection owner");
             self.input.borrow_mut().reset();

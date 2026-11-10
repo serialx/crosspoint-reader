@@ -145,7 +145,7 @@ impl<P: physical::Physical, C: Context> Renderer for Call<'_, P, C> {
                 return 0;
             }
             Command::PrewarmBegin => {
-                self.frame.begin_prewarm();
+                self.frame.begin_prewarm(self.resources.font_owner);
                 return 0;
             }
             Command::PrewarmEnd => {

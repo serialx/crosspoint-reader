@@ -116,7 +116,7 @@ struct Unexpected<Result (*)(Args...)> {
 static const XpAppResources& physicalResources() {
   static const XpAppResources value = [] {
     XpAppResources table{};
-    static_assert(sizeof(XpAppResources) == 46 * sizeof(void (*)()));
+    static_assert(sizeof(XpAppResources) == 46 * sizeof(void (*)()) + sizeof(void*));
     UNUSED_LEAF(settings_snapshot);
     UNUSED_LEAF(recents_visit);
     UNUSED_LEAF(recent_missing);

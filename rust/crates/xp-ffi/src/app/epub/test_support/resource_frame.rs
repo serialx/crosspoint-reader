@@ -2,7 +2,7 @@
 extern crate alloc;
 use crate::app::{
     abi,
-    epub::render_resources::{self, physical, renderer, PageResources, PrewarmStorage},
+    epub::render_resources::{self, physical, renderer, FontScan, PageResources},
 };
 use alloc::boxed::Box;
 use core::{ffi::c_void, pin::Pin};
@@ -14,9 +14,9 @@ pub struct Callbacks {
     context: *mut c_void,
     query: unsafe extern "C" fn(*mut c_void, u8) -> u32,
     operation: unsafe extern "C" fn(*mut c_void, *const physical::Op) -> u32,
-    prewarm_begin: unsafe extern "C" fn(*mut c_void, *mut PrewarmStorage) -> u8,
-    prewarm_finish: unsafe extern "C" fn(*mut c_void, *mut PrewarmStorage),
-    prewarm_drop: unsafe extern "C" fn(*mut c_void, *mut PrewarmStorage),
+    prewarm_begin: unsafe extern "C" fn(*mut c_void, *mut FontScan) -> u8,
+    prewarm_finish: unsafe extern "C" fn(*mut c_void, *mut FontScan),
+    prewarm_drop: unsafe extern "C" fn(*mut c_void, *mut FontScan),
     window: unsafe extern "C" fn(*mut c_void, *mut u8, u32),
     source: unsafe extern "C" fn(*mut c_void, *mut c_void) -> u8,
     framebuffer: unsafe extern "C" fn(*mut c_void, *mut usize) -> *mut u8,
@@ -25,13 +25,13 @@ pub struct Callbacks {
     log: unsafe extern "C" fn(*mut c_void, u8, *const u8, usize),
 }
 impl render_resources::PhysicalResources for Callbacks {
-    unsafe fn prewarm_begin(&self, p: *mut PrewarmStorage) -> bool {
+    unsafe fn prewarm_begin(&self, p: *mut FontScan, _: abi::FontOwner) -> bool {
         (self.prewarm_begin)(self.context, p) != 0
     }
-    unsafe fn prewarm_finish(&self, p: *mut PrewarmStorage) {
+    unsafe fn prewarm_finish(&self, p: *mut FontScan) {
         (self.prewarm_finish)(self.context, p);
     }
-    unsafe fn prewarm_drop(&self, p: *mut PrewarmStorage) {
+    unsafe fn prewarm_drop(&self, p: *mut FontScan) {
         (self.prewarm_drop)(self.context, p);
     }
     fn detach_source(&self) {

@@ -306,7 +306,7 @@ fn failed_prepare_sentinel_cannot_publish_and_candidate_commits_with_facts() {
         (*owner.navigation.get()).pending.assign(b"next");
     }
     events();
-    unsafe { owner.navigate(false, runtime(), &leaves()) };
+    unsafe { owner.navigate(false, runtime(), &leaves(), abi::FontOwner::NONE) };
     let events = events();
     assert!(
         events.iter().position(|e| *e == "prepare").unwrap()
@@ -465,7 +465,7 @@ fn long_press_uses_recorded_header_hit_after_sampling_and_clear_removes_cancel()
         HEADER_RECT.with(|v| v.set(target));
         LONG_POINT.with(|v| v.set(Some(point)));
         events();
-        let child = unsafe { owner.input(runtime(), &leaves, true) };
+        let child = unsafe { owner.input(runtime(), &leaves, true, abi::FontOwner::NONE) };
         let seen = events();
         assert_eq!(&seen[..4], &["long", "header-hit", "snapshot", "tap"]);
         assert_eq!(child.is_null(), cancel);
@@ -504,7 +504,7 @@ fn history_depth_recovery_and_log_order_preserve_native_contract() {
         owner.model.with(|m| m.state.page = depth % 7);
         unsafe {
             owner.selection_result(runtime(), &leaves, &selected(b"next"));
-            owner.navigate(false, runtime(), &leaves)
+            owner.navigate(false, runtime(), &leaves, abi::FontOwner::NONE)
         };
         owner
             .model
@@ -517,7 +517,7 @@ fn history_depth_recovery_and_log_order_preserve_native_contract() {
         .model
         .with(|m| assert_eq!(m.state.message, STR_DICT_HISTORY_FULL));
     for depth in (0..16).rev() {
-        unsafe { owner.navigate(true, runtime(), &leaves) };
+        unsafe { owner.navigate(true, runtime(), &leaves, abi::FontOwner::NONE) };
         owner.model.with(|m| {
             assert_eq!(m.state.history_depth, depth);
             assert_eq!(m.state.page, 1);
@@ -533,7 +533,7 @@ fn history_depth_recovery_and_log_order_preserve_native_contract() {
         FIND_CODES.with(|v| v.borrow_mut().extend([code, 0]));
         unsafe {
             (*owner.navigation.get()).pending.assign(b"missing");
-            owner.navigate(false, runtime(), &leaves)
+            owner.navigate(false, runtime(), &leaves, abi::FontOwner::NONE)
         };
         owner.model.with(|m| {
             assert_eq!(m.state.message, message);
@@ -554,7 +554,7 @@ fn history_depth_recovery_and_log_order_preserve_native_contract() {
     });
     unsafe {
         (*owner.navigation.get()).pending.assign(b"candidate");
-        owner.navigate(false, runtime(), &leaves)
+        owner.navigate(false, runtime(), &leaves, abi::FontOwner::NONE)
     };
     owner
         .model
@@ -562,7 +562,7 @@ fn history_depth_recovery_and_log_order_preserve_native_contract() {
     FIND_CODES.with(|v| v.borrow_mut().extend([1, 4]));
     unsafe {
         (*owner.navigation.get()).pending.assign(b"lost");
-        owner.navigate(false, runtime(), &leaves)
+        owner.navigate(false, runtime(), &leaves, abi::FontOwner::NONE)
     };
     assert_eq!(unsafe { *owner.result.get() }, Some(false));
     assert!(
@@ -571,7 +571,7 @@ fn history_depth_recovery_and_log_order_preserve_native_contract() {
             && msg == b"Navigation after release: free=0 largest=0"))
     );
     events();
-    unsafe { owner.exit(&leaves) };
+    unsafe { owner.exit(&leaves, abi::FontOwner::NONE) };
     assert_eq!(events(), vec!["log", "fonts-release"]);
     assert_eq!(
         LOGS.with(|v| v.borrow().last().unwrap().clone()),
@@ -588,7 +588,7 @@ fn failed_back_layout_finishes_without_publishing_candidate_or_consuming_history
     let leaves = leaves();
     unsafe {
         (*owner.navigation.get()).pending.assign(b"next");
-        owner.navigate(false, runtime(), &leaves)
+        owner.navigate(false, runtime(), &leaves, abi::FontOwner::NONE)
     };
     PREPARE_VIEWS.with(|v| {
         v.borrow_mut().push_back(Some(PayloadView {
@@ -598,7 +598,7 @@ fn failed_back_layout_finishes_without_publishing_candidate_or_consuming_history
         }))
     });
     events();
-    unsafe { owner.navigate(true, runtime(), &leaves) };
+    unsafe { owner.navigate(true, runtime(), &leaves, abi::FontOwner::NONE) };
     assert!(!events().contains(&"commit"));
     owner.model.with(|m| {
         assert_eq!(m.state.history_depth, 1);

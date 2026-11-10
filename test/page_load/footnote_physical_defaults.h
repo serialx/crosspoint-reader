@@ -198,7 +198,7 @@ inline XpAppLegacy unexpectedAppLegacy() {
 
 inline XpAppResources unexpectedAppResources() {
   XpAppResources value{};
-  static_assert(sizeof(XpAppResources) == 46 * sizeof(void (*)()));
+  static_assert(sizeof(XpAppResources) == 46 * sizeof(void (*)()) + sizeof(void*));
   value.settings_snapshot = &AppFixtureUnexpected<decltype(value.settings_snapshot), 87>::call;
   value.recents_visit = &AppFixtureUnexpected<decltype(value.recents_visit), 2001>::call;
   value.recent_missing = &AppFixtureUnexpected<decltype(value.recent_missing), 2002>::call;

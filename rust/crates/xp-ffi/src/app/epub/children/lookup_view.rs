@@ -1,7 +1,7 @@
 use super::{selection_owned::LookupData, selection_scene};
 use crate::app::{
     abi,
-    epub::{abi::XpEpubLeaves, render_resources::PrewarmStorage},
+    epub::{abi::XpEpubLeaves, render_resources::FontScan},
 };
 use core::{cell::Cell, ffi::c_void};
 use xp_core::{glyph::GlyphTarget, i18n::ids::*};
@@ -17,7 +17,7 @@ struct Drawing<'a> {
     services: &'a abi::Resources,
     leaves: &'a XpEpubLeaves,
     message: abi::Text,
-    prewarm: *mut PrewarmStorage,
+    prewarm: *mut FontScan,
     started: Cell<bool>,
 }
 impl Drawing<'_> {
@@ -55,7 +55,10 @@ impl Drawing<'_> {
             unsafe { (this.services.text_draw)(command, clip, this.message) };
             return;
         }
-        let started = unsafe { this.leaves.font_begin(this.prewarm) };
+        let started = unsafe {
+            this.leaves
+                .font_begin(this.prewarm, this.services.font_owner)
+        };
         this.started.set(started);
         let paint = || {
             if let Some(page) = unsafe { &*this.owner.page.get() } {

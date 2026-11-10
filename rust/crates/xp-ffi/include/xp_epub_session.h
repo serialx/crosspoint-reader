@@ -225,11 +225,12 @@ typedef struct {
   uint8_t (*item_size)(void* book, XpAppText href, uint32_t* size);
 } XpEpubBookBorrow;
 
-// Frozen native scope layout for host oracle fixtures only.
+// Typed scan loan for host oracle fixtures only.
 #ifdef XP_APP_TEST
 typedef struct {
-  uintptr_t words[2];
-} XpEpubPrewarm;
+  const void* owner;
+  uint8_t active;
+} XpEpubFontScan;
 #endif
 
 typedef enum {
@@ -344,9 +345,9 @@ typedef struct XpEpubLeaves {
   void (*fonts_ensure_loaded)(void);
 #ifdef XP_APP_TEST
   void (*fonts_release_caches)(void);
-  uint8_t (*fonts_prewarm_begin)(XpEpubPrewarm* storage);
-  void (*fonts_prewarm_finish_scan)(XpEpubPrewarm* storage);
-  void (*fonts_prewarm_drop)(XpEpubPrewarm* storage);
+  uint8_t (*fonts_prewarm_begin)(XpEpubFontScan* storage);
+  void (*fonts_prewarm_finish_scan)(XpEpubFontScan* storage);
+  void (*fonts_prewarm_drop)(XpEpubFontScan* storage);
 #endif
   uint8_t (*fonts_take_corrupt_notice)(void);
   uint8_t (*font_sizes)(XpAppText family, XpAppTextSink sink, void* context);
@@ -531,7 +532,7 @@ XP_EPUB_ASSERT(sizeof(XpEpubPageView) == (sizeof(void*) == 8 ? 24 : 12), "XpEpub
 XP_EPUB_ASSERT(sizeof(XpEpubOwnedPage) == sizeof(XpEpubPageView) + 2 * sizeof(void*), "XpEpubOwnedPage size");
 XP_EPUB_ASSERT(offsetof(XpEpubOwnedPage, owner) == sizeof(XpEpubPageView), "XpEpubOwnedPage.owner");
 #ifdef XP_APP_TEST
-XP_EPUB_ASSERT(sizeof(XpEpubPrewarm) == 2 * sizeof(void*), "XpEpubPrewarm size");
+XP_EPUB_ASSERT(sizeof(XpEpubFontScan) == 2 * sizeof(void*), "XpEpubFontScan size");
 #endif
 XP_EPUB_ASSERT(sizeof(XpEpubPhysicalOp) == (sizeof(void*) == 8 ? 24 : 16), "XpEpubPhysicalOp size");
 XP_EPUB_ASSERT(sizeof(XpEpubPosition) == 92, "XpEpubPosition size");

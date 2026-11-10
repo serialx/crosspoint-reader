@@ -56,7 +56,7 @@ pub(super) struct Frame {
     pub commands: [Command; 4],
     pub state: State,
     pub layout: Layout,
-    pub prewarm: [usize; 2],
+    pub prewarm: super::super::render_resources::FontScan,
     pub prewarm_active: bool,
 }
 #[repr(C)]
@@ -113,7 +113,8 @@ impl DefinitionOwner {
             }
             ptr::addr_of_mut!((*frame).state).write(State::default());
             ptr::addr_of_mut!((*frame).layout).write(Layout::default());
-            ptr::addr_of_mut!((*frame).prewarm).write([0; 2]);
+            ptr::addr_of_mut!((*frame).prewarm)
+                .write(super::super::render_resources::FontScan::EMPTY);
             ptr::addr_of_mut!((*frame).prewarm_active).write(false);
             let nav = ptr::addr_of_mut!((*out).navigation).cast::<Navigation>();
             ptr::addr_of_mut!((*nav).query).write(OwnedText::default());

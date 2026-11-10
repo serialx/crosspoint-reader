@@ -74,12 +74,6 @@
 const XpParaAllocator* paragraphAllocator();
 
 namespace {
-#ifdef XP_APP_TEST
-static_assert(sizeof(FontCacheManager::PrewarmScope) == 2 * sizeof(uintptr_t));
-static_assert(alignof(FontCacheManager::PrewarmScope) == alignof(uintptr_t));
-
-#endif
-
 uint32_t physicalRenderQuery(GfxRenderer& renderer, uint8_t query) {
   switch (query) {
     case XP_EPUB_RENDER_IS_BW:
@@ -220,17 +214,21 @@ uint8_t* physicalFramebuffer(GfxRenderer& renderer, uint32_t* bytes) {
   return renderer.getFrameBuffer();
 }
 #ifdef XP_APP_TEST
-uint8_t physicalPrewarmBegin(GfxRenderer& renderer, XpEpubPrewarm* storage) {
-  auto* cache = renderer.getFontCacheManager();
-  if (!cache) return 0;
-  new (storage) FontCacheManager::PrewarmScope(*cache);
+uint8_t physicalPrewarmBegin(GfxRenderer& renderer, XpEpubFontScan* scan) {
+  if (!renderer.getFontCacheManager()) return 0;
+  scan->owner = renderer.getFontMap().raw();
+  scan->active = 1;
+  xp_font_frame_begin(static_cast<const XpLoadedFonts*>(scan->owner));
   return 1;
 }
-void physicalPrewarmFinish(XpEpubPrewarm* storage) {
-  std::launder(reinterpret_cast<FontCacheManager::PrewarmScope*>(storage))->endScanAndPrewarm();
+void physicalPrewarmFinish(XpEpubFontScan* scan) {
+  if (scan->active) xp_font_frame_finish(static_cast<const XpLoadedFonts*>(scan->owner));
 }
-void physicalPrewarmDrop(XpEpubPrewarm* storage) {
-  std::launder(reinterpret_cast<FontCacheManager::PrewarmScope*>(storage))->~PrewarmScope();
+void physicalPrewarmDrop(XpEpubFontScan* scan) {
+  if (!scan->active) return;
+  const auto* owner = static_cast<const XpLoadedFonts*>(scan->owner);
+  *scan = {};
+  xp_font_frame_end(owner);
 }
 #endif
 
@@ -526,7 +524,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
           [] {
             if (auto* cache = target->getFontCacheManager()) cache->releaseSdFontCaches();
           },
-      .fonts_prewarm_begin = [](XpEpubPrewarm* storage) -> uint8_t { return physicalPrewarmBegin(*target, storage); },
+      .fonts_prewarm_begin = [](XpEpubFontScan* storage) -> uint8_t { return physicalPrewarmBegin(*target, storage); },
       .fonts_prewarm_finish_scan = physicalPrewarmFinish,
       .fonts_prewarm_drop = physicalPrewarmDrop,
 #endif

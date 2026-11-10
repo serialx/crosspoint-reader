@@ -73,24 +73,24 @@ struct Physical {
     fail_begin: bool,
 }
 impl PhysicalResources for Physical {
-    unsafe fn prewarm_begin(&self, storage: *mut PrewarmStorage) -> bool {
+    unsafe fn prewarm_begin(&self, storage: *mut FontScan, _: abi::FontOwner) -> bool {
         record("prewarm:begin");
         if self.fail_begin {
             return false;
         }
-        // A native-like token retains its construction address until destruction.
-        (*storage).words[0] = storage.addr();
-        (*storage).words[1] = 1;
+        // Verify the same typed loan storage reaches finish and close.
+        (*storage).owner = storage.cast();
+        (*storage).active = true;
         true
     }
-    unsafe fn prewarm_finish(&self, storage: *mut PrewarmStorage) {
-        assert_eq!((*storage).words[0], storage.addr());
-        assert_eq!((*storage).words[1], 1);
-        (*storage).words[1] = 0;
+    unsafe fn prewarm_finish(&self, storage: *mut FontScan) {
+        assert_eq!((*storage).owner, storage.cast());
+        assert!((*storage).active);
+        (*storage).active = false;
         record("prewarm:finish");
     }
-    unsafe fn prewarm_drop(&self, storage: *mut PrewarmStorage) {
-        assert_eq!((*storage).words[0], storage.addr());
+    unsafe fn prewarm_drop(&self, storage: *mut FontScan) {
+        assert_eq!((*storage).owner, storage.cast());
         record("prewarm:drop");
     }
     fn detach_source(&self) {
@@ -114,7 +114,7 @@ fn frame_frees_owned_planes_before_scope_and_image_cleanup() {
     assert!(frame.allocate(&RESOURCES, PlaneBuffer::Lsb, 101));
     assert!(frame.allocate(&RESOURCES, PlaneBuffer::Msb, 102));
     assert!(frame.allocate(&RESOURCES, PlaneBuffer::Scratch, 103));
-    assert!(frame.begin_prewarm());
+    assert!(frame.begin_prewarm(abi::FontOwner::NONE));
     frame.finish_scan();
     clear_events();
     drop(frame);
@@ -171,11 +171,14 @@ fn failed_prewarm_is_not_destroyed_and_an_ended_scope_is_destroyed() {
     let resources = pinned();
     let failed = Physical { fail_begin: true };
     let frame = resources.as_ref().begin_frame(&[], &failed);
-    assert!(!frame.begin_prewarm());
+    assert!(!frame.begin_prewarm(abi::FontOwner::NONE));
     drop(frame);
     assert!(!events().iter().any(|e| e == "prewarm:drop"));
     let physical = Physical { fail_begin: false };
-    let scope = resources.as_ref().begin_idle_prewarm(&physical).unwrap();
+    let scope = resources
+        .as_ref()
+        .begin_idle_prewarm(&physical, abi::FontOwner::NONE)
+        .unwrap();
     scope.finish_scan();
     drop(scope);
     assert_eq!(
@@ -331,6 +334,7 @@ static RESOURCES: abi::Resources = abi::Resources {
     refresh: unexpected1,
     buffer_allocate: allocate,
     buffer_release: release,
+    font_owner: abi::FontOwner::NONE,
 };
 
 #[test]
@@ -394,13 +398,13 @@ struct Detach<'a> {
 }
 #[cfg(feature = "reader-strips")]
 impl PhysicalResources for Detach<'_> {
-    unsafe fn prewarm_begin(&self, p: *mut PrewarmStorage) -> bool {
-        self.base.prewarm_begin(p)
+    unsafe fn prewarm_begin(&self, p: *mut FontScan, owner: abi::FontOwner) -> bool {
+        self.base.prewarm_begin(p, owner)
     }
-    unsafe fn prewarm_finish(&self, p: *mut PrewarmStorage) {
+    unsafe fn prewarm_finish(&self, p: *mut FontScan) {
         self.base.prewarm_finish(p)
     }
-    unsafe fn prewarm_drop(&self, p: *mut PrewarmStorage) {
+    unsafe fn prewarm_drop(&self, p: *mut FontScan) {
         self.base.prewarm_drop(p)
     }
     fn detach_source(&self) {
@@ -445,7 +449,7 @@ fn detach_callback_reborrows_live_storage_after_owned_planes_are_released() {
     assert!(!scratch.is_null());
     unsafe { scratch.write(0x5a) };
     frame.source_installed(true);
-    assert!(frame.begin_prewarm());
+    assert!(frame.begin_prewarm(abi::FontOwner::NONE));
     clear_events();
     drop(frame);
     assert_eq!(
@@ -470,10 +474,13 @@ fn repeated_prewarm_and_frames_leave_no_reservations() {
     let resources = pinned();
     let physical = Physical { fail_begin: false };
     for _ in 0..128 {
-        let scope = resources.as_ref().begin_idle_prewarm(&physical).unwrap();
+        let scope = resources
+            .as_ref()
+            .begin_idle_prewarm(&physical, abi::FontOwner::NONE)
+            .unwrap();
         drop(scope); // Scanning scopes also require destruction.
         let frame = resources.as_ref().begin_frame(&[], &physical);
-        assert!(frame.begin_prewarm());
+        assert!(frame.begin_prewarm(abi::FontOwner::NONE));
         frame.finish_scan();
         drop(frame);
     }

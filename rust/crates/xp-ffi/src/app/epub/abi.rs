@@ -382,13 +382,12 @@ pub struct XpEpubLeaves {
     pub fonts_release_caches: unsafe extern "C" fn(),
     #[cfg(feature = "app-test")]
     pub fonts_prewarm_begin:
-        unsafe extern "C" fn(storage: *mut super::render_resources::PrewarmStorage) -> u8,
+        unsafe extern "C" fn(storage: *mut super::render_resources::FontScan) -> u8,
     #[cfg(feature = "app-test")]
     pub fonts_prewarm_finish_scan:
-        unsafe extern "C" fn(storage: *mut super::render_resources::PrewarmStorage),
+        unsafe extern "C" fn(storage: *mut super::render_resources::FontScan),
     #[cfg(feature = "app-test")]
-    pub fonts_prewarm_drop:
-        unsafe extern "C" fn(storage: *mut super::render_resources::PrewarmStorage),
+    pub fonts_prewarm_drop: unsafe extern "C" fn(storage: *mut super::render_resources::FontScan),
     pub fonts_take_corrupt_notice: unsafe extern "C" fn() -> u8,
     pub font_sizes: unsafe extern "C" fn(
         family: XpAppText,

@@ -16,7 +16,9 @@ renderer_text = replace_once(renderer.read_text(),
     '  uint8_t* getFrameBuffer() { return framePixels; }',
     '  uint8_t* getFrameBuffer() { return framePixels; }\n'
     '  size_t getBufferSize() const { return frameStride * 800; }\n'
-    '  uint16_t physicalWidthOverride = 0;')
+    '  uint16_t physicalWidthOverride = 0;\n'
+    '  struct FrameFonts { FontCacheManager* cache; const void* raw() const { return cache; } };\n'
+    '  FrameFonts getFontMap() const { return {getFontCacheManager()}; }')
 renderer_text = replace_once(renderer_text, 'return frameStride * 8;',
     'return physicalWidthOverride ? physicalWidthOverride : frameStride * 8;')
 renderer.write_text(renderer_text)
@@ -35,10 +37,30 @@ signatures = [
     'void physicalPrewarmFinish(',
     'void physicalPrewarmDrop(',
 ]
-prefix = '#include <xp_epub_session.h>\n' + prefix
+prefix = '#include <xp_epub_session.h>\n#include <xp_font_registry.h>\n' + prefix
+# Preserve the parent fixture's cache-scope observers at the new direct-call boundary.
+# Shipping registry ownership is exercised separately by font_owner_binding.rs.
+prefix += '''
+void fixtureFontBegin(const XpLoadedFonts* owner) {
+  ++static_cast<FontCacheManager*>(const_cast<void*>(static_cast<const void*>(owner)))->scopes;
+}
+void fixtureFontFinish(const XpLoadedFonts* owner) {
+  assert(static_cast<const FontCacheManager*>(static_cast<const void*>(owner))->scopes);
+}
+void fixtureFontEnd(const XpLoadedFonts* owner) {
+  auto* cache = static_cast<FontCacheManager*>(const_cast<void*>(static_cast<const void*>(owner)));
+  assert(cache->scopes);
+  --cache->scopes;
+  frameChecks::prewarmDropAt = ++frameChecks::sequence;
+}
+#define xp_font_frame_begin fixtureFontBegin
+#define xp_font_frame_finish fixtureFontFinish
+#define xp_font_frame_end fixtureFontEnd
+'''
+
 fragments = [definition(native, signature) for signature in signatures]
 (out / 'ResourceFrame.cpp').write_text(prefix + '\n'.join(fragments)
-    + '\n#undef ImageBlock\n}\n' + (here / 'PhysicalFrame.cpp.in').read_text())
+    + '\n#undef xp_font_frame_begin\n#undef xp_font_frame_finish\n#undef xp_font_frame_end\n#undef ImageBlock\n}\n' + (here / 'PhysicalFrame.cpp.in').read_text())
 bridge = (here / 'PhysicalFrame.cpp.in').read_text()
 (out / 'ResourceCallbacks.h').write_text('#pragma once\n#include <xp_app.h>\n'
     '#include <xp_epub_session.h>\n'

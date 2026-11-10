@@ -31,11 +31,11 @@ impl Panel {
     }
 }
 impl PhysicalResources for Panel {
-    unsafe fn prewarm_begin(&self, _: *mut PrewarmStorage) -> bool {
+    unsafe fn prewarm_begin(&self, _: *mut FontScan, _: abi::FontOwner) -> bool {
         true
     }
-    unsafe fn prewarm_finish(&self, _: *mut PrewarmStorage) {}
-    unsafe fn prewarm_drop(&self, _: *mut PrewarmStorage) {}
+    unsafe fn prewarm_finish(&self, _: *mut FontScan) {}
+    unsafe fn prewarm_drop(&self, _: *mut FontScan) {}
     fn detach_source(&self) {
         let source = self.source.get();
         assert!(!source.is_null());

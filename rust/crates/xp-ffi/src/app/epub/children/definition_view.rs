@@ -3,7 +3,7 @@ use crate::app::{
     abi,
     epub::{
         abi::{XpEpubLeaves, XpEpubSettings},
-        render_resources::PrewarmStorage,
+        render_resources::FontScan,
     },
 };
 use core::{cell::Cell, ffi::c_void, mem::MaybeUninit, ptr};
@@ -20,7 +20,7 @@ struct Drawing<'a> {
     services: &'a abi::Resources,
     leaves: &'a XpEpubLeaves,
     message: abi::Text,
-    prewarm: *mut PrewarmStorage,
+    prewarm: *mut FontScan,
     started: Cell<bool>,
 }
 impl Drawing<'_> {
@@ -72,8 +72,10 @@ impl Drawing<'_> {
                 )
             },
             view::BODY => {
-                this.started
-                    .set(unsafe { this.leaves.font_begin(this.prewarm) });
+                this.started.set(unsafe {
+                    this.leaves
+                        .font_begin(this.prewarm, this.services.font_owner)
+                });
                 let body = || unsafe {
                     (this.owner.physical.draw_body)(
                         this.owner.payload.get(),

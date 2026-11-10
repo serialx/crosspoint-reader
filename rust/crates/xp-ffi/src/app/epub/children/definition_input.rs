@@ -10,6 +10,7 @@ impl DefinitionSession {
     unsafe fn action(
         &self,
         effect: Effect,
+        fonts: abi::FontOwner,
         runtime: &'static abi::Runtime,
         leaves: &XpEpubLeaves,
         x: i32,
@@ -19,7 +20,7 @@ impl DefinitionSession {
             definition::FINISH | definition::CANCEL => unsafe {
                 *self.result.get() = Some(effect.kind == definition::CANCEL)
             },
-            definition::BACK => unsafe { self.navigate(true, runtime, leaves) },
+            definition::BACK => unsafe { self.navigate(true, runtime, leaves, fonts) },
             definition::SELECT => return unsafe { self.selection(runtime, leaves, -1, -1) },
             definition::TOUCH_SELECT => return unsafe { self.selection(runtime, leaves, x, y) },
             _ => {}
@@ -33,6 +34,7 @@ impl DefinitionSession {
         runtime: &'static abi::Runtime,
         leaves: &XpEpubLeaves,
         touch_controls: bool,
+        fonts: abi::FontOwner,
     ) -> *mut c_void {
         let (discard, failed, message_time) = self.model.with(|model| {
             (
@@ -70,6 +72,7 @@ impl DefinitionSession {
                                 kind,
                                 ..Effect::default()
                             },
+                            fonts,
                             runtime,
                             leaves,
                             0,
@@ -84,7 +87,7 @@ impl DefinitionSession {
         }
         let lookup = !self.lookup.is_null();
         if lookup && !failed && unsafe { !(*self.navigation.get()).pending.is_empty() } {
-            unsafe { self.navigate(false, runtime, leaves) };
+            unsafe { self.navigate(false, runtime, leaves, fonts) };
             return ptr::null_mut();
         }
         let (mut x, mut y) = (0, 0);
@@ -141,6 +144,6 @@ impl DefinitionSession {
         if tap && effect.value != 0 {
             unsafe { (runtime.touch_feedback)(0) };
         }
-        unsafe { self.action(effect, runtime, leaves, x, y) }
+        unsafe { self.action(effect, fonts, runtime, leaves, x, y) }
     }
 }

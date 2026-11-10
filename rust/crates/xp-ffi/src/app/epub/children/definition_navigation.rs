@@ -36,9 +36,9 @@ impl DefinitionSession {
         }
         crate::app::request_update();
     }
-    pub(in crate::app) unsafe fn exit(&self, leaves: &XpEpubLeaves) {
+    pub(in crate::app) unsafe fn exit(&self, leaves: &XpEpubLeaves, fonts: abi::FontOwner) {
         unsafe { Self::activity_log(leaves, false) };
-        unsafe { leaves.font_release() };
+        unsafe { leaves.font_release(fonts) };
     }
     pub(in crate::app) unsafe fn selection_failed(&self, runtime: &abi::Runtime) {
         unsafe { (self.physical.selection_release)(self.payload.get()) };
@@ -219,6 +219,7 @@ impl DefinitionSession {
         back: bool,
         styled: bool,
         error: u16,
+        fonts: abi::FontOwner,
         runtime: &abi::Runtime,
         leaves: &XpEpubLeaves,
     ) {
@@ -226,7 +227,7 @@ impl DefinitionSession {
         nav.pending.clear();
         unsafe {
             (self.physical.payload_release)(self.payload.get(), PayloadSlot::Candidate as u8, 0);
-            leaves.font_release();
+            leaves.font_release(fonts);
         }
         if back {
             unsafe {
@@ -276,6 +277,7 @@ impl DefinitionSession {
         back: bool,
         runtime: &'static abi::Runtime,
         leaves: &XpEpubLeaves,
+        fonts: abi::FontOwner,
     ) {
         {
             let _guard = Self::lock(runtime);
@@ -295,7 +297,7 @@ impl DefinitionSession {
         });
         unsafe {
             (self.physical.payload_release)(self.payload.get(), PayloadSlot::Current as u8, 1);
-            leaves.font_release();
+            leaves.font_release(fonts);
             Self::log_heap(leaves);
         }
         let nav = unsafe { &mut *self.navigation.get() };
@@ -312,12 +314,12 @@ impl DefinitionSession {
                 3 => STR_DICT_DECOMPRESS_ERROR,
                 _ => STR_DICT_READ_FAILED,
             };
-            unsafe { self.recover(back, styled, error, runtime, leaves) };
+            unsafe { self.recover(back, styled, error, fonts, runtime, leaves) };
             return;
         }
         let plain = back && !nav.history[depth - 1].styled;
         let Some(view) = (unsafe { self.prepare(PayloadSlot::Candidate, plain) }) else {
-            unsafe { self.recover(back, styled, STR_DICT_LOW_MEMORY, runtime, leaves) };
+            unsafe { self.recover(back, styled, STR_DICT_LOW_MEMORY, fonts, runtime, leaves) };
             return;
         };
         let page;
@@ -326,7 +328,14 @@ impl DefinitionSession {
             if previous.styled != (view.styled != 0) || previous.page >= view.pages {
                 unsafe {
                     Self::log(leaves, 1, b"Cannot restore definition layout");
-                    self.recover(back, styled, STR_DICT_RESTORE_FAILED, runtime, leaves);
+                    self.recover(
+                        back,
+                        styled,
+                        STR_DICT_RESTORE_FAILED,
+                        fonts,
+                        runtime,
+                        leaves,
+                    );
                 }
                 return;
             }

@@ -99,7 +99,7 @@ void testRealSession(const XpEpubLeaves& pageLeaves, XpAppText wire, GfxRenderer
   leaves.image_read_window = physicalImageWindow;
   leaves.display_source = physicalDisplaySource;
   leaves.framebuffer_view = [](uint32_t* size) { return physicalFramebuffer(*sessionChecks.renderer, size); };
-  leaves.fonts_prewarm_begin = [](XpEpubPrewarm* storage) {
+  leaves.fonts_prewarm_begin = [](XpEpubFontScan* storage) {
     return physicalPrewarmBegin(*sessionChecks.renderer, storage);
   };
   leaves.fonts_prewarm_finish_scan = physicalPrewarmFinish;

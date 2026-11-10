@@ -3,9 +3,9 @@ struct ResourceCallbacks {
   void* context;
   uint32_t (*query)(void*, uint8_t);
   uint32_t (*operation)(void*, const XpEpubPhysicalOp*);
-  uint8_t (*prewarmBegin)(void*, XpEpubPrewarm*);
-  void (*prewarmFinish)(void*, XpEpubPrewarm*);
-  void (*prewarmDrop)(void*, XpEpubPrewarm*);
+  uint8_t (*prewarmBegin)(void*, XpEpubFontScan*);
+  void (*prewarmFinish)(void*, XpEpubFontScan*);
+  void (*prewarmDrop)(void*, XpEpubFontScan*);
   void (*window)(void*, uint8_t*, uint32_t);
   uint8_t (*source)(void*, void*);
   uint8_t* (*framebuffer)(void*, size_t*);
@@ -45,9 +45,9 @@ ResourceCallbacks callbacks(Content& context) {
     &context,
     [](void* c, uint8_t q) { return physicalRenderQuery(content(c).renderer, q); },
     [](void* c, const XpEpubPhysicalOp* op) { return physicalRenderOperation(content(c).renderer, *op); },
-    [](void* c, XpEpubPrewarm* p) { return physicalPrewarmBegin(content(c).renderer, p); },
-    [](void*, XpEpubPrewarm* p) { physicalPrewarmFinish(p); },
-    [](void*, XpEpubPrewarm* p) { physicalPrewarmDrop(p); },
+    [](void* c, XpEpubFontScan* p) { return physicalPrewarmBegin(content(c).renderer, p); },
+    [](void*, XpEpubFontScan* p) { physicalPrewarmFinish(p); },
+    [](void*, XpEpubFontScan* p) { physicalPrewarmDrop(p); },
     [](void*, uint8_t* bytes, uint32_t length) { physicalImageWindow(bytes, length); },
     [](void*, void* source) { return physicalDisplaySource(static_cast<XpDisplaySource*>(source)); },
     [](void* c, size_t* length) {

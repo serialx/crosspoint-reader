@@ -3,7 +3,6 @@ use crate::font_registry::{self as fonts, Owner};
 use core::{
     ffi::{c_char, c_void, CStr},
     ptr,
-    sync::atomic::{AtomicPtr, Ordering},
 };
 use xp_core::{
     font::{
@@ -13,24 +12,6 @@ use xp_core::{
     glyph::{Bitmap, BitmapSource, Draw, Kind},
 };
 
-// Process-lifetime shipping registry binding; later registries cannot replace it.
-// PT3 removes this singleton when SD/lifecycle leaves carry explicit owner loans.
-static CURRENT: AtomicPtr<Owner> = AtomicPtr::new(ptr::null_mut());
-/// # Safety
-/// Registry initialization is serialized; the first owner lives for the process.
-pub(crate) unsafe fn register_current(owner: *mut Owner) {
-    if CURRENT.load(Ordering::Relaxed).is_null() {
-        CURRENT.store(owner, Ordering::Relaxed);
-    }
-}
-#[cfg_attr(feature = "app-test", allow(dead_code))]
-pub(crate) fn current() -> *const Owner {
-    CURRENT.load(Ordering::Relaxed)
-}
-#[cfg(test)]
-pub(crate) fn reset_current() {
-    CURRENT.store(ptr::null_mut(), Ordering::Relaxed);
-}
 extern "C" {
     fn fiFontMalloc(bytes: usize) -> *mut c_void;
     fn fiFontFree(bytes: *mut c_void);

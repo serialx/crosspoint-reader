@@ -9,25 +9,33 @@ pub(crate) mod renderer;
 #[path = "render_resources/replay.rs"]
 pub(crate) mod replay;
 use crate::app::{abi, resources::Buffer};
+#[cfg(feature = "reader-strips")]
+use core::mem::MaybeUninit;
 use core::{
     cell::{Cell, RefCell, UnsafeCell},
     marker::PhantomPinned,
-    mem::MaybeUninit,
     pin::Pin,
     ptr,
 };
 
 #[repr(C)]
-pub(crate) union PrewarmStorage {
-    pub(crate) words: [usize; 2],
+pub(crate) struct FontScan {
     pub(crate) owner: *const core::ffi::c_void,
+    pub(crate) active: bool,
 }
+impl FontScan {
+    pub(crate) const EMPTY: Self = Self {
+        owner: ptr::null(),
+        active: false,
+    };
+}
+const _: () = assert!(core::mem::size_of::<FontScan>() == 2 * core::mem::size_of::<usize>());
 
 /// Physical callbacks must not retain a Rust reference or move scope storage.
 pub(crate) trait PhysicalResources {
-    unsafe fn prewarm_begin(&self, storage: *mut PrewarmStorage) -> bool;
-    unsafe fn prewarm_finish(&self, storage: *mut PrewarmStorage);
-    unsafe fn prewarm_drop(&self, storage: *mut PrewarmStorage);
+    unsafe fn prewarm_begin(&self, storage: *mut FontScan, owner: abi::FontOwner) -> bool;
+    unsafe fn prewarm_finish(&self, storage: *mut FontScan);
+    unsafe fn prewarm_drop(&self, storage: *mut FontScan);
     #[cfg_attr(not(feature = "reader-strips"), allow(dead_code))]
     fn detach_source(&self);
     #[cfg_attr(not(feature = "reader-strips"), allow(dead_code))]
@@ -43,20 +51,20 @@ enum Scan {
 }
 
 struct Prewarm {
-    storage: UnsafeCell<MaybeUninit<PrewarmStorage>>,
+    storage: UnsafeCell<FontScan>,
     state: Cell<Scan>,
 }
 impl Prewarm {
     unsafe fn initialize(out: *mut Self) {
-        ptr::addr_of_mut!((*out).storage).write(UnsafeCell::new(MaybeUninit::uninit()));
+        ptr::addr_of_mut!((*out).storage).write(UnsafeCell::new(FontScan::EMPTY));
         ptr::addr_of_mut!((*out).state).write(Cell::new(Scan::Closed));
     }
-    fn storage(&self) -> *mut PrewarmStorage {
+    fn storage(&self) -> *mut FontScan {
         self.storage.get().cast()
     }
-    fn begin(&self, physical: &dyn PhysicalResources) -> bool {
+    fn begin(&self, physical: &dyn PhysicalResources, owner: abi::FontOwner) -> bool {
         assert!(self.state.get() == Scan::Closed);
-        if !unsafe { physical.prewarm_begin(self.storage()) } {
+        if !unsafe { physical.prewarm_begin(self.storage(), owner) } {
             return false;
         }
         self.state.set(Scan::Scanning);
@@ -338,12 +346,15 @@ impl PageResources {
     pub(crate) fn begin_idle_prewarm<'a>(
         self: Pin<&'a Self>,
         physical: &'a dyn PhysicalResources,
+        owner: abi::FontOwner,
     ) -> Option<PrewarmLease<'a>> {
         assert!(!self.frame.active.get());
-        self.idle_prewarm.begin(physical).then_some(PrewarmLease {
-            owner: self,
-            physical,
-        })
+        self.idle_prewarm
+            .begin(physical, owner)
+            .then_some(PrewarmLease {
+                owner: self,
+                physical,
+            })
     }
     #[cfg(feature = "reader-strips")]
     pub(crate) fn prepare_strips(
@@ -422,8 +433,8 @@ impl FrameLease<'_> {
             frame.buffer(buffer).pointer()
         }
     }
-    pub(crate) fn begin_prewarm(&self) -> bool {
-        self.owner.frame.prewarm.begin(self.physical)
+    pub(crate) fn begin_prewarm(&self, owner: abi::FontOwner) -> bool {
+        self.owner.frame.prewarm.begin(self.physical, owner)
     }
     pub(crate) fn finish_scan(&self) {
         self.owner.frame.prewarm.finish_scan(self.physical);
@@ -511,3 +522,6 @@ impl Drop for FrameLease<'_> {
         frame.active.set(false);
     }
 }
+
+#[cfg(all(target_pointer_width = "32", not(feature = "reader-strips")))]
+const _: () = assert!(core::mem::size_of::<PageResources>() == 160);

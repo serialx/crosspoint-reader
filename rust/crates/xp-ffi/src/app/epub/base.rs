@@ -153,7 +153,7 @@ impl EpubSession {
 
     pub(super) fn exit(&self, access: &ResourceAccess<'_>) {
         self.activity_log(false);
-        unsafe { self.leaves.font_release() };
+        unsafe { self.leaves.font_release(self.resources.font_owner) };
         self.log_memory(false);
         self.flush_session();
         if unsafe { (self.leaves.has_exit_subscriber)() } != 0 {

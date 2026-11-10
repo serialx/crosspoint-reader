@@ -345,6 +345,8 @@ typedef struct {
   void (*refresh)(uint8_t refresh);
   uint8_t* (*buffer_allocate)(XpAppMemoryDomain domain, size_t bytes);
   void (*buffer_release)(XpAppMemoryDomain domain, uint8_t* data);
+  // Immutable process-lifetime registry slot supplied by the renderer context.
+  const void* const* font_owner;
 } XpAppResources;
 
 typedef struct {
@@ -407,7 +409,7 @@ static_assert(sizeof(XpAppPoint) == 8);
 static_assert(sizeof(XpAppBook) == 8 * sizeof(void*));
 static_assert(sizeof(XpAppLegacy) == 14 * sizeof(void*));
 static_assert(sizeof(XpAppCompatibility) == 3 * sizeof(void*));
-static_assert(sizeof(XpAppResources) == 46 * sizeof(void*));
+static_assert(sizeof(XpAppResources) == 47 * sizeof(void*));
 static_assert(sizeof(XpAppRuntime) == 34 * sizeof(void*));
 static_assert(offsetof(XpAppRuntime, render_owned_by_current_task_retire_p18) == 33 * sizeof(void*));
 static_assert(sizeof(XpAppPlatform) == 4 * sizeof(void*));

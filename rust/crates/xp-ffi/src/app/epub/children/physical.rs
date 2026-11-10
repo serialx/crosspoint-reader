@@ -31,11 +31,11 @@ pub(crate) struct Physical {
 }
 
 impl Physical {
-    pub(super) unsafe fn clear_font_cache(&self) {
+    pub(super) unsafe fn clear_font_cache(&self, _owner: abi::FontOwner) {
         #[cfg(feature = "app-test")]
         (self.clear_fonts)();
         #[cfg(not(feature = "app-test"))]
-        crate::font_runtime::release(crate::font_runtime::current(), 0);
+        crate::font_runtime::release(_owner.get().cast(), 0);
     }
     // Keep theme facts off shared child dispatch and session render frames.
     #[inline(never)]

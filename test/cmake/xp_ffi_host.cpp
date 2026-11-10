@@ -218,7 +218,23 @@ __attribute__((weak)) void xp_settings_shell_theme_reload(void) { std::abort(); 
 // Isolated core/ABI suites do not instantiate the physical renderer. Real
 // renderer fixtures override these leaves; unexpected routing must fail.
 #include <xp_font_registry.h>
+#include <xp_sd_physical.h>
 extern "C" {
+__attribute__((weak)) const XpLoadedFonts* xp_native_chapter_font_owner(void*) { std::abort(); }
+__attribute__((weak)) size_t heap_caps_get_largest_free_block(uint32_t) { return 200 * 1024; }
+__attribute__((weak)) void xp_native_sd_handle_init(XpSdFileSlot*) { std::abort(); }
+__attribute__((weak)) void xp_native_sd_handle_destroy(XpSdFileSlot*) { std::abort(); }
+__attribute__((weak)) uint8_t xp_native_sd_file_open(XpSdFileSlot*, const char*, uint32_t*) { std::abort(); }
+__attribute__((weak)) int32_t xp_native_sd_file_read(XpSdFileSlot*, uint8_t*, size_t) { std::abort(); }
+__attribute__((weak)) uint8_t xp_native_sd_file_seek(XpSdFileSlot*, uint32_t) { std::abort(); }
+__attribute__((weak)) void xp_native_sd_file_close(XpSdFileSlot*) { std::abort(); }
+__attribute__((weak)) uint8_t* xp_native_sd_allocate(size_t bytes, bool) {
+  return static_cast<uint8_t*>(std::malloc(bytes));
+}
+__attribute__((weak)) void xp_native_sd_free(uint8_t* bytes, bool) { std::free(bytes); }
+__attribute__((weak)) void xp_native_sd_diagnostic(const char*, uint32_t, const uint32_t*, uint32_t, uint32_t, bool) {
+  std::abort();
+}
 __attribute__((weak)) size_t heap_caps_get_free_size(uint32_t) { return 200 * 1024; }
 __attribute__((weak)) int64_t esp_timer_get_time() { return 0; }
 __attribute__((weak)) void* fiFontMalloc(size_t n) { return std::malloc(n); }

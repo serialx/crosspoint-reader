@@ -160,44 +160,57 @@ void Paragraph::layoutLines(const GfxRenderer& source, int fontId, uint16_t view
                             uint8_t (*processLine)(void*, const XpParaLine*), bool includeLastLine,
                             int8_t characterSpacing, uint8_t wordSpacingPercent, size_t maxLines,
                             const bool* stopRequested) {
-  XpParaMetrics metrics{const_cast<GfxRenderer*>(&source),
-                        nullptr,
-#ifdef XP_NATIVE_TEXT_MEASUREMENT
-                        nullptr,
-                        nullptr,
-                        nullptr,
-                        nullptr,
-                        nullptr,
-                        nullptr,
-                        prepare,
-                        nullptr,
-                        nullptr,
+  XpParaMetrics metrics{
+#if defined(XP_NATIVE_TEXT_MEASUREMENT) && !defined(XP_APP_TEST)
+      const_cast<XpLoadedFonts*>(source.getFontMap().raw()),
 #else
-                        advance,
-                        [](void* c, int32_t f, uint8_t s) -> int32_t {
-                          return renderer(c).getSpaceWidth(f, static_cast<EpdFontFamily::Style>(s));
-                        },
-                        [](void* c, int32_t f, uint32_t a, uint32_t b, uint8_t s, int8_t t) -> int32_t {
-                          return renderer(c).getKerning(f, a, b, static_cast<EpdFontFamily::Style>(s), t);
-                        },
-                        [](void* c, int32_t f, uint32_t a, uint32_t b, uint8_t s) -> int32_t {
-                          return renderer(c).getSpaceAdvance(f, a, b, static_cast<EpdFontFamily::Style>(s));
-                        },
-                        [](void* c, int32_t f) -> int32_t { return renderer(c).getFontAscenderSize(f); },
-                        [](void* c, int32_t f) -> uint8_t { return renderer(c).isSdCardFont(f); },
-                        prepare,
-                        startsRtl,
-                        visualOrder,
+      const_cast<GfxRenderer*>(&source),
+#endif
+      nullptr,
+#ifdef XP_NATIVE_TEXT_MEASUREMENT
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+#ifdef XP_APP_TEST
+      prepare,
+#else
+      xp_sd_font_prepare_spans,
+#endif
+      nullptr,
+      nullptr,
+#else
+      advance,
+      [](void* c, int32_t f, uint8_t s) -> int32_t {
+        return renderer(c).getSpaceWidth(f, static_cast<EpdFontFamily::Style>(s));
+      },
+      [](void* c, int32_t f, uint32_t a, uint32_t b, uint8_t s, int8_t t) -> int32_t {
+        return renderer(c).getKerning(f, a, b, static_cast<EpdFontFamily::Style>(s), t);
+      },
+      [](void* c, int32_t f, uint32_t a, uint32_t b, uint8_t s) -> int32_t {
+        return renderer(c).getSpaceAdvance(f, a, b, static_cast<EpdFontFamily::Style>(s));
+      },
+      [](void* c, int32_t f) -> int32_t { return renderer(c).getFontAscenderSize(f); },
+      [](void* c, int32_t f) -> uint8_t { return renderer(c).isSdCardFont(f); },
+      prepare,
+      startsRtl,
+      visualOrder,
 #endif
 #ifdef XP_NATIVE_TEXT_MEASUREMENT
-                        [](void* ctx, XpNativeProvider* out) -> uint8_t {
-                          *out = renderer(ctx).textProvider();
-                          return true;
-                        },
+      [](void* ctx, XpNativeProvider* out) -> uint8_t {
+#ifdef XP_APP_TEST
+        *out = renderer(ctx).textProvider();
 #else
-                        nullptr,
+        *out = xp_font_registry_provider(static_cast<const XpLoadedFonts*>(ctx));
 #endif
-                        nullptr};
+        return true;
+      },
+#else
+      nullptr,
+#endif
+      nullptr};
   XpParaLayout options{fontId,
                        viewportWidth,
                        static_cast<uint8_t>(includeLastLine),

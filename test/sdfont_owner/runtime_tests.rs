@@ -312,3 +312,68 @@ fn published_slot_survives_resident_mutation() {
     }
     assert!(face.font_slot(4).is_null());
 }
+
+#[test]
+fn tagged_style_callbacks_and_source_loans_survive_pool_mutation() {
+    use std::sync::atomic::{AtomicU32, Ordering};
+    let generation = AtomicU32::new(0);
+    let shared = IntervalRegistry::new();
+    let state = state(0);
+    let mut files = std::pin::pin!(io::Files::new(Physical(&state)));
+    let mut face =
+        unsafe { owner::FaceOwner::load(c"font", files.as_mut(), ALLOCATOR, &shared) }.unwrap();
+    unsafe {
+        face.bind(&generation, tagged_miss);
+    }
+    let first = generation.load(Ordering::Relaxed);
+    for style in 0..4 {
+        if face.font_slot(style).is_null() {
+            continue;
+        }
+        unsafe {
+            let slot = face.font_slot(style);
+            let data = slot.read();
+            let context = (*data).glyph_miss_ctx;
+            let (loan, actual) = owner::FaceOwner::from_context(context);
+            assert_eq!(actual, style as usize);
+            assert_eq!(loan.address(), face.address());
+            assert!(((*data).coverage_handler.unwrap())(context, 65));
+            assert!(!((*data).coverage_handler.unwrap())(context, 0x10ffff));
+            ((*data).glyph_miss_handler.unwrap())(context, 65);
+            assert_eq!((*slot.read()).advance_y, (*data).advance_y);
+            let mut family = std::mem::zeroed();
+            face.metric_view(&mut family);
+            assert_eq!(family.sd, 1);
+            assert_eq!(family.styles[style as usize].data, slot.read());
+            let mut source = std::mem::zeroed();
+            face.bitmap_view(slot.read(), &mut source);
+            assert_eq!(source.overflow_count, 0);
+            assert!(face.report_corrupt().1);
+        }
+    }
+    assert!(generation.load(Ordering::Relaxed) > first);
+}
+unsafe extern "C" fn tagged_miss(
+    context: *mut core::ffi::c_void,
+    cp: u32,
+) -> *const font::raw::Glyph {
+    let (mut face, style) = owner::FaceOwner::from_context(context);
+    face.invalidate();
+    let services = sdfont::pool::Services {
+        context: ptr::null_mut(),
+        open: closed,
+        close: finish,
+        read: no_read,
+        alloc: buffer,
+        free,
+        heap: free_heap,
+        clock: now,
+        corrupt: no_corrupt,
+        diagnostic: None,
+    };
+    face.with_cache(&services, |cache| {
+        assert!(cache.coverage(style, cp));
+        (*cache.stats).seeks += 1;
+    });
+    ptr::null()
+}

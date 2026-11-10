@@ -2,6 +2,7 @@
 use super::parser::Allocator;
 use core::{ffi::CStr, mem, ptr, slice};
 
+#[repr(C)]
 union Text {
     inline: [u8; 16],
     heap: *mut u8,

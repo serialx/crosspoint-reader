@@ -5,7 +5,12 @@ import tempfile
 
 root = Path(__file__).resolve().parents[2]
 source = '''
-mod parser { pub trait Reader { fn seek(&mut self, offset:u32)->bool; fn read(&mut self,b:&mut[u8])->usize; } }
+struct Diagnostic;
+mod parser { pub trait Reader {
+ fn seek(&mut self, offset:u32)->bool; fn read(&mut self,b:&mut[u8])->usize;
+ fn diagnostic(&mut self,_:u32,_:u32,_:u32,_:u32) {}
+ fn parse_error(_: &super::Diagnostic,_:u32,_:u32) {}
+} }
 #[path = "IO_PATH"] mod io;
 fn extract<P: io::Physical + Unpin>(files: std::pin::Pin<&mut io::Files<P>>) {
     let _ = std::pin::Pin::into_inner(files);

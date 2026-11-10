@@ -69,7 +69,7 @@ GfxRenderer renderer(display);
 MappedInputManager mappedInputManager(gpio, renderer);
 ActivityManager activityManager(renderer, mappedInputManager);
 SdCardFontSystem sdFontSystem;
-FontCacheManager fontCacheManager(renderer.getFontMap(), renderer.getSdCardFonts(), renderer.getTtfFonts());
+FontCacheManager fontCacheManager(renderer.getFontMap());
 static unsigned long allowSleepAt = 0;
 // A wake hold must never become an in-app power-button action.  Boot may continue
 // while the button is held; swallow the one release that ends that wake gesture.

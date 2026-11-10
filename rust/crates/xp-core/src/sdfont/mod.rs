@@ -384,4 +384,10 @@ mod tests {
     }
 }
 
+pub mod catalog;
+mod catalog_storage;
+pub mod control;
+pub mod io;
 pub mod load;
+pub mod owner;
+pub mod parser;

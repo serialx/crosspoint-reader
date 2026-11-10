@@ -1,16 +1,11 @@
-pub use xp_core::{font, sdfont};
-#[path = "../../rust/crates/xp-core/src/sdfont/io.rs"]
-pub mod io;
-#[path = "../../rust/crates/xp-core/src/sdfont/owner.rs"]
-pub mod owner;
-#[path = "../../rust/crates/xp-core/src/sdfont/parser.rs"]
-mod parser;
 use parser::{Allocator, IntervalRegistry, ParsedFont, Reader};
 use std::{
     alloc::{alloc, dealloc, Layout},
     cell::RefCell,
     ptr,
 };
+pub use xp_core::sdfont::{catalog, control, io, owner, parser};
+pub use xp_core::{font, sdfont};
 
 #[derive(Default)]
 struct Memory {
@@ -285,13 +280,9 @@ mod tests {
 #[cfg(test)]
 mod runtime_tests;
 
-#[path = "../../rust/crates/xp-core/src/sdfont/catalog.rs"]
-pub mod catalog;
+#[allow(dead_code)]
 #[path = "../../rust/crates/xp-core/src/sdfont/catalog_storage.rs"]
 mod catalog_storage;
-
-#[path = "../../rust/crates/xp-core/src/sdfont/control.rs"]
-pub mod control;
 
 mod catalog_fixture;
 #[cfg(test)]

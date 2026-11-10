@@ -51,6 +51,15 @@ pub struct Family {
     pub loose: bool,
 }
 impl Family {
+    pub fn borrowed(&self) -> crate::font::manager::Family {
+        crate::font::manager::Family {
+            name: self.name.cstr().as_ptr(),
+            name_len: self.name.bytes().len(),
+            root: self.root,
+            files: file_view(&self.files),
+            loose: self.loose,
+        }
+    }
     fn new() -> Self {
         Self {
             name: Name::new(),

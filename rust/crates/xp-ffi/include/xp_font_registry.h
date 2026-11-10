@@ -6,10 +6,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-// Inline registry, cache, decoder and scan storage: 4,000 B on C3, 4,568 B on host.
+// Inline registry, cache, decoder and scan storage: 4,252 B on C3, 4,928 B on host.
 // Cache buffers use the font allocator; owner initialization allocates nothing.
 typedef struct {
-  uintptr_t words[sizeof(void*) == 8 ? 571 : 1000];
+  uintptr_t words[sizeof(void*) == 8 ? 616 : 1063];
 } XpLoadedFonts;
 typedef struct {
   int32_t id;
@@ -23,7 +23,8 @@ typedef enum {
   XP_FONT_COUNT,
   XP_FONT_SLOT,
   XP_FONT_EXISTS,
-  XP_FONT_FALLBACK_ID
+  XP_FONT_FALLBACK_ID,
+  XP_FONT_SD
 } XpFontQuery;
 typedef union {
   uintptr_t value;
@@ -34,6 +35,7 @@ typedef union {
 // Initialization is serialized per registry. Every operation takes its explicit owner;
 // registries do not bind a process singleton.
 void xp_font_registry_init(XpLoadedFonts*, const void* generation, void* native);
+void xp_font_registry_drop(XpLoadedFonts*);
 // Applies registration/fallback changes and invalidates source loans; owns no font bytes.
 uint8_t xp_font_registry_update(XpLoadedFonts*, XpFontUpdate, const XpRegisteredFont*);
 // Copies one descriptor; BY_ID returns index+1, AT returns 1, absent returns 0.
@@ -70,21 +72,46 @@ typedef struct {
   const void* const* slot;
 } XpFontGlyphContext;
 XpGlyphBitmap xp_font_glyph_miss(void*, uint32_t cp, const void* glyph, XpGlyphDraw*, XpGlyphSource*);
-// Temporary four-operation compat: Rust selects backend, ordering and flags.
-// PT3 removes SD; PT-VEC removes vector and native xp_vector policy routing.
+// Native cold catalog lends a family; the Rust control owns every loaded SD face.
+int32_t xp_sd_font_load(XpLoadedFonts*, const XpFontFamilyFiles*, uint8_t points, int32_t id, uint8_t mode);
+void xp_sd_font_unload(XpLoadedFonts*, int32_t id, uint8_t all);
+// Name is borrowed until manager mutation; size is written synchronously.
+const char* xp_sd_font_current(const XpLoadedFonts*, uint8_t* size);
+int32_t xp_sd_font_id(const XpLoadedFonts*, const char* family, size_t length, uint8_t size);
+int32_t xp_sd_font_prewarm(const XpLoadedFonts*, int32_t, const char* (*)(const void*, uint32_t), const void*,
+                           uint32_t count, uint8_t styles, uint8_t metadata, uint8_t kern, uint8_t accumulate);
+int32_t xp_sd_font_prepare(const XpLoadedFonts*, int32_t, const XpSdfontTexts*, uint8_t styles);
+void xp_sd_font_prepare_spans(void*, int32_t, const XpParaSpan*, uint32_t, uint8_t space, uint8_t hyphen,
+                              uint8_t styles, uint8_t small);
+// Native chapter sink context still belongs to ChapterPageAssembler. This leaf
+// only lends its explicit owner address; P18-D2 retires it with that context.
+const XpLoadedFonts* xp_native_chapter_font_owner(void*);
+void xp_sd_font_prepare_chapter(void*, int32_t, const XpParaSpan*, uint32_t, uint8_t space, uint8_t hyphen,
+                                uint8_t styles, uint8_t small);
+uint8_t xp_sd_font_take_corrupt_notice(void);
+// Vector compatibility remains; SD policy uses the Rust owner directly.
+#ifdef XP_APP_TEST
 uint8_t xp_native_font_compat_resolve(void*, int32_t font, uint8_t style);
+#endif
 int32_t xp_native_font_compat_prewarm(void*, int32_t font, uint8_t backend, const char* text, uint8_t styles,
                                       uint8_t metadata, uint8_t kern_lig, uint8_t accumulate);
 void xp_native_font_compat_clear(void*, int32_t font, uint8_t backend, uint8_t resident);
+
+#ifdef XP_APP_TEST
 void xp_native_font_compat_reset(void*, int32_t font);
+
+#endif
 void xp_native_font_cache_diagnostic(const void* font, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d);
-// PT3 removes the per-glyph SD bitmap leaf with its native overflow/cache owner.
+// Host oracles retain the native SD facade until their adapter retirement.
+#ifdef XP_APP_TEST
 const uint8_t* xp_native_sd_font_bitmap(const void* font, const void* glyph);
 // PT3 removes this leaf when Rust owns mini/advance/overflow tables.
 void xp_native_sd_font_view(void*, int32_t font, XpNativeFamily*, XpGlyphSource*);
 // PT3 removes this leaf when Rust residency uses physical file reads directly.
 void xp_native_sd_font_resident_slice(void*, int32_t font, uint8_t style, const uint8_t*, size_t, uint8_t metadata);
-// PT3 removes this leaf when Rust owns SD loading, registration and eviction together.
+
+#endif
+// Cold absent-ID loading remains with the native system until CP2b.
 uint8_t xp_native_sd_font_load(void*, int32_t font);
 void xp_native_font_diagnostic(void*, uint32_t event, uint32_t value);
 #ifdef __cplusplus

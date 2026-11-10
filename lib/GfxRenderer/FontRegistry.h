@@ -51,6 +51,7 @@ class FontRegistry {
     Arrow operator->() const { return {{owner, owner->idAt(index)}}; }
   };
   explicit FontRegistry(void* native) { xp_font_registry_init(&storage, &fontTableGeneration, native); }
+  ~FontRegistry() { xp_font_registry_drop(&storage); }
   FontRegistry(const FontRegistry&) = delete;
   FontRegistry& operator=(const FontRegistry&) = delete;
   FontRegistry(FontRegistry&&) = delete;

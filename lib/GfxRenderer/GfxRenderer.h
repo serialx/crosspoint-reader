@@ -65,14 +65,12 @@ class GfxRenderer {
   uint32_t frameBufferSize = HalDisplay::BUFFER_SIZE;
   std::vector<uint8_t*> bwBufferChunks;
   FontRegistry fontMap;
-  // Mutable because ensureSdCardFontReady() is const (called from layout code
-  // that holds a const GfxRenderer&) but triggers SD card reads and heap
-  // allocation inside the SdCardFont objects. Same pragmatic compromise as
-  // fontCacheManager_ below.
+#ifdef XP_APP_TEST
+  // Native oracle faces are separate from the shipping Rust SD owner.
   mutable std::map<int, SdCardFont*> sdCardFonts_;
-  mutable std::map<int, uint16_t> sdCardFontScales_;  // fontId -> 8.8 fixed point scale (256=1.0x)
-  // TTF (vector) fonts: rebuilt per page by ensureSdCardFontReady(). Mutable for
-  // the same reason as sdCardFonts_ (const layout path triggers a rebuild).
+  mutable std::map<int, uint16_t> sdCardFontScales_;
+#endif
+  // Vector ownership remains native until PT-VEC.
   mutable std::map<int, TtfEpdFont*> ttfFonts_;
 
   // Mutable because drawText() is const but needs to delegate scan-mode
@@ -158,8 +156,8 @@ class GfxRenderer {
   // Batch-load `text`'s glyphs into an SD-card font's resident mini tables
   // before a per-glyph measure/draw loop runs. Called when resolveTextFontId
   // redirected a string to the SD fallback: UI screens (file browser, home)
-  // draw those strings without the reader's PrewarmScope, and every glyph
-  // would otherwise fault through SdCardFont::onGlyphMiss — one .cpfont file
+  // draw those strings without the reader's FontScan, and every glyph
+  // would otherwise fault through the Rust SD miss handler — one .cpfont file
   // open + seek + read per glyph, per redraw, through an 8-slot overflow ring
   // (#2725). One prewarm per string costs a single file open; re-measuring or
   // re-drawing resident glyphs is a RAM-only subset check. No-op for built-in
@@ -199,8 +197,10 @@ class GfxRenderer {
   void removeFont(int fontId) {
     ++fontTableGeneration;
     fontMap.erase(fontId);
+#ifdef XP_APP_TEST
     sdCardFonts_.erase(fontId);
     sdCardFontScales_.erase(fontId);
+#endif
   }
   void setFontCacheManager(FontCacheManager* m) { fontCacheManager_ = m; }
   FontCacheManager* getFontCacheManager() const { return fontCacheManager_; }
@@ -220,6 +220,7 @@ class GfxRenderer {
                            EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
   void prewarmFallbackText(int fontId, const char* text, EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
   const FontRegistry& getFontMap() const { return fontMap; }
+#ifdef XP_APP_TEST
   void registerSdCardFont(int fontId, SdCardFont* font) {
     ++fontTableGeneration;
     sdCardFonts_[fontId] = font;
@@ -230,7 +231,13 @@ class GfxRenderer {
     sdCardFontScales_.clear();
   }
   const std::map<int, SdCardFont*>& getSdCardFonts() const { return sdCardFonts_; }
-  bool isSdCardFont(int fontId) const { return sdCardFonts_.count(fontId) > 0; }
+#endif
+  bool isSdCardFont(int fontId) const {
+#ifdef XP_APP_TEST
+    if (sdCardFonts_.count(fontId)) return true;
+#endif
+    return xp_font_registry_query(fontMap.raw(), XP_FONT_SD, fontId, 0, nullptr).value != 0;
+  }
   // TTF (vector) fonts rendered via TtfEpdFont/FreeInkFont. Registered like an
   // ordinary EpdFontFamily (insertFont), plus tracked here so ensureSdCardFontReady()
   // rebuilds their per-page glyph set on demand — the eager analogue of the SD

@@ -145,14 +145,7 @@ impl Resources for Direct<'_> {
             if count == 0 {
                 break;
             }
-            fonts::xp_native_sd_font_resident_slice(
-                self.target.native,
-                font,
-                style,
-                text,
-                count,
-                0,
-            );
+            crate::font_sd::resident(self.target.fonts, font, style, text, count, false);
             text = text.add(count);
             len -= count;
         }

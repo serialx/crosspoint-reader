@@ -18,8 +18,11 @@ class FontCacheManager {
   const XpLoadedFonts* owner_;
 
  public:
+  explicit FontCacheManager(const FontRegistry& fonts) : owner_(fonts.raw()) {}
+#ifdef XP_APP_TEST
   FontCacheManager(const FontRegistry& fonts, const std::map<int, SdCardFont*>&, const std::map<int, TtfEpdFont*>&)
       : owner_(fonts.raw()) {}
+#endif
 #ifdef XP_APP_TEST
   void setFontDecompressor(FontDecompressor* adapter) { adapter->bindOwner(owner_); }
 #endif

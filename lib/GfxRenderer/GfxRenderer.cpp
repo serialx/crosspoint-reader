@@ -6,7 +6,9 @@
 #include <HalGPIO.h>
 #include <Logging.h>
 #include <MemoryManager.h>
+#ifdef XP_APP_TEST
 #include <SdCardFont.h>
+#endif
 #include <TtfEpdFont.h>
 #include <Utf8.h>
 
@@ -36,6 +38,10 @@ void GfxRenderer::glyphSource(const EpdFontData* font, XpGlyphSource& source) co
 }
 
 void GfxRenderer::ensureSdCardFontReady(int fontId, const char* utf8Text, uint8_t styleMask) const {
+  const size_t length = strlen(utf8Text);
+  const XpSdfontTexts texts{&utf8Text, &length, 1, nullptr, false, false, false};
+  xp_sd_font_prepare(fontMap.raw(), fontId, &texts, styleMask);
+#ifdef XP_APP_TEST
   auto it = sdCardFonts_.find(fontId);
   if (it != sdCardFonts_.end()) {
     std::string shaped;
@@ -50,11 +56,16 @@ void GfxRenderer::ensureSdCardFontReady(int fontId, const char* utf8Text, uint8_
   // (glyphMissHandler), and the page's set is batch-warmed by the render scan's
   // prewarmCache(). Pre-faulting a whole chapter's text during layout would just
   // thrash the page-bounded cache, so it is intentionally omitted.
+#endif
 }
 
 void GfxRenderer::ensureSdCardFontReady(const int fontId, const char* const* segments, const size_t* segmentLens,
                                         const size_t segmentCount, const bool includeSpace, const bool includeHyphen,
                                         const uint8_t styleMask, const bool includeSmallCaps) const {
+  const XpSdfontTexts texts{segments,     segmentLens,   segmentCount,    nullptr,
+                            includeSpace, includeHyphen, includeSmallCaps};
+  xp_sd_font_prepare(fontMap.raw(), fontId, &texts, styleMask);
+#ifdef XP_APP_TEST
   auto it = sdCardFonts_.find(fontId);
   if (it != sdCardFonts_.end()) {
     // Augment the persistent advance-only table for layout measurement.
@@ -79,6 +90,7 @@ void GfxRenderer::ensureSdCardFontReady(const int fontId, const char* const* seg
   }
   // TTF (vector) fonts: nothing to do — glyphs fault in on demand at getGlyph
   // and the page is batch-warmed by the render scan (see the other overload).
+#endif
 }
 
 void GfxRenderer::begin() {
@@ -186,10 +198,10 @@ void GfxRenderer::prewarmFallbackText(const int fontId, const TextGetter getter,
   if (fallbackFontId == fontId) {
     return;
   }
+  if (!isSdCardFont(fallbackFontId)) return;
+#ifdef XP_APP_TEST
   const auto sdIt = sdCardFonts_.find(fallbackFontId);
-  if (sdIt == sdCardFonts_.end()) {
-    return;
-  }
+#endif
   const uint8_t styleMask = static_cast<uint8_t>(1u << (static_cast<uint8_t>(style) & 0x03));
   // Append one virtual index for U+2026: truncation measures every long row
   // as "label…", so an ellipsis missing from the batch forces a union rebuild
@@ -204,8 +216,14 @@ void GfxRenderer::prewarmFallbackText(const int fontId, const TextGetter getter,
     return i < w->count ? w->getter(w->ctx, i) : "\xe2\x80\xa6";
   };
   // loadKernLig=false: see ensureSdGlyphsResident below.
-  sdIt->second->prewarm(withEllipsis, &wrap, textCount + 1, styleMask, /*metadataOnly=*/false,
-                        /*loadKernLig=*/false);
+#ifdef XP_APP_TEST
+  if (sdIt != sdCardFonts_.end()) {
+    sdIt->second->prewarm(withEllipsis, &wrap, textCount + 1, styleMask, /*metadataOnly=*/false,
+                          /*loadKernLig=*/false);
+    return;
+  }
+#endif
+  xp_sd_font_prewarm(fontMap.raw(), fallbackFontId, withEllipsis, &wrap, textCount + 1, styleMask, false, false, true);
 }
 
 void GfxRenderer::prewarmFallbackText(const int fontId, const char* text, const EpdFontFamily::Style style) const {
@@ -220,10 +238,10 @@ void GfxRenderer::prewarmFallbackText(const int fontId, const char* text, const 
 
 void GfxRenderer::ensureSdGlyphsResident(const int fontId, const char* text, const EpdFontFamily::Style style,
                                          const bool metadataOnly) const {
+  if (!isSdCardFont(fontId)) return;
+#ifdef XP_APP_TEST
   const auto sdIt = sdCardFonts_.find(fontId);
-  if (sdIt == sdCardFonts_.end()) {
-    return;
-  }
+#endif
   // SUP/SUB bits don't select a distinct .cpfont style bitstream — mask to the
   // base style. resolveStyleMask() inside prewarm folds absent styles.
   // loadKernLig=false: redirected fallback strings (non-Latin titles,
@@ -233,7 +251,15 @@ void GfxRenderer::ensureSdGlyphsResident(const int fontId, const char* text, con
   // kern; a kern-wanting request that subset-hits a kern-free mini tops the
   // matrix up in prewarmStyle without re-reading glyphs.
   const uint8_t styleMask = static_cast<uint8_t>(1u << (static_cast<uint8_t>(style) & 0x03));
-  sdIt->second->prewarm(text, styleMask, metadataOnly, /*loadKernLig=*/false);
+#ifdef XP_APP_TEST
+  if (sdIt != sdCardFonts_.end()) {
+    sdIt->second->prewarm(text, styleMask, metadataOnly, /*loadKernLig=*/false);
+    return;
+  }
+#endif
+  xp_sd_font_prewarm(
+      fontMap.raw(), fontId, [](const void* raw, uint32_t) { return static_cast<const char*>(raw); }, text, 1,
+      styleMask, metadataOnly, false, true);
 }
 
 // Translate logical (x,y) coordinates to physical panel coordinates based on current orientation
@@ -1932,6 +1958,7 @@ void GfxRenderer::pageTarget(XpPageTarget& out, bool includeScanning) const {
   out.inverted = display.isInverted();
 }
 
+#ifdef XP_APP_TEST
 extern "C" void xp_native_sd_font_view(void* raw, int32_t font, XpNativeFamily* family, XpGlyphSource* source) {
   if (family) {
     const auto& fonts = static_cast<const GfxRenderer*>(raw)->getSdCardFonts();
@@ -1950,6 +1977,7 @@ extern "C" void xp_native_sd_font_resident_slice(void* raw, int32_t font, uint8_
   if (found == fonts.end()) return;
   found->second->prewarmSpan(text, length, static_cast<uint8_t>(1u << (style & 3)), metadata != 0);
 }
+#endif
 extern "C" uint8_t xp_native_sd_font_load(void* raw, int32_t font) {
   const auto& renderer = *static_cast<const GfxRenderer*>(raw);
   const auto& provider = renderer.fontVariantProvider_;
@@ -1993,20 +2021,24 @@ void GfxRenderer::copyStatusToStrip(int top, const bool sourceInverted) const {
 }
 #endif
 
+#ifdef XP_APP_TEST
 extern "C" uint8_t xp_native_font_compat_resolve(void* raw, int32_t font, uint8_t style) {
   const auto& fonts = static_cast<const GfxRenderer*>(raw)->getSdCardFonts();
   const auto it = fonts.find(font);
   return it != fonts.end() ? it->second->resolveStyle(style) : style;
 }
+#endif
 extern "C" int32_t xp_native_font_compat_prewarm(void* raw, int32_t font, uint8_t backend, const char* text,
                                                  uint8_t styles, uint8_t metadata, uint8_t kernLig,
                                                  uint8_t accumulate) {
   const auto& renderer = *static_cast<const GfxRenderer*>(raw);
+#ifdef XP_APP_TEST
   if (backend == 0) {
     const auto& fonts = renderer.getSdCardFonts();
     const auto it = fonts.find(font);
     return it != fonts.end() ? it->second->prewarm(text, styles, metadata != 0, kernLig != 0, accumulate != 0) : 0;
   }
+#endif
 #if CROSSPOINT_VECTOR_FONTS
   const auto& fonts = renderer.getTtfFonts();
   const auto it = fonts.find(font);
@@ -2021,6 +2053,7 @@ extern "C" int32_t xp_native_font_compat_prewarm(void* raw, int32_t font, uint8_
 }
 extern "C" void xp_native_font_compat_clear(void* raw, int32_t font, uint8_t backend, uint8_t resident) {
   const auto& renderer = *static_cast<const GfxRenderer*>(raw);
+#ifdef XP_APP_TEST
   if (backend == 0) {
     const auto& fonts = renderer.getSdCardFonts();
     const auto it = fonts.find(font);
@@ -2032,6 +2065,7 @@ extern "C" void xp_native_font_compat_clear(void* raw, int32_t font, uint8_t bac
     }
     return;
   }
+#endif
 #if CROSSPOINT_VECTOR_FONTS
   const auto& fonts = renderer.getTtfFonts();
   const auto it = fonts.find(font);
@@ -2043,6 +2077,7 @@ extern "C" void xp_native_font_compat_clear(void* raw, int32_t font, uint8_t bac
   }
 #endif
 }
+#ifdef XP_APP_TEST
 extern "C" void xp_native_font_compat_reset(void* raw, int32_t font) {
   const auto& fonts = static_cast<const GfxRenderer*>(raw)->getSdCardFonts();
   const auto it = fonts.find(font);
@@ -2055,6 +2090,7 @@ extern "C" const uint8_t* xp_native_sd_font_bitmap(const void* rawFont, const vo
   return font->isOverflowGlyph(glyph) ? font->getOverflowBitmap(glyph) : data->bitmap + glyph->dataOffset;
 }
 
+#endif
 extern "C" void xp_native_font_cache_diagnostic(const void* font, uint32_t event, uint32_t a, uint32_t b, uint32_t c,
                                                 uint32_t d) {
   switch (event) {

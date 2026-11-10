@@ -14,6 +14,8 @@ pub struct Slot {
 /// Implementations use only the supplied slot, fit its size/alignment, and never
 /// retain a loan or unwind. init/destroy run once per native object lifetime.
 pub unsafe trait Physical {
+    fn diagnostic(&mut self, _: u32, _: u32, _: u32, _: u32) {}
+    fn parse_error(_: &super::Diagnostic, _: u32, _: u32) {}
     /// # Safety
     /// Slot is aligned, writable and contains no live native object.
     unsafe fn init(&mut self, slot: *mut Slot);
@@ -145,6 +147,14 @@ pub struct Reader<'a, P: Physical> {
     pub size: u32,
 }
 impl<P: Physical> super::parser::Reader for Reader<'_, P> {
+    fn diagnostic(&mut self, event: u32, a: u32, b: u32, c: u32) {
+        unsafe { self.files.as_mut().get_unchecked_mut() }
+            .physical
+            .diagnostic(event, a, b, c);
+    }
+    fn parse_error(detail: &super::Diagnostic, style: u32, index: u32) {
+        P::parse_error(detail, style, index);
+    }
     fn seek(&mut self, offset: u32) -> bool {
         self.files.as_mut().seek(offset)
     }

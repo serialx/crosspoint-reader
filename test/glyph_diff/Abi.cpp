@@ -22,7 +22,7 @@ static_assert(sizeof(XpGlyphPageSlot) == (sizeof(void*) == 4 ? 16 : 32));
 static_assert(sizeof(XpGlyphBitmap) == (sizeof(void*) == 4 ? 8 : 16));
 
 static_assert(sizeof(XpGlyphPaint) == (sizeof(void*) == 4 ? 104 : 136));
-static_assert(sizeof(XpLoadedFonts) == (sizeof(void*) == 4 ? 4000 : 4568));
+static_assert(sizeof(XpLoadedFonts) == (sizeof(void*) == 4 ? 4252 : 4928));
 static_assert(sizeof(XpRegisteredFont) == (sizeof(void*) == 4 ? 24 : 48));
 static_assert(sizeof(XpFontQueryResult) == sizeof(void*));
 static_assert(sizeof(XpPageTarget) == (sizeof(void*) == 4 ? 64 : 80));

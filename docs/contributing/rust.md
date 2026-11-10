@@ -929,7 +929,8 @@ metadata. The typed `FontScan` loan carries its explicit font owner through begi
 finish and end. Shipping Rust calls these cache operations directly; host physical
 leaves use `XpEpubFontScan` with `xp_font_frame_begin/finish/end`. Native physical
 leaves perform drawing/display operations. The native `PrewarmScope` remains only
-for ClipSelection and Details. Dictionary and settings-preview Pages retain native
+for shipping ClipSelection and Details callers, and for retained host oracles.
+Dictionary and settings-preview Pages retain native
 ownership. See the
 [render-resource checks](../../test/reader_render_resources/README.md) for
 production compositions and the explicitly retained parent oracles.
@@ -969,9 +970,8 @@ through its destructor. B3 owns the remaining book-extraction facade.
 Prewarm scanning batches visual codepoints in a fixed 192-byte Rust buffer,
 flushing at line, font or style boundaries and when full. Rust resolves the
 canonical style and records scan text directly in its font-cache owner.
-Redirected SD residency borrows UTF-8 spans in
-at most 191-byte batches without a native string copy; PT3 owns that remaining
-SD boundary. The synchronous render borrows existing font and framebuffer
+Redirected SD residency borrows UTF-8 spans in at most 191-byte batches and
+calls the Rust SD owner directly, without a native string copy. The synchronous render borrows existing font and framebuffer
 storage; page traversal adds no heap allocation. Prewarm and bitmap misses use
 the cache operations described above.
 
@@ -986,21 +986,27 @@ consumers' pixels and selection geometry.
 `xp-core::sdfont` parses `.cpfont` headers, style directories and intervals,
 validates glyph extents, decodes kerning/ligature fields, and parses filename
 sizes. These parser calls borrow bytes and allocate no storage. `sdfont::load`
-owns loading and shared-interval reference counts; `font::registry` owns discovery
-and selection, and `font::manager` owns registration and unload order. C++ retains
-HalFile I/O, stable per-style storage, the shared interval slots, generation
-invalidation and diagnostic delivery. See the
-`xp_sdfont_*` contract in
-[`xp_ffi.h`](../../rust/crates/xp-ffi/include/xp_ffi.h) and the
-[SD font differential](../../test/sdfont_diff/README.md) for compatibility limits.
+owns loading and shared-interval reference counts. `sdfont::{parser,owner,io}`
+own stable faces, per-style storage and scoped physical handles; `control` owns
+the loaded list and family name. The renderer's explicit font owner holds one
+shared-interval registry and invalidates generation before table mutations.
+Native catalog/system callers still lend family descriptors during load; CP2b
+owns their discovery, variant/fallback and absent-ID loading move. The dormant
+catalog and variant control in `sdfont::{catalog,control,catalog_storage}` is
+reserved for that step.
 
-The replacement `sdfont::{parser,owner,io,catalog,control,catalog_storage}` modules
-are dormant. The CP2 SD owner switch will activate them and the six physical
-operations in `xp_sd_physical.h`; they have no shipping callers yet.
+C++ supplies the physical operations in
+[`xp_sd_physical.h`](../../rust/crates/xp-ffi/include/xp_sd_physical.h), paired
+allocation domains and diagnostic formatting. Native chapter prepare also
+borrows the explicit owner address from its remaining native sink context;
+P18-D2 retires that accessor with the chapter/paragraph payload callers. Native
+SD policy and borrowed-storage facades remain only as host oracle adapters or
+unlinked definitions pending deletion. See the
+[SD font differential](../../test/sdfont_diff/README.md) for compatibility limits.
 
 `sdfont::pool` owns resident glyph/bitmap buffers, prewarm and retention policy,
 advance tables, mini kerning/ligature tables, coverage, overflow and statistics.
-The facade lends exclusive slots and a synchronous service descriptor for each
+The Rust face lends exclusive slots and a synchronous service descriptor for each
 call; callbacks cannot reenter the pool. Rust chooses allocation sizes and release
 points through paired C++ callbacks: resident buffers use the existing
 PSRAM-preferring allocator, scratch uses ordinary arrays. Cache operations can

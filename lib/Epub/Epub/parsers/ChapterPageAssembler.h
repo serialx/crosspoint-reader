@@ -1,5 +1,6 @@
 #pragma once
 #include <xp_ffi.h>
+#include <xp_font_registry.h>
 
 #include <deque>
 #include <functional>
@@ -17,6 +18,7 @@ class GfxRenderer;
 // Hardware and Page sink. Semantic and page-assembly state live in chapter_.
 class ChapterPageAssembler {
   friend class ChapterHtmlSlimParser;
+  friend const XpLoadedFonts* xp_native_chapter_font_owner(void*);
 
  private:
   XpChapter* chapter_ = nullptr;

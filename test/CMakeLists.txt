@@ -179,6 +179,7 @@ add_subdirectory(xtc_diff)
 
 add_subdirectory(inflate_small)
 add_subdirectory(sdfont_pool_diff)
+add_subdirectory(sdfont_owner)
 
 add_subdirectory(h6_diagnostics)
 add_subdirectory(page_diagnostics)

@@ -290,11 +290,11 @@ const char* SdCardFontRegistry::defaultWriteRoot() {
   return xp_font_root(
       nullptr, FONTS_DIR_HIDDEN, FONTS_DIR_VISIBLE, [](const char* path) { return Storage.exists(path); }, true);
 }
-const SdCardFontFamilyInfo* SdCardFontRegistry::findFamily(const std::string& name) const {
+const SdCardFontFamilyInfo* SdCardFontRegistry::findFamily(std::string_view name) const {
   const auto i = getFamilyIndex(name);
   return i < 0 ? nullptr : &families_[i];
 }
-int SdCardFontRegistry::getFamilyIndex(const std::string& name) const {
+int SdCardFontRegistry::getFamilyIndex(std::string_view name) const {
   return xp_font_find_family(
       this, families_.size(),
       [](const void* ctx, size_t i) { return static_cast<const SdCardFontRegistry*>(ctx)->families_[i].name.c_str(); },

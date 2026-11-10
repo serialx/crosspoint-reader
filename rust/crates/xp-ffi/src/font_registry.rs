@@ -17,12 +17,14 @@ use xp_core::{
 };
 
 extern "C" {
+    #[cfg(feature = "app-test")]
     fn xp_native_sd_font_view(
         native: *mut c_void,
         font: i32,
         family: *mut Family,
         source: *mut BitmapSource,
     );
+    #[cfg(feature = "app-test")]
     pub(crate) fn xp_native_sd_font_resident_slice(
         native: *mut c_void,
         font: i32,
@@ -33,8 +35,8 @@ extern "C" {
     );
     pub(crate) fn xp_native_sd_font_load(native: *mut c_void, font: i32) -> u8;
     fn xp_native_font_diagnostic(native: *mut c_void, event: u32, value: u32);
-    fn xp_native_bidi_acquire() -> *mut xp_core::bidi::Workspace;
-    fn xp_native_bidi_release();
+    pub(crate) fn xp_native_bidi_acquire() -> *mut xp_core::bidi::Workspace;
+    pub(crate) fn xp_native_bidi_release();
 }
 
 #[repr(C)]
@@ -42,6 +44,8 @@ pub(crate) struct Owner {
     pub(crate) registry: Registry,
     pub(crate) native: *mut c_void,
     pub(crate) cache: UnsafeCell<xp_core::font::runtime::FontCacheOwner>,
+    pub(crate) sd: UnsafeCell<xp_core::sdfont::control::Control<'static>>,
+    pub(crate) intervals: xp_core::sdfont::parser::IntervalRegistry,
 }
 #[repr(C)]
 pub union QueryResult {
@@ -85,7 +89,12 @@ unsafe extern "C" fn family(context: *mut c_void, id: i32, out: *mut Family) {
         && !(*data).glyph_miss_ctx.is_null()
         && (*data).vector_bitmap_handler.is_none()
     {
-        xp_native_sd_font_view((*owner).native, id, out, ptr::null_mut());
+        if let Some(face) = crate::font_sd::control(owner).face(id) {
+            face.metric_view(&mut *out);
+        } else {
+            #[cfg(feature = "app-test")]
+            xp_native_sd_font_view((*owner).native, id, out, ptr::null_mut());
+        }
     }
 }
 unsafe extern "C" fn glyph(
@@ -136,7 +145,8 @@ unsafe extern "C" fn prewarm(
     len: usize,
     style: u8,
 ) {
-    xp_native_sd_font_resident_slice((*context.cast::<Owner>()).native, id, style, text, len, 1);
+    let owner = context.cast::<Owner>();
+    crate::font_sd::resident(owner, id, style, text, len, true);
 }
 unsafe extern "C" fn diagnostic(
     context: *mut c_void,
@@ -203,19 +213,22 @@ pub unsafe extern "C" fn xp_font_registry_source(
     (*out).slots = cache.slots.as_ptr().cast();
     (*out).slot_count = u32::from(cache.count);
     if !(*font).glyph_miss_ctx.is_null() {
-        // The native SD view selects by the font pointer; no second family lookup.
-        xp_native_sd_font_view((*owner).native, 0, ptr::null_mut(), out);
+        #[cfg(feature = "app-test")]
+        if crate::font_sd::is_native_test_face(owner, font) {
+            xp_native_sd_font_view((*owner).native, 0, ptr::null_mut(), out);
+            return;
+        }
+        xp_core::sdfont::owner::FaceOwner::from_context((*font).glyph_miss_ctx)
+            .0
+            .bitmap_view(font, &mut *out);
     }
 }
 const _: () = {
-    assert!(
-        size_of::<Owner>()
-            == if cfg!(target_pointer_width = "32") {
-                4000
-            } else {
-                4568
-            }
-    );
+    let _: [u8; if cfg!(target_pointer_width = "32") {
+        4252
+    } else {
+        4928
+    }] = [0; size_of::<Owner>()];
     assert!(align_of::<Owner>() == align_of::<usize>());
     assert!(size_of::<QueryResult>() == size_of::<usize>());
 };
@@ -231,6 +244,20 @@ pub unsafe extern "C" fn xp_font_registry_init(
     Registry::initialize(ptr::addr_of_mut!((*out).registry), generation);
     ptr::addr_of_mut!((*out).native).write(native);
     xp_core::font::runtime::FontCacheOwner::initialize((*out).cache.get());
+    (*out)
+        .sd
+        .get()
+        .write(xp_core::sdfont::control::Control::new(
+            &crate::font_sd::MEMORY,
+        ));
+    ptr::addr_of_mut!((*out).intervals).write(xp_core::sdfont::parser::IntervalRegistry::new());
+}
+/// # Safety
+/// Owner is exclusive; no font/source/cache loan survives its destruction.
+#[no_mangle]
+pub unsafe extern "C" fn xp_font_registry_drop(owner: *mut Owner) {
+    crate::font_sd::control(owner).unload(ptr::addr_of_mut!((*owner).registry), None);
+    ptr::drop_in_place((*owner).sd.get());
 }
 /// # Safety
 /// `owner` is initialized and exclusive; `entry` is readable for the call.
@@ -269,6 +296,9 @@ pub unsafe extern "C" fn xp_font_registry_query(
     out: *mut Entry,
 ) -> QueryResult {
     match query {
+        6 => QueryResult {
+            value: usize::from(crate::font_sd::control(owner).face(id).is_some()),
+        },
         2 => QueryResult {
             value: (*owner).registry.len(),
         },

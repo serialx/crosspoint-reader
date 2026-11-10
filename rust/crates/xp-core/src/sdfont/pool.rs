@@ -627,7 +627,7 @@ pub struct Texts {
     pub small_caps: bool,
 }
 impl Texts {
-    unsafe fn collect(&self, output: &mut Lowest<'_>, mut wanted: impl FnMut(u32) -> bool) {
+    unsafe fn collect(&self, mut emit: impl FnMut(u32, bool)) {
         let mut scan = |text: &[u8]| {
             let mut at = 0;
             while at < text.len() {
@@ -638,13 +638,11 @@ impl Texts {
                 let Some(cp) = crate::utf8::next(text, &mut at) else {
                     break;
                 };
-                if wanted(cp) {
-                    output.add(cp, false);
-                }
+                emit(cp, false);
                 if self.small_caps {
                     let upper = crate::text::small_caps_upper(cp);
-                    if upper != cp && wanted(upper) {
-                        output.add(upper, false);
+                    if upper != cp {
+                        emit(upper, false);
                     }
                 }
             }
@@ -655,11 +653,11 @@ impl Texts {
             scan(unsafe { table(p, len) });
         }
         scan(unsafe { ctext(self.extra) });
-        if self.space && wanted(32) {
-            output.add(32, true);
+        if self.space {
+            emit(32, true);
         }
-        if self.hyphen && wanted(45) {
-            output.add(45, true);
+        if self.hyphen {
+            emit(45, true);
         }
     }
 }
@@ -754,6 +752,24 @@ impl Cache {
     /// Cache slots and services are exclusively lent for this call. Input segments
     /// are readable NUL-separated words; callbacks may not reenter cache methods.
     pub unsafe fn build_advances(&mut self, texts: &Texts, mask: u8) -> i32 {
+        let mut limit = unsafe { ctext(texts.extra) }.len();
+        for i in 0..texts.count {
+            limit = limit.saturating_add(unsafe { *texts.lengths.add(i) });
+        }
+        if texts.small_caps {
+            limit = limit.saturating_mul(2);
+        }
+        self.build_advances_from(limit, mask, |emit| texts.collect(emit))
+    }
+    /// # Safety
+    /// Same exclusive cache loan as build_advances. collect only visits borrowed
+    /// codepoints and cannot mutate or reenter this cache.
+    pub unsafe fn build_advances_from(
+        &mut self,
+        mut limit: usize,
+        mask: u8,
+        mut collect: impl FnMut(&mut dyn FnMut(u32, bool)),
+    ) -> i32 {
         if !self.loaded {
             return -1;
         }
@@ -787,13 +803,6 @@ impl Cache {
         if open == 0 {
             unsafe { (*self.stats).total_ms = (io.clock)().wrapping_sub(start) };
             return 0;
-        }
-        let mut limit = unsafe { ctext(texts.extra) }.len();
-        for i in 0..texts.count {
-            limit = limit.saturating_add(unsafe { *texts.lengths.add(i) });
-        }
-        if texts.small_caps {
-            limit = limit.saturating_mul(2);
         }
         limit = limit.min(ADVANCE_LIMIT);
         let mut inline = [0u32; 34];
@@ -836,17 +845,17 @@ impl Cache {
                 largest: 0,
             };
             unsafe {
-                texts.collect(&mut collected, |cp| {
+                collect(&mut |cp, priority| {
                     if self.advance(style, cp).is_some() {
-                        false
-                    } else if resolves(cp) {
-                        true
+                        return;
+                    }
+                    if resolves(cp) {
+                        collected.add(cp, priority);
                     } else {
                         lacking = true;
-                        false
                     }
-                })
-            };
+                });
+            }
             let cps = &mut collected.values[..collected.count];
             sort_by_key(cps, |cp| *cp);
             missed += unsafe { self.fetch_advances(cps, style) };
@@ -857,7 +866,11 @@ impl Cache {
                     count: 0,
                     largest: 0,
                 };
-                unsafe { texts.collect(&mut collected, |cp| !resolves(cp)) };
+                collect(&mut |cp, priority| {
+                    if !resolves(cp) {
+                        collected.add(cp, priority);
+                    }
+                });
                 missed += collected.count as i32;
             }
         }

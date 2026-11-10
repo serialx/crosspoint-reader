@@ -1,4 +1,4 @@
-//! Dormant loaded-family and variant ownership. No native policy callback is kept.
+//! Loaded-family ownership; catalog/variant control activates in CP2b.
 use super::{
     catalog::{Allocation, Catalog, Family},
     catalog_storage::{Array, Name},
@@ -23,6 +23,7 @@ struct Variant {
     id: i32,
     used: u32,
 }
+#[repr(C)]
 pub struct Control<'a> {
     name: Name,
     size: u8,
@@ -88,7 +89,10 @@ impl<'a> Control<'a> {
         self.size
     }
     pub fn get(&self, name: &CStr, size: u8) -> i32 {
-        if name.to_bytes() != self.name.bytes() {
+        self.get_bytes(name.to_bytes(), size)
+    }
+    pub fn get_bytes(&self, name: &[u8], size: u8) -> i32 {
+        if name != self.name.bytes() {
             return 0;
         }
         self.loaded
@@ -129,29 +133,50 @@ impl<'a> Control<'a> {
         registry: *mut Registry,
         load: impl FnOnce(&CStr) -> Option<FaceOwner<'a>>,
     ) -> Result<i32, LoadError> {
+        self.load_borrowed(&family.borrowed(), points, id, mode, registry, load)
+    }
+    /// # Safety
+    /// The family descriptor and strings are borrowed for this call only. The
+    /// registry and loader follow load's serialized, non-reentrant contract.
+    pub unsafe fn load_borrowed(
+        &mut self,
+        family: &crate::font::manager::Family,
+        points: u8,
+        id: i32,
+        mode: Mode,
+        registry: *mut Registry,
+        load: impl FnOnce(&CStr) -> Option<FaceOwner<'a>>,
+    ) -> Result<i32, LoadError> {
         if mode == Mode::Replace && !self.name.bytes().is_empty() {
             self.unload(registry, None);
         }
-        let Some(file) = family.nearest(points, mode != Mode::Replace) else {
+        let index = registry::nearest(&family.files, points, 0, mode != Mode::Replace);
+        if index < 0 {
             return Ok(0);
-        };
+        }
+        let file = family.files.at(index as usize);
+        let name = CStr::from_ptr(family.name);
         if mode == Mode::ExtraSize {
-            let existing = self.get(family.name(), points);
+            let existing = self.get(name, points);
             if existing != 0 {
                 return Ok(existing);
             }
         }
         let mut path = [0; 160];
-        if !family.path(file, &mut path) {
+        if !registry::path(
+            family.root,
+            family.name,
+            file.name,
+            file.size,
+            family.loose,
+            path.as_mut_ptr(),
+            path.len(),
+        ) {
             return Err(LoadError::Path);
         }
         let face = load(CStr::from_ptr(path.as_ptr().cast())).ok_or(LoadError::Face)?;
         let id = if id == 0 {
-            registry::font_id(
-                face.parsed().content_hash(),
-                family.name().to_bytes(),
-                file.size,
-            )
+            registry::font_id(face.parsed().content_hash(), name.to_bytes(), file.size)
         } else {
             id
         };
@@ -180,12 +205,21 @@ impl<'a> Control<'a> {
             fallback: 0,
         });
         if mode == Mode::Replace {
-            if !self.name.assign(family.name().to_bytes(), self.memory) {
+            if !self.name.assign(name.to_bytes(), self.memory) {
+                self.unload(registry, None);
                 return Err(LoadError::Allocation);
             }
             self.size = file.size;
         }
         Ok(id)
+    }
+    pub fn face(&mut self, id: i32) -> Option<&mut FaceOwner<'a>> {
+        self.loaded
+            .values_mut()
+            .iter_mut()
+            .find(|f| f.id == id)?
+            .face
+            .as_mut()
     }
     pub fn update(&self, catalog: &Catalog<'_>, wanted: &CStr, points: u8, dirty: bool) -> Update {
         let unload = !self.name.bytes().is_empty();

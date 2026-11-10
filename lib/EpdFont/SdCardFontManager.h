@@ -1,10 +1,10 @@
 #pragma once
 
-#include <xp_ffi.h>
+#include <xp_font_registry.h>
 
 #include <cstdint>
 #include <string>
-#include <vector>
+#include <string_view>
 
 class GfxRenderer;
 class SdCardFont;
@@ -14,7 +14,7 @@ struct SdCardFontFileInfo;
 class SdCardFontManager {
  public:
   SdCardFontManager() = default;
-  ~SdCardFontManager();
+  ~SdCardFontManager() = default;
   SdCardFontManager(const SdCardFontManager&) = delete;
   SdCardFontManager& operator=(const SdCardFontManager&) = delete;
 
@@ -44,25 +44,16 @@ class SdCardFontManager {
 
   // Look up the loaded font at pointSize (0 selects the reader size).
   // Returns 0 if the family or size is not loaded.
-  int getFontId(const std::string& familyName, uint8_t pointSize = 0) const;
+  int getFontId(std::string_view familyName, uint8_t pointSize = 0) const;
 
   // Get name of currently loaded family (empty if none).
-  const std::string& currentFamilyName() const { return loadedFamilyName_; };
+  std::string_view currentFamilyName() const;
 
   // Point size that was actually loaded.
   // 0 if nothing loaded.
-  uint8_t currentPointSize() const { return loadedPointSize_; };
+  uint8_t currentPointSize() const;
 
  private:
-  struct LoadedFont {
-    SdCardFont* font;  // heap-allocated, owned
-    int fontId;
-    uint8_t size;
-  };
-  struct Call;
-  static XpFontManagerServices services(Call*);
-
-  std::string loadedFamilyName_;
-  uint8_t loadedPointSize_ = 0;
-  std::vector<LoadedFont> loaded_;
+  // Borrowed renderer owner; this cold catalog adapter owns no loaded state.
+  XpLoadedFonts* owner_ = nullptr;
 };

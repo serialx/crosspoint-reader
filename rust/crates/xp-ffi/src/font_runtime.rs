@@ -25,6 +25,7 @@ extern "C" {
         c: u32,
         d: u32,
     );
+    #[cfg(feature = "app-test")]
     fn xp_native_font_compat_resolve(native: *mut c_void, font: i32, style: u8) -> u8;
     fn xp_native_font_compat_prewarm(
         native: *mut c_void,
@@ -37,17 +38,34 @@ extern "C" {
         accumulate: u8,
     ) -> i32;
     fn xp_native_font_compat_clear(native: *mut c_void, font: i32, backend: u8, resident: u8);
+    #[cfg(feature = "app-test")]
     fn xp_native_font_compat_reset(native: *mut c_void, font: i32);
+    #[cfg(feature = "app-test")]
     fn xp_native_sd_font_bitmap(font: *const FontData, glyph: *const Glyph) -> *const u8;
 }
-struct Compat(*mut c_void);
+struct Compat(*const Owner);
 impl SdFontCacheCompat for Compat {
     unsafe fn resolve_style(&mut self, font: i32, style: u8) -> u8 {
-        xp_native_font_compat_resolve(self.0, font, style)
+        if let Some(resolved) = crate::font_sd::resolve(self.0, font, style) {
+            return resolved;
+        }
+        #[cfg(feature = "app-test")]
+        {
+            xp_native_font_compat_resolve((*self.0).native, font, style)
+        }
+        #[cfg(not(feature = "app-test"))]
+        style
     }
     unsafe fn prewarm(&mut self, font: i32, backend: Backend, request: Prewarm<'_>) -> i32 {
+        if backend == Backend::Sd {
+            if let Some(missed) = crate::font_sd::prewarm(self.0, font, request) {
+                return missed;
+            }
+            #[cfg(not(feature = "app-test"))]
+            return 0;
+        }
         xp_native_font_compat_prewarm(
-            self.0,
+            (*self.0).native,
             font,
             backend as u8,
             request.text.as_ptr(),
@@ -58,15 +76,26 @@ impl SdFontCacheCompat for Compat {
         )
     }
     unsafe fn clear(&mut self, font: i32, backend: Backend, kind: ClearKind) {
+        if backend == Backend::Sd {
+            if crate::font_sd::clear(self.0, font, kind) {
+                return;
+            }
+            #[cfg(not(feature = "app-test"))]
+            return;
+        }
         xp_native_font_compat_clear(
-            self.0,
+            (*self.0).native,
             font,
             backend as u8,
             u8::from(kind == ClearKind::Resident),
         );
     }
     unsafe fn reset_stats(&mut self, font: i32) {
-        xp_native_font_compat_reset(self.0, font);
+        if crate::font_sd::reset(self.0, font) {
+            return;
+        }
+        #[cfg(feature = "app-test")]
+        xp_native_font_compat_reset((*self.0).native, font);
     }
 }
 unsafe extern "C" fn allocate(bytes: usize) -> *mut u8 {
@@ -113,7 +142,7 @@ pub(crate) unsafe fn begin(owner: *const Owner) {
     (*(*owner).cache.get()).begin(
         ptr::addr_of!((*owner).registry),
         physical(),
-        &mut Compat((*owner).native),
+        &mut Compat(owner),
     );
 }
 /// # Safety
@@ -122,7 +151,7 @@ pub(crate) unsafe fn finish(owner: *const Owner) {
     (*(*owner).cache.get()).finish(
         ptr::addr_of!((*owner).registry),
         physical(),
-        &mut Compat((*owner).native),
+        &mut Compat(owner),
     );
 }
 /// # Safety
@@ -131,7 +160,7 @@ pub(crate) unsafe fn end(owner: *const Owner) {
     (*(*owner).cache.get()).end(
         ptr::addr_of!((*owner).registry),
         physical(),
-        &mut Compat((*owner).native),
+        &mut Compat(owner),
     );
 }
 /// # Safety
@@ -148,7 +177,7 @@ pub(crate) unsafe fn release(owner: *const Owner, operation: u8) -> usize {
                 ClearKind::Resident
             },
             physical(),
-            &mut Compat((*owner).native),
+            &mut Compat(owner),
         );
         return 0;
     }
@@ -158,23 +187,13 @@ pub(crate) unsafe fn release(owner: *const Owner, operation: u8) -> usize {
     // Match MemoryManager's MemPool::Default (SDK MALLOC_CAP_DEFAULT).
     let before = heap_caps_get_free_size(1 << 12);
     match operation {
-        2 => cache.clear(
-            registry,
-            ClearKind::Frame,
-            physical(),
-            &mut Compat((*owner).native),
-        ),
-        3 => cache.clear_backend(
-            registry,
-            Backend::Sd,
-            ClearKind::Frame,
-            &mut Compat((*owner).native),
-        ),
+        2 => cache.clear(registry, ClearKind::Frame, physical(), &mut Compat(owner)),
+        3 => cache.clear_backend(registry, Backend::Sd, ClearKind::Frame, &mut Compat(owner)),
         4 => cache.clear_backend(
             registry,
             Backend::Vector,
             ClearKind::Resident,
-            &mut Compat((*owner).native),
+            &mut Compat(owner),
         ),
         _ => unreachable!(),
     }
@@ -204,7 +223,7 @@ pub(crate) unsafe fn prewarm_text(
             accumulate: accumulate != 0,
         },
         physical(),
-        &mut Compat((*owner).native),
+        &mut Compat(owner),
     );
 }
 /// # Safety
@@ -219,7 +238,7 @@ pub(crate) unsafe fn record_text(owner: *const Owner, font: i32, text: *const c_
         CStr::from_ptr(text).to_bytes(),
         style,
         physical(),
-        &mut Compat((*owner).native),
+        &mut Compat(owner),
     );
 }
 /// # Safety
@@ -265,7 +284,14 @@ pub(crate) unsafe fn bitmap(
         let index = glyph.offset_from((*font).glyph) as u32;
         (*(*owner).cache.get()).bitmap(&*font, &*glyph, index, physical())
     } else if !(*font).glyph_miss_ctx.is_null() {
-        xp_native_sd_font_bitmap(font, glyph)
+        #[cfg(feature = "app-test")]
+        if crate::font_sd::is_native_test_face(owner, font) {
+            return Bitmap {
+                data: xp_native_sd_font_bitmap(font, glyph),
+                len: u32::from((*glyph).data_length),
+            };
+        }
+        crate::font_sd::bitmap(font, glyph)
     } else {
         (*font).bitmap.add((*glyph).data_offset as usize)
     };

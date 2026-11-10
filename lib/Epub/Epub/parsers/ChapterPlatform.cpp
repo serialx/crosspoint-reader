@@ -417,7 +417,11 @@ const XpParaMetrics ChapterPageAssembler::metrics_{
     nullptr,
     nullptr,
     nullptr,
+#ifdef XP_APP_TEST
     prepareText,
+#else
+    xp_sd_font_prepare_chapter,
+#endif
     nullptr,
     nullptr,
 #else
@@ -591,3 +595,9 @@ bool ChapterPageAssembler::ensureSemantics() {
   const auto options = chapterOptions();
   return xp_chapter_create(&chapter_, &sink_, this, cssParser ? cssParser->rustHandle() : nullptr, &options) == 0;
 }
+
+#ifndef XP_APP_TEST
+extern "C" const XpLoadedFonts* xp_native_chapter_font_owner(void* context) {
+  return ChapterPageAssembler::metricRenderer(context).getFontMap().raw();
+}
+#endif

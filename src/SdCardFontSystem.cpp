@@ -151,7 +151,7 @@ void SdCardFontSystem::ensureLoaded(GfxRenderer& renderer) {
   if (!ttfFamily_.empty()) unloadTtf(renderer);
 #endif
 
-  const std::string& currentFamily = manager_.currentFamilyName();
+  const auto currentFamily = manager_.currentFamilyName();
 
   if (wantedFamily[0] == '\0') {
     if (!currentFamily.empty()) {
@@ -207,7 +207,7 @@ void SdCardFontSystem::ensureLoaded(GfxRenderer& renderer) {
 }
 
 void SdCardFontSystem::setupUiFallbacks(GfxRenderer& renderer) {
-  const std::string& familyName = manager_.currentFamilyName();
+  const auto familyName = manager_.currentFamilyName();
   if (familyName.empty()) return;  // no SD family loaded — nothing to fall back to
 
   const auto* family = registry_.findFamily(familyName);
@@ -293,7 +293,7 @@ int SdCardFontSystem::resolveVariant(const int fontId, const float scale) {
     return loadTtfVariant(static_cast<uint8_t>(pointSize), id) ? id : 0;
   }
 #endif
-  const std::string& familyName = manager_.currentFamilyName();
+  const auto familyName = manager_.currentFamilyName();
   if (familyName.empty() || fontId != manager_.getFontId(familyName)) return 0;
   const auto* family = registry_.findFamily(familyName);
   if (!family) return 0;
@@ -333,7 +333,7 @@ bool SdCardFontSystem::loadVariant(const int fontId) {
     return false;
   }
 #endif
-  const std::string& familyName = manager_.currentFamilyName();
+  const auto familyName = manager_.currentFamilyName();
   if (familyName.empty()) return false;
   const auto* family = registry_.findFamily(familyName);
   if (!family) return false;

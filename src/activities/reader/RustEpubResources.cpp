@@ -267,7 +267,11 @@ XpParaMetrics sectionMetrics{nullptr,
                              nullptr,
                              nullptr,
                              nullptr,
+#ifdef XP_APP_TEST
                              prepareText,
+#else
+                             xp_sd_font_prepare_spans,
+#endif
                              nullptr,
                              nullptr,
 #else
@@ -289,7 +293,11 @@ XpParaMetrics sectionMetrics{nullptr,
 #endif
 #ifdef XP_NATIVE_TEXT_MEASUREMENT
                              [](void* ctx, XpNativeProvider* out) -> uint8_t {
+#ifdef XP_APP_TEST
                                *out = sectionRenderer(ctx).textProvider();
+#else
+                               *out = xp_font_registry_provider(static_cast<const XpLoadedFonts*>(ctx));
+#endif
                                return true;
                              },
 #else
@@ -528,7 +536,11 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .fonts_prewarm_finish_scan = physicalPrewarmFinish,
       .fonts_prewarm_drop = physicalPrewarmDrop,
 #endif
+#ifdef XP_APP_TEST
       .fonts_take_corrupt_notice = []() -> uint8_t { return SdCardFont::takeCorruptGlyphNotice(); },
+#else
+      .fonts_take_corrupt_notice = xp_sd_font_take_corrupt_notice,
+#endif
       .font_sizes = [](XpAppText family, XpAppTextSink sink, void* context) -> uint8_t {
         // Families borrow NUL-terminated owner or settings storage.
         const auto sizes = readerFontPointSizes(&sdFontSystem.registry(), pathText(family));
@@ -1009,6 +1021,12 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         return Storage.writeFileAtomic(pathText(path), bytes, size);
       },
   };
-  if (!sectionMetrics.context) sectionMetrics.context = target;
+  if (!sectionMetrics.context) {
+#if defined(XP_NATIVE_TEXT_MEASUREMENT) && !defined(XP_APP_TEST)
+    sectionMetrics.context = const_cast<XpLoadedFonts*>(target->getFontMap().raw());
+#else
+    sectionMetrics.context = target;
+#endif
+  }
   return leaves;
 }

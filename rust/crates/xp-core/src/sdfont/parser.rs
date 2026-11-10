@@ -1,4 +1,4 @@
-//! Dormant Rust-owned load result. Not included in the firmware module tree.
+//! Rust-owned load result with process-wide interval sharing.
 //! The existing loader remains the only implementation of .cpfont decoding.
 use crate::sdfont::{load, pool, Diagnostic};
 use core::{cell::UnsafeCell, ffi::c_void, mem, ptr};
@@ -7,8 +7,11 @@ use core::{cell::UnsafeCell, ffi::c_void, mem, ptr};
 pub trait Reader {
     fn seek(&mut self, offset: u32) -> bool;
     fn read(&mut self, bytes: &mut [u8]) -> usize;
+    fn diagnostic(&mut self, _: u32, _: u32, _: u32, _: u32) {}
+    fn parse_error(_: &Diagnostic, _: u32, _: u32) {}
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Allocator {
     pub styles: unsafe extern "C" fn(usize) -> *mut u8,
@@ -18,6 +21,7 @@ pub struct Allocator {
 }
 
 /// One process registry; loads and drops must be serialized by its owner.
+#[repr(transparent)]
 pub struct IntervalRegistry(UnsafeCell<[load::Shared; 16]>);
 impl Default for IntervalRegistry {
     fn default() -> Self {
@@ -42,6 +46,7 @@ impl IntervalRegistry {
     }
 }
 /// Stable style buffers with borrowed, process-wide interval sharing.
+#[repr(C)]
 pub struct ParsedFont<'a> {
     pub(crate) styles: *mut pool::Resident,
     count: u8,
@@ -84,8 +89,8 @@ impl<'a> ParsedFont<'a> {
             alloc: allocator.resident,
             cleanup: cleanup::<R>,
             setup,
-            diagnostic,
-            parse_error,
+            diagnostic: diagnostic::<R>,
+            parse_error: parse_error::<R>,
         };
         // No address into this movable owner escapes the synchronous loader.
         let f = context.font;
@@ -178,8 +183,14 @@ unsafe extern "C" fn cleanup<R>(raw: *mut c_void) {
     (*(*raw.cast::<Context<'_, '_, R>>()).font).clear();
 }
 unsafe extern "C" fn setup(_: *mut c_void, _: u8) {}
-unsafe extern "C" fn diagnostic(_: *mut c_void, _: u32, _: u32, _: u32, _: u32) {}
-unsafe extern "C" fn parse_error(_: *const Diagnostic, _: u32, _: u32) {}
+unsafe extern "C" fn diagnostic<R: Reader>(raw: *mut c_void, event: u32, a: u32, b: u32, c: u32) {
+    (*raw.cast::<Context<'_, '_, R>>())
+        .reader
+        .diagnostic(event, a, b, c);
+}
+unsafe extern "C" fn parse_error<R: Reader>(detail: *const Diagnostic, style: u32, index: u32) {
+    R::parse_error(&*detail, style, index);
+}
 unsafe extern "C" fn open(_: *mut c_void) -> bool {
     false
 }

@@ -13,9 +13,12 @@
 #include <cstdlib>
 #include <cstring>
 #include <map>
+#include <vector>
 
 namespace {
-std::array<uint8_t, 100> font;
+std::array<uint8_t, 172> font;
+std::vector<uint8_t> bidiWork;
+bool bidiHeld;
 std::map<void*, size_t> live;
 size_t allocations, failAllocation, operations, failOperation, handles;
 XpLoadedFonts* current;
@@ -29,18 +32,24 @@ void fixture() {
   std::memcpy(font.data(), "CPFONT\0\0", 8);
   put(8, 4);
   put(12, 1);
-  put(36, 1);
-  put(40, 1);
+  put(36, 3);
+  put(40, 3);
   put(44, 18, 1);
   put(45, 16, 2);
   put(56, 64);
-  put(64, 65);
-  put(68, 65);
-  font[76] = font[77] = 8;
-  put(78, 128, 2);
-  put(82, 8, 2);
-  put(84, corruptGlyph ? 7 : 8, 2);
-  for (size_t i = 92; i < 100; ++i) font[i] = 0xff;
+  const uint32_t cps[] = {65, 0x0628, 0xfe8f};
+  for (size_t i = 0; i < 3; ++i) {
+    put(64 + i * 12, cps[i]);
+    put(68 + i * 12, cps[i]);
+    put(72 + i * 12, i);
+    const size_t glyph = 100 + i * 16;
+    font[glyph] = font[glyph + 1] = 8;
+    put(glyph + 2, 128 + i * 16, 2);
+    put(glyph + 6, 8, 2);
+    put(glyph + 8, corruptGlyph ? 7 : 8, 2);
+    put(glyph + 12, i * 8);
+  }
+  for (size_t i = 148; i < font.size(); ++i) font[i] = 0xff;
 }
 bool operation() { return ++operations != failOperation; }
 void fixed(XpSdFileSlot* slot) { assert(slot->words[0] == reinterpret_cast<uintptr_t>(slot)); }
@@ -97,6 +106,19 @@ void run(size_t failAlloc, size_t failIo) {
     xp_sd_font_prepare_spans(&owner, id, nullptr, 0, false, false, 1, false);
     XpParaSpan empty{nullptr, 0};
     xp_sd_font_prepare_spans(&owner, id, &empty, 1, false, false, 1, false);
+    const char* arabic = "\xd8\xa8";
+    const size_t arabicLength = 2;
+    XpSdfontTexts rtl{&arabic, &arabicLength, 1, nullptr, false, false, false};
+    xp_sd_font_prepare(&owner, id, &rtl, 1);
+    auto rtlProvider = xp_font_registry_provider(&owner);
+    XpNativeFamily rtlView{};
+    rtlProvider.family(rtlProvider.context, id, &rtlView);
+    if (!corruptGlyph && !failAlloc && !failIo) {
+      uint16_t advance;
+      assert(xp_font_sd_advance(&rtlView.styles[0], 0x0628, &advance) && advance == 144);
+      assert(xp_font_sd_advance(&rtlView.styles[0], 0xfe8f, &advance) && advance == 160);
+    }
+    assert(!bidiHeld);
     xp_sd_font_prewarm(&owner, id, text, nullptr, 1, 1, false, false, true);
     xp_font_frame_begin(&owner);
     xp_font_record_text(&owner, id, "A", 0);
@@ -164,6 +186,7 @@ extern "C" uint8_t xp_native_sd_file_open(XpSdFileSlot* slot, const char*, uint3
 }
 extern "C" int32_t xp_native_sd_file_read(XpSdFileSlot* slot, uint8_t* bytes, size_t length) {
   fixed(slot);
+  assert(!bidiHeld);  // No SD read may run while token shaping holds its workspace.
   if (!operation()) return 0;
   assert(slot->words[1] + length <= font.size());
   std::memcpy(bytes, font.data() + slot->words[1], length);
@@ -182,6 +205,20 @@ extern "C" void xp_native_font_cache_diagnostic(const void*, uint32_t, uint32_t,
 extern "C" void xp_native_font_diagnostic(void*, uint32_t, uint32_t) {}
 extern "C" const XpLoadedFonts* xp_native_chapter_font_owner(void* context) {
   return static_cast<XpLoadedFonts*>(context);
+}
+extern "C" void* xp_native_bidi_acquire() {
+  assert(!bidiHeld);
+  if (bidiWork.empty()) {
+    bidiWork.resize(xp_bidi_workspace_size());
+    assert(reinterpret_cast<uintptr_t>(bidiWork.data()) % xp_bidi_workspace_align() == 0);
+    assert(xp_bidi_workspace_init(bidiWork.data(), bidiWork.size()) == 1);
+  }
+  bidiHeld = true;
+  return bidiWork.data();
+}
+extern "C" void xp_native_bidi_release() {
+  assert(bidiHeld);
+  bidiHeld = false;
 }
 int main() {
   run(0, 0);

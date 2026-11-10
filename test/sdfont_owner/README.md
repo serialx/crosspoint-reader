@@ -61,3 +61,20 @@ filled-holder relocation, nested slots, finish versus release, early returns and
 read/seek/open/allocation failures under strict Miri. compile_fail.py requires
 safe Pin extraction to fail. The no_std library compiles the dormant types for
 C3 so their layout assertions do not depend on the host pointer width.
+
+The dormant catalog/control modules retain C3 small-string capacity15, native
+vector growth and final shrinking, canonical filenames without a name allocation,
+selected/discarded candidate lifetimes, reader-size state and a five-record variant
+LRU. Catalog allocation callbacks are a separate internal-heap binding contract;
+container allocation inherits its binding failure classification while filename
+allocation is fallible. No new allocator or abort is added by the Rust owner.
+Settings/dirty-flag synchronization, native-origin diagnostics and SDK directory/
+FreeType bindings remain switch work; these modules have no firmware caller.
+
+Run python3 test/sdfont_owner/catalog_check.py after the CMake and Cargo builds
+for a selected-record differential against the unchanged native registry. It
+compares nine families including64discarded vector candidates; it is not a
+whole-heap or C3 std::string oracle. Focused tests cover every catalog allocation
+failure,129family truncation, rediscovery, selected vector owners, full diagnostic
+paths, fresh update decisions, registry-slot mutation, variant threshold/reuse/
+eviction/reload, and all owned buffers being released.

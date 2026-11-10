@@ -2,14 +2,14 @@ use super::*;
 use std::{collections::BTreeMap, ffi::CStr, mem::ManuallyDrop, pin::Pin};
 
 #[derive(Default)]
-struct State {
+pub(super) struct State {
     bytes: Vec<u8>,
     live: BTreeMap<usize, usize>,
     events: Vec<(&'static str, usize)>,
     calls: usize,
     fail_at: usize,
 }
-struct Physical<'a>(&'a RefCell<State>);
+pub(super) struct Physical<'a>(pub(super) &'a RefCell<State>);
 impl Physical<'_> {
     fn call(&self, slot: *mut io::Slot, event: &'static str) -> bool {
         let mut state = self.0.borrow_mut();
@@ -60,7 +60,7 @@ unsafe impl io::Physical for Physical<'_> {
         self.call(slot, "finish");
     }
 }
-fn state(fail_at: usize) -> RefCell<State> {
+pub(super) fn state(fail_at: usize) -> RefCell<State> {
     RefCell::new(State {
         bytes: tests::fixture(),
         fail_at,
@@ -279,3 +279,36 @@ unsafe extern "C" fn now() -> u32 {
     0
 }
 unsafe extern "C" fn no_corrupt(_: *mut core::ffi::c_void, _: *const font::raw::Glyph, _: u32) {}
+
+#[test]
+fn published_slot_survives_resident_mutation() {
+    let shared = IntervalRegistry::new();
+    let state = state(0);
+    let mut files = std::pin::pin!(io::Files::new(Physical(&state)));
+    let mut face =
+        unsafe { owner::FaceOwner::load(c"font", files.as_mut(), ALLOCATOR, &shared) }.unwrap();
+    let slot = face.font_slot(0);
+    assert!(!slot.is_null());
+    let services = sdfont::pool::Services {
+        context: ptr::null_mut(),
+        open: closed,
+        close: finish,
+        read: no_read,
+        alloc: buffer,
+        free,
+        heap: free_heap,
+        clock: now,
+        corrupt: no_corrupt,
+        diagnostic: None,
+    };
+    unsafe {
+        let _ = (*slot.read()).ascender;
+        face.with_cache(&services, |pool| {
+            let resident = &mut *pool.styles;
+            resident.mini.ascender = 17;
+            resident.font = ptr::addr_of!(resident.mini);
+        });
+        assert_eq!((*slot.read()).ascender, 17);
+    }
+    assert!(face.font_slot(4).is_null());
+}

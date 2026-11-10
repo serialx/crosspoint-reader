@@ -85,6 +85,23 @@ impl<'a> FaceOwner<'a> {
     pub fn address(&self) -> *const c_void {
         self.face.as_ptr().cast()
     }
+    pub fn font_slot(&self, style: u8) -> *const *const crate::font::raw::FontData {
+        if style >= 4 {
+            return ptr::null();
+        }
+        unsafe {
+            let parsed = (*self.face.as_ptr()).parsed.as_ptr();
+            let slot = ptr::addr_of!((*parsed).slots)
+                .cast::<u8>()
+                .add(usize::from(style))
+                .read();
+            if slot == 0 {
+                return ptr::null();
+            }
+            // Retain allocation provenance across later Resident mutations.
+            ptr::addr_of!((*(*parsed).styles.add(usize::from(slot - 1))).font)
+        }
+    }
     /// # Safety
     /// Physical services remain live for this operation and do not reenter. No
     /// glyph/source loan may survive another pool mutation or owner destruction.

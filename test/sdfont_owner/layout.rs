@@ -13,3 +13,11 @@ const _: () = {
         assert!(core::mem::align_of::<io::Slot>() == 4);
     }
 };
+
+#[path = "../../rust/crates/xp-core/src/sdfont/catalog.rs"]
+pub mod catalog;
+#[path = "../../rust/crates/xp-core/src/sdfont/catalog_storage.rs"]
+mod catalog_storage;
+
+#[path = "../../rust/crates/xp-core/src/sdfont/control.rs"]
+pub mod control;

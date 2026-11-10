@@ -13,3 +13,8 @@ target_link_libraries(sdfont_owner_oracle PRIVATE xp_ffi_host)
 add_executable(sdfont_owner_physical native.cpp ${REPO_ROOT}/lib/hal/SdFontPhysical.cpp)
 target_include_directories(sdfont_owner_physical PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/stubs ${REPO_ROOT}/lib/hal ${REPO_ROOT}/rust/crates/xp-ffi/include)
+add_executable(sdfont_catalog_oracle catalog_oracle.cpp ${REPO_ROOT}/lib/EpdFont/SdCardFontRegistry.cpp)
+target_compile_definitions(sdfont_catalog_oracle PRIVATE BOARD_HAS_PSRAM)
+target_include_directories(sdfont_catalog_oracle PRIVATE
+  ${REPO_ROOT}/test/font_registry/stubs ${REPO_ROOT}/lib/EpdFont ${REPO_ROOT}/lib/Memory)
+target_link_libraries(sdfont_catalog_oracle PRIVATE xp_ffi_host)

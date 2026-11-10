@@ -157,6 +157,10 @@ fn record(bytes: &[u8]) -> Vec<u8> {
     output
 }
 fn main() {
+    if std::env::args().nth(1).as_deref() == Some("--catalog") {
+        print!("{}", catalog_fixture::snapshot());
+        return;
+    }
     use std::io::{Read, Write};
     let mut stdin = std::io::stdin().lock();
     let mut stdout = std::io::BufWriter::new(std::io::stdout().lock());
@@ -280,3 +284,15 @@ mod tests {
 
 #[cfg(test)]
 mod runtime_tests;
+
+#[path = "../../rust/crates/xp-core/src/sdfont/catalog.rs"]
+pub mod catalog;
+#[path = "../../rust/crates/xp-core/src/sdfont/catalog_storage.rs"]
+mod catalog_storage;
+
+#[path = "../../rust/crates/xp-core/src/sdfont/control.rs"]
+pub mod control;
+
+mod catalog_fixture;
+#[cfg(test)]
+mod catalog_tests;

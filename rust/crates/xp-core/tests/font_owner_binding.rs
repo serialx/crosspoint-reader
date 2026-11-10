@@ -3,10 +3,14 @@
 #[path = "../../xp-ffi/src/font.rs"]
 mod font;
 #[path = "../../xp-ffi/src/font_registry.rs"]
+#[allow(unexpected_cfgs)]
 mod font_registry;
 #[path = "../../xp-ffi/src/font_runtime.rs"]
 #[allow(unexpected_cfgs)]
 mod font_runtime;
+#[path = "../../xp-ffi/src/font_sd.rs"]
+#[allow(unexpected_cfgs)]
+mod font_sd;
 
 use core::{
     ffi::c_void,
@@ -51,6 +55,8 @@ fn another_registry_cannot_redirect_generation_or_a_captured_scope() {
         assert_eq!(generation.load(Ordering::Relaxed), 13);
         assert_eq!(other_generation.load(Ordering::Relaxed), 21);
         assert_eq!(ALLOCATIONS.load(Ordering::Relaxed), 0);
+        font_registry::xp_font_registry_drop(owner_ptr);
+        font_registry::xp_font_registry_drop(other_ptr);
     }
 }
 
@@ -137,3 +143,39 @@ unused_native!(xp_native_sd_font_load(native: *mut c_void, font: i32) -> u8);
 unused_native!(xp_native_font_diagnostic(native: *mut c_void, event: u32, value: u32));
 unused_native!(xp_native_bidi_acquire() -> *mut xp_core::bidi::Workspace);
 unused_native!(xp_native_bidi_release());
+
+unused_native!(xp_native_sd_allocate(bytes: usize, resident: bool) -> *mut u8);
+unused_native!(xp_native_sd_free(bytes: *mut u8, resident: bool));
+unused_native!(xp_native_sd_handle_init(slot: *mut xp_core::sdfont::io::Slot));
+unused_native!(xp_native_sd_handle_destroy(slot: *mut xp_core::sdfont::io::Slot));
+unused_native!(
+    xp_native_sd_file_open(
+        slot: *mut xp_core::sdfont::io::Slot,
+        path: *const core::ffi::c_char,
+        size: *mut u32,
+    ) -> u8
+);
+unused_native!(
+    xp_native_sd_file_read(
+        slot: *mut xp_core::sdfont::io::Slot,
+        bytes: *mut u8,
+        length: usize,
+    ) -> i32
+);
+unused_native!(xp_native_sd_file_seek(slot: *mut xp_core::sdfont::io::Slot, offset: u32) -> u8);
+unused_native!(xp_native_sd_file_close(slot: *mut xp_core::sdfont::io::Slot));
+unused_native!(
+    xp_native_sd_diagnostic(
+        path: *const core::ffi::c_char,
+        event: u32,
+        args: *const u32,
+        style: u32,
+        index: u32,
+        seek: bool,
+    )
+);
+unused_native!(xp_native_chapter_font_owner(context: *mut c_void) -> *const Owner);
+#[no_mangle]
+unsafe extern "C" fn heap_caps_get_largest_free_block(_: u32) -> usize {
+    0
+}

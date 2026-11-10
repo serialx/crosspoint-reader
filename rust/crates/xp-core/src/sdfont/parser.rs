@@ -1,7 +1,7 @@
 //! Dormant Rust-owned load result. Not included in the firmware module tree.
 //! The existing loader remains the only implementation of .cpfont decoding.
 use crate::sdfont::{load, pool, Diagnostic};
-use core::{ffi::c_void, mem, ptr};
+use core::{cell::UnsafeCell, ffi::c_void, mem, ptr};
 
 /// Synchronous file positioned at zero. A read returns the actual byte count.
 pub trait Reader {
@@ -17,37 +17,60 @@ pub struct Allocator {
     pub free_resident: unsafe extern "C" fn(*mut u8, bool),
 }
 
-/// Owns load-time tables for one file, including sharing between its styles.
-/// Cross-file sharing belongs to the process owner at the integration checkpoint.
-pub struct ParsedFont {
-    styles: *mut pool::Resident,
+/// One process registry; loads and drops must be serialized by its owner.
+pub struct IntervalRegistry(UnsafeCell<[load::Shared; 16]>);
+impl Default for IntervalRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl IntervalRegistry {
+    pub const fn new() -> Self {
+        Self(UnsafeCell::new(
+            [const {
+                load::Shared {
+                    table: ptr::null(),
+                    count: 0,
+                    bmp16: false,
+                    refs: 0,
+                }
+            }; 16],
+        ))
+    }
+    fn pointer(&self) -> *mut load::Shared {
+        self.0.get().cast()
+    }
+}
+/// Stable style buffers with borrowed, process-wide interval sharing.
+pub struct ParsedFont<'a> {
+    pub(crate) styles: *mut pool::Resident,
     count: u8,
-    slots: [u8; 4],
+    pub(crate) slots: [u8; 4],
     hash: u32,
-    shared: [load::Shared; 16],
-    allocator: Allocator,
+    shared: &'a IntervalRegistry,
+    pub(crate) allocator: Allocator,
 }
-struct Context<'a, R> {
-    font: *mut ParsedFont,
-    reader: &'a mut R,
+struct Context<'r, 's, R> {
+    font: *mut ParsedFont<'s>,
+    reader: &'r mut R,
 }
-impl ParsedFont {
+impl<'a> ParsedFont<'a> {
     /// # Safety
     /// Allocators return null or unique, writable, suitably aligned storage for
     /// Resident and resident table types, respectively. Paired frees accept null
-    /// and release exactly once; callbacks neither unwind nor reenter this owner.
-    pub unsafe fn load<R: Reader>(reader: &mut R, allocator: Allocator) -> Option<Self> {
+    /// and release exactly once; callbacks neither unwind nor reenter. All loads
+    /// and drops sharing this registry are serialized; no table loan spans mutation.
+    pub unsafe fn load<R: Reader>(
+        reader: &mut R,
+        allocator: Allocator,
+        shared: &'a IntervalRegistry,
+    ) -> Option<Self> {
         let mut font = Self {
             styles: ptr::null_mut(),
             count: 0,
             slots: [0; 4],
             hash: 0,
-            shared: core::array::from_fn(|_| load::Shared {
-                table: ptr::null(),
-                count: 0,
-                bmp16: false,
-                refs: 0,
-            }),
+            shared,
             allocator,
         };
         let mut context = Context {
@@ -55,7 +78,7 @@ impl ParsedFont {
             reader,
         };
         let services = load::Services {
-            ctx: (&mut context as *mut Context<'_, R>).cast(),
+            ctx: (&mut context as *mut Context<'_, '_, R>).cast(),
             read: read::<R>,
             alloc_styles: styles::<R>,
             alloc: allocator.resident,
@@ -69,7 +92,7 @@ impl ParsedFont {
         let ok = load::load(
             ptr::addr_of_mut!((*f).slots).cast(),
             ptr::addr_of_mut!((*f).hash),
-            ptr::addr_of_mut!((*f).shared).cast(),
+            (*f).shared.pointer(),
             &services,
         );
         ok.then_some(font)
@@ -103,7 +126,9 @@ impl ParsedFont {
         };
         for i in 0..self.count {
             let style = &mut *self.styles.add(usize::from(i));
-            load::release(style, self.shared.as_mut_ptr(), &services);
+            style.free_mini(&services);
+            load::release(style, self.shared.pointer(), &services);
+            style.free_ligatures(&services);
             (self.allocator.free_resident)(style.kern_block_index.cast(), true);
         }
         (self.allocator.free_styles)(
@@ -116,7 +141,7 @@ impl ParsedFont {
         self.hash = 0;
     }
 }
-impl Drop for ParsedFont {
+impl Drop for ParsedFont<'_> {
     fn drop(&mut self) {
         unsafe { self.clear() }
     }
@@ -128,7 +153,7 @@ unsafe extern "C" fn read<R: Reader>(
     len: usize,
     seek: bool,
 ) -> i32 {
-    let ctx = &mut *raw.cast::<Context<'_, R>>();
+    let ctx = &mut *raw.cast::<Context<'_, '_, R>>();
     if seek && !ctx.reader.seek(offset) {
         return -1;
     }
@@ -138,7 +163,7 @@ unsafe extern "C" fn read<R: Reader>(
     i32::from(ctx.reader.read(core::slice::from_raw_parts_mut(dest, len)) == len)
 }
 unsafe extern "C" fn styles<R>(raw: *mut c_void, count: u8) -> *mut pool::Resident {
-    let f = (*raw.cast::<Context<'_, R>>()).font;
+    let f = (*raw.cast::<Context<'_, '_, R>>()).font;
     let bytes = usize::from(count) * mem::size_of::<pool::Resident>();
     let data = ((*f).allocator.styles)(bytes).cast::<pool::Resident>();
     if !data.is_null() {
@@ -150,7 +175,7 @@ unsafe extern "C" fn styles<R>(raw: *mut c_void, count: u8) -> *mut pool::Reside
     data
 }
 unsafe extern "C" fn cleanup<R>(raw: *mut c_void) {
-    (*(*raw.cast::<Context<'_, R>>()).font).clear();
+    (*(*raw.cast::<Context<'_, '_, R>>()).font).clear();
 }
 unsafe extern "C" fn setup(_: *mut c_void, _: u8) {}
 unsafe extern "C" fn diagnostic(_: *mut c_void, _: u32, _: u32, _: u32, _: u32) {}

@@ -12,3 +12,7 @@ xp-core = { path = "../../rust/crates/xp-core" }
 [[bin]]
 name = "sdfont-owner"
 path = "main.rs"
+
+[lib]
+name = "sdfont_owner_layout"
+path = "layout.rs"

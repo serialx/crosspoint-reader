@@ -1,7 +1,11 @@
 pub use xp_core::{font, sdfont};
+#[path = "../../rust/crates/xp-core/src/sdfont/io.rs"]
+pub mod io;
+#[path = "../../rust/crates/xp-core/src/sdfont/owner.rs"]
+pub mod owner;
 #[path = "../../rust/crates/xp-core/src/sdfont/parser.rs"]
 mod parser;
-use parser::{Allocator, ParsedFont, Reader};
+use parser::{Allocator, IntervalRegistry, ParsedFont, Reader};
 use std::{
     alloc::{alloc, dealloc, Layout},
     cell::RefCell,
@@ -13,6 +17,7 @@ struct Memory {
     attempts: usize,
     fail_at: usize,
     live: Vec<(*mut u8, Layout)>,
+    freed: Vec<usize>,
 }
 thread_local! { static MEMORY: RefCell<Memory> = RefCell::default(); }
 unsafe extern "C" fn allocate(bytes: usize) -> *mut u8 {
@@ -44,6 +49,7 @@ unsafe extern "C" fn free(p: *mut u8, _: bool) {
             .position(|entry| entry.0 == p)
             .expect("unknown free");
         let (_, layout) = m.live.swap_remove(i);
+        m.freed.push(p as usize);
         dealloc(p, layout);
     });
 }
@@ -93,9 +99,10 @@ fn input(bytes: &[u8], fail_at: usize) -> Input<'_> {
     }
 }
 fn record(bytes: &[u8]) -> Vec<u8> {
+    let shared = IntervalRegistry::new();
     let mut output = Vec::new();
     let mut value = |v: u32| output.extend_from_slice(&v.to_le_bytes());
-    let font = unsafe { ParsedFont::load(&mut input(bytes, 0), ALLOCATOR) };
+    let font = unsafe { ParsedFont::load(&mut input(bytes, 0), ALLOCATOR, &shared) };
     value(u32::from(font.is_some()));
     if let Some(f) = font {
         value(f.content_hash());
@@ -172,7 +179,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn fixture() -> Vec<u8> {
+    pub(super) fn fixture() -> Vec<u8> {
         let mut bytes = vec![0; 152];
         bytes[..8].copy_from_slice(b"CPFONT\0\0");
         bytes[8] = 4;
@@ -206,9 +213,10 @@ mod tests {
     }
     #[test]
     fn sharing_stability_and_drop() {
+        let shared = IntervalRegistry::new();
         let bytes = fixture();
         let mut reader = input(&bytes, 0);
-        let font = unsafe { ParsedFont::load(&mut reader, ALLOCATOR) }.unwrap();
+        let font = unsafe { ParsedFont::load(&mut reader, ALLOCATOR, &shared) }.unwrap();
         let address = font.style(0).unwrap().bmp_intervals;
         assert_eq!(address, font.style(3).unwrap().bmp_intervals);
         let moved = Box::new(font);
@@ -220,6 +228,7 @@ mod tests {
     }
     #[test]
     fn every_load_allocation_failure_releases_partial_tables() {
+        let shared = IntervalRegistry::new();
         for (bytes, required) in variants() {
             MEMORY.with(|m| *m.borrow_mut() = Memory::default());
             let _ = record(&bytes);
@@ -231,7 +240,7 @@ mod tests {
                         ..Memory::default()
                     }
                 });
-                let font = unsafe { ParsedFont::load(&mut input(&bytes, 0), ALLOCATOR) };
+                let font = unsafe { ParsedFont::load(&mut input(&bytes, 0), ALLOCATOR, &shared) };
                 // Kern block indexes are optional; interval/style allocations are required.
                 assert_eq!(font.is_none(), required.contains(&fail_at));
                 drop(font);
@@ -242,13 +251,15 @@ mod tests {
     }
     #[test]
     fn every_read_and_seek_failure_releases_partial_tables() {
+        let shared = IntervalRegistry::new();
         for (bytes, _) in variants() {
             let mut reader = input(&bytes, 0);
-            drop(unsafe { ParsedFont::load(&mut reader, ALLOCATOR) }.unwrap());
+            drop(unsafe { ParsedFont::load(&mut reader, ALLOCATOR, &shared) }.unwrap());
             for fail_at in 1..=reader.calls {
-                assert!(
-                    unsafe { ParsedFont::load(&mut input(&bytes, fail_at), ALLOCATOR) }.is_none()
-                );
+                assert!(unsafe {
+                    ParsedFont::load(&mut input(&bytes, fail_at), ALLOCATOR, &shared)
+                }
+                .is_none());
                 MEMORY.with(|m| assert!(m.borrow().live.is_empty()));
             }
         }
@@ -266,3 +277,6 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod runtime_tests;

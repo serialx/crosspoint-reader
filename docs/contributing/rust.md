@@ -923,11 +923,14 @@ complete mutable session or frame.
 
 `FrameLease` borrows the Page until rendering finishes. Cleanup frees owned
 scratch, MSB and LSB buffers, detaches the source, clears the plan and image-window
-loans, destroys the prewarm scope and releases the image cache. Rust then drops
+loans, closes the prewarm scan and releases the image cache. Rust then drops
 the Page. Session shutdown releases reusable strips and idle prewarm before Page
-metadata. Native physical leaves construct and destroy the font prewarm scope in
-Rust-owned inline storage and perform drawing/display operations. Dictionary and
-settings-preview Pages retain native ownership. See the
+metadata. The typed `FontScan` loan carries its explicit font owner through begin,
+finish and end. Shipping Rust calls these cache operations directly; host physical
+leaves use `XpEpubFontScan` with `xp_font_frame_begin/finish/end`. Native physical
+leaves perform drawing/display operations. The native `PrewarmScope` remains only
+for ClipSelection and Details. Dictionary and settings-preview Pages retain native
+ownership. See the
 [render-resource checks](../../test/reader_render_resources/README.md) for
 production compositions and the explicitly retained parent oracles.
 
@@ -990,6 +993,10 @@ invalidation and diagnostic delivery. See the
 `xp_sdfont_*` contract in
 [`xp_ffi.h`](../../rust/crates/xp-ffi/include/xp_ffi.h) and the
 [SD font differential](../../test/sdfont_diff/README.md) for compatibility limits.
+
+The replacement `sdfont::{parser,owner,io,catalog,control,catalog_storage}` modules
+are dormant. The CP2 SD owner switch will activate them and the six physical
+operations in `xp_sd_physical.h`; they have no shipping callers yet.
 
 `sdfont::pool` owns resident glyph/bitmap buffers, prewarm and retention policy,
 advance tables, mini kerning/ligature tables, coverage, overflow and statistics.

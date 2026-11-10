@@ -31,8 +31,8 @@ typedef union {
 } XpFontQueryResult;
 // Generation and native context outlive the owner. Each nonnull slot is a stable,
 // aligned FontData pointer cell, live until unregister. No loans cross mutation.
-// Initialization is serialized. The first owner binds the process singleton and remains
-// live. Later registries cannot replace it and use explicit-owner operations.
+// Initialization is serialized per registry. Every operation takes its explicit owner;
+// registries do not bind a process singleton.
 void xp_font_registry_init(XpLoadedFonts*, const void* generation, void* native);
 // Applies registration/fallback changes and invalidates source loans; owns no font bytes.
 uint8_t xp_font_registry_update(XpLoadedFonts*, XpFontUpdate, const XpRegisteredFont*);
@@ -46,7 +46,7 @@ XpFontQueryResult xp_font_registry_query(const XpLoadedFonts*, XpFontQuery, int3
 XpNativeProvider xp_font_registry_provider(const XpLoadedFonts*);
 // Fills a synchronous glyph-source loan from a registered FontData and the current generation.
 void xp_font_registry_source(const XpLoadedFonts*, const void* font, XpGlyphSource* out);
-// Native-origin cache scopes borrow the single Rust owner synchronously.
+// Native-origin cache scopes borrow their explicit Rust owner synchronously.
 // Begin starts scanning; finish prewarms; end finishes if needed and clears frame caches.
 void xp_font_frame_begin(const XpLoadedFonts*);
 void xp_font_frame_finish(const XpLoadedFonts*);

@@ -8,9 +8,9 @@ No synthetic reader session or native Page replaces the resource owner.
 Physical allocation callbacks track every requested byte and inject each
 reservation failure. Allocations start with nonzero bytes so the tests detect a
 loss of the native arrays' value initialization. Physical prewarm callbacks model
-a scope that retains its construction address; begin failure, completed scans
-and unfinished scans have separate cleanup checks. Repeated scans and frames
-must leave no reservations.
+a typed scan loan that reaches finish and close at the same address; begin failure,
+completed scans and unfinished scans have separate cleanup checks. Repeated scans
+and frames must leave no reservations.
 
 With `reader-strips`, the checks cover all four reservation failures, reuse,
 adding an image window after text-only preparation, source rejection, plan/window

@@ -75,7 +75,8 @@ XpGlyphBitmap xp_font_glyph_miss(void*, uint32_t cp, const void* glyph, XpGlyphD
 // Native cold catalog lends a family; the Rust control owns every loaded SD face.
 int32_t xp_sd_font_load(XpLoadedFonts*, const XpFontFamilyFiles*, uint8_t points, int32_t id, uint8_t mode);
 void xp_sd_font_unload(XpLoadedFonts*, int32_t id, uint8_t all);
-// Name is borrowed until manager mutation; size is written synchronously.
+// Name is borrowed until replacement, full unload or drop; queries and extra
+// faces leave it unchanged. Size is written synchronously.
 const char* xp_sd_font_current(const XpLoadedFonts*, uint8_t* size);
 int32_t xp_sd_font_id(const XpLoadedFonts*, const char* family, size_t length, uint8_t size);
 int32_t xp_sd_font_prewarm(const XpLoadedFonts*, int32_t, const char* (*)(const void*, uint32_t), const void*,
@@ -105,9 +106,9 @@ void xp_native_font_cache_diagnostic(const void* font, uint32_t event, uint32_t 
 // Host oracles retain the native SD facade until their adapter retirement.
 #ifdef XP_APP_TEST
 const uint8_t* xp_native_sd_font_bitmap(const void* font, const void* glyph);
-// PT3 removes this leaf when Rust owns mini/advance/overflow tables.
+// Host oracle only; CP2c deletes unlinked native definitions and CP2d the declarations.
 void xp_native_sd_font_view(void*, int32_t font, XpNativeFamily*, XpGlyphSource*);
-// PT3 removes this leaf when Rust residency uses physical file reads directly.
+// Host oracle only; CP2c/CP2d retire this native residency adapter.
 void xp_native_sd_font_resident_slice(void*, int32_t font, uint8_t style, const uint8_t*, size_t, uint8_t metadata);
 
 #endif

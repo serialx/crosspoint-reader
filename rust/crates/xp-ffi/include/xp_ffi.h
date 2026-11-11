@@ -1192,7 +1192,8 @@ typedef struct {
 uint8_t xp_glyph_draw(const XpGlyphTarget*, const XpGlyphDraw*, const uint8_t*, uint32_t);
 uint8_t xp_glyph_intersects_strip(const XpGlyphTarget*, int32_t, int32_t, int32_t, int32_t);
 // Returns 1 for resident bytes (including an empty glyph), 0 for a miss.
-// TTF, SD overflow, hot-group and stale-view misses stay with the C++ owner.
+// Backend owners recover misses: Rust owns SD overflow and bitmap caches;
+// native handlers own TTF misses.
 uint8_t xp_glyph_bitmap(const XpGlyphSource*, const void* glyph, XpGlyphBitmap*);
 // Native draws trust the renderer target: it satisfies xp_glyph_draw geometry
 // bounds, owns bufferLen writable bytes, and stays immutable during callbacks.

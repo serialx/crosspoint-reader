@@ -15,8 +15,10 @@ rendering, PNG/GIF decoding and image row processing, text measurement, glyph
 rasterization and bitmap views, SD font parsing and cache policy, XTC parsing,
 and the shared inflater for ZIP, PNG, ContentProtection, fonts and DictZip.
 Rust also owns the loaded-font registry, including family/style slots and fallback
-IDs. C++ retains file I/O, physical SD/TTF file and face resources, temporary font
-facades and platform callbacks, JPEGDEC integration, page storage and views, and
+IDs. Rust also owns SD faces, per-style storage and the loaded-manager list.
+Native SD catalog/system policy remains in C++ until CP2b.
+C++ retains physical file I/O, TTF file and face resources, platform callbacks,
+JPEGDEC integration, page storage and views, and
 legacy screen resources. The Rust application owns loop/navigation policy, Home
 and the EPUB session; native ActivityManager forwards into that owner and retains
 the physical render task and lock. See the
@@ -487,8 +489,10 @@ uses 16-entry chunks (512 bytes each on C3), with a small fallible pointer table
 consuming a prefix releases whole chunks, and consuming all text releases the table.
 Long annotation/target text has separate fallible byte storage; short text stays
 inline. Rust executes measurement and bidi and owns loaded-font and cache policy.
-C++ retains native SD/TTF file and face resources and the shared bidi workspace
-and mutex. TextBlock is a borrowed page view in firmware.
+Rust owns SD face storage and scoped file holders over native HAL leaves.
+C++ retains TTF file/face resources and the shared bidi workspace and mutex.
+Native SD catalog/system policy remains until CP2b. TextBlock is a borrowed
+page view in firmware.
 The ABI adds no rendering/storage service, task or synchronization.
 
 ## Paragraph layout
@@ -822,9 +826,10 @@ Production paragraph/chapter layout and `GfxRenderer` measurements use
 Rust executes measurement rules, resident font-table reads, bidi shaping and
 word ordering. The Rust loaded-font registry owns family/style slots and fallback
 IDs. C++ font facades query this owner. One Rust `FontCacheOwner` holds the
-built-in bitmap cache, decoder and scan/prewarm state. Native SD/TTF objects
-retain file and face storage; PT3 owns the remaining SD loading, registration
-and eviction boundary, and PT-VEC owns the native vector cache facade.
+built-in bitmap cache, decoder and scan/prewarm state. Rust owns SD faces,
+per-style storage, loading, registration and eviction. Native SD catalog/system
+policy remains until CP2b; TTF file/face storage and the vector cache facade
+remain native until PT-VEC.
 [`GfxRenderer::textProvider`](../../lib/GfxRenderer/GfxRenderer.cpp) obtains the
 Rust registry provider, which supplies style descriptors and dynamic handlers.
 SD glyphs that are not resident and TTF glyph/coverage/kerning work still use
@@ -879,14 +884,15 @@ Standalone scaled glyphs use `xp_native_draw_scaled_pixels` for their advance an
 bilinear scaling. Cached pages use the same Rust glyph painter through the
 page render entry below; loaded text data belongs to the page arena.
 
-C++ font facades dispatch preparation and cache work to Rust, retaining the
-existing containers and platform objects. The renderer lends the selected
+C++ font facades dispatch preparation and cache work to Rust. SD containers
+belong to the Rust owner; vector containers and platform objects remain native. The renderer lends the selected
 `EpdFont::data` pointer slot, bitmap-source view and exclusive
 framebuffer or strip target for one synchronous run. Rust resolves resident
 built-in/SD and decompressed page-buffer bitmap hits directly. Built-in misses
 use the inline cache and decoder in `font::runtime::FontCacheOwner`, with the
-existing Rust SmallTables inflater. Temporary native SD load/view/bitmap leaves
-and TTF handlers provide the remaining font work. The source view is refreshed
+existing Rust SmallTables inflater. Rust supplies SD views, bitmaps and miss
+recovery. Native SD loading is only the cold absent-ID re-entry until CP2b;
+TTF handlers provide the remaining non-SD font work. The source view is refreshed
 after miss recovery.
 Generation changes invalidate borrowed sources; no table or bitmap loan survives
 a callback that can mutate its owner. The EpdFont owner stays live and serialized;
@@ -991,17 +997,21 @@ own stable faces, per-style storage and scoped physical handles; `control` owns
 the loaded list and family name. The renderer's explicit font owner holds one
 shared-interval registry and invalidates generation before table mutations.
 Native catalog/system callers still lend family descriptors during load; CP2b
-owns their discovery, variant/fallback and absent-ID loading move. The dormant
-catalog and variant control in `sdfont::{catalog,control,catalog_storage}` is
-reserved for that step.
+owns their discovery, variant/fallback and absent-ID loading move. The catalog
+record store and `control::update` / `control::variant` policy in
+`sdfont::catalog` and `sdfont::control` remain dormant until that step; the
+loaded-list and family-name operations in `control` are already live.
 
 C++ supplies the physical operations in
 [`xp_sd_physical.h`](../../rust/crates/xp-ffi/include/xp_sd_physical.h), paired
 allocation domains and diagnostic formatting. Native chapter prepare also
-borrows the explicit owner address from its remaining native sink context;
-P18-D2 retires that accessor with the chapter/paragraph payload callers. Native
-SD policy and borrowed-storage facades remain only as host oracle adapters or
-unlinked definitions pending deletion. See the
+borrows the explicit owner address through `xp_native_chapter_font_owner`;
+P18-D2 retires that accessor with the chapter/paragraph payload callers.
+`xp_native_sd_font_view`, `xp_native_sd_font_resident_slice` and
+`xp_native_sd_font_bitmap` remain only as host oracle adapters. CP2c deletes
+unlinked native definitions; CP2d retires the obsolete ABI declarations and
+named oracle adapters. The cold `xp_native_sd_font_load` re-entry stays until
+CP2b. See the
 [SD font differential](../../test/sdfont_diff/README.md) for compatibility limits.
 
 `sdfont::pool` owns resident glyph/bitmap buffers, prewarm and retention policy,

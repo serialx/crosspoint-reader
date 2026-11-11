@@ -12,10 +12,10 @@ execute_process(COMMAND git show 4436ccc228d23f94fd468723c8749607de1b09c4:lib/Ep
   COMMAND_ERROR_IS_FATAL ANY)
 add_executable(FontDiff FontDiff.cpp Abi.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/EpdFontReference.cpp
-  ${REPO_ROOT}/lib/EpdFont/SdCardFont.cpp
+  ${REPO_ROOT}/test/sdfont_legacy/SdCardFont.cpp
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp)
 target_include_directories(FontDiff PRIVATE
-  ${REPO_ROOT}/test/sd_card_font/stubs ${REPO_ROOT}/lib/EpdFont
+  ${REPO_ROOT}/test/sd_card_font/stubs ${REPO_ROOT}/test/sdfont_legacy ${REPO_ROOT}/lib/EpdFont
   ${REPO_ROOT}/lib/Utf8 ${REPO_ROOT}/lib/Memory)
 target_link_libraries(FontDiff PRIVATE xp_ffi_host)
 target_compile_options(FontDiff PRIVATE -fno-exceptions)

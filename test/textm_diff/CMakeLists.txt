@@ -17,10 +17,10 @@ execute_process(COMMAND git show 4436ccc228d23f94fd468723c8749607de1b09c4:lib/Ep
   COMMAND_ERROR_IS_FATAL ANY)
 add_executable(TextmDiff main.cpp Renderer.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/EpdFontReference.cpp ${REPO_ROOT}/lib/EpdFont/EpdFontFamily.cpp
-  ${REPO_ROOT}/lib/EpdFont/SdCardFont.cpp ${REPO_ROOT}/lib/Utf8/Utf8.cpp
+  ${REPO_ROOT}/test/sdfont_legacy/SdCardFont.cpp ${REPO_ROOT}/lib/Utf8/Utf8.cpp
   ${REPO_ROOT}/lib/MiniBidi/RustBidi.cpp)
 target_include_directories(TextmDiff PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
-  ${REPO_ROOT}/test/sd_card_font/stubs ${REPO_ROOT}/lib/EpdFont
+  ${REPO_ROOT}/test/sd_card_font/stubs ${REPO_ROOT}/test/sdfont_legacy ${REPO_ROOT}/lib/EpdFont
   ${REPO_ROOT}/lib/Utf8 ${REPO_ROOT}/lib/MiniBidi ${REPO_ROOT}/lib/Memory)
 target_compile_definitions(TextmDiff PRIVATE XP_FFI_HOST_FAULT_INJECTION)
 target_compile_options(TextmDiff PRIVATE -O2 -fno-exceptions)
@@ -32,7 +32,7 @@ file(GLOB NATIVE_FT_SOURCES ${NATIVE_FONT_SDK}/src/freetype/*.c)
 add_executable(NativeCache NativeCache.cpp
   ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.cpp
   ${REPO_ROOT}/lib/EpdFont/EpdFont.cpp ${REPO_ROOT}/lib/EpdFont/EpdFontFamily.cpp
-  ${REPO_ROOT}/lib/EpdFont/SdCardFont.cpp ${REPO_ROOT}/test/font_cache/legacy/FontDecompressor.cpp
+  ${REPO_ROOT}/test/sdfont_legacy/SdCardFont.cpp ${REPO_ROOT}/test/font_cache/legacy/FontDecompressor.cpp
   ${REPO_ROOT}/lib/EpdFont/TtfEpdFont.cpp
   ${REPO_ROOT}/lib/MiniBidi/RustBidi.cpp ${REPO_ROOT}/lib/Utf8/Utf8.cpp
   ${REPO_ROOT}/lib/InflateReader/InflateReader.cpp
@@ -40,7 +40,7 @@ add_executable(NativeCache NativeCache.cpp
   ${NATIVE_FONT_SDK}/src/FontAlloc.c ${NATIVE_FONT_SDK}/src/Gsub.cpp ${NATIVE_FONT_SDK}/src/Gpos.cpp
   ${NATIVE_FT_SOURCES})
 target_include_directories(NativeCache PRIVATE ../text_golden/stubs
-  ${REPO_ROOT}/src ${REPO_ROOT}/lib/GfxRenderer ${REPO_ROOT}/lib/EpdFont
+  ${REPO_ROOT}/src ${REPO_ROOT}/lib/GfxRenderer ${REPO_ROOT}/test/sdfont_legacy ${REPO_ROOT}/lib/EpdFont
   ${REPO_ROOT}/lib/MiniBidi ${REPO_ROOT}/lib/Memory ${REPO_ROOT}/lib/Utf8
   ${REPO_ROOT}/lib/InflateReader
   ${NATIVE_FONT_SDK}/include ${NATIVE_FONT_SDK}/third_party/freetype/include ${NATIVE_FONT_SDK}/third_party/stb)

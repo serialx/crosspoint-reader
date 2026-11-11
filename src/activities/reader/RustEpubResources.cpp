@@ -22,7 +22,9 @@
 #include <KOReaderDocumentId.h>
 #include <Logging.h>
 #include <Memory.h>
+#ifdef XP_APP_TEST
 #include <SdCardFont.h>
+#endif
 #include <SdCardFontSystem.h>
 #include <TrustedTime.h>
 #include <WiFi.h>

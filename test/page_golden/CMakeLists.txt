@@ -28,7 +28,7 @@ add_executable(PageGolden PageGolden.cpp ${INSTRUMENTED}/GfxRenderer.cpp
   ${REPO_ROOT}/lib/expat/ExpatErrors.cpp
 
   ${REPO_ROOT}/lib/EpdFont/EpdFont.cpp ${REPO_ROOT}/lib/EpdFont/EpdFontFamily.cpp
-  ${REPO_ROOT}/lib/EpdFont/SdCardFont.cpp ${REPO_ROOT}/test/font_cache/legacy/FontDecompressor.cpp
+  ${REPO_ROOT}/test/sdfont_legacy/SdCardFont.cpp ${REPO_ROOT}/test/font_cache/legacy/FontDecompressor.cpp
   ${REPO_ROOT}/lib/EpdFont/TtfEpdFont.cpp
   ${REPO_ROOT}/lib/Epub/Epub/SectionPlatform.cpp
   ${REPO_ROOT}/test/section_io/SectionTestCodec.cpp
@@ -56,7 +56,7 @@ target_include_directories(PageGolden PRIVATE ${INSTRUMENTED} stubs .
   ${REPO_ROOT}/lib/Epub/Epub ${REPO_ROOT}/lib/Epub/Epub/parsers
   ${REPO_ROOT}/lib/Epub/Epub/css ${REPO_ROOT}/lib/Epub/Epub/blocks ${REPO_ROOT}/lib/AsciiText
   ${REPO_ROOT}/lib/Serialization ${REPO_ROOT}/lib/XmlParserUtils
-  ${REPO_ROOT}/src ${REPO_ROOT}/lib/GfxRenderer ${REPO_ROOT}/lib/EpdFont
+  ${REPO_ROOT}/src ${REPO_ROOT}/lib/GfxRenderer ${REPO_ROOT}/test/sdfont_legacy ${REPO_ROOT}/lib/EpdFont
   ${REPO_ROOT}/lib/MiniBidi ${REPO_ROOT}/lib/Memory ${REPO_ROOT}/lib/Utf8
   ${REPO_ROOT}/lib/InflateReader
   ${FONT_SDK}/include ${FONT_SDK}/third_party/freetype/include ${FONT_SDK}/third_party/stb)

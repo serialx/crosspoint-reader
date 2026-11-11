@@ -3,7 +3,7 @@ from pathlib import Path
 import sys
 root, out = map(Path, sys.argv[1:])
 out.mkdir(parents=True, exist_ok=True)
-for name, directory in [('GfxRenderer', 'GfxRenderer'), ('FontDecompressor', '../test/font_cache/legacy'), ('SdCardFont', 'EpdFont')]:
+for name, directory in [('GfxRenderer', 'GfxRenderer'), ('FontDecompressor', '../test/font_cache/legacy'), ('SdCardFont', '../test/sdfont_legacy')]:
     header = (root / 'lib' / directory / (name + '.h')).read_text()
     if name == 'GfxRenderer':
         header = '#include "GlyphBitmap.h"\n' + header

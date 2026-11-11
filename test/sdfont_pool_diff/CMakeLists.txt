@@ -10,13 +10,13 @@ foreach(variant IN ITEMS reference candidate)
   if(variant STREQUAL reference)
     set(font_dir ${CMAKE_CURRENT_SOURCE_DIR}/reference)
   else()
-    set(font_dir ${REPO_ROOT}/lib/EpdFont)
+    set(font_dir ${REPO_ROOT}/test/sdfont_legacy)
   endif()
   add_executable(sdpool_${variant} Trace.cpp ${font_dir}/SdCardFont.cpp
     ${REPO_ROOT}/lib/EpdFont/EpdFont.cpp ${REPO_ROOT}/lib/Utf8/Utf8.cpp)
   target_include_directories(sdpool_${variant} PRIVATE ${font_dir}
     ${CMAKE_CURRENT_SOURCE_DIR}/stubs ${REPO_ROOT}/test/sd_card_font/stubs
-    ${REPO_ROOT}/lib/EpdFont ${REPO_ROOT}/lib/Utf8 ${REPO_ROOT}/lib/Memory)
+    ${REPO_ROOT}/test/sdfont_legacy ${REPO_ROOT}/lib/EpdFont ${REPO_ROOT}/lib/Utf8 ${REPO_ROOT}/lib/Memory)
   target_link_libraries(sdpool_${variant} PRIVATE xp_ffi_host)
   target_compile_options(sdpool_${variant} PRIVATE -O2 -fno-exceptions)
 endforeach()
@@ -25,6 +25,6 @@ add_test(NAME SdFontPoolDifferential COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRE
   --build-dir $<TARGET_FILE_DIR:sdpool_candidate>)
 
 add_executable(sdpool_abi Abi.cpp)
-target_include_directories(sdpool_abi PRIVATE ${REPO_ROOT}/lib/EpdFont)
+target_include_directories(sdpool_abi PRIVATE ${REPO_ROOT}/test/sdfont_legacy ${REPO_ROOT}/lib/EpdFont)
 target_link_libraries(sdpool_abi PRIVATE xp_ffi_host)
 add_test(NAME SdFontPoolAbi COMMAND sdpool_abi)

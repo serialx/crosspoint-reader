@@ -15,7 +15,7 @@ add_custom_command(OUTPUT ${INSTRUMENTED}/GfxRenderer.cpp ${INSTRUMENTED}/GfxRen
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/instrument.py ${REPO_ROOT} ${INSTRUMENTED}
   DEPENDS instrument.py reference/Raster.inc reference/GlyphBitmap.h ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.cpp ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.h
     ${REPO_ROOT}/test/font_cache/legacy/FontDecompressor.cpp ${REPO_ROOT}/test/font_cache/legacy/FontDecompressor.h
-    ${REPO_ROOT}/lib/EpdFont/SdCardFont.cpp ${REPO_ROOT}/lib/EpdFont/SdCardFont.h
+    ${REPO_ROOT}/test/sdfont_legacy/SdCardFont.cpp ${REPO_ROOT}/test/sdfont_legacy/SdCardFont.h
   VERBATIM)
 add_executable(GlyphDiff GlyphDiff.cpp Abi.cpp ${INSTRUMENTED}/GfxRenderer.cpp
 
@@ -28,7 +28,7 @@ add_executable(GlyphDiff GlyphDiff.cpp Abi.cpp ${INSTRUMENTED}/GfxRenderer.cpp
   ${FONT_SDK}/src/FtFont.cpp ${FONT_SDK}/src/FontAlloc.c ${FONT_SDK}/src/Gsub.cpp ${FONT_SDK}/src/Gpos.cpp
   ${FT_SOURCES})
 target_include_directories(GlyphDiff PRIVATE ${INSTRUMENTED} ${REPO_ROOT}/test/text_golden/stubs .
-  ${REPO_ROOT}/src ${REPO_ROOT}/lib/GfxRenderer ${REPO_ROOT}/lib/EpdFont
+  ${REPO_ROOT}/src ${REPO_ROOT}/lib/GfxRenderer ${REPO_ROOT}/test/sdfont_legacy ${REPO_ROOT}/lib/EpdFont
   ${REPO_ROOT}/lib/MiniBidi ${REPO_ROOT}/lib/Memory ${REPO_ROOT}/lib/Utf8
   ${REPO_ROOT}/lib/InflateReader
   ${FONT_SDK}/include ${FONT_SDK}/third_party/freetype/include ${FONT_SDK}/third_party/stb)

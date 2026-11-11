@@ -7,8 +7,8 @@
 #include <string>
 #include <vector>
 
+#include "CpfontVersion.h"
 #include "FontInstaller.h"
-#include "SdCardFont.h"
 #include "UpdateUiActivity.h"
 
 // JSON schema version of the fonts.json manifest. The canonical version for

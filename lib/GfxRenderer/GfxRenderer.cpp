@@ -7,7 +7,9 @@
 #include <Logging.h>
 #include <MemoryManager.h>
 #ifdef XP_APP_TEST
+#ifdef XP_APP_TEST
 #include <SdCardFont.h>
+#endif
 #endif
 #include <TtfEpdFont.h>
 #include <Utf8.h>

@@ -21,12 +21,12 @@ foreach(variant IN ITEMS oracle candidate)
   if(variant STREQUAL oracle)
     set(font_dir ${SD_REFERENCE})
   else()
-    set(font_dir ${REPO_ROOT}/lib/EpdFont)
+    set(font_dir ${REPO_ROOT}/test/sdfont_legacy)
   endif()
   add_executable(h6_sd_${variant} ${REPO_ROOT}/test/sdfont_diff/Font.cpp ${font_dir}/SdCardFont.cpp
     ${REPO_ROOT}/lib/EpdFont/EpdFont.cpp ${REPO_ROOT}/lib/Utf8/Utf8.cpp)
   target_include_directories(h6_sd_${variant} PRIVATE stubs ${font_dir}
-    ${REPO_ROOT}/test/sd_card_font/stubs ${REPO_ROOT}/lib/EpdFont
+    ${REPO_ROOT}/test/sd_card_font/stubs ${REPO_ROOT}/test/sdfont_legacy ${REPO_ROOT}/lib/EpdFont
     ${REPO_ROOT}/lib/Utf8 ${REPO_ROOT}/lib/Memory)
   target_compile_definitions(h6_sd_${variant} PRIVATE H6_SD_LOGS)
   if(variant STREQUAL candidate)

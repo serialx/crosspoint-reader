@@ -21,7 +21,7 @@ using SdSystemCatalog = SdFontCatalog;
 using SdSystemFamily = SdFontFamily;
 
 /// Native startup/UI facade for Rust SD catalog policy and synchronous effects.
-/// TTF resources stay native; the legacy path serves historical host oracles.
+/// TTF resources stay native until PT-VEC.
 class SdCardFontSystem {
  public:
   // Constructor and destructor are out-of-line (defined in the .cpp where
@@ -60,12 +60,7 @@ class SdCardFontSystem {
   void refreshIfDirty() { registry_.refreshIfDirty(); }
 
  private:
-  // Load the active SD family at the built-in UI point sizes and register each
-  // as a size-matched script fallback for the corresponding UI font, so book
-  // titles/list rows in scripts the built-ins lack (CJK, Greek, Cyrillic, ...)
-  // render at the same size as the surrounding Latin UI text. No-op when no SD
-  // family is loaded. Safe to call repeatedly (sizes already loaded are
-  // reused).
+  // Execute Rust-selected settings/vector effects in their original order.
   void runEffects(GfxRenderer& renderer, bool begin);
 
 #if CROSSPOINT_VECTOR_FONTS
@@ -78,7 +73,7 @@ class SdCardFontSystem {
   void unloadTtf(GfxRenderer& renderer);
   // Register the loaded TTF at each built-in UI size as a script fallback, so UI
   // text (book titles, list rows, menus, status bar) in scripts the built-in
-  // fonts lack renders in the chosen TTF. Mirrors setupUiFallbacks for .cpfont.
+  // fonts lack renders in the chosen TTF.
   void setupTtfUiFallbacks(GfxRenderer& renderer);
   // Open one style source file (resident if small, streamed if large) into
   // ttfSources_[style]. Returns false on open/read failure.

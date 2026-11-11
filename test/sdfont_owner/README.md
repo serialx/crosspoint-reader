@@ -9,8 +9,9 @@ Native code performs physical storage/allocation and the remaining vector effect
 
 Firmware enables Rust `sd-font-catalog` and native `XP_SD_FONT_CATALOG` together.
 The separate system-oracle archive exercises that binding against frozen native
-policy; other historical host fixtures retain their compatibility ABI. Legacy
-native definitions and declarations remain CP2c/CP2d cleanup.
+policy; other historical host fixtures retain their compatibility ABI. The
+native implementations now live in `test/sdfont_legacy`, outside firmware.
+CP2d owns their remaining ABI declarations and adapter isolation.
 
 The allocator must preserve alignment, return null on failure and pair every
 allocation with its matching free. No pointer into the movable result escapes;
@@ -81,7 +82,7 @@ failure,129family truncation, rediscovery, selected vector owners, full diagnost
 paths, fresh update decisions, registry-slot mutation, variant threshold/reuse/
 eviction/reload, and all owned buffers being released.
 
-`SdFontOwnerSwitch` exercises the shipping `SdCardFontManager` against the Rust
+`SdFontOwnerSwitch` exercises the historical `SdCardFontManager` adapter against the Rust
 owner: load, additional-size loads, current-name/ID queries, unregister and
 unload, cache preparation, I/O/allocation failures and corruption notices.
 `runtime_tests.rs` checks stable slots and tagged callbacks across cache mutation;

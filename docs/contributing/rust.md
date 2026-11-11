@@ -1011,7 +1011,8 @@ retirement. Inherited PSRAM vector accessor and backend re-entry remains PT-VEC
 work. One Rust policy derives selectable sizes; native settings consumers only
 copy and label the returned choices.
 No SD catalog/control/load/variant policy re-enters through a native effect.
-Legacy native definitions and host ABI adapters remain CP2c/CP2d cleanup.
+Historical native face/cache/manager/catalog implementations live only in
+`test/sdfont_legacy`; CP2d owns their remaining host ABI adapters.
 
 C++ supplies the physical operations in
 [`xp_sd_physical.h`](../../rust/crates/xp-ffi/include/xp_sd_physical.h), paired
@@ -1019,10 +1020,13 @@ allocation domains and diagnostic formatting. Native chapter prepare also
 borrows the explicit owner address through `xp_native_chapter_font_owner`;
 P18-D2 retires that accessor with the chapter/paragraph payload callers.
 `xp_native_sd_font_view`, `xp_native_sd_font_resident_slice` and
-`xp_native_sd_font_bitmap` remain only as host oracle adapters. CP2c deletes
-unlinked native definitions; CP2d retires the obsolete ABI declarations and
-named oracle adapters. The cold `xp_native_sd_font_load` provider is compiled
-out of the C3 firmware; Rust loads absent SD font IDs directly. See the
+`xp_native_sd_font_bitmap` remain only as host oracle adapters. CP2d retires
+obsolete ABI declarations and isolates the named oracle adapters. The
+`xp_native_sd_font_load` provider is compiled out of the C3 firmware; Rust loads
+absent SD font IDs directly. It remains a vector fallback on PSRAM profiles,
+with retirement owned by PT-VEC. The native allocation/free/diagnostic leaves
+remain in `lib/EpdFont/SdCardFont.cpp`, and the vector physical read callback
+remains in `SdCardFontRegistry.cpp`. See the
 [SD font differential](../../test/sdfont_diff/README.md) for compatibility limits.
 
 `sdfont::pool` owns resident glyph/bitmap buffers, prewarm and retention policy,

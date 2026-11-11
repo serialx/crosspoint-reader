@@ -1,4 +1,4 @@
-//! Loaded-family ownership; catalog/variant control activates in CP2b.
+//! Loaded-family ownership; catalog/variant control activates in CP2b-A.
 use super::{
     catalog::{Allocation, Catalog, Family},
     catalog_storage::{Array, Name},

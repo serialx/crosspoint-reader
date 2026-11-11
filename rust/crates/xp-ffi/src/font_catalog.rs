@@ -1,4 +1,4 @@
-//! Catalog ownership and sequential native-origin system effects.
+//! Catalog ownership and sequential effects, dormant until CP2b-A activation.
 extern crate alloc;
 use super::*;
 use core::{marker::PhantomPinned, mem::MaybeUninit, sync::atomic::Ordering};

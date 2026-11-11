@@ -7,6 +7,11 @@ formatting leaves. Interval tables can be shared across styles and faces.
 Native SD catalog/system discovery, variant/fallback and absent-ID policy
 remain until CP2b; the catalog store and update/variant policy are not wired yet.
 
+CP2b-P adds a dormant catalog/system binding. Its Rust `sd-font-catalog`
+feature and native `XP_SD_FONT_CATALOG` definition are enabled together only
+for the separate system-oracle archive. Default firmware and the other host
+suites keep the parent ABI. CP2b-A owns shipping activation.
+
 The allocator must preserve alignment, return null on failure and pair every
 allocation with its matching free. No pointer into the movable result escapes;
 style records and their stub pointers remain in the stable allocation.
@@ -23,6 +28,7 @@ cmake -S test/sdfont_owner -B build/sdfont-owner
 cmake --build build/sdfont-owner -j 2
 build/sdfont-owner/sdfont_owner_physical
 ctest --test-dir build/sdfont-owner -R '^SdFontOwnerSwitch$' --output-on-failure
+ctest --test-dir build/sdfont-owner -R '^SdFontSystemSwitch$' --output-on-failure
 cargo build --manifest-path test/sdfont_owner/Cargo.toml --offline --locked
 python3 test/sdfont_owner/run.py --oracle build/sdfont-owner/sdfont_owner_oracle --candidate test/sdfont_owner/target/debug/sdfont-owner
 ```
@@ -76,7 +82,7 @@ paths, fresh update decisions, registry-slot mutation, variant threshold/reuse/
 eviction/reload, and all owned buffers being released.
 
 `SdFontOwnerSwitch` exercises the shipping `SdCardFontManager` against the Rust
-owner: load, extra-size/variant loads, current-name/ID queries, unregister and
+owner: load, additional-size loads, current-name/ID queries, unregister and
 unload, cache preparation, I/O/allocation failures and corruption notices.
 `runtime_tests.rs` checks stable slots and tagged callbacks across cache mutation;
 `layout.rs` checks the C3 storage layout. The production-front-door retained-name
@@ -86,3 +92,12 @@ cases are in `rust/crates/xp-core/tests/font_owner_binding.rs`:
 cargo test --manifest-path rust/Cargo.toml -p xp-core --test font_owner_binding --offline --locked
 MIRIFLAGS='-Zmiri-strict-provenance' cargo +nightly miri test --manifest-path rust/Cargo.toml -p xp-core --test font_owner_binding --offline --locked
 ```
+
+`SdFontSystemSwitch` compares the frozen native system with the prepared Rust
+system using the same host fixture, including variant IDs, save count/order,
+and allocation/file/save failures. Its JSON snapshots model the settings fields
+used by this operation; they do not establish full persisted-file or device
+heap parity. The comparator accounts for host string layouts and compares
+contiguous free multisets, so C3 allocation order still needs activation-time
+traces. The Miri cases also cover rejected continuation tokens and the typed
+chapter receiver: an SD load failure must not invoke native fallback policy.

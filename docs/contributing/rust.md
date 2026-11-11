@@ -1002,6 +1002,13 @@ record store and `control::update` / `control::variant` policy in
 `sdfont::catalog` and `sdfont::control` remain dormant until that step; the
 loaded-list and family-name operations in `control` are already live.
 
+CP2b-P prepares the catalog/system binding and typed chapter font operations
+behind the internal `sd-font-catalog` feature and matching native
+`XP_SD_FONT_CATALOG` definition. Both are off in firmware builds. The default
+owner layout, callback ABI and native catalog/system remain unchanged; the
+separate host archive exercises the prepared policy. CP2b-A owns activation,
+including the reader, chapter, web fonts/settings and XTC incoming routes.
+
 C++ supplies the physical operations in
 [`xp_sd_physical.h`](../../rust/crates/xp-ffi/include/xp_sd_physical.h), paired
 allocation domains and diagnostic formatting. Native chapter prepare also
@@ -1011,7 +1018,7 @@ P18-D2 retires that accessor with the chapter/paragraph payload callers.
 `xp_native_sd_font_bitmap` remain only as host oracle adapters. CP2c deletes
 unlinked native definitions; CP2d retires the obsolete ABI declarations and
 named oracle adapters. The cold `xp_native_sd_font_load` re-entry stays until
-CP2b. See the
+CP2b-A. See the
 [SD font differential](../../test/sdfont_diff/README.md) for compatibility limits.
 
 `sdfont::pool` owns resident glyph/bitmap buffers, prewarm and retention policy,

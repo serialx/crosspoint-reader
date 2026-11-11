@@ -626,6 +626,159 @@ void SdCardFont::bitmapView(const EpdFontData* font, XpGlyphSource& source) cons
   }
 }
 
+#ifdef XP_SD_FONT_CATALOG
+namespace {
+enum class CatalogDiagnostic : uint8_t {
+  MissingRoot = 1,
+  NotDirectory,
+  Duplicate,
+  Family,
+  Vector,
+  NameOom,
+  BadPath,
+  Promoted,
+  Selected,
+  Complete
+};
+enum class SystemDiagnostic : uint8_t {
+  Snap = 1,
+  Ready,
+  LoadedBoot,
+  FailedBoot,
+  MissingBoot,
+  Dirty,
+  Disappeared,
+  Reload,
+  Loaded,
+  Failed,
+  Missing,
+  NoCoverage,
+  MissingUi,
+  SkipVariant,
+  VariantLoaded
+};
+}  // namespace
+extern "C" uint8_t* xp_native_sd_allocate(size_t bytes, uint8_t domain) {
+  switch (static_cast<XpSdAllocation>(domain)) {
+    case XP_SD_INTERNAL:
+      return new (std::nothrow) uint8_t[bytes];
+    case XP_SD_RESIDENT:
+      return psramNewArray<uint8_t>(bytes);
+    case XP_SD_REQUIRED:
+      return new uint8_t[bytes];
+  }
+  return nullptr;
+}
+extern "C" void xp_native_sd_free(uint8_t* data, bool resident) {
+  if (resident)
+    psramDeleteArray(data);
+  else
+    delete[] data;
+}
+extern "C" void xp_native_sd_diagnostic(const char* path, uint32_t event, const uint32_t* a, uint32_t style,
+                                        uint32_t index, bool seekFailed, const char* other) {
+  if (event >= 0x500) {
+    switch (static_cast<SystemDiagnostic>(event - 0x500)) {
+      case SystemDiagnostic::Snap:
+        LOG_DBG("SDFS", "Font size %u unavailable, snapping to %u", a[0], a[1]);
+        break;
+      case SystemDiagnostic::Ready:
+        LOG_DBG("SDFS", "SD font system ready (%d families discovered)", static_cast<int>(a[0]));
+        break;
+      case SystemDiagnostic::LoadedBoot:
+        LOG_DBG("SDFS", "Loaded SD card font family: %s", path);
+        break;
+      case SystemDiagnostic::FailedBoot:
+        LOG_ERR("SDFS", "Failed to load SD font family: %s (clearing)", path);
+        break;
+      case SystemDiagnostic::MissingBoot:
+        LOG_DBG("SDFS", "SD font family not found on card: %s (clearing)", path);
+        break;
+      case SystemDiagnostic::Dirty:
+        LOG_DBG("SDFS", "Registry dirty — re-discovering fonts");
+        break;
+      case SystemDiagnostic::Disappeared:
+        LOG_DBG("SDFS", "SD font family disappeared: %s (clearing)", path);
+        break;
+      case SystemDiagnostic::Reload:
+        LOG_DBG("SDFS", "Reloading %s: size %u -> %u%s", path, a[0], a[1], a[2] ? " [registry dirty]" : "");
+        break;
+      case SystemDiagnostic::Loaded:
+        LOG_DBG("SDFS", "Loaded SD font family: %s", path);
+        break;
+      case SystemDiagnostic::Failed:
+        LOG_ERR("SDFS", "Failed to load SD font family: %s (clearing)", path);
+        break;
+      case SystemDiagnostic::Missing:
+        LOG_DBG("SDFS", "SD font family not found: %s (clearing)", path);
+        break;
+      case SystemDiagnostic::NoCoverage:
+        LOG_DBG("SDFS", "%s has no fallback-script coverage - skipping UI fallback sizes", path);
+        break;
+      case SystemDiagnostic::MissingUi:
+        LOG_DBG("SDFS", "No %u pt SD glyphs for UI fallback in %s", a[0], path);
+        break;
+      case SystemDiagnostic::SkipVariant:
+        LOG_DBG("SDFS", "Skipping %upt variant: largest free block %u", a[0], a[1]);
+        break;
+      case SystemDiagnostic::VariantLoaded:
+        LOG_DBG("SDFS", "Loaded %s %upt variant (heap free %u)", path, a[0], a[1]);
+        break;
+    }
+    return;
+  }
+  if (event >= 0x400) {
+    switch (static_cast<CatalogDiagnostic>(event - 0x400)) {
+      case CatalogDiagnostic::MissingRoot:
+        LOG_DBG("SDREG", "Fonts directory not found: %s", path);
+        break;
+      case CatalogDiagnostic::NotDirectory:
+        LOG_ERR("SDREG", "Fonts path is not a directory: %s", path);
+        break;
+      case CatalogDiagnostic::Duplicate:
+        LOG_ERR("SDREG", "Duplicate font %s in %s — skipping", path, other);
+        break;
+      case CatalogDiagnostic::Family:
+        LOG_DBG("SDREG", "Found family: %s (%d files) in %s", path, static_cast<int>(a[0]), other);
+        break;
+      case CatalogDiagnostic::Vector:
+        LOG_DBG("SDREG", "Found vector font: %s in %s", path, other);
+        break;
+      case CatalogDiagnostic::NameOom:
+        LOG_ERR("SDREG", "OOM: %zu byte filename %s", static_cast<size_t>(a[0]), path);
+        break;
+      case CatalogDiagnostic::BadPath:
+        LOG_ERR("SDREG", "Path too long for %s in %s — skipping", path, other);
+        break;
+      case CatalogDiagnostic::Promoted:
+        LOG_DBG("SDREG", "No upright face in %s — promoting %s", path, other);
+        break;
+      case CatalogDiagnostic::Selected:
+        LOG_DBG("SDREG", "%s: %u of %u faces selected by weight", path, a[0], a[1]);
+        break;
+      case CatalogDiagnostic::Complete:
+        LOG_DBG("SDREG", "Discovery complete: %d families", static_cast<int>(a[0]));
+        break;
+    }
+    return;
+  }
+  if (event < 0x100) {
+    logPool(path, seekFailed, event, a[0], a[1], a[2], a[3]);
+    return;
+  }
+  if (event < 0x200) {
+    logLoad(event - 0x100, a[0], a[1], a[2]);
+    return;
+  }
+  if (event < 0x300) {
+    XpSdfontParseDiagnostic detail{static_cast<XpSdfontParseError>(event - 0x200), {a[0], a[1], a[2], a[3]}};
+    logParseFailure(detail, style, index);
+    return;
+  }
+  LOG_ERR("SDCF", "Corrupt glyph for U+%04X in %s (%ux%u, %u bytes at %u); drawing it as missing",
+          static_cast<unsigned>(a[0]), path, a[1] >> 16, a[1] & 65535, a[2], static_cast<unsigned>(a[3]));
+}
+#else
 extern "C" uint8_t* xp_native_sd_allocate(size_t bytes, bool resident) {
   return resident ? psramNewArray<uint8_t>(bytes) : new (std::nothrow) uint8_t[bytes];
 }
@@ -653,3 +806,4 @@ extern "C" void xp_native_sd_diagnostic(const char* path, uint32_t event, const 
   LOG_ERR("SDCF", "Corrupt glyph for U+%04X in %s (%ux%u, %u bytes at %u); drawing it as missing",
           static_cast<unsigned>(a[0]), path, a[1] >> 16, a[1] & 65535, a[2], static_cast<unsigned>(a[3]));
 }
+#endif

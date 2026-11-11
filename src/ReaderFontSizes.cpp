@@ -2,9 +2,13 @@
 
 #include <iterator>
 
-std::vector<uint8_t> readerFontPointSizes(const SdCardFontRegistry* registry, const char* sdFamilyName) {
+std::vector<uint8_t> readerFontPointSizes(const ReaderFontCatalog* registry, const char* sdFamilyName) {
   if (registry && sdFamilyName && sdFamilyName[0] != '\0') {
+#ifdef XP_SD_FONT_CATALOG
+    if (const auto family = registry->findFamily(sdFamilyName)) {
+#else
     if (const auto* family = registry->findFamily(sdFamilyName)) {
+#endif
       if (family->vector) {
         return {std::begin(VECTOR_READER_POINT_SIZES), std::end(VECTOR_READER_POINT_SIZES)};
       }

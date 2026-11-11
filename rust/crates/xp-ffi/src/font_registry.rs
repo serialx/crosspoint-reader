@@ -33,6 +33,11 @@ extern "C" {
         len: usize,
         metadata: u8,
     );
+    #[cfg(any(
+        not(feature = "sd-font-catalog"),
+        feature = "app-test",
+        feature = "vector-fonts"
+    ))]
     pub(crate) fn xp_native_sd_font_load(native: *mut c_void, font: i32) -> u8;
     fn xp_native_font_diagnostic(native: *mut c_void, event: u32, value: u32);
     pub(crate) fn xp_native_bidi_acquire() -> *mut xp_core::bidi::Workspace;
@@ -46,6 +51,8 @@ pub(crate) struct Owner {
     pub(crate) cache: UnsafeCell<xp_core::font::runtime::FontCacheOwner>,
     pub(crate) sd: UnsafeCell<xp_core::sdfont::control::Control<'static>>,
     pub(crate) intervals: xp_core::sdfont::parser::IntervalRegistry,
+    #[cfg(any(test, feature = "sd-font-catalog"))]
+    pub(crate) catalog: crate::font_sd::catalog::State,
 }
 #[repr(C)]
 pub union QueryResult {
@@ -66,10 +73,30 @@ impl Owner {
         }
     }
     pub(crate) unsafe fn ensure(owner: *const Self, id: i32) -> bool {
-        let native = (*owner).native;
-        xp_core::font::loaded::ensure(ptr::addr_of!((*owner).registry), id, |id| {
-            xp_native_sd_font_load(native, id) != 0
-        })
+        #[cfg(not(any(test, feature = "sd-font-catalog")))]
+        {
+            let native = (*owner).native;
+            xp_core::font::loaded::ensure(ptr::addr_of!((*owner).registry), id, |id| {
+                xp_native_sd_font_load(native, id) != 0
+            })
+        }
+        #[cfg(any(test, feature = "sd-font-catalog"))]
+        {
+            xp_core::font::loaded::ensure(ptr::addr_of!((*owner).registry), id, |id| {
+                if crate::font_sd::catalog::ensure_id(owner, id) {
+                    return true;
+                }
+                // The native provider is vector-only in shipping builds (PT-VEC).
+                #[cfg(any(feature = "app-test", feature = "vector-fonts"))]
+                {
+                    xp_native_sd_font_load((*owner).native, id) != 0
+                }
+                #[cfg(not(any(feature = "app-test", feature = "vector-fonts")))]
+                {
+                    false
+                }
+            })
+        }
     }
 }
 
@@ -225,9 +252,17 @@ pub unsafe extern "C" fn xp_font_registry_source(
 }
 const _: () = {
     let _: [u8; if cfg!(target_pointer_width = "32") {
-        4252
+        if cfg!(any(test, feature = "sd-font-catalog")) {
+            4272
+        } else {
+            4252
+        }
     } else {
-        4928
+        if cfg!(any(test, feature = "sd-font-catalog")) {
+            4968
+        } else {
+            4928
+        }
     }] = [0; size_of::<Owner>()];
     assert!(align_of::<Owner>() == align_of::<usize>());
     assert!(size_of::<QueryResult>() == size_of::<usize>());
@@ -251,6 +286,8 @@ pub unsafe extern "C" fn xp_font_registry_init(
             &crate::font_sd::MEMORY,
         ));
     ptr::addr_of_mut!((*out).intervals).write(xp_core::sdfont::parser::IntervalRegistry::new());
+    #[cfg(any(test, feature = "sd-font-catalog"))]
+    ptr::addr_of_mut!((*out).catalog).write(crate::font_sd::catalog::State::new());
 }
 /// # Safety
 /// Owner is exclusive; no font/source/cache loan survives its destruction.
@@ -258,6 +295,8 @@ pub unsafe extern "C" fn xp_font_registry_init(
 pub unsafe extern "C" fn xp_font_registry_drop(owner: *mut Owner) {
     crate::font_sd::control(owner).unload(ptr::addr_of_mut!((*owner).registry), None);
     ptr::drop_in_place((*owner).sd.get());
+    #[cfg(any(test, feature = "sd-font-catalog"))]
+    ptr::drop_in_place(ptr::addr_of_mut!((*owner).catalog));
 }
 /// # Safety
 /// `owner` is initialized and exclusive; `entry` is readable for the call.
@@ -267,6 +306,10 @@ pub unsafe extern "C" fn xp_font_registry_update(
     operation: u32,
     entry: *const Entry,
 ) -> u8 {
+    #[cfg(any(test, feature = "sd-font-catalog"))]
+    if operation == 4 {
+        return u8::from(Owner::ensure(owner, (*entry).id));
+    }
     let registry = &mut (*owner).registry;
     match operation {
         0 => u8::from(registry.insert(*entry)),

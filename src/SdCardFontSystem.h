@@ -21,6 +21,14 @@ class TtfEpdFont;
 
 /// Facade that owns the SD card font registry, manager, and resolver logic.
 /// Hides implementation details behind a single begin() + ensureLoaded() API.
+#if !defined(XP_SD_FONT_CATALOG) || defined(XP_SDFONT_SYSTEM_ORACLE)
+using SdSystemCatalog = SdCardFontRegistry;
+using SdSystemFamily = SdCardFontFamilyInfo;
+#else
+using SdSystemCatalog = SdFontCatalog;
+using SdSystemFamily = SdFontFamily;
+#endif
+
 class SdCardFontSystem {
  public:
   // Constructor and destructor are out-of-line (defined in the .cpp where
@@ -37,28 +45,41 @@ class SdCardFontSystem {
   /// Call before entering the reader or after settings change.
   /// Also re-discovers if the registry has been marked dirty (e.g. by web upload).
   void ensureLoaded(GfxRenderer& renderer);
+#if defined(XP_SD_FONT_CATALOG) && !defined(XP_SDFONT_SYSTEM_ORACLE)
+  void fontEffect(XpSdAction action, XpSdSettings& settings, XpSdContinuation& token, GfxRenderer& renderer);
+#endif
 
   /// Resolve an SD card font ID from family name + reader point size.
   /// Returns 0 if not found. Used by CrossPointSettings::getReaderFontId().
   int resolveFontId(const char* familyName, uint8_t pointSize) const;
 
   /// Access the registry (e.g. for settings UI to enumerate available fonts).
-  const SdCardFontRegistry& registry() const { return registry_; }
+  const SdSystemCatalog& registry() const { return registry_; }
 
   /// Non-const access to the registry (for FontInstaller).
-  SdCardFontRegistry& registry() { return registry_; }
+  SdSystemCatalog& registry() { return registry_; }
 
   /// Mark the registry as needing re-discovery.
   /// Thread-safe: can be called from the web server task.
-  void markRegistryDirty() { registryDirty_.store(true, std::memory_order_release); }
+  void markRegistryDirty() {
+#if !defined(XP_SD_FONT_CATALOG) || defined(XP_SDFONT_SYSTEM_ORACLE)
+    registryDirty_.store(true, std::memory_order_release);
+#else
+    registry_.markDirty();
+#endif
+  }
 
   /// If the registry is dirty, re-scan the SD card now and clear the flag.
   /// Used by the web UI so uploaded/deleted fonts appear in the list
   /// without waiting for the reader activity to run ensureLoaded().
   void refreshIfDirty() {
+#if !defined(XP_SD_FONT_CATALOG) || defined(XP_SDFONT_SYSTEM_ORACLE)
     if (registryDirty_.exchange(false, std::memory_order_acquire)) {
       registry_.discover();
     }
+#else
+    registry_.refreshIfDirty();
+#endif
   }
 
  private:
@@ -68,14 +89,18 @@ class SdCardFontSystem {
   // render at the same size as the surrounding Latin UI text. No-op when no SD
   // family is loaded. Safe to call repeatedly (sizes already loaded are
   // reused).
+#if !defined(XP_SD_FONT_CATALOG) || defined(XP_SDFONT_SYSTEM_ORACLE)
   void setupUiFallbacks(GfxRenderer& renderer);
+#else
+  void runEffects(GfxRenderer& renderer, bool begin);
+#endif
 
 #if CROSSPOINT_VECTOR_FONTS
   // --- Vector (.ttf/.otf) font path (FreeInkFont via TtfEpdFont) -------------
   // Load/refresh the selected TTF family at the current reader size, register
   // it with the renderer, and track it so ensureSdCardFontReady() rebuilds its
   // glyph set per page. registryWasDirty forces a reload even if unchanged.
-  void loadTtfFamily(const SdCardFontFamilyInfo& family, GfxRenderer& renderer, bool registryWasDirty);
+  void loadTtfFamily(const SdSystemFamily& family, GfxRenderer& renderer, bool registryWasDirty);
   // Unregister + free the active TTF font (and its UI-size fallbacks), if any.
   void unloadTtf(GfxRenderer& renderer);
   // Register the loaded TTF at each built-in UI size as a script fallback, so UI
@@ -99,10 +124,13 @@ class SdCardFontSystem {
   // eviction or a reboot. Least recently used variants are evicted at the caps below.
   int resolveVariant(int fontId, float scale);
   bool loadVariant(int fontId);
+#if !defined(XP_SD_FONT_CATALOG) || defined(XP_SDFONT_SYSTEM_ORACLE)
   bool loadCpfontVariant(const SdCardFontFamilyInfo& family, uint8_t pointSize, int fontId);
   void unloadCpfonts(GfxRenderer& renderer);
+#endif
   static int variantFontId(int readerFontId, uint8_t pointSize);
 
+#if !defined(XP_SD_FONT_CATALOG) || defined(XP_SDFONT_SYSTEM_ORACLE)
   struct CpfontVariant {
     int fontId;
     uint32_t lastUse;
@@ -110,11 +138,14 @@ class SdCardFontSystem {
   static constexpr size_t MAX_CPFONT_VARIANTS = TextBlock::MAX_WORD_FONTS + 2;  // Inline, block, and drop-cap fonts.
   std::vector<CpfontVariant> cpfontVariants_;
   uint32_t variantClock_ = 0;
+#endif
   GfxRenderer* renderer_ = nullptr;
 
-  SdCardFontRegistry registry_;
+  SdSystemCatalog registry_;
+#if !defined(XP_SD_FONT_CATALOG) || defined(XP_SDFONT_SYSTEM_ORACLE)
   SdCardFontManager manager_;
   std::atomic<bool> registryDirty_{false};
+#endif
 
 #if CROSSPOINT_VECTOR_FONTS
   // One style source file. SMALL files are read fully into `bytes` (resident,

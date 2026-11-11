@@ -1,5 +1,6 @@
 #include "SdCardFontSystem.h"
 
+#include <FontTableGeneration.h>
 #include <GfxRenderer.h>
 #include <HalStorage.h>
 #include <Logging.h>
@@ -70,6 +71,7 @@ constexpr UiFontSize kUiFontSizes[] = {
 
 }  // namespace
 
+#if !defined(XP_SD_FONT_CATALOG) || defined(XP_SDFONT_SYSTEM_ORACLE)
 void SdCardFontSystem::begin(GfxRenderer& renderer) {
   registry_.discover();
   renderer_ = &renderer;
@@ -262,6 +264,90 @@ void SdCardFontSystem::setupUiFallbacks(GfxRenderer& renderer) {
   }
 }
 
+#else
+void SdCardFontSystem::begin(GfxRenderer& renderer) {
+  registry_.bind(renderer.getFontMap().raw());
+  renderer_ = &renderer;
+#if CROSSPOINT_VECTOR_FONTS
+  renderer.setFontVariantProvider(
+      {this,
+       [](void* ctx, int font, float scale) {
+         return static_cast<SdCardFontSystem*>(ctx)->resolveVariant(font, scale);
+       },
+       [](void* ctx, int font) { return static_cast<SdCardFontSystem*>(ctx)->loadVariant(font); }});
+#endif
+  SETTINGS.sdFontIdResolver = [](void* ctx, const char* family, uint8_t points) {
+    return static_cast<SdCardFontSystem*>(ctx)->resolveFontId(family, points);
+  };
+  SETTINGS.sdFontResolverCtx = this;
+  runEffects(renderer, true);
+}
+void SdCardFontSystem::ensureLoaded(GfxRenderer& renderer) { runEffects(renderer, false); }
+void SdCardFontSystem::runEffects(GfxRenderer& renderer, bool begin) {
+  XpSdSettings request{};
+  XpSdContinuation token{};
+  const auto* owner = registry_.raw();
+  XpSdAction action;
+  fontEffect(XP_SD_BORROW_SETTINGS, request, token, renderer);
+  action = begin ? xp_sd_fonts_begin(owner, &request, &token) : xp_sd_fonts_ensure(owner, &request, &token);
+  for (;;) {
+    if (action == XP_SD_COMPLETE) return;
+    fontEffect(action, request, token, renderer);
+    if (action == XP_SD_REJECTED || action == XP_SD_LOAD_VECTOR) return;
+    action = xp_sd_fonts_ensure(owner, &request, &token);
+  }
+}
+void SdCardFontSystem::fontEffect(XpSdAction action, XpSdSettings& request, XpSdContinuation& token,
+                                  GfxRenderer& renderer) {
+  switch (action) {
+    case XP_SD_BORROW_SETTINGS:
+      request = {SETTINGS.sdFontFamilyName,
+                 &SETTINGS.fontPointSize,
+                 {SMALL_FONT_ID, UI_10_FONT_ID, UI_12_FONT_ID},
+                 CROSSPOINT_VECTOR_FONTS,
+                 false};
+#if CROSSPOINT_VECTOR_FONTS
+      request.vector_loaded = !ttfFamily_.empty();
+#endif
+      return;
+    case XP_SD_COMPLETE:
+      return;
+    case XP_SD_REJECTED:
+      LOG_ERR("SDFS", "Rejected font continuation");
+      return;
+    case XP_SD_PERSIST_SETTINGS:
+      SETTINGS.saveToFile();
+      break;
+    case XP_SD_PREPARE_VECTOR:
+#if CROSSPOINT_VECTOR_FONTS
+      ttfVariants_.reserve(MAX_TTF_VARIANTS);
+#endif
+      break;
+    case XP_SD_UNLOAD_VECTOR:
+#if CROSSPOINT_VECTOR_FONTS
+      unloadTtf(renderer);
+      request.vector_loaded = false;
+      token.epoch = fontTableGeneration.load(std::memory_order_relaxed);
+#endif
+      break;
+    case XP_SD_LOAD_VECTOR:
+#if CROSSPOINT_VECTOR_FONTS
+    {
+      SdFontFamily family;
+      static_cast<XpSdCatalogView&>(family) = request.vector_family;
+      family.owner = token.owner;
+      family.index = request.vector_index;
+      loadTtfFamily(family, renderer, token.dirty);
+    }
+      if (token.boot)
+        LOG_DBG("SDFS", "SD font system ready (%d families discovered)", static_cast<int>(registry_.getFamilyCount()));
+#endif
+      return;
+  }
+}
+
+#endif
+
 int SdCardFontSystem::variantFontId(const int readerFontId, const uint8_t pointSize) {
   uint32_t hash = 2166136261u;
   for (int shift = 0; shift < 32; shift += 8) {
@@ -275,11 +361,13 @@ int SdCardFontSystem::variantFontId(const int readerFontId, const uint8_t pointS
   return id != 0 ? id : 1;
 }
 
+#if !defined(XP_SD_FONT_CATALOG) || defined(XP_SDFONT_SYSTEM_ORACLE)
 void SdCardFontSystem::unloadCpfonts(GfxRenderer& renderer) {
   cpfontVariants_.clear();  // the manager owns and frees the fonts themselves
   manager_.unloadAll(renderer);
 }
 
+#endif
 int SdCardFontSystem::resolveVariant(const int fontId, const float scale) {
   if (const int builtin = builtinReaderFontVariant(fontId, scale); builtin != 0) {
     return renderer_->getFontMap().count(builtin) ? builtin : 0;
@@ -293,6 +381,7 @@ int SdCardFontSystem::resolveVariant(const int fontId, const float scale) {
     return loadTtfVariant(static_cast<uint8_t>(pointSize), id) ? id : 0;
   }
 #endif
+#if !defined(XP_SD_FONT_CATALOG) || defined(XP_SDFONT_SYSTEM_ORACLE)
   const auto familyName = manager_.currentFamilyName();
   if (familyName.empty() || fontId != manager_.getFontId(familyName)) return 0;
   const auto* family = registry_.findFamily(familyName);
@@ -320,6 +409,9 @@ int SdCardFontSystem::resolveVariant(const int fontId, const float scale) {
   if (chosen == base) return fontId;
   const int id = variantFontId(fontId, chosen);
   return loadCpfontVariant(*family, chosen, id) ? id : 0;
+#else
+  return 0;
+#endif
 }
 
 bool SdCardFontSystem::loadVariant(const int fontId) {
@@ -333,6 +425,7 @@ bool SdCardFontSystem::loadVariant(const int fontId) {
     return false;
   }
 #endif
+#if !defined(XP_SD_FONT_CATALOG) || defined(XP_SDFONT_SYSTEM_ORACLE)
   const auto familyName = manager_.currentFamilyName();
   if (familyName.empty()) return false;
   const auto* family = registry_.findFamily(familyName);
@@ -344,8 +437,12 @@ bool SdCardFontSystem::loadVariant(const int fontId) {
     }
   }
   return false;
+#else
+  return false;
+#endif
 }
 
+#if !defined(XP_SD_FONT_CATALOG) || defined(XP_SDFONT_SYSTEM_ORACLE)
 bool SdCardFontSystem::loadCpfontVariant(const SdCardFontFamilyInfo& family, const uint8_t pointSize,
                                          const int fontId) {
   for (auto& variant : cpfontVariants_) {
@@ -377,6 +474,7 @@ bool SdCardFontSystem::loadCpfontVariant(const SdCardFontFamilyInfo& family, con
   return true;
 }
 
+#endif
 int SdCardFontSystem::resolveFontId(const char* familyName, uint8_t /*pointSize*/) const {
 #if CROSSPOINT_VECTOR_FONTS
   // A loaded vector (.ttf) family answers first — it isn't in the .cpfont manager.
@@ -385,7 +483,11 @@ int SdCardFontSystem::resolveFontId(const char* familyName, uint8_t /*pointSize*
   // The manager holds exactly one reader-size font, already selected for
   // SETTINGS.fontPointSize, so the size argument is implicit — always return
   // that font's ID. ensureLoaded() must have run for the current settings first.
+#if !defined(XP_SD_FONT_CATALOG) || defined(XP_SDFONT_SYSTEM_ORACLE)
   return manager_.getFontId(familyName);
+#else
+  return registry_.fontId(familyName ? familyName : "");
+#endif
 }
 
 #if CROSSPOINT_VECTOR_FONTS
@@ -605,8 +707,7 @@ void SdCardFontSystem::setupTtfUiFallbacks(GfxRenderer& renderer) {
   }
 }
 
-void SdCardFontSystem::loadTtfFamily(const SdCardFontFamilyInfo& family, GfxRenderer& renderer,
-                                     const bool registryWasDirty) {
+void SdCardFontSystem::loadTtfFamily(const SdSystemFamily& family, GfxRenderer& renderer, const bool registryWasDirty) {
   // Keep sizes inherited from other families within the selectable vector range.
   snapFontPointSizeTo(
       snapToNearestPointSize(VECTOR_READER_POINT_SIZES, std::size(VECTOR_READER_POINT_SIZES), SETTINGS.fontPointSize));
@@ -637,7 +738,7 @@ void SdCardFontSystem::loadTtfFamily(const SdCardFontFamilyInfo& family, GfxRend
     renderer.removeFont(ttfFontId_);
     if (ttf_->load(size, /*twoBit=*/true, cacheBytes, maxGlyphs)) {
       ttf_->build(" ");
-      ttfFontId_ = computeTtfFontId(family.name.c_str(), size);
+      ttfFontId_ = computeTtfFontId(family.name, size);
       renderer.insertFont(ttfFontId_, ttf_->family());
       renderer.registerTtfFont(ttfFontId_, ttf_.get());
       ttfPointSize_ = size;
@@ -648,8 +749,8 @@ void SdCardFontSystem::loadTtfFamily(const SdCardFontFamilyInfo& family, GfxRend
 
   unloadTtf(renderer);
 
-  if (family.files.empty()) {
-    LOG_ERR("SDFS", "Vector family %s has no file", family.name.c_str());
+  if (family.count == 0) {
+    LOG_ERR("SDFS", "Vector family %s has no file", family.name);
     SETTINGS.clearSdFontFamily();
     return;
   }
@@ -658,12 +759,12 @@ void SdCardFontSystem::loadTtfFamily(const SdCardFontFamilyInfo& family, GfxRend
   // 3=bold-italic). A single-file family (loose .ttf, or a folder with one file)
   // supplies only regular; TtfEpdFont then derives bold/italic from the wght axis
   // or an oblique shear. Extra files upgrade those styles to the real designs.
-  char path[SdCardFontFamilyInfo::PATH_BUFFER_SIZE];
-  for (const auto& file : family.files) {
+  char path[SdFontFamily::PATH_BUFFER_SIZE];
+  for (const auto& file : family.entries()) {
     const uint8_t role = file.style < 4 ? file.style : 0;
     if (ttfSources_[role].present) continue;  // registry already deduped by role
     if (!family.filePath(file, path, sizeof(path))) {
-      LOG_ERR("SDFS", "Vector font path too long in family %s", family.name.c_str());
+      LOG_ERR("SDFS", "Vector font path too long in family %s", family.name);
       continue;
     }
     openTtfSource(role, path);
@@ -671,7 +772,7 @@ void SdCardFontSystem::loadTtfFamily(const SdCardFontFamilyInfo& family, GfxRend
   if (!ttfSources_[0].present) {
     // Possibly a transient SD read failure: keep the user's selection so the
     // next ensureLoaded() retries; this session falls back to the built-in.
-    LOG_ERR("SDFS", "Vector family %s: regular file failed to open (keeping selection)", family.name.c_str());
+    LOG_ERR("SDFS", "Vector family %s: regular file failed to open (keeping selection)", family.name);
     freeTtfSources();
     return;
   }
@@ -680,7 +781,7 @@ void SdCardFontSystem::loadTtfFamily(const SdCardFontFamilyInfo& family, GfxRend
   if (!ttf_) {
     // Transient OOM: keep the user's selection (unlike a parse failure) so the
     // next ensureLoaded() can retry once heap pressure passes.
-    LOG_ERR("SDFS", "OOM: TtfEpdFont for %s", family.name.c_str());
+    LOG_ERR("SDFS", "OOM: TtfEpdFont for %s", family.name);
     freeTtfSources();
     return;
   }
@@ -691,7 +792,7 @@ void SdCardFontSystem::loadTtfFamily(const SdCardFontFamilyInfo& family, GfxRend
     // FreeType): keep the selection and retry next ensureLoaded() rather than
     // silently reverting the user to the built-in font. A genuinely broken
     // font costs one failed load per reader entry, visible in the log.
-    LOG_ERR("SDFS", "FreeInkFont could not parse %s (keeping selection)", family.name.c_str());
+    LOG_ERR("SDFS", "FreeInkFont could not parse %s (keeping selection)", family.name);
     ttf_.reset();
     freeTtfSources();
     return;
@@ -699,7 +800,7 @@ void SdCardFontSystem::loadTtfFamily(const SdCardFontFamilyInfo& family, GfxRend
   // Seed the regular face's glyph cache; other styles + glyphs fault on demand.
   ttf_->build(" ");
 
-  ttfFontId_ = computeTtfFontId(family.name.c_str(), size);
+  ttfFontId_ = computeTtfFontId(family.name, size);
   renderer.insertFont(ttfFontId_, ttf_->family());
   renderer.registerTtfFont(ttfFontId_, ttf_.get());
   ttfFamily_ = family.name;
@@ -707,7 +808,7 @@ void SdCardFontSystem::loadTtfFamily(const SdCardFontFamilyInfo& family, GfxRend
   LOG_DBG("SDFS", "Reader TTF face loaded (heap free %u, max block %u)", (unsigned)ESP.getFreeHeap(),
           (unsigned)ESP.getMaxAllocHeap());
   setupTtfUiFallbacks(renderer);  // CJK/script UI fallback at the built-in UI sizes
-  LOG_DBG("SDFS", "Loaded TTF font: %s @ %upt (id %d)", family.name.c_str(), size, ttfFontId_);
+  LOG_DBG("SDFS", "Loaded TTF font: %s @ %upt (id %d)", family.name, size, ttfFontId_);
 }
 
 #endif  // CROSSPOINT_VECTOR_FONTS

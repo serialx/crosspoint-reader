@@ -5,6 +5,7 @@ edition = "2021"
 publish = false
 
 [features]
+sd-font-catalog = []
 package-trace = []
 chapter-trace = []
 chapter-test = []

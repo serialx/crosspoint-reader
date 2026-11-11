@@ -225,6 +225,16 @@ unsafe impl ReaderServices for BuildServices {
         self.input.replace_buffer(minimum)
     }
     fn font_variant(&self, font: i32, scale: f32) -> i32 {
+        #[cfg(feature = "sd-font-catalog")]
+        unsafe {
+            if let Some(result) = crate::font_sd::catalog::variant(
+                self.resources.font_owner.get().cast(),
+                font,
+                scale,
+            ) {
+                return result;
+            }
+        }
         unsafe { (self.fonts.variant)(font, scale) }
     }
     fn line_height(&self, font: i32, compression: f32) -> i32 {
@@ -236,6 +246,16 @@ unsafe impl ReaderServices for BuildServices {
             .then_some((advance, top))
     }
     fn font_ready(&self, font: i32, fallback: i32) -> i32 {
+        #[cfg(feature = "sd-font-catalog")]
+        unsafe {
+            if let Some(result) = crate::font_sd::catalog::ready(
+                self.resources.font_owner.get().cast(),
+                font,
+                fallback,
+            ) {
+                return result;
+            }
+        }
         unsafe { (self.fonts.ready)(font, fallback) }
     }
     fn complete(&self, bytes: &[u8], position: Position) -> assembly::Result {

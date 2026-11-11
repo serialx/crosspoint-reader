@@ -37,6 +37,30 @@ impl Drop for Payload {
     }
 }
 
+#[repr(C)]
+pub struct FontOperation {
+    pub operation: u32,
+    pub font: i32,
+    pub argument: u32,
+}
+#[repr(u32)]
+pub enum FontOperationKind {
+    Variant,
+    Ready,
+}
+impl FontOperation {
+    pub fn kind(&self) -> Option<FontOperationKind> {
+        match self.operation {
+            0 => Some(FontOperationKind::Variant),
+            1 => Some(FontOperationKind::Ready),
+            _ => None,
+        }
+    }
+}
+pub type FontFallback = unsafe extern "C" fn(*mut c_void, *const FontOperation) -> i32;
+pub type FontReceiver =
+    unsafe extern "C" fn(*mut c_void, *const FontOperation, FontFallback) -> i32;
+
 /// Input and output spans are synchronous borrows. No callback may reenter assembly.
 #[repr(C)]
 pub struct Callbacks {
@@ -46,11 +70,17 @@ pub struct Callbacks {
     pub reclaim_paragraph_memory: unsafe extern "C" fn(),
     pub entity_lookup: unsafe extern "C" fn(*mut c_void, Span) -> Span,
     pub entity_buffer: unsafe extern "C" fn(*mut c_void, u32) -> Span,
+    #[cfg(any(not(feature = "sd-font-catalog"), feature = "chapter-test", test))]
     pub font_variant: unsafe extern "C" fn(*mut c_void, i32, f32) -> i32,
+    #[cfg(all(feature = "sd-font-catalog", not(any(feature = "chapter-test", test))))]
+    pub font_operation: FontReceiver,
     pub line_height: unsafe extern "C" fn(*mut c_void, i32, f32) -> i32,
     pub codepoint:
         Option<unsafe extern "C" fn(*mut c_void, i32, u32, u8, *mut i32, *mut i32) -> u8>,
+    #[cfg(any(not(feature = "sd-font-catalog"), feature = "chapter-test", test))]
     pub font_ready: unsafe extern "C" fn(*mut c_void, i32, i32) -> i32,
+    #[cfg(all(feature = "sd-font-catalog", not(any(feature = "chapter-test", test))))]
+    pub font_fallback: FontFallback,
     pub complete: unsafe extern "C" fn(*mut c_void, u32, Span, Position) -> u8,
     pub probe_image:
         unsafe extern "C" fn(*mut c_void, Span, *mut i32, *mut bool, *mut u16, *mut u16) -> u8,

@@ -118,6 +118,7 @@ fn file_view(files: &Array<File>) -> registry::Files {
         get: get_file,
     }
 }
+#[repr(C)]
 pub struct Catalog<'a> {
     families: Array<Family>,
     memory: &'a Allocator,

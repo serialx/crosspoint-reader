@@ -228,13 +228,30 @@ __attribute__((weak)) uint8_t xp_native_sd_file_open(XpSdFileSlot*, const char*,
 __attribute__((weak)) int32_t xp_native_sd_file_read(XpSdFileSlot*, uint8_t*, size_t) { std::abort(); }
 __attribute__((weak)) uint8_t xp_native_sd_file_seek(XpSdFileSlot*, uint32_t) { std::abort(); }
 __attribute__((weak)) void xp_native_sd_file_close(XpSdFileSlot*) { std::abort(); }
-__attribute__((weak)) uint8_t* xp_native_sd_allocate(size_t bytes, bool) {
+__attribute__((weak)) uint8_t* xp_native_sd_allocate(size_t bytes,
+#ifdef XP_SD_FONT_CATALOG
+                                                     uint8_t
+#else
+                                                     bool
+#endif
+) {
   return static_cast<uint8_t*>(std::malloc(bytes));
 }
 __attribute__((weak)) void xp_native_sd_free(uint8_t* bytes, bool) { std::free(bytes); }
-__attribute__((weak)) void xp_native_sd_diagnostic(const char*, uint32_t, const uint32_t*, uint32_t, uint32_t, bool) {
+__attribute__((weak)) void xp_native_sd_diagnostic(const char*, uint32_t, const uint32_t*, uint32_t, uint32_t, bool
+#ifdef XP_SD_FONT_CATALOG
+                                                   ,
+                                                   const char*
+#endif
+) {
   std::abort();
 }
+#ifdef XP_SD_FONT_CATALOG
+extern "C" __attribute__((weak)) int32_t xp_native_sd_directory_open(XpSdFileSlot*, const char*) { std::abort(); }
+extern "C" __attribute__((weak)) bool xp_native_sd_directory_next(XpSdFileSlot*, char*, bool*, bool) { std::abort(); }
+extern "C" __attribute__((weak)) bool xp_native_sd_path_exists(const char*) { std::abort(); }
+extern "C" __attribute__((weak)) bool xp_native_sd_inspect(const char*, uint16_t*, bool*) { std::abort(); }
+#endif
 __attribute__((weak)) size_t heap_caps_get_free_size(uint32_t) { return 200 * 1024; }
 __attribute__((weak)) int64_t esp_timer_get_time() { return 0; }
 __attribute__((weak)) void* fiFontMalloc(size_t n) { return std::malloc(n); }

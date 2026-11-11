@@ -719,6 +719,17 @@ enum { XP_CHAPTER_HAS_BYTE_SINK, XP_CHAPTER_BYTE_SINK, XP_CHAPTER_PAGE_SINK };
  * synchronously. table_file calls use once before its local reader expires;
  * native code never accesses state. toc_anchor returns null past the vector,
  * otherwise a span valid until vector mutation. No callback mutates that vector. */
+#ifdef XP_SD_FONT_CATALOG
+typedef enum { XP_CHAPTER_FONT_VARIANT, XP_CHAPTER_FONT_READY } XpChapterFontOperationKind;
+typedef struct {
+  uint32_t operation;
+  int32_t font;
+  uint32_t argument;
+} XpChapterFontOperation;
+typedef int32_t (*XpChapterFontFallback)(void*, const XpChapterFontOperation*);
+typedef int32_t (*XpChapterFontReceiver)(void*, const XpChapterFontOperation*, XpChapterFontFallback);
+int32_t xp_sd_font_chapter(void*, const XpChapterFontOperation*, XpChapterFontFallback);
+#endif
 typedef struct {
   const XpParaAllocator* (*allocator)(void);
   const XpParaMetrics* metrics;
@@ -727,10 +738,18 @@ typedef struct {
   XpChapterSpan (*entity_lookup)(void* context, XpChapterSpan name);
   /* Zero length borrows capacity; nonzero replaces storage on allocation success. */
   XpChapterSpan (*entity_buffer)(void* context, uint32_t length);
+#if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
+  XpChapterFontReceiver font_operation;
+#else
   int32_t (*font_variant)(void* context, int32_t font, float scale);
+#endif
   int32_t (*line_height)(void* context, int32_t font, float compression);
   uint8_t (*codepoint)(void* context, int32_t font, uint32_t codepoint, uint8_t style, int32_t* advance, int32_t* top);
+#if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
+  XpChapterFontFallback font_fallback;
+#else
   int32_t (*font_ready)(void* context, int32_t font, int32_t fallback);
+#endif
   /* HAS_BYTE_SINK returns presence. BYTE_SINK/PAGE_SINK return 0 = success, 1 = stop, other = failure.
    * The callback borrows the page and may set its stop latch; it cannot reenter/destroy the parser. */
   uint8_t (*complete)(void* context, uint32_t operation, XpChapterSpan page, XpChapterPosition position);

@@ -178,7 +178,26 @@ impl Backend {
         unsafe {
             match self {
                 Self::Native { callbacks, context } => {
-                    ((**callbacks).font_variant)(*context, font, scale)
+                    #[cfg(any(not(feature = "sd-font-catalog"), feature = "chapter-test", test))]
+                    {
+                        ((**callbacks).font_variant)(*context, font, scale)
+                    }
+                    #[cfg(all(
+                        feature = "sd-font-catalog",
+                        not(any(feature = "chapter-test", test))
+                    ))]
+                    {
+                        use super::assembly::runtime::{FontOperation, FontOperationKind};
+                        ((**callbacks).font_operation)(
+                            *context,
+                            &FontOperation {
+                                operation: FontOperationKind::Variant as u32,
+                                font,
+                                argument: scale.to_bits(),
+                            },
+                            (**callbacks).font_fallback,
+                        )
+                    }
                 }
                 Self::Reader { services } => services.as_ref().font_variant(font, scale),
             }
@@ -198,7 +217,26 @@ impl Backend {
         unsafe {
             match self {
                 Self::Native { callbacks, context } => {
-                    ((**callbacks).font_ready)(*context, font, fallback)
+                    #[cfg(any(not(feature = "sd-font-catalog"), feature = "chapter-test", test))]
+                    {
+                        ((**callbacks).font_ready)(*context, font, fallback)
+                    }
+                    #[cfg(all(
+                        feature = "sd-font-catalog",
+                        not(any(feature = "chapter-test", test))
+                    ))]
+                    {
+                        use super::assembly::runtime::{FontOperation, FontOperationKind};
+                        ((**callbacks).font_operation)(
+                            *context,
+                            &FontOperation {
+                                operation: FontOperationKind::Ready as u32,
+                                font,
+                                argument: fallback as u32,
+                            },
+                            (**callbacks).font_fallback,
+                        )
+                    }
                 }
                 Self::Reader { services } => services.as_ref().font_ready(font, fallback),
             }

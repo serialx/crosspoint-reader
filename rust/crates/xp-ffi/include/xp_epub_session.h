@@ -4,6 +4,7 @@
 #include "xp_clippings.h"
 #include "xp_display.h"
 #include "xp_ffi.h"
+#include "xp_font_registry.h"
 #include "xp_ui_dictionary.h"
 #include "xp_ui_reader.h"
 #include "xp_ui_reader_chrome.h"
@@ -342,7 +343,11 @@ typedef struct XpEpubLeaves {
   void (*paint_status)(const XpEpubStatus* status);
   void (*image_clear_failures)(void);
   void (*image_release_cache)(void);
+#if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
+  void (*fonts_effect)(uint32_t, XpSdSettings*, XpSdContinuation*);
+#else
   void (*fonts_ensure_loaded)(void);
+#endif
 #ifdef XP_APP_TEST
   void (*fonts_release_caches)(void);
   uint8_t (*fonts_prewarm_begin)(XpEpubFontScan* storage);
@@ -350,7 +355,9 @@ typedef struct XpEpubLeaves {
   void (*fonts_prewarm_drop)(XpEpubFontScan* storage);
 #endif
   uint8_t (*fonts_take_corrupt_notice)(void);
+#ifndef XP_SD_FONT_CATALOG
   uint8_t (*font_sizes)(XpAppText family, XpAppTextSink sink, void* context);
+#endif
   // Font is meaningful only when requested; otherwise font is zero and resolution is skipped.
   void (*settings_snapshot)(uint8_t resolve_font, XpEpubSettings* out);
   void (*settings_render_spec)(uint16_t width, uint16_t height, XpEpubRenderSpec* out);
@@ -565,12 +572,23 @@ XP_EPUB_ASSERT(offsetof(XpEpubRadio, note) == 4, "XpEpubRadio.note");
 XP_EPUB_ASSERT(sizeof(XpEpubPeer) == 82, "XpEpubPeer size");
 XP_EPUB_ASSERT(offsetof(XpEpubPeer, name) == 0, "XpEpubPeer.name");
 XP_EPUB_ASSERT(offsetof(XpEpubPeer, addr) == 64, "XpEpubPeer.addr");
+#ifdef XP_SD_FONT_CATALOG
+#ifdef XP_APP_TEST
+#define XP_EPUB_LEAF_INDEX(index) \
+  ((index) + ((index) >= 24 ? 4 : 0) + ((index) >= 132 ? 1 : 0) - ((index) >= 26 ? 1 : 0))
+#define XP_EPUB_LEAF_COUNT 167
+#else
+#define XP_EPUB_LEAF_INDEX(index) ((index) - ((index) >= 26 ? 1 : 0))
+#define XP_EPUB_LEAF_COUNT 162
+#endif
+#else
 #ifdef XP_APP_TEST
 #define XP_EPUB_LEAF_INDEX(index) ((index) + ((index) >= 24 ? 4 : 0) + ((index) >= 132 ? 1 : 0))
 #define XP_EPUB_LEAF_COUNT 168
 #else
 #define XP_EPUB_LEAF_INDEX(index) (index)
 #define XP_EPUB_LEAF_COUNT 163
+#endif
 #endif
 XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == XP_EPUB_LEAF_COUNT * sizeof(void (*)(void)), "XpEpubLeaves size");
 #define XP_EPUB_LEAF_OFFSET(field, index)                                                             \
@@ -599,7 +617,11 @@ XP_EPUB_LEAF_OFFSET(paint_pixel, 19);
 XP_EPUB_LEAF_OFFSET(paint_status, 20);
 XP_EPUB_LEAF_OFFSET(image_clear_failures, 21);
 XP_EPUB_LEAF_OFFSET(image_release_cache, 22);
+#if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
+XP_EPUB_LEAF_OFFSET(fonts_effect, 23);
+#else
 XP_EPUB_LEAF_OFFSET(fonts_ensure_loaded, 23);
+#endif
 #ifdef XP_APP_TEST
 XP_EPUB_ASSERT(offsetof(XpEpubLeaves, fonts_release_caches) == 24 * sizeof(void (*)(void)), "host font fixture offset");
 #endif
@@ -614,7 +636,9 @@ XP_EPUB_ASSERT(offsetof(XpEpubLeaves, fonts_prewarm_finish_scan) == 26 * sizeof(
 XP_EPUB_ASSERT(offsetof(XpEpubLeaves, fonts_prewarm_drop) == 27 * sizeof(void (*)(void)), "host font fixture offset");
 #endif
 XP_EPUB_LEAF_OFFSET(fonts_take_corrupt_notice, 24);
+#ifndef XP_SD_FONT_CATALOG
 XP_EPUB_LEAF_OFFSET(font_sizes, 25);
+#endif
 XP_EPUB_LEAF_OFFSET(settings_snapshot, 26);
 XP_EPUB_LEAF_OFFSET(settings_render_spec, 27);
 XP_EPUB_LEAF_OFFSET(settings_orientation, 28);
@@ -724,7 +748,11 @@ XP_EPUB_LEAF_OFFSET(child_utility_footer, 129);
 XP_EPUB_LEAF_OFFSET(child_qr_draw, 130);
 XP_EPUB_LEAF_OFFSET(child_toolbar_icon, 131);
 #ifdef XP_APP_TEST
+#ifdef XP_SD_FONT_CATALOG
+XP_EPUB_ASSERT(offsetof(XpEpubLeaves, child_clear_fonts) == 135 * sizeof(void (*)(void)), "host font fixture offset");
+#else
 XP_EPUB_ASSERT(offsetof(XpEpubLeaves, child_clear_fonts) == 136 * sizeof(void (*)(void)), "host font fixture offset");
+#endif
 #endif
 XP_EPUB_LEAF_OFFSET(child_prewarm_rows, 132);
 XP_EPUB_LEAF_OFFSET(child_lookup_init, 133);

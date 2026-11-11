@@ -76,7 +76,10 @@ impl<'a> Control<'a> {
         }
     }
     pub fn begin(&mut self) -> Result<(), Allocation> {
-        if self.variants.reserve_exact(5, self.memory) {
+        self.begin_with(self.memory)
+    }
+    pub fn begin_with(&mut self, memory: &Allocator) -> Result<(), Allocation> {
+        if self.variants.reserve_exact(5, memory) {
             Ok(())
         } else {
             Err(Allocation)
@@ -272,6 +275,19 @@ impl<'a> Control<'a> {
         registry: *mut Registry,
         load: impl FnOnce(&CStr) -> Option<FaceOwner<'a>>,
     ) -> Result<bool, LoadError> {
+        self.variant_with(family, points, id, || largest, registry, load)
+    }
+    /// # Safety
+    /// Same loan contract as variant; heap is queried only for a new variant.
+    pub unsafe fn variant_with(
+        &mut self,
+        family: &Family,
+        points: u8,
+        id: i32,
+        largest: impl FnOnce() -> u32,
+        registry: *mut Registry,
+        load: impl FnOnce(&CStr) -> Option<FaceOwner<'a>>,
+    ) -> Result<bool, LoadError> {
         if let Some(v) = self.variants.values_mut().iter_mut().find(|v| v.id == id) {
             self.clock = self.clock.wrapping_add(1);
             v.used = self.clock;
@@ -280,7 +296,7 @@ impl<'a> Control<'a> {
         if self.get(family.name(), points) == id {
             return Ok(true);
         }
-        if largest < 48 * 1024 {
+        if largest() < 48 * 1024 {
             return Ok(false);
         }
         if self.variants.capacity() < 5 {
@@ -331,7 +347,7 @@ pub fn variant_id(reader: i32, points: u8) -> i32 {
         hash = (hash ^ u32::from(byte)).wrapping_mul(16777619);
     }
     hash = (hash ^ u32::from(points)).wrapping_mul(16777619);
-    hash = (hash ^ 0x56415200).wrapping_mul(16777619);
+    hash ^= 0x56415200;
     if hash == 0 {
         1
     } else {

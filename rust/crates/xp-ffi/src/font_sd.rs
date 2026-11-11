@@ -22,6 +22,10 @@ use xp_core::{
     },
 };
 
+#[cfg(any(test, feature = "sd-font-catalog"))]
+#[path = "font_catalog.rs"]
+pub(crate) mod catalog;
+
 extern "C" {
     #[cfg(not(target_has_atomic = "8"))]
     fn __atomic_exchange_1(value: *mut u8, desired: u8, order: i32) -> u8;
@@ -32,6 +36,9 @@ extern "C" {
     fn xp_native_sd_file_read(slot: *mut Slot, bytes: *mut u8, length: usize) -> i32;
     fn xp_native_sd_file_seek(slot: *mut Slot, offset: u32) -> u8;
     fn xp_native_sd_file_close(slot: *mut Slot);
+    #[cfg(any(test, feature = "sd-font-catalog"))]
+    fn xp_native_sd_allocate(bytes: usize, domain: u8) -> *mut u8;
+    #[cfg(not(any(test, feature = "sd-font-catalog")))]
     fn xp_native_sd_allocate(bytes: usize, resident: bool) -> *mut u8;
     fn xp_native_sd_free(bytes: *mut u8, resident: bool);
     fn xp_native_sd_diagnostic(
@@ -41,6 +48,7 @@ extern "C" {
         style: u32,
         index: u32,
         seek_failed: bool,
+        #[cfg(any(test, feature = "sd-font-catalog"))] other: *const c_char,
     );
     fn heap_caps_get_largest_free_block(caps: u32) -> usize;
     fn heap_caps_get_free_size(caps: u32) -> usize;
@@ -54,10 +62,28 @@ pub(crate) static MEMORY: Allocator = Allocator {
     free_resident: xp_native_sd_free,
 };
 unsafe extern "C" fn allocate_internal(bytes: usize) -> *mut u8 {
-    xp_native_sd_allocate(bytes, false)
+    #[cfg(any(test, feature = "sd-font-catalog"))]
+    {
+        xp_native_sd_allocate(bytes, 0)
+    }
+    #[cfg(not(any(test, feature = "sd-font-catalog")))]
+    {
+        xp_native_sd_allocate(bytes, false)
+    }
 }
 unsafe extern "C" fn allocate_resident(bytes: usize) -> *mut u8 {
-    xp_native_sd_allocate(bytes, true)
+    #[cfg(any(test, feature = "sd-font-catalog"))]
+    {
+        xp_native_sd_allocate(bytes, 1)
+    }
+    #[cfg(not(any(test, feature = "sd-font-catalog")))]
+    {
+        xp_native_sd_allocate(bytes, true)
+    }
+}
+#[cfg(any(test, feature = "sd-font-catalog"))]
+unsafe extern "C" fn allocate(bytes: usize, resident: bool) -> *mut u8 {
+    xp_native_sd_allocate(bytes, u8::from(resident))
 }
 unsafe extern "C" fn free_internal(bytes: *mut u8, _: usize) {
     xp_native_sd_free(bytes, false)
@@ -104,6 +130,8 @@ unsafe impl io::Physical for Physical {
                 0,
                 0,
                 false,
+                #[cfg(any(test, feature = "sd-font-catalog"))]
+                ptr::null(),
             );
         }
     }
@@ -116,6 +144,8 @@ unsafe impl io::Physical for Physical {
                 style,
                 index,
                 false,
+                #[cfg(any(test, feature = "sd-font-catalog"))]
+                ptr::null(),
             );
         }
     }
@@ -169,6 +199,8 @@ unsafe extern "C" fn corrupt(raw: *mut c_void, glyph: *const Glyph, cp: u32) {
             0,
             0,
             false,
+            #[cfg(any(test, feature = "sd-font-catalog"))]
+            ptr::null(),
         );
     }
 }
@@ -181,6 +213,8 @@ unsafe extern "C" fn diagnostic(raw: *mut c_void, event: u32, a: u32, b: u32, c:
         0,
         0,
         io.files.seek_failed(),
+        #[cfg(any(test, feature = "sd-font-catalog"))]
+        ptr::null(),
     );
 }
 unsafe fn with_pool<R>(
@@ -202,6 +236,9 @@ unsafe fn with_pool<R>(
         open,
         close,
         read,
+        #[cfg(any(test, feature = "sd-font-catalog"))]
+        alloc: allocate,
+        #[cfg(not(any(test, feature = "sd-font-catalog")))]
         alloc: xp_native_sd_allocate,
         free: xp_native_sd_free,
         heap,
@@ -217,6 +254,35 @@ unsafe extern "C" fn miss(context: *mut c_void, cp: u32) -> *const Glyph {
 }
 pub(crate) unsafe fn control<'a>(owner: *const Owner) -> &'a mut Control<'static> {
     &mut *(*owner).sd.get()
+}
+/// # Safety
+/// Context lends an initialized owner; request and fallback are synchronous and
+/// serialized. Fallback handles builtin/vector fonts only and cannot reenter SD.
+#[cfg(any(test, feature = "sd-font-catalog"))]
+#[no_mangle]
+pub unsafe extern "C" fn xp_sd_font_chapter(
+    context: *mut c_void,
+    request: *const xp_core::chapter::assembly::runtime::FontOperation,
+    fallback: xp_core::chapter::assembly::runtime::FontFallback,
+) -> i32 {
+    use xp_core::chapter::assembly::runtime::FontOperationKind;
+    let request = &*request;
+    let Some(kind) = request.kind() else { return 0 };
+    let owner = xp_native_chapter_font_owner(context);
+    let result = match kind {
+        FontOperationKind::Variant => {
+            catalog::variant(owner, request.font, f32::from_bits(request.argument))
+        }
+        FontOperationKind::Ready => catalog::ready(owner, request.font, request.argument as i32),
+    };
+    result.unwrap_or_else(|| fallback(context, request))
+}
+#[cfg(any(test, feature = "sd-font-catalog"))]
+unsafe fn load_face(owner: *const Owner, path: &CStr) -> Option<FaceOwner<'static>> {
+    let mut files = pin!(io::Files::new(Physical));
+    let mut face = FaceOwner::load(path, files.as_mut(), MEMORY, &(*owner).intervals)?;
+    face.bind((*owner).registry.generation, miss);
+    Some(face)
 }
 pub(crate) unsafe fn resolve(owner: *const Owner, id: i32, style: u8) -> Option<u8> {
     control(owner)

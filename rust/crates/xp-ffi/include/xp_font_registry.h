@@ -6,17 +6,30 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-// Inline registry, cache, decoder and scan storage: 4,252 B on C3, 4,928 B on host.
+// Inline registry, cache, decoder and scan storage; dormant catalog expands it only when enabled.
 // Cache buffers use the font allocator; owner initialization allocates nothing.
 typedef struct {
+#ifdef XP_SD_FONT_CATALOG
+  uintptr_t words[sizeof(void*) == 8 ? 621 : 1068];
+#else
   uintptr_t words[sizeof(void*) == 8 ? 616 : 1063];
+#endif
 } XpLoadedFonts;
 typedef struct {
   int32_t id;
   const void* const* slots[4];
   int32_t fallback;
 } XpRegisteredFont;
-typedef enum { XP_FONT_REGISTER, XP_FONT_REMOVE, XP_FONT_FALLBACK, XP_FONT_CLEAR_FALLBACKS } XpFontUpdate;
+typedef enum {
+  XP_FONT_REGISTER,
+  XP_FONT_REMOVE,
+  XP_FONT_FALLBACK,
+  XP_FONT_CLEAR_FALLBACKS
+#ifdef XP_SD_FONT_CATALOG
+  ,
+  XP_FONT_ENSURE_LOADED
+#endif
+} XpFontUpdate;
 typedef enum {
   XP_FONT_BY_ID,
   XP_FONT_AT,
@@ -90,6 +103,75 @@ const XpLoadedFonts* xp_native_chapter_font_owner(void*);
 void xp_sd_font_prepare_chapter(void*, int32_t, const XpParaSpan*, uint32_t, uint8_t space, uint8_t hyphen,
                                 uint8_t styles, uint8_t small);
 uint8_t xp_sd_font_take_corrupt_notice(void);
+#ifdef XP_SD_FONT_CATALOG
+typedef struct {
+  const char* name;
+  uint8_t pointSize, style;
+} XpSdFile;
+typedef enum {
+  XP_SD_COUNT,
+  XP_SD_AT,
+  XP_SD_FIND,
+  XP_SD_PATH,
+  XP_SD_ROOT,
+  XP_SD_WRITE_ROOT,
+  XP_SD_LOADED_ID
+} XpSdCatalogOperation;
+typedef struct {
+  uint32_t operation;
+  size_t index, file;
+  const uint8_t* name;
+  size_t length;
+  uint8_t* output;
+  size_t capacity;
+} XpSdCatalogQuery;
+typedef struct {
+  const char* name;
+  size_t length;
+  const char* root;
+  const XpSdFile* files;
+  size_t count;
+  uint32_t sizes[8];
+  int32_t id;
+  bool vector, loose;
+} XpSdCatalogView;
+// COUNT returns count; AT/FIND return index+1; PATH returns success; ROOT/WRITE_ROOT
+// return a static root address. Views borrow names/files until rediscovery/drop.
+uintptr_t xp_sd_catalog_query(const XpLoadedFonts*, const XpSdCatalogQuery*, XpSdCatalogView*);
+typedef enum { XP_SD_MARK_DIRTY, XP_SD_REFRESH_DIRTY, XP_SD_DISCOVER } XpSdCatalogUpdate;
+// Mark is concurrent-safe; refresh/discover are serialized and report rediscovery.
+bool xp_sd_catalog_dirty(const XpLoadedFonts*, uint8_t operation, bool vectors);
+typedef struct {
+  char* family;
+  uint8_t* points;
+  int32_t ui[3];
+  bool vectors, vector_loaded;
+  XpSdCatalogView vector_family;
+  size_t vector_index;
+} XpSdSettings;
+typedef struct XpSdContinuation {
+  const struct XpSdContinuation* address;
+  const XpLoadedFonts* owner;
+  const XpSdSettings* request;
+  uint32_t epoch, step;
+  bool dirty, boot;
+} XpSdContinuation;
+typedef enum {
+  XP_SD_COMPLETE,
+  XP_SD_PERSIST_SETTINGS,
+  XP_SD_UNLOAD_VECTOR,
+  XP_SD_LOAD_VECTOR,
+  XP_SD_REJECTED,
+  XP_SD_PREPARE_VECTOR,
+  XP_SD_BORROW_SETTINGS
+} XpSdAction;
+// Zero token starts ensure. Resume uses the same owner/settings/token storage.
+// Effects execute after return. Vector unregister effects acknowledge the current
+// owner generation in epoch; no reference or source loan crosses an effect.
+XpSdAction xp_sd_fonts_begin(const XpLoadedFonts*, XpSdSettings*, XpSdContinuation*);
+XpSdAction xp_sd_fonts_ensure(const XpLoadedFonts*, XpSdSettings*, XpSdContinuation*);
+int32_t xp_sd_font_variant(const XpLoadedFonts*, int32_t, float scale);
+#endif
 // Vector compatibility remains; SD policy uses the Rust owner directly.
 #ifdef XP_APP_TEST
 uint8_t xp_native_font_compat_resolve(void*, int32_t font, uint8_t style);
@@ -112,8 +194,10 @@ void xp_native_sd_font_view(void*, int32_t font, XpNativeFamily*, XpGlyphSource*
 void xp_native_sd_font_resident_slice(void*, int32_t font, uint8_t style, const uint8_t*, size_t, uint8_t metadata);
 
 #endif
-// Cold absent-ID loading remains with the native system until CP2b.
+// Default cold absent-ID loading stays native until CP2b-A; catalog builds use PT-VEC only.
+#if !defined(XP_SD_FONT_CATALOG) || defined(BOARD_HAS_PSRAM) || defined(XP_APP_TEST)
 uint8_t xp_native_sd_font_load(void*, int32_t font);
+#endif
 void xp_native_font_diagnostic(void*, uint32_t event, uint32_t value);
 #ifdef __cplusplus
 }

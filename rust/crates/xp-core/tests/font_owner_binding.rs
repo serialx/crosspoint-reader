@@ -19,6 +19,9 @@ use core::{
 };
 use font_registry::{xp_font_registry_init, Owner};
 
+#[path = "support/font_catalog.rs"]
+mod catalog_cases;
+
 static ALLOCATIONS: AtomicUsize = AtomicUsize::new(0);
 
 #[test]
@@ -144,10 +147,13 @@ unused_native!(xp_native_font_diagnostic(native: *mut c_void, event: u32, value:
 unused_native!(xp_native_bidi_acquire() -> *mut xp_core::bidi::Workspace);
 unused_native!(xp_native_bidi_release());
 
-unused_native!(xp_native_chapter_font_owner(context: *mut c_void) -> *const Owner);
+#[no_mangle]
+unsafe extern "C" fn xp_native_chapter_font_owner(context: *mut c_void) -> *const Owner {
+    context.cast()
+}
 #[no_mangle]
 unsafe extern "C" fn heap_caps_get_largest_free_block(_: u32) -> usize {
-    0
+    catalog_cases::largest()
 }
 
 thread_local! {
@@ -182,7 +188,10 @@ const SD_BYTES: [u8; 152] = {
 };
 
 #[no_mangle]
-unsafe extern "C" fn xp_native_sd_allocate(bytes: usize, _: bool) -> *mut u8 {
+unsafe extern "C" fn xp_native_sd_allocate(bytes: usize, domain: u8) -> *mut u8 {
+    if catalog_cases::fail_alloc(domain) {
+        return ptr::null_mut();
+    }
     let layout =
         std::alloc::Layout::from_size_align(bytes.max(1), core::mem::align_of::<usize>()).unwrap();
     let data = std::alloc::alloc(layout);
@@ -214,6 +223,9 @@ unsafe extern "C" fn xp_native_sd_file_open(
     _: *const core::ffi::c_char,
     size: *mut u32,
 ) -> u8 {
+    if catalog_cases::fail_io() {
+        return 0;
+    }
     slot.cast::<usize>().write(0);
     *size = SD_BYTES.len() as u32;
     1
@@ -224,6 +236,9 @@ unsafe extern "C" fn xp_native_sd_file_read(
     bytes: *mut u8,
     length: usize,
 ) -> i32 {
+    if catalog_cases::fail_io() {
+        return 0;
+    }
     let position = slot.cast::<usize>().read();
     let count = length.min(SD_BYTES.len().saturating_sub(position));
     ptr::copy_nonoverlapping(SD_BYTES.as_ptr().add(position), bytes, count);
@@ -235,7 +250,7 @@ unsafe extern "C" fn xp_native_sd_file_seek(
     slot: *mut xp_core::sdfont::io::Slot,
     offset: u32,
 ) -> u8 {
-    if offset as usize > SD_BYTES.len() {
+    if catalog_cases::fail_io() || offset as usize > SD_BYTES.len() {
         return 0;
     }
     slot.cast::<usize>().write(offset as usize);
@@ -251,6 +266,7 @@ unsafe extern "C" fn xp_native_sd_diagnostic(
     _: u32,
     _: u32,
     _: bool,
+    _: *const core::ffi::c_char,
 ) {
 }
 
@@ -333,4 +349,33 @@ fn retained_family_name(expected: &core::ffi::CStr) {
         font_registry::xp_font_registry_drop(owner);
     }
     SD_ALLOCATIONS.with(|live| assert!(live.borrow().is_empty()));
+}
+
+#[no_mangle]
+unsafe extern "C" fn xp_native_sd_directory_open(
+    slot: *mut xp_core::sdfont::io::Slot,
+    path: *const core::ffi::c_char,
+) -> i32 {
+    catalog_cases::directory_open(slot, path)
+}
+#[no_mangle]
+unsafe extern "C" fn xp_native_sd_directory_next(
+    slot: *mut xp_core::sdfont::io::Slot,
+    name: *mut u8,
+    directory: *mut bool,
+    _: bool,
+) -> bool {
+    catalog_cases::directory_next(slot, name, directory)
+}
+#[no_mangle]
+unsafe extern "C" fn xp_native_sd_path_exists(_: *const core::ffi::c_char) -> bool {
+    false
+}
+#[no_mangle]
+unsafe extern "C" fn xp_native_sd_inspect(
+    _: *const core::ffi::c_char,
+    _: *mut u16,
+    _: *mut bool,
+) -> bool {
+    false
 }

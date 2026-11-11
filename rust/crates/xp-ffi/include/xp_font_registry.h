@@ -10,7 +10,11 @@ extern "C" {
 // Cache buffers use the font allocator; owner initialization allocates nothing.
 typedef struct {
 #ifdef XP_SD_FONT_CATALOG
+#if defined(BOARD_HAS_PSRAM) && !defined(XP_APP_TEST)
+  uintptr_t words[sizeof(void*) == 8 ? 686 : 1133];
+#else
   uintptr_t words[sizeof(void*) == 8 ? 621 : 1068];
+#endif
 #else
   uintptr_t words[sizeof(void*) == 8 ? 616 : 1063];
 #endif
@@ -164,9 +168,12 @@ typedef struct {
   char* family;
   uint8_t* points;
   int32_t ui[3];
-  bool vectors, vector_loaded;
+  bool vectors;
+#ifdef XP_APP_TEST
+  bool vector_loaded;
   XpSdCatalogView vector_family;
   size_t vector_index;
+#endif
 } XpSdSettings;
 typedef struct XpSdContinuation {
   const struct XpSdContinuation* address;
@@ -178,29 +185,23 @@ typedef struct XpSdContinuation {
 typedef enum {
   XP_SD_COMPLETE,
   XP_SD_PERSIST_SETTINGS,
-  XP_SD_UNLOAD_VECTOR,
-  XP_SD_LOAD_VECTOR,
-  XP_SD_REJECTED,
-  XP_SD_PREPARE_VECTOR,
-  XP_SD_BORROW_SETTINGS
+#ifdef XP_APP_TEST
+  XP_SD_UNLOAD_VECTOR = 2,
+  XP_SD_LOAD_VECTOR = 3,
+#endif
+  XP_SD_REJECTED = 4,
+#ifdef XP_APP_TEST
+  XP_SD_PREPARE_VECTOR = 5,
+#endif
+  XP_SD_BORROW_SETTINGS = 6
 } XpSdAction;
 // Zero token starts ensure. Resume uses the same owner/settings/token storage.
-// Effects execute after return. Vector unregister effects acknowledge the current
-// owner generation in epoch; no reference or source loan crosses an effect.
+// Settings effects execute after return; no font/source loan crosses an effect.
 XpSdAction xp_sd_fonts_begin(const XpLoadedFonts*, XpSdSettings*, XpSdContinuation*);
 XpSdAction xp_sd_fonts_ensure(const XpLoadedFonts*, XpSdSettings*, XpSdContinuation*);
 int32_t xp_sd_font_variant(const XpLoadedFonts*, int32_t, float scale);
 #endif
-// Vector compatibility remains; SD policy uses the Rust owner directly.
-int32_t xp_native_font_compat_prewarm(void*, int32_t font, uint8_t backend, const char* text, uint8_t styles,
-                                      uint8_t metadata, uint8_t kern_lig, uint8_t accumulate);
-void xp_native_font_compat_clear(void*, int32_t font, uint8_t backend, uint8_t resident);
-
 void xp_native_font_cache_diagnostic(const void* font, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d);
-// Legacy hosts retain native absent-ID loading; shipping native providers serve PT-VEC only.
-#if !defined(XP_SD_FONT_CATALOG) || defined(BOARD_HAS_PSRAM) || defined(XP_APP_TEST)
-uint8_t xp_native_sd_font_load(void*, int32_t font);
-#endif
 void xp_native_font_diagnostic(void*, uint32_t event, uint32_t value);
 #ifdef __cplusplus
 }

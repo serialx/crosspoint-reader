@@ -342,7 +342,9 @@ unsafe fn ensure_reader_fonts(services: &base::Services) {
         if matches!(action, Action::Complete) {
             break;
         }
-        let terminal = matches!(action, Action::Rejected | Action::LoadVector);
+        let terminal = matches!(action, Action::Rejected);
+        #[cfg(all(not(feature = "vector-fonts"), any(test, feature = "app-test")))]
+        let terminal = terminal || matches!(action, Action::LoadVector);
         effect(action);
         if terminal {
             break;

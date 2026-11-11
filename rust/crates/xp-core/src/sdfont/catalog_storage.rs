@@ -8,18 +8,31 @@ union Text {
     heap: *mut u8,
 }
 #[repr(C)]
-pub(super) struct Name {
+pub struct Name {
     text: Text,
     length: usize,
     capacity: usize,
 }
 impl Name {
+    #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {
             text: Text { inline: [0; 16] },
             length: 0,
             capacity: 15,
         }
+    }
+    pub fn copy(bytes: &[u8], memory: &Allocator) -> Option<Self> {
+        let mut name = Self::new();
+        if bytes.len() > 15 {
+            let data = unsafe { (memory.styles)(bytes.len().checked_add(1)?) };
+            if data.is_null() {
+                return None;
+            }
+            name.text = Text { heap: data };
+            name.capacity = bytes.len();
+        }
+        name.assign(bytes, memory).then_some(name)
     }
     fn pointer(&self) -> *const u8 {
         unsafe { Self::pointer_raw(self) }
@@ -85,12 +98,13 @@ impl Name {
 }
 
 #[repr(C)]
-pub(super) struct Array<T> {
+pub struct Array<T> {
     data: *mut T,
     length: usize,
     capacity: usize,
 }
 impl<T> Array<T> {
+    #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {
             data: ptr::null_mut(),

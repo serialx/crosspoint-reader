@@ -133,6 +133,7 @@ pub struct XpEpubGeometry {
     pub async_refresh: u8,
     pub xteink_panel: u8,
     pub a4: u8,
+    #[cfg(feature = "app-test")]
     pub has_ttf: u8,
     pub strip_enabled: u8,
     pub has_font_cache: u8,
@@ -686,7 +687,10 @@ const _: fn(&XpEpubLeaves) = |leaves| {
 const _: () = {
     assert!(core::mem::size_of::<XpEpubGeometry>() == 32);
     assert!(core::mem::align_of::<XpEpubGeometry>() == 4);
-    assert!(core::mem::offset_of!(XpEpubGeometry, has_font_cache) == 31);
+    assert!(
+        core::mem::offset_of!(XpEpubGeometry, has_font_cache)
+            == 30 + cfg!(feature = "app-test") as usize
+    );
 };
 
 const _: () = {

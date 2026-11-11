@@ -21,7 +21,7 @@ add_executable(GlyphDiff GlyphDiff.cpp Abi.cpp ${INSTRUMENTED}/GfxRenderer.cpp
 
   ${REPO_ROOT}/lib/EpdFont/EpdFont.cpp ${REPO_ROOT}/lib/EpdFont/EpdFontFamily.cpp
   ${INSTRUMENTED}/SdCardFont.cpp ${INSTRUMENTED}/FontDecompressor.cpp
-  ${REPO_ROOT}/lib/EpdFont/TtfEpdFont.cpp
+  ${REPO_ROOT}/test/vector_font/legacy/TtfEpdFont.cpp
   ${REPO_ROOT}/lib/MiniBidi/RustBidi.cpp
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp ${REPO_ROOT}/lib/InflateReader/InflateReader.cpp
   ${REPO_ROOT}/lib/Memory/BuildScratch.cpp

@@ -34,18 +34,22 @@ extern "C" {
     #[cfg(not(target_has_atomic = "8"))]
     fn __atomic_exchange_1(value: *mut u8, desired: u8, order: i32) -> u8;
     fn xp_native_chapter_font_owner(context: *mut c_void) -> *const Owner;
-    fn xp_native_sd_handle_init(slot: *mut Slot);
-    fn xp_native_sd_handle_destroy(slot: *mut Slot);
-    fn xp_native_sd_file_open(slot: *mut Slot, path: *const c_char, size: *mut u32) -> u8;
-    fn xp_native_sd_file_read(slot: *mut Slot, bytes: *mut u8, length: usize) -> i32;
-    fn xp_native_sd_file_seek(slot: *mut Slot, offset: u32) -> u8;
-    fn xp_native_sd_file_close(slot: *mut Slot);
+    pub(crate) fn xp_native_sd_handle_init(slot: *mut Slot);
+    pub(crate) fn xp_native_sd_handle_destroy(slot: *mut Slot);
+    pub(crate) fn xp_native_sd_file_open(
+        slot: *mut Slot,
+        path: *const c_char,
+        size: *mut u32,
+    ) -> u8;
+    pub(crate) fn xp_native_sd_file_read(slot: *mut Slot, bytes: *mut u8, length: usize) -> i32;
+    pub(crate) fn xp_native_sd_file_seek(slot: *mut Slot, offset: u32) -> u8;
+    pub(crate) fn xp_native_sd_file_close(slot: *mut Slot);
     #[cfg(any(test, feature = "sd-font-catalog"))]
-    fn xp_native_sd_allocate(bytes: usize, domain: u8) -> *mut u8;
+    pub(crate) fn xp_native_sd_allocate(bytes: usize, domain: u8) -> *mut u8;
     #[cfg(not(any(test, feature = "sd-font-catalog")))]
-    fn xp_native_sd_allocate(bytes: usize, resident: bool) -> *mut u8;
-    fn xp_native_sd_free(bytes: *mut u8, resident: bool);
-    fn xp_native_sd_diagnostic(
+    pub(crate) fn xp_native_sd_allocate(bytes: usize, resident: bool) -> *mut u8;
+    pub(crate) fn xp_native_sd_free(bytes: *mut u8, resident: bool);
+    pub(crate) fn xp_native_sd_diagnostic(
         path: *const c_char,
         event: u32,
         args: *const u32,
@@ -54,8 +58,8 @@ extern "C" {
         seek_failed: bool,
         #[cfg(any(test, feature = "sd-font-catalog"))] other: *const c_char,
     );
-    fn heap_caps_get_largest_free_block(caps: u32) -> usize;
-    fn heap_caps_get_free_size(caps: u32) -> usize;
+    pub(crate) fn heap_caps_get_largest_free_block(caps: u32) -> usize;
+    pub(crate) fn heap_caps_get_free_size(caps: u32) -> usize;
     fn esp_timer_get_time() -> i64;
 }
 static CORRUPT_NOTICE: AtomicBool = AtomicBool::new(false);

@@ -321,15 +321,19 @@ pub unsafe extern "C" fn xp_font_discover(
 ) -> bool {
     registry::discover(&*io, hidden, visible, maximum)
 }
+#[cfg(any(test, feature = "app-test"))]
 use xp_core::font::vector;
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_vector_glyph(io: *const vector::Services, cp: u32) -> *const Glyph {
     vector::glyph(&*io, cp)
 }
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_vector_kern(io: *const vector::Services, left: u32, right: u32) -> i8 {
     vector::kern(&*io, left, right)
 }
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_vector_init(
     io: *const vector::Services,
@@ -337,6 +341,7 @@ pub unsafe extern "C" fn xp_vector_init(
 ) {
     vector::init(&*io, sources);
 }
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_vector_load(
     family: *const vector::Family,
@@ -347,10 +352,12 @@ pub unsafe extern "C" fn xp_vector_load(
 ) -> bool {
     vector::load(&*family, point_size, two_bit, cap, maximum)
 }
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_vector_clear(family: *const vector::Family, resident: bool) {
     vector::clear(&*family, resident);
 }
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_vector_prewarm(
     family: *const vector::Family,
@@ -368,10 +375,12 @@ pub unsafe extern "C" fn xp_vector_prewarm(
         reset,
     )
 }
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_vector_coverage(io: *const vector::Services, cp: u32) -> bool {
     vector::coverage(&*io, cp)
 }
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_vector_metrics(io: *const vector::Services, data: *mut FontData) {
     vector::metrics(&*io, data);

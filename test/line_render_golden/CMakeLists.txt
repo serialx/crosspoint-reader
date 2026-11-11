@@ -37,7 +37,7 @@ add_custom_command(OUTPUT ${EXTRACTED}
     ${REPO_ROOT}/src/activities/reader/ClipSelectionActivity.h VERBATIM)
 add_executable(LineRenderGolden LineRenderGolden.cpp ${LINE_SOURCES} ${EXTRACTED}
   ${REPO_ROOT}/src/activities/settings/TextSettingsPreview.cpp)
-target_include_directories(LineRenderGolden BEFORE PRIVATE stubs ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(LineRenderGolden BEFORE PRIVATE ${REPO_ROOT}/test/vector_font/legacy stubs ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(LineRenderGolden PRIVATE ${PAGE_INCLUDES} ${REPO_ROOT}/test/page_golden)
 target_compile_definitions(LineRenderGolden PRIVATE ${PAGE_DEFINES})
 target_compile_options(LineRenderGolden PRIVATE ${PAGE_OPTIONS})

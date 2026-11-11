@@ -70,8 +70,10 @@ class GfxRenderer {
   mutable std::map<int, SdCardFont*> sdCardFonts_;
   mutable std::map<int, uint16_t> sdCardFontScales_;
 #endif
-  // Vector ownership remains native until PT-VEC.
+  // Native vector map exists only for historical host oracles.
+#ifdef XP_APP_TEST
   mutable std::map<int, TtfEpdFont*> ttfFonts_;
+#endif
 
   // Mutable because drawText() is const but needs to delegate scan-mode
   // recording to the (non-const) FontCacheManager. Same pragmatic compromise
@@ -102,7 +104,9 @@ class GfxRenderer {
   mutable int clipBottom_ = 32767;
 
   // Resolves sized reader-font variants and loads absent variants on demand.
+#if defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
   FontVariantProvider fontVariantProvider_;
+#endif
 
   // If `text` contains a CJK codepoint that `fontId` cannot render and `fontId`
   // has a registered fallback, returns the fallback id; otherwise returns
@@ -238,6 +242,7 @@ class GfxRenderer {
 #endif
     return xp_font_registry_query(fontMap.raw(), XP_FONT_SD, fontId, 0, nullptr).value != 0;
   }
+#ifdef XP_APP_TEST
   // TTF (vector) fonts rendered via TtfEpdFont/FreeInkFont. Registered like an
   // ordinary EpdFontFamily (insertFont), plus tracked here so ensureSdCardFontReady()
   // rebuilds their per-page glyph set on demand — the eager analogue of the SD
@@ -251,6 +256,7 @@ class GfxRenderer {
     ttfFonts_.erase(fontId);
   }
   const std::map<int, TtfEpdFont*>& getTtfFonts() const { return ttfFonts_; }
+#endif
   // Fallback IDs live in the Rust loaded-font registry via FontRegistry::setFallback.
   // A size-matched SD fallback routes the whole UI string when the primary lacks CJK coverage.
   // resolveTextFontId() queries that registry through fontMap.fallback().
@@ -263,14 +269,20 @@ class GfxRenderer {
     fontMap.clearFallbacks();
   }
 
+#if defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
   void setFontVariantProvider(const FontVariantProvider& provider) { fontVariantProvider_ = provider; }
+#endif
   int resolveFontVariant(int fontId, float scale) const;
   int resolveNonSdFontVariant(int fontId, float scale) const;
   // Native fallback is restricted to builtin/vector fonts in catalog builds.
   bool ensureNonSdFontLoaded(const int fontId) const {
+#if defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
     return fontMap.count(fontId) ||
            (fontVariantProvider_.load && fontVariantProvider_.load(fontVariantProvider_.ctx, fontId) &&
             fontMap.count(fontId));
+#else
+    return fontMap.count(fontId);
+#endif
   }
   // True when fontId is registered, loading it through its owner if needed.
   bool ensureFontLoaded(const int fontId) const {

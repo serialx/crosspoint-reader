@@ -450,7 +450,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
             out->xteink_panel = gpio.isXteinkDevice() || BoardConfig::isX4Pro() || BoardConfig::isX4Classic() ||
                                 BoardConfig::isEegoA4();
             out->a4 = BoardConfig::isEegoA4();
-            out->has_ttf = !target->getTtfFonts().empty();
             out->has_font_cache = target->getFontCacheManager() != nullptr;
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
             out->strip_enabled = true;

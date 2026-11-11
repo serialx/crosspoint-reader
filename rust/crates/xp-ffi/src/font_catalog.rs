@@ -22,7 +22,7 @@ extern "C" {
 unsafe extern "C" fn required(bytes: usize) -> *mut u8 {
     xp_native_sd_allocate(bytes, 2)
 }
-static CATALOG_MEMORY: Allocator = Allocator {
+pub(crate) static CATALOG_MEMORY: Allocator = Allocator {
     styles: required,
     resident: allocate_internal,
     free_styles: free_internal,
@@ -190,6 +190,13 @@ pub unsafe extern "C" fn xp_sd_catalog_query(
 ) -> usize {
     let q = &*request;
     if q.operation == 6 {
+        #[cfg(feature = "vector-fonts")]
+        {
+            let id = crate::font_vector::loaded_id(owner, bytes(q.name, q.length));
+            if id != 0 {
+                return id as u32 as usize;
+            }
+        }
         return control(owner).get_bytes(bytes(q.name, q.length), 0) as u32 as usize;
     }
     if q.operation == 4 || q.operation == 5 {
@@ -306,6 +313,10 @@ unsafe fn load(
         .unwrap_or(0)
 }
 pub(crate) unsafe fn ensure_id(owner: *const Owner, id: i32) -> bool {
+    #[cfg(feature = "vector-fonts")]
+    if crate::font_vector::ensure(owner, id) {
+        return true;
+    }
     let Some(family) = catalog(owner).find(control(owner).family()) else {
         return false;
     };
@@ -360,6 +371,10 @@ pub(crate) unsafe fn ensure_id(owner: *const Owner, id: i32) -> bool {
 /// Owner is initialized/serialized; no source/catalog loan crosses variant loading.
 #[no_mangle]
 pub unsafe extern "C" fn xp_sd_font_variant(owner: *const Owner, id: i32, scale: f32) -> i32 {
+    #[cfg(feature = "vector-fonts")]
+    if crate::font_vector::owns(owner, id) {
+        return crate::font_vector::variant(owner, id, scale);
+    }
     let Some(family) = catalog(owner).find(control(owner).family()) else {
         return 0;
     };
@@ -379,6 +394,10 @@ pub unsafe extern "C" fn xp_sd_font_variant(owner: *const Owner, id: i32, scale:
     }
 }
 unsafe fn owns_id(owner: *const Owner, id: i32) -> bool {
+    #[cfg(feature = "vector-fonts")]
+    if crate::font_vector::owns(owner, id) {
+        return true;
+    }
     if control(owner).face(id).is_some() {
         return true;
     }
@@ -412,8 +431,11 @@ pub struct Settings {
     points: *mut u8,
     ui: [i32; 3],
     vectors: bool,
+    #[cfg(any(test, feature = "app-test"))]
     vector_loaded: bool,
+    #[cfg(any(test, feature = "app-test"))]
     vector_family: core::cell::UnsafeCell<View>,
+    #[cfg(any(test, feature = "app-test"))]
     vector_index: core::cell::UnsafeCell<usize>,
 }
 #[repr(C)]
@@ -430,17 +452,21 @@ pub struct Continuation {
 pub enum Action {
     Complete,
     PersistSettings,
-    UnloadVector,
-    LoadVector,
-    Rejected,
-    PrepareVector,
+    #[cfg(any(test, feature = "app-test"))]
+    UnloadVector = 2,
+    #[cfg(all(not(feature = "vector-fonts"), any(test, feature = "app-test")))]
+    LoadVector = 3,
+    Rejected = 4,
+    #[cfg(any(test, feature = "app-test"))]
+    PrepareVector = 5,
     #[cfg(not(feature = "app-test"))]
-    BorrowSettings,
+    BorrowSettings = 6,
 }
 const PLAN: u32 = 1;
 const LOAD: u32 = 2;
 const FALLBACK: u32 = 3;
 const DONE: u32 = 4;
+const VECTOR: u32 = 5;
 unsafe fn emit(owner: *const Owner, token: &mut Continuation, next: u32, action: Action) -> Action {
     (*owner).registry.invalidate();
     token.epoch = (*(*owner).registry.generation).load(Ordering::Relaxed);
@@ -463,8 +489,7 @@ unsafe fn snap(s: &Settings, points: u8) -> bool {
 }
 /// # Safety
 /// Settings/token are exclusive stable caller storage across the bounded sequence.
-/// Native executes effects only after return; it acknowledges vector unregisters
-/// by updating token.epoch from the same owner generation before resuming.
+/// Native persists settings only after return; all font mutations stay in Rust.
 #[no_mangle]
 pub unsafe extern "C" fn xp_sd_fonts_begin(
     owner: *const Owner,
@@ -484,7 +509,12 @@ pub unsafe extern "C" fn xp_sd_fonts_begin(
         dirty: false,
         boot: true,
     });
+    #[cfg(feature = "vector-fonts")]
     if (*settings).vectors {
+        crate::font_vector::prepare(owner);
+    }
+    #[cfg(any(test, feature = "app-test"))]
+    if (*settings).vectors && !cfg!(feature = "vector-fonts") {
         return emit(owner, &mut *token, PLAN, Action::PrepareVector);
     }
     emit(owner, &mut *token, PLAN, Action::Complete);
@@ -520,7 +550,7 @@ pub unsafe extern "C" fn xp_sd_fonts_ensure(
         || t.owner != owner
         || t.request != settings
         || t.step == 0
-        || t.step > DONE
+        || (t.step > DONE && !(cfg!(feature = "vector-fonts") && t.step == VECTOR))
         || t.epoch != (*(*owner).registry.generation).load(Ordering::Relaxed)
     {
         return Action::Rejected;
@@ -538,7 +568,15 @@ unsafe fn resume(owner: *const Owner, settings: *const Settings, t: &mut Continu
                     continue;
                 }
                 let update = control(owner).update(catalog(owner), wanted, *s.points, t.dirty);
-                if s.vector_loaded && !matches!(update, Update::Vector { .. }) {
+                #[cfg(feature = "vector-fonts")]
+                if crate::font_vector::loaded(owner) && !matches!(update, Update::Vector { .. }) {
+                    crate::font_vector::unload(owner);
+                }
+                #[cfg(any(test, feature = "app-test"))]
+                if !cfg!(feature = "vector-fonts")
+                    && s.vector_loaded
+                    && !matches!(update, Update::Vector { .. })
+                {
                     return emit(owner, t, PLAN, Action::UnloadVector);
                 }
                 match update {
@@ -547,19 +585,32 @@ unsafe fn resume(owner: *const Owner, settings: *const Settings, t: &mut Continu
                             control(owner)
                                 .unload(ptr::addr_of_mut!((*owner.cast_mut()).registry), None);
                         }
-                        let query = Query {
-                            operation: 2,
-                            index: 0,
-                            file: 0,
-                            name: wanted.as_ptr().cast(),
-                            length: wanted.to_bytes().len(),
-                            output: ptr::null_mut(),
-                            capacity: 0,
-                        };
-                        *s.vector_index.get() =
-                            xp_sd_catalog_query(owner, &query, s.vector_family.get()) - 1;
-                        emit(owner, t, 0, Action::Complete);
-                        return Action::LoadVector;
+                        #[cfg(feature = "vector-fonts")]
+                        {
+                            let points = (*s.points).clamp(8, 22);
+                            if snap(s, points) {
+                                return emit(owner, t, VECTOR, Action::PersistSettings);
+                            }
+                            t.step = VECTOR;
+                        }
+                        #[cfg(not(any(feature = "vector-fonts", test, feature = "app-test")))]
+                        return Action::Rejected;
+                        #[cfg(all(not(feature = "vector-fonts"), any(test, feature = "app-test")))]
+                        {
+                            let query = Query {
+                                operation: 2,
+                                index: 0,
+                                file: 0,
+                                name: wanted.as_ptr().cast(),
+                                length: wanted.to_bytes().len(),
+                                output: ptr::null_mut(),
+                                capacity: 0,
+                            };
+                            *s.vector_index.get() =
+                                xp_sd_catalog_query(owner, &query, s.vector_family.get()) - 1;
+                            emit(owner, t, 0, Action::Complete);
+                            return Action::LoadVector;
+                        }
                     }
                     Update::Builtin { unload, points } => {
                         if unload {
@@ -610,6 +661,17 @@ unsafe fn resume(owner: *const Owner, settings: *const Settings, t: &mut Continu
                         return clear(owner, s, t);
                     }
                 }
+            }
+            #[cfg(feature = "vector-fonts")]
+            VECTOR => {
+                let Some(family) = catalog(owner).find(wanted) else {
+                    return clear(owner, s, t);
+                };
+                if family.files().is_empty() {
+                    return clear(owner, s, t);
+                }
+                crate::font_vector::load(owner, family, *s.points, s.ui, t.dirty);
+                t.step = DONE;
             }
             LOAD => {
                 if control(owner).family() == wanted {
@@ -810,9 +872,15 @@ const _: () = {
     assert!(
         core::mem::size_of::<Settings>()
             == if cfg!(target_pointer_width = "32") {
-                88
-            } else {
+                if cfg!(any(test, feature = "app-test")) {
+                    88
+                } else {
+                    24
+                }
+            } else if cfg!(any(test, feature = "app-test")) {
                 120
+            } else {
+                32
             }
     );
 };

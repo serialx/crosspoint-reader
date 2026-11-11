@@ -286,6 +286,13 @@ extern "C" void xp_native_sd_free(uint8_t* data, bool resident) {
 }
 extern "C" void xp_native_sd_diagnostic(const char* path, uint32_t event, const uint32_t* a, uint32_t style,
                                         uint32_t index, bool seekFailed, const char* other) {
+#ifdef BOARD_HAS_PSRAM
+  if (event == 0x600) {
+    if (a[1]) LOG_DBG("SDFS", "Cached %u KB TTF prefix in PSRAM", a[1]);
+    LOG_DBG("SDFS", "Streaming TTF %s (%u KB) from SD", path, a[0]);
+    return;
+  }
+#endif
   if (event >= 0x500) {
     switch (static_cast<SystemDiagnostic>(event - 0x500)) {
       case SystemDiagnostic::Snap:

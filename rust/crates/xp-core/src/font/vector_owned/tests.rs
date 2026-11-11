@@ -369,3 +369,110 @@ fn kern_cache_flushes_at_512_and_zero_limit_still_admits_one_glyph() {
     assert_eq!(f.faces[0].cps.values(), [66]);
     assert!(f.faces[0].kern_keys.values().is_empty());
 }
+
+#[test]
+fn registered_cells_survive_table_relocation_and_invalidate_before_drop() {
+    use super::registration::Registered;
+    use crate::font::loaded::Registry;
+    use core::{
+        mem::MaybeUninit,
+        ptr,
+        sync::atomic::{AtomicU32, Ordering},
+    };
+    type R<'a> = Registered<'a, Fake, &'a Heap, Evict>;
+    let heap = Heap::default();
+    let generation = AtomicU32::new(0);
+    let mut registry = MaybeUninit::<Registry>::uninit();
+    unsafe {
+        Registry::initialize(registry.as_mut_ptr(), &generation);
+        let mut registry = registry.assume_init();
+        let owner = Box::into_raw(Box::<R<'_>>::new_uninit()).cast::<R<'_>>();
+        R::initialize(
+            owner,
+            [Source::Resident(b"font"); 4],
+            &heap,
+            Evict::default(),
+        );
+        assert!(R::load(owner, 14, 4096, 64));
+        assert!(registry.insert(R::entry(owner, 20)));
+        let slot = registry.slot(20, 0);
+        // Insertion shifts the real registry entries; the face-owned slot stays fixed.
+        assert!(registry.insert(R::entry(owner, 10)));
+        assert_eq!(registry.slot(20, 0), slot);
+        registry.remove(10);
+        for style in 0..4 {
+            let data = registry.slot(20, style).read();
+            let glyph = ((*data).glyph_miss_handler.unwrap())((*data).glyph_miss_ctx, 65);
+            assert!(!glyph.is_null());
+            let bitmap = ((*data).vector_bitmap_handler.unwrap())((*data).glyph_miss_ctx, glyph);
+            assert_eq!(core::slice::from_raw_parts(bitmap, 2), [0x05, 0xaf]);
+            assert!(((*data).coverage_handler.unwrap())(
+                (*data).glyph_miss_ctx,
+                65
+            ));
+            ((*data).kern_handler.unwrap())((*data).glyph_miss_ctx, 65, 86);
+        }
+        let before = generation.load(Ordering::Relaxed);
+        registry.remove(20);
+        assert_ne!(before, generation.load(Ordering::Relaxed));
+        assert!(registry.slot(20, 0).is_null());
+        assert!(R::prewarm(owner, Some(b"AV"), true));
+        R::clear(owner, true);
+        ptr::drop_in_place(owner);
+        drop(Box::from_raw(owner.cast::<MaybeUninit<R<'_>>>()));
+    }
+    assert_eq!(heap.live.get(), 0);
+}
+
+#[test]
+fn render_pressure_clears_active_metadata_after_returning_the_raster_loan() {
+    struct Render<'a> {
+        heap: &'a Heap,
+        cleared: bool,
+    }
+    impl Pressure for Render<'_> {
+        fn free_default(&mut self) -> usize {
+            0
+        }
+        fn render(&mut self) -> usize {
+            self.heap.psram.set(usize::MAX);
+            self.cleared = true;
+            16 * 1024
+        }
+        fn sd(&mut self) -> usize {
+            panic!("render sink already met the target")
+        }
+        fn vector(&mut self) -> usize {
+            panic!("render sink already met the target")
+        }
+        fn clear_active_frame(&mut self) -> bool {
+            core::mem::take(&mut self.cleared)
+        }
+    }
+    let heap = Heap::default();
+    let mut family = family(&heap);
+    let mut quiet = Evict::default();
+    assert!(family.as_mut().load(14, true, 8192, 128));
+    for style in 1..4 {
+        family.as_mut().glyph(style, 65, &mut quiet).unwrap();
+    }
+    for cp in 32..96 {
+        family.as_mut().glyph(0, cp, &mut quiet).unwrap();
+    }
+    assert_eq!(family.faces[0].cps.values().len(), 64);
+    heap.psram.set(1);
+    let mut render = Render {
+        heap: &heap,
+        cleared: false,
+    };
+    let mut pinned = family.as_mut();
+    let loan = pinned.as_mut().glyph(0, 96, &mut render).unwrap();
+    assert_eq!(loan.glyph.data_offset, 0);
+    assert_eq!(loan.bitmap, [0x05, 0xaf]);
+    assert_eq!(family.faces[0].cps.values(), [96]);
+    for style in 1..4 {
+        assert!(family.faces[style].cps.values().is_empty());
+    }
+    drop(family);
+    assert_eq!(heap.live.get(), 0);
+}

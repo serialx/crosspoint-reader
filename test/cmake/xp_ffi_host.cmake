@@ -54,6 +54,7 @@ add_dependencies(xp_ffi_host xp_ffi_host_build xp_ffi_host_i18n)
 target_sources(xp_ffi_host INTERFACE ${CMAKE_CURRENT_LIST_DIR}/xp_ffi_host.cpp)
 target_include_directories(xp_ffi_host INTERFACE ${XP_FFI_HOST_I18N_DIR}
   ${XP_FFI_REPO_ROOT}/test/font_cache/legacy ${XP_FFI_REPO_ROOT}/test/sdfont_legacy
+  ${XP_FFI_REPO_ROOT}/test/vector_font/legacy
   ${XP_FFI_REPO_ROOT}/test/sdfont_legacy/abi
   ${XP_FFI_HOST_WORKSPACE}/crates/xp-ffi/include
   ${XP_FFI_REPO_ROOT}/test/reader_lifecycle)

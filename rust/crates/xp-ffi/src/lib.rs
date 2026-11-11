@@ -22,6 +22,8 @@ mod font;
 mod font_registry;
 mod font_runtime;
 mod font_sd;
+#[cfg(feature = "vector-fonts")]
+mod font_vector;
 mod gif;
 mod glyph;
 mod hal;

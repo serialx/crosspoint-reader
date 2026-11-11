@@ -1,12 +1,18 @@
-//! Owned vector faces and cache storage; enabled only for host qualification.
+//! Owned vector faces and cache storage.
 mod buffer;
+pub mod registration;
 use super::{
     raw::{Glyph, Ligature},
     vector,
 };
 use buffer::Buffer;
 pub use buffer::Memory;
-use core::{ffi::c_void, marker::PhantomPinned, pin::Pin, ptr::NonNull};
+use core::{
+    ffi::c_void,
+    marker::PhantomPinned,
+    pin::Pin,
+    ptr::{self, NonNull},
+};
 
 #[derive(Clone, Copy)]
 pub enum Source<'a> {
@@ -61,6 +67,10 @@ pub trait Pressure {
     fn render(&mut self) -> usize;
     fn sd(&mut self) -> usize;
     fn vector(&mut self) -> usize;
+    /// The render sink deferred clearing this active family until its callback returned.
+    fn clear_active_frame(&mut self) -> bool {
+        false
+    }
 }
 /// Same target and sink order as MemoryManager::ensureFree; the active family
 /// is excluded by the pressure context, and scan/registration loans stay intact.
@@ -170,6 +180,26 @@ pub struct Family<'a, P: Rasterizer, M: Memory> {
 }
 impl<'a, P: Rasterizer, M: Memory> Family<'a, P, M> {
     /// # Safety
+    /// Out is exclusive uninitialized storage, pinned through destruction.
+    /// Sources obey new's lifetime and serialization contract.
+    pub unsafe fn initialize(out: *mut Self, sources: [Source<'a>; 4], memory: M) {
+        ptr::addr_of_mut!((*out).sources).write(sources);
+        for i in 0..4 {
+            ptr::addr_of_mut!((*out).faces)
+                .cast::<Face<P, M>>()
+                .add(i)
+                .write(Face::new(memory));
+        }
+        ptr::addr_of_mut!((*out).size).write(0);
+        ptr::addr_of_mut!((*out).pixels).write(0);
+        ptr::addr_of_mut!((*out).cap).write(0);
+        ptr::addr_of_mut!((*out).maximum).write(0);
+        ptr::addr_of_mut!((*out).two_bit).write(true);
+        ptr::addr_of_mut!((*out).loaded).write(false);
+        ptr::addr_of_mut!((*out).generation).write(0);
+        ptr::addr_of_mut!((*out)._pin).write(PhantomPinned);
+    }
+    /// # Safety
     /// Every streamed HAL slot remains pinned/live through this family's drop;
     /// operations on families sharing a slot are synchronous and serialized.
     pub unsafe fn new(sources: [Source<'a>; 4], memory: M) -> Self {
@@ -197,6 +227,13 @@ impl<'a, P: Rasterizer, M: Memory> Family<'a, P, M> {
     }
     pub fn ligatures(&self, style: usize) -> &[Ligature] {
         &self.faces[style].lig_pairs[..self.faces[style].lig_count]
+    }
+    pub fn bitmap(&self, style: usize, glyph: &Glyph) -> Option<&[u8]> {
+        let start = glyph.data_offset as usize;
+        self.faces[style]
+            .bitmap
+            .values()
+            .get(start..start.checked_add(usize::from(glyph.data_length))?)
     }
     // All callers have a pinned Family; these helpers never move a face or its FT slot.
     fn init(&mut self, style: usize) {
@@ -344,7 +381,8 @@ impl<'a, P: Rasterizer, M: Memory> Family<'a, P, M> {
     ) -> Option<GlyphLoan<'_>> {
         let this = unsafe { self.get_unchecked_mut() };
         this.init(style);
-        let face = &mut this.faces[style];
+        let (before, tail) = this.faces.split_at_mut(style);
+        let (face, after) = tail.split_first_mut().unwrap();
         if !face.ready {
             return None;
         }
@@ -390,26 +428,52 @@ impl<'a, P: Rasterizer, M: Memory> Family<'a, P, M> {
             face.kern_values.clear();
             face.used = 0;
         }
-        let mut tables = || {
-            face.glyphs.reserve(
-                face.glyphs.values().len() + 1,
-                64,
-                usize::from(this.maximum),
-            ) && face
-                .cps
-                .reserve(face.cps.values().len() + 1, 64, usize::from(this.maximum))
-                && face
-                    .slots
-                    .reserve(face.slots.values().len() + 1, 64, usize::from(this.maximum))
-        };
-        if !tables() {
+        macro_rules! flush_active {
+            () => {{
+                face.glyphs.clear();
+                face.cps.clear();
+                face.slots.clear();
+                face.kern_keys.clear();
+                face.kern_values.clear();
+                face.used = 0;
+                for other in before.iter_mut().chain(after.iter_mut()) {
+                    if other.inited {
+                        other.flush();
+                    }
+                }
+                this.generation = this.generation.wrapping_add(1);
+            }};
+        }
+        macro_rules! tables {
+            () => {{
+                face.glyphs.reserve(
+                    face.glyphs.values().len() + 1,
+                    64,
+                    usize::from(this.maximum),
+                ) && face
+                    .cps
+                    .reserve(face.cps.values().len() + 1, 64, usize::from(this.maximum))
+                    && face.slots.reserve(
+                        face.slots.values().len() + 1,
+                        64,
+                        usize::from(this.maximum),
+                    )
+            }};
+        }
+        if !tables!() {
             reclaim(pressure);
-            if !tables() {
+            if pressure.clear_active_frame() {
+                flush_active!();
+            }
+            if !tables!() {
                 return None;
             }
         }
         if pixels != 0 && !face.bitmap.reserve(face.used + bytes, 4096, this.cap) {
             reclaim(pressure);
+            if pressure.clear_active_frame() {
+                flush_active!();
+            }
             if !face.bitmap.reserve(face.used + bytes, 4096, this.cap) {
                 bytes = 0;
                 pixels = 0;

@@ -9,7 +9,9 @@
 #ifdef XP_APP_TEST
 #include <SdCardFont.h>
 #endif
+#ifdef XP_APP_TEST
 #include <TtfEpdFont.h>
+#endif
 #include <Utf8.h>
 
 #include <algorithm>
@@ -33,7 +35,7 @@ int GfxRenderer::resolveNonSdFontVariant(int fontId, float scale) const {
   if (const int builtin = builtinReaderFontVariant(fontId, scale); builtin != 0) {
     return fontMap.count(builtin) ? builtin : 0;
   }
-#if CROSSPOINT_VECTOR_FONTS || defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
+#if defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
   return fontVariantProvider_.resolveFont(fontId, scale);
 #else
   return 0;
@@ -1981,7 +1983,7 @@ void GfxRenderer::pageTarget(XpPageTarget& out, bool includeScanning) const {
   out.inverted = display.isInverted();
 }
 
-#if CROSSPOINT_VECTOR_FONTS || defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
+#if defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
 extern "C" uint8_t xp_native_sd_font_load(void* raw, int32_t font) {
   const auto& renderer = *static_cast<const GfxRenderer*>(raw);
   const auto& provider = renderer.fontVariantProvider_;
@@ -2026,6 +2028,7 @@ void GfxRenderer::copyStatusToStrip(int top, const bool sourceInverted) const {
 }
 #endif
 
+#ifdef XP_APP_TEST
 extern "C" int32_t xp_native_font_compat_prewarm(void* raw, int32_t font, uint8_t backend, const char* text,
                                                  uint8_t styles, uint8_t metadata, uint8_t kernLig,
                                                  uint8_t accumulate) {
@@ -2075,6 +2078,7 @@ extern "C" void xp_native_font_compat_clear(void* raw, int32_t font, uint8_t bac
   }
 #endif
 }
+#endif
 extern "C" void xp_native_font_cache_diagnostic(const void* font, uint32_t event, uint32_t a, uint32_t b, uint32_t c,
                                                 uint32_t d) {
   switch (event) {

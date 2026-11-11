@@ -1,12 +1,14 @@
-# Vector owner qualification (CP1)
+# Vector owner qualification
 
-This target exercises Rust face and cache ownership before activation. Firmware
-still uses the parent native path. `vector-owner-test` and `XP_VECTOR_OWNER_TEST`
-are selected only by the host target; no shipping ABI table or field was added.
+Firmware uses the Rust source, family and cache owner on vector-enabled boards.
+This target compares that owner with the frozen native implementation. The
+`vector-owner-test` and `XP_VECTOR_OWNER_TEST` gates also expose the owner and
+physical leaves to standalone host tests.
 
 `frozen/TtfEpdFont.cpp` and `frozen/vector.rs` are byte copies from `79dec412`.
 The frozen header adds eight name aliases to keep the oracle independent of the
-candidate. `physical.h` and `native.rs` are host adapters, not shipping headers.
+candidate. `physical.h` and `native.rs` are host adapters that reuse the
+production physical contract.
 The physical leaf borrows its inline slot, source bytes and pinned HAL file;
 FreeType's stream callback never enters Rust. Rust owns the four face lifetimes,
 six buffers per face, style selection, quantization, caps and pressure order.
@@ -19,7 +21,9 @@ metrics over sizes 6–72, both bitmap depths, all eight source masks with regul
 explicit/synthesized styles, ligatures, coverage, kerning, streamed reads and
 prefix boundaries, corrupt/truncated/missing sources, failed reads and retry,
 cache/table growth, cap flush, reload, release, and pressure retry. Allocation
-requests and peak/live bytes are reported separately, not used as glyph equality.
+requests and peak/live bytes are asserted equal as well as reported. The extended
+CP2 differential also compares complete seek/read offset, length and return traces,
+negative and late intermittent reads, and corrupt explicit bold/italic sources.
 Host allocation counts do not measure ESP32 PSRAM/internal domains or stack use.
 
 `VectorFontOwnedAbort` preserves the inherited abort if cache allocation fails
@@ -33,8 +37,15 @@ font::vector_owned --features vector-owner-test`; repeat with `cargo +nightly mi
 and `MIRIFLAGS=-Zmiri-strict-provenance`. The compile-fail doctest checks the glyph
 loan against cache mutation. Miri uses fake physical leaves, not FreeType.
 
-CP2 still owns integration of source allocation, the five-entry variant LRU,
-UI fallback IDs, loaded-font registration/scanning and unload routes. The CP1
-family tests do not claim those unimplemented integration paths. CP2 also owes
-the complete S3 linked route audit, x4pro emulator boot/qualification and stack
-watermarks. No emulator or hardware run is part of CP1.
+The manager differential adds fourteen cases for source allocation, the five-entry
+variant LRU, UI fallback IDs, registration/scanning, pressure, size changes and
+unload. It compares the frozen native manager with production Rust using real
+FreeType, and asserts allocation and HAL handle lifetime parity. The separate
+`lifetime` crate runs the production manager with strict fake physical leaves;
+run it under strict-provenance Miri to check stale handles, relocated tables,
+scan loans, shared streamed sources and cleanup ordering.
+
+Host parity does not establish target heap domains or stack bounds. Firmware
+builds, linked route audits and runtime measurements belong in the qualification
+packet. Variable/CJK/TTC fonts and stream reads beyond a 1 MiB prefix are not
+qualified by these fixtures.

@@ -255,7 +255,15 @@ impl EpubSession {
                         self.set_render_refresh_counter(access, 1);
                     }
                     self.model(|state| state.build_popup = !popup);
-                    if self.book_geometry().has_ttf != 0 {
+                    #[cfg(feature = "app-test")]
+                    let has_ttf = self.book_geometry().has_ttf != 0;
+                    #[cfg(all(not(feature = "app-test"), feature = "vector-fonts"))]
+                    let has_ttf = unsafe {
+                        crate::font_vector::loaded(self.resources.font_owner.get().cast())
+                    };
+                    #[cfg(not(any(feature = "app-test", feature = "vector-fonts")))]
+                    let has_ttf = false;
+                    if has_ttf {
                         unsafe { self.leaves.font_release(self.resources.font_owner) };
                     }
                     if !self.book_room(access) {

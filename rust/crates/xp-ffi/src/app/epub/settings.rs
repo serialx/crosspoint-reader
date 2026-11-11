@@ -245,7 +245,9 @@ impl EpubSession {
                 if matches!(action, Action::Complete) {
                     break;
                 }
-                let terminal = matches!(action, Action::Rejected | Action::LoadVector);
+                let terminal = matches!(action, Action::Rejected);
+                #[cfg(all(not(feature = "vector-fonts"), any(test, feature = "app-test")))]
+                let terminal = terminal || matches!(action, Action::LoadVector);
                 (self.leaves.fonts_ensure_loaded)(action as u32, request, token);
                 if terminal {
                     break;

@@ -33,13 +33,13 @@ add_executable(NativeCache NativeCache.cpp
   ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.cpp
   ${REPO_ROOT}/lib/EpdFont/EpdFont.cpp ${REPO_ROOT}/lib/EpdFont/EpdFontFamily.cpp
   ${REPO_ROOT}/test/sdfont_legacy/SdCardFont.cpp ${REPO_ROOT}/test/font_cache/legacy/FontDecompressor.cpp
-  ${REPO_ROOT}/lib/EpdFont/TtfEpdFont.cpp
+  ${REPO_ROOT}/test/vector_font/legacy/TtfEpdFont.cpp
   ${REPO_ROOT}/lib/MiniBidi/RustBidi.cpp ${REPO_ROOT}/lib/Utf8/Utf8.cpp
   ${REPO_ROOT}/lib/InflateReader/InflateReader.cpp
   ${REPO_ROOT}/lib/Memory/BuildScratch.cpp ${NATIVE_FONT_SDK}/src/FtFont.cpp
   ${NATIVE_FONT_SDK}/src/FontAlloc.c ${NATIVE_FONT_SDK}/src/Gsub.cpp ${NATIVE_FONT_SDK}/src/Gpos.cpp
   ${NATIVE_FT_SOURCES})
-target_include_directories(NativeCache PRIVATE ../text_golden/stubs
+target_include_directories(NativeCache PRIVATE ${REPO_ROOT}/test/vector_font/legacy ../text_golden/stubs
   ${REPO_ROOT}/src ${REPO_ROOT}/lib/GfxRenderer ${REPO_ROOT}/test/sdfont_legacy ${REPO_ROOT}/lib/EpdFont
   ${REPO_ROOT}/lib/MiniBidi ${REPO_ROOT}/lib/Memory ${REPO_ROOT}/lib/Utf8
   ${REPO_ROOT}/lib/InflateReader

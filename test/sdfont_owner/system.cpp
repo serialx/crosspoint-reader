@@ -1,5 +1,6 @@
 #include <CrossPointSettings.h>
 #include <GfxRenderer.h>
+#include <HalStorage.h>
 #include <ReaderFontSizes.h>
 #include <SdCardFontSystem.h>
 #include <xp_sd_physical.h>

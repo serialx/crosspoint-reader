@@ -10,5 +10,5 @@ Shipping ownership is covered by `SdFontOwnerSwitch`, `SdFontSystemSwitch`,
 `SdFontCatalogFrontDoor` and `SdFontXtcOrder`. The `abi/` headers declare the
 host-only parser, cache, registry and manager interfaces; `gfx_sd_oracle.inc`
 contains renderer adapters used only by historical fixtures. Rust oracle exports
-are gated by `app-test`; these declarations are not part of the shipping ABI. The live vector physical read callback
-remains in `lib/EpdFont/SdCardFontRegistry.cpp` under PT-VEC.
+are gated by `app-test`; these declarations are not part of the shipping ABI. The shipping vector stream adapter is the non-owning FreeType leaf in
+`lib/hal/VectorFontPhysical.cpp`.

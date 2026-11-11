@@ -99,6 +99,7 @@ static unsigned long oracleRead(void* context, unsigned long offset, unsigned ch
 }
 struct Trace {
   std::vector<int64_t> values;
+  std::vector<std::array<int64_t, 4>> io;
   std::vector<uint8_t> bitmap, pressure;
   size_t peakBytes = 0, allocationRequests = 0, retained = 0, reads = 0, seeks = 0;
 };
@@ -209,11 +210,14 @@ static Trace run(bool rust, const std::array<std::vector<uint8_t>, 4>& original,
     if (c.damage == 2) source.resize(32);
     if (c.damage == 3) source.clear();
   }
+  if (c.damage == 8 || c.damage == 10) std::fill(bytes[1].begin(), bytes[1].end(), 0);
+  if (c.damage == 9 || c.damage == 10) std::fill(bytes[2].begin(), bytes[2].end(), 0);
   HalFile files[4]{{bytes[0]}, {bytes[1]}, {bytes[2]}, {bytes[3]}};
   XpFtSource sources[4]{};
   for (uint8_t i = 0; i < 4; ++i) {
     files[i].failSeek = c.damage == 4;
     files[i].shortRead = c.damage == 5;
+    files[i].negativeRead = c.damage == 6;
     if (c.mask & (1 << i)) {
       sources[i] = {static_cast<uint8_t>(c.stream < 0 ? 1 : 2), bytes[i].data(),
                     static_cast<uint32_t>(c.stream < 0 ? bytes[i].size() : std::min(bytes[i].size(), size_t(c.stream))),
@@ -241,6 +245,12 @@ static Trace run(bool rust, const std::array<std::vector<uint8_t>, 4>& original,
       result.values.push_back(loaded);
     }
     if (loaded) {
+      if (c.damage == 7) {
+        for (auto& file : files) {
+          file.failAfter = file.reads;
+          file.failEvery = 5;
+        }
+      }
       if (abortCase) {  // Warm the SDK raster buffer; fail the next cache allocation after preflight.
         if (rust) {
           EpdGlyph g{};
@@ -296,6 +306,7 @@ static Trace run(bool rust, const std::array<std::vector<uint8_t>, 4>& original,
   for (const auto& file : files) {
     result.reads += file.reads;
     result.seeks += file.seeks;
+    result.io.insert(result.io.end(), file.trace.begin(), file.trace.end());
   }
   return result;
 }
@@ -335,6 +346,15 @@ int main(int argc, char** argv) {
       c.stream = stream;
       cases.push_back(c);
     }
+  for (int damage = 6; damage <= 10; ++damage) {
+    for (int prefix : {0, 1, 11, 12, 31, 4095, 4096}) {
+      Case c;
+      c.damage = damage;
+      c.mask = 15;
+      c.stream = prefix;
+      cases.push_back(c);
+    }
+  }
   cases.push_back(Case{14, 0});
   for (size_t cap : {size_t(0), size_t(1), size_t(64), size_t(32768)}) {
     Case c;
@@ -351,7 +371,7 @@ int main(int argc, char** argv) {
   for (auto c : cases) {
     Trace a = run(false, bytes, c), b = run(true, bytes, c);
     if (a.values != b.values || a.bitmap != b.bitmap || a.pressure != b.pressure || a.reads != b.reads ||
-        a.seeks != b.seeks) {
+        a.seeks != b.seeks || a.io != b.io) {
       std::fprintf(stderr,
                    "differential case %zu size=%u mask=%u two=%d cap=%zu stream=%d damage=%d pressure=%d values=%d "
                    "bitmap=%d pressure=%d reads=%zu/%zu seeks=%zu/%zu\n",
@@ -365,6 +385,8 @@ int main(int argc, char** argv) {
       return 1;
     }
     CHECK(a.retained == retained && b.retained == retained);
+    CHECK(a.allocationRequests == b.allocationRequests);
+    CHECK(a.peakBytes == b.peakBytes);
     std::printf(
         "case=%zu native_alloc=%zu rust_alloc=%zu native_peak=%zu rust_peak=%zu retained=%zu reads=%zu bitmap=%zu\n",
         index, a.allocationRequests, b.allocationRequests, a.peakBytes, b.peakBytes, retained, a.reads,

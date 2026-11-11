@@ -80,10 +80,13 @@ class SdFontCatalog {
 
 #endif
 
-// Streamed vector-font physical reads remain native until PT-VEC.
+// Historical manager oracle stream adapter.
+#ifdef XP_APP_TEST
 class SdCardFontRegistry {
  public:
 #if CROSSPOINT_VECTOR_FONTS
   static unsigned long halFileRead(void* ctx, unsigned long offset, unsigned char* buffer, unsigned long count);
 #endif
 };
+
+#endif

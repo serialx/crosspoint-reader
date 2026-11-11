@@ -33,11 +33,7 @@ extern "C" {
         len: usize,
         metadata: u8,
     );
-    #[cfg(any(
-        not(feature = "sd-font-catalog"),
-        feature = "app-test",
-        feature = "vector-fonts"
-    ))]
+    #[cfg(any(not(feature = "sd-font-catalog"), feature = "app-test"))]
     pub(crate) fn xp_native_sd_font_load(native: *mut c_void, font: i32) -> u8;
     fn xp_native_font_diagnostic(native: *mut c_void, event: u32, value: u32);
     pub(crate) fn xp_native_bidi_acquire() -> *mut xp_core::bidi::Workspace;
@@ -50,6 +46,8 @@ pub(crate) struct Owner {
     pub(crate) native: *mut c_void,
     pub(crate) cache: UnsafeCell<xp_core::font::runtime::FontCacheOwner>,
     pub(crate) sd: UnsafeCell<xp_core::sdfont::control::Control<'static>>,
+    #[cfg(feature = "vector-fonts")]
+    pub(crate) vector: UnsafeCell<crate::font_vector::State>,
     pub(crate) intervals: xp_core::sdfont::parser::IntervalRegistry,
     #[cfg(any(test, feature = "sd-font-catalog"))]
     pub(crate) catalog: crate::font_sd::catalog::State,
@@ -86,12 +84,11 @@ impl Owner {
                 if crate::font_sd::catalog::ensure_id(owner, id) {
                     return true;
                 }
-                // The native provider is vector-only in shipping builds (PT-VEC).
-                #[cfg(any(feature = "app-test", feature = "vector-fonts"))]
+                #[cfg(feature = "app-test")]
                 {
                     xp_native_sd_font_load((*owner).native, id) != 0
                 }
-                #[cfg(not(any(feature = "app-test", feature = "vector-fonts")))]
+                #[cfg(not(feature = "app-test"))]
                 {
                     false
                 }
@@ -263,6 +260,14 @@ const _: () = {
         } else {
             4928
         }
+    } + if cfg!(feature = "vector-fonts") {
+        if cfg!(target_pointer_width = "32") {
+            260
+        } else {
+            520
+        }
+    } else {
+        0
     }] = [0; size_of::<Owner>()];
     assert!(align_of::<Owner>() == align_of::<usize>());
     assert!(size_of::<QueryResult>() == size_of::<usize>());
@@ -285,6 +290,8 @@ pub unsafe extern "C" fn xp_font_registry_init(
         .write(xp_core::sdfont::control::Control::new(
             &crate::font_sd::MEMORY,
         ));
+    #[cfg(feature = "vector-fonts")]
+    crate::font_vector::initialize(out);
     ptr::addr_of_mut!((*out).intervals).write(xp_core::sdfont::parser::IntervalRegistry::new());
     #[cfg(any(test, feature = "sd-font-catalog"))]
     ptr::addr_of_mut!((*out).catalog).write(crate::font_sd::catalog::State::new());
@@ -293,6 +300,8 @@ pub unsafe extern "C" fn xp_font_registry_init(
 /// Owner is exclusive; no font/source/cache loan survives its destruction.
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_registry_drop(owner: *mut Owner) {
+    #[cfg(feature = "vector-fonts")]
+    crate::font_vector::destroy(owner);
     crate::font_sd::control(owner).unload(ptr::addr_of_mut!((*owner).registry), None);
     ptr::drop_in_place((*owner).sd.get());
     #[cfg(any(test, feature = "sd-font-catalog"))]

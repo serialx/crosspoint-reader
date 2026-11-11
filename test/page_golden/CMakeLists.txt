@@ -29,7 +29,7 @@ add_executable(PageGolden PageGolden.cpp ${INSTRUMENTED}/GfxRenderer.cpp
 
   ${REPO_ROOT}/lib/EpdFont/EpdFont.cpp ${REPO_ROOT}/lib/EpdFont/EpdFontFamily.cpp
   ${REPO_ROOT}/test/sdfont_legacy/SdCardFont.cpp ${REPO_ROOT}/test/font_cache/legacy/FontDecompressor.cpp
-  ${REPO_ROOT}/lib/EpdFont/TtfEpdFont.cpp
+  ${REPO_ROOT}/test/vector_font/legacy/TtfEpdFont.cpp
   ${REPO_ROOT}/lib/Epub/Epub/SectionPlatform.cpp
   ${REPO_ROOT}/test/section_io/SectionTestCodec.cpp
   ${INSTRUMENTED}/Page.cpp

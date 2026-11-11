@@ -5,7 +5,8 @@ edition = "2021"
 publish = false
 
 [features]
-vector-owner-test = []
+vector-owner = []
+vector-owner-test = ["vector-owner"]
 sd-font-catalog = []
 package-trace = []
 chapter-trace = []

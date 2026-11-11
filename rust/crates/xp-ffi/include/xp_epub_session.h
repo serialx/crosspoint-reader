@@ -126,7 +126,9 @@ typedef struct {
   uint8_t async_refresh;
   uint8_t xteink_panel;
   uint8_t a4;
+#ifdef XP_APP_TEST
   uint8_t has_ttf;
+#endif
   uint8_t strip_enabled;
   uint8_t has_font_cache;
 } XpEpubGeometry;
@@ -549,7 +551,11 @@ XP_EPUB_ASSERT(sizeof(XpEpubPosition) == 92, "XpEpubPosition size");
 XP_EPUB_ASSERT(offsetof(XpEpubPosition, visible_offset) == 12, "XpEpubPosition.visible_offset");
 XP_EPUB_ASSERT(offsetof(XpEpubPosition, anchor) == 25, "XpEpubPosition.anchor");
 XP_EPUB_ASSERT(sizeof(XpEpubGeometry) == 32, "XpEpubGeometry size");
+#ifdef XP_APP_TEST
 XP_EPUB_ASSERT(offsetof(XpEpubGeometry, has_font_cache) == 31, "XpEpubGeometry.has_font_cache");
+#else
+XP_EPUB_ASSERT(offsetof(XpEpubGeometry, has_font_cache) == 30, "XpEpubGeometry.has_font_cache");
+#endif
 XP_EPUB_ASSERT(offsetof(XpEpubGeometry, status_height) == 8, "XpEpubGeometry.status_height");
 XP_EPUB_ASSERT(offsetof(XpEpubGeometry, ui_font_12) == 20, "XpEpubGeometry.ui_font_12");
 XP_EPUB_ASSERT(offsetof(XpEpubGeometry, title_mode) == 24, "XpEpubGeometry.title_mode");

@@ -385,7 +385,7 @@ mod tests {
 }
 
 pub mod catalog;
-mod catalog_storage;
+pub mod catalog_storage;
 pub mod control;
 pub mod io;
 pub mod load;

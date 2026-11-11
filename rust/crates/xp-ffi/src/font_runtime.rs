@@ -27,6 +27,7 @@ extern "C" {
     );
     #[cfg(feature = "app-test")]
     fn xp_native_font_compat_resolve(native: *mut c_void, font: i32, style: u8) -> u8;
+    #[cfg(feature = "app-test")]
     fn xp_native_font_compat_prewarm(
         native: *mut c_void,
         font: i32,
@@ -37,6 +38,7 @@ extern "C" {
         kern_lig: u8,
         accumulate: u8,
     ) -> i32;
+    #[cfg(feature = "app-test")]
     fn xp_native_font_compat_clear(native: *mut c_void, font: i32, backend: u8, resident: u8);
     #[cfg(feature = "app-test")]
     fn xp_native_font_compat_reset(native: *mut c_void, font: i32);
@@ -64,6 +66,15 @@ impl SdFontCacheCompat for Compat {
             #[cfg(not(feature = "app-test"))]
             return 0;
         }
+        #[cfg(feature = "vector-fonts")]
+        if backend == Backend::Vector {
+            return crate::font_vector::prewarm(self.0, font, request);
+        }
+        #[cfg(not(feature = "app-test"))]
+        {
+            0
+        }
+        #[cfg(feature = "app-test")]
         xp_native_font_compat_prewarm(
             (*self.0).native,
             font,
@@ -83,6 +94,12 @@ impl SdFontCacheCompat for Compat {
             #[cfg(not(feature = "app-test"))]
             return;
         }
+        #[cfg(feature = "vector-fonts")]
+        if backend == Backend::Vector {
+            crate::font_vector::clear(self.0, font, kind);
+            return;
+        }
+        #[cfg(feature = "app-test")]
         xp_native_font_compat_clear(
             (*self.0).native,
             font,
@@ -91,11 +108,10 @@ impl SdFontCacheCompat for Compat {
         );
     }
     unsafe fn reset_stats(&mut self, font: i32) {
-        if crate::font_sd::reset(self.0, font) {
-            return;
+        if !crate::font_sd::reset(self.0, font) {
+            #[cfg(feature = "app-test")]
+            xp_native_font_compat_reset((*self.0).native, font);
         }
-        #[cfg(feature = "app-test")]
-        xp_native_font_compat_reset((*self.0).native, font);
     }
 }
 unsafe extern "C" fn allocate(bytes: usize) -> *mut u8 {

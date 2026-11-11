@@ -404,5 +404,5 @@ pub mod manager;
 pub mod registry;
 pub mod vector;
 
-#[cfg(any(test, feature = "vector-owner-test"))]
+#[cfg(any(test, feature = "vector-owner"))]
 pub mod vector_owned;

@@ -10,9 +10,9 @@ set(FONT_SDK ${REPO_ROOT}/freeink-sdk/libs/font/FreeInkFont)
 file(GLOB FT_SOURCES ${FONT_SDK}/src/freetype/*.c)
 add_executable(VectorFontOracle Oracle.cpp
   ${REPO_ROOT}/lib/EpdFont/EpdFont.cpp ${REPO_ROOT}/lib/EpdFont/EpdFontFamily.cpp
-  ${REPO_ROOT}/lib/EpdFont/TtfEpdFont.cpp ${REPO_ROOT}/lib/Utf8/Utf8.cpp
+  ${REPO_ROOT}/test/vector_font/legacy/TtfEpdFont.cpp ${REPO_ROOT}/lib/Utf8/Utf8.cpp
   ${FONT_SDK}/src/FtFont.cpp ${FONT_SDK}/src/Gsub.cpp ${FONT_SDK}/src/Gpos.cpp ${FT_SOURCES})
-target_include_directories(VectorFontOracle PRIVATE stubs ${REPO_ROOT}/test/font_cache/stubs
+target_include_directories(VectorFontOracle PRIVATE legacy stubs ${REPO_ROOT}/test/font_cache/stubs
   ${REPO_ROOT}/lib/EpdFont ${REPO_ROOT}/lib/Utf8 ${FONT_SDK}/include
   ${FONT_SDK}/third_party/freetype/include ${FONT_SDK}/third_party/stb)
 target_compile_definitions(VectorFontOracle PRIVATE BOARD_HAS_PSRAM=1 FREEINK_FONT_ENABLE_AUTOHINT=1)
@@ -22,7 +22,7 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(NAME VectorFontGolden COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/check.py
   $<TARGET_FILE:VectorFontOracle> ${REPO_ROOT}/lib/EpdFont/builtinFonts/source/NotoSans/NotoSans-Regular.ttf)
 
-# CP1 owner and physical contract are host-only. No shipping feature selects them.
+# Standalone adapter for the production owner and frozen native oracle.
 set(VECTOR_OWNER_TARGET "${CMAKE_BINARY_DIR}/vector-owner-target")
 set(VECTOR_OWNER_ARCHIVE "${VECTOR_OWNER_TARGET}/${XP_FFI_HOST_TRIPLE}/release/libvector_owner_host.a")
 add_custom_target(vector_owner_host_build
@@ -37,7 +37,7 @@ add_executable(VectorFontOwnedDifferential owned/Differential.cpp frozen/TtfEpdF
 add_dependencies(VectorFontOwnedDifferential vector_owner_host_build)
 target_include_directories(VectorFontOwnedDifferential PRIVATE owned frozen stubs
   ${REPO_ROOT}/test/font_cache/stubs ${REPO_ROOT}/lib/EpdFont ${REPO_ROOT}/lib/Utf8
-  ${REPO_ROOT}/rust/crates/xp-ffi/include ${FONT_SDK}/include ${FONT_SDK}/third_party/freetype/include ${FONT_SDK}/third_party/stb)
+  ${REPO_ROOT}/test/sdfont_legacy/abi ${REPO_ROOT}/rust/crates/xp-ffi/include ${FONT_SDK}/include ${FONT_SDK}/third_party/freetype/include ${FONT_SDK}/third_party/stb)
 target_compile_definitions(VectorFontOwnedDifferential PRIVATE XP_VECTOR_OWNER_TEST BOARD_HAS_PSRAM=1 FREEINK_FONT_ENABLE_AUTOHINT=1)
 target_compile_options(VectorFontOwnedDifferential PRIVATE -fno-exceptions)
 target_link_libraries(VectorFontOwnedDifferential PRIVATE ${VECTOR_OWNER_ARCHIVE})
@@ -46,3 +46,5 @@ add_test(NAME VectorFontOwnedDifferential COMMAND VectorFontOwnedDifferential
 add_test(NAME VectorFontOwnedAbort COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/owned/check_abort.py
   $<TARGET_FILE:VectorFontOwnedDifferential> ${REPO_ROOT}/lib/EpdFont/builtinFonts/source/NotoSans/NotoSans-Regular.ttf)
 add_test(NAME VectorFontFrozenInputs COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/owned/check_frozen.py)
+
+include(manager/targets.cmake)

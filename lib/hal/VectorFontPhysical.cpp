@@ -1,13 +1,12 @@
-// This boundary is host-qualified before any shipping caller is switched.
-#ifdef XP_VECTOR_OWNER_TEST
+#include <VectorFontSupport.h>
+#if CROSSPOINT_VECTOR_FONTS || defined(XP_VECTOR_OWNER_TEST)
 #include <FtFont.h>
 #include <HalStorage.h>
 #include <Logging.h>
+#include <xp_vector_physical.h>
 
 #include <cstring>
 #include <new>
-
-#include "physical.h"
 
 namespace {
 struct Face {

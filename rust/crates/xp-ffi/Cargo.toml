@@ -18,7 +18,7 @@ xp-display = { path = "../xp-display", optional = true, default-features = false
 
 [features]
 sd-font-catalog = ["xp-core/sd-font-catalog", "xp-ui/sd-font-catalog"]
-vector-fonts = []
+vector-fonts = ["sd-font-catalog", "xp-core/vector-owner"]
 app-test = ["xp-ui/legacy-reader-oracles", "xp-ui/legacy-keyboard-oracles", "xp-ui/legacy-network-oracles"]
 reader-strips = ["strip-spike", "display-api", "xp-core/reader-strips"]
 strip-spike = ["xp-core/strip-spike", "dep:embedded-graphics-core"]

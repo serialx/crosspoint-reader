@@ -18,3 +18,17 @@ void xp_native_sd_font_resident_slice(void*, int32_t font, uint8_t style, const 
 #ifdef __cplusplus
 }
 #endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+// Vector compatibility remains; SD policy uses the Rust owner directly.
+int32_t xp_native_font_compat_prewarm(void*, int32_t font, uint8_t backend, const char* text, uint8_t styles,
+                                      uint8_t metadata, uint8_t kern_lig, uint8_t accumulate);
+void xp_native_font_compat_clear(void*, int32_t font, uint8_t backend, uint8_t resident);
+
+uint8_t xp_native_sd_font_load(void*, int32_t font);
+
+#ifdef __cplusplus
+}
+#endif

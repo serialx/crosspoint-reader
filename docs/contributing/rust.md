@@ -1008,6 +1008,11 @@ behind the internal `sd-font-catalog` feature and matching native
 owner layout, callback ABI and native catalog/system remain unchanged; the
 separate host archive exercises the prepared policy. CP2b-A owns activation,
 including the reader, chapter, web fonts/settings and XTC incoming routes.
+The EPUB font-effect driver is not prepared: both reader entry and text-setting
+application still use the parent callback. CP2b-A must return through the native
+EPUB entry before save/vector effects, then resume with the original ordering
+and resource-lock ownership. Selectable sizes must be derived once in Rust;
+native settings consumers may copy and label the returned choices.
 
 C++ supplies the physical operations in
 [`xp_sd_physical.h`](../../rust/crates/xp-ffi/include/xp_sd_physical.h), paired

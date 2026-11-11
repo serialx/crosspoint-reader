@@ -101,3 +101,5 @@ heap parity. The comparator accounts for host string layouts and compares
 contiguous free multisets, so C3 allocation order still needs activation-time
 traces. The Miri cases also cover rejected continuation tokens and the typed
 chapter receiver: an SD load failure must not invoke native fallback policy.
+The EPUB entry/settings effect return boundary remains CP2b-A work; this fixture
+does not exercise that composition.

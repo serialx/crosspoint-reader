@@ -1,0 +1,16 @@
+{
+  "base": "79dec412ea1bab732a748d9083a7ce8f66b2bdc9",
+  "sdk": "6a573acd0562e45e4ce96837e0c2aebada219760",
+  "note": "TtfEpdFont.cpp and vector.rs are byte copies; header adds eight export aliases only; public NotoSans files were already in the repository.",
+  "sha256": {
+    "lib/EpdFont/builtinFonts/source/NotoSans/NotoSans-Bold.ttf": "13a813c49624ae3ba3c5c6e72c5ebffc4b9e1e6ea32f421c04069b037c6ad431",
+    "lib/EpdFont/builtinFonts/source/NotoSans/NotoSans-BoldItalic.ttf": "7e34616e092593c340449baf9a259075a054c6419511ccf21ff0d83a1c9dd0d0",
+    "lib/EpdFont/builtinFonts/source/NotoSans/NotoSans-Italic.ttf": "feb3e57888ce3acb604f270c278cfb304c674306518771619ddbdefca42a066b",
+    "lib/EpdFont/builtinFonts/source/NotoSans/NotoSans-Regular.ttf": "fe8c022f48d8dd29f17b744d16f9346f4357e16f7d4f7be58b000ae7c291b614",
+    "lib/EpdFont/builtinFonts/source/NotoSans/OFL.txt": "be2f3f8727ac2e18b714ad1c4336d4ddb3f3adbeb9a7f70bfab74d21f4d2b3fb",
+    "test/vector_font/frozen/TtfEpdFont.cpp": "f863c545031eb60721f345282f8efdbc8763963feb11f1fcdac3073a2d58fb1a",
+    "test/vector_font/frozen/TtfEpdFont.h": "3f9480d4d1b77c682f8bbdcb77b87f82fceb97393b163bcc60217744a7e4d0ee",
+    "test/vector_font/frozen/vector.rs": "3c46c290d5261ca81f01c43c0991b0c6e6e9d7b28386920af2ce4bdca5a31f20",
+    "test/vector_font/golden.txt.gz": "98e6cc622dd70f74f8b0a8205e6fa5bf744c9e8c784ccba4691467bd86697cdf"
+  }
+}

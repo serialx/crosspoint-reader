@@ -1,4 +1,8 @@
 #pragma once
+#ifdef XP_SD_FONT_CATALOG
+#include "xp_font_registry.h"
+#endif
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -244,11 +248,20 @@ typedef enum {
   XP_WEB_PAGE_ICON
 } XpWebPage;
 void xp_web_page(void*, const XpWebServices*, const XpWebAsset*, size_t, XpWebPage);
+#ifdef XP_SD_FONT_CATALOG
+typedef enum { XP_WEB_FONT_CHOICES_BORROW, XP_WEB_FONT_CHOICES_COPY } XpWebFontChoicesStage;
+#endif
 typedef struct {
   const XpWebServices* files;
   XpWebText (*parse)(void*, XpWebText);
   XpWebJsonValue (*json_value)(void*, const char*, int32_t header, bool convert);
-  size_t (*count)(void*, uint32_t route);
+  // Catalog builds borrow first, then copy the choices prepared by Rust.
+  size_t (*count)(void*, uint32_t route
+#ifdef XP_SD_FONT_CATALOG
+                  ,
+                  XpWebFontChoicesStage stage, XpSdChoices*
+#endif
+  );
   void (*setting)(void*, size_t, bool read_value, XpWebSetting*);
   XpWebText (*option)(void*, size_t, size_t);
   // STRING setters consume the last json_value(convert=true) scratch string.
@@ -310,14 +323,40 @@ typedef enum {
   XP_WEB_FONT_DELETE_FAILED,
   XP_WEB_FONT_JSON_OOM
 } XpWebFontDiagnostic;
+#ifdef XP_SD_FONT_CATALOG
+typedef struct {
+  const char* family;
+  const char* filename;
+  const char* root;
+} XpWebFontInstallRequest;
+#endif
 typedef struct {
   const XpWebTransfers* transfers;
   XpWebText (*parse)(void*, XpWebText);
   XpWebText (*json_string)(void*, const char*);
-  size_t (*registry)(void*, uint32_t);
+#ifdef XP_SD_FONT_CATALOG
+  const XpLoadedFonts*
+#else
+  size_t
+#endif
+      (*registry)(void*,
+#ifdef XP_SD_FONT_CATALOG
+                  bool* vectors
+#else
+                  uint32_t
+#endif
+      );
+#ifndef XP_SD_FONT_CATALOG
   void (*family)(void*, size_t, XpWebFontFamily*);
   XpWebText (*file)(void*, size_t, size_t);
-  bool (*install)(void*, uint32_t, const char*, const char*, uint8_t*, size_t);
+#endif
+  bool (*install)(void*, uint32_t,
+#ifdef XP_SD_FONT_CATALOG
+                  const XpWebFontInstallRequest*
+#else
+                  const char*, const char*, uint8_t*, size_t
+#endif
+  );
   XpWebAsset page;
   void (*diagnostic)(void*, uint32_t, XpWebText, XpWebText, size_t, bool);
 } XpWebFonts;

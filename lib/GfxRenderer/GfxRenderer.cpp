@@ -14,8 +14,31 @@
 
 #include <algorithm>
 
+#include "../../src/ReaderFontSizes.h"
 #include "../Memory/Memory.h"
 #include "FontCacheManager.h"
+
+int GfxRenderer::resolveFontVariant(int fontId, float scale) const {
+  if (std::fabs(scale - 1.0f) < 0.05f) return fontId;
+  if (const int builtin = builtinReaderFontVariant(fontId, scale); builtin != 0) {
+    return fontMap.count(builtin) ? builtin : 0;
+  }
+#ifdef XP_SD_FONT_CATALOG
+  if (const int sd = xp_sd_font_variant(fontMap.raw(), fontId, scale); sd != 0) return sd;
+#endif
+  return resolveNonSdFontVariant(fontId, scale);
+}
+
+int GfxRenderer::resolveNonSdFontVariant(int fontId, float scale) const {
+  if (const int builtin = builtinReaderFontVariant(fontId, scale); builtin != 0) {
+    return fontMap.count(builtin) ? builtin : 0;
+  }
+#if CROSSPOINT_VECTOR_FONTS || defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
+  return fontVariantProvider_.resolveFont(fontId, scale);
+#else
+  return 0;
+#endif
+}
 
 XpGlyphTarget GfxRenderer::glyphTarget(bool includeScanning) const {
   return {getWriteTarget(),
@@ -1978,11 +2001,13 @@ extern "C" void xp_native_sd_font_resident_slice(void* raw, int32_t font, uint8_
   found->second->prewarmSpan(text, length, static_cast<uint8_t>(1u << (style & 3)), metadata != 0);
 }
 #endif
+#if CROSSPOINT_VECTOR_FONTS || defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
 extern "C" uint8_t xp_native_sd_font_load(void* raw, int32_t font) {
   const auto& renderer = *static_cast<const GfxRenderer*>(raw);
   const auto& provider = renderer.fontVariantProvider_;
   return provider.load && provider.load(provider.ctx, font);
 }
+#endif
 extern "C" void xp_native_font_diagnostic(void*, uint32_t event, uint32_t value) {
   switch (static_cast<XpNativeDiagnostic>(event)) {
     case XpNativeDiagnostic::MissingFont:

@@ -116,7 +116,7 @@ static_assert(CrossPointSettings::SCREEN_MARGIN_MIN == 5 && CrossPointSettings::
               CrossPointSettings::SCREEN_MARGIN_STEP == 5);
 }  // namespace
 TextSettingsActivity::TextSettingsActivity(GfxRenderer& renderer, MappedInputManager& input,
-                                           const SdCardFontRegistry* registry, Tab tab)
+                                           const ReaderFontCatalog* registry, Tab tab)
     : RustActivityAdapter("TextSettings", renderer, input), registry_(registry) {
   state.tab = static_cast<uint8_t>(tab);
 }
@@ -127,10 +127,16 @@ void TextSettingsActivity::onEnter() {
   fonts_.push_back({tr(STR_NOTO_SANS), true, static_cast<uint8_t>(CrossPointSettings::NOTOSANS)});
   int family = SETTINGS.fontFamily < CrossPointSettings::BUILTIN_FONT_COUNT ? SETTINGS.fontFamily : 0;
   if (registry_) {
-    const auto& families = registry_->getFamilies();
-    for (size_t i = 0; i < families.size(); ++i) {
-      fonts_.push_back({families[i].name, false, static_cast<uint8_t>(CrossPointSettings::BUILTIN_FONT_COUNT + i)});
-      if (families[i].name == SETTINGS.sdFontFamilyName) family = CrossPointSettings::BUILTIN_FONT_COUNT + i;
+    const auto count = registry_->getFamilyCount();
+    for (size_t i = 0; i < count; ++i) {
+#ifdef XP_SD_FONT_CATALOG
+      const auto entry = registry_->family(i);
+#else
+      const auto* entry = &registry_->getFamilies()[i];
+#endif
+      fonts_.push_back({entry->name, false, static_cast<uint8_t>(CrossPointSettings::BUILTIN_FONT_COUNT + i)});
+      if (std::string_view(entry->name) == SETTINGS.sdFontFamilyName)
+        family = CrossPointSettings::BUILTIN_FONT_COUNT + i;
     }
   }
   const int size = rebuildSizeList();

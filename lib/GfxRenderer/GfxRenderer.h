@@ -264,14 +264,23 @@ class GfxRenderer {
   }
 
   void setFontVariantProvider(const FontVariantProvider& provider) { fontVariantProvider_ = provider; }
-  int resolveFontVariant(const int fontId, const float scale) const {
-    return fontVariantProvider_.resolveFont(fontId, scale);
+  int resolveFontVariant(int fontId, float scale) const;
+  int resolveNonSdFontVariant(int fontId, float scale) const;
+  // Native fallback is restricted to builtin/vector fonts in catalog builds.
+  bool ensureNonSdFontLoaded(const int fontId) const {
+    return fontMap.count(fontId) ||
+           (fontVariantProvider_.load && fontVariantProvider_.load(fontVariantProvider_.ctx, fontId) &&
+            fontMap.count(fontId));
   }
-  // True when fontId is registered, loading it through the variant provider if needed.
+  // True when fontId is registered, loading it through its owner if needed.
   bool ensureFontLoaded(const int fontId) const {
     if (fontMap.count(fontId) != 0) return true;
-    return fontVariantProvider_.load && fontVariantProvider_.load(fontVariantProvider_.ctx, fontId) &&
-           fontMap.count(fontId) != 0;
+#ifdef XP_SD_FONT_CATALOG
+    const XpRegisteredFont entry{fontId, {}, 0};
+    return xp_font_registry_update(const_cast<XpLoadedFonts*>(fontMap.raw()), XP_FONT_ENSURE_LOADED, &entry);
+#else
+    return ensureNonSdFontLoaded(fontId);
+#endif
   }
   // Ensure SD card font glyph data is loaded for the given text. Called from layout code
   // (which holds a const GfxRenderer&) before measuring word widths. Safe to call on non-SD fonts (no-op).

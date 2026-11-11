@@ -327,7 +327,7 @@ bool FontDownloadActivity::fetchAndParseManifest() {
       for (uint32_t i = 0; i < family.fileCount; i++) {
         const ManifestFile& file = files_[family.fileStart + i];
         char path[128];
-        FontInstaller::buildFontPath(str(family.name), str(file.name), path, sizeof(path));
+        fontInstaller_.buildFontPath(str(family.name), str(file.name), path, sizeof(path));
         HalFile f;
         if (Storage.openFileForRead("FONT", path, f)) {
           size_t actual = f.fileSize();
@@ -552,7 +552,7 @@ void FontDownloadActivity::downloadFamily(ManifestFamily& family) {
     requestUpdateAndWait();
 
     char destPath[128];
-    FontInstaller::buildFontPath(str(family.name), str(file.name), destPath, sizeof(destPath));
+    fontInstaller_.buildFontPath(str(family.name), str(file.name), destPath, sizeof(destPath));
 
     downloadUrl_.assign(baseUrl_).append(str(file.name));
 

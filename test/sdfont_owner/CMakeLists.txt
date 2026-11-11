@@ -68,3 +68,12 @@ foreach(side parent candidate)
 endforeach()
 add_test(NAME SdFontSystemSwitch COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/system_check.py
   --parent $<TARGET_FILE:sdfont_system_parent> --candidate $<TARGET_FILE:sdfont_system_candidate>)
+
+add_test(NAME SdFontCatalogFrontDoor
+  COMMAND ${XP_FFI_CARGO} test --manifest-path ${REPO_ROOT}/rust/Cargo.toml -p xp-core
+    --features sd-font-catalog --test font_owner_binding --offline --locked)
+set_tests_properties(SdFontCatalogFrontDoor PROPERTIES WORKING_DIRECTORY ${REPO_ROOT}/rust)
+add_test(NAME SdFontXtcOrder
+  COMMAND ${XP_FFI_CARGO} test --manifest-path ${REPO_ROOT}/rust/Cargo.toml -p xp-ui
+    --features sd-font-catalog --lib synchronous_font_effects_keep_entry_command_order_and_failures --offline --locked)
+set_tests_properties(SdFontXtcOrder PROPERTIES WORKING_DIRECTORY ${REPO_ROOT}/rust)

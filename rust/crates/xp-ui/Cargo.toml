@@ -5,6 +5,7 @@ edition = "2021"
 publish = false
 
 [features]
+sd-font-catalog = []
 legacy-reader-oracles = []
 legacy-keyboard-oracles = []
 legacy-network-oracles = []

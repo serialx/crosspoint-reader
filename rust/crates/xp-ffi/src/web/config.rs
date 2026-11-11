@@ -92,11 +92,25 @@ impl Wifi {
         last_connected: false,
     };
 }
+#[cfg(feature = "sd-font-catalog")]
+#[repr(u32)]
+pub(crate) enum FontChoicesStage {
+    Borrow,
+    Copy,
+}
 #[repr(C)]
 pub struct Config {
     files: *const Services,
     parse: unsafe extern "C" fn(*mut c_void, Span) -> Span,
     json_value: unsafe extern "C" fn(*mut c_void, *const c_char, i32, bool) -> JsonValue,
+    #[cfg(feature = "sd-font-catalog")]
+    count: unsafe extern "C" fn(
+        *mut c_void,
+        u32,
+        FontChoicesStage,
+        *mut crate::font_sd::catalog::ChoiceView,
+    ) -> usize,
+    #[cfg(not(feature = "sd-font-catalog"))]
     count: unsafe extern "C" fn(*mut c_void, u32) -> usize,
     setting: unsafe extern "C" fn(*mut c_void, usize, bool, *mut Setting),
     option: unsafe extern "C" fn(*mut c_void, usize, usize) -> Span,
@@ -207,7 +221,20 @@ impl ConfigRequest<'_> {
         true
     }
     fn count(&self, route: u32) -> usize {
-        unsafe { (self.c.count)(self.r.ctx, route) }
+        #[cfg(feature = "sd-font-catalog")]
+        unsafe {
+            use crate::font_sd::catalog::ChoiceView;
+            let mut choices = ChoiceView::EMPTY;
+            if route <= 1 {
+                (self.c.count)(self.r.ctx, route, FontChoicesStage::Borrow, &mut choices);
+                choices.prepare();
+            }
+            (self.c.count)(self.r.ctx, route, FontChoicesStage::Copy, &mut choices)
+        }
+        #[cfg(not(feature = "sd-font-catalog"))]
+        unsafe {
+            (self.c.count)(self.r.ctx, route)
+        }
     }
     fn begin_array(&self) {
         unsafe {

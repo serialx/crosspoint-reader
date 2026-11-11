@@ -298,9 +298,56 @@ pub unsafe extern "C" fn xp_ui_reader_base_run(
     a: u8,
     b: u8,
 ) -> u8 {
-    services
-        .as_ref()
-        .map_or(0, |s| base::run(*s, operation, a != 0, b != 0))
+    let Some(s) = services.as_ref() else { return 0 };
+    #[cfg(all(feature = "sd-font-catalog", not(feature = "app-test")))]
+    {
+        base::run_with_fonts(*s, operation, a != 0, b != 0, || ensure_reader_fonts(s))
+    }
+    #[cfg(not(all(feature = "sd-font-catalog", not(feature = "app-test"))))]
+    base::run(*s, operation, a != 0, b != 0)
+}
+#[cfg(all(feature = "sd-font-catalog", not(feature = "app-test")))]
+#[repr(C)]
+struct ReaderFontEffect {
+    owner: *const crate::font_registry::Owner,
+    settings: crate::font_sd::catalog::Settings,
+    token: crate::font_sd::catalog::Continuation,
+}
+#[cfg(all(feature = "sd-font-catalog", not(feature = "app-test")))]
+#[inline(never)]
+unsafe fn ensure_reader_fonts(services: &base::Services) {
+    use crate::font_sd::catalog::{xp_sd_fonts_ensure, Action};
+    use core::{mem::MaybeUninit, ptr};
+    let Some(command) = services.command else {
+        return;
+    };
+    let mut storage = MaybeUninit::<ReaderFontEffect>::zeroed();
+    let loan = storage.as_mut_ptr();
+    let effect = move |action: Action| {
+        command(
+            services.context,
+            base::Command::EnsureFonts as u8,
+            action as i32,
+            0,
+            loan.cast(),
+        );
+    };
+    effect(Action::BorrowSettings);
+    loop {
+        let action = xp_sd_fonts_ensure(
+            (*loan).owner,
+            ptr::addr_of_mut!((*loan).settings),
+            ptr::addr_of_mut!((*loan).token),
+        );
+        if matches!(action, Action::Complete) {
+            break;
+        }
+        let terminal = matches!(action, Action::Rejected | Action::LoadVector);
+        effect(action);
+        if terminal {
+            break;
+        }
+    }
 }
 /// # Safety
 /// Non-null model is valid and exclusively borrowed for this POD-only call.

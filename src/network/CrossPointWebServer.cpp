@@ -1131,13 +1131,31 @@ const XpWebConfig WebConfigBridge::services = {
       }
       return {text, value.as<int>(), present, value.is<const char*>(), value.is<int>(), value.is<JsonArrayConst>()};
     },
-    .count = [](void* ctx, uint32_t route) -> size_t {
+    .count = [](void* ctx, uint32_t route
+#ifdef XP_SD_FONT_CATALOG
+                ,
+                XpWebFontChoicesStage stage, XpSdChoices* choices
+#endif
+                ) -> size_t {
+#ifdef XP_SD_FONT_CATALOG
+      if (stage == XP_WEB_FONT_CHOICES_BORROW) {
+        choices->owner = sdFontSystem.registry().raw();
+        choices->family = reinterpret_cast<const uint8_t*>(SETTINGS.sdFontFamilyName);
+        choices->length = strlen(SETTINGS.sdFontFamilyName);
+        return 0;
+      }
+#endif
       auto& b = config(ctx);
       switch (static_cast<XpWebConfigRoute>(route)) {
         case XP_WEB_SETTINGS_GET:
         case XP_WEB_SETTINGS_POST:
           DictionaryRegistry::discover(b.dictionaries);
-          b.settings = getSettingsList(&sdFontSystem.registry(), &b.dictionaries);
+          b.settings = getSettingsList(&sdFontSystem.registry(), &b.dictionaries
+#ifdef XP_SD_FONT_CATALOG
+                                       ,
+                                       choices
+#endif
+          );
           return b.settings.size();
         case XP_WEB_OPDS_GET:
         case XP_WEB_OPDS_POST:
@@ -1881,8 +1899,10 @@ void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* 
 
 struct WebFontBridge : WebFileBridge {
   explicit WebFontBridge(const CrossPointWebServer& owner) : WebFileBridge(owner) {}
+#ifndef XP_SD_FONT_CATALOG
   std::vector<uint8_t> sizes;
   char path[SdCardFontFamilyInfo::PATH_BUFFER_SIZE];
+#endif
   static WebFontBridge& fonts(void* ctx) { return static_cast<WebFontBridge&>(self(ctx)); }
   static void route(const CrossPointWebServer& owner, XpWebFontRoute route) {
     WebFontBridge bridge(owner);
@@ -1912,6 +1932,12 @@ const XpWebFonts WebFontBridge::services = {
       const char* value = self(ctx).paths[key].as<const char*>();
       return {reinterpret_cast<const uint8_t*>(value), value ? strlen(value) : 0};
     },
+#ifdef XP_SD_FONT_CATALOG
+    .registry = [](void*, bool* vectors) -> const XpLoadedFonts* {
+      *vectors = HalMemory::getPsramHeap().totalBytes > 0;
+      return sdFontSystem.registry().raw();
+    },
+#else
     .registry = [](void*, uint32_t op) -> size_t {
       switch (static_cast<XpWebFontRegistryOp>(op)) {
         case XP_WEB_FONT_REFRESH:
@@ -1940,8 +1966,19 @@ const XpWebFonts WebFontBridge::services = {
       if (!family.filePath(family.files[index], b.path, sizeof(b.path))) return {nullptr, 0};
       return {reinterpret_cast<const uint8_t*>(b.path), strlen(b.path)};
     },
+#endif
     .install =
-        [](void*, uint32_t op, const char* family, const char* filename, uint8_t* out, size_t capacity) {
+        [](void*, uint32_t op,
+#ifdef XP_SD_FONT_CATALOG
+           const XpWebFontInstallRequest* request
+#else
+           const char* family, const char* filename, uint8_t* out, size_t capacity
+#endif
+        ) {
+#ifdef XP_SD_FONT_CATALOG
+          const char* family = request->family;
+          const char* filename = request->filename;
+#endif
           FontInstaller installer(sdFontSystem.registry());
           switch (static_cast<XpWebFontInstallOp>(op)) {
             case XP_WEB_FONT_VALID_FAMILY:
@@ -1951,10 +1988,18 @@ const XpWebFonts WebFontBridge::services = {
             case XP_WEB_FONT_VALID_VECTOR:
               return FontInstaller::isValidVectorFontFilename(filename);
             case XP_WEB_FONT_ENSURE_DIR:
+#ifdef XP_SD_FONT_CATALOG
+              return FontInstaller::ensureFamilyDirAt(request->root, family);
+#else
               return installer.ensureFamilyDir(family);
+#endif
             case XP_WEB_FONT_BUILD_PATH:
-              FontInstaller::buildFontPath(family, filename, reinterpret_cast<char*>(out), capacity);
+#ifdef XP_SD_FONT_CATALOG
+              return false;  // Rust formats upload paths before calling storage.
+#else
+              installer.buildFontPath(family, filename, reinterpret_cast<char*>(out), capacity);
               return true;
+#endif
             case XP_WEB_FONT_REMOVE_FAMILY:
               return installer.deleteFamily(family) == FontInstaller::Error::OK;
           }

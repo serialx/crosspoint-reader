@@ -115,7 +115,8 @@ typedef enum {
   XP_SD_PATH,
   XP_SD_ROOT,
   XP_SD_WRITE_ROOT,
-  XP_SD_LOADED_ID
+  XP_SD_LOADED_ID,
+  XP_SD_SELECTABLE_SIZES
 } XpSdCatalogOperation;
 typedef struct {
   uint32_t operation;
@@ -135,6 +136,31 @@ typedef struct {
   int32_t id;
   bool vector, loose;
 } XpSdCatalogView;
+// Family begins with the existing repr(C) small-string record. These strided
+// records and heap names are borrowed until catalog mutation/drop.
+typedef struct {
+  union {
+    uint8_t inline_bytes[16];
+    const char* heap;
+  } text;
+  size_t length, capacity;
+} XpSdName;
+typedef struct {
+  const XpLoadedFonts* owner;
+  const uint8_t* family;
+  size_t length;
+  const void* names;
+  size_t count, stride;
+  uint32_t sizes[8];
+  size_t reserve;
+} XpSdChoices;
+#ifdef __cplusplus
+static_assert(sizeof(XpSdName) == (sizeof(void*) == 8 ? 32 : 24));
+static_assert(sizeof(XpSdChoices) == (sizeof(void*) == 8 ? 88 : 60));
+static_assert(offsetof(XpSdChoices, names) == 3 * sizeof(void*));
+#endif
+// SELECTABLE_SIZES fills sizes and returns native initial capacity (zero means
+// incremental growth). ROOT/WRITE_ROOT and size queries allow a null owner.
 // COUNT returns count; AT/FIND return index+1; PATH returns success; ROOT/WRITE_ROOT
 // return a static root address. Views borrow names/files until rediscovery/drop.
 uintptr_t xp_sd_catalog_query(const XpLoadedFonts*, const XpSdCatalogQuery*, XpSdCatalogView*);

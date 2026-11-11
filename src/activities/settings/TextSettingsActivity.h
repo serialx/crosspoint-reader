@@ -1,10 +1,10 @@
 #pragma once
-#include <SdCardFontRegistry.h>
 #include <xp_ui_text_settings.h>
 
 #include <string>
 #include <vector>
 
+#include "ReaderFontSizes.h"
 #include "TextSettingsPreview.h"
 #include "activities/RustActivityAdapter.h"
 #include "activities/reader/ReaderChromeListActivity.h"
@@ -13,7 +13,7 @@
 class TextSettingsActivity final : public RustActivityAdapter {
  public:
   enum class Tab : uint8_t { Family, Size, Layout, Style, Count };
-  TextSettingsActivity(GfxRenderer&, MappedInputManager&, const SdCardFontRegistry*, Tab initialTab = Tab::Family);
+  TextSettingsActivity(GfxRenderer&, MappedInputManager&, const ReaderFontCatalog*, Tab initialTab = Tab::Family);
   void onEnter() override;
   void onExit() override;
   void loop() override;
@@ -29,7 +29,7 @@ class TextSettingsActivity final : public RustActivityAdapter {
     std::string name;
     uint8_t pointSize;
   };
-  const SdCardFontRegistry* registry_;
+  const ReaderFontCatalog* registry_;
   OptionPopup optionPopup_;
   std::vector<FontEntry> fonts_;
   std::vector<SizeEntry> sizes_;

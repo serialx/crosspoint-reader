@@ -23,14 +23,29 @@ pub struct Upload {
     magic_checked: bool,
     vector: bool,
 }
+#[cfg(feature = "sd-font-catalog")]
+#[repr(C)]
+struct InstallRequest {
+    family: *const c_char,
+    filename: *const c_char,
+    root: *const c_char,
+}
 #[repr(C)]
 pub struct Fonts {
     transfers: *const Transfers,
     parse: unsafe extern "C" fn(*mut c_void, Span) -> Span,
     json_string: unsafe extern "C" fn(*mut c_void, *const c_char) -> Span,
+    #[cfg(feature = "sd-font-catalog")]
+    registry: unsafe extern "C" fn(*mut c_void, *mut bool) -> *const crate::font_registry::Owner,
+    #[cfg(not(feature = "sd-font-catalog"))]
     registry: unsafe extern "C" fn(*mut c_void, u32) -> usize,
+    #[cfg(not(feature = "sd-font-catalog"))]
     family: unsafe extern "C" fn(*mut c_void, usize, *mut Family),
+    #[cfg(not(feature = "sd-font-catalog"))]
     file: unsafe extern "C" fn(*mut c_void, usize, usize) -> Span,
+    #[cfg(feature = "sd-font-catalog")]
+    install: unsafe extern "C" fn(*mut c_void, u32, *const InstallRequest) -> bool,
+    #[cfg(not(feature = "sd-font-catalog"))]
     install: unsafe extern "C" fn(
         *mut c_void,
         u32,
@@ -78,8 +93,35 @@ impl FontRequest<'_> {
     fn r(&self) -> &Request<'_> {
         &self.transfer.r
     }
+    #[cfg(feature = "sd-font-catalog")]
+    fn owner(&self) -> (*const crate::font_registry::Owner, bool) {
+        let mut vectors = false;
+        let owner = unsafe { (self.fonts.registry)(self.r().ctx, &mut vectors) };
+        (owner, vectors)
+    }
     fn registry(&self, op: u32) -> usize {
-        unsafe { (self.fonts.registry)(self.r().ctx, op) }
+        #[cfg(feature = "sd-font-catalog")]
+        unsafe {
+            use crate::font_sd::catalog::{catalog, xp_sd_catalog_dirty};
+            let (owner, vectors) = self.owner();
+            match op {
+                0 => {
+                    xp_sd_catalog_dirty(owner, 1, cfg!(feature = "vector-fonts"));
+                    catalog(owner).families().len()
+                }
+                1 => 128,
+                2 => usize::from(vectors),
+                3 => {
+                    xp_sd_catalog_dirty(owner, 0, vectors);
+                    0
+                }
+                _ => 0,
+            }
+        }
+        #[cfg(not(feature = "sd-font-catalog"))]
+        unsafe {
+            (self.fonts.registry)(self.r().ctx, op)
+        }
     }
     fn event(&self, event: Event, a: &[u8], b: &[u8], bytes: usize, valid: bool) {
         unsafe {
@@ -110,6 +152,58 @@ impl FontRequest<'_> {
         name: *const c_char,
         out: &mut [u8],
     ) -> bool {
+        #[cfg(feature = "sd-font-catalog")]
+        unsafe {
+            if matches!(op, Install::EnsureDir | Install::BuildPath) {
+                let root = xp_core::font::registry::root(
+                    family,
+                    c"/.fonts".as_ptr(),
+                    c"/fonts".as_ptr(),
+                    crate::font_sd::catalog::xp_native_sd_path_exists,
+                    false,
+                );
+                let root = if root.is_null() {
+                    xp_core::font::registry::root(
+                        core::ptr::null(),
+                        c"/.fonts".as_ptr(),
+                        c"/fonts".as_ptr(),
+                        crate::font_sd::catalog::xp_native_sd_path_exists,
+                        true,
+                    )
+                } else {
+                    root
+                };
+                return if matches!(op, Install::BuildPath) {
+                    xp_core::font::registry::path(
+                        root,
+                        family,
+                        name,
+                        0,
+                        false,
+                        out.as_mut_ptr(),
+                        out.len(),
+                    );
+                    true
+                } else {
+                    let request = InstallRequest {
+                        family,
+                        filename: name,
+                        root,
+                    };
+                    (self.fonts.install)(self.r().ctx, op as u32, &request)
+                };
+            }
+        }
+        #[cfg(feature = "sd-font-catalog")]
+        unsafe {
+            let request = InstallRequest {
+                family,
+                filename: name,
+                root: core::ptr::null(),
+            };
+            (self.fonts.install)(self.r().ctx, op as u32, &request)
+        }
+        #[cfg(not(feature = "sd-font-catalog"))]
         unsafe {
             (self.fonts.install)(
                 self.r().ctx,
@@ -127,14 +221,40 @@ impl FontRequest<'_> {
         let vectors = self.registry(2) != 0;
         let mut out = Text::new(b"{\"families\":[")?;
         for index in 0..count {
+            #[cfg(not(feature = "sd-font-catalog"))]
             let mut family = Family {
                 name: EMPTY,
                 sizes: EMPTY,
                 files: 0,
             };
+            #[cfg(not(feature = "sd-font-catalog"))]
             unsafe {
                 (self.fonts.family)(self.r().ctx, index, &mut family);
             }
+            #[cfg(feature = "sd-font-catalog")]
+            let mut sizes = [0u8; 256];
+            #[cfg(feature = "sd-font-catalog")]
+            let entry =
+                unsafe { &crate::font_sd::catalog::catalog(self.owner().0).families()[index] };
+            #[cfg(feature = "sd-font-catalog")]
+            let family = {
+                let mut present = [0u32; 8];
+                for file in entry.files() {
+                    present[usize::from(file.size / 32)] |= 1 << (file.size % 32);
+                }
+                let mut count = 0;
+                for size in 0..256 {
+                    if present[size / 32] & (1 << (size % 32)) != 0 {
+                        sizes[count] = size as u8;
+                        count += 1;
+                    }
+                }
+                Family {
+                    name: Span::new(entry.name().to_bytes()),
+                    sizes: Span::new(&sizes[..count]),
+                    files: entry.files().len(),
+                }
+            };
             if index != 0 {
                 out.append(b",")?;
             }
@@ -150,7 +270,22 @@ impl FontRequest<'_> {
             out.append(b"],\"files\":[")?;
             let mut comma = false;
             for i in 0..family.files {
+                #[cfg(not(feature = "sd-font-catalog"))]
                 let path = unsafe { (self.fonts.file)(self.r().ctx, index, i) };
+                #[cfg(feature = "sd-font-catalog")]
+                let mut path_bytes = [0u8; 160];
+                #[cfg(feature = "sd-font-catalog")]
+                let path = if entry.path(&entry.files()[i], &mut path_bytes) {
+                    Span {
+                        data: path_bytes.as_ptr(),
+                        len: core::ffi::CStr::from_bytes_until_nul(&path_bytes)
+                            .unwrap()
+                            .to_bytes()
+                            .len(),
+                    }
+                } else {
+                    EMPTY
+                };
                 if path.data.is_null() {
                     continue;
                 }

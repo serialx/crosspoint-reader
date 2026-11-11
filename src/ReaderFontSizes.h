@@ -58,6 +58,11 @@ inline constexpr uint8_t VECTOR_READER_POINT_SIZES[] = {8, 9, 10, 11, 12, 13, 14
 // Never returns empty.
 std::vector<uint8_t> readerFontPointSizes(const ReaderFontCatalog* registry, const char* sdFamilyName);
 
+#ifdef XP_SD_FONT_CATALOG
+// Copy policy results without selecting a family or fallback.
+std::vector<uint8_t> readerFontPointSizes(const XpSdChoices& choices);
+#endif
+
 // Closest entry in `sizes` (ascending, `count` > 0) to `pt`; ties resolve to the
 // smaller size. Takes a raw range rather than a vector because getReaderFontId()
 // runs inside the page render loop and must not allocate.

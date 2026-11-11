@@ -1,10 +1,18 @@
+#[path = "web/config.rs"]
 mod config;
+#[path = "web/fetch.rs"]
 mod fetch;
+#[path = "web/fonts.rs"]
 mod fonts;
+#[path = "web/jobs.rs"]
 mod jobs;
+#[path = "web/lifecycle.rs"]
 mod lifecycle;
+#[path = "web/plugins.rs"]
 mod plugins;
+#[path = "web/rpc.rs"]
 mod rpc;
+#[path = "web/status.rs"]
 mod status;
 extern crate alloc;
 // Web file-route policy; synchronous transport and HAL leaves are supplied by C++.
@@ -1475,3 +1483,6 @@ pub unsafe extern "C" fn xp_web_page(
         _ => {}
     }
 }
+
+#[cfg(all(test, feature = "sd-font-catalog"))]
+pub(crate) use config::FontChoicesStage;

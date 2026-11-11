@@ -460,9 +460,13 @@ const XpChapterSink ChapterPageAssembler::sink_ = {
       return {reinterpret_cast<const uint8_t*>(value), value ? static_cast<uint32_t>(strlen(value)) : 0};
     },
     [](void* ctx, uint32_t length) { return static_cast<ChapterPageAssembler*>(ctx)->entityBuffer(length); },
+#if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
+    xp_sd_font_chapter,
+#else
     [](void* ctx, int32_t font, float scale) -> int32_t {
       return static_cast<ChapterPageAssembler*>(ctx)->renderer.resolveFontVariant(font, scale);
     },
+#endif
     [](void* ctx, int32_t font, float compression) -> int32_t {
       return static_cast<ChapterPageAssembler*>(ctx)->renderer.getLineHeight(font, compression);
     },
@@ -479,10 +483,28 @@ const XpChapterSink ChapterPageAssembler::sink_ = {
       return found;
     },
 #endif
+#if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
+    [](void* ctx, const XpChapterFontOperation* op) -> int32_t {
+      const auto& renderer = static_cast<ChapterPageAssembler*>(ctx)->renderer;
+      switch (static_cast<XpChapterFontOperationKind>(op->operation)) {
+        case XP_CHAPTER_FONT_VARIANT: {
+          float scale;
+          memcpy(&scale, &op->argument, sizeof(scale));
+          return renderer.resolveNonSdFontVariant(op->font, scale);
+        }
+        case XP_CHAPTER_FONT_READY:
+          return op->font == static_cast<int32_t>(op->argument) || renderer.ensureNonSdFontLoaded(op->font)
+                     ? op->font
+                     : static_cast<int32_t>(op->argument);
+      }
+      return 0;
+    },
+#else
     [](void* ctx, int32_t font, int32_t fallback) -> int32_t {
       const auto& renderer = static_cast<ChapterPageAssembler*>(ctx)->renderer;
       return font == fallback || renderer.ensureFontLoaded(font) ? font : fallback;
     },
+#endif
     [](void* ctx, uint32_t operation, XpChapterSpan bytes, XpChapterPosition position) -> uint8_t {
       return static_cast<ChapterPageAssembler*>(ctx)->completeBytes(operation, bytes, position);
     },

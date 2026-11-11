@@ -94,6 +94,10 @@ pub enum Operation {
     Flush = 9,
     MenuActive = 10,
 }
+#[cfg(all(feature = "sd-font-catalog", not(feature = "legacy-reader-oracles")))]
+pub type NativeCommand = unsafe extern "C" fn(*mut c_void, u8, i32, i32, *mut c_void) -> u32;
+#[cfg(not(all(feature = "sd-font-catalog", not(feature = "legacy-reader-oracles"))))]
+pub type NativeCommand = unsafe extern "C" fn(*mut c_void, u8, i32, i32) -> u32;
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Services {
@@ -101,7 +105,7 @@ pub struct Services {
     pub read: Option<unsafe extern "C" fn(*mut c_void, u8) -> u32>,
     pub write: Option<unsafe extern "C" fn(*mut c_void, u8, u32)>,
     pub query: Option<unsafe extern "C" fn(*mut c_void, u8) -> u32>,
-    pub command: Option<unsafe extern "C" fn(*mut c_void, u8, i32, i32) -> u32>,
+    pub command: Option<NativeCommand>,
     pub touch: Option<unsafe extern "C" fn(*mut c_void) -> Turn>,
     pub buttons: Option<unsafe extern "C" fn(*mut c_void) -> Turn>,
 }
@@ -110,7 +114,7 @@ struct Engine {
     read: unsafe extern "C" fn(*mut c_void, u8) -> u32,
     write: unsafe extern "C" fn(*mut c_void, u8, u32),
     query: unsafe extern "C" fn(*mut c_void, u8) -> u32,
-    command: unsafe extern "C" fn(*mut c_void, u8, i32, i32) -> u32,
+    command: NativeCommand,
     touch: unsafe extern "C" fn(*mut c_void) -> Turn,
     buttons: unsafe extern "C" fn(*mut c_void) -> Turn,
 }
@@ -136,7 +140,14 @@ impl Engine {
         unsafe { (self.query)(self.context, q as u8) }
     }
     fn c(&self, c: Command, a: i32, b: i32) -> u32 {
-        unsafe { (self.command)(self.context, c as u8, a, b) }
+        #[cfg(all(feature = "sd-font-catalog", not(feature = "legacy-reader-oracles")))]
+        unsafe {
+            (self.command)(self.context, c as u8, a, b, core::ptr::null_mut())
+        }
+        #[cfg(not(all(feature = "sd-font-catalog", not(feature = "legacy-reader-oracles"))))]
+        unsafe {
+            (self.command)(self.context, c as u8, a, b)
+        }
     }
     fn op(&self, c: Command) -> u32 {
         self.c(c, 0, 0)
@@ -265,7 +276,7 @@ impl Engine {
         self.op(Command::RenderBook);
         self.op(Command::SessionRender);
     }
-    fn enter(&self) {
+    fn enter(&self, ensure_fonts: impl FnOnce()) {
         self.op(Command::BaseEnter);
         self.op(Command::LogEnter);
         if self.q(Query::Exists) == 0 {
@@ -276,7 +287,7 @@ impl Engine {
             self.op(Command::ClearPath);
             self.op(Command::SaveState);
         }
-        self.op(Command::EnsureFonts);
+        ensure_fonts();
         self.op(Command::OrientationInitial);
         if self.op(Command::LoadBook) == 0 {
             if self.op(Command::LoadFailure) == 0 {
@@ -314,9 +325,9 @@ impl Engine {
         self.op(Command::EndDrop);
         self.set(Field::EndReady, 0);
     }
-    fn run(&self, operation: Operation, a: bool, b: bool) -> u8 {
+    fn run(&self, operation: Operation, a: bool, b: bool, ensure_fonts: impl FnOnce()) -> u8 {
         match operation {
-            Operation::Enter => self.enter(),
+            Operation::Enter => self.enter(ensure_fonts),
             Operation::Exit => self.exit(),
             Operation::Remember => self.remember(),
             Operation::ClearEnd => self.clear_end(),
@@ -338,6 +349,21 @@ impl Engine {
 /// # Safety
 /// The borrowed callbacks are synchronous and valid for this call.
 pub unsafe fn run(services: Services, operation: u8, a: bool, b: bool) -> u8 {
+    run_with_fonts(services, operation, a, b, || {
+        if let Some(engine) = Engine::new(services) {
+            engine.op(Command::EnsureFonts);
+        }
+    })
+}
+/// # Safety
+/// Callbacks obey `run`'s contract. Font effects run synchronously at the original entry point.
+pub unsafe fn run_with_fonts(
+    services: Services,
+    operation: u8,
+    a: bool,
+    b: bool,
+    ensure_fonts: impl FnOnce(),
+) -> u8 {
     const OPERATIONS: [Operation; 11] = [
         Operation::Enter,
         Operation::Exit,
@@ -354,7 +380,7 @@ pub unsafe fn run(services: Services, operation: u8, a: bool, b: bool) -> u8 {
     let Some(operation) = OPERATIONS.get(operation as usize).copied() else {
         return 0;
     };
-    Engine::new(services).map_or(0, |e| e.run(operation, a, b))
+    Engine::new(services).map_or(0, |e| e.run(operation, a, b, ensure_fonts))
 }
 
 const _: () = {
@@ -556,7 +582,76 @@ const _: () = {
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
     use super::*;
+    #[test]
+    fn synchronous_font_effects_keep_entry_command_order_and_failures() {
+        use std::cell::RefCell;
+        struct Context {
+            events: RefCell<std::vec::Vec<u8>>,
+            exists: bool,
+            load: bool,
+        }
+        unsafe extern "C" fn read(_: *mut c_void, _: u8) -> u32 {
+            0
+        }
+        unsafe extern "C" fn write(_: *mut c_void, _: u8, _: u32) {
+            panic!("write")
+        }
+        unsafe extern "C" fn query(p: *mut c_void, q: u8) -> u32 {
+            let c = &*p.cast::<Context>();
+            if q == Query::Exists as u8 {
+                u32::from(c.exists)
+            } else {
+                0
+            }
+        }
+        unsafe extern "C" fn command(
+            p: *mut c_void,
+            op: u8,
+            _: i32,
+            _: i32,
+            #[cfg(all(feature = "sd-font-catalog", not(feature = "legacy-reader-oracles")))]
+            _: *mut c_void,
+        ) -> u32 {
+            let c = &*p.cast::<Context>();
+            c.events.borrow_mut().push(op);
+            if op == Command::LoadBook as u8 {
+                u32::from(c.load)
+            } else {
+                0
+            }
+        }
+        unsafe extern "C" fn turn(_: *mut c_void) -> Turn {
+            core::mem::zeroed()
+        }
+        for (exists, load, expected) in [
+            (false, false, &[2, 4, 1][..]),
+            (true, false, &[2, 4, 6, 7, 8, 9, 10, 11, 1][..]),
+            (true, true, &[2, 4, 6, 7, 8, 9, 10, 0][..]),
+        ] {
+            let mut context = Context {
+                events: RefCell::default(),
+                exists,
+                load,
+            };
+            let services = Services {
+                context: (&mut context as *mut Context).cast(),
+                read: Some(read),
+                write: Some(write),
+                query: Some(query),
+                command: Some(command),
+                touch: Some(turn),
+                buttons: Some(turn),
+            };
+            unsafe {
+                run_with_fonts(services, Operation::Enter as u8, false, false, || {
+                    context.events.borrow_mut().push(Command::EnsureFonts as u8)
+                });
+            }
+            assert_eq!(&*context.events.borrow(), expected);
+        }
+    }
     #[test]
     fn counter_only_and_manual_requests_preserve_their_distinct_meaning() {
         for manual in [false, true] {

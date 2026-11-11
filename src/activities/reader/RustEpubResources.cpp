@@ -526,7 +526,14 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
           },
       .image_clear_failures = [] { ImageBlock::clearRenderFailures(); },
       .image_release_cache = [] { ImageBlock::releaseRenderCache(); },
+#if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
+      .fonts_ensure_loaded =
+          [](uint32_t action, XpSdSettings* settings, XpSdContinuation* token) {
+            sdFontSystem.fontEffect(static_cast<XpSdAction>(action), *settings, *token, *target);
+          },
+#else
       .fonts_ensure_loaded = [] { sdFontSystem.ensureLoaded(*target); },
+#endif
 #ifdef XP_APP_TEST
       .fonts_release_caches =
           [] {
@@ -541,11 +548,13 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
 #else
       .fonts_take_corrupt_notice = xp_sd_font_take_corrupt_notice,
 #endif
+#ifndef XP_SD_FONT_CATALOG
       .font_sizes = [](XpAppText family, XpAppTextSink sink, void* context) -> uint8_t {
         // Families borrow NUL-terminated owner or settings storage.
         const auto sizes = readerFontPointSizes(&sdFontSystem.registry(), pathText(family));
         return sink(context, {sizes.data(), sizes.size()});
       },
+#endif
       .settings_snapshot =
           [](uint8_t resolveFont, XpEpubSettings* out) {
             const auto& settings = SETTINGS;
@@ -847,12 +856,22 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
                             uint32_t bytes) { InflateStream::logAllocationFailure(pathText(allocation), bytes); },
       .build_metrics = []() -> const XpParaMetrics* { return &sectionMetrics; },
       .build_allocator = paragraphAllocator,
-      .font_variant = [](int32_t font, float scale) -> int32_t { return target->resolveFontVariant(font, scale); },
+      .font_variant = [](int32_t font, float scale) -> int32_t {
+#if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
+        return target->resolveNonSdFontVariant(font, scale);
+#else
+        return target->resolveFontVariant(font, scale);
+#endif
+      },
       .font_line_height = [](int32_t font, float compression) -> int32_t {
         return target->getLineHeight(font, compression);
       },
       .font_ready = [](int32_t font, int32_t fallback) -> int32_t {
+#if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
+        return font == fallback || target->ensureNonSdFontLoaded(font) ? font : fallback;
+#else
         return font == fallback || target->ensureFontLoaded(font) ? font : fallback;
+#endif
       },
       .font_codepoint = [](int32_t font, uint32_t codepoint, uint8_t style, int32_t* advance, int32_t* top) -> uint8_t {
         int32_t measuredAdvance = 0;

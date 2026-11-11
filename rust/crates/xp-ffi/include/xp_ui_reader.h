@@ -2,6 +2,9 @@
 #include <stdint.h>
 
 #include "xp_ui.h"
+#ifdef XP_SD_FONT_CATALOG
+#include "xp_font_registry.h"
+#endif
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -339,12 +342,24 @@ typedef enum {
      consumed/success for Menu, EndTurn, ForceRefresh, MenuActive. */
   XP_UI_READER_BASE_OPERATION_MENU_ACTIVE = 10
 } XpUiReaderBaseOperation;
+#if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
+typedef struct {
+  const XpLoadedFonts* owner;
+  XpSdSettings settings;
+  XpSdContinuation token;
+} XpUiReaderFontEffect;
+#endif
 typedef struct {
   void* context;
   uint32_t (*read)(void*, uint8_t);
   void (*write)(void*, uint8_t, uint32_t);
   uint32_t (*query)(void*, uint8_t);
-  uint32_t (*command)(void*, uint8_t, int32_t, int32_t);
+  uint32_t (*command)(void*, uint8_t, int32_t, int32_t
+#if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
+                      ,
+                      void* font_effect
+#endif
+  );
   XpUiReaderTurnInput (*touch)(void*);
   XpUiReaderTurnInput (*buttons)(void*);
 } XpUiReaderBaseServices;

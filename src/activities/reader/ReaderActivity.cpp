@@ -173,7 +173,9 @@ uint8_t ReaderActivity::runBase(uint8_t operation, uint8_t a, uint8_t b) {
           saveState();
           break;
         case XP_UI_READER_BASE_COMMAND_ENSURE_FONTS:
+#ifndef XP_SD_FONT_CATALOG
           sdFontSystem.ensureLoaded(o.renderer);
+#endif
           break;
         case XP_UI_READER_BASE_COMMAND_ORIENTATION_INITIAL:
           o.applyInitialOrientation();
@@ -306,7 +308,24 @@ uint8_t ReaderActivity::runBase(uint8_t operation, uint8_t a, uint8_t b) {
           [](void* p, uint8_t f) { return static_cast<Context*>(p)->read(f); },
           [](void* p, uint8_t f, uint32_t v) { static_cast<Context*>(p)->write(f, v); },
           [](void* p, uint8_t q) { return static_cast<Context*>(p)->query(q); },
-          [](void* p, uint8_t c, int32_t a, int32_t b) { return static_cast<Context*>(p)->command(c, a, b); },
+          [](void* p, uint8_t c, int32_t a, int32_t b
+#if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
+             ,
+             void* fontEffect
+#endif
+             ) -> uint32_t {
+#if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
+            if (fontEffect) {
+              auto& effect = *static_cast<XpUiReaderFontEffect*>(fontEffect);
+              if (c != XP_UI_READER_BASE_COMMAND_ENSURE_FONTS) return 0;
+              effect.owner = sdFontSystem.registry().raw();
+              sdFontSystem.fontEffect(static_cast<XpSdAction>(a), effect.settings, effect.token,
+                                      static_cast<Context*>(p)->o.renderer);
+              return 0;
+            }
+#endif
+            return static_cast<Context*>(p)->command(c, a, b);
+          },
           [](void* p) -> XpUiReaderTurnInput {
             const auto& owner = static_cast<Context*>(p)->o;
             auto t = ReaderUtils::detectTouchPageTurn(owner.renderer, owner.mappedInput);

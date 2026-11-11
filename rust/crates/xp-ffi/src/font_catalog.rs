@@ -15,7 +15,7 @@ extern "C" {
         directory: *mut bool,
         names: bool,
     ) -> bool;
-    fn xp_native_sd_path_exists(path: *const c_char) -> bool;
+    pub(crate) fn xp_native_sd_path_exists(path: *const c_char) -> bool;
     #[cfg(any(feature = "app-test", feature = "vector-fonts"))]
     fn xp_native_sd_inspect(path: *const c_char, weight: *mut u16, italic: *mut bool) -> bool;
 }
@@ -142,7 +142,7 @@ unsafe impl Directory for Dirs<'_> {
         }
     }
 }
-unsafe fn catalog<'a>(owner: *const Owner) -> &'a mut Catalog<'static> {
+pub(crate) unsafe fn catalog<'a>(owner: *const Owner) -> &'a mut Catalog<'static> {
     &mut *(*owner).catalog.catalog.get()
 }
 unsafe fn discover(owner: *const Owner, vectors: bool) {
@@ -189,10 +189,6 @@ pub unsafe extern "C" fn xp_sd_catalog_query(
     out: *mut View,
 ) -> usize {
     let q = &*request;
-    let catalog = catalog(owner);
-    if q.operation == 0 {
-        return catalog.families().len();
-    }
     if q.operation == 6 {
         return control(owner).get_bytes(bytes(q.name, q.length), 0) as u32 as usize;
     }
@@ -204,6 +200,15 @@ pub unsafe extern "C" fn xp_sd_catalog_query(
             xp_native_sd_path_exists,
             q.operation == 5,
         ) as usize;
+    }
+    if q.operation == 7 {
+        let (sizes, reserve) = selectable(owner, bytes(q.name, q.length));
+        (*out).sizes = sizes;
+        return reserve;
+    }
+    let catalog = catalog(owner);
+    if q.operation == 0 {
+        return catalog.families().len();
     }
     let index = if q.operation == 2 {
         let name = bytes(q.name, q.length);
@@ -706,7 +711,40 @@ unsafe fn clear(owner: *const Owner, s: &Settings, t: &mut Continuation) -> Acti
     emit(owner, t, DONE, Action::PersistSettings)
 }
 
-pub(crate) unsafe fn choices(owner: *const Owner, name: &[u8]) -> Option<alloc::vec::Vec<u8>> {
+// Native consumers copy these records and label the choices; selection stays here.
+#[repr(C)]
+pub(crate) struct ChoiceView {
+    pub owner: *const Owner,
+    pub family: *const u8,
+    pub length: usize,
+    pub names: *const c_void,
+    pub count: usize,
+    pub stride: usize,
+    pub sizes: [u32; 8],
+    pub reserve: usize,
+}
+impl ChoiceView {
+    pub const EMPTY: Self = Self {
+        owner: ptr::null(),
+        family: ptr::null(),
+        length: 0,
+        names: ptr::null(),
+        count: 0,
+        stride: 0,
+        sizes: [0; 8],
+        reserve: 0,
+    };
+    pub unsafe fn prepare(&mut self) {
+        (self.sizes, self.reserve) = selectable(self.owner, bytes(self.family, self.length));
+        if !self.owner.is_null() {
+            let families = catalog(self.owner).families();
+            self.names = families.as_ptr().cast();
+            self.count = families.len();
+            self.stride = core::mem::size_of::<xp_core::sdfont::catalog::Family>();
+        }
+    }
+}
+pub(crate) unsafe fn selectable(owner: *const Owner, name: &[u8]) -> ([u32; 8], usize) {
     let family = if owner.is_null() || name.is_empty() {
         None
     } else {
@@ -715,25 +753,37 @@ pub(crate) unsafe fn choices(owner: *const Owner, name: &[u8]) -> Option<alloc::
             .iter()
             .find(|f| f.name().to_bytes() == name)
     };
-    let mut present = [false; 256];
-    match family {
-        Some(f) if f.vector => present[8..=22].fill(true),
+    let mut sizes = [0u32; 8];
+    let mut set = |size: u8| sizes[usize::from(size / 32)] |= 1 << (size % 32);
+    let reserve = match family {
+        Some(f) if f.vector => {
+            for size in 8..=22 {
+                set(size);
+            }
+            15
+        }
         Some(f) if !f.files().is_empty() => {
             for file in f.files() {
-                present[usize::from(file.size)] = true;
+                set(file.size);
             }
+            0 // Native bitmap choices preserve incremental vector growth.
         }
         _ => {
             for size in [12, 14, 16, 18] {
-                present[size] = true;
+                set(size);
             }
+            4
         }
-    }
-    let count = present.iter().filter(|b| **b).count();
+    };
+    (sizes, reserve)
+}
+pub(crate) unsafe fn choices(owner: *const Owner, name: &[u8]) -> Option<alloc::vec::Vec<u8>> {
+    let (present, _) = selectable(owner, name);
+    let count = present.iter().map(|b| b.count_ones() as usize).sum();
     let mut sizes = alloc::vec::Vec::new();
     sizes.try_reserve_exact(count).ok()?;
-    for (size, yes) in present.into_iter().enumerate() {
-        if yes {
+    for size in 0..256 {
+        if present[size / 32] & (1 << (size % 32)) != 0 {
             sizes.push(size as u8);
         }
     }
@@ -741,6 +791,14 @@ pub(crate) unsafe fn choices(owner: *const Owner, name: &[u8]) -> Option<alloc::
 }
 
 const _: () = {
+    assert!(
+        core::mem::size_of::<ChoiceView>()
+            == if cfg!(target_pointer_width = "32") {
+                60
+            } else {
+                88
+            }
+    );
     assert!(
         core::mem::size_of::<Continuation>()
             == if cfg!(target_pointer_width = "32") {

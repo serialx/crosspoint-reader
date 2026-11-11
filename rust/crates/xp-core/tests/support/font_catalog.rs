@@ -8,13 +8,14 @@ use xp_core::sdfont::io::Slot;
 struct Fixture {
     enabled: bool,
     vector: bool,
+    long_name: bool,
     allocations: usize,
     operations: usize,
     fail_alloc: usize,
     fail_io: usize,
 }
 thread_local! { static FIXTURE: RefCell<Fixture> = RefCell::new(Fixture::default()); }
-fn reset(fail_alloc: usize, fail_io: usize) {
+pub(super) fn reset(fail_alloc: usize, fail_io: usize) {
     FIXTURE.with(|f| {
         *f.borrow_mut() = Fixture {
             enabled: true,
@@ -55,7 +56,7 @@ pub(super) unsafe fn directory_open(slot: *mut Slot, path: *const c_char) -> i32
     let path = CStr::from_ptr(path);
     let node = if path == c"/.fonts" {
         1
-    } else if path == c"/.fonts/ShortFont" {
+    } else if path == c"/.fonts/ShortFont" || path == c"/.fonts/AReallyLongFamilyName" {
         2
     } else {
         return 0;
@@ -68,10 +69,18 @@ pub(super) unsafe fn directory_next(slot: *mut Slot, name: *mut u8, directory: *
     let node = slot.cast::<usize>().read();
     let index = slot.cast::<usize>().add(1).read();
     let vector = FIXTURE.with(|f| f.borrow().vector);
-    let names: &[&CStr] = if node == 1 {
+    let long_name = FIXTURE.with(|f| f.borrow().long_name);
+    let names: &[&CStr] = if node == 1 && long_name {
+        &[c"AReallyLongFamilyName"]
+    } else if node == 1 {
         &[c"ShortFont"]
     } else if vector {
         &[c"ShortFont-Regular.ttf", c"ShortFont-Bold.ttf"]
+    } else if long_name {
+        &[
+            c"AReallyLongFamilyName_14.cpfont",
+            c"AReallyLongFamilyName_18.cpfont",
+        ]
     } else {
         &[c"ShortFont_14.cpfont", c"ShortFont_18.cpfont"]
     };
@@ -181,7 +190,7 @@ unsafe fn run(
     }
     panic!("unbounded continuation")
 }
-unsafe fn new_owner(generation: &AtomicU32) -> Box<core::mem::MaybeUninit<Owner>> {
+pub(super) unsafe fn new_owner(generation: &AtomicU32) -> Box<core::mem::MaybeUninit<Owner>> {
     let mut storage = Box::<Owner>::new_uninit();
     xp_font_registry_init(storage.as_mut_ptr(), generation, ptr::null_mut());
     storage
@@ -490,5 +499,102 @@ fn vector_effect_lends_the_already_selected_family_and_sizes_are_direct() {
         );
         xp_font_registry_drop(owner);
         SD_ALLOCATIONS.with(|live| assert!(live.borrow().is_empty()));
+    }
+}
+
+#[test]
+fn native_choice_loan_keeps_inline_and_heap_names_and_size_policy_without_requests() {
+    #[repr(C)]
+    union Text {
+        inline: [u8; 16],
+        heap: *const u8,
+    }
+    #[repr(C)]
+    struct Name {
+        text: Text,
+        length: usize,
+        capacity: usize,
+    }
+    unsafe {
+        for long_name in [false, true] {
+            reset(0, 0);
+            FIXTURE.with(|f| f.borrow_mut().long_name = long_name);
+            let generation = AtomicU32::new(1);
+            let mut storage = new_owner(&generation);
+            let owner = storage.as_mut_ptr();
+            font_sd::catalog::xp_sd_catalog_dirty(owner, 2, false);
+            let expected = if long_name {
+                c"AReallyLongFamilyName"
+            } else {
+                c"ShortFont"
+            };
+            let live = SD_ALLOCATIONS.with(|a| a.borrow().len());
+            let mut choices = font_sd::catalog::ChoiceView::EMPTY;
+            choices.owner = owner;
+            choices.family = expected.as_ptr().cast();
+            choices.length = expected.to_bytes().len();
+            choices.prepare();
+            assert_eq!(choices.count, 1);
+            assert_eq!(choices.reserve, 0);
+            assert_eq!(choices.sizes[0], (1 << 14) | (1 << 18));
+            let name = &*choices.names.cast::<Name>();
+            assert_eq!(name.length, expected.to_bytes().len());
+            let pointer = if name.capacity == 15 {
+                ptr::addr_of!(name.text.inline).cast()
+            } else {
+                name.text.heap
+            };
+            assert_eq!(CStr::from_ptr(pointer.cast()), expected);
+            assert_eq!(
+                font_sd::xp_sd_font_id(owner, pointer.cast(), name.length, 0),
+                0
+            );
+            assert_eq!(
+                font_sd::catalog::choices(owner, expected.to_bytes()),
+                Some(vec![14, 18])
+            );
+            assert_eq!(
+                font_sd::catalog::choices(owner, b"missing"),
+                Some(vec![12, 14, 16, 18])
+            );
+            assert_eq!(CStr::from_ptr(pointer.cast()), expected);
+            assert_eq!(SD_ALLOCATIONS.with(|a| a.borrow().len()), live);
+            xp_font_registry_drop(owner);
+            SD_ALLOCATIONS.with(|a| assert!(a.borrow().is_empty()));
+        }
+        let query = Query {
+            operation: 5,
+            index: 0,
+            file: 0,
+            name: ptr::null(),
+            length: 0,
+            output: ptr::null_mut(),
+            capacity: 0,
+        };
+        let root = font_sd::catalog::xp_sd_catalog_query(
+            ptr::null(),
+            (&query as *const Query).cast(),
+            ptr::null_mut(),
+        );
+        assert_ne!(root, 0);
+        #[cfg(not(miri))]
+        assert_eq!(CStr::from_ptr(root as *const c_char), c"/.fonts");
+        let mut view = core::mem::MaybeUninit::<View>::zeroed();
+        let query = Query {
+            operation: 7,
+            ..query
+        };
+        assert_eq!(
+            font_sd::catalog::xp_sd_catalog_query(
+                ptr::null(),
+                (&query as *const Query).cast(),
+                view.as_mut_ptr().cast()
+            ),
+            4
+        );
+        assert_eq!(
+            view.assume_init().sizes[0],
+            (1 << 12) | (1 << 14) | (1 << 16) | (1 << 18)
+        );
     }
 }

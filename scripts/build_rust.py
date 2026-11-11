@@ -52,8 +52,11 @@ try:
         defines, compiler, project / "freeink-sdk/libs/hardware/BoardConfig/include/PanelDrivers.h")
 except (OSError, subprocess.CalledProcessError) as error:
     fail(f"cannot preprocess SDK panel selection: {error}\n{getattr(error, 'stderr', '')}")
-if panel_features:
-    command += ["--features", ",".join(panel_features)]
+env.Append(CPPDEFINES=["XP_SD_FONT_CATALOG"])
+features = panel_features + ["sd-font-catalog"]
+if any((d[0] if isinstance(d, (tuple, list)) else d) == "BOARD_HAS_PSRAM" for d in defines):
+    features.append("vector-fonts")
+command += ["--features", ",".join(features)]
 if mcu == "esp32s3":
     # Building the sysroot needs registry crates, even with only local dependencies.
     command += ["-Zbuild-std=core,alloc"]

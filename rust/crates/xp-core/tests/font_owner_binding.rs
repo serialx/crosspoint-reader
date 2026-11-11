@@ -21,6 +21,16 @@ use font_registry::{xp_font_registry_init, Owner};
 
 #[path = "support/font_catalog.rs"]
 mod catalog_cases;
+#[cfg(feature = "sd-font-catalog")]
+#[path = "../../xp-ffi/src/system_items.rs"]
+mod system_items;
+#[cfg(feature = "sd-font-catalog")]
+#[path = "../../xp-ffi/src/web.rs"]
+#[allow(unexpected_cfgs)]
+mod web;
+#[cfg(feature = "sd-font-catalog")]
+#[path = "support/font_web.rs"]
+mod web_cases;
 
 static ALLOCATIONS: AtomicUsize = AtomicUsize::new(0);
 
@@ -379,3 +389,6 @@ unsafe extern "C" fn xp_native_sd_inspect(
 ) -> bool {
     false
 }
+
+#[cfg(feature = "sd-font-catalog")]
+unused_native!(xp_plugin_path_candidate(path: *const u8, len: usize) -> bool);

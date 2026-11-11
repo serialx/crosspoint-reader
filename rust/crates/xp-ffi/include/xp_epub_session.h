@@ -343,7 +343,14 @@ typedef struct XpEpubLeaves {
   void (*paint_status)(const XpEpubStatus* status);
   void (*image_clear_failures)(void);
   void (*image_release_cache)(void);
-  void (*fonts_ensure_loaded)(void);
+  // Catalog builds request native effects; no font policy runs in this callback.
+  void (*fonts_ensure_loaded)(
+#if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
+      uint32_t action, XpSdSettings*, XpSdContinuation*
+#else
+      void
+#endif
+  );
 #ifdef XP_APP_TEST
   void (*fonts_release_caches)(void);
   uint8_t (*fonts_prewarm_begin)(XpEpubFontScan* storage);

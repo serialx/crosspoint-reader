@@ -137,6 +137,8 @@ class SdCardFontSystem {
   };
   static constexpr size_t MAX_CPFONT_VARIANTS = TextBlock::MAX_WORD_FONTS + 2;  // Inline, block, and drop-cap fonts.
   std::vector<CpfontVariant> cpfontVariants_;
+#endif
+#if CROSSPOINT_VECTOR_FONTS || !defined(XP_SD_FONT_CATALOG) || defined(XP_SDFONT_SYSTEM_ORACLE)
   uint32_t variantClock_ = 0;
 #endif
   GfxRenderer* renderer_ = nullptr;

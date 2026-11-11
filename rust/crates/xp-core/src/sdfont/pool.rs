@@ -261,6 +261,23 @@ unsafe fn free<T>(p: &mut *mut T, io: &Services) {
     unsafe { (io.free)((*p).cast(), true) };
     *p = ptr::null_mut();
 }
+// Relocate small resident tables before reserving a larger bitmap.
+// Failure keeps the old allocation and its contents intact.
+unsafe fn relocate<T>(p: &mut *mut T, capacity: u32, count: u32, io: &Services) {
+    let bytes = capacity as usize * mem::size_of::<T>();
+    if p.is_null() || bytes == 0 || bytes > 8192 {
+        return;
+    }
+    let replacement = unsafe { (io.alloc)(bytes, true) }.cast::<T>();
+    if replacement.is_null() {
+        return;
+    }
+    unsafe {
+        ptr::copy_nonoverlapping(*p, replacement, count as usize);
+        (io.free)((*p).cast(), true);
+    }
+    *p = replacement;
+}
 impl Resident {
     unsafe fn index(&self, cp: u32) -> Option<u32> {
         let mut lo = 0usize;
@@ -1656,8 +1673,26 @@ impl Cache {
             s.measured_bytes_per_glyph = total.div_ceil(valid as u32);
             if total > s.bitmap_capacity {
                 order.take();
+                let growing = !s.mini_bitmap.is_null();
                 unsafe { free(&mut s.mini_bitmap, io) };
                 s.bitmap_capacity = 0;
+                if growing {
+                    unsafe {
+                        relocate(
+                            &mut *self.advances.add(style),
+                            *self.advance_capacities.add(style),
+                            *self.advance_sizes.add(style),
+                            io,
+                        );
+                        relocate(
+                            &mut s.mini_intervals,
+                            s.interval_capacity,
+                            s.interval_count,
+                            io,
+                        );
+                        relocate(&mut s.mini_glyphs, s.glyph_capacity, s.glyph_count, io);
+                    }
+                }
                 if unsafe { (io.heap)(true) } < total {
                     unsafe { s.free_mini(io) };
                     drop(file);

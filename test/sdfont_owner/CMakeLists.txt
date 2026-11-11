@@ -26,6 +26,9 @@ target_include_directories(sdfont_owner_switch PRIVATE switch-stubs ${REPO_ROOT}
 target_link_libraries(sdfont_owner_switch PRIVATE xp_ffi_host)
 enable_testing()
 add_test(NAME SdFontOwnerSwitch COMMAND sdfont_owner_switch)
+add_test(NAME SdFontResidentGrowth
+  COMMAND ${XP_FFI_CARGO} test --manifest-path ${CMAKE_CURRENT_SOURCE_DIR}/Cargo.toml
+    --offline --locked --bin sdfont-owner runtime_tests::growth_tests)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 # This archive is isolated from the default ABI used by the full host suite.

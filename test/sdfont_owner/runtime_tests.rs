@@ -377,3 +377,6 @@ unsafe extern "C" fn tagged_miss(
     });
     ptr::null()
 }
+
+#[path = "growth_tests.rs"]
+mod growth_tests;

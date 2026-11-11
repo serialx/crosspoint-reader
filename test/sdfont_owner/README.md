@@ -115,3 +115,16 @@ and failure. Run both through CTest:
 ctest --test-dir build/sdfont-owner -R '^(SdFontCatalogFrontDoor|SdFontXtcOrder)$' --output-on-failure
 MIRIFLAGS='-Zmiri-strict-provenance' cargo +nightly miri test --manifest-path rust/Cargo.toml -p xp-core --features sd-font-catalog --test font_owner_binding --offline --locked
 ```
+
+`SdFontResidentGrowth` exercises bitmap growth through `FaceOwner` with real
+parsed glyphs, advances, kerning and ligatures. It checks each allocation failure,
+all combinations of failed table moves, retained tables, republished views,
+initial allocation, cache hits and teardown. The optional relocation adds no
+resident request on a cache hit; existing prewarm codepoint scratch remains.
+
+```sh
+ctest --test-dir build/host -R SdFontResidentGrowth --output-on-failure
+MIRIFLAGS=-Zmiri-strict-provenance cargo +nightly miri test \
+  --manifest-path test/sdfont_owner/Cargo.toml --bin sdfont-owner \
+  runtime_tests::growth_tests --offline --locked
+```

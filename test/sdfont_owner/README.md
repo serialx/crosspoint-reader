@@ -111,6 +111,6 @@ upload root/path effects. `SdFontXtcOrder` checks entry command order on success
 and failure. Run both through CTest:
 
 ```sh
-ctest --test-dir build/pt3-cp1c-host -R '^(SdFontCatalogFrontDoor|SdFontXtcOrder)$' --output-on-failure
+ctest --test-dir build/sdfont-owner -R '^(SdFontCatalogFrontDoor|SdFontXtcOrder)$' --output-on-failure
 MIRIFLAGS='-Zmiri-strict-provenance' cargo +nightly miri test --manifest-path rust/Cargo.toml -p xp-core --features sd-font-catalog --test font_owner_binding --offline --locked
 ```

@@ -1004,16 +1004,14 @@ The native chapter owner-address leaf remains with P18-D2 until that context mov
 Firmware builds enable `sd-font-catalog` and `XP_SD_FONT_CATALOG` together.
 PSRAM builds also enable `vector-fonts`; TTF sources, faces and caches remain
 PT-VEC work. Native startup/UI drivers and Rust EPUB/XTC callers execute typed
-font effects synchronously, preserving save/unload/load order. The inherited
-settings-save callback re-enters settings serialization, whose native settings
-and JSON loans are disjoint from reader state; SET-OWN owns its retirement.
+font effects synchronously, preserving save/unload/load order. Under ruling 45,
+the inherited settings-save callback re-enters settings serialization, whose
+native settings and JSON loans are disjoint from reader state; SET-OWN owns its
+retirement. Inherited PSRAM vector accessor and backend re-entry remains PT-VEC
+work. One Rust policy derives selectable sizes; native settings consumers only
+copy and label the returned choices.
 No SD catalog/control/load/variant policy re-enters through a native effect.
 Legacy native definitions and host ABI adapters remain CP2c/CP2d cleanup.
-The EPUB font-effect driver is not prepared: both reader entry and text-setting
-application still use the parent callback. CP2b-A must return through the native
-EPUB entry before save/vector effects, then resume with the original ordering
-and resource-lock ownership. Selectable sizes must be derived once in Rust;
-native settings consumers may copy and label the returned choices.
 
 C++ supplies the physical operations in
 [`xp_sd_physical.h`](../../rust/crates/xp-ffi/include/xp_sd_physical.h), paired
@@ -1023,8 +1021,8 @@ P18-D2 retires that accessor with the chapter/paragraph payload callers.
 `xp_native_sd_font_view`, `xp_native_sd_font_resident_slice` and
 `xp_native_sd_font_bitmap` remain only as host oracle adapters. CP2c deletes
 unlinked native definitions; CP2d retires the obsolete ABI declarations and
-named oracle adapters. The cold `xp_native_sd_font_load` re-entry stays until
-CP2b-A. See the
+named oracle adapters. The cold `xp_native_sd_font_load` provider is compiled
+out of the C3 firmware; Rust loads absent SD font IDs directly. See the
 [SD font differential](../../test/sdfont_diff/README.md) for compatibility limits.
 
 `sdfont::pool` owns resident glyph/bitmap buffers, prewarm and retention policy,

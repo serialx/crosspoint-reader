@@ -85,6 +85,12 @@ impl<'a> Control<'a> {
     pub fn family(&self) -> &CStr {
         self.name.cstr()
     }
+    /// # Safety
+    /// Control is initialized and serialized. Replacement, full unload or drop
+    /// ends the loan; queries and additional faces leave the name unchanged.
+    pub unsafe fn family_pointer(control: *const Self) -> *const core::ffi::c_char {
+        Name::pointer_raw(core::ptr::addr_of!((*control).name)).cast()
+    }
     pub fn points(&self) -> u8 {
         self.size
     }

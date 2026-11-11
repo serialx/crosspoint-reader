@@ -22,12 +22,15 @@ impl Name {
         }
     }
     fn pointer(&self) -> *const u8 {
-        unsafe {
-            if self.capacity == 15 {
-                self.text.inline.as_ptr()
-            } else {
-                self.text.heap
-            }
+        unsafe { Self::pointer_raw(self) }
+    }
+    /// # Safety
+    /// Name is initialized and stays live; assignment ends the returned loan.
+    pub(super) unsafe fn pointer_raw(name: *const Self) -> *const u8 {
+        if (*name).capacity == 15 {
+            ptr::addr_of!((*name).text.inline).cast()
+        } else {
+            (*name).text.heap
         }
     }
     pub fn bytes(&self) -> &[u8] {

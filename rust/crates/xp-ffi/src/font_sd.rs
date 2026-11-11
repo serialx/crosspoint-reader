@@ -344,12 +344,12 @@ pub unsafe extern "C" fn xp_sd_font_unload(owner: *mut Owner, id: i32, all: u8) 
     );
 }
 /// # Safety
-/// Returned name is borrowed until the next manager mutation; size is writable.
+/// Name is borrowed until replacement, full unload or drop; size is writable.
 #[no_mangle]
 pub unsafe extern "C" fn xp_sd_font_current(owner: *const Owner, size: *mut u8) -> *const c_char {
-    let manager = control(owner);
-    *size = manager.points();
-    manager.family().as_ptr()
+    let manager = (*owner).sd.get();
+    *size = (*manager).points();
+    Control::family_pointer(manager)
 }
 /// # Safety
 /// Family is readable and terminated; owner is initialized and serialized.

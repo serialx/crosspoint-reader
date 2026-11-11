@@ -144,38 +144,193 @@ unused_native!(xp_native_font_diagnostic(native: *mut c_void, event: u32, value:
 unused_native!(xp_native_bidi_acquire() -> *mut xp_core::bidi::Workspace);
 unused_native!(xp_native_bidi_release());
 
-unused_native!(xp_native_sd_allocate(bytes: usize, resident: bool) -> *mut u8);
-unused_native!(xp_native_sd_free(bytes: *mut u8, resident: bool));
-unused_native!(xp_native_sd_handle_init(slot: *mut xp_core::sdfont::io::Slot));
-unused_native!(xp_native_sd_handle_destroy(slot: *mut xp_core::sdfont::io::Slot));
-unused_native!(
-    xp_native_sd_file_open(
-        slot: *mut xp_core::sdfont::io::Slot,
-        path: *const core::ffi::c_char,
-        size: *mut u32,
-    ) -> u8
-);
-unused_native!(
-    xp_native_sd_file_read(
-        slot: *mut xp_core::sdfont::io::Slot,
-        bytes: *mut u8,
-        length: usize,
-    ) -> i32
-);
-unused_native!(xp_native_sd_file_seek(slot: *mut xp_core::sdfont::io::Slot, offset: u32) -> u8);
-unused_native!(xp_native_sd_file_close(slot: *mut xp_core::sdfont::io::Slot));
-unused_native!(
-    xp_native_sd_diagnostic(
-        path: *const core::ffi::c_char,
-        event: u32,
-        args: *const u32,
-        style: u32,
-        index: u32,
-        seek: bool,
-    )
-);
 unused_native!(xp_native_chapter_font_owner(context: *mut c_void) -> *const Owner);
 #[no_mangle]
 unsafe extern "C" fn heap_caps_get_largest_free_block(_: u32) -> usize {
     0
+}
+
+thread_local! {
+    static SD_ALLOCATIONS: std::cell::RefCell<Vec<(*mut u8, std::alloc::Layout)>> = const {
+        std::cell::RefCell::new(Vec::new())
+    };
+}
+const SD_BYTES: [u8; 152] = {
+    let mut bytes = [0; 152];
+    let magic = *b"CPFONT\0\0";
+    let mut i = 0;
+    while i < 8 {
+        bytes[i] = magic[i];
+        i += 1;
+    }
+    bytes[8] = 4;
+    bytes[12] = 2;
+    let mut style = 0;
+    while style < 2 {
+        let toc = 32 + style * 32;
+        bytes[toc] = if style == 0 { 0 } else { 3 };
+        bytes[toc + 4] = 1;
+        bytes[toc + 8] = 2;
+        bytes[toc + 17] = 1;
+        bytes[toc + 19] = 1;
+        bytes[toc + 24] = 96;
+        style += 1;
+    }
+    bytes[96] = 65;
+    bytes[100] = 66;
+    bytes
+};
+
+#[no_mangle]
+unsafe extern "C" fn xp_native_sd_allocate(bytes: usize, _: bool) -> *mut u8 {
+    let layout =
+        std::alloc::Layout::from_size_align(bytes.max(1), core::mem::align_of::<usize>()).unwrap();
+    let data = std::alloc::alloc(layout);
+    if !data.is_null() {
+        SD_ALLOCATIONS.with(|live| live.borrow_mut().push((data, layout)));
+    }
+    data
+}
+#[no_mangle]
+unsafe extern "C" fn xp_native_sd_free(data: *mut u8, _: bool) {
+    if !data.is_null() {
+        SD_ALLOCATIONS.with(|live| {
+            let mut live = live.borrow_mut();
+            let index = live.iter().position(|(p, _)| *p == data).unwrap();
+            let (_, layout) = live.swap_remove(index);
+            std::alloc::dealloc(data, layout);
+        });
+    }
+}
+#[no_mangle]
+unsafe extern "C" fn xp_native_sd_handle_init(slot: *mut xp_core::sdfont::io::Slot) {
+    slot.cast::<usize>().write(0);
+}
+#[no_mangle]
+unsafe extern "C" fn xp_native_sd_handle_destroy(_: *mut xp_core::sdfont::io::Slot) {}
+#[no_mangle]
+unsafe extern "C" fn xp_native_sd_file_open(
+    slot: *mut xp_core::sdfont::io::Slot,
+    _: *const core::ffi::c_char,
+    size: *mut u32,
+) -> u8 {
+    slot.cast::<usize>().write(0);
+    *size = SD_BYTES.len() as u32;
+    1
+}
+#[no_mangle]
+unsafe extern "C" fn xp_native_sd_file_read(
+    slot: *mut xp_core::sdfont::io::Slot,
+    bytes: *mut u8,
+    length: usize,
+) -> i32 {
+    let position = slot.cast::<usize>().read();
+    let count = length.min(SD_BYTES.len().saturating_sub(position));
+    ptr::copy_nonoverlapping(SD_BYTES.as_ptr().add(position), bytes, count);
+    slot.cast::<usize>().write(position + count);
+    count as i32
+}
+#[no_mangle]
+unsafe extern "C" fn xp_native_sd_file_seek(
+    slot: *mut xp_core::sdfont::io::Slot,
+    offset: u32,
+) -> u8 {
+    if offset as usize > SD_BYTES.len() {
+        return 0;
+    }
+    slot.cast::<usize>().write(offset as usize);
+    1
+}
+#[no_mangle]
+unsafe extern "C" fn xp_native_sd_file_close(_: *mut xp_core::sdfont::io::Slot) {}
+#[no_mangle]
+unsafe extern "C" fn xp_native_sd_diagnostic(
+    _: *const core::ffi::c_char,
+    _: u32,
+    _: *const u32,
+    _: u32,
+    _: u32,
+    _: bool,
+) {
+}
+
+#[test]
+fn inline_family_name_survives_queries_and_extra_size_load() {
+    retained_family_name(c"ShortFont");
+}
+#[test]
+fn heap_family_name_survives_queries_and_extra_size_load() {
+    retained_family_name(c"FamilyNameLongEnoughForSSOGrowth");
+}
+fn retained_family_name(expected: &core::ffi::CStr) {
+    use core::ffi::CStr;
+    use xp_core::font::{
+        manager::Family,
+        registry::{File, Files},
+    };
+    unsafe extern "C" fn file(_: *const c_void, index: usize) -> File {
+        File {
+            name: ptr::null(),
+            size: [14, 18][index],
+            style: 0,
+        }
+    }
+    let generation = AtomicU32::new(0);
+    let mut storage = Box::<Owner>::new_uninit();
+    let owner = storage.as_mut_ptr();
+    let family = Family {
+        name: expected.as_ptr(),
+        name_len: expected.to_bytes().len(),
+        root: c"/fonts".as_ptr(),
+        files: Files {
+            ctx: ptr::null(),
+            count: 2,
+            get: file,
+        },
+        loose: false,
+    };
+    unsafe {
+        xp_font_registry_init(owner, &generation, ptr::null_mut());
+        assert_eq!(font_sd::xp_sd_font_load(owner, &family, 14, 101, 0), 101);
+        let provider = font_registry::xp_font_registry_provider(owner);
+        let slot = core::mem::transmute::<
+            font_registry::QueryResult,
+            *const *const xp_core::font::raw::FontData,
+        >(font_registry::xp_font_registry_query(
+            owner,
+            3,
+            101,
+            0,
+            ptr::null_mut(),
+        ));
+        let data = slot.read();
+        assert!(!data.is_null());
+        let mut points = 0;
+        let name = font_sd::xp_sd_font_current(owner, &mut points);
+        assert_eq!(points, 14);
+        assert_eq!(CStr::from_ptr(name), expected);
+        assert_eq!(
+            font_sd::xp_sd_font_id(owner, name, expected.to_bytes().len(), 0),
+            101
+        );
+        assert_eq!(font_sd::xp_sd_font_load(owner, &family, 18, 102, 1), 102);
+        assert_eq!(CStr::from_ptr(name), expected);
+        assert_eq!(
+            font_sd::xp_sd_font_id(owner, name, expected.to_bytes().len(), 14),
+            101
+        );
+        assert_eq!(
+            font_sd::xp_sd_font_id(owner, name, expected.to_bytes().len(), 18),
+            102
+        );
+        assert_eq!(provider.context, owner.cast());
+        assert_eq!(provider.generation, &generation as *const AtomicU32);
+        assert_eq!(slot.read(), data);
+        let mut view = core::mem::zeroed();
+        (provider.family)(provider.context, 101, &mut view);
+        assert_eq!(view.styles[0].data, slot.read());
+        assert_eq!(CStr::from_ptr(name), expected);
+        font_registry::xp_font_registry_drop(owner);
+    }
+    SD_ALLOCATIONS.with(|live| assert!(live.borrow().is_empty()));
 }

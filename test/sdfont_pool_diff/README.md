@@ -42,7 +42,7 @@ and adapter; Rust bounds and allocation failures also require their own checks.
 
 Zero-length resident glyph offsets are compared as zero: unstable sorts can place
 an empty glyph before or after another glyph at the same file offset. This field
-selects no bitmap bytes. All nonempty offsets, reads and allocations remain exact.
+selects no bitmap bytes. All nonempty offsets and reads remain exact. Allocation comparison uses the growth-move normalization below.
 `SDPOOL_EXACT_ZERO_OFFSETS=1` restores raw offset comparison; `SDPOOL_BASE_ONLY=1`
 runs the initial valid-font sequence without mutation/OOM replays. With `--texts`,
 it also records prewarm and advance results for each supplied corpus window,
@@ -59,3 +59,24 @@ open, seek and read in the successful operation sequence, one at a time; the
 existing OOM and mutation replays remain enabled. This can produce millions of
 records for a font with many intervals. The historical adapter callback is nullable and
 must not reenter the Rust cache.
+
+For bitmap growth, `RelocationTrace.h` observes the candidate's existing private
+slots with test-only access control disabled; no hook is added to the Rust pool.
+When an old bitmap is freed with a larger glyph payload ready, the observer
+requires advance, mini interval and mini glyph moves in that order, skipping
+absent, zero-capacity or over-8,192-byte tables. It checks the new allocation's
+capacity, initialized fields before the old table is freed, and the published
+pointer before the next event. A failed move must keep the old pointer.
+
+Only these verified move allocation/free pairs are removed. Their replacements
+inherit the old table's logical allocation ID. Every other allocation/free event
+is emitted and compared in order, as well as the rolling allocation hash and
+logical request count. Actual live, peak and largest requested bytes include the
+moves and remain exact comparisons, alongside state, I/O and diagnostic logs.
+Missing, extra or reordered ordinary events fail; an invalid move fails inside
+the observer. `--save` keeps both raw traces and per-case move records.
+
+Historical OOM positions use the logical IDs, so added move requests cannot shift
+them. Each successful baseline move also gets its own failure replay against the
+reference baseline. `SdFontResidentGrowth` separately exercises the production
+owner with a populated advance table and all combinations of failed moves.

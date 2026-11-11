@@ -19,6 +19,11 @@ foreach(variant IN ITEMS reference candidate)
     ${REPO_ROOT}/test/sdfont_legacy ${REPO_ROOT}/lib/EpdFont ${REPO_ROOT}/lib/Utf8 ${REPO_ROOT}/lib/Memory)
   target_link_libraries(sdpool_${variant} PRIVATE xp_ffi_host)
   target_compile_options(sdpool_${variant} PRIVATE -O2 -fno-exceptions)
+  if(variant STREQUAL candidate)
+    # The observer reads existing private slots; no hook enters the Rust implementation.
+    target_compile_options(sdpool_${variant} PRIVATE -fno-access-control)
+    target_compile_definitions(sdpool_${variant} PRIVATE SDPOOL_RELOCATION_TRACE=1)
+  endif()
 endforeach()
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(NAME SdFontPoolDifferential COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py

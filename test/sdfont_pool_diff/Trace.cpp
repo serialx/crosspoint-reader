@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iterator>
 #include <new>
@@ -26,6 +27,7 @@ void hash(uint64_t& h, uint64_t v) {
     v >>= 8;
   }
 }
+#include "RelocationTrace.h"
 void value(uint64_t v) { hash(state, v); }
 void bytes(const void* p, size_t count) {
   const auto* b = static_cast<const uint8_t*>(p);
@@ -102,6 +104,7 @@ void snapshot(SdCardFont& font, const std::vector<uint32_t>& cps) {
   }
 }
 void record(const char* op, int result, SdCardFont& font, const std::vector<uint32_t>& cps) {
+  checkRelocation();
   value(result);
   snapshot(font, cps);
   std::printf("%s %d state=%016llx io=%016llx alloc=%016llx live=%zu peak=%zu largest=%zu requests=%zu\n", op, result,
@@ -124,6 +127,7 @@ const char* getter(const void* raw, uint32_t i) {
 size_t run(const std::vector<uint32_t>& cps, const std::vector<std::string>& texts, size_t failure, bool pressure) {
   state = allocationTrace = sdTrace = SEED;
   live = peak = largest = attempts = 0;
+  resetRelocations();
   failAt = failure;
   ESP.freeHeap = pressure ? 30 * 1024 : 200 * 1024;
   ESP.largestBlock = pressure ? 12 * 1024 : 200 * 1024;
@@ -133,6 +137,7 @@ size_t run(const std::vector<uint32_t>& cps, const std::vector<std::string>& tex
   tracking = true;
   {
     SdCardFont font;
+    observedFont = &font;
     const bool loaded = font.load("trace.cpfont");
     record("load", loaded, font, cps);
     if (loaded) {
@@ -184,6 +189,9 @@ size_t run(const std::vector<uint32_t>& cps, const std::vector<std::string>& tex
   }
   std::printf("destroy alloc=%016llx live=%zu peak=%zu largest=%zu requests=%zu\n", (unsigned long long)allocationTrace,
               live, peak, largest, attempts);
+  checkRelocation();
+  reportRelocations();
+  observedFont = nullptr;
   tracking = false;
   if (live) std::exit(3);
   return attempts;
@@ -192,6 +200,7 @@ void retention(const std::vector<uint32_t>& cps, const std::string& sample) {
   for (size_t floor : {40 * 1024 - 1, 30 * 1024, 40 * 1024}) {
     state = allocationTrace = sdTrace = SEED;
     live = peak = largest = attempts = failAt = 0;
+    resetRelocations();
     ESP.freeHeap = ESP.largestBlock = 200 * 1024;
     sdFontTestReads = 0;
     tracking = true;
@@ -262,21 +271,30 @@ uint32_t read32(size_t at) {
 }
 }  // namespace
 void* operator new[](size_t size, const std::nothrow_t&) noexcept {
-  const size_t id = tracking ? ++attempts : 0;
-  if (tracking) {
+  const bool move = tracking && relocationRequest(size);
+  const size_t id = tracking ? (move ? relocationId() : ++attempts) : 0;
+  if (tracking && !move) {
     hash(allocationTrace, 1);
     hash(allocationTrace, id);
     hash(allocationTrace, size);
   }
-  if (tracking && id == failAt) {
-    hash(allocationTrace, 0);
+  if (tracking && (move ? failRelocation() : id == failAt)) {
+    if (!move) {
+      hash(allocationTrace, 0);
+      std::printf("EVENT alloc %zu %zu failed\n", id, size);
+    }
     return nullptr;
   }
   auto* a = static_cast<Allocation*>(std::malloc(sizeof(Allocation) + size));
-  if (!a) return nullptr;
+  if (!a) std::abort();  // Host exhaustion is not an injected firmware OOM.
   *a = {size, id, tracking};
   if (tracking) {
-    hash(allocationTrace, 1);
+    if (move) {
+      relocationAllocated(a + 1);
+    } else {
+      hash(allocationTrace, 1);
+      std::printf("EVENT alloc %zu %zu ok\n", id, size);
+    }
     live += size;
     peak = std::max(peak, live);
     largest = std::max(largest, size);
@@ -292,9 +310,12 @@ void operator delete[](void* p) noexcept {
   if (!p) return;
   auto* a = static_cast<Allocation*>(p) - 1;
   if (a->tracked) {
-    hash(allocationTrace, 2);
-    hash(allocationTrace, a->id);
-    hash(allocationTrace, a->size);
+    if (!relocationFree(p)) {
+      hash(allocationTrace, 2);
+      hash(allocationTrace, a->id);
+      hash(allocationTrace, a->size);
+      std::printf("EVENT free %zu %zu\n", a->id, a->size);
+    }
     live -= a->size;
     if (ESP.creditArrayFrees) ESP.freeHeap += a->size;
   }
@@ -331,15 +352,29 @@ int main(int argc, char** argv) {
     usage(texts);
     return 0;
   }
+  std::puts("CASE baseline");
   const size_t allocations = run(cps, texts, 0, false);
+  const size_t moves = relocationCount;
+  if (!std::getenv("SDPOOL_BASE_ONLY")) {
+    for (size_t i = 1; i <= moves; ++i) {
+      std::printf("CASE relocation-oom %zu\n", i);
+      failMoveAt = i;
+      run(cps, texts, 0, false);
+    }
+  }
+  failMoveAt = 0;
+  std::puts("CASE retention");
   retention(cps, texts[0]);
   if (std::getenv("SDPOOL_BASE_ONLY")) {
     if (argc > 2) {
+      std::puts("CASE corpus");
       state = allocationTrace = sdTrace = SEED;
       live = peak = largest = attempts = 0;
+      resetRelocations();
       tracking = true;
       {
         SdCardFont font;
+        observedFont = &font;
         if (!font.load("trace.cpfont")) return 2;
         for (size_t i = 5; i < texts.size(); ++i) {
           std::vector<uint32_t> queries;
@@ -351,6 +386,9 @@ int main(int argc, char** argv) {
           record("corpus-advances", font.buildAdvanceTable(texts[i].c_str(), 15), font, queries);
         }
       }
+      checkRelocation();
+      reportRelocations();
+      observedFont = nullptr;
       tracking = false;
       std::printf("corpus-unload live=%zu\n", live);
       if (live) return 3;
@@ -358,19 +396,21 @@ int main(int argc, char** argv) {
     return 0;
   }
   if (std::getenv("SDPOOL_IO_FAILURES")) {
+    std::puts("CASE io-baseline");
     run(cps, texts, 0, false);
     const size_t operations = sdIoAttempts;
     for (size_t i = 1; i <= operations; ++i) {
       sdIoFailAt = i;
-      std::printf("IO %zu\n", i);
+      std::printf("CASE IO %zu\n", i);
       run(cps, texts, 0, false);
     }
     sdIoFailAt = 0;
   }
   for (size_t i = 1; i <= allocations; ++i) {
-    std::printf("OOM %zu\n", i);
+    std::printf("CASE OOM %zu\n", i);
     run(cps, texts, i, false);
   }
+  std::puts("CASE pressure");
   run(cps, texts, 0, true);
   // Mutation after load is modelled by reloading the still-valid header with truncated/changed glyph data.
   const auto original = sdFontTestFile;
@@ -379,7 +419,7 @@ int main(int argc, char** argv) {
     for (size_t at = glyphOffset; at < glyphOffset + 16; ++at) {
       for (unsigned bit = 0; bit < 8; ++bit) {
         sdFontTestFile[at] ^= 1u << bit;
-        std::printf("mutate %zu %u\n", at, bit);
+        std::printf("CASE mutate %zu %u\n", at, bit);
         run(cps, texts, 0, false);
         sdFontTestFile[at] ^= 1u << bit;
       }
@@ -388,7 +428,7 @@ int main(int argc, char** argv) {
   const size_t truncEnd = original.size() <= 1024 ? original.size() : std::min(glyphOffset + 32, original.size());
   for (size_t n = 0; n < truncEnd; ++n) {
     sdFontTestFile.assign(original.begin(), original.begin() + n);
-    std::printf("truncate %zu\n", n);
+    std::printf("CASE truncate %zu\n", n);
     run(cps, texts, 0, false);
   }
 }

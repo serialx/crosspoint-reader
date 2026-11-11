@@ -3,6 +3,9 @@ import argparse
 import gzip
 import hashlib
 import pathlib
+import json
+import os
+import re
 import subprocess
 import struct
 import tempfile
@@ -61,28 +64,83 @@ with tempfile.TemporaryDirectory(prefix='sdpool-') as temp:
     if args.private_font_dir:
         paths.extend(sorted(args.private_font_dir.glob('*.cpfont')))
     for index, path in enumerate(paths):
-        outputs = []
+        outputs, cases, relocation_rows = [], [], []
         for variant in ('reference', 'candidate'):
             command = [str(args.build_dir.resolve() / f'sdpool_{variant}'), str(path)]
             if args.texts:
                 command.append(str(args.texts))
             output = subprocess.check_output(command)
-            # Preserve operation boundaries and compare each operation's log multiset.
-            records, logs = [], []
+            # Allocation events remain ordered; only diagnostic log order is canonicalized.
+            records, logs, by_case, moves = [], [], {}, []
+            name = None
+
+            def flush():
+                records.extend(sorted(logs))
+                logs.clear()
+
+            def finish():
+                flush()
+                if name is not None:
+                    if name in by_case:
+                        raise SystemExit(f'duplicate case: {name}')
+                    by_case[name] = b''.join(records)
+
             for line in output.splitlines(keepends=True):
-                if line.startswith(b'LOG '):
+                if line.startswith(b'CASE '):
+                    finish()
+                    name = line.decode().strip()[5:]
+                    records.clear()
+                elif line.startswith(b'MOVE '):
+                    match = re.fullmatch(rb'MOVE (\d+) style=([0-3]) table=(advance|intervals|glyphs) bytes=(\d+) copy=(\d+) (ok|failed)\n', line)
+                    if not match or not 0 < int(match[4]) <= 8192 or int(match[5]) > int(match[4]):
+                        raise SystemExit(f'invalid move record: {line!r}')
+                    moves.append(dict(case=name, ordinal=int(match[1]), style=int(match[2]),
+                                      table=match[3].decode(), bytes=int(match[4]),
+                                      copied=int(match[5]), result=match[6].decode()))
+                elif line.startswith(b'RELOCATIONS '):
+                    match = re.fullmatch(rb'RELOCATIONS requests=(\d+) failed=(\d+)\n', line)
+                    rows = [row for row in moves if row['case'] == name]
+                    if not match or [row['ordinal'] for row in rows] != list(range(1, int(match[1]) + 1)):
+                        raise SystemExit(f'missing/extra relocation records: {name}')
+                    if sum(row['result'] == 'failed' for row in rows) != int(match[2]):
+                        raise SystemExit(f'relocation failure mismatch: {name}')
+                elif line.startswith(b'LOG '):
                     logs.append(line)
                 else:
-                    records.extend(sorted(logs))
-                    logs.clear()
+                    flush()
                     records.append(line)
-            records.extend(sorted(logs))
-            outputs.append(b''.join(records))
-        if outputs[0] != outputs[1]:
-            lines = [output.splitlines() for output in outputs]
-            first = next((i for i, pair in enumerate(zip(*lines)) if pair[0] != pair[1]), min(map(len, lines)))
-            raise SystemExit(f'{path.name}: mismatch at line {first}: {lines[0][first:first+1]} / {lines[1][first:first+1]}')
+                    if b' state=' in line:
+                        for row in moves:
+                            if row['case'] == name and 'checkpoint' not in row:
+                                row['checkpoint'] = line.split()[0].decode()
+            finish()
+            outputs.append(output)
+            cases.append(by_case)
+            relocation_rows.append(moves)
+        reference, candidate = cases
+        move_cases = [name for name in candidate if name.startswith('relocation-oom ')]
+        expected_moves = sum(row['case'] == 'baseline' for row in relocation_rows[1])
+        failure_count = 0 if os.getenv('SDPOOL_BASE_ONLY') else expected_moves
+        assert move_cases == [f'relocation-oom {i}' for i in range(1, failure_count + 1)]
+        assert [name for name in candidate if name not in move_cases] == list(reference)
+        for name, actual in candidate.items():
+            expected = reference['baseline' if name in move_cases else name]
+            if expected != actual:
+                lines = [part.splitlines() for part in (expected, actual)]
+                first = next((i for i, pair in enumerate(zip(*lines)) if pair[0] != pair[1]), min(map(len, lines)))
+                raise SystemExit(f'{path.name}, {name}: mismatch at line {first}: {lines[0][first:first+1]} / {lines[1][first:first+1]}')
         if args.save:
             args.save.mkdir(parents=True, exist_ok=True)
-            (args.save / f'{index:02d}.trace.gz').write_bytes(gzip.compress(outputs[0], mtime=0))
-        print(f'{path.name}: {len(outputs[0].splitlines())} identical records sha256={hashlib.sha256(outputs[0]).hexdigest()}', flush=True)
+            for variant, output in zip(('reference', 'candidate'), outputs):
+                (args.save / f'{index:02d}.{variant}.trace.gz').write_bytes(gzip.compress(output, mtime=0))
+            (args.save / f'{index:02d}.relocations.json').write_text(json.dumps({
+                'font': path.name,
+                'counts': {name: sum(row['case'] == name for row in relocation_rows[1]) for name in candidate},
+                'moves': relocation_rows[1],
+            }, indent=2) + '\n')
+        print(f'{path.name}: {len(reference)} historical cases equal, {len(move_cases)} added move failures; '
+              f'baseline moves={expected_moves}, all moves={len(relocation_rows[1])}; '
+              f'reference sha256={hashlib.sha256(outputs[0]).hexdigest()}', flush=True)
+        for row in relocation_rows[1]:
+            if row['case'] == 'baseline':
+                print(f'  {row}', flush=True)

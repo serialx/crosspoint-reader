@@ -34,6 +34,7 @@ uint8_t* xp_native_sd_allocate(size_t, bool resident);
 #endif
 void xp_native_sd_free(uint8_t*, bool resident);
 // Events 1..39 are pool diagnostics; 0x100+ load, 0x200+ parse, 0x300 corrupt.
+// Prepared catalog builds also use 0x400+ catalog and 0x500+ system events.
 void xp_native_sd_diagnostic(const char*, uint32_t event, const uint32_t* args, uint32_t style, uint32_t index,
                              bool seek_failed
 #ifdef XP_SD_FONT_CATALOG

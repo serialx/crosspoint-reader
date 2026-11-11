@@ -19,8 +19,6 @@
 class GfxRenderer;
 class TtfEpdFont;
 
-/// Facade that owns the SD card font registry, manager, and resolver logic.
-/// Hides implementation details behind a single begin() + ensureLoaded() API.
 #if !defined(XP_SD_FONT_CATALOG) || defined(XP_SDFONT_SYSTEM_ORACLE)
 using SdSystemCatalog = SdCardFontRegistry;
 using SdSystemFamily = SdCardFontFamilyInfo;
@@ -29,6 +27,8 @@ using SdSystemCatalog = SdFontCatalog;
 using SdSystemFamily = SdFontFamily;
 #endif
 
+/// Native facade for begin() and ensureLoaded(). The parent path owns the
+/// registry/manager; the prepared catalog path delegates to Rust (CP2b-A).
 class SdCardFontSystem {
  public:
   // Constructor and destructor are out-of-line (defined in the .cpp where

@@ -128,6 +128,10 @@ def main():
     if args.review_check:
         if not args.archive:
             raise SystemExit("--review-check requires --archive")
+        for kind in ["valid", "invalid"]:
+            subprocess.run([str(args.build / "oracle")],
+                           env={**os.environ, "WEB_FONT_UPLOAD_CLOSE_CHECK": kind},
+                           stdout=subprocess.DEVNULL, check=True)
         for variable in ["WEB_COMPLETION_CHECK", "WEB_LOCALIZATION_CHECK", "WEB_SYSTEM_NAME_CHECK", "WEB_KEY_LIFETIME_CHECK", "WEB_JOB_ALLOCATION_CHECK", "WEB_FETCH_ALLOCATION_CHECK", "WEB_STATIC_SCRATCH_CHECK"]:
             subprocess.run([str(args.build / "oracle")], env={**os.environ, variable: "1"},
                            stdout=subprocess.DEVNULL, check=True)

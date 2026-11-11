@@ -1388,8 +1388,11 @@ pub unsafe extern "C" fn xp_web_upload(
         if status == 4 {
             transfer.r.send(503, transfer.r.memory_error());
         } else {
-            let owned = transfer.r.file(Io::IsOpen, 0) != 0 || state.success;
-            transfer.r.file(Io::Close, 0);
+            let open = transfer.r.file(Io::IsOpen, 0) != 0;
+            let owned = open || state.success;
+            if open {
+                transfer.r.file(Io::Close, 0);
+            }
             transfer.free_buffer(state);
             if owned {
                 transfer.remove_upload(false);

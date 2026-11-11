@@ -13,6 +13,7 @@
 #include <optional>
 #include <regex>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "src/network/ProtectedPaths.h"
@@ -144,25 +145,33 @@ class HalFile {
   std::shared_ptr<host::Node> node;
   std::string path;
   size_t pos = 0, entry = 0;
+  bool hasImpl = false;  // Failed opens and close() retain the HAL implementation object.
   HalFile() = default;
-  HalFile(std::string p, std::shared_ptr<host::Node> n) : node(std::move(n)), path(std::move(p)) {}
+  HalFile(std::string p, std::shared_ptr<host::Node> n) : node(std::move(n)), path(std::move(p)), hasImpl(true) {}
   HalFile(const HalFile&) = delete;
   HalFile& operator=(const HalFile&) = delete;
-  HalFile(HalFile&&) = default;
+  HalFile(HalFile&& rhs) noexcept { *this = std::move(rhs); }
   HalFile& operator=(HalFile&& rhs) noexcept {
-    close();
+    if (node) close();
     node = std::move(rhs.node);
     path = std::move(rhs.path);
     pos = rhs.pos;
     entry = rhs.entry;
+    hasImpl = std::exchange(rhs.hasImpl, false);
     return *this;
   }
-  ~HalFile() { close(); }
+  ~HalFile() {
+    if (node) close();
+  }
   explicit operator bool() const { return bool(node); }
   bool isOpen() const { return bool(node); }
   void flush() { host::trace.push_back("flush:" + path); }
   bool isDirectory() const { return node && node->directory; }
   void close() {
+    if (!hasImpl) {
+      std::cerr << "HalFile::close: impl == nullptr\n";
+      std::abort();
+    }
     if (node) host::trace.push_back("close:" + path);
     node.reset();
   }
@@ -214,13 +223,16 @@ struct StorageStub {
   }
   HalFile open(const char* p) const {
     host::trace.push_back(std::string("open:") + p);
-    if (host::fail("open")) return {};
+    if (host::fail("open")) return HalFile(p, nullptr);
     auto it = host::files.find(p);
-    return it == host::files.end() ? HalFile{} : HalFile(p, it->second);
+    return HalFile(p, it == host::files.end() ? nullptr : it->second);
   }
   bool openFileForWrite(const char*, const std::string& p, HalFile& file) const {
     host::trace.push_back("create:" + p);
-    if (host::fail("create")) return false;
+    if (host::fail("create")) {
+      file = HalFile(p, nullptr);
+      return false;
+    }
     host::add(p);
     file = HalFile(p, host::files[p]);
     return true;

@@ -203,7 +203,9 @@ impl PluginRequest<'_> {
         Ok(())
     }
     fn fail(&self, state: &mut Upload, status: u16, error: &'static core::ffi::CStr) {
-        self.r().file(Io::Close, 0);
+        if self.r().file(Io::IsOpen, 0) != 0 {
+            self.r().file(Io::Close, 0);
+        }
         let tmp = self.t.get(Field::PluginTmp);
         if !tmp.is_empty() {
             self.r()
@@ -215,7 +217,9 @@ impl PluginRequest<'_> {
     fn upload(&self, s: &mut Upload, event: u32, data: &[u8]) -> Result<()> {
         match event {
             0 => {
-                self.r().file(Io::Close, 0);
+                if self.r().file(Io::IsOpen, 0) != 0 {
+                    self.r().file(Io::Close, 0);
+                }
                 self.t.set(Field::PluginTmp, b"");
                 s.bytes = 0;
                 s.started = true;

@@ -486,7 +486,7 @@ unsafe extern "C" fn upload_io(
     _: usize,
 ) -> usize {
     match op {
-        2 => 0,
+        3 => 0,
         15 => {
             (*ctx.cast::<Context>())
                 .paths

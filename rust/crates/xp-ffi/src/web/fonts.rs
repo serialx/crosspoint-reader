@@ -383,7 +383,9 @@ impl FontRequest<'_> {
     }
     fn start(&self, state: &mut Upload, name: &[u8]) -> Result<()> {
         self.r().watchdog();
-        self.r().file(Io::Close, 0);
+        if self.r().file(Io::IsOpen, 0) != 0 {
+            self.r().file(Io::Close, 0);
+        }
         self.transfer.set(Field::FontFamily, b"");
         self.transfer.set(Field::FontPath, b"");
         state.valid = false;

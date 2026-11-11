@@ -49,7 +49,7 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
   freeink::fetchSteps.clear();
   freeink::fetchScripted = false;
   freeink::beforeFetch = {};
-  wsUploadFile.close();
+  if (wsUploadFile) wsUploadFile.close();
   wsUploadFileName = "";
   wsUploadPath = "";
   wsLastCompleteName = "";
@@ -196,6 +196,36 @@ static void text(CrossPointWebServer& app, uint8_t client, const std::string& by
 
 int main() {
 #ifdef XP_FFI_HOST_FAULT_INJECTION
+
+  if (const char* check = std::getenv("WEB_FONT_UPLOAD_CLOSE_CHECK")) {
+    record(check, [&](auto& app) {
+      const bool valid = std::string_view(check) == "valid";
+      const std::string bytes(valid ? "CPFONT\0\0" : "invalid!", 8);
+      app.server->args["family"] = "Test";
+      app.server->part.filename = "12.cpfont";
+      if (app.fontUpload.file.hasImpl) std::abort();
+      for (int upload = 0; upload < 2; ++upload) {
+        app.server->part.status = UPLOAD_FILE_START;
+        app.handleFontUploadData();
+        if (!app.fontUpload.file) std::abort();
+        app.server->part.buf = reinterpret_cast<const uint8_t*>(bytes.data());
+        app.server->part.currentSize = bytes.size();
+        app.server->part.status = UPLOAD_FILE_WRITE;
+        app.handleFontUploadData();
+        app.server->part.status = UPLOAD_FILE_END;
+        app.handleFontUploadData();
+        app.handleFontUpload();
+        const std::string response = valid ? "response:200:application/json:{\"ok\":true}"
+                                           : "response:400:application/json:{\"error\":\"Invalid font file\"}";
+        if (std::count(host::trace.begin(), host::trace.end(), response) != upload + 1) std::abort();
+        const auto file = host::files.find("/fonts/Test/12.cpfont");
+        if (app.fontUpload.file ||
+            (valid ? file == host::files.end() || file->second->bytes != bytes : file != host::files.end()))
+          std::abort();
+      }
+    });
+    return 0;
+  }
 
   if (std::getenv("WEB_STATIC_SCRATCH_CHECK")) {
     for (const char* path : {"/", "/files", "/js/jszip.min.js", "/assets/web.css", "/assets/icons.svg",

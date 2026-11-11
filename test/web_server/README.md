@@ -96,6 +96,13 @@ page revalidation, and embedded-NUL family state. Font discovery and FontInstall
 leaves; the separate font-registry suites cover their Rust-backed implementation.
 The compatibility cases intentionally preserve unchecked short magic prefixes.
 
+The file substitute rejects explicit `close()` on a default or moved-from handle,
+matching the HAL's null-implementation assertion. Failed opens and closed handles
+retain their implementation object. The review checks upload valid and invalid
+eight-byte font prefixes from a default handle, then repeat each upload on the
+same server, checking responses and persisted bytes. Existing transcripts also
+cover plugin upload rejection and HTTP upload allocation-failure cleanup.
+
 Five review fixtures, also recorded from `9ab0ddb8`, cover empty, plain, JSON,
 and fields-only font POSTs with no multipart file, plus failure of the final
 font-list String allocation followed by a successful retry. The transport mock

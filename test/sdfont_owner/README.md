@@ -10,8 +10,8 @@ Native code performs physical storage/allocation and the remaining vector effect
 Firmware enables Rust `sd-font-catalog` and native `XP_SD_FONT_CATALOG` together.
 The separate system-oracle archive exercises that binding against frozen native
 policy; other historical host fixtures retain their compatibility ABI. The
-native implementations now live in `test/sdfont_legacy`, outside firmware.
-CP2d owns their remaining ABI declarations and adapter isolation.
+historical native implementations live in `test/sdfont_legacy`, outside firmware.
+Their compatibility ABI declarations and renderer adapters are also test-only.
 
 The allocator must preserve alignment, return null on failure and pair every
 allocation with its matching free. No pointer into the movable result escapes;
@@ -76,11 +76,11 @@ TTF resources and vector effects remain native until PT-VEC.
 
 Run python3 test/sdfont_owner/catalog_check.py after the CMake and Cargo builds
 for a selected-record differential against the frozen native registry. It
-compares nine families including64discarded vector candidates; it is not a
+compares nine families including 64 discarded vector candidates; it is not a
 whole-heap or C3 std::string oracle. Focused tests cover every catalog allocation
-failure,129family truncation, rediscovery, selected vector owners, full diagnostic
-paths, fresh update decisions, registry-slot mutation, variant threshold/reuse/
-eviction/reload, and all owned buffers being released.
+failure, truncation when 129 families are discovered, rediscovery, selected vector
+owners, full diagnostic paths, fresh update decisions, registry-slot mutation,
+variant threshold/reuse/eviction/reload, and all owned buffers being released.
 
 `SdFontOwnerSwitch` exercises the historical `SdCardFontManager` adapter against the Rust
 owner: load, additional-size loads, current-name/ID queries, unregister and

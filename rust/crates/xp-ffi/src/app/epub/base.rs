@@ -74,12 +74,7 @@ impl EpubSession {
                 (self.leaves.state_save)();
             }
         }
-        #[cfg(feature = "sd-font-catalog")]
-        self.ensure_fonts();
-        #[cfg(not(feature = "sd-font-catalog"))]
-        unsafe {
-            (self.leaves.fonts_ensure_loaded)()
-        };
+        unsafe { (self.leaves.fonts_ensure_loaded)() };
         self.apply_reader_initial_orientation();
         if !self.entry_load_book() {
             if !self.handle_load_failure() {

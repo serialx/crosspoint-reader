@@ -708,6 +708,11 @@ void SdCardFontSystem::setupTtfUiFallbacks(GfxRenderer& renderer) {
 }
 
 void SdCardFontSystem::loadTtfFamily(const SdSystemFamily& family, GfxRenderer& renderer, const bool registryWasDirty) {
+#ifdef XP_SD_FONT_CATALOG
+  const char* familyName = family.name;
+#else
+  const char* familyName = family.name.c_str();
+#endif
   // Keep sizes inherited from other families within the selectable vector range.
   snapFontPointSizeTo(
       snapToNearestPointSize(VECTOR_READER_POINT_SIZES, std::size(VECTOR_READER_POINT_SIZES), SETTINGS.fontPointSize));
@@ -738,7 +743,7 @@ void SdCardFontSystem::loadTtfFamily(const SdSystemFamily& family, GfxRenderer& 
     renderer.removeFont(ttfFontId_);
     if (ttf_->load(size, /*twoBit=*/true, cacheBytes, maxGlyphs)) {
       ttf_->build(" ");
-      ttfFontId_ = computeTtfFontId(family.name, size);
+      ttfFontId_ = computeTtfFontId(familyName, size);
       renderer.insertFont(ttfFontId_, ttf_->family());
       renderer.registerTtfFont(ttfFontId_, ttf_.get());
       ttfPointSize_ = size;
@@ -749,8 +754,12 @@ void SdCardFontSystem::loadTtfFamily(const SdSystemFamily& family, GfxRenderer& 
 
   unloadTtf(renderer);
 
+#ifdef XP_SD_FONT_CATALOG
   if (family.count == 0) {
-    LOG_ERR("SDFS", "Vector family %s has no file", family.name);
+#else
+  if (family.files.empty()) {
+#endif
+    LOG_ERR("SDFS", "Vector family %s has no file", familyName);
     SETTINGS.clearSdFontFamily();
     return;
   }
@@ -759,12 +768,17 @@ void SdCardFontSystem::loadTtfFamily(const SdSystemFamily& family, GfxRenderer& 
   // 3=bold-italic). A single-file family (loose .ttf, or a folder with one file)
   // supplies only regular; TtfEpdFont then derives bold/italic from the wght axis
   // or an oblique shear. Extra files upgrade those styles to the real designs.
+#ifdef XP_SD_FONT_CATALOG
   char path[SdFontFamily::PATH_BUFFER_SIZE];
   for (const auto& file : family.entries()) {
+#else
+  char path[SdCardFontFamilyInfo::PATH_BUFFER_SIZE];
+  for (const auto& file : family.files) {
+#endif
     const uint8_t role = file.style < 4 ? file.style : 0;
     if (ttfSources_[role].present) continue;  // registry already deduped by role
     if (!family.filePath(file, path, sizeof(path))) {
-      LOG_ERR("SDFS", "Vector font path too long in family %s", family.name);
+      LOG_ERR("SDFS", "Vector font path too long in family %s", familyName);
       continue;
     }
     openTtfSource(role, path);
@@ -772,7 +786,7 @@ void SdCardFontSystem::loadTtfFamily(const SdSystemFamily& family, GfxRenderer& 
   if (!ttfSources_[0].present) {
     // Possibly a transient SD read failure: keep the user's selection so the
     // next ensureLoaded() retries; this session falls back to the built-in.
-    LOG_ERR("SDFS", "Vector family %s: regular file failed to open (keeping selection)", family.name);
+    LOG_ERR("SDFS", "Vector family %s: regular file failed to open (keeping selection)", familyName);
     freeTtfSources();
     return;
   }
@@ -781,7 +795,7 @@ void SdCardFontSystem::loadTtfFamily(const SdSystemFamily& family, GfxRenderer& 
   if (!ttf_) {
     // Transient OOM: keep the user's selection (unlike a parse failure) so the
     // next ensureLoaded() can retry once heap pressure passes.
-    LOG_ERR("SDFS", "OOM: TtfEpdFont for %s", family.name);
+    LOG_ERR("SDFS", "OOM: TtfEpdFont for %s", familyName);
     freeTtfSources();
     return;
   }
@@ -792,7 +806,7 @@ void SdCardFontSystem::loadTtfFamily(const SdSystemFamily& family, GfxRenderer& 
     // FreeType): keep the selection and retry next ensureLoaded() rather than
     // silently reverting the user to the built-in font. A genuinely broken
     // font costs one failed load per reader entry, visible in the log.
-    LOG_ERR("SDFS", "FreeInkFont could not parse %s (keeping selection)", family.name);
+    LOG_ERR("SDFS", "FreeInkFont could not parse %s (keeping selection)", familyName);
     ttf_.reset();
     freeTtfSources();
     return;
@@ -800,7 +814,7 @@ void SdCardFontSystem::loadTtfFamily(const SdSystemFamily& family, GfxRenderer& 
   // Seed the regular face's glyph cache; other styles + glyphs fault on demand.
   ttf_->build(" ");
 
-  ttfFontId_ = computeTtfFontId(family.name, size);
+  ttfFontId_ = computeTtfFontId(familyName, size);
   renderer.insertFont(ttfFontId_, ttf_->family());
   renderer.registerTtfFont(ttfFontId_, ttf_.get());
   ttfFamily_ = family.name;
@@ -808,7 +822,7 @@ void SdCardFontSystem::loadTtfFamily(const SdSystemFamily& family, GfxRenderer& 
   LOG_DBG("SDFS", "Reader TTF face loaded (heap free %u, max block %u)", (unsigned)ESP.getFreeHeap(),
           (unsigned)ESP.getMaxAllocHeap());
   setupTtfUiFallbacks(renderer);  // CJK/script UI fallback at the built-in UI sizes
-  LOG_DBG("SDFS", "Loaded TTF font: %s @ %upt (id %d)", family.name, size, ttfFontId_);
+  LOG_DBG("SDFS", "Loaded TTF font: %s @ %upt (id %d)", familyName, size, ttfFontId_);
 }
 
 #endif  // CROSSPOINT_VECTOR_FONTS

@@ -343,11 +343,7 @@ typedef struct XpEpubLeaves {
   void (*paint_status)(const XpEpubStatus* status);
   void (*image_clear_failures)(void);
   void (*image_release_cache)(void);
-#if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
-  void (*fonts_effect)(uint32_t, XpSdSettings*, XpSdContinuation*);
-#else
   void (*fonts_ensure_loaded)(void);
-#endif
 #ifdef XP_APP_TEST
   void (*fonts_release_caches)(void);
   uint8_t (*fonts_prewarm_begin)(XpEpubFontScan* storage);
@@ -617,11 +613,7 @@ XP_EPUB_LEAF_OFFSET(paint_pixel, 19);
 XP_EPUB_LEAF_OFFSET(paint_status, 20);
 XP_EPUB_LEAF_OFFSET(image_clear_failures, 21);
 XP_EPUB_LEAF_OFFSET(image_release_cache, 22);
-#if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
-XP_EPUB_LEAF_OFFSET(fonts_effect, 23);
-#else
 XP_EPUB_LEAF_OFFSET(fonts_ensure_loaded, 23);
-#endif
 #ifdef XP_APP_TEST
 XP_EPUB_ASSERT(offsetof(XpEpubLeaves, fonts_release_caches) == 24 * sizeof(void (*)(void)), "host font fixture offset");
 #endif

@@ -377,14 +377,7 @@ pub struct XpEpubLeaves {
     pub paint_status: unsafe extern "C" fn(status: *const XpEpubStatus),
     pub image_clear_failures: unsafe extern "C" fn(),
     pub image_release_cache: unsafe extern "C" fn(),
-    #[cfg(any(not(feature = "sd-font-catalog"), feature = "app-test"))]
     pub fonts_ensure_loaded: unsafe extern "C" fn(),
-    #[cfg(all(feature = "sd-font-catalog", not(feature = "app-test")))]
-    pub fonts_effect: unsafe extern "C" fn(
-        u32,
-        *mut crate::font_sd::catalog::Settings,
-        *mut crate::font_sd::catalog::Continuation,
-    ),
     #[cfg(feature = "app-test")]
     pub fonts_release_caches: unsafe extern "C" fn(),
     #[cfg(feature = "app-test")]
@@ -769,10 +762,7 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, paint_status) == leaf_index(20) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, image_clear_failures) == leaf_index(21) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, image_release_cache) == leaf_index(22) * pointer);
-    #[cfg(any(not(feature = "sd-font-catalog"), feature = "app-test"))]
     assert!(core::mem::offset_of!(XpEpubLeaves, fonts_ensure_loaded) == leaf_index(23) * pointer);
-    #[cfg(all(feature = "sd-font-catalog", not(feature = "app-test")))]
-    assert!(core::mem::offset_of!(XpEpubLeaves, fonts_effect) == leaf_index(23) * pointer);
     #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, fonts_release_caches) == leaf_index(24) * pointer);
     #[cfg(feature = "app-test")]

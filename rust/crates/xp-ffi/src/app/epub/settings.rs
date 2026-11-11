@@ -201,12 +201,7 @@ impl EpubSession {
         }
         unsafe { (self.leaves.settings_save)() };
         let _access = self.lock_resources();
-        #[cfg(feature = "sd-font-catalog")]
-        self.ensure_fonts();
-        #[cfg(not(feature = "sd-font-catalog"))]
-        unsafe {
-            (self.leaves.fonts_ensure_loaded)()
-        };
+        unsafe { (self.leaves.fonts_ensure_loaded)() };
     }
 
     pub(super) fn apply_text_setting_live(&self) {
@@ -225,33 +220,6 @@ impl EpubSession {
         unsafe { (self.runtime.notify_render)() };
     }
 
-    #[cfg(feature = "sd-font-catalog")]
-    pub(super) fn ensure_fonts(&self) {
-        #[cfg(feature = "app-test")]
-        unsafe {
-            (self.leaves.fonts_ensure_loaded)()
-        };
-        #[cfg(not(feature = "app-test"))]
-        unsafe {
-            use crate::font_sd::catalog::{xp_sd_fonts_ensure, Action, Continuation, Settings};
-            let owner = self.resources.font_owner.get().cast();
-            let mut request = MaybeUninit::<Settings>::uninit();
-            let mut token = MaybeUninit::<Continuation>::zeroed();
-            let (request, token) = (request.as_mut_ptr(), token.as_mut_ptr());
-            (self.leaves.fonts_effect)(Action::BorrowSettings as u32, request, token);
-            loop {
-                let action = xp_sd_fonts_ensure(owner, request, token);
-                if matches!(action, Action::Complete) {
-                    break;
-                }
-                let terminal = matches!(action, Action::Rejected | Action::LoadVector);
-                (self.leaves.fonts_effect)(action as u32, request, token);
-                if terminal {
-                    break;
-                }
-            }
-        }
-    }
     #[cfg(feature = "sd-font-catalog")]
     fn font_choices(&self, family: app_abi::Text) -> Option<Vec<u8>> {
         unsafe {

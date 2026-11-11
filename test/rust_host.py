@@ -21,7 +21,7 @@ def rust_archive():
 def rust_link_flags(archive=None):
     archive = rust_archive() if archive is None else archive
     # This helper links app-test archives; select the matching native fixture ABI.
-    return ['-DXP_APP_TEST', '-I', str(ROOT / 'test/font_cache/legacy'),
+    return ['-DXP_APP_TEST', '-I', str(ROOT / 'test/sdfont_legacy/abi'), '-I', str(ROOT / 'test/font_cache/legacy'),
             '-I', str(ROOT / 'rust/crates/xp-ffi/include'),
             '-I', str(ROOT / 'test/reader_lifecycle'),
             str(ROOT / 'test/cmake/xp_ffi_host.cpp'), archive]

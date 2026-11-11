@@ -741,7 +741,7 @@ with tempfile.TemporaryDirectory() as directory:
     # Keep the original widget's strict warning flags; the reused App fixture uses
     # its established independent translation-unit flags and complete physical table.
     subprocess.run([
-        "c++", "-std=c++20", "-DXP_APP_TEST", "-UNDEBUG", "-O0", "-DXP_FFI_HOST_FAULT_INJECTION",
+        "c++", "-std=c++20", "-DXP_APP_TEST", '-I', str(ROOT / 'test/sdfont_legacy/abi'), "-UNDEBUG", "-O0", "-DXP_FFI_HOST_FAULT_INJECTION",
         "-fsanitize=address,undefined", "-fno-sanitize-recover=all",
         "-I", str(ROOT / "test/reader_lifecycle"), "-I", str(ROOT / "test/ui_runtime"),
         "-I", str(ROOT / "src/activities"), "-I", str(ROOT / "rust/crates/xp-ffi/include"),

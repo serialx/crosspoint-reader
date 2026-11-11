@@ -191,7 +191,7 @@ source = source.replace('// LIBRARY', '\n'.join(method('src/activities/library/L
 with tempfile.TemporaryDirectory() as tmp:
     path = Path(tmp)
     (path / 'rejection.cpp').write_text(source)
-    subprocess.run(['c++', '-std=c++20', '-DXP_APP_TEST', '-pthread', '-UNDEBUG', '-DXP_FFI_HOST_FAULT_INJECTION',
+    subprocess.run(['c++', '-std=c++20', '-DXP_APP_TEST', '-I', str(ROOT / 'test/sdfont_legacy/abi'), '-pthread', '-UNDEBUG', '-DXP_FFI_HOST_FAULT_INJECTION',
                     '-I'+str(ROOT/'src/activities'), '-I'+str(ROOT/'test/ui_runtime'),
                     '-I'+str(ROOT/'test/reader_lifecycle'), '-I'+str(ROOT/'rust/crates/xp-ffi/include'),
                     str(path/'rejection.cpp'), str(ROOT/'test/cmake/xp_ffi_host.cpp'), sys.argv[1],

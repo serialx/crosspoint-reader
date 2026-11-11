@@ -59,7 +59,7 @@ with tempfile.TemporaryDirectory() as tmp:
     out=Path(tmp); (out/'bridge.cpp').write_text(source)
     def compile_bridge(name, override=None):
         executable = out / name
-        subprocess.run(['c++','-std=c++20','-DXP_APP_TEST','-pthread','-UNDEBUG','-DXP_FFI_HOST_FAULT_INJECTION',
+        subprocess.run(['c++','-std=c++20','-DXP_APP_TEST', '-I', str(ROOT / 'test/sdfont_legacy/abi'),'-pthread','-UNDEBUG','-DXP_FFI_HOST_FAULT_INJECTION',
                         *(['-I'+str(override)] if override is not None else []),
                         '-I'+str(ROOT/'src/activities'), '-I'+str(ROOT/'test/ui_runtime'),
                         '-I'+str(ROOT/'rust/crates/xp-ffi/include'),str(out/'bridge.cpp'),

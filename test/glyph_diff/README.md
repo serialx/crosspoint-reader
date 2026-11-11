@@ -36,8 +36,8 @@ The Rust allocator is forced to fail during each draw and bitmap lookup, and
 its allocation-attempt count must remain zero.
 
 Bitmap checks prewarm the Rust cache through the host-only
-`test/font_cache/legacy/FontDecompressor` adapter and use `SdCardFont` for SD
-batches. They compare resident pointers and lengths with the host-injected
+`test/font_cache/legacy/FontDecompressor` adapter and the historical
+`7bab9148` SdCardFont adapter in `test/sdfont_legacy` for SD batches. They compare resident pointers and lengths with the host-injected
 `GfxRenderer::getGlyphBitmap`, which calls `xp_font_test_owner_bitmap`.
 U+0000 cannot enter the null-terminated prewarm input; it correctly takes the
 compressed-font miss path. SD overflow glyphs deliberately return a miss, even

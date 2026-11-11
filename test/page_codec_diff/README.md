@@ -133,7 +133,7 @@ live in `lib/Epub/Epub/SectionPlatform.cpp`.
 | `Section.cpp:108,831-847` page serialization and text extraction | `xp_page_encode` or builder output; indexed line/word queries |
 | `DictionaryDefinitionActivity.cpp:119-121,488-506` TextBlock/PageLine construction | feed equivalent packed line arrays into builder; this is a separate UI integration call site |
 | `TextSettingsPreview.cpp:59`, `TextSettingsPreview.h:36` independently owned lines | packed line builder can represent the data; activity ownership/render integration remains separate |
-| `SdCardFontSystem.h:110,150` maximum inline font slots | unchanged three-entry `XpPageLine.fonts` |
+| Historical `SdCardFontSystem.h:110,150` maximum inline font slots | unchanged three-entry `XpPageLine.fonts` |
 
 Cached BlockStyle fields use the existing `XpSecRecord` order documented in
 `xp-core::section`. Layout-only font scale/break flags are consumed by chapter

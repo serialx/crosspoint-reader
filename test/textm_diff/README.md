@@ -9,8 +9,9 @@ ctest --test-dir build/textm-diff --output-on-failure
 ```
 
 `extract.py` compiles the measurement method bodies from baseline `c9330408`.
-`EpdFont`, `EpdFontFamily`, `SdCardFont`, UTF-8 helpers and MiniBidi are real
-repository implementations. The renderer shell substitutes only registration
+`EpdFont`, `EpdFontFamily`, UTF-8 helpers and MiniBidi are production
+implementations. `SdCardFont` is the frozen `7bab9148` adapter in
+`test/sdfont_legacy`. The renderer shell substitutes only registration
 and SD prewarming for hardware ownership. Both measurement paths receive the
 same visual string, prepared once using the baseline bidi byte-scan policy.
 This tests measurement rules, not framebuffer drawing or bidi parity.

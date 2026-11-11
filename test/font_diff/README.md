@@ -1,7 +1,7 @@
 # Font table differential tests
 
-`FontDiff` compares allocation-free Rust readers with the production EpdFont and
-SdCardFont implementations. It visits all 21 built-in font/style tables: every
+`FontDiff` compares allocation-free Rust readers with production EpdFont and
+the frozen `7bab9148` SdCardFont adapter in `test/sdfont_legacy`. It visits all 21 built-in font/style tables: every
 interval codepoint, interval boundaries and absent codepoints, every left/right
 kerning-table pair (including zero pairs), ligatures and chains, malformed UTF-8
 lookahead, and solid-block fallback metrics. The 25,048 glyph cases, 5,481,418
@@ -24,7 +24,7 @@ use `lib/EpdFont/scripts/fontconvert_sdcard.py` with the repository's NotoSerif
 sources and `--size 14 --intervals latin-ext`; its normal Python dependencies are
 required. Private font files and their results belong outside the repository.
 
-The existing host storage stub lends file bytes to the real SdCardFont loader.
+The existing host storage stub lends file bytes to that historical SdCardFont loader.
 The test prepares advances using `buildAdvanceTable`, the operation called by
 `GfxRenderer::ensureSdCardFontReady`, then prewarms resident glyph/kern tables,
 clears caches and releases resident storage. At each stage, every Unicode
@@ -43,12 +43,12 @@ and full coverage intervals (packed BMP or full-width). Its EpdFontData already
 contains the resident mini kerning tables and loaded ligatures; the full on-disk
 kerning matrix is never retained. Views must end before *any* cache mutation,
 including advance growth, prewarm, eviction, font unload or a glyph miss callback.
-Reconstruct the view afterward. Production uses `SdCardFont::metricViews` and
-scoped native engine loans; the test bridge remains separate from that accessor.
+Reconstruct the view afterward. The historical adapter uses
+`SdCardFont::metricViews`; the shipping Rust owner supplies its own scoped views.
 
 `Font::advance` preserves a cached zero as `Some(0)`, distinct from `None`.
 The current renderer uses zero to trigger full metrics for non-combining glyphs,
-and checks `hasAdvanceTable()` across all styles before selecting that path.
+and checks advance-table availability across styles before selecting that path.
 Neither rule should be inferred from presence in a single style's view.
 Kerning and ligatures read exactly the current EpdFontData, including empty mini
 kerning on metadata-only preparation. No attempt is made to infer on-disk pairs.
@@ -61,14 +61,16 @@ To check the C3 side without firmware changes:
 
 ```sh
 ~/.platformio/packages/toolchain-riscv32-esp/bin/riscv32-esp-elf-g++ \
-  -std=c++20 -march=rv32imc -mabi=ilp32 -Ilib/EpdFont \
+  -std=c++20 -march=rv32imc -mabi=ilp32 -DXP_APP_TEST \
+  -Itest/sdfont_legacy -Itest/sdfont_legacy/abi -Ilib/EpdFont \
   -Irust/crates/xp-ffi/include -c test/font_diff/Abi.cpp -o build/font-diff/abi-c3.o
 ```
 
-The FFI is a differential-test surface and has no firmware caller. The Rust
+The SD lookup FFI is a historical differential-test surface and has no firmware caller. The Rust
 inherent methods expose raw 12.4 advances, 4.4 kerning, glyph values, coverage,
 ligatures and line metrics through `Font::data()`. Loading, bitmap decompression,
-style selection, rendering and caches remain in C++.
+style selection and caches belong to the shipping Rust owner; the native
+SdCardFont implementation remains only as a historical test adapter.
 
 ## TTF integration boundary
 

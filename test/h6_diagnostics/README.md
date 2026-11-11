@@ -1,6 +1,7 @@
 # Font, XTC and renderer diagnostics
 
-These tests exercise the production adapters and Rust archive. They fail when a
+These tests exercise production XTC/renderer code and the Rust archive, plus
+historical SD parser adapters. They fail when a
 parser drops a failure reason, changes its values or diagnostic order, or when
 font lookup and bidi overflow become silent.
 
@@ -12,8 +13,17 @@ ctest --test-dir build/h6-diagnostics --output-on-failure -R H6
 
 The SD test reuses the `sdfont_diff` mutation corpus and compares acceptance,
 parsed values and exact header-error logs against its frozen C++ loader. It
-requires all eight header-error families to occur. Other resident-pool diagnostics
-are outside this suite. The XTC test reuses the `xtc_diff` corpus and compares
+requires all eight header-error families to occur. Its candidate is the frozen
+`7bab9148` adapter in `test/sdfont_legacy`, not the shipping SD owner.
+
+`H6SdProductionDiagnostics` separately compiles the actual shipping
+`lib/EpdFont/SdCardFont.cpp`, with catalog support and without `XP_APP_TEST`.
+It checks 172 event/seek combinations across pool, load, parse, corrupt-glyph,
+catalog and system diagnostics against output captured from that production
+file at `4139d281`. This covers formatting and dispatch, not the runtime
+conditions that cause each event. No historical suite was removed.
+
+The XTC test reuses the `xtc_diff` corpus and compares
 ordered log lines as well as its existing parser/output assertions. It also
 injects failures at each of the first 20 reads and seeks in intact inputs.
 

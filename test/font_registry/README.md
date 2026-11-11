@@ -23,7 +23,7 @@ Requested payload bytes are host measurements, not ESP32 heap estimates.
 `FontRegistryAbi` uses filename owners with stateful deleters, reordered fields,
 and padding. It exercises indexed size lookup, enumeration and face-name ties
 through the C ABI without exposing owner representation. Existing manager and
-registry tests exercise the production adapter. `SdFontRegistryBoundaries` tests
+registry tests exercise the frozen `7bab9148` adapter in `test/sdfont_legacy`. `SdFontRegistryBoundaries` tests
 127, 128 and 129 families across both roots, sorted truncation, rediscovery,
 point-size endpoints and nearest-size ties.
 

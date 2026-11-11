@@ -2,8 +2,9 @@
 
 This freezes the C++ text behavior at `c9330408c0ff5fd22a95d0dbb635b1ff5ffa5dca`
 with SDK `37d272d42732c31065ebed4d9cb90cef7bfa7416`. The harness compiles production
-`GfxRenderer`, `EpdFont`, `EpdFontFamily`, `SdCardFont`, `TtfEpdFont`, MiniBidi and
-UTF-8 code, the header-only `FontCacheManager` loan handle, and the host-only
+`GfxRenderer`, `EpdFont`, `EpdFontFamily`, `TtfEpdFont`, MiniBidi and
+UTF-8 code, plus the historical `7bab9148` `SdCardFont` adapter in
+`test/sdfont_legacy`, the header-only `FontCacheManager` loan handle, and the host-only
 `test/font_cache/legacy/FontDecompressor` compatibility adapter. The SDK's vendored
 FreeType, GSUB and GPOS code are included. At capture, the Rust archive supplied
 UTF-8 helpers; current checks also use its text measurement, glyph walking and
@@ -62,7 +63,7 @@ run. Fonts in the repository are public fixtures only.
   Ubuntu 8/10/12, with their actual style fallback rules (21 built-in faces).
 - Public SD fixtures: Noto Sans 14 (four styles), Noto Sans Arabic 14 and Noto
   Sans Hebrew 14 (regular/bold, exercising absent italic fallback). The committed
-  gzip files are decompressed before the real `.cpfont` loader reads them.
+  gzip files are decompressed before the historical `.cpfont` adapter reads them.
 - TTF: the same three public regular font sources at 14 pt, including the
   production adapter's synthesized bold/italic/bold-italic. Native alternate
   style files, variable fonts, and streamed TTF sources are not covered.
@@ -149,7 +150,8 @@ observer at `drawScaledCodepoint` entry records direct drop-cap calls. The scrip
 also exposes the private font resolver in the copied header and checks anchor
 counts. It never edits production files. Observers record values only; font
 lookup, shaping, kerning, glyph walking, decompression and pixel writes still
-execute production code. Keep the frozen archives unchanged.
+execute the implementations described above, including historical SD adapters.
+Keep the frozen archives unchanged.
 
 ## Additional drawing paths
 

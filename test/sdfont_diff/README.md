@@ -2,8 +2,10 @@
 
 The `oracle/` files are byte-exact copies of `SdCardFont.{h,cpp}` and
 `SdCardFontRegistry.{h,cpp}` from `9738db01f107a67f5ee392a45b26f97e90c65e06`.
-They compile only into host oracle executables. Production candidates use the
-current C++ adapters and Rust archive. Do not update the oracle to accept a port.
+They compile only into host oracle executables. The candidate uses the frozen
+`7bab9148` adapters in `test/sdfont_legacy` with the current Rust archive. It
+checks historical adapter compatibility, not the shipping Rust owner. Do not
+update either native snapshot to accept a port.
 
 Run from the repository root:
 
@@ -32,7 +34,7 @@ and mutates counts and offsets through zero, limits, file boundaries and uint32
 wrap. Small synthetic inputs also cover every-byte whole-file truncation.
 
 A separate 589,824-case glyph matrix covers dimensions, packing, data length,
-bitmap offset and file extent through the original and production
+bitmap offset and file extent through the original and historical candidate
 `glyphEntryValid`. Filename cases cover suffixes, separators, length limits,
 ASCII whitespace/signs/leading zeros, huge numbers and byte mutations.
 `SdFontAbi` also compares 131,072 kerning-class cases and 2,048 ligature
@@ -53,9 +55,11 @@ overlap, bitmap validation remains deferred, and a full uint32 interval wraps
 its span to zero as in the original validator. The port adds no eager rejection
 or disk format change. Rust takes the load-time header/directory/interval rules,
 glyph extent validation, deferred kern/ligature field decoding and `.cpfont`
-filename size parsing. C++ retains HAL reads, native-layout resident buffers,
-sharing, cache policy, bitmap I/O, vector-font discovery, canonical path
-construction, installer magic checks and ArduinoJson download manifests.
+filename size parsing. The historical C++ adapter lends native storage and HAL
+callbacks to those Rust routines. Shipping SD faces, resident buffers, discovery,
+selection and path construction belong to the Rust owner; native code retains
+physical I/O, allocation and diagnostics, plus PT-VEC resources. See
+[SD owner tests](../sdfont_owner/README.md) for shipping-owner coverage.
 
 For C++ memory/undefined-behavior checks, configure another build with
 `-DCMAKE_BUILD_TYPE=Debug`,

@@ -26,6 +26,8 @@ Use a different build/work directory for concurrent runs.
 `capture` refuses if tracked production `lib/`, `src/`, `rust/` or the SDK differ
 from `9738db01`; it also checks the actual SDK HEAD and SDK working tree. Build
 from those sources before capture. A check deliberately allows production changes.
+The guard does not cover the later `test/sdfont_legacy` adapter directory; its
+contents must also match the intended historical source when reproducing a baseline.
 Never recapture to accept a port's changed output.
 
 ```sh
@@ -47,8 +49,9 @@ The executable uses actual Rust ReaderBook/ReaderSection/Page ownership and nati
 Page facades, TextBlock, ImageBlock,
 `ChapterPlatform.cpp` (chapter facade, page assembler and native sink), Paragraph
 and CSS code, linked to the normal Rust host archive. Measurement and
-rasterization use production GfxRenderer, EpdFont, EpdFontFamily, SdCardFont and
-TtfEpdFont/SDK FreeType code, the header-only FontCacheManager loan handle, and
+rasterization use production GfxRenderer, EpdFont, EpdFontFamily and
+TtfEpdFont/SDK FreeType code, plus the historical `7bab9148` SdCardFont adapter
+in `test/sdfont_legacy`, the header-only FontCacheManager loan handle, and
 the host-only `test/font_cache/legacy/FontDecompressor` compatibility adapter.
 No text measurement is stubbed.
 
@@ -64,8 +67,8 @@ Built-in Noto Sans 12/14/16/18 and Ubuntu 8/10/12 are registered with their real
 style fallback rules. The Noto faces include group-compressed bitmaps, served by
 the real decompressor. Built-in CSS size resolution calls the production
 `builtinReaderFontVariant`. Public SD uses the frozen, OFL-licensed Noto Sans 14
-fixture from `test/text_golden/fonts/`; its production loader and prewarm paths
-run normally. SD font discovery, variant loading and eviction are not modeled.
+fixture from `test/text_golden/fonts/`; the historical SdCardFont adapter runs
+its loader and Rust pool prewarm paths. SD font discovery, variant loading and eviction are not modeled.
 A requested unavailable SD size follows production's existing base-font fallback.
 
 Image dimension probing is real. Image pixel decoder lookup returns null, and

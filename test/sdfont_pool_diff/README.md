@@ -1,8 +1,10 @@
 # SD font cache operation traces
 
 `reference/SdCardFont.{h,cpp}` freezes the cache implementation from `da609bbf`.
-Both executables link the same production font accessors and UTF-8 helpers.
-The reference is test-only and must not track production cache edits.
+The candidate uses the frozen `7bab9148` native adapter in `test/sdfont_legacy`
+and the current Rust pool through host-only ABI wrappers. Both executables link
+the same production font accessors and UTF-8 helpers. The native copies are
+historical compatibility oracles; they do not track shipping owner edits.
 
 ```sh
 cmake -S test/sdfont_pool_diff -B build/sdfont-pool -DCMAKE_BUILD_TYPE=Release
@@ -55,5 +57,5 @@ The logging stub also captures the original level, origin and formatted text.
 state, allocation or I/O records. `SDPOOL_IO_FAILURES=1` additionally fails every
 open, seek and read in the successful operation sequence, one at a time; the
 existing OOM and mutation replays remain enabled. This can produce millions of
-records for a font with many intervals. The production callback is nullable and
+records for a font with many intervals. The historical adapter callback is nullable and
 must not reenter the Rust cache.

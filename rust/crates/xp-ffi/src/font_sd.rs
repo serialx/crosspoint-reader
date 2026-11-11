@@ -8,7 +8,6 @@ use core::{
 };
 use xp_core::{
     font::{
-        manager::{Family, Mode},
         raw::{FontData, Glyph},
         runtime::{ClearKind, Prewarm},
     },
@@ -25,6 +24,11 @@ use xp_core::{
 #[cfg(any(test, feature = "sd-font-catalog"))]
 #[path = "font_catalog.rs"]
 pub(crate) mod catalog;
+
+#[cfg(any(test, feature = "app-test"))]
+use xp_core::font::manager::Family;
+#[cfg(any(test, feature = "app-test", feature = "sd-font-catalog"))]
+use xp_core::font::manager::Mode;
 
 extern "C" {
     #[cfg(not(target_has_atomic = "8"))]
@@ -369,6 +373,7 @@ pub(crate) unsafe fn reset(owner: *const Owner, id: i32) -> bool {
 /// # Safety
 /// Owner is initialized and serialized. Family strings/files are borrowed only
 /// until return; no glyph/source/registry loan survives this mutation.
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_sd_font_load(
     owner: *mut Owner,
@@ -402,6 +407,7 @@ pub unsafe extern "C" fn xp_sd_font_load(
 }
 /// # Safety
 /// Owner is serialized; no loan survives unregister-before-free.
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_sd_font_unload(owner: *mut Owner, id: i32, all: u8) {
     control(owner).unload(
@@ -411,6 +417,7 @@ pub unsafe extern "C" fn xp_sd_font_unload(owner: *mut Owner, id: i32, all: u8) 
 }
 /// # Safety
 /// Name is borrowed until replacement, full unload or drop; size is writable.
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_sd_font_current(owner: *const Owner, size: *mut u8) -> *const c_char {
     let manager = (*owner).sd.get();
@@ -419,6 +426,7 @@ pub unsafe extern "C" fn xp_sd_font_current(owner: *const Owner, size: *mut u8) 
 }
 /// # Safety
 /// Family is readable and terminated; owner is initialized and serialized.
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_sd_font_id(
     owner: *const Owner,

@@ -1,6 +1,7 @@
-//! Exercise the shipping adapters with two independent registry owners.
+//! Exercise the Rust owner and historical manager front door with two registry owners.
 #![allow(dead_code)]
 #[path = "../../xp-ffi/src/font.rs"]
+#[allow(unexpected_cfgs)]
 mod font;
 #[path = "../../xp-ffi/src/font_registry.rs"]
 #[allow(unexpected_cfgs)]

@@ -85,13 +85,6 @@ typedef struct {
   const void* const* slot;
 } XpFontGlyphContext;
 XpGlyphBitmap xp_font_glyph_miss(void*, uint32_t cp, const void* glyph, XpGlyphDraw*, XpGlyphSource*);
-// Legacy native managers lend a family; shipping catalog policy loads faces directly in Rust.
-int32_t xp_sd_font_load(XpLoadedFonts*, const XpFontFamilyFiles*, uint8_t points, int32_t id, uint8_t mode);
-void xp_sd_font_unload(XpLoadedFonts*, int32_t id, uint8_t all);
-// Name is borrowed until replacement, full unload or drop; queries and extra
-// faces leave it unchanged. Size is written synchronously.
-const char* xp_sd_font_current(const XpLoadedFonts*, uint8_t* size);
-int32_t xp_sd_font_id(const XpLoadedFonts*, const char* family, size_t length, uint8_t size);
 int32_t xp_sd_font_prewarm(const XpLoadedFonts*, int32_t, const char* (*)(const void*, uint32_t), const void*,
                            uint32_t count, uint8_t styles, uint8_t metadata, uint8_t kern, uint8_t accumulate);
 int32_t xp_sd_font_prepare(const XpLoadedFonts*, int32_t, const XpSdfontTexts*, uint8_t styles);
@@ -199,27 +192,11 @@ XpSdAction xp_sd_fonts_ensure(const XpLoadedFonts*, XpSdSettings*, XpSdContinuat
 int32_t xp_sd_font_variant(const XpLoadedFonts*, int32_t, float scale);
 #endif
 // Vector compatibility remains; SD policy uses the Rust owner directly.
-#ifdef XP_APP_TEST
-uint8_t xp_native_font_compat_resolve(void*, int32_t font, uint8_t style);
-#endif
 int32_t xp_native_font_compat_prewarm(void*, int32_t font, uint8_t backend, const char* text, uint8_t styles,
                                       uint8_t metadata, uint8_t kern_lig, uint8_t accumulate);
 void xp_native_font_compat_clear(void*, int32_t font, uint8_t backend, uint8_t resident);
 
-#ifdef XP_APP_TEST
-void xp_native_font_compat_reset(void*, int32_t font);
-
-#endif
 void xp_native_font_cache_diagnostic(const void* font, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d);
-// Host oracles retain the native SD facade until their adapter retirement.
-#ifdef XP_APP_TEST
-const uint8_t* xp_native_sd_font_bitmap(const void* font, const void* glyph);
-// Host oracle only; CP2c deletes unlinked native definitions and CP2d the declarations.
-void xp_native_sd_font_view(void*, int32_t font, XpNativeFamily*, XpGlyphSource*);
-// Host oracle only; CP2c/CP2d retire this native residency adapter.
-void xp_native_sd_font_resident_slice(void*, int32_t font, uint8_t style, const uint8_t*, size_t, uint8_t metadata);
-
-#endif
 // Legacy hosts retain native absent-ID loading; shipping native providers serve PT-VEC only.
 #if !defined(XP_SD_FONT_CATALOG) || defined(BOARD_HAS_PSRAM) || defined(XP_APP_TEST)
 uint8_t xp_native_sd_font_load(void*, int32_t font);
@@ -227,4 +204,8 @@ uint8_t xp_native_sd_font_load(void*, int32_t font);
 void xp_native_font_diagnostic(void*, uint32_t event, uint32_t value);
 #ifdef __cplusplus
 }
+#endif
+
+#ifdef XP_APP_TEST
+#include <xp_sd_owner_oracle.h>
 #endif

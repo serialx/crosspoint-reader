@@ -43,6 +43,8 @@ mod book_limits;
 mod book_parser;
 mod book_policy;
 mod book_section;
+// Historical native parser/cache ABI; shipping owners call xp-core directly.
+#[cfg(feature = "app-test")]
 mod sdfont;
 mod section;
 mod section_cache;

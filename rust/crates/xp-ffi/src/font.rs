@@ -3,8 +3,11 @@
 use core::ffi::c_void;
 use xp_core::font::{
     raw::{FontData, Glyph},
-    Font, GlyphResult, SdView,
+    Font, GlyphResult,
 };
+
+#[cfg(any(test, feature = "app-test"))]
+use xp_core::font::SdView;
 
 unsafe fn font<'a>(data: *const c_void) -> Font<'a> {
     unsafe { Font::new(&*data.cast::<FontData>()) }
@@ -37,6 +40,7 @@ pub unsafe extern "C" fn xp_font_glyph(
     unsafe { result(if metrics { f.metrics(cp) } else { f.glyph(cp) }, out) }
 }
 
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_sd_glyph(
     view: *const SdView,
@@ -55,6 +59,7 @@ pub unsafe extern "C" fn xp_font_has_codepoint(data: *const c_void, cp: u32) -> 
         .map_or(-1, i32::from)
 }
 
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_sd_has_codepoint(view: *const SdView, cp: u32) -> bool {
     unsafe { Font::from_sd(&*view) }
@@ -62,6 +67,7 @@ pub unsafe extern "C" fn xp_font_sd_has_codepoint(view: *const SdView, cp: u32) 
         .unwrap_or(false)
 }
 
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_sd_advance(view: *const SdView, cp: u32, out: *mut u16) -> bool {
     if let Some(value) = unsafe { Font::from_sd(&*view) }.advance(cp) {
@@ -228,7 +234,9 @@ pub extern "C" fn xp_font_style(style: u8, bold: bool, italic: bool, bold_italic
         _ => 0,
     }
 }
+#[cfg(any(test, feature = "app-test"))]
 use xp_core::font::registry::{self, Candidate, Discovery, Files};
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_file_nearest(
     files: *const Files,
@@ -238,6 +246,7 @@ pub unsafe extern "C" fn xp_font_file_nearest(
 ) -> i32 {
     registry::nearest(&*files, size, style, exact)
 }
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_file_path(
     root: *const core::ffi::c_char,
@@ -250,6 +259,7 @@ pub unsafe extern "C" fn xp_font_file_path(
 ) -> bool {
     registry::path(root, family, file, size, loose, out, capacity)
 }
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_select_faces(
     candidates: *const Candidate,
@@ -259,10 +269,12 @@ pub unsafe extern "C" fn xp_font_select_faces(
 ) -> bool {
     registry::select_faces(candidates, count, &*files, selected)
 }
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_scan_root(io: *const Discovery, root: *const core::ffi::c_char) {
     registry::scan_root(&*io, root);
 }
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_sizes(
     files: *const Files,
@@ -271,6 +283,7 @@ pub unsafe extern "C" fn xp_font_sizes(
 ) {
     registry::sizes(&*files, ctx, emit);
 }
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_find_family(
     ctx: *const c_void,
@@ -281,6 +294,7 @@ pub unsafe extern "C" fn xp_font_find_family(
 ) -> i32 {
     registry::find_family(ctx, count, get, core::slice::from_raw_parts(target, len))
 }
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_root(
     family: *const core::ffi::c_char,
@@ -292,10 +306,12 @@ pub unsafe extern "C" fn xp_font_root(
     registry::root(family, hidden, visible, exists, write)
 }
 
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_has_size(files: *const Files, size: u8) -> bool {
     registry::has_size(&*files, size)
 }
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_discover(
     io: *const registry::Registry,
@@ -360,15 +376,19 @@ pub unsafe extern "C" fn xp_vector_coverage(io: *const vector::Services, cp: u32
 pub unsafe extern "C" fn xp_vector_metrics(io: *const vector::Services, data: *mut FontData) {
     vector::metrics(&*io, data);
 }
+#[cfg(any(test, feature = "app-test"))]
 use xp_core::font::manager;
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_manager_destroy(io: *const manager::Services) {
     manager::destroy(&*io);
 }
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_manager_unload(io: *const manager::Services, id: i32, all: bool) {
     manager::unload(&*io, if all { None } else { Some(id) });
 }
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_manager_get(
     io: *const manager::Services,
@@ -378,6 +398,7 @@ pub unsafe extern "C" fn xp_font_manager_get(
 ) -> i32 {
     manager::get(&*io, family, len, size)
 }
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_manager_load(
     io: *const manager::Services,
@@ -400,6 +421,7 @@ pub unsafe extern "C" fn xp_font_manager_load(
     )
 }
 
+#[cfg(any(test, feature = "app-test"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_canonical(
     name: *const core::ffi::c_char,

@@ -154,7 +154,8 @@ list(REMOVE_ITEM CONTRACT_SOURCES PageGolden.cpp ${INSTRUMENTED}/GfxRenderer.cpp
 set(CONTRACT_RENDERER ${CMAKE_CURRENT_BINARY_DIR}/ContractsRenderer.cpp)
 add_custom_command(OUTPUT ${CONTRACT_RENDERER}
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/contracts_instrument.py ${REPO_ROOT} ${CONTRACT_RENDERER}
-  DEPENDS contracts_instrument.py ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.cpp VERBATIM)
+  DEPENDS contracts_instrument.py ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.cpp
+    ${REPO_ROOT}/test/sdfont_legacy/gfx_sd_oracle.inc VERBATIM)
 add_executable(PageDirectContracts PageDirectContracts.cpp ${CONTRACT_SOURCES}
   ${CONTRACT_RENDERER} ${REPO_ROOT}/lib/Epub/Epub/Page.cpp
   ${REPO_ROOT}/lib/Epub/Epub/blocks/TextBlock.cpp ${REPO_ROOT}/lib/Epub/Epub/blocks/ImageBlock.cpp)

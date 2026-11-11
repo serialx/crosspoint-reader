@@ -43,7 +43,7 @@ add_dependencies(xp_ffi_catalog_host xp_ffi_catalog_build)
 target_compile_definitions(xp_ffi_catalog_host INTERFACE XP_APP_TEST XP_SD_FONT_CATALOG)
 target_sources(xp_ffi_catalog_host INTERFACE ${REPO_ROOT}/test/cmake/xp_ffi_host.cpp)
 target_include_directories(xp_ffi_catalog_host INTERFACE ${XP_FFI_HOST_I18N_DIR}
-  ${REPO_ROOT}/test/font_cache/legacy ${REPO_ROOT}/test/sdfont_legacy ${REPO_ROOT}/rust/crates/xp-ffi/include
+  ${REPO_ROOT}/test/font_cache/legacy ${REPO_ROOT}/test/sdfont_legacy ${REPO_ROOT}/test/sdfont_legacy/abi ${REPO_ROOT}/rust/crates/xp-ffi/include
   ${REPO_ROOT}/test/reader_lifecycle)
 target_link_libraries(xp_ffi_catalog_host INTERFACE ${CATALOG_ARCHIVE})
 set(SYSTEM_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/system-source")

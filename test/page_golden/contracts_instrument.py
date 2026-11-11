@@ -4,6 +4,8 @@ import sys
 
 root, output = map(pathlib.Path, sys.argv[1:])
 source = (root / "lib/GfxRenderer/GfxRenderer.cpp").read_text()
+source = source.replace("#include <gfx_sd_oracle.inc>",
+                        (root / "test/sdfont_legacy/gfx_sd_oracle.inc").read_text())
 source = '#include <cstddef>\n#include <cstdint>\nvoid contractResident(const uint8_t*, size_t);\n' + source
 anchor = "void xp_native_sd_font_resident_slice("
 start = source.index("{", source.index(anchor)) + 1

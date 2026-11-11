@@ -1076,12 +1076,10 @@ typedef struct {
 
 enum { XP_FONT_MISSING = 0, XP_FONT_RESIDENT = 1, XP_FONT_SYNTHETIC = 2, XP_FONT_NOT_RESIDENT = 3 };
 uint32_t xp_font_glyph(const void* data, uint32_t cp, bool metrics, XpFontGlyph* out);
-uint32_t xp_font_sd_glyph(const XpFontSdView* view, uint32_t cp, bool metrics, XpFontGlyph* out);
+
 // -1 means a coverage callback would be needed, 0 absent, 1 covered.
 int32_t xp_font_has_codepoint(const void* data, uint32_t cp);
-bool xp_font_sd_has_codepoint(const XpFontSdView* view, uint32_t cp);
-// True includes a resident zero advance; false means not in the advance table.
-bool xp_font_sd_advance(const XpFontSdView* view, uint32_t cp, uint16_t* out);
+
 // False means the dynamic kernHandler is required; CJK pairs return true/zero first.
 bool xp_font_kerning(const void* data, uint32_t left, uint32_t right, int8_t* out);
 uint32_t xp_font_ligature(const void* data, uint32_t left, uint32_t right);
@@ -1237,36 +1235,6 @@ void xp_native_draw_pixels_traced(const XpNativeProvider*, int32_t, const uint8_
                                   XpGlyphMiss, void (*)(void*, const XpGlyphPlacement*));
 #endif
 
-// SD font v4 parsing. No allocation, I/O, callbacks or retained pointers.
-// Byte spans are readable for len bytes (len <= PTRDIFF_MAX), NULL only if empty.
-// Typed outputs/state are live, aligned and exclusive for the call. State is
-// initialized by header (Directory) or {0, 0, glyphCount <= UINT16_MAX} (Intervals).
-// Input/output/state do not overlap, except interval output may alias its bytes.
-// False leaves outputs/state unchanged. Malformed bytes never panic.
-// Offsets retain uint32 wrap; table I/O and bitmap extent checks remain deferred.
-typedef struct {
-  uint32_t intervalCount, glyphCount;
-  uint8_t advanceY;
-  int16_t ascender, descender;
-  bool is2Bit;
-  uint16_t kernLeftEntryCount, kernRightEntryCount;
-  uint8_t kernLeftClassCount, kernRightClassCount, ligaturePairCount;
-} XpSdfontHeader;
-typedef struct {
-  uint32_t hash;
-  uint8_t styleCount;
-  bool is2Bit;
-  uint8_t seen;
-} XpSdfontDirectory;
-typedef struct {
-  XpSdfontHeader header;
-  uint32_t offsets[7];  // intervals, glyphs, left/right kern, matrix, ligatures, bitmap
-  uint8_t id;
-} XpSdfontStyle;
-typedef struct {
-  uint32_t expectedOffset, previousLast;
-  bool bmp16;
-} XpSdfontIntervals;
 /* SD-font diagnostic protocol: optional synchronous callback; no reentry to cache
  * operations or I/O on its borrowed handles. Unlisted a-d arguments are zero;
  * counts/indices are unsigned, indices are zero-based; style is 0..3 in slot order.
@@ -1321,37 +1289,6 @@ typedef enum {
   XP_SDFONT_DIAG_OverflowLoaded =
       39,  // Overflow slot loaded; a = codepoint, b = style, c = slot index, d = slot count.
 } XpSdfontDiagnostic;
-// Synchronous, exclusive cache loans. Slots retain their addresses until unload.
-// Resident buffers use the paired PSRAM allocator; scratch uses ordinary arrays.
-// File callbacks are nested at most twice and may not reenter cache operations.
-// close(false) closes the file; close(true) also releases its HAL handle.
-typedef struct {
-  void* context;
-  bool (*open)(void*);
-  void (*close)(void*, bool release);
-  bool (*read)(void*, uint32_t offset, uint8_t* destination, size_t length, bool seek);
-  uint8_t* (*alloc)(size_t bytes, bool resident);
-  void (*free)(uint8_t*, bool resident);
-  uint32_t (*heap)(bool largest);
-  uint32_t (*clock)(void);
-  void (*corrupt)(void*, const void* glyph, uint32_t codepoint);
-  // Optional; synchronous and non-reentrant. Integer arguments are event-specific.
-  void (*diagnostic)(void*, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d);
-} XpSdfontServices;
-typedef struct {
-  void* styles;
-  const uint8_t* slots;
-  void** advances;
-  uint32_t* advanceSizes;
-  uint32_t* advanceCapacities;
-  void* overflow;
-  uint32_t* overflowCount;
-  uint32_t* overflowNext;
-  void* stats;
-  uint32_t fileSize;
-  bool loaded;
-  const XpSdfontServices* services;
-} XpSdfontPool;
 typedef struct {
   const char* const* segments;
   const size_t* lengths;
@@ -1361,23 +1298,7 @@ typedef struct {
   bool hyphen;
   bool smallCaps;
 } XpSdfontTexts;
-int32_t xp_sdfont_pool_prewarm(XpSdfontPool*, const char* (*getter)(const void*, uint32_t), const void*, uint32_t,
-                               uint8_t, bool metadata, bool kern, bool accumulate);
-// Bounded nonterminated visual text; same pool loan and allocation policy.
-int32_t xp_sdfont_pool_prewarm_span(XpSdfontPool*, const uint8_t*, size_t, uint8_t mask, bool metadata, bool kern,
-                                    bool accumulate);
 
-int32_t xp_sdfont_pool_advances(XpSdfontPool*, const XpSdfontTexts*, uint8_t mask);
-bool xp_sdfont_pool_lookup(const XpSdfontPool*, uint32_t cp, uint8_t style, uint16_t* outAdvance);
-uint16_t xp_sdfont_pool_advance(const XpSdfontPool*, uint32_t cp, uint8_t style);
-uint8_t xp_sdfont_pool_resolve(const XpSdfontPool*, uint8_t style);
-uint8_t xp_sdfont_pool_mask(const XpSdfontPool*, uint8_t mask);
-bool xp_sdfont_pool_coverage(const XpSdfontPool*, uint32_t cp, uint8_t style);
-const void* xp_sdfont_pool_miss(XpSdfontPool*, uint32_t cp, uint8_t style);
-void xp_sdfont_pool_clear_advances(XpSdfontPool*);
-void xp_sdfont_pool_clear_cache(XpSdfontPool*);
-// Host ABI test: field offsets and sizes of the stable native cache slots.
-size_t xp_sdfont_pool_layout(uint32_t field);
 // Failure details are written only on a parsed rejection; all other outputs and
 // state remain unchanged. NULL detail is silent. Caller supplies style/index.
 // args: Version=(actual,expected,0,0); StyleCount/StyleId/DuplicateStyle=(value,0,0,0);
@@ -1402,21 +1323,6 @@ typedef struct {
   XpSdfontParseError kind;
   uint32_t args[4];
 } XpSdfontParseDiagnostic;
-// Detail is writable, aligned, and disjoint from input, state and output.
-bool xp_sdfont_header_diagnostic(const uint8_t*, size_t, XpSdfontDirectory*, XpSdfontParseDiagnostic*);
-bool xp_sdfont_style_diagnostic(const uint8_t*, size_t, XpSdfontDirectory*, XpSdfontStyle*, XpSdfontParseDiagnostic*);
-bool xp_sdfont_interval_diagnostic(const uint8_t*, size_t, uint32_t glyphs, uint32_t index, XpSdfontIntervals*,
-                                   void* out, XpSdfontParseDiagnostic*);
-bool xp_sdfont_header(const uint8_t*, size_t, XpSdfontDirectory*);
-bool xp_sdfont_style(const uint8_t*, size_t, XpSdfontDirectory*, XpSdfontStyle*);
-// out points to a writable EpdUnicodeInterval (three uint32 fields).
-bool xp_sdfont_interval(const uint8_t*, size_t, uint32_t glyphs, uint32_t index, XpSdfontIntervals*, void* out);
-bool xp_sdfont_glyph_valid(const uint8_t*, size_t, bool twoBit, uint32_t bitmapOffset, uint32_t fileSize);
-// A class ID outside count is returned as zero. Invalid input leaves cp unchanged.
-uint8_t xp_sdfont_kern_class(const uint8_t*, size_t, uint8_t count, uint32_t* cp);
-bool xp_sdfont_ligature(const uint8_t*, size_t, uint32_t* left, uint32_t* right, uint32_t* out);
-bool xp_sdfont_filename(const uint8_t*, size_t, uint8_t* size);
-
 // XTC byte parsing. No allocation, I/O, retained pointers, or UTF-8 normalization.
 // Input: len readable bytes in one allocation, len <= PTRDIFF_MAX; NULL only at
 // zero length. Output objects are writable and disjoint from inputs and each
@@ -2073,9 +1979,7 @@ bool xp_assets_image_valid(const uint8_t*, size_t, int32_t, int32_t, const XpAss
 uint32_t xp_assets_image_render(const uint8_t*, size_t, const XpAssetImageConfig*, const XpAssetImageCallbacks*);
 size_t xp_assets_limited_write(size_t*, const uint8_t*, size_t, void*, size_t (*)(void*, const uint8_t*, size_t));
 
-// Loading borrows a live HAL file and four style slots. Shared intervals have
-// sixteen process-wide slots, serialized by the existing font owner. Allocated
-// style/table storage remains facade-owned and is released through its allocator.
+// SD loader diagnostic event values.
 #ifdef __cplusplus
 enum class XpSdfontLoadEvent : uint32_t {
   HeaderRead = 1,
@@ -2092,27 +1996,6 @@ enum class XpSdfontLoadEvent : uint32_t {
   KernIndexAllocation = 12
 };
 #endif
-// SD loader callbacks borrow the current HAL file. Style records and the
-// sixteen shared-interval entries retain their existing C++ storage and size.
-typedef struct {
-  const void* table;
-  uint32_t count;
-  bool bmp16;
-  uint16_t refs;
-} XpSdfontShared;
-typedef struct {
-  void* ctx;
-  int32_t (*read)(void*, uint32_t offset, uint8_t* dst, size_t length, bool seek);
-  void* (*allocStyles)(void*, uint8_t count);
-  uint8_t* (*alloc)(size_t);
-  void (*cleanup)(void*);
-  void (*setup)(void*, uint8_t);
-  void (*diagnostic)(void*, uint32_t, uint32_t, uint32_t, uint32_t);
-  void (*parseError)(const XpSdfontParseDiagnostic*, uint32_t, uint32_t);
-} XpSdfontLoadServices;
-bool xp_sdfont_load(uint8_t* slots, uint32_t* hash, XpSdfontShared*, const XpSdfontLoadServices*);
-void xp_sdfont_clear_loaded(XpSdfontPool*, XpSdfontShared*, uint8_t count, bool all, void* ctx,
-                            void (*setup)(void*, uint8_t), void (*generation)());
 // Font tables are borrowed for this call. Miss callbacks can replace resident
 // tables; returned glyph pointers expire at the owner's next cache mutation.
 const void* xp_font_lookup(const void*, uint32_t);
@@ -2120,62 +2003,6 @@ bool xp_font_coverage(const void*, uint32_t);
 int8_t xp_font_dynamic_kern(const void*, uint32_t, uint32_t);
 const void* xp_font_metrics(const void*, uint32_t, XpFontGlyph*);
 uint8_t xp_font_style(uint8_t, bool, bool, bool);
-// Discovery callbacks borrow names for one call. The facade owns directory
-// handles and C++ containers; Rust retains no pointers after the operation.
-#ifdef __cplusplus
-enum class XpFontDiscoveryEvent : uint32_t { MissingRoot = 1, NotDirectory = 2, Duplicate = 3, Family = 4, Vector = 5 };
-#endif
-typedef struct {
-  const char* name;
-  uint8_t size, style;
-} XpFontFile;
-// get returns a plain record for index < count. The owner and borrowed filenames
-// must remain live and unchanged throughout the synchronous operation.
-typedef struct XpFontFiles {
-  const void* ctx;
-  size_t count;
-  XpFontFile (*get)(const void*, size_t index);
-} XpFontFiles;
-typedef struct {
-  size_t index;
-  uint16_t weight;
-  bool italic;
-} XpFontCandidate;
-int32_t xp_font_file_nearest(const XpFontFiles*, uint8_t size, uint8_t style, bool exact);
-bool xp_font_file_path(const char* root, const char* family, const char* file, uint8_t size, bool loose, uint8_t* out,
-                       size_t capacity);
-bool xp_font_select_faces(const XpFontCandidate*, size_t, const XpFontFiles*, int32_t* selected);
-typedef struct {
-  void* ctx;
-  bool vectors;
-  int32_t (*open)(void*, const char*, bool root);
-  bool (*next)(void*, bool root, uint8_t* name, bool* directory);
-  void (*close)(void*, bool root);
-  size_t (*families)(void*);
-  const char* (*familyName)(void*, size_t);
-  void (*beginFamily)(void*, const char* root, const uint8_t* name, size_t length, bool loose);
-  XpFontFiles (*files)(void*, bool vector);
-  bool (*addFile)(void*, bool vector, const char* name, uint8_t size, uint8_t style, bool canonical);
-  size_t (*commitFamily)(void*, bool vector, const char* directory);
-  void (*diagnostic)(void*, uint32_t, const char*, const char*, size_t);
-  void (*endFamily)(void*);
-} XpFontDiscovery;
-void xp_font_scan_root(const XpFontDiscovery*, const char* root);
-void xp_font_sizes(const XpFontFiles*, void*, void (*emit)(void*, uint8_t));
-int32_t xp_font_find_family(const void*, size_t, const char* (*get)(const void*, size_t), const uint8_t*, size_t);
-const char* xp_font_root(const char* family, const char* hidden, const char* visible, bool (*exists)(const char*),
-                         bool write);
-
-bool xp_font_has_size(const XpFontFiles*, uint8_t);
-typedef struct {
-  void* ctx;
-  void (*clear)(void*);
-  void (*scan)(void*, const char*);
-  size_t (*sort)(void*);
-  void (*resize)(void*, size_t);
-  size_t (*finish)(void*);
-} XpFontRegistry;
-bool xp_font_discover(const XpFontRegistry*, const char* hidden, const char* visible, size_t maximum);
 // Face sources are borrowed and must outlive the family. Each service call
 // lends existing vector storage; buffer pointers expire after reserve/resize.
 // No callback may reenter this face cache; eviction locks its owner against release.
@@ -2258,63 +2085,6 @@ void xp_vector_clear(const XpVectorFamily*, bool resident);
 bool xp_vector_prewarm(const XpVectorFamily*, const uint8_t*, size_t length, bool reset);
 bool xp_vector_coverage(const XpVectorServices*, uint32_t);
 void xp_vector_metrics(const XpVectorServices*, void* fontData);
-// The manager owns fonts returned by create: failed loads call destroy;
-// successful loads transfer ownership into the existing loaded-font container.
-// Names and views are synchronous loans that expire on container mutation.
-#ifdef __cplusplus
-enum class XpFontLoadMode : uint8_t { Replace, ExtraSize, Variant };
-enum class XpFontManagerEvent : uint32_t {
-  Path = 1,
-  Allocation = 2,
-  Load = 3,
-  Collision = 4,
-  Loaded = 5,
-  EmptyFamily = 6
-};
-#endif
-typedef struct {
-  void* font;
-  int32_t id;
-  uint8_t size;
-} XpFontLoaded;
-typedef struct {
-  const char* name;
-  size_t nameLen;
-  const XpFontLoaded* entries;
-  size_t count;
-} XpFontManagerView;
-typedef struct {
-  const char* name;
-  size_t nameLen;
-  const char* root;
-  XpFontFiles files;
-  bool loose;
-} XpFontFamilyFiles;
-typedef struct {
-  void* ctx;
-  XpFontManagerView (*view)(void*);
-  void* (*create)();
-  bool (*load)(void*, const char*);
-  void (*destroy)(void*);
-  uint32_t (*info)(void*, uint8_t* styles);
-  bool (*collision)(void*, int32_t);
-  void (*registerSd)(void*, int32_t, void*);
-  void (*push)(void*, XpFontLoaded);
-  void (*insertFont)(void*, int32_t, void*);
-  void (*removeFont)(void*, int32_t);
-  void (*erase)(void*, size_t);
-  void (*clearFallbacks)(void*);
-  void (*clearSd)(void*);
-  void (*clear)(void*);
-  void (*family)(void*, const char*, size_t, uint8_t);
-  void (*diagnostic)(void*, uint32_t, const char*, int32_t, uint32_t, uint32_t);
-} XpFontManagerServices;
-void xp_font_manager_destroy(const XpFontManagerServices*);
-void xp_font_manager_unload(const XpFontManagerServices*, int32_t id, bool all);
-int32_t xp_font_manager_get(const XpFontManagerServices*, const char* family, size_t nameLen, uint8_t size);
-int32_t xp_font_manager_load(const XpFontManagerServices*, const XpFontFamilyFiles*, uint8_t size, int32_t id,
-                             uint8_t mode);
-bool xp_font_canonical(const char* name, const uint8_t* family, size_t length, uint8_t size);
 // Synchronous transfer jobs. Callbacks and context must remain live and cannot reenter.
 // Buffers are borrowed for one callback. Flash scratch is exactly 4096 bytes, allocated
 // and freed by the paired C++ callbacks; no Rust allocation is retained.
@@ -2905,3 +2675,7 @@ uint8_t xp_dictionary_append(const XpDictionaryAppend*, uint32_t, uint32_t);
 #endif
 
 #include "xp_book_residual.h"
+
+#ifdef XP_APP_TEST
+#include <xp_sd_oracle.h>
+#endif

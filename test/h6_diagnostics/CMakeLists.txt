@@ -71,3 +71,13 @@ target_compile_options(H6Gfx PRIVATE ${H6_GFX_OPTIONS})
 target_link_options(H6Gfx PRIVATE ${H6_GFX_LINK_OPTIONS})
 target_link_libraries(H6Gfx PRIVATE xp_ffi_host)
 add_test(NAME H6GfxDiagnostics COMMAND H6Gfx)
+
+# Compile the shipping helpers directly; the legacy parser oracle above is separate.
+add_executable(H6SdProduction ProductionSd.cpp ${REPO_ROOT}/lib/EpdFont/SdCardFont.cpp)
+target_compile_definitions(H6SdProduction PRIVATE XP_SD_FONT_CATALOG)
+target_compile_options(H6SdProduction PRIVATE -UXP_APP_TEST)
+target_include_directories(H6SdProduction PRIVATE stubs ${REPO_ROOT}/test/sd_card_font/stubs
+  ${REPO_ROOT}/rust/crates/xp-ffi/include)
+add_test(NAME H6SdProductionDiagnostics COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/production_sd.py $<TARGET_FILE:H6SdProduction>
+  ${CMAKE_CURRENT_SOURCE_DIR}/production-sd-4139d281.txt)

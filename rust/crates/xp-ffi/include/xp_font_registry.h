@@ -6,7 +6,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-// Inline registry, cache, decoder and scan storage; dormant catalog expands it only when enabled.
+// Inline registry, cache, decoder, scan and catalog storage; legacy hosts omit the catalog.
 // Cache buffers use the font allocator; owner initialization allocates nothing.
 typedef struct {
 #ifdef XP_SD_FONT_CATALOG
@@ -85,7 +85,7 @@ typedef struct {
   const void* const* slot;
 } XpFontGlyphContext;
 XpGlyphBitmap xp_font_glyph_miss(void*, uint32_t cp, const void* glyph, XpGlyphDraw*, XpGlyphSource*);
-// Native cold catalog lends a family; the Rust control owns every loaded SD face.
+// Legacy native managers lend a family; shipping catalog policy loads faces directly in Rust.
 int32_t xp_sd_font_load(XpLoadedFonts*, const XpFontFamilyFiles*, uint8_t points, int32_t id, uint8_t mode);
 void xp_sd_font_unload(XpLoadedFonts*, int32_t id, uint8_t all);
 // Name is borrowed until replacement, full unload or drop; queries and extra
@@ -220,7 +220,7 @@ void xp_native_sd_font_view(void*, int32_t font, XpNativeFamily*, XpGlyphSource*
 void xp_native_sd_font_resident_slice(void*, int32_t font, uint8_t style, const uint8_t*, size_t, uint8_t metadata);
 
 #endif
-// Default cold absent-ID loading stays native until CP2b-A; catalog builds use PT-VEC only.
+// Legacy hosts retain native absent-ID loading; shipping native providers serve PT-VEC only.
 #if !defined(XP_SD_FONT_CATALOG) || defined(BOARD_HAS_PSRAM) || defined(XP_APP_TEST)
 uint8_t xp_native_sd_font_load(void*, int32_t font);
 #endif

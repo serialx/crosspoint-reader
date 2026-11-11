@@ -4,13 +4,13 @@ The standalone harness links the production `xp-core::sdfont` modules. Rust
 owns stable faces, per-style tables, scoped pinned file holders, cache policy
 and the loaded-manager list/name. Native code supplies HAL, allocation and
 formatting leaves. Interval tables can be shared across styles and faces.
-Native SD catalog/system discovery, variant/fallback and absent-ID policy
-remain until CP2b; the catalog store and update/variant policy are not wired yet.
+Rust also owns SD catalog discovery, variant/fallback and absent-ID policy.
+Native code performs physical storage/allocation and the remaining vector effects.
 
-CP2b-P adds a dormant catalog/system binding. Its Rust `sd-font-catalog`
-feature and native `XP_SD_FONT_CATALOG` definition are enabled together only
-for the separate system-oracle archive. Default firmware and the other host
-suites keep the parent ABI. CP2b-A owns shipping activation.
+Firmware enables Rust `sd-font-catalog` and native `XP_SD_FONT_CATALOG` together.
+The separate system-oracle archive exercises that binding against frozen native
+policy; other historical host fixtures retain their compatibility ABI. Legacy
+native definitions and declarations remain CP2c/CP2d cleanup.
 
 The allocator must preserve alignment, return null on failure and pair every
 allocation with its matching free. No pointer into the movable result escapes;
@@ -69,12 +69,12 @@ selected/discarded candidate lifetimes, reader-size state and a five-record vari
 LRU. Catalog allocation callbacks are a separate internal-heap binding contract;
 container allocation inherits its binding failure classification while filename
 allocation is fallible. No new allocator or abort is added by the Rust owner.
-Settings/dirty-flag synchronization, native-origin diagnostics and SDK directory/
-FreeType bindings remain CP2b work. Loaded-list/name/load/unload operations
-already have shipping callers; catalog storage and update/variant policy do not.
+Catalog storage, dirty/update/variant policy and reader/chapter/web/XTC bindings
+have shipping callers. SDK directory and FreeType inspection are physical leaves;
+TTF resources and vector effects remain native until PT-VEC.
 
 Run python3 test/sdfont_owner/catalog_check.py after the CMake and Cargo builds
-for a selected-record differential against the behaviour-unchanged native registry. It
+for a selected-record differential against the frozen native registry. It
 compares nine families including64discarded vector candidates; it is not a
 whole-heap or C3 std::string oracle. Focused tests cover every catalog allocation
 failure,129family truncation, rediscovery, selected vector owners, full diagnostic
@@ -93,7 +93,7 @@ cargo test --manifest-path rust/Cargo.toml -p xp-core --test font_owner_binding 
 MIRIFLAGS='-Zmiri-strict-provenance' cargo +nightly miri test --manifest-path rust/Cargo.toml -p xp-core --test font_owner_binding --offline --locked
 ```
 
-`SdFontSystemSwitch` compares the frozen native system with the prepared Rust
+`SdFontSystemSwitch` compares the frozen native system with the active Rust
 system using the same host fixture, including variant IDs, save count/order,
 and allocation/file/save failures. Its JSON snapshots model the settings fields
 used by this operation; they do not establish full persisted-file or device
@@ -101,5 +101,16 @@ heap parity. The comparator accounts for host string layouts and compares
 contiguous free multisets, so C3 allocation order still needs activation-time
 traces. The Miri cases also cover rejected continuation tokens and the typed
 chapter receiver: an SD load failure must not invoke native fallback policy.
-The EPUB entry/settings effect return boundary remains CP2b-A work; this fixture
-does not exercise that composition.
+EPUB and XTC execute effects synchronously at the parent's call sites. The
+inherited save callback re-enters settings serialization; SET-OWN owns that path.
+This system fixture does not establish full EPUB composition or persisted-file parity.
+
+`SdFontCatalogFrontDoor` enables the catalog feature for production-front-door
+tests, including inline/heap name loans, selectable sizes, web response bytes and
+upload root/path effects. `SdFontXtcOrder` checks entry command order on success
+and failure. Run both through CTest:
+
+```sh
+ctest --test-dir build/pt3-cp1c-host -R '^(SdFontCatalogFrontDoor|SdFontXtcOrder)$' --output-on-failure
+MIRIFLAGS='-Zmiri-strict-provenance' cargo +nightly miri test --manifest-path rust/Cargo.toml -p xp-core --features sd-font-catalog --test font_owner_binding --offline --locked
+```

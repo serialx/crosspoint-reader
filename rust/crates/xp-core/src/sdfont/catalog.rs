@@ -1,4 +1,4 @@
-//! Dormant catalog owner; existing discovery policy calls only Rust-owned records.
+//! Catalog ownership and discovery over Rust-owned records.
 use super::{
     catalog_storage::{Array, Name},
     parser::Allocator,

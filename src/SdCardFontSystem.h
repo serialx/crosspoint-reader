@@ -27,8 +27,8 @@ using SdSystemCatalog = SdFontCatalog;
 using SdSystemFamily = SdFontFamily;
 #endif
 
-/// Native facade for begin() and ensureLoaded(). The parent path owns the
-/// registry/manager; the prepared catalog path delegates to Rust (CP2b-A).
+/// Native startup/UI facade for Rust SD catalog policy and synchronous effects.
+/// TTF resources stay native; the legacy path serves historical host oracles.
 class SdCardFontSystem {
  public:
   // Constructor and destructor are out-of-line (defined in the .cpp where

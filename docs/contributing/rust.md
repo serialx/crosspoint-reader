@@ -16,7 +16,7 @@ rasterization and bitmap views, SD font parsing and cache policy, XTC parsing,
 and the shared inflater for ZIP, PNG, ContentProtection, fonts and DictZip.
 Rust also owns the loaded-font registry, including family/style slots and fallback
 IDs. Rust also owns SD faces, per-style storage and the loaded-manager list.
-Native SD catalog/system policy remains in C++ until CP2b.
+Rust also owns SD discovery, family/size selection, variants and UI fallbacks.
 C++ retains physical file I/O, TTF file and face resources, platform callbacks,
 JPEGDEC integration, page storage and views, and
 legacy screen resources. The Rust application owns loop/navigation policy, Home
@@ -491,7 +491,7 @@ Long annotation/target text has separate fallible byte storage; short text stays
 inline. Rust executes measurement and bidi and owns loaded-font and cache policy.
 Rust owns SD face storage and scoped file holders over native HAL leaves.
 C++ retains TTF file/face resources and the shared bidi workspace and mutex.
-Native SD catalog/system policy remains until CP2b. TextBlock is a borrowed
+Rust owns SD catalog/system policy. TextBlock is a borrowed
 page view in firmware.
 The ABI adds no rendering/storage service, task or synchronization.
 
@@ -827,9 +827,8 @@ Rust executes measurement rules, resident font-table reads, bidi shaping and
 word ordering. The Rust loaded-font registry owns family/style slots and fallback
 IDs. C++ font facades query this owner. One Rust `FontCacheOwner` holds the
 built-in bitmap cache, decoder and scan/prewarm state. Rust owns SD faces,
-per-style storage, loading, registration and eviction. Native SD catalog/system
-policy remains until CP2b; TTF file/face storage and the vector cache facade
-remain native until PT-VEC.
+per-style storage, loading, registration, eviction and catalog/system policy.
+TTF file/face storage and the vector cache facade remain native until PT-VEC.
 [`GfxRenderer::textProvider`](../../lib/GfxRenderer/GfxRenderer.cpp) obtains the
 Rust registry provider, which supplies style descriptors and dynamic handlers.
 SD glyphs that are not resident and TTF glyph/coverage/kerning work still use
@@ -891,8 +890,8 @@ framebuffer or strip target for one synchronous run. Rust resolves resident
 built-in/SD and decompressed page-buffer bitmap hits directly. Built-in misses
 use the inline cache and decoder in `font::runtime::FontCacheOwner`, with the
 existing Rust SmallTables inflater. Rust supplies SD views, bitmaps and miss
-recovery. Native SD loading is only the cold absent-ID re-entry until CP2b;
-TTF handlers provide the remaining non-SD font work. The source view is refreshed
+recovery, including absent-ID SD loading. Native fallback handles builtin/vector
+fonts; TTF handlers provide the remaining non-SD work. The source view is refreshed
 after miss recovery.
 Generation changes invalidate borrowed sources; no table or bitmap loan survives
 a callback that can mutate its owner. The EpdFont owner stays live and serialized;
@@ -996,18 +995,20 @@ owns loading and shared-interval reference counts. `sdfont::{parser,owner,io}`
 own stable faces, per-style storage and scoped physical handles; `control` owns
 the loaded list and family name. The renderer's explicit font owner holds one
 shared-interval registry and invalidates generation before table mutations.
-Native catalog/system callers still lend family descriptors during load; CP2b
-owns their discovery, variant/fallback and absent-ID loading move. The catalog
-record store and `control::update` / `control::variant` policy in
-`sdfont::catalog` and `sdfont::control` remain dormant until that step; the
-loaded-list and family-name operations in `control` are already live.
+`sdfont::catalog` owns discovery records; `control::update` and
+`control::variant` own reader selection and variants. Reader/chapter callbacks
+use the explicit Rust font owner. Web font and settings routes derive ordered
+family/size choices in Rust; native consumers copy and label borrowed results.
+The native chapter owner-address leaf remains with P18-D2 until that context moves.
 
-CP2b-P prepares the catalog/system binding and typed chapter font operations
-behind the internal `sd-font-catalog` feature and matching native
-`XP_SD_FONT_CATALOG` definition. Both are off in firmware builds. The default
-owner layout, callback ABI and native catalog/system remain unchanged; the
-separate host archive exercises the prepared policy. CP2b-A owns activation,
-including the reader, chapter, web fonts/settings and XTC incoming routes.
+Firmware builds enable `sd-font-catalog` and `XP_SD_FONT_CATALOG` together.
+PSRAM builds also enable `vector-fonts`; TTF sources, faces and caches remain
+PT-VEC work. Native startup/UI drivers and Rust EPUB/XTC callers execute typed
+font effects synchronously, preserving save/unload/load order. The inherited
+settings-save callback re-enters settings serialization, whose native settings
+and JSON loans are disjoint from reader state; SET-OWN owns its retirement.
+No SD catalog/control/load/variant policy re-enters through a native effect.
+Legacy native definitions and host ABI adapters remain CP2c/CP2d cleanup.
 The EPUB font-effect driver is not prepared: both reader entry and text-setting
 application still use the parent callback. CP2b-A must return through the native
 EPUB entry before save/vector effects, then resume with the original ordering

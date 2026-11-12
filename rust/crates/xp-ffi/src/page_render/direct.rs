@@ -48,7 +48,10 @@ struct Direct<'a> {
     style: Cell<u8>,
 }
 extern "C" {
-    fn xp_native_render_target(out: *mut Target);
+    pub(crate) fn xp_native_render_target(
+        out: *mut Target,
+        scene_paint: *mut xp_ui::ffi::Paint,
+    ) -> u8;
     #[cfg(feature = "chapter-test")]
     fn xp_native_page_test_glyph(
         font: *const FontData,
@@ -102,7 +105,7 @@ pub(crate) unsafe fn paint_current(arena: &[u8], font: i32, x: i32, y: i32, mode
 #[inline(never)]
 pub(crate) unsafe fn paint_request_current(arena: &[u8], request: &Request) -> u32 {
     let mut target = core::mem::MaybeUninit::uninit();
-    xp_native_render_target(target.as_mut_ptr());
+    xp_native_render_target(target.as_mut_ptr(), ptr::null_mut());
     let target = target.assume_init_mut();
     // Scan state belongs to Rust; the native snapshot reads physical target facts only.
     if !target.fonts.is_null() {

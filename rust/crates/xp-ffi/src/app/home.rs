@@ -351,7 +351,7 @@ impl Home {
             resource_valid: Some(PaintContext::valid),
             resource: Some(PaintContext::paint),
         };
-        if unsafe { (self.services.paint_scene)(&scene, &resources) } == 0 {
+        if unsafe { crate::app::scene::paint(self.services, &scene, &resources) } == 0 {
             self.reject();
             return None;
         }

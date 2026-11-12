@@ -13,6 +13,16 @@ pub(crate) mod clippings {
 pub(crate) mod epub;
 #[path = "../../rust/crates/xp-ffi/src/app/resources.rs"]
 pub(crate) mod resources;
+// Owner fixtures observe commands through their historical paint callback.
+pub(crate) mod scene {
+    pub(crate) unsafe fn paint(
+        services: &super::abi::Resources,
+        scene: *const xp_ui::ffi::SceneView,
+        resources: *const xp_ui::ffi::Paint,
+    ) -> u8 {
+        unsafe { (services.paint_scene)(scene, resources) }
+    }
+}
 #[path = "../../rust/crates/xp-ffi/src/app/result.rs"]
 pub(crate) mod result;
 #[path = "../../rust/crates/xp-ffi/src/app/stable_owner.rs"]

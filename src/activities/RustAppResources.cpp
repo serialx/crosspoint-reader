@@ -309,9 +309,11 @@ const XpAppResources& rustAppResources(GfxRenderer& renderer, MappedInputManager
             // cppcheck-suppress uninitvar // fillPolygon reads only the count initialized elements.
             target->fillPolygon(xs, ys, count, paint != 1);
           },
+#ifdef XP_APP_TEST
       .paint_scene = [](const XpUiScene* scene, const XpUiPaint* paint) -> uint8_t {
         return target->drawUiScene(*scene, paint);
       },
+#endif
       .refresh =
           [](uint8_t refresh) {
             switch (refresh) {

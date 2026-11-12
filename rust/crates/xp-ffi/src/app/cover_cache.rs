@@ -146,5 +146,5 @@ fn paint_geometry(services: &abi::Resources, commands: &[Command]) -> bool {
         refresh: 0,
         reserved: 0,
     };
-    unsafe { (services.paint_scene)(&scene, core::ptr::null()) != 0 }
+    unsafe { crate::app::scene::paint(services, &scene, core::ptr::null()) != 0 }
 }

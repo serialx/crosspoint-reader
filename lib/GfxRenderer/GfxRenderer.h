@@ -190,6 +190,7 @@ class GfxRenderer {
   // Borrows the current framebuffer/strip target and Rust font owner for a synchronous paint.
   void pageTarget(XpPageTarget& out, bool includeScanning = true) const;
   bool drawUiScene(const XpUiScene& scene, const XpUiPaint* resources = nullptr) const;
+  XpUiPaint uiPaint() const;
   // Shared text/resource services follow this target for the whole synchronous call.
   bool drawUiScene(const XpUiScene& scene, const XpGlyphTarget& target, const XpUiPaint* resources) const;
   void drawUiText(const XpUiCommand& command, XpUiRect clip, const char* text) const;

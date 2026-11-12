@@ -1,5 +1,12 @@
 # Reader children ownership tests
 
+All Rust-owned child scenes use the direct Rust scene entry. The `app-test`
+owner fixtures retain their historical scene observer; native target fixtures
+enter the common renderer through `drawUiScene`. `ui_runtime_abi` separately
+exercises the production direct target loan, resource contexts and rejection
+before writes. These host checks do not establish task-stack margins or replace
+paired emulator captures.
+
 These tests exercise the active Rust owners and the frozen native reader child contracts.
 
 - `reader_children_ownership` imports the production owner/storage/result modules. It checks fallible construction, bounded command and text storage, result movement, application destruction/publication order, percent input/publication and toolbar navigation. The shared percent view capacity test covers all four orientations, touch/buttons, every value 0–100, all control active states and tap-flash states. An overflow composition records a diagnostic, retains the first 18 commands and publishes the complete interaction table through the Percent owner.

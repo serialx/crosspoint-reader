@@ -1,5 +1,11 @@
 # Home ownership tests
 
+Production Home paints through `app::scene::paint` without the native scene
+round trip. Historical `app-test` owner fixtures retain a test-only `paint_scene`
+observer for command/publication comparisons. The `ui_runtime_abi` direct-scene
+case exercises the production target loan and resource validation path; pixel
+and emulator comparisons remain separate checks.
+
 `differential_oracle.py` compares nine frozen traces for Home input, standard
 and grid layout, touch, cover caching and shared file/library views. The adapters
 call production Rust; typed Home resources are decoded only to print the original

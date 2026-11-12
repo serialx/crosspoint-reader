@@ -588,6 +588,7 @@ pub struct Resources {
     pub region_write: unsafe extern "C" fn(xp_ui::scene::Rect, *const u8, usize) -> u8,
     pub rounded_mask: unsafe extern "C" fn(xp_ui::scene::Rect, u8, u8),
     pub polygon_draw: unsafe extern "C" fn(*const Point, u8, u8),
+    #[cfg(any(test, feature = "app-test"))]
     pub paint_scene:
         unsafe extern "C" fn(*const xp_ui::ffi::SceneView, *const xp_ui::ffi::Paint) -> u8,
     pub refresh: unsafe extern "C" fn(u8),
@@ -596,7 +597,10 @@ pub struct Resources {
     pub font_owner: FontOwner,
 }
 
-const _: () = assert!(core::mem::size_of::<Resources>() == 47 * core::mem::size_of::<usize>());
+const _: () = assert!(
+    core::mem::size_of::<Resources>()
+        == (46 + cfg!(any(test, feature = "app-test")) as usize) * core::mem::size_of::<usize>()
+);
 
 #[repr(C)]
 #[derive(Clone, Copy)]

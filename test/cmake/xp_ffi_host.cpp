@@ -281,7 +281,7 @@ __attribute__((weak)) void xp_native_bidi_release() { std::abort(); }
 #include <xp_page_paint.h>
 extern "C" {
 __attribute__((weak)) void xp_native_page_test_glyph(const void*, const XpGlyphPlacement*, int32_t, int32_t, uint8_t) {}
-__attribute__((weak)) void xp_native_render_target(XpPageTarget*) { std::abort(); }
+__attribute__((weak)) uint8_t xp_native_render_target(XpPageTarget*, XpUiPaint*) { std::abort(); }
 __attribute__((weak)) size_t xp_native_page_image_file(XpPageImageFile*, XpPageImageFileOp, const uint8_t*, uint8_t*,
                                                        size_t) {
   std::abort();

@@ -25,6 +25,7 @@ mod keyboard;
 mod network_modes;
 mod resources;
 mod result;
+mod scene;
 mod settings;
 mod stable_owner;
 mod sync;

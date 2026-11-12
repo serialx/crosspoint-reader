@@ -1,3 +1,4 @@
+#include <xp_page_paint.h>
 #include <xp_ui.h>
 
 #include <array>
@@ -9,6 +10,75 @@ static_assert(sizeof(XpUiListStyle) == 40);
 static_assert(sizeof(XpUiXtcLayout) == 72);
 static_assert(sizeof(XpUiInput) == 36);
 static_assert(sizeof(XpUiInterest) == 24);
+
+extern "C" uint8_t xp_app_test_scene_paint(const XpUiScene*, const XpUiPaint*);
+static XpPageTarget sceneTarget;
+static XpUiPaint sceneServices;
+static int loans;
+extern "C" uint8_t xp_native_render_target(XpPageTarget* out, XpUiPaint* services) {
+  assert(services);
+  ++loans;
+  *out = sceneTarget;
+  *services = sceneServices;
+  return 1;
+}
+
+static void directScene() {
+  struct Owner {
+    int valid = 0, paints = 0;
+    bool reject = false;
+  } owner;
+  int cleared = 0;
+  sceneServices = {&cleared,
+                   [](void* p, const XpGlyphTarget* target) {
+                     ++*static_cast<int*>(p);
+                     memset(target->buffer, 0xFF, target->bufferLen);
+                   },
+                   nullptr, nullptr, nullptr};
+  const XpUiPaint resources{&owner, nullptr, nullptr,
+                            [](void* p, uint32_t handle, uint32_t generation) -> uint8_t {
+                              auto& o = *static_cast<Owner*>(p);
+                              ++o.valid;
+                              assert(handle == 7 && generation == 4);
+                              return !o.reject;
+                            },
+                            [](void* p, const XpGlyphTarget* target, const XpUiCommand*, XpUiRect clip) {
+                              ++static_cast<Owner*>(p)->paints;
+                              assert(target->originY == 1 && target->rows == 1 && target->scanning == 1);
+                              assert(clip.x == 2 && clip.y == 1 && clip.w == 4 && clip.h == 1);
+                              target->buffer[0] = 0x55;
+                            }};
+  XpUiCommand commands[2]{};
+  commands[0].kind = XP_UI_CLEAR;
+  commands[1].kind = XP_UI_BITMAP;
+  commands[1].resource = 7;
+  commands[1].generation = 4;
+  const XpUiScene scene{commands, nullptr, nullptr, 4, 2, 0, 0, XP_UI_NONE, 0};
+  uint8_t byte = 0xCC;
+  sceneTarget = {};
+  XpLoadedFonts fonts;
+  const uint32_t generation = 0;
+  xp_font_registry_init(&fonts, &generation, nullptr);
+  xp_font_frame_begin(&fonts);
+  sceneTarget.fonts = &fonts;
+  sceneTarget.glyphs = {&byte, 1, 8, 2, 1, 1, 1, {2, 1, 6, 2}, 3, 0, 0, 1, 1};
+  assert(xp_app_test_scene_paint(&scene, &resources));
+  assert(loans == 1 && cleared == 1 && owner.valid == 1 && owner.paints == 1 && byte == 0x55);
+  owner.reject = true;
+  byte = 0xCC;
+  assert(!xp_app_test_scene_paint(&scene, &resources));
+  assert(cleared == 1 && owner.paints == 1 && byte == 0xCC);
+  assert(!xp_app_test_scene_paint(&scene, nullptr));
+  assert(cleared == 1 && byte == 0xCC);
+  const XpUiScene clear{commands, nullptr, nullptr, 4, 1, 0, 0, XP_UI_NONE, 0};
+  assert(xp_app_test_scene_paint(&clear, nullptr));
+  assert(cleared == 2 && byte == 0xFF);
+  sceneTarget.glyphs.bufferLen = 0;
+  assert(!xp_app_test_scene_paint(&clear, nullptr));
+  assert(cleared == 2);
+  xp_font_frame_end(&fonts);
+  xp_font_registry_drop(&fonts);
+}
 
 static void serviceClip() {
   struct Calls {
@@ -36,10 +106,10 @@ static void serviceClip() {
   const XpUiScene scene{commands, text, nullptr, 0, 3, 2, 0, XP_UI_NONE, 0};
   uint8_t bytes[2]{};
   XpGlyphTarget target{bytes, 2, 8, 2, 1, 0, 2, {2, 1, 6, 2}, 3, 0, 0, 0, 0};
-  assert(xp_ui_render(&scene, &target, &paint));
+  assert(xp_ui_render(&scene, &target, &paint, &paint));
   assert(calls.clear == 1 && calls.text == 1 && calls.resource == 1);
   target.clip = {0, 0, 0, 0};
-  assert(xp_ui_render(&scene, &target, &paint));
+  assert(xp_ui_render(&scene, &target, &paint, &paint));
   assert(calls.clear == 2 && calls.text == 1 && calls.resource == 1);
 }
 
@@ -82,6 +152,7 @@ static void layerOwners() {
 }
 
 int main() {
+  directScene();
   serviceClip();
   layerOwners();
   XpUiListState state{};

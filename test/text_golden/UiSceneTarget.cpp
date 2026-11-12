@@ -4,6 +4,7 @@
 #include <SdCardFont.h>
 #include <builtinFonts/all.h>
 #include <fontIds.h>
+#include <xp_page_paint.h>
 
 #include <algorithm>
 #include <array>
@@ -14,6 +15,14 @@
 #include "Trace.h"
 extern "C" uint8_t xp_app_test_message_commands(XpUiRect screen, int32_t font, uint8_t style, uint16_t text_len,
                                                 int32_t width, int32_t height, XpUiCommand* out);
+extern "C" uint8_t xp_app_test_scene_paint(const XpUiScene*, const XpUiPaint*);
+static GfxRenderer* currentRenderer;
+extern "C" uint8_t xp_native_render_target(XpPageTarget* out, XpUiPaint* services) {
+  assert(currentRenderer && services);
+  currentRenderer->pageTarget(*out, false);
+  *services = currentRenderer->uiPaint();
+  return currentRenderer->getFontCacheManager() != nullptr;
+}
 void textGoldenGlyph(const EpdFontFamily&, uint32_t, int, int, EpdFontFamily::Style) {}
 void textGoldenScaled(int, uint32_t, int, int, EpdFontFamily::Style) {}
 
@@ -21,6 +30,7 @@ int main(int argc, char** argv) {
   HalDisplay display;
   GfxRenderer renderer(display);
   renderer.begin();
+  currentRenderer = &renderer;
   static EpdFont regular(&ubuntu_10_regular), bold(&ubuntu_10_bold);
   renderer.insertFont(UI_10_FONT_ID, EpdFontFamily(&regular, &bold));
   FontDecompressor decompressor;
@@ -72,6 +82,9 @@ int main(int argc, char** argv) {
                       0};
       assert(renderer.drawUiScene(scene, &resources));
       const auto expected = display.pixels;
+      display.pixels.fill(0x69);
+      assert(xp_app_test_scene_paint(&scene, &resources));
+      assert(display.pixels == expected);
       display.pixels.fill(0x69);
       std::array<uint8_t, 48000> assembled{};
       std::array<uint8_t, 1602> band{};

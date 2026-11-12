@@ -154,7 +154,7 @@ impl Qr {
             resource_valid: Some(Drawing::valid),
             resource: Some(Drawing::paint),
         };
-        if unsafe { (services.paint_scene)(&view, &paint) } == 0 {
+        if unsafe { crate::app::scene::paint(services, &view, &paint) } == 0 {
             return Err(Error::Invalid);
         }
         self.model.with(|model| model.state.publish(&snapshot));

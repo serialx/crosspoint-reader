@@ -20,7 +20,7 @@ pub(super) fn paint(
         refresh: Refresh::None as u8,
         reserved: 0,
     };
-    if unsafe { (services.paint_scene)(&scene, resources) } == 0 {
+    if unsafe { crate::app::scene::paint(services, &scene, resources) } == 0 {
         Err(Error::Invalid)
     } else {
         Ok(())

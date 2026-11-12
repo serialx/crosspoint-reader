@@ -94,6 +94,11 @@ synchronization. After any render, resource or text lock wait following
 admission, check the gate again before acting: rendering may have rejected the
 scene during the wait.
 
+Rust-owned screens call `app::scene::paint`; native-origin screens enter the
+same Rust renderer through `GfxRenderer::drawUiScene` and `xp_ui_render`. The
+current target and clear/text services are synchronous loans; resource callbacks
+retain their own context. This does not transfer publication to the renderer.
+
 List preparation does not paint or publish. Grow storage using the screen's
 existing capacity sequence, releasing the old buffer before allocation and
 retaining the request for a failed-allocation retry. Paint a completed scene,

@@ -1,5 +1,10 @@
 # Dictionary and selection UI oracle
 
+Lookup, Definition and Footnote owners use the direct Rust scene entry.
+Geometry and packed-pixel oracles below keep their original scope; they do not
+exercise the cold font-loading stack route. `ui_runtime_abi` checks the shared
+direct target loan and validation-before-write contract.
+
 `python3 test/dictionary_ui/oracle.py` runs the Rust geometry and
 compares it with `geometry.golden.gz`, recorded at `dc21f50f` before the Rust port.
 Use `--source PATH` to compile the archived C++ source instead; that path also

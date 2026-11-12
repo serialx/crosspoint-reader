@@ -107,6 +107,11 @@ Why caching matters:
 - RAM is limited on ESP32-C3, so expensive parsed/layout data is persisted to SD
 - repeat opens/page navigation can reuse cached data instead of full reparsing
 
+Rust-owned UI scenes paint directly in Rust after borrowing the active target
+and clear/text services. Native-origin UI screens enter the same renderer through
+`xp_ui_render`. SDK component/measurement services remain native; this scene path
+is separate from the EPUB page painter and its status-bar calls.
+
 ## Reader internals call graph
 
 This diagram zooms into the EPUB path to show the main control and data flow from activity entry to on-screen draw.

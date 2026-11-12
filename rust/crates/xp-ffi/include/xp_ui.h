@@ -151,7 +151,8 @@ typedef struct {
   void (*resource)(void*, const XpGlyphTarget*, const XpUiCommand*, XpUiRect clip);
 } XpUiPaint;
 
-uint8_t xp_ui_render(const XpUiScene* scene, const XpGlyphTarget* target, const XpUiPaint* paint);
+uint8_t xp_ui_render(const XpUiScene* scene, const XpGlyphTarget* target, const XpUiPaint* paint,
+                     const XpUiPaint* resources);
 // Layers may reuse local handles; each binds its own borrowed owner/services.
 typedef struct {
   const XpUiScene* scene;

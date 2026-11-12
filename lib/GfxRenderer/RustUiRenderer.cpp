@@ -28,26 +28,19 @@ void GfxRenderer::drawUiText(const XpUiCommand& command, XpUiRect clip, const ch
   renderer.setClipRect(previous[0], previous[1], previous[2], previous[3]);
 }
 
+XpUiPaint GfxRenderer::uiPaint() const {
+  return {const_cast<GfxRenderer*>(this),
+          [](void* p, const XpGlyphTarget*) { static_cast<GfxRenderer*>(p)->clearScreen(); },
+          [](void* p, const XpGlyphTarget*, const XpUiCommand* c, XpUiRect clip, const char* text) {
+            static_cast<GfxRenderer*>(p)->drawUiText(*c, clip, text);
+          },
+          nullptr, nullptr};
+}
+
 bool GfxRenderer::drawUiScene(const XpUiScene& scene, const XpUiPaint* resources) const {
-  struct Context {
-    const GfxRenderer* renderer;
-    const XpUiPaint* resources;
-  } context{this, resources};
-  const XpUiPaint paint{
-      &context, [](void* p, const XpGlyphTarget*) { static_cast<Context*>(p)->renderer->clearScreen(); },
-      [](void* p, const XpGlyphTarget*, const XpUiCommand* c, XpUiRect clip, const char* text) {
-        static_cast<Context*>(p)->renderer->drawUiText(*c, clip, text);
-      },
-      [](void* p, uint32_t handle, uint32_t generation) -> uint8_t {
-        const auto* r = static_cast<Context*>(p)->resources;
-        return r && r->resource && r->resource_valid && r->resource_valid(r->context, handle, generation);
-      },
-      [](void* p, const XpGlyphTarget* target, const XpUiCommand* c, XpUiRect clip) {
-        const auto* r = static_cast<Context*>(p)->resources;
-        if (r && r->resource) r->resource(r->context, target, c, clip);
-      }};
+  const auto paint = uiPaint();
   const auto target = glyphTarget();
-  return xp_ui_render(&scene, &target, &paint) != 0;
+  return xp_ui_render(&scene, &target, &paint, resources) != 0;
 }
 
 bool GfxRenderer::drawUiScene(const XpUiScene& scene, const XpGlyphTarget& target, const XpUiPaint* resources) const {

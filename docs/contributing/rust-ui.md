@@ -321,10 +321,22 @@ exports and physical drawing services for as long as their callers remain.
 
 ## Drawing and resources
 
-Geometry uses the `xp_core::strip::Strip` packed DrawTarget, including orientation, clipping and
-strip origins. The current adapter lends the existing full framebuffer as one
-full-height strip. It does not allocate another framebuffer or borrow its bytes
-as arena storage.
+Rust-owned screens call `app::scene::paint` directly. It borrows the current
+`XpPageTarget` and clear/text services through `xp_native_render_target`, then
+calls `xp_ui::ffi::render` in Rust. The shipping `XpAppResources` table has no
+`paint_scene` callback. Native-origin screens use `GfxRenderer::drawUiScene` and
+`xp_ui_render` to enter the same renderer.
+
+Geometry uses `xp_core::strip::Strip`, including orientation, clipping and strip
+origins. The target lends the existing framebuffer or active band; it allocates
+no framebuffer or arena. The native loan reports whether a font cache is bound;
+the Rust scene entry reads its scan state directly after the loan returns. Page
+loans still let the Rust page owner supply that state.
+
+Physical clear/text services and resource bindings have separate contexts.
+Resource validation and painting call their bindings directly, without a native
+forwarding callback. All validation precedes the first pixel write. Publication,
+resource locks and caller-selected refresh order remain with each screen.
 
 Paint values are black, white, light dither and dark dither (0 through 3).
 Rounded-corner masks use top-left 1, top-right 2, bottom-left 4, bottom-right 8;
@@ -338,7 +350,12 @@ Text uses the existing font IDs, metrics, bidi, fallback and glyph services.
 `max_lines == 0` paints at the recorded glyph origin; positive values use the
 existing SDK text-box service. XTC hint labels also reuse its existing font
 layout helper. These services remain C++ facades over the existing Rust text
-code; there is no second font or line-breaking engine.
+code; there is no second font or line-breaking engine. This is an intermediate
+migration: inherited SDK component/measurement calls into Rust remain, with
+retirement owner **SDK interface (future)**. Application text/chrome policy is
+not moved by the direct scene entry. The EPUB page status bar uses a separate
+render path, so removing the scene round trip does not remove warm-turn status
+work.
 
 Resource commands hold a handle and generation. The owner validates every
 resource before the first pixel changes, then paints it synchronously. A
@@ -355,9 +372,10 @@ identical local handles may name different resources in parent and popup. It
 validates every binding before painting any layer. Rust's `draw::Layer` has the
 same ownership contract. All layers share the supplied pixel target.
 
-Clear, text and resource callbacks receive that target explicitly. The shared
-GfxRenderer scene service binds the target for the entire call, so existing font
-and resource painters write the same physical band as geometry. The supplied
+Clear, text and resource callbacks receive the target explicitly. Rust owners
+borrow the already active renderer target. For a native caller supplying an
+alternate band, the GfxRenderer overload binds that band for the entire call so
+font and resource painters use the same storage as geometry. The supplied
 target must match the renderer's dimensions, orientation and render mode;
 its band storage, origin and clip may differ. The previous target/clip is restored
 on return. Resources must use this bound renderer or the supplied target rather

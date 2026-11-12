@@ -1,5 +1,13 @@
 # Emulator UI screen oracle
 
+Scene painting now has a direct Rust entry for Rust-owned screens and a native
+entry into the same renderer for retained C++ activities. Capture both parent
+and candidate with the same settings and assets; keep the goldens unchanged.
+This transition does not expand the historical matrix below: X4 is not a PSRAM
+x4pro profile, and most nonreader orientations, online states and transient
+failures still need named paired captures. Host scene tests cannot substitute
+for these framebuffer and refresh comparisons.
+
 This harness captures a declared set of CrossPoint UI states and compares every
 pixel and recorded refresh transition. It uses eink-qemu button injection,
 synthetic SD-card contents, and a fixed RTC. It never opens a serial device,

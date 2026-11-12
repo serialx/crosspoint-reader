@@ -84,13 +84,16 @@ unsafe fn scene(view: &SceneView) -> Option<Scene<'_>> {
 struct Raster<'a> {
     target: &'a GlyphTarget,
     services: &'a Paint,
+    resources: Option<&'a Paint>,
 }
 impl Sink for Raster<'_> {
     fn resource_valid(&mut self, handle: u32, generation: u32) -> bool {
-        self.services.resource.is_some()
-            && self.services.resource_valid.is_some_and(|valid| unsafe {
-                valid(self.services.context, handle, generation) != 0
-            })
+        self.resources.is_some_and(|resources| {
+            resources.resource.is_some()
+                && resources.resource_valid.is_some_and(|valid| unsafe {
+                    valid(resources.context, handle, generation) != 0
+                })
+        })
     }
     fn paint(&mut self, command: &Command, clip: Rect, text: &[u8]) {
         let t = self.target;
@@ -133,8 +136,10 @@ impl Sink for Raster<'_> {
                 }
             }
             Some(Kind::Bitmap | Kind::Page | Kind::TextHandle | Kind::HintText) => {
-                if let Some(paint) = self.services.resource {
-                    unsafe { paint(self.services.context, self.target, command, clip) };
+                if let Some(resources) = self.resources {
+                    if let Some(paint) = resources.resource {
+                        unsafe { paint(resources.context, self.target, command, clip) };
+                    }
                 }
             }
             _ => {
@@ -171,6 +176,18 @@ pub unsafe extern "C" fn xp_ui_render(
     view: *const SceneView,
     target: *const GlyphTarget,
     paint: *const Paint,
+    resources: *const Paint,
+) -> u8 {
+    unsafe { render(view, target, paint, resources) }
+}
+
+/// # Safety
+/// Same synchronous loans as xp_ui_render. Resource bindings may be absent.
+pub unsafe fn render(
+    view: *const SceneView,
+    target: *const GlyphTarget,
+    paint: *const Paint,
+    resources: *const Paint,
 ) -> u8 {
     let (Some(view), Some(target), Some(services)) = (
         unsafe { view.as_ref() },
@@ -206,7 +223,11 @@ pub unsafe extern "C" fn xp_ui_render(
                 w: w as i16,
                 h: h as i16,
             },
-            &mut Raster { target, services },
+            &mut Raster {
+                target,
+                services,
+                resources: unsafe { resources.as_ref() },
+            },
         )
         .is_ok(),
     )
@@ -440,12 +461,22 @@ pub unsafe extern "C" fn xp_ui_render_layers(
         if services.text.is_none() && scene.commands.iter().any(|c| c.kind == Kind::Text as u8) {
             return 0;
         }
-        if draw::validate(&scene, screen, &mut Raster { target, services }).is_err() {
+        if draw::validate(
+            &scene,
+            screen,
+            &mut Raster {
+                target,
+                services,
+                resources: Some(services),
+            },
+        )
+        .is_err()
+        {
             return 0;
         }
     }
     for layer in layers {
-        if unsafe { xp_ui_render(layer.scene, target, layer.paint) } == 0 {
+        if unsafe { render(layer.scene, target, layer.paint, layer.paint) } == 0 {
             return 0;
         }
     }

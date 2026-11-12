@@ -11,6 +11,12 @@ FreeType, GSUB and GPOS code are included. At capture, the Rust archive supplied
 UTF-8 helpers; current checks also use its text measurement, glyph walking and
 rasterization. No measurement function is stubbed.
 
+`UiSceneTarget` also compares the shared direct Rust scene entry with the
+native-origin scene entry, using the same renderer and built-in/SD fonts in
+all four orientations. It checks full-frame and guarded-strip painting without
+changing the stored golden. This host comparison does not replace paired
+firmware captures or qualify the x4pro hardware profile.
+
 ## Run
 
 From the repository root, with CMake, a C++20 compiler, Python 3.9+ and the

@@ -147,7 +147,7 @@ unsafe fn loading(services: &abi::Resources, screen: Rect) -> Result<(), Error> 
         resource_valid: None,
         resource: None,
     };
-    if unsafe { (services.paint_scene)(&scene, &paint) } == 0 {
+    if unsafe { crate::app::scene::paint(services, &scene, &paint) } == 0 {
         return Err(Error::Invalid);
     }
     unsafe { (services.popup_draw)((services.translate)(STR_LOADING_POPUP)) };

@@ -6,6 +6,11 @@ The proposals below are not implemented except for Details and Frontlight.
 They preserve the real activity rendering and input code; they do not qualify
 network protocols, flash writes, or hardware.
 
+The direct Rust scene entry does not close these gaps. For its qualification,
+record supported nonreader orientations and x4pro/PSRAM cases separately from
+the historical X3/X4 matrix. New named paired captures keep the existing goldens
+unchanged and retain their own parent/candidate provenance.
+
 ## Entry and capability gates
 
 | Activity/state family | Why the existing suite cannot reach it | Smallest proposed fixture and source contract |

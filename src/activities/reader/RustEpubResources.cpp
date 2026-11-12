@@ -428,7 +428,11 @@ void readMargins(GfxRenderer& renderer, int32_t* out) {
 }  // namespace
 
 extern GfxRenderer renderer;
-extern "C" void xp_native_render_target(XpPageTarget* out) { renderer.pageTarget(*out, false); }
+extern "C" uint8_t xp_native_render_target(XpPageTarget* out, XpUiPaint* scenePaint) {
+  renderer.pageTarget(*out, false);
+  if (scenePaint) *scenePaint = renderer.uiPaint();
+  return renderer.getFontCacheManager() != nullptr;
+}
 
 const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager& input) {
   static GfxRenderer* const target = &renderer;

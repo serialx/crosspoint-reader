@@ -341,7 +341,9 @@ typedef struct {
   uint8_t (*region_write)(XpUiRect rect, const uint8_t* data, size_t capacity);
   void (*rounded_mask)(XpUiRect rect, uint8_t radius, uint8_t paint);
   void (*polygon_draw)(const XpAppPoint* points, uint8_t count, uint8_t paint);
-  uint8_t (*paint_scene)(const XpUiScene* scene, const XpUiPaint* resources);
+#ifdef XP_APP_TEST
+#include "../../../../test/ui_runtime/scene_paint_oracle.inc"
+#endif
   void (*refresh)(uint8_t refresh);
   uint8_t* (*buffer_allocate)(XpAppMemoryDomain domain, size_t bytes);
   void (*buffer_release)(XpAppMemoryDomain domain, uint8_t* data);
@@ -409,7 +411,11 @@ static_assert(sizeof(XpAppPoint) == 8);
 static_assert(sizeof(XpAppBook) == 8 * sizeof(void*));
 static_assert(sizeof(XpAppLegacy) == 14 * sizeof(void*));
 static_assert(sizeof(XpAppCompatibility) == 3 * sizeof(void*));
+#ifdef XP_APP_TEST
 static_assert(sizeof(XpAppResources) == 47 * sizeof(void*));
+#else
+static_assert(sizeof(XpAppResources) == 46 * sizeof(void*));
+#endif
 static_assert(sizeof(XpAppRuntime) == 34 * sizeof(void*));
 static_assert(offsetof(XpAppRuntime, render_owned_by_current_task_retire_p18) == 33 * sizeof(void*));
 static_assert(sizeof(XpAppPlatform) == 4 * sizeof(void*));

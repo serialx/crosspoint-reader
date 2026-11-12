@@ -147,7 +147,7 @@ unsafe impl Host for NativeHost {
             resource_valid: Some(valid),
             resource: Some(paint),
         };
-        unsafe { (self.app.resources.paint_scene)(&wire, &resources) != 0 }
+        unsafe { crate::app::scene::paint(self.app.resources, &wire, &resources) != 0 }
     }
     fn refresh(&self, refresh: Refresh) {
         unsafe { (self.app.resources.refresh)(refresh as u8) };

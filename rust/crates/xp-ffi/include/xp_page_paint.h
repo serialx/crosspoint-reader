@@ -1,5 +1,6 @@
 #pragma once
 #include "xp_font_registry.h"
+#include "xp_ui.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -22,8 +23,9 @@ typedef struct {
   uint8_t prepare;
 } XpPagePaint;
 uint32_t xp_page_paint(const uint8_t* arena, size_t, const XpPageTarget*, const XpPagePaint*);
-// Borrows the current native renderer target for one synchronous paint.
-void xp_native_render_target(XpPageTarget* out);
+// Lends UI clear/text services when requested; returns whether a font cache is bound.
+// Scan state is read directly from the Rust owner after this physical loan returns.
+uint8_t xp_native_render_target(XpPageTarget* out, XpUiPaint* scene_paint);
 typedef struct {
   const uint8_t* path;
   const uint8_t* source;

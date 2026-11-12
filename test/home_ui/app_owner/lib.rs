@@ -35,10 +35,25 @@ pub unsafe extern "C" fn xp_crc32(data: *const u8, len: usize) -> u32 {
 mod display_source;
 #[path = "../../../rust/crates/xp-ffi/src/page_plan/storage.rs"]
 mod page_plan_storage;
+mod font_runtime {
+    pub(crate) unsafe fn scanning(_: *const core::ffi::c_void) -> u8 {
+        panic!("owner fixture must use its scene observer");
+    }
+}
 mod page_render {
     pub use crate::page_plan_storage::Plan;
     pub mod direct {
         use core::{cell::Cell, ffi::c_void};
+        #[repr(C)]
+        pub(crate) struct Target {
+            pub glyphs: xp_core::glyph::GlyphTarget,
+            pub fonts: *const c_void,
+            pub native: *mut c_void,
+            pub inverted: u8,
+        }
+        pub(crate) unsafe fn xp_native_render_target(_: *mut Target, _: *mut xp_ui::ffi::Paint) -> u8 {
+            panic!("owner fixture must use its scene observer");
+        }
         // Only the ownership contract is observed in this fixture.
         #[allow(dead_code)]
         pub(crate) struct Request {

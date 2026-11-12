@@ -172,7 +172,7 @@ unsafe impl Host for NativeHost {
             refresh: scene.refresh as u8,
             reserved: 0,
         };
-        unsafe { (self.app.resources.paint_scene)(&wire, &bindings(resources)) != 0 }
+        unsafe { crate::app::scene::paint(self.app.resources, &wire, &bindings(resources)) != 0 }
     }
     fn chrome(&self, command: &Command, clip: Rect, title: &[u8]) {
         unsafe {

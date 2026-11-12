@@ -1,5 +1,11 @@
 # Keyboard behavior oracle
 
+Production keyboard scenes enter the Rust renderer directly. `KeyboardTarget`
+uses the native entry into that same renderer for packed-pixel and band parity;
+historical `app-test` owner fixtures keep their test-only scene observer. The
+`ui_runtime_abi` direct-scene case checks separate physical/resource contexts,
+scan/band metadata and rejection before writes. SDK key painters are retained.
+
 `record.py` compiles the original keyboard state methods, URL tables,
 layout-set policy and ButtonNavigator against the pinned SDK's real layouts.
 Only Activity, input, time and result delivery are replaced by host leaves.

@@ -1218,8 +1218,11 @@ such as `xp_native_*` do not determine language.
 `ports.lock` records sorted root/target pairs. `dynamic.lock` records each named
 native table/vtable slot that reaches Rust, including slots outside the root
 closure, plus the declared Rust-filled tables. Both reject additions and stale
-entries. File-local symbols include their object path; slot indices are relative to the owning table; addresses and internal
-lambda names are absent. A new root/target pair cannot reuse a physical exception;
+entries. Declared port tables and Rust-filled tables use header field names, so
+retiring a field does not rename survivors. Other tables, including vtables,
+use indices relative to their own symbol; virtual-method reordering still needs
+a reviewed mapping. File-local symbols include their object path; addresses and
+internal lambda names are absent. A new root/target pair cannot reuse a physical exception;
 a different Rust caller using the same root remains invisible. The summary
 counts pairs by class and owner. “Common path clean” means no inherited/unowned
 pairs remain, not proof of execution reachability. The baseline is `5aee6afa`,

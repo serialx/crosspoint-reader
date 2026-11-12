@@ -417,6 +417,80 @@ class PortTests(unittest.TestCase):
         )
         self.assertEqual(new, old)
 
+    def test_named_table_middle_retirement_only_removes_retired_field(self):
+        def inventory(names, targets):
+            header = (
+                "typedef struct { "
+                + " ".join(f"void (*{name})(void);" for name in names)
+                + " } Ports;"
+            )
+            records = "\n".join(
+                f"{index * 4:08x} {symbols[target]:06x}01 R_RISCV_32 00000000 {target} + 0"
+                for index, target in enumerate(targets)
+            )
+            native = (
+                self.native.replace("8 OBJECT", f"{len(names) * 4} OBJECT")
+                .replace("000008 00 A", f"{len(names) * 4:06x} 00 A")
+                .replace("contains 5 entries:", "contains 6 entries:")
+                .replace(
+                    "at offset 0x100 contains 2 entries:",
+                    f"at offset 0x100 contains {len(names)} entries:",
+                )
+                .replace(
+                    "  4: 00000000 0 NOTYPE GLOBAL DEFAULT UND xp_panel",
+                    "  4: 00000000 0 NOTYPE GLOBAL DEFAULT UND xp_panel\n"
+                    "  5: 00000000 0 NOTYPE GLOBAL DEFAULT UND xp_native_bidi_acquire",
+                )
+                .replace(
+                    "00000000 00000201 R_RISCV_32 00000000 xp_keyboard_metrics + 0\n"
+                    "00000004 00000301 R_RISCV_32 00000000 panel + 0",
+                    records,
+                )
+            )
+            return ports.dynamic_inventory(
+                ports.objects(native.splitlines()),
+                self.rust[0],
+                self.config,
+                {"ports.h": header},
+            )[0]
+
+        symbols = {"xp_keyboard_metrics": 2, "panel": 3, "xp_native_bidi_acquire": 5}
+        old = inventory(
+            ["bidi", "retired", "idle", "panel"],
+            ["xp_keyboard_metrics", "panel", "xp_native_bidi_acquire", "panel"],
+        )
+        new = inventory(
+            ["bidi", "idle", "panel"],
+            ["xp_keyboard_metrics", "xp_native_bidi_acquire", "panel"],
+        )
+        self.assertEqual(new - old, set())
+        self.assertEqual(old - new, {("PORTS@ports.cpp.o", "retired")})
+        self.assertEqual(len(ports.compare_dynamic(new, old)), 1)
+
+    def test_rust_filled_retirement_preserves_remaining_field_names(self):
+        self.headers["ports.h"] += (
+            "\ntypedef struct { void (*first)(void); void (*retired)(void); "
+            "void (*last)(void); } Filled;\n"
+        )
+        for name in ("first", "retired", "last"):
+            self.config["rustfill"][f"Filled.{name}"] = [
+                "xp_native_bidi_acquire",
+                "ports.h",
+            ]
+        native = ports.objects(self.native.splitlines())
+        old, _ = ports.dynamic_inventory(
+            native, self.rust[0], self.config, self.headers
+        )
+        del self.config["rustfill"]["Filled.retired"]
+        self.headers["ports.h"] = self.headers["ports.h"].replace(
+            "void (*retired)(void);", ""
+        )
+        new, _ = ports.dynamic_inventory(
+            native, self.rust[0], self.config, self.headers
+        )
+        self.assertEqual(new - old, set())
+        self.assertEqual(old - new, {("Filled", "retired")})
+
     def test_native_lto_rejected(self):
         self.native = self.native.replace(
             ".text.bidi_wrapper PROGBITS", ".gnu.lto_bidi PROGBITS"

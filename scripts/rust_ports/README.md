@@ -2,8 +2,9 @@
 
 The default-X3 baseline is firmware source `5aee6afa`, after R1 and R3a.
 `ports.lock` holds sorted **root target** reference pairs; `dynamic.lock` holds
-sorted **table slot-index** entries. Both are generated and both reject new and
-stale entries. The latter includes all native data symbols with function
+sorted **table field-name** entries for the six declared port tables and
+Rust-filled tables, and **table slot-index** entries for other tables. Both are
+generated and both reject new and stale entries. The latter includes all native data symbols with function
 relocations whose targets reach Rust, not just reader-reachable tables. It also
 includes every field of the explicitly declared Rust-filled tables.
 
@@ -42,9 +43,18 @@ represent Rust-private functions; Rust code is not parsed to infer the writer.
 
 File-local data/vtable symbols include their relative object path (without the
 incidental PlatformIO library hash); global/COMDAT symbols retain shared identity.
-The generated dynamic lock uses slot indices within the owning symbol, not
-addresses or distances to neighboring symbols. Internal function renames do not
-change it. It records hot/cold slot status, not every export reachable from that
+Declared port tables use their preprocessed header field names; Rust-filled
+tables use their declared field names too. Retiring a middle field therefore
+removes only that field, without renaming surviving entries. Field renames still
+require an explicit old/new mapping at review.
+
+Tables without a declared header mapping, including vtables, retain the word
+index relative to their own symbol's start (including any ABI prefix words).
+The key is the owning symbol, its object path when local, and that index, never
+an address or distance to a neighboring symbol. It is stable under relocation
+and internal function renames, not virtual-method insertion/removal/reordering;
+review those layout changes against the old/new method relocations. The lock
+records hot/cold slot status, not every export reachable from that
 slot; the root/target lock catches endpoint growth along modelled root paths.
 A different route to the same root/target pair, or a new caller of an existing
 hot slot without a dispatch edge, can escape. Review the pointer store and its

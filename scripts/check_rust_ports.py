@@ -317,6 +317,19 @@ def dynamic_edges(native, exports, config, headers, roots):
 def dynamic_inventory(native, exports, config=None, headers=None):
     """Ratchet named function slots, including tables outside the port closure."""
     graph, definitions, symbols, tables, functions, local_data = native
+    named_fields = {}
+    if config:
+        for label, (pattern, struct, header) in config["table"].items():
+            matches = [key for key in symbols if re.fullmatch(pattern, key[1])]
+            if len(matches) != 1:
+                raise ValueError(f"{label}: expected one table, found {len(matches)}")
+            key = matches[0]
+            names = [name for name, _ in fields(headers[header], struct)]
+            if symbols[key][2] != 4 * len(names):
+                raise ValueError(f"{label}: table size/header field mismatch")
+            if key in named_fields:
+                raise ValueError(f"{label}: multiple field contracts for one table")
+            named_fields[key] = names
     reverse = defaultdict(set)
     for source, targets in [*graph.items(), *definitions.items()]:
         for target in targets:
@@ -353,12 +366,19 @@ def dynamic_inventory(native, exports, config=None, headers=None):
                     raise ValueError(
                         f"{name}: unsupported function-table relocation {kind}"
                     )
-                slots.add((identity, str((offset - start) // 4)))
+                index = (offset - start) // 4
+                field = (
+                    named_fields[(obj, name)][index]
+                    if (obj, name) in named_fields
+                    else str(index)
+                )
+                slots.add((identity, field))
     if config:
         for slot, (_, header) in config["rustfill"].items():
             struct, field = slot.split(".", 1)
-            index = [name for name, _ in fields(headers[header], struct)].index(field)
-            slots.add((struct, str(index)))
+            if field not in dict(fields(headers[header], struct)):
+                raise ValueError(f"rustfill {slot}: missing header field")
+            slots.add((struct, field))
     return slots, {
         "vtables": len(all_vtables),
         "hot_vtables": len({n for n, _ in slots if n.startswith("_ZTV")}),

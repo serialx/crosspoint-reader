@@ -4,6 +4,8 @@
 
 enum class UiOracleCase {
   Invalid,
+  WifiSave,
+  WifiForget,
   DetailsPlain,
   DetailsHtml,
   DetailsCover,
@@ -41,6 +43,8 @@ constexpr size_t UI_ORACLE_SELECTOR_MAX = 31;
 
 inline UiOracleCase uiOracleCase(const std::string_view name) {
   if (name.empty() || name.size() > UI_ORACLE_SELECTOR_MAX) return UiOracleCase::Invalid;
+  if (name == "wifi-save") return UiOracleCase::WifiSave;
+  if (name == "wifi-forget") return UiOracleCase::WifiForget;
   static constexpr struct {
     std::string_view name;
     UiOracleCase value;

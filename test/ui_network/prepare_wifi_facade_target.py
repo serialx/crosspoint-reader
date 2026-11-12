@@ -5,6 +5,7 @@ import prepare
 HERE=Path(__file__).resolve().parent
 ROOT=HERE.parents[1]
 legacy = len(sys.argv)>2 and sys.argv[2]=='legacy'
+flow = len(sys.argv)>2 and sys.argv[2]=='flow'
 s=(HERE/'WifiTarget.cpp').read_text().replace('for (int inset : {0, 7})','for (int inset : {0})')
 # Compare the frozen native facade against the SDK oracle.
 a=s.index('                Owner owner');b=s.index('                for (auto b : display.pixels)',a)
@@ -67,7 +68,21 @@ production=prepare_wifi_parent.source(ROOT)
 methods='\n'.join(prepare.extract(production,'WifiSelectionActivity',m)for m in ['WifiSelectionActivity','~WifiSelectionActivity','releaseResources','text','resources','buildRustScene','render','rustResources','rustPublished','rustSceneFailed','rustSceneCurrent','retireRows','publish','run','loop','CallContext::inputCurrent']).replace('WifiSelectionActivity','Candidate').replace('RustActivityAdapter(', 'FakeBase(').replace('makeUniqueNoThrow<','fixtureAllocate<').replace('millis()','fixtureMillis()')
 methods+='\nvoid Candidate::onEnter(){} void Candidate::onExit(){} \n'
 nh=re.sub(r'^#(?:include|pragma)[^\n]*\n','',(ROOT/'src/activities/network/NetworkUiBinding.h').read_text(),flags=re.M)
-nb=re.sub(r'^#include[^\n]*\n','',(ROOT/'src/activities/network/NetworkUiBinding.cpp').read_text(),flags=re.M)
+binding = ((ROOT/'src/activities/network/NetworkUiBinding.cpp').read_text() if flow
+           else prepare_wifi_parent.frozen('network_binding_b69dc74b.cpp.txt'))
+nb=re.sub(r'^#include[^\n]*\n','',binding,flags=re.M)
+if flow:
+ methods=methods.replace('networkui::Resource resource', 'char lines[2][64]{};\n            networkui::Resource resource')
+ methods=methods.replace('{Kind::FlowText, {self.text(command->resource)}}',
+                         '{Kind::FlowText, {self.text(command->resource), lines[0], lines[1]}}')
+ s=s.replace('for (int phase : {2, 7, 9})', 'for (int phase : {7, 9})')
+ s=s.replace('for (int length : {9, 33, 64, 255})', 'for (int length : {0, 1, 9, 31, 32})')
+ s=s.replace('for (int count : {0, 1, 17, 60})', 'for (int count : {0})')
+ s=s.replace("original.selectedSSID = std::string(length, 'w');", '''original.selectedSSID.clear();
+                        const std::string pattern = wide ? "한글אב w" : "w";
+                        while (original.selectedSSID.size() + pattern.size() <= static_cast<size_t>(length))
+                          original.selectedSSID += pattern;
+                        original.selectedSSID.append(length - original.selectedSSID.size(), 'w');''')
 support=support.replace('// CANDIDATE_HEADER',header).replace('// SHARED_BINDING',nh+'\n'+nb).replace('// CANDIDATE_METHODS',methods)
 s=s.replace('#define tr(x) #x','#define tr(x) fixtureTranslation(#x)\nconst char* fixtureTranslation(const char* name){return strcmp(name,"STR_NETWORKS_FOUND")==0?"%zu networks":name;}')
 s=s.replace('int main() {',support+'\nint main() {')

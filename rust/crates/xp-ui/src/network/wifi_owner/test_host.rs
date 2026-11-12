@@ -285,14 +285,31 @@ static PHYSICAL: Physical = Physical {
             * 20
     }),
     line: c!(a0: *mut c_void, a1: i32; i32; |_, _| 20),
-    paint: c!(a0: *mut c_void, a1: *const Command, a2: Rect, a3: *const PaintData; (); |_, _, _, data| {
+    paint: c!(a0: *mut c_void, a1: *const Command, a2: Rect, a3: *const PaintData; (); |_, command, _, data| {
         let f = current();
         f.event("draw");
+        let data = unsafe { &*data };
+        let flow = matches!(data.kind, super::super::wifi_physical::DrawKind::FlowText);
+        if flow {
+            assert!(f.resource.get());
+            assert!(matches!(unsafe { (*command).max_lines }, 1 | 2));
+            assert!(unsafe { CStr::from_ptr(data.labels[0]) }.to_bytes().len() + 4 <= 64);
+            let owner = unsafe { &*f.target.get() };
+            let frame = owner.frame();
+            assert_eq!(data.labels[1], unsafe { ptr::addr_of!((*frame).mac).cast() });
+            assert_eq!(data.labels[2], unsafe { ptr::addr_of!((*frame).count_text).cast() });
+            for pointer in &data.labels[1..3] {
+                assert_ne!(*pointer, data.labels[0]);
+                // Exercise the entire mutable loan; the next frame must restore its headers.
+                unsafe { ptr::write_bytes(pointer.cast_mut(), b'x', 63) };
+                unsafe { pointer.cast_mut().add(63).write(0) };
+            }
+        }
         if f.capture.get() {
-            for label in unsafe { &*data }.labels {
+            for label in &data.labels[..if flow { 1 } else { 4 }] {
                 f.labels
                     .borrow_mut()
-                    .push(unsafe { CStr::from_ptr(label) }.to_bytes().to_vec());
+                    .push(unsafe { CStr::from_ptr(*label) }.to_bytes().to_vec());
             }
         }
     }),

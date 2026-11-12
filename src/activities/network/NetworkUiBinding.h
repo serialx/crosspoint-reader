@@ -9,6 +9,7 @@ class MappedInputManager;
 namespace networkui {
 enum class Kind { Text, Header, Subheader, Footer, Progress, Qr, Help, Centered, Wrapped, WrappedBottom, FlowText };
 // Borrowed only for this paint call; formatted strings stay owned by the caller.
+// FlowText: at most two lines, each <=63 bytes; labels[1] and labels[2] loan writable 64-byte buffers.
 struct Resource {
   Kind kind;
   const char* labels[4]{};

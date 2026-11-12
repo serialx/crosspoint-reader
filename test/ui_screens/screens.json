@@ -4335,6 +4335,225 @@
           "steps": []
         }
       ]
+    },
+    {
+      "id": "fixture-wifi-save",
+      "fixture": "entry-wifi-save",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "wifi-empty",
+          "activity": "WifiSelection",
+          "steps": [
+            "press:up",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm",
+            "press:confirm",
+            "wait:5"
+          ]
+        },
+        {
+          "id": "wifi-hidden-ssid",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "wifi-hidden-password",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:right",
+            "press:right",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "wifi-save",
+          "activity": "WifiSelection",
+          "steps": [
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:right",
+            "press:right",
+            "press:confirm",
+            "wait:20"
+          ]
+        },
+        {
+          "id": "wifi-save-other",
+          "activity": "WifiSelection",
+          "steps": [
+            "press:right"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-wifi-save-long",
+      "fixture": "entry-wifi-save",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "wifi-empty",
+          "activity": "WifiSelection",
+          "steps": [
+            "press:up",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm",
+            "press:confirm",
+            "wait:5"
+          ]
+        },
+        {
+          "id": "wifi-hidden-ssid",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "wifi-hidden-password",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:right",
+            "press:right",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "wifi-save-long",
+          "activity": "WifiSelection",
+          "steps": [
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:right",
+            "press:right",
+            "press:confirm",
+            "wait:20"
+          ]
+        },
+        {
+          "id": "wifi-save-long-other",
+          "activity": "WifiSelection",
+          "steps": [
+            "press:right"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-wifi-forget",
+      "fixture": "entry-wifi-forget",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "wifi-empty",
+          "activity": "WifiSelection",
+          "steps": [
+            "press:up",
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:confirm",
+            "press:confirm",
+            "wait:5"
+          ]
+        },
+        {
+          "id": "wifi-hidden-ssid",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "wifi-forget",
+          "activity": "WifiSelection",
+          "steps": [
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:down",
+            "press:right",
+            "press:right",
+            "press:confirm",
+            "wait:20",
+            "press:back"
+          ]
+        },
+        {
+          "id": "wifi-forget-other",
+          "activity": "WifiSelection",
+          "steps": [
+            "press:right"
+          ]
+        }
+      ]
     }
   ]
 }

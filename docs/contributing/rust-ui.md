@@ -37,6 +37,15 @@ Wi-Fi selection is a Rust `StableOwner` in `app/wifi`.
 `XP_APP_WIFI` and adopts it into this owner. The native shell retains the SDK target,
 static mutex and auto-connect input. Native result transport remains ZC1 compatibility.
 
+Wi-Fi Save and Forget dialogs use the SDK's FlowText layout. Layout finishes before
+their lines are painted, so SDK layout scratch is absent during cold glyph loads.
+The owner lends its two 64-byte header buffers after the headers have painted;
+the next frame rebuilds both headers. Only FlowText treats paint labels 1 and 2
+as mutable scratch, borrowed synchronously without adding ABI fields. Its callers
+emit at most two lines from a 32-byte SSID plus a translated prefix, or a translated
+title. Translation and lifetime tests enforce the buffer bound; this loan is not
+a general replacement for the SDK's 16-line, 220-byte layout capacity.
+
 ## Application ownership
 
 Replace and sleep exit and drop the current owner and retained parents under

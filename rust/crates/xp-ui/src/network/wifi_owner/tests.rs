@@ -427,6 +427,63 @@ fn rejection_before_store_lock_blocks_forget() {
     assert_eq!(live(), 0);
 }
 #[test]
+fn oversized_persisted_ssid_never_becomes_flow_text() {
+    for status in [1, 3, 4] {
+        let (owner, f) = rig();
+        f.auto.set(true);
+        {
+            let mut data = f.data.borrow_mut();
+            data.last = vec![b'w'; 255];
+            data.credentials.push((vec![b'w'; 255], b"pw".to_vec()));
+        }
+        owner.enter();
+        assert_eq!(phase(&owner), Phase::AutoConnecting as u8);
+        assert!(owner.render());
+        f.data.borrow_mut().connection = status;
+        owner.poll();
+        assert!(!matches!(
+            Phase::read(phase(&owner)),
+            Some(Phase::Save | Phase::Forget)
+        ));
+        assert!(owner.render());
+        owner.exit();
+        drop(owner);
+        assert_eq!(live(), 0);
+    }
+}
+#[test]
+fn flow_text_loans_fit_every_language_and_headers_are_restored_on_repaint() {
+    let (owner, f) = rig();
+    owner.enter();
+    unsafe { (*owner.owned()).selected.try_assign(&[b'w'; 32]).unwrap() };
+    for language in 0..xp_core::i18n::LANGUAGE_COUNT {
+        let mut layout = f.layout.get();
+        layout.language = language;
+        f.layout.set(layout);
+        for phase in [Phase::Save, Phase::Forget] {
+            owner.model(|m| {
+                m.state.phase = phase as u8;
+                m.state.count = 0;
+            });
+            owner.prepare(&owner.model(|m| m.state)).unwrap();
+            f.capture.set(true);
+            f.labels.borrow_mut().clear();
+            f.events.borrow_mut().clear();
+            assert!(owner.render());
+            let labels = f.labels.borrow().clone();
+            assert!(!f.events.borrow().contains(&"allocate"));
+            assert_eq!(unsafe { (*owner.frame()).mac[0] }, b'x');
+            f.labels.borrow_mut().clear();
+            assert!(owner.render());
+            assert_eq!(*f.labels.borrow(), labels);
+            assert!(!f.events.borrow().contains(&"allocate"));
+        }
+    }
+    owner.exit();
+    drop(owner);
+    assert_eq!(live(), 0);
+}
+#[test]
 fn all_translations_fit_inline_mac_and_count_buffers_and_render_every_phase() {
     for language in 0..xp_core::i18n::LANGUAGE_COUNT {
         let mut mac = [0; 64];

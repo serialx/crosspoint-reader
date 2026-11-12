@@ -117,6 +117,7 @@ add_test(NAME ui_network_wifi_pixels COMMAND NetworkWifiTarget)
 set(WIFI_FACADE_TARGET ${CMAKE_CURRENT_BINARY_DIR}/WifiFacadeTarget.cpp)
 set(WIFI_PARENT_ORACLE
   ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_parent.py
+  ${CMAKE_CURRENT_SOURCE_DIR}/native_oracle/network_binding_b69dc74b.cpp.txt
   ${CMAKE_CURRENT_SOURCE_DIR}/native_oracle/wifi_pre_owner.cpp.txt
   ${CMAKE_CURRENT_SOURCE_DIR}/native_oracle/wifi_pre_owner.h.txt
   ${CMAKE_CURRENT_SOURCE_DIR}/wifi_legacy.h)
@@ -132,9 +133,24 @@ target_compile_options(NetworkWifiFacadeTarget PRIVATE $<TARGET_PROPERTY:UiScene
 target_link_options(NetworkWifiFacadeTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,LINK_OPTIONS>)
 target_link_libraries(NetworkWifiFacadeTarget PRIVATE xp_ffi_host)
 add_test(NAME ui_network_wifi_facade_pixels COMMAND NetworkWifiFacadeTarget)
+
+set(WIFI_FLOW_TARGET ${CMAKE_CURRENT_BINARY_DIR}/WifiFlowTarget.cpp)
+add_custom_command(OUTPUT ${WIFI_FLOW_TARGET}
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_facade_target.py ${WIFI_FLOW_TARGET} flow
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/WifiTarget.cpp ${CMAKE_CURRENT_SOURCE_DIR}/wifi_facade_support.inc ${WIFI_PARENT_ORACLE}
+    ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_facade_target.py ${CMAKE_CURRENT_SOURCE_DIR}/prepare.py
+    ${CMAKE_CURRENT_SOURCE_DIR}/wifi_render_original.inc
+    ${REPO_ROOT}/src/activities/network/NetworkUiBinding.h ${REPO_ROOT}/src/activities/network/NetworkUiBinding.cpp)
+add_executable(NetworkWifiFlowTarget ${WIFI_FLOW_TARGET} ${NETWORK_RENDER_SOURCES})
+target_include_directories(NetworkWifiFlowTarget PRIVATE $<TARGET_PROPERTY:NetworkWifiFacadeTarget,INCLUDE_DIRECTORIES>)
+target_compile_definitions(NetworkWifiFlowTarget PRIVATE $<TARGET_PROPERTY:NetworkWifiFacadeTarget,COMPILE_DEFINITIONS>)
+target_compile_options(NetworkWifiFlowTarget PRIVATE $<TARGET_PROPERTY:NetworkWifiFacadeTarget,COMPILE_OPTIONS>)
+target_link_options(NetworkWifiFlowTarget PRIVATE $<TARGET_PROPERTY:NetworkWifiFacadeTarget,LINK_OPTIONS>)
+target_link_libraries(NetworkWifiFlowTarget PRIVATE xp_ffi_host)
+add_test(NAME ui_network_wifi_flow_pixels COMMAND NetworkWifiFlowTarget)
 add_test(NAME ui_network_wifi_effects COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_wifi_effects.py ${XP_FFI_HOST_ARCHIVE})
 
-foreach(WIFI_KIND Target FacadeTarget)
+foreach(WIFI_KIND Target FacadeTarget FlowTarget)
   set(WIFI_ORIGINAL NetworkWifi${WIFI_KIND})
   set(WIFI_X3 NetworkWifiX3${WIFI_KIND})
   get_target_property(WIFI_SOURCES ${WIFI_ORIGINAL} SOURCES)

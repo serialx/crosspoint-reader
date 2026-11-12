@@ -152,7 +152,7 @@ with a release build.
 
 ### Local activity-entry fixtures
 
-To record the seven `fixture-*` groups, extend the ignored environment above:
+To record the activity-entry `fixture-*` groups, extend the ignored environment above:
 
 ```ini
 build_src_filter = +<*> +<../test/ui_screens/firmware/UiOracleEntry.cpp>
@@ -165,10 +165,20 @@ build_flags =
 ```
 
 Keep this in `platformio.local.ini`; do not add it to shipped environments.
-The one guarded call at the end of `setup()` invokes the test source. No selector
+The guarded call at the end of `setup()` invokes the test source. No selector
 file means normal routing. The harness stages `/.crosspoint/ui-oracle-case.txt`
 with an exact selector of at most 31 bytes, without a newline. Unknown, empty,
 oversized or unreadable values log an error and preserve normal routing.
+
+The `fixture-wifi-save`, `fixture-wifi-save-long` and `fixture-wifi-forget` groups
+keep the real navigation, keyboard, Wi-Fi owner and prompt rendering. Save's
+selector overrides only the physical connection-status result to connected;
+the emulator's open AP does not provide the encrypted-network workflow being
+tested. The long case enters a maximum-length 32-byte SSID. Forget stages a
+public saved credential for SSID `1` and uses the normal failed hidden-connection
+path. Both choices of each prompt are captured. These cases prove pixels and
+input routing, not Wi-Fi connectivity. The status hook is compiled only under
+`CROSSPOINT_UI_ORACLE`; absent/other selectors retain the actual status.
 
 Details uses the real activity and its public `DetailsSpec`: plain and HTML
 descriptions, placeholder and synthetic PNG covers, More, confirm and cancel.

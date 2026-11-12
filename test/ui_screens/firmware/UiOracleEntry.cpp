@@ -25,6 +25,7 @@ bool uiUpdateOracleEnter(GfxRenderer&, MappedInputManager&, std::string_view);
 namespace {
 UiOracleCase pluginCase = UiOracleCase::Invalid, hubCase = UiOracleCase::Invalid;
 UiOracleCase opdsCase = UiOracleCase::Invalid;
+UiOracleCase wifiCase = UiOracleCase::Invalid;
 constexpr char SELECTOR_PATH[] = "/.crosspoint/ui-oracle-case.txt";
 
 void openDetails(GfxRenderer& renderer, MappedInputManager& input, const UiOracleCase selected) {
@@ -56,6 +57,8 @@ void openDetails(GfxRenderer& renderer, MappedInputManager& input, const UiOracl
   activityManager.replaceActivity(std::move(activity));
 }
 }  // namespace
+
+int32_t uiOracleWifiConnectionStatus(const int32_t actual) { return wifiCase == UiOracleCase::WifiSave ? 3 : actual; }
 
 bool uiOracleOpdsEnter(OpdsBookBrowserActivity& activity) {
   if (opdsCase == UiOracleCase::Invalid) return false;
@@ -239,6 +242,10 @@ void uiOracleEnter(GfxRenderer& renderer, MappedInputManager& input) {
 #endif
   const auto selected = uiOracleCase(std::string_view(selector, size));
   switch (selected) {
+    case UiOracleCase::WifiSave:
+    case UiOracleCase::WifiForget:
+      wifiCase = selected;
+      return;
     case UiOracleCase::OpdsBrowse:
     case UiOracleCase::OpdsEmpty:
     case UiOracleCase::OpdsError:

@@ -6,6 +6,8 @@
 
 int main() {
   using namespace std::literals;
+  assert(uiOracleCase("wifi-save") == UiOracleCase::WifiSave);
+  assert(uiOracleCase("wifi-forget") == UiOracleCase::WifiForget);
   assert(uiOracleCase("details-plain") == UiOracleCase::DetailsPlain);
   assert(uiOracleCase("details-html") == UiOracleCase::DetailsHtml);
   assert(uiOracleCase("details-cover") == UiOracleCase::DetailsCover);

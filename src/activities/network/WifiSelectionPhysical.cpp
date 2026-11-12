@@ -111,7 +111,13 @@ struct WifiPhysical {
               else
                 WiFi.begin(ssid);
             },
-            [] { return static_cast<int32_t>(WiFi.status()); },
+            [] {
+#ifdef CROSSPOINT_UI_ORACLE
+              return uiOracleWifiConnectionStatus(static_cast<int32_t>(WiFi.status()));
+#else
+              return static_cast<int32_t>(WiFi.status());
+#endif
+            },
             [](char out[16]) {
               IPAddress ip = WiFi.localIP();
               snprintf(out, 16, "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);

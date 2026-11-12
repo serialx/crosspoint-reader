@@ -3,14 +3,16 @@
 #include <FreeInkUIGfxRenderer.h>
 #include <GfxRenderer.h>
 
+#include <cstring>
+
 #include "MappedInputManager.h"
 #include "components/UITheme.h"
 #include "util/QrUtils.h"
 
 namespace {
-// Keep layout scratch out of the other paint kinds' stack frames.
-__attribute__((noinline)) void paintFlowText(GfxRenderer& renderer, const XpUiCommand& command, XpUiRect clip,
-                                             const char* label) {
+// Return SDK layout scratch before a line can trigger a cold glyph load.
+__attribute__((noinline)) uint8_t layoutFlowText(GfxRenderer& renderer, const XpUiCommand& command,
+                                                 const networkui::Resource& resource, XpUiRect (&lines)[2]) {
   const auto& r = command.rect;
   freeink::ui::GfxRendererTarget target(renderer);
   target.setFont(0, command.font);
@@ -19,13 +21,25 @@ __attribute__((noinline)) void paintFlowText(GfxRenderer& renderer, const XpUiCo
   style.bold = command.style & 1;
   style.maxLines = command.max_lines;
   style.align = static_cast<freeink::ui::TextAlign>(command.align);
+  uint8_t count = 0;
+  freeink::ui::layoutText(target, {r.x, r.y, r.w, r.h}, resource.labels[0], style,
+                          [&](const char* line, freeink::ui::Rect rect) {
+                            std::memcpy(const_cast<char*>(resource.labels[count + 1]), line, std::strlen(line) + 1);
+                            lines[count++] = {rect.x, rect.y, rect.width, rect.height};
+                          });
+  return count;
+}
+__attribute__((noinline)) void paintFlowText(GfxRenderer& renderer, const XpUiCommand& command, XpUiRect clip,
+                                             const networkui::Resource& resource) {
+  XpUiRect lines[2];
+  const auto count = layoutFlowText(renderer, command, resource, lines);
   auto lineCommand = command;
   lineCommand.max_lines = 1;
   lineCommand.align = 0;
-  freeink::ui::layoutText(target, {r.x, r.y, r.w, r.h}, label, style, [&](const char* line, freeink::ui::Rect rect) {
-    lineCommand.rect = {rect.x, rect.y, rect.width, rect.height};
-    renderer.drawUiText(lineCommand, clip, line);
-  });
+  for (uint8_t i = 0; i < count; ++i) {
+    lineCommand.rect = lines[i];
+    renderer.drawUiText(lineCommand, clip, resource.labels[i + 1]);
+  }
 }
 __attribute__((noinline)) void paintOtherKinds(GfxRenderer& renderer, MappedInputManager& input,
                                                const XpUiCommand& command, XpUiRect clip,
@@ -82,7 +96,7 @@ __attribute__((noinline)) void paintOtherKinds(GfxRenderer& renderer, MappedInpu
 void networkui::paint(GfxRenderer& renderer, MappedInputManager& input, const XpUiCommand& command, XpUiRect clip,
                       const Resource& resource) {
   if (resource.kind == Kind::FlowText)
-    paintFlowText(renderer, command, clip, resource.labels[0]);
+    paintFlowText(renderer, command, clip, resource);
   else
     paintOtherKinds(renderer, input, command, clip, resource);
 }

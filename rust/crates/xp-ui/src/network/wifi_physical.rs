@@ -62,6 +62,7 @@ pub enum DrawKind {
 }
 #[repr(C)]
 pub struct PaintData {
+    /// FlowText loans labels[1] and labels[2] as writable 64-byte buffers for at most two lines.
     pub labels: [*const c_char; 4],
     pub kind: DrawKind,
 }

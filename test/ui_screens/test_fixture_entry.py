@@ -34,3 +34,12 @@ class FixtureEntryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             with self.assertRaisesRegex(ValueError, 'Unknown activity fixture'):
                 prepare(Path(temporary), 'entry-typo')
+
+    def test_wifi_forget_uses_a_public_saved_credential(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            assets = prepare(Path(temporary), 'entry-wifi-forget')
+            self.assertEqual(assets[0][0].read_bytes(), b'wifi-forget')
+            self.assertEqual(assets[1][0].name, 'wifi.json')
+            self.assertEqual(assets[1][0].read_text(),
+                             '{"credentials":[{"ssid":"1","password":"fixture-password"}]}\n')
+            self.assertTrue(all(destination == '/.crosspoint' for _, destination in assets))

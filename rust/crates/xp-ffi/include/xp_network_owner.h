@@ -43,6 +43,7 @@ typedef enum {
   XP_WIFI_DRAW_HELP
 } XpWifiDrawKind;
 typedef struct {
+  // FlowText loans labels[1] and labels[2] as writable 64-byte buffers for at most two lines.
   const char* labels[4];
   uint8_t kind;
 } XpWifiPaintData;

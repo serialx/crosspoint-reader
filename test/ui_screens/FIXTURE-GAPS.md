@@ -14,9 +14,12 @@ unchanged and retain their own parent/candidate provenance.
 UI-SCENE CP1 limits x4pro sampling to Home, file browser, three EPUB pages and the
 reader menu reached by the pinned toolset's existing touch navigation. The rest
 of the x4pro screen matrix remains a coverage gap; CP1 adds no touch-navigation
-tooling. Wi-Fi Save/Forget prompts remain missing, with owner **Wi-Fi margin
-task**. CP1 uses the existing Wi-Fi list, connection-flow and password-keyboard
-fixtures; it does not add prompt-state injection.
+tooling. UI-SCENE CP1 did not capture Wi-Fi Save/Forget prompts. The **Wi-Fi margin
+task** adds `fixture-wifi-save`, `fixture-wifi-save-long` and `fixture-wifi-forget`:
+the existing keyboard path supplies the SSID/password, a test-only connection
+status permits Save, and a staged saved credential permits Forget after failure.
+Their paired capture results belong to that task's packet; the earlier CP1
+list/connection/password captures do not prove prompt pixels.
 
 ## Entry and capability gates
 
@@ -45,7 +48,7 @@ replacement or narrowly reviewed local binding is still needed.
 
 | Activity/state family | Missing prerequisite | Proposed seam and limitations |
 | --- | --- | --- |
-| Wi-Fi AP rows, saved credentials, auto-connect, connected, save/forget prompts | No APs configured in current captures; scan/status/IP and saved-network data drive these branches. | First use the pinned emulator’s existing `--wifi` NAT option with synthetic saved-network files (the present harness omits it and disables APs); verify deterministic scan/status/address results before adding an env-only Arduino Wi-Fi facade; `network/WifiSelectionActivity.cpp:199,203,504,551`. Preserve real selection and persistence logic. Capture named completion states rather than waiting a guessed duration. |
+| Wi-Fi AP rows, auto-connect and real connected results | Normal captures disable APs; scan/status/IP and saved-network data drive these branches. | The pinned emulator's `--wifi` NAT option supplies an open AP, not WPA. Save/Forget have the bounded fixtures described above, which preserve the owner and prompt renderer; real connectivity and the remaining AP/auto-connect branches still need separate evidence. |
 | OPDS catalog lists, search, paging, auth, empty/error responses, details and download/progress/results | `CatalogActivity::checkAndConnectWifi()` gates entry; then feeds and downloads require responses. | Use `freeink::opds::OpdsTransport` via the concrete binding in `src/network/OpdsHttpTransport.h:10`, with canned feed/auth responses and deterministic `HttpDownloader` file/progress results. `CatalogActivity.cpp:52`, `browser/OpdsBookBrowserActivity.cpp:313,518`. Keep parsing and activity transitions real. |
 | File transfer AP/server starting/running, address/QR, transfer progress and errors | Current transfer group captures mode selection and Join Network's Wi-Fi gate; AP and server/client results are not recorded. | Deterministic `WiFi.softAP`/address results and an inert server/client event source; `network/CrossPointWebServerActivity.cpp:238,319,343`. Direct server entry alone would still start sockets and cannot qualify real transfers. |
 | Calibre starting/running, discovery/pairing/transfer and errors | Successful connection and server/client events are absent. | Same Wi-Fi gate fixture plus scripted server status at `network/CalibreConnectActivity.cpp:65,75,98,120`; retain rendering and lifecycle. Socket/protocol correctness needs separate tests. |

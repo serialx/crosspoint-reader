@@ -5,6 +5,8 @@
 #endif
 
 #ifdef __cplusplus
+#include <cstdint>
+
 // Library builds without the firmware HAL do not use its Frontlight macro.
 #if __has_include(<HalFrontlight.h>)
 #include <HalFrontlight.h>
@@ -18,4 +20,5 @@
 class GfxRenderer;
 class MappedInputManager;
 void uiOracleEnter(GfxRenderer& renderer, MappedInputManager& input);
+int32_t uiOracleWifiConnectionStatus(int32_t actual);
 #endif

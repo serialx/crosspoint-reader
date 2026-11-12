@@ -263,6 +263,11 @@ impl<H: Host> Wifi<H> {
                     return;
                 };
                 data.labels[0] = text;
+                if matches!(data.kind, DrawKind::FlowText) {
+                    // Headers have finished; build restores these buffers before the next frame.
+                    data.labels[1] = unsafe { ptr::addr_of_mut!((*f).mac).cast() };
+                    data.labels[2] = unsafe { ptr::addr_of_mut!((*f).count_text).cast() };
+                }
             }
         }
         unsafe { (self.physical().paint)(self.object(), command, clip, &data) };

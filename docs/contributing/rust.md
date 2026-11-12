@@ -1175,3 +1175,109 @@ separate compatibility review. The [image oracle](../../test/image_golden/README
 records decoder rejection as well as successful output and verifies framebuffer,
 cache, and target-query parity against the pre-port C++ implementation. A
 successful header probe alone does not establish that the decoder accepts an image.
+
+## Reader chain guard (default X3)
+
+After building `default`, run this from the matching source checkout:
+
+```sh
+python3 scripts/reader_chain_guard.py
+```
+
+The check reads `.pio/build/default/firmware.elf` and `firmware.map`, and writes
+`.pio/reader-chain-report.json`. It needs Python 3.10+, Git, `cpp`, and the installed
+RISC-V `objdump`/`c++filt`. Use `--elf`, `--map`, `--objdump`, and `--report` for
+archived builds. `--objects inputs.json` optionally verifies a JSON array of
+object/archive paths against the map's `LOAD` records; otherwise those records
+supply the input list. No firmware rebuild, SDK checkout, or device is needed.
+
+The analyser decodes the EPUB, shared app, and legacy tables from the ELF and
+checks their sizes against the default-X3 source bindings. It follows calls,
+cross-function RISC-V tail jumps, function pointers in named and anonymous data
+tables, and the source-backed callbacks in
+`scripts/reader_chain_guard/roots.json`. Rust/native classification comes from
+linked object ranges, including rustc archive members; an `xp_native_*` name
+can still belong to Rust. C and C++ are both treated as native.
+
+`scripts/reader_chain_guard/allowlist.json` separates named physical continuations
+from inherited work owned by R1, R1b, and R2–R7. R1b owns the remaining font
+queries after R1. Each entry specifies an exact native object/function, Rust
+callers (or table-slot/source-callback roots), and first Rust return endpoints.
+Physical entries also pin individual caller sites and a hash of the complete
+native subgraph before the first Rust return, including its code and all edges.
+Adding another caller, a second call from the same function, or a longer native
+route to an existing return fails. Shortest witnesses remain in the report for
+inspection; they do not define the physical exception.
+
+`scripts/reader_chain_guard/uncertainty.json` records each unresolved indirect
+call/tail site with a reason. Identity uses the containing object/function,
+pointer-load source (symbol, field/vtable offset where derivable), instruction
+kind, and occurrence number, never its PC. PCs remain diagnostic fields. A new
+site fails even if the analyser cannot find its target; a removed site fails
+until its baseline entry is removed. This gates the inherited 10,774 sites
+individually, not just their count. Candidates do not erase unknown-site records.
+
+The uncertainty baseline also pins normalized code and outgoing edges for
+**every reachable function**. This deliberately broad gate detects changed
+suppliers that reuse an unchanged unknown site. It can require review for
+unrelated reachable code changes; it is not a semantic equivalence check.
+Physical subgraph hashes and function hashes come from `native_contract` and
+`contracts` in the report. New, stale, or changed contracts fail. Exit status is
+0 for matching baselines, 1 for a baseline difference, and 2 for invalid inputs
+or an analysis error. `--allowlist` and `--uncertainty-baseline` select alternate
+files for verification; there is no automatic accept-current-output option.
+
+When a task removes chains or resolves unknowns:
+
+1. Rebuild from matching sources, run the guard, and inspect `errors`,
+   `boundaries`, `unresolved_indirect`, and `contracts` against the previous
+   report and source diff. Use linked disassembly to review changed function
+   hashes; a hash alone does not explain the change.
+2. Remove only the stale allowlist entries, callers, returns, call sites, and
+   unknown-site entries justified by that task. Review changes to the complete
+   physical subgraph before replacing its hash. Update only affected function
+   hashes after reviewing their code and callback-supplying contracts.
+3. For an identity-only rename, map old and new entries one-to-one and preserve
+   their reasons, owners, and exact constraints. Legacy Rust symbol hashes,
+   Rust object hashes, LLVM suffixes, build prefixes, and annotated relocations
+   are normalized. Lambda ordinals, register allocation, inlining, and local
+   branch offsets can still cause churn; do not replace the whole baseline.
+4. A new unknown site requires an explicit reviewed reason for that particular
+   site, its supplying contract, and remaining proof work. A new inherited
+   boundary needs an existing R1/R1b/R2–R7 owner; a physical exception needs a
+   specific reason and the reviewed caller sites/subgraph. Commit the narrow
+   baseline changes with the implementation, then rerun the guard and CTest.
+
+Update source callback bindings when their contracts change and retain the
+source witness. `roots.json` fingerprints those sources and the compiler,
+LTO/archive build policy; it also checks the SDK pin. Drift fails until reviewed.
+A compiler/provenance policy change needs a fresh audit, not a hash refresh.
+Recognizable mixed LTO objects and ambiguous unknown-site identities fail closed.
+
+Success means the linked inventory and reviewed uncertainty surface match;
+**complete reader-path closure remains unproved (R8b)**. Static address-taking,
+shared non-reader branches, and `xp_*` callback-argument inference can produce
+false positives, including `pageTarget(false)` scanning. Pointers in heap/BSS,
+returned dynamically, forwarded through unknown contexts, packed/relative
+tables, and data-to-data references may hide targets. A change confined to
+unmodelled data, runtime context, external/ROM code, or a function outside the
+known reachable graph can change dispatch without changing these baselines.
+A new root table outside the configured roots is not automatically a reader
+root. The code-change gate prevents known implementation changes from silently
+reusing unknown sites; it does not prove all feasible runtime paths or semantic
+absence of relays. Cross-language inlining and unrecognized mixed-object
+provenance can erase boundaries despite symbol normalization; the audited build
+policy must remain intact. Direct RISC-V tails are followed; unresolved indirect
+tails are gated. External direct targets without linked bodies are reported
+separately and included in their callers' code contracts.
+
+The `reader_chain_guard` CTest test uses a small graph fixture and synthetic
+RISC-V disassembly, so host CI tests analysis and allowlist behavior without a
+firmware build. Run it alone with:
+
+```sh
+ctest --test-dir <host-build> -R '^reader_chain_guard$' --output-on-failure
+```
+
+The full linked-image check is the separate post-build
+command above; it is not a device test or an automatic PlatformIO build hook.

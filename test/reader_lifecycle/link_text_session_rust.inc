@@ -129,7 +129,7 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(render_discard_bw);
   UNUSED_LEAF(render_orientation);
   UNUSED_LEAF(loan_count);
-  UNUSED_LEAF(progress_save);
+  UNUSED_LEAF(storage_read_release);
 
   UNUSED_LEAF(paint_dither);
   UNUSED_LEAF(paint_pixel);

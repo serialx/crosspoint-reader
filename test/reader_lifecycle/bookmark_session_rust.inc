@@ -178,7 +178,7 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(book.book_install_extractor);
   UNUSED_LEAF(book.book_clear_extractor);
   UNUSED_LEAF(book.book_protection_error);
-  UNUSED_LEAF(physical.progress_save);
+  UNUSED_LEAF(physical.storage_read_release);
   UNUSED_LEAF(book.section.section_open);
   UNUSED_LEAF(book.section.section_close);
   UNUSED_LEAF(book.section.section_page_count);
@@ -431,7 +431,7 @@ static const LegacyEpubLeaves leaves = [] {
     leaf(); const auto value = nativeText(path);
     assert(value == "/.crosspoint/bookmarks/" || value == "/.crosspoint"); return 1;
   };
-  table.physical.storage_read_file = [](XpAppText path, XpAppTextSink sink, void* context) -> uint8_t {
+  table.physical.storage_read_file = [](XpAppText path, void* storage) -> XpAppText {
     locked(); assert(nativeText(path) == "/.crosspoint/bookmarks/fixture.json");
     std::puts("load [/fixture.epub]");
     std::vector<XpEpubBookmark> rows;
@@ -453,8 +453,9 @@ static const LegacyEpubLeaves leaves = [] {
       json.replace(start, end - start, value, size_t(length));
       cursor = start + size_t(length);
     }
-    return sink(context, wire(json));
+    return wire(*new (storage) std::string(std::move(json)));
   };
+  table.physical.storage_read_release = [](void* storage) { static_cast<std::string*>(storage)->~basic_string(); };
   table.physical.storage_write_file_atomic = [](XpAppText path, const uint8_t* data, uint32_t length) -> uint8_t {
     unlocked(); assert(nativeText(path) == "/.crosspoint/bookmarks/fixture.json");
     assert(data && length != 0);

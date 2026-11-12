@@ -3,6 +3,7 @@
 #include <HalStorage.h>
 #include <Logging.h>
 #include <ObfuscationUtils.h>
+#include <StoreBridge.h>
 #include <xp_settings.h>
 
 #include <cstring>
@@ -42,7 +43,23 @@ struct DocumentIo {
             }};
   }
 };
+struct ReaderSave {
+  std::unique_lock<std::mutex> lock;
+  JsonDocument document;
+  store_bridge::Json json{document};
+  DocumentIo file;
+  ReaderSave(std::mutex& mutex, const char* path) : lock(mutex), file{path, &document} {}
+};
 }  // namespace
+
+void PersistableStoreBase::beginReaderSave(const char* path, void* storage, XpStoreJsonOps* json,
+                                           XpStorePersistOps* file) const {
+  static_assert(sizeof(ReaderSave) <= 48 * sizeof(uintptr_t) && alignof(ReaderSave) <= alignof(uintptr_t));
+  auto* save = std::construct_at(static_cast<ReaderSave*>(storage), storeMutex, path);
+  *json = save->json.ops();
+  *file = save->file.ops();
+}
+void PersistableStoreBase::endReaderSave(void* storage) { std::destroy_at(static_cast<ReaderSave*>(storage)); }
 
 bool PersistableStoreBase::writeDocToFile(const char* path, const JsonDocument& doc) {
   DocumentIo io{path, &doc};

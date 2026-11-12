@@ -1,0 +1,12 @@
+[package]
+name = "reader-persistence-tests"
+version = "0.0.0"
+edition = "2021"
+publish = false
+[workspace]
+[features]
+app-test = []
+[dependencies]
+xp-ui = { path = "../../rust/crates/xp-ui" }
+[lib]
+path = "lib.rs"

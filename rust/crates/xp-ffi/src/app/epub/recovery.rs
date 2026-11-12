@@ -165,7 +165,7 @@ impl EpubSession {
         let synced = unsafe {
             let message = self.resources.translate(ids::STR_SYNCING_TIME);
             (self.resources.popup_draw)(message);
-            let synced = (self.leaves.trusted_sync)(5000) != 0;
+            let synced = super::persistence::sync_time(self.leaves, 5000);
             (self.leaves.wifi_disconnect)(0);
             (self.runtime.delay_ms)(30);
             synced
@@ -186,7 +186,7 @@ impl EpubSession {
         }
         unsafe {
             (self.leaves.state_set_open_path)(self.path().wire());
-            (self.leaves.state_save)();
+            super::stores::save_state(self.leaves);
             (self.leaves.restart_reader)();
         }
         self.reopen_reader();

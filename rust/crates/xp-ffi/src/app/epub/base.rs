@@ -63,15 +63,11 @@ impl EpubSession {
             self.finish();
             return;
         }
-        let clear = with_text(
-            |sink, context| unsafe { (self.leaves.state_open_path)(sink, context) },
-            |path| path.len != 0,
-        )
-        .unwrap_or(false);
+        let clear = unsafe { (self.leaves.state_open_path)().len != 0 };
         if clear {
             unsafe {
                 (self.leaves.state_set_open_path)(app_abi::Text::from_bytes(&b"\0"[..0]));
-                (self.leaves.state_save)();
+                super::stores::save_state(self.leaves);
             }
         }
         #[cfg(feature = "sd-font-catalog")]
@@ -108,7 +104,7 @@ impl EpubSession {
         }
         unsafe {
             (self.leaves.state_set_open_path)(self.path().wire());
-            (self.leaves.state_save)();
+            super::stores::save_state(self.leaves);
             if let Some(book) = self.loop_book() {
                 self.add_recent(book);
             }
@@ -168,7 +164,7 @@ impl EpubSession {
         unsafe {
             (self.leaves.render_orientation)(0);
             (self.leaves.state_reset_reader_count)();
-            (self.leaves.state_save)();
+            super::stores::save_state(self.leaves);
         }
         self.drop_end_options(access);
         self.model(|state| state.base.end_ready = false);

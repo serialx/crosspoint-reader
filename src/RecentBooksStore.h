@@ -30,6 +30,9 @@ class RecentBooksStore : public PersistableStore<RecentBooksStore> {
  public:
   static const char* getFilePath() { return "/.crosspoint/recent.json"; }
   void toJson(JsonDocument& doc) const;
+  void readerRows(void* storage, XpStoreRows* out);
+  static void releaseReaderRows(void* storage);
+  void moveReaderRow(size_t destination, size_t source);
   bool fromJson(JsonVariantConst doc);
 
   // Add a book to the recent list (moves to front if already exists)

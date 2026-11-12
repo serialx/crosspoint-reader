@@ -130,7 +130,7 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(render_discard_bw);
   UNUSED_LEAF(render_orientation);
   UNUSED_LEAF(loan_count);
-  UNUSED_LEAF(progress_save);
+  UNUSED_LEAF(storage_read_release);
 
   UNUSED_LEAF(paint_dither);
   UNUSED_LEAF(paint_pixel);
@@ -291,11 +291,10 @@ static const XpEpubLeaves leaves = [] {
     leaf();
     RECENT_BOOKS.updatePath(nativeText(from), nativeText(to), nativeText(oldCache), nativeText(newCache));
   };
-  table.state_open_path = [](XpAppTextSink sink, void* context) -> uint8_t {
+  table.state_open_path = []() -> XpAppText {
     leaf();
-    assert(sink);
     // The captured native member read is silent; this view is borrowed synchronously.
-    const auto result = sink(context, wire(APP_STATE.openEpubPath));
+    const auto result = wire(APP_STATE.openEpubPath);
     leaf();
     return result;
   };

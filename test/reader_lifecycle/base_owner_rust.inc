@@ -190,7 +190,7 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(book.book_install_extractor);
   UNUSED_LEAF(book.book_clear_extractor);
   UNUSED_LEAF(book.book_protection_error);
-  UNUSED_LEAF(physical.progress_save);
+  UNUSED_LEAF(physical.storage_read_release);
   UNUSED_LEAF(book.section.section_open);
   UNUSED_LEAF(book.section.section_close);
   UNUSED_LEAF(book.section.section_page_count);
@@ -401,8 +401,8 @@ static const LegacyEpubLeaves leaves = [] {
                 int(message.len), reinterpret_cast<const char*>(message.data));
   };
   table.physical.log_enabled = [](uint8_t severity) -> uint8_t { leaf(); assert(severity <= 2); return 1; };
-  table.physical.state_open_path = [](XpAppTextSink sink, void* value) -> uint8_t {
-    unlocked(); assert(sink); return sink(value, wire(APP_STATE.openEpubPath));
+  table.physical.state_open_path = []() -> XpAppText {
+    unlocked(); return wire(APP_STATE.openEpubPath);
   };
   table.physical.state_set_open_path = [](XpAppText value) {
     unlocked(); APP_STATE.openEpubPath.assign(reinterpret_cast<const char*>(value.data), value.len);

@@ -23,7 +23,27 @@ std::string& rowField(T& row, uint32_t field) {
   }
 }
 
+struct ReaderRows {
+  RecentBook scratch;
+  store_bridge::Rows<RecentBook, XP_STOREKIND_RECENT> rows;
+  explicit ReaderRows(std::vector<RecentBook>& books) : rows{books, &scratch, rowField<RecentBook>} {}
+};
 }  // namespace
+
+void RecentBooksStore::readerRows(void* storage, XpStoreRows* out) {
+  static_assert(sizeof(ReaderRows) <= 32 * sizeof(uintptr_t) && alignof(ReaderRows) <= alignof(uintptr_t));
+  auto* context = std::construct_at(static_cast<ReaderRows*>(storage), recentBooks);
+  *out = context->rows.ops(nullptr);
+  out->decode = [](void*, uint32_t, XpStoreBytes, size_t) -> uint32_t { return 0; };
+  out->emit = [](void* ctx, size_t row, uint32_t field, const XpStoreJsonOps* json, const XpStoreJsonPath* path, bool) {
+    json->put(json->ctx, path, XP_JSONWRITE_STRING, 0,
+              store_bridge::bytes(static_cast<store_bridge::RowStrings*>(ctx)->at(row, field)));
+  };
+}
+void RecentBooksStore::releaseReaderRows(void* storage) { std::destroy_at(static_cast<ReaderRows*>(storage)); }
+void RecentBooksStore::moveReaderRow(size_t destination, size_t source) {
+  recentBooks[destination] = std::move(recentBooks[source]);
+}
 
 void RecentBooksStore::toJson(JsonDocument& doc) const {
   store_bridge::Rows<RecentBook, XP_STOREKIND_RECENT> rows{const_cast<std::vector<RecentBook>&>(recentBooks), nullptr,

@@ -37,7 +37,7 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.file_seek = &AppFixtureUnexpected<decltype(value.file_seek), 23>::call;
   value.file_size = &AppFixtureUnexpected<decltype(value.file_size), 24>::call;
   value.path_remove_tree = &AppFixtureUnexpected<decltype(value.path_remove_tree), 25>::call;
-  value.progress_save = &AppFixtureUnexpected<decltype(value.progress_save), 28>::call;
+  value.storage_read_release = &AppFixtureUnexpected<decltype(value.storage_read_release), 28>::call;
   value.paint_dither = &AppFixtureUnexpected<decltype(value.paint_dither), 62>::call;
   value.paint_pixel = &AppFixtureUnexpected<decltype(value.paint_pixel), 63>::call;
   value.paint_status = &AppFixtureUnexpected<decltype(value.paint_status), 64>::call;

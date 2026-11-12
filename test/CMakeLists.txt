@@ -238,3 +238,5 @@ add_subdirectory(ui_updates)
 add_subdirectory(ui_header)
 
 add_subdirectory(xtc_owner)
+
+add_subdirectory(reader_persistence)

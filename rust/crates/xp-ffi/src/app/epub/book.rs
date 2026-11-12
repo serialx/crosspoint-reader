@@ -85,7 +85,7 @@ impl EpubSession {
     }
 
     pub(super) fn add_recent(&self, book: NonNull<c_void>) {
-        unsafe { super::session_book::add_recent(book.as_ptr(), self.leaves) };
+        unsafe { super::session_book::add_recent(book.as_ptr(), self.leaves, self.resources) };
     }
 
     pub(super) fn settings(&self, resolve_font: bool) -> abi::XpEpubSettings {

@@ -59,9 +59,9 @@ static_assert(std::is_pointer_v<decltype(XpEpubLeaves::file_size)> &&
 static_assert(offsetof(XpEpubLeaves, path_remove_tree) == 16 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::path_remove_tree)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::path_remove_tree)>>);
-static_assert(offsetof(XpEpubLeaves, progress_save) == 17 * sizeof(void (*)()));
-static_assert(std::is_pointer_v<decltype(XpEpubLeaves::progress_save)> &&
-              std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::progress_save)>>);
+static_assert(offsetof(XpEpubLeaves, storage_read_release) == 17 * sizeof(void (*)()));
+static_assert(std::is_pointer_v<decltype(XpEpubLeaves::storage_read_release)> &&
+              std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::storage_read_release)>>);
 static_assert(offsetof(XpEpubLegacyPageServices, page_close) == 0 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLegacyPageServices::page_close)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLegacyPageServices::page_close)>>);

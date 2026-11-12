@@ -6,6 +6,7 @@
 #include <esp_sntp.h>
 #include <xp_hal.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
@@ -27,7 +28,8 @@ portMUX_TYPE ramFloorLock = portMUX_INITIALIZER_UNLOCKED;
 // Raises the in-RAM floor to `value` if higher; returns the resulting floor.
 int64_t raiseFloor(const int64_t value) {
   portENTER_CRITICAL(&ramFloorLock);
-  const int64_t floor = xp_hal_time_raise(&ramFloor, value);
+  ramFloor = std::max(ramFloor, value);
+  const int64_t floor = ramFloor;
   portEXIT_CRITICAL(&ramFloorLock);
   return floor;
 }
@@ -82,10 +84,14 @@ void startSync() {
   configureSntp();
 }
 
-bool syncNow(const uint32_t timeoutMs) {
+const XpHalTimeServices* readerServices() { return &services; }
+XpHalSyncServices readerStartSync() {
   configureSntp();
-  const XpHalSyncServices sync{[]() { return sntp_get_sync_status() == SNTP_SYNC_STATUS_COMPLETED; },
-                               []() { return static_cast<uint32_t>(millis()); }, [](uint32_t ms) { delay(ms); }};
+  return {[]() { return sntp_get_sync_status() == SNTP_SYNC_STATUS_COMPLETED; },
+          []() { return static_cast<uint32_t>(millis()); }, [](uint32_t ms) { delay(ms); }};
+}
+bool syncNow(const uint32_t timeoutMs) {
+  const auto sync = readerStartSync();
   return xp_hal_time_sync(&services, &sync, timeoutMs);
 }
 

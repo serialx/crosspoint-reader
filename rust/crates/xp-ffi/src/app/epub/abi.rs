@@ -1,5 +1,6 @@
 // Evidence draft: import existing ABI types at the platform boundary.
 use super::super::abi::{Text as XpAppText, TextSink as XpAppTextSink};
+#[cfg(feature = "app-test")]
 use super::app_abi;
 use xp_ui::reader::input::Services as XpUiReaderInputServices;
 
@@ -372,7 +373,7 @@ pub struct XpEpubLeaves {
     pub file_size: unsafe extern "C" fn(file: *mut core::ffi::c_void) -> u32,
     pub path_remove_tree: unsafe extern "C" fn(path: XpAppText) -> u8,
 
-    pub progress_save: unsafe extern "C" fn(XpAppText, *const u8, u32) -> u8,
+    pub storage_read_release: unsafe extern "C" fn(*mut core::ffi::c_void),
     pub paint_dither: unsafe extern "C" fn(x: i32, y: i32, width: i32, height: i32),
     pub paint_pixel: unsafe extern "C" fn(x: i32, y: i32),
     pub paint_status: unsafe extern "C" fn(status: *const XpEpubStatus),
@@ -442,8 +443,14 @@ pub struct XpEpubLeaves {
     pub radio_after_paint: unsafe extern "C" fn(),
     pub radio_switch_off: unsafe extern "C" fn(),
     pub radio_request_connect: unsafe extern "C" fn(),
+    #[cfg(feature = "app-test")]
     pub trusted_now: unsafe extern "C" fn() -> i64,
+    #[cfg(not(feature = "app-test"))]
+    pub time_services: unsafe extern "C" fn() -> *const crate::hal::time::Services,
+    #[cfg(feature = "app-test")]
     pub trusted_sync: unsafe extern "C" fn(timeout_ms: u32) -> u8,
+    #[cfg(not(feature = "app-test"))]
+    pub time_start_sync: unsafe extern "C" fn() -> crate::hal::time::SyncServices,
     pub wifi_connected: unsafe extern "C" fn() -> u8,
     pub wifi_disconnect: unsafe extern "C" fn(off: u8),
     pub restart_reader: unsafe extern "C" fn(),
@@ -498,19 +505,36 @@ pub struct XpEpubLeaves {
     ),
     pub end_paint: unsafe extern "C" fn(r#end: *mut core::ffi::c_void),
 
+    #[cfg(feature = "app-test")]
     pub recents_remove: unsafe extern "C" fn(path: XpAppText) -> u8,
+    #[cfg(feature = "app-test")]
     pub recents_add: unsafe extern "C" fn(book: *const app_abi::Book),
+    #[cfg(feature = "app-test")]
     pub recents_update_path: unsafe extern "C" fn(
         r#from: XpAppText,
         to: XpAppText,
         old_cache: XpAppText,
         new_cache: XpAppText,
     ),
-    pub state_open_path:
-        unsafe extern "C" fn(sink: XpAppTextSink, context: *mut core::ffi::c_void) -> u8,
+    #[cfg(not(feature = "app-test"))]
+    pub store_rows: unsafe extern "C" fn(*mut core::ffi::c_void, *mut crate::settings::Rows),
+    #[cfg(not(feature = "app-test"))]
+    pub store_rows_close: unsafe extern "C" fn(*mut core::ffi::c_void),
+    #[cfg(not(feature = "app-test"))]
+    pub store_move_row: unsafe extern "C" fn(usize, usize),
+    pub state_open_path: unsafe extern "C" fn() -> XpAppText,
     pub state_set_open_path: unsafe extern "C" fn(path: XpAppText),
     pub state_reset_reader_count: unsafe extern "C" fn(),
+    #[cfg(feature = "app-test")]
     pub state_save: unsafe extern "C" fn(),
+    #[cfg(not(feature = "app-test"))]
+    pub store_document: unsafe extern "C" fn(
+        u8,
+        *mut core::ffi::c_void,
+        *mut crate::settings::JsonOps,
+        *mut crate::settings::PersistOps,
+        *mut crate::settings::State,
+    ),
     pub has_sync_credentials: unsafe extern "C" fn() -> u8,
     pub has_exit_subscriber: unsafe extern "C" fn() -> u8,
     pub has_session_subscriber: unsafe extern "C" fn() -> u8,
@@ -563,8 +587,7 @@ pub struct XpEpubLeaves {
     pub child_list_help: unsafe extern "C" fn(xp_ui::scene::Rect, XpAppText),
     pub child_list_icon: unsafe extern "C" fn(u8, xp_ui::scene::Rect, xp_ui::scene::Rect, u8),
     pub local_calendar: unsafe extern "C" fn(*mut crate::app::bookmarks::export::Calendar) -> u8,
-    pub storage_read_file:
-        unsafe extern "C" fn(XpAppText, super::app_abi::TextSink, *mut core::ffi::c_void) -> u8,
+    pub storage_read_file: unsafe extern "C" fn(XpAppText, *mut core::ffi::c_void) -> XpAppText,
     pub storage_write_file_atomic: unsafe extern "C" fn(XpAppText, *const u8, u32) -> u8,
 }
 
@@ -605,6 +628,7 @@ const _: fn(&XpEpubLeaves) = |leaves| {
         unsafe extern "C" fn(*mut core::ffi::c_void, u8, XpAppText),
         *mut core::ffi::c_void,
     ) = leaves.end_input;
+    #[cfg(feature = "app-test")]
     let _: unsafe extern "C" fn(*const app_abi::Book) = leaves.recents_add;
     let _: unsafe extern "C" fn(XpAppText, i32, u8, i8) -> i32 = leaves.font_text_advance;
 };
@@ -767,7 +791,7 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, file_seek) == leaf_index(14) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, file_size) == leaf_index(15) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, path_remove_tree) == leaf_index(16) * pointer);
-    assert!(core::mem::offset_of!(XpEpubLeaves, progress_save) == leaf_index(17) * pointer);
+    assert!(core::mem::offset_of!(XpEpubLeaves, storage_read_release) == leaf_index(17) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, paint_dither) == leaf_index(18) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, paint_pixel) == leaf_index(19) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, paint_status) == leaf_index(20) * pointer);
@@ -826,8 +850,14 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, radio_after_paint) == leaf_index(61) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, radio_switch_off) == leaf_index(62) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, radio_request_connect) == leaf_index(63) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, trusted_now) == leaf_index(64) * pointer);
+    #[cfg(not(feature = "app-test"))]
+    assert!(core::mem::offset_of!(XpEpubLeaves, time_services) == leaf_index(64) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, trusted_sync) == leaf_index(65) * pointer);
+    #[cfg(not(feature = "app-test"))]
+    assert!(core::mem::offset_of!(XpEpubLeaves, time_start_sync) == leaf_index(65) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, wifi_connected) == leaf_index(66) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, wifi_disconnect) == leaf_index(67) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, restart_reader) == leaf_index(68) * pointer);
@@ -851,15 +881,27 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, end_input) == leaf_index(85) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, end_paint) == leaf_index(86) * pointer);
 
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, recents_remove) == leaf_index(87) * pointer);
+    #[cfg(not(feature = "app-test"))]
+    assert!(core::mem::offset_of!(XpEpubLeaves, store_rows) == leaf_index(87) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, recents_add) == leaf_index(88) * pointer);
+    #[cfg(not(feature = "app-test"))]
+    assert!(core::mem::offset_of!(XpEpubLeaves, store_rows_close) == leaf_index(88) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, recents_update_path) == leaf_index(89) * pointer);
+    #[cfg(not(feature = "app-test"))]
+    assert!(core::mem::offset_of!(XpEpubLeaves, store_move_row) == leaf_index(89) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, state_open_path) == leaf_index(90) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, state_set_open_path) == leaf_index(91) * pointer);
     assert!(
         core::mem::offset_of!(XpEpubLeaves, state_reset_reader_count) == leaf_index(92) * pointer
     );
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, state_save) == leaf_index(93) * pointer);
+    #[cfg(not(feature = "app-test"))]
+    assert!(core::mem::offset_of!(XpEpubLeaves, store_document) == leaf_index(93) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, has_sync_credentials) == leaf_index(94) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, has_exit_subscriber) == leaf_index(95) * pointer);
     assert!(

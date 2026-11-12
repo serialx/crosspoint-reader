@@ -13,7 +13,7 @@ macro_rules! unused_leaves {
 }
 unused_leaves! {
     local_calendar(out: *mut crate::app::bookmarks::export::Calendar) -> u8;
-    storage_read_file(path: XpAppText, sink: XpAppTextSink, context: *mut core::ffi::c_void) -> u8;
+    storage_read_file(path: XpAppText, storage: *mut core::ffi::c_void) -> XpAppText;
     storage_write_file_atomic(path: XpAppText, bytes: *const u8, size: u32) -> u8;
     child_list_help(bounds: xp_ui::scene::Rect, text: XpAppText);
     child_list_icon(kind: u8, bounds: xp_ui::scene::Rect, clip: xp_ui::scene::Rect, paint: u8);
@@ -34,7 +34,7 @@ unused_leaves! {
     file_seek(_a0: *mut core::ffi::c_void, _a1: u32) -> u8;
     file_size(_a0: *mut core::ffi::c_void) -> u32;
     path_remove_tree(_a0: XpAppText) -> u8;
-    progress_save(_path: XpAppText, _bytes: *const u8, _size: u32) -> u8;
+    storage_read_release(storage: *mut core::ffi::c_void);
     paint_dither(_a0: i32, _a1: i32, _a2: i32, _a3: i32) ;
     paint_pixel(_a0: i32, _a1: i32) ;
     paint_status(_a0: *const XpEpubStatus) ;
@@ -107,7 +107,7 @@ unused_leaves! {
     recents_remove(_a0: XpAppText) -> u8;
     recents_add(_a0: *const app_abi::Book) ;
     recents_update_path(_a0: XpAppText, _a1: XpAppText, _a2: XpAppText, _a3: XpAppText) ;
-    state_open_path(_a0: XpAppTextSink, _a1: *mut core::ffi::c_void) -> u8;
+    state_open_path() -> XpAppText;
     state_set_open_path(_a0: XpAppText) ;
     state_reset_reader_count() ;
     state_save() ;

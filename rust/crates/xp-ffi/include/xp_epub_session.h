@@ -5,6 +5,8 @@
 #include "xp_display.h"
 #include "xp_ffi.h"
 #include "xp_font_registry.h"
+#include "xp_hal.h"
+#include "xp_settings.h"
 #include "xp_ui_dictionary.h"
 #include "xp_ui_reader.h"
 #include "xp_ui_reader_chrome.h"
@@ -339,7 +341,7 @@ typedef struct XpEpubLeaves {
   uint8_t (*file_seek)(void* file, uint32_t offset);
   uint32_t (*file_size)(void* file);
   uint8_t (*path_remove_tree)(XpAppText path);
-  uint8_t (*progress_save)(XpAppText cache_path, const uint8_t* bytes, uint32_t size);
+  void (*storage_read_release)(void* storage);
   void (*paint_dither)(int32_t x, int32_t y, int32_t width, int32_t height);
   void (*paint_pixel)(int32_t x, int32_t y);
   void (*paint_status)(const XpEpubStatus* status);
@@ -398,8 +400,13 @@ typedef struct XpEpubLeaves {
   void (*radio_after_paint)(void);
   void (*radio_switch_off)(void);
   void (*radio_request_connect)(void);
+#ifdef XP_APP_TEST
   int64_t (*trusted_now)(void);
   uint8_t (*trusted_sync)(uint32_t timeout_ms);
+#else
+  const XpHalTimeServices* (*time_services)(void);
+  XpHalSyncServices (*time_start_sync)(void);
+#endif
   uint8_t (*wifi_connected)(void);
   void (*wifi_disconnect)(uint8_t off);
   void (*restart_reader)(void);
@@ -429,13 +436,24 @@ typedef struct XpEpubLeaves {
   uint8_t (*end_menu_active)(void* end);
   void (*end_input)(void* end, void (*result)(void* context, uint8_t action, XpAppText selected_path), void* context);
   void (*end_paint)(void* end);
+#ifdef XP_APP_TEST
   uint8_t (*recents_remove)(XpAppText path);
   void (*recents_add)(const XpAppBook* book);
   void (*recents_update_path)(XpAppText from, XpAppText to, XpAppText old_cache, XpAppText new_cache);
-  uint8_t (*state_open_path)(XpAppTextSink sink, void* context);
+#else
+  void (*store_rows)(void* storage, XpStoreRows* out);
+  void (*store_rows_close)(void* storage);
+  void (*store_move_row)(size_t destination, size_t source);
+#endif
+  XpAppText (*state_open_path)(void);
   void (*state_set_open_path)(XpAppText path);
   void (*state_reset_reader_count)(void);
+#ifdef XP_APP_TEST
   void (*state_save)(void);
+#else
+  void (*store_document)(uint8_t operation, void* storage, XpStoreJsonOps* json, XpStorePersistOps* file,
+                         XpStoreState* state);
+#endif
   uint8_t (*has_sync_credentials)(void);
   uint8_t (*has_exit_subscriber)(void);
   uint8_t (*has_session_subscriber)(void);
@@ -530,7 +548,7 @@ typedef struct XpEpubLeaves {
   void (*child_list_help)(XpUiRect bounds, XpAppText text);
   void (*child_list_icon)(uint8_t kind, XpUiRect bounds, XpUiRect clip, uint8_t paint);
   uint8_t (*local_calendar)(XpEpubCalendar* out);
-  uint8_t (*storage_read_file)(XpAppText path, XpAppTextSink sink, void* context);
+  XpAppText (*storage_read_file)(XpAppText path, void* storage);
   uint8_t (*storage_write_file_atomic)(XpAppText path, const uint8_t* bytes, uint32_t size);
 } XpEpubLeaves;
 
@@ -620,7 +638,7 @@ XP_EPUB_LEAF_OFFSET(protection_stream, 13);
 XP_EPUB_LEAF_OFFSET(file_seek, 14);
 XP_EPUB_LEAF_OFFSET(file_size, 15);
 XP_EPUB_LEAF_OFFSET(path_remove_tree, 16);
-XP_EPUB_LEAF_OFFSET(progress_save, 17);
+XP_EPUB_LEAF_OFFSET(storage_read_release, 17);
 XP_EPUB_LEAF_OFFSET(paint_dither, 18);
 XP_EPUB_LEAF_OFFSET(paint_pixel, 19);
 XP_EPUB_LEAF_OFFSET(paint_status, 20);
@@ -678,8 +696,16 @@ XP_EPUB_LEAF_OFFSET(radio_holds_heap, 56);
 XP_EPUB_LEAF_OFFSET(radio_after_paint, 57);
 XP_EPUB_LEAF_OFFSET(radio_switch_off, 58);
 XP_EPUB_LEAF_OFFSET(radio_request_connect, 59);
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(trusted_now, 60);
+#else
+XP_EPUB_LEAF_OFFSET(time_services, 60);
+#endif
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(trusted_sync, 61);
+#else
+XP_EPUB_LEAF_OFFSET(time_start_sync, 61);
+#endif
 XP_EPUB_LEAF_OFFSET(wifi_connected, 62);
 XP_EPUB_LEAF_OFFSET(wifi_disconnect, 63);
 XP_EPUB_LEAF_OFFSET(restart_reader, 64);
@@ -703,13 +729,29 @@ XP_EPUB_LEAF_OFFSET(end_menu_active, 80);
 XP_EPUB_LEAF_OFFSET(end_input, 81);
 XP_EPUB_LEAF_OFFSET(end_paint, 82);
 
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(recents_remove, 83);
+#else
+XP_EPUB_LEAF_OFFSET(store_rows, 83);
+#endif
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(recents_add, 84);
+#else
+XP_EPUB_LEAF_OFFSET(store_rows_close, 84);
+#endif
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(recents_update_path, 85);
+#else
+XP_EPUB_LEAF_OFFSET(store_move_row, 85);
+#endif
 XP_EPUB_LEAF_OFFSET(state_open_path, 86);
 XP_EPUB_LEAF_OFFSET(state_set_open_path, 87);
 XP_EPUB_LEAF_OFFSET(state_reset_reader_count, 88);
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(state_save, 89);
+#else
+XP_EPUB_LEAF_OFFSET(store_document, 89);
+#endif
 XP_EPUB_LEAF_OFFSET(has_sync_credentials, 90);
 XP_EPUB_LEAF_OFFSET(has_exit_subscriber, 91);
 XP_EPUB_LEAF_OFFSET(has_session_subscriber, 92);
@@ -814,8 +856,10 @@ _Static_assert(_Generic(((XpEpubLeaves*)0)->end_input,
                    void (*)(void*, void (*)(void*, uint8_t, XpAppText), void*): 1,
                    default: 0),
                "XpEpubLeaves.end_input signature");
+#ifdef XP_APP_TEST
 _Static_assert(_Generic(((XpEpubLeaves*)0)->recents_add, void (*)(const XpAppBook*): 1, default: 0),
                "XpEpubLeaves.recents_add signature");
+#endif
 _Static_assert(_Generic(((XpEpubLeaves*)0)->font_text_advance,
                    int32_t (*)(XpAppText, int32_t, uint8_t, int8_t): 1,
                    default: 0),

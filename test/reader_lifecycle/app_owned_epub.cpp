@@ -307,9 +307,9 @@ void bind() {
     assert(value == "/cache/links.bin");
     return 0;
   };
-  leaves.state_open_path = [](XpAppTextSink sink, void* context) -> uint8_t {
+  leaves.state_open_path = []() -> XpAppText {
     f().physical("state-open-path");
-    return deliver(sink, context, "");
+    return {reinterpret_cast<const uint8_t*>(""), 0};
   };
   leaves.fonts_ensure_loaded = [] {
     assert(!f().renderDepth);
@@ -375,13 +375,14 @@ void bind() {
     f().release(raw, Kind::File);
     return 1;
   };
-  leaves.storage_read_file = [](XpAppText path, XpAppTextSink sink, void* context) -> uint8_t {
+  leaves.storage_read_file = [](XpAppText path, void*) -> XpAppText {
     assert(text(path) == fixtureBookmarkPath());
     assert(f().extractor && !f().modelDepth);
     ++f().bookmarkLoads;
     f().physical("bookmarks-load", f().extractor->generation, f().extractor->id);
-    return deliver(sink, context, "[]");
+    return {reinterpret_cast<const uint8_t*>("[]"), 2};
   };
+  leaves.storage_read_release = [](void*) {};
   legacyBook.clippings_load = [](void* raw) -> uint8_t {
     auto& book = f().handle(raw, Kind::Book);
     assert(!f().clippings && !f().renderDepth);

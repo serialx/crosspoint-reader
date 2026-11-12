@@ -26,6 +26,7 @@ class CrossPointState : public PersistableStore<CrossPointState> {
 
   static const char* getFilePath() { return "/.crosspoint/state.json"; }
   void toJson(JsonDocument& doc) const;
+  XpStoreState readerView();
   bool fromJson(JsonVariantConst doc);
 
   bool isRecentSleep(uint16_t idx, uint8_t checkCount) const;

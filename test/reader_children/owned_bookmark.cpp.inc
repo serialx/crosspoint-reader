@@ -141,18 +141,21 @@ static void bindOwnedBookmarks() {
     if (key == uint16_t(StrId::STR_BOOKMARKS) && xp_app_test_current_child(nullptr) && childKind() == 1) bookmarkMenuLabel = true;
     return translate(key);
   };
-  leaves.storage_read_file = [](XpAppText path, XpAppTextSink sink, void* context) -> uint8_t {
+  leaves.storage_read_file = [](XpAppText path, void* storage) -> XpAppText {
     assert(!f().modelDepth && text(path) == bookmarkPath());
     ++f().bookmarkLoads; f().physical("bookmarks-load", f().extractor->generation, f().extractor->id);
     // The inherited reader-entry fixture starts with an empty cache; the child reloads the disk.
     if (bookmarkGrowthFailure) {
-      const auto before = xp_test_live_allocations(); xp_test_fail_allocation_after(0);
-      const auto accepted = sink(context, wire(bookmarkDisk));
-      const auto attempts = xp_test_allocation_attempts(); xp_test_fail_allocation_after(SIZE_MAX);
-      assert(accepted && attempts == 1 && xp_test_live_allocations() == before);
-      return accepted;
+      *static_cast<size_t*>(storage) = xp_test_live_allocations(); xp_test_fail_allocation_after(0);
+      return wire(bookmarkDisk);
     }
-    return sink(context, f().bookmarkLoads == 1 ? literal("[]") : wire(bookmarkDisk));
+    return f().bookmarkLoads == 1 ? literal("[]") : wire(bookmarkDisk);
+  };
+  leaves.storage_read_release = [](void* storage) {
+    if (bookmarkGrowthFailure) {
+      const auto attempts = xp_test_allocation_attempts(); xp_test_fail_allocation_after(SIZE_MAX);
+      assert(attempts == 1 && xp_test_live_allocations() == *static_cast<size_t*>(storage));
+    }
   };
   static auto mkdir = leaves.path_mkdir;
   leaves.path_mkdir = [](XpAppText path) -> uint8_t {

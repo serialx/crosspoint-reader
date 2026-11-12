@@ -1,7 +1,7 @@
-use super::{app_abi, EpubSession, ResourceAccess, Text};
+use super::{EpubSession, ResourceAccess, Text};
 use crate::app::bookmarks::{self, keyboard_name::KeyboardName, persistence, Record};
 use crate::app::keyboard::NativeMemory;
-use core::{ffi::c_void, mem::MaybeUninit};
+use core::mem::MaybeUninit;
 
 pub(super) type Name = KeyboardName<NativeMemory>;
 pub(super) type Row = Record<Name>;
@@ -17,43 +17,7 @@ impl persistence::Storage for Storage<'_> {
         }
     }
     fn read_file<T>(&self, path: &[u8], consume: impl FnOnce(&[u8]) -> T) -> Option<T> {
-        struct Read<F, T> {
-            consume: Option<F>,
-            result: Option<T>,
-        }
-        unsafe extern "C" fn receive<F: FnOnce(&[u8]) -> T, T>(
-            context: *mut c_void,
-            bytes: app_abi::Text,
-        ) -> u8 {
-            let state = unsafe { &mut *context.cast::<Read<F, T>>() };
-            let Some(bytes) = (unsafe { bytes.bytes() }) else {
-                return 0;
-            };
-            let Some(consume) = state.consume.take() else {
-                return 0;
-            };
-            state.result = Some(consume(bytes));
-            1
-        }
-        fn invoke<F: FnOnce(&[u8]) -> T, T>(
-            parent: &EpubSession,
-            path: &Text,
-            consume: F,
-        ) -> Option<T> {
-            let mut state = Read {
-                consume: Some(consume),
-                result: None,
-            };
-            unsafe {
-                (parent.leaves.storage_read_file)(
-                    path.wire(),
-                    receive::<F, T>,
-                    (&mut state as *mut Read<F, T>).cast(),
-                )
-            };
-            state.result
-        }
-        invoke(self.0, &Text::copy(path).ok()?, consume)
+        super::persistence::read_file(self.0.leaves, &Text::copy(path).ok()?, consume)
     }
     fn write_file_atomic(&self, path: &[u8], bytes: &[u8]) -> bool {
         let (Ok(path), Ok(size)) = (Text::copy(path), u32::try_from(bytes.len())) else {

@@ -84,10 +84,10 @@ int main(int argc, char** argv) {
     assert(text(from) == source && text(to) == destination && text(oldCache) == cache);
     events.push_back("recent " + label(text(newCache)));
   };
-  leaves.state_open_path = [](XpAppTextSink sink, void* context) -> uint8_t {
+  leaves.state_open_path = []() -> XpAppText {
     assert(recording && !renderDepth);
     events.push_back("state-read");
-    return sink(context, wire(currentPath));
+    return wire(currentPath);
   };
   leaves.state_set_open_path = [](XpAppText path) {
     assert(recording && !renderDepth && text(path) == destination);

@@ -300,8 +300,8 @@ pub unsafe extern "C" fn xp_store_recent_contains(
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Bytes {
-    data: *const u8,
-    len: usize,
+    pub(crate) data: *const u8,
+    pub(crate) len: usize,
 }
 
 #[repr(C)]
@@ -396,10 +396,10 @@ impl Rows {
     unsafe fn edit(&self, op: RowEdit, index: usize) {
         (self.edit)(self.ctx, op as u32, index)
     }
-    unsafe fn get(&self, row: usize, field: u32) -> Bytes {
+    pub(crate) unsafe fn get(&self, row: usize, field: u32) -> Bytes {
         (self.get)(self.ctx, row, field)
     }
-    unsafe fn set(&self, row: usize, field: u32, bytes: Bytes) {
+    pub(crate) unsafe fn set(&self, row: usize, field: u32, bytes: Bytes) {
         (self.set)(self.ctx, row, field, bytes)
     }
     unsafe fn diagnostic(&self, event: RowEvent, a: usize, b: usize, c: usize) {
@@ -1404,12 +1404,23 @@ pub unsafe extern "C" fn xp_store_prune(
     move_row: unsafe extern "C" fn(*mut c_void, usize, usize),
 ) -> bool {
     let r = &*rows;
+    prune(
+        r,
+        |index| exists(r.ctx, index),
+        |dst, src| move_row(r.ctx, dst, src),
+    )
+}
+pub(crate) unsafe fn prune(
+    r: &Rows,
+    mut exists: impl FnMut(usize) -> bool,
+    mut move_row: impl FnMut(usize, usize),
+) -> bool {
     let before = r.count();
     let mut kept = 0;
     for index in 0..before {
-        if exists(r.ctx, index) {
+        if exists(index) {
             if index != kept {
-                move_row(r.ctx, kept, index);
+                move_row(kept, index);
             }
             kept += 1;
         }

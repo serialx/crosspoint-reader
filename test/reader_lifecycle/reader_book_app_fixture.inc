@@ -58,11 +58,28 @@ void bindReaderBook() {
   legacyBook.section.page = pageFixture;
   legacyBook.children = childFixture;
   leaves.native_path_hash = [](XpAppText path) -> uint64_t { assert(text(path) == f().path); return 42; };
-  leaves.progress_save = [](XpAppText path, const uint8_t* bytes, uint32_t size) -> uint8_t {
+  leaves.file_open_write = [](XpAppText path, XpAppText origin) -> void* {
     assert(f().renderDepth == 1 && !f().modelDepth);
+    assert(text(path) == readerCache + "/progress.bin.tmp" && text(origin) == "PRG");
     f().physical("progress-save");
-    assert(text(path) == readerCache && bytes && (size == 6 || size == 10));
-    return 1;
+    auto* raw = new uint8_t;
+    readerFiles.emplace(raw, ReaderFile{{}, 0, text(path)}); return raw;
+  };
+  leaves.file_write = [](void* raw, const uint8_t* bytes, uint32_t size) -> uint32_t {
+    assert(bytes && (size == 6 || size == 10));
+    auto& file = readerFiles.at(raw); assert(file.path == readerCache + "/progress.bin.tmp");
+    file.bytes.assign(bytes, bytes + size); return size;
+  };
+  leaves.file_flush = [](void* raw) { assert(readerFiles.at(raw).path == readerCache + "/progress.bin.tmp"); };
+  static auto remove = leaves.path_remove;
+  leaves.path_remove = [](XpAppText path) -> uint8_t {
+    if (text(path) == readerCache + "/progress.bin") return 1;
+    return remove(path);
+  };
+  static auto rename = leaves.path_rename;
+  leaves.path_rename = [](XpAppText from, XpAppText to) -> uint8_t {
+    if (text(from) == readerCache + "/progress.bin.tmp") { assert(text(to) == readerCache + "/progress.bin"); return 1; }
+    return rename(from, to);
   };
   resources.path_exists = [](XpAppText path) -> uint8_t {
     const auto value = text(path);

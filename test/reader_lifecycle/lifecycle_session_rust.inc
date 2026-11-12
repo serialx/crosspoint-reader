@@ -176,7 +176,7 @@ static LegacyEpubLeaves leavesDefaults() {
   UNUSED_LEAF(physical.render_discard_bw);
   UNUSED_LEAF(physical.render_orientation);
   UNUSED_LEAF(physical.loan_count);
-  UNUSED_LEAF(physical.progress_save);
+  UNUSED_LEAF(physical.storage_read_release);
   UNUSED_LEAF(book.section.section_open);
   UNUSED_LEAF(book.section.section_close);
   UNUSED_LEAF(book.section.section_page_count);

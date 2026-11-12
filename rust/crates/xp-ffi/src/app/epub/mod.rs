@@ -32,6 +32,7 @@ mod page;
 mod page_owner;
 mod page_records;
 mod page_view;
+mod persistence;
 mod position;
 #[allow(dead_code)]
 mod progress_mapping;
@@ -52,6 +53,11 @@ mod session_section;
 mod settings;
 mod state;
 mod storage;
+#[cfg(not(feature = "app-test"))]
+mod stores;
+#[cfg(feature = "app-test")]
+#[path = "test_support/legacy_stores.rs"]
+mod stores;
 mod sync;
 #[cfg(feature = "app-test")]
 mod test_support;

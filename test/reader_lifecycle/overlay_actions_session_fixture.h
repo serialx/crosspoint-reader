@@ -164,7 +164,7 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.render_discard_bw = &OverlayUnexpected<decltype(table.render_discard_bw)>::call;
   table.render_orientation = &OverlayUnexpected<decltype(table.render_orientation)>::call;
   table.loan_count = &OverlayUnexpected<decltype(table.loan_count)>::call;
-  table.progress_save = &OverlayUnexpected<decltype(table.progress_save)>::call;
+  table.storage_read_release = &OverlayUnexpected<decltype(table.storage_read_release)>::call;
   table.paint_dither = &OverlayUnexpected<decltype(table.paint_dither)>::call;
   table.paint_pixel = &OverlayUnexpected<decltype(table.paint_pixel)>::call;
   table.paint_status = &OverlayUnexpected<decltype(table.paint_status)>::call;

@@ -1,5 +1,4 @@
 use super::{app_abi, EpubSession, Text};
-use core::ffi::c_void;
 
 pub(super) fn is_in_read_folder(path: &[u8]) -> bool {
     path.starts_with(b"/read/")
@@ -179,7 +178,8 @@ impl EpubSession {
             }
         }
         unsafe {
-            (self.leaves.recents_update_path)(
+            super::stores::update_path(
+                self.leaves,
                 source.wire(),
                 destination.wire(),
                 old_cache.wire(),
@@ -190,26 +190,11 @@ impl EpubSession {
                 },
             )
         };
-        struct Compare<'a> {
-            source: &'a [u8],
-            matches: bool,
-        }
-        unsafe extern "C" fn compare(context: *mut c_void, path: app_abi::Text) -> u8 {
-            let compare = &mut *context.cast::<Compare<'_>>();
-            compare.matches = path.bytes() == Some(compare.source);
-            1
-        }
-        let mut current = Compare {
-            source: source.bytes(),
-            matches: false,
-        };
-        unsafe {
-            (self.leaves.state_open_path)(compare, (&mut current as *mut Compare<'_>).cast())
-        };
-        if current.matches {
+        let matches = unsafe { (self.leaves.state_open_path)().bytes() == Some(source.bytes()) };
+        if matches {
             unsafe {
                 (self.leaves.state_set_open_path)(destination.wire());
-                (self.leaves.state_save)();
+                super::stores::save_state(self.leaves);
             }
         }
     }

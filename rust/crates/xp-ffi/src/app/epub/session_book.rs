@@ -404,7 +404,11 @@ pub(super) unsafe fn load_clippings(raw: *mut c_void, _leaves: &'static abi::XpE
     loaded
 }
 
-pub(super) unsafe fn add_recent(raw: *mut c_void, leaves: &'static abi::XpEpubLeaves) {
+pub(super) unsafe fn add_recent(
+    raw: *mut c_void,
+    leaves: &'static abi::XpEpubLeaves,
+    resources: &app_abi::Resources,
+) {
     #[cfg(feature = "app-test")]
     let raw = match unsafe { &*raw.cast::<Loaded>() } {
         Loaded::Reader(book) => book.as_ptr(),
@@ -421,7 +425,7 @@ pub(super) unsafe fn add_recent(raw: *mut c_void, leaves: &'static abi::XpEpubLe
     cover[..cache.len()].copy_from_slice(cache);
     cover[cache.len()..length].copy_from_slice(suffix);
     value.cover = app_abi::Text::from_bytes(&cover[..length]);
-    unsafe { (leaves.recents_add)(&value) };
+    unsafe { super::stores::add(leaves, resources, &value) };
 }
 
 pub(super) unsafe fn reader_pointer(raw: NonNull<c_void>) -> Option<NonNull<c_void>> {

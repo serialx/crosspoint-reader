@@ -54,6 +54,9 @@ class PersistableStoreBase {
   // does not exist (expected on first boot); logs on read/parse failure.
   static bool readDocFromFile(const char* path, JsonDocument& doc);
 
+  void beginReaderSave(const char* path, void* storage, XpStoreJsonOps* json, XpStorePersistOps* file) const;
+  static void endReaderSave(void* storage);
+
  protected:
   /**
    * Helper function for extracting an obfuscated password from a JSON value.

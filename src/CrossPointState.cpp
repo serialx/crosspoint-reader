@@ -22,6 +22,7 @@ XpStoreState view(CrossPointState& state) {
           &state.showBootScreen};
 }
 }  // namespace
+XpStoreState CrossPointState::readerView() { return view(*this); }
 bool CrossPointState::isRecentSleep(uint16_t idx, uint8_t checkCount) const {
   return xp_store_recent_contains(recentSleepImages, recentSleepPos, recentSleepFill, idx, checkCount);
 }

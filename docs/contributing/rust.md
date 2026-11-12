@@ -584,13 +584,15 @@ the reader leaf described under [Diagnostics](#diagnostics).
 `ResourceAccess` precedes the cache lock, then storage. A cache row read releases
 its guard before invoking a sink; the decoded row owns its bytes for the
 synchronous callback, which may reenter another query or stream. Do not hold a
-Rust mutable borrow across a native callback. Clipping/recents adapters lend
-string views to synchronous stores, which copy into their final fields or row
-sink. No metadata view survives the call. Rust owns one bookmark record vector,
+Rust mutable borrow across a native callback. Clipping and recents adapters lend
+string views to synchronous stores, which copy into their final fields.
+No metadata view survives the call. Rust owns one bookmark record vector,
 its exact JSON encoding and the Kindle text export. Whole-file reads and
 temporary-file replacement remain native HAL transactions under the original
-StorageLock. `storage_read_file` lends the SDK buffer only
-during its synchronous sink; `storage_write_file_atomic` takes encoded bytes.
+StorageLock. `storage_read_file` constructs the SDK string in caller-owned
+stack storage and returns borrowed bytes. Rust consumes them before calling
+`storage_read_release`; no native read callback calls a Rust sink.
+`storage_write_file_atomic` takes encoded bytes.
 Whole-file HAL operations check readiness and emit SDK diagnostics directly;
 the reader log leaf has no raw-byte mode, and file-open leaves have no readiness
 flag. Despite its name, the write leaf is not power-loss atomic: the SDK removes
@@ -608,6 +610,30 @@ string allocation. Target hash parity is verified with the pinned C3 and S3
 toolchains under emulation, not on a physical device. The
 [reader lifecycle tests](../../test/reader_lifecycle/README.md) distinguish actual
 owner/facade compositions from historical synthetic service fixtures.
+
+## Reader persistence and service boundary
+
+Rust reader code calls the progress writer and the recents/state record codec
+in Rust directly. It owns prune, add, remove, finished-book path replacement,
+and save ordering. Native primitives provide storage operations, row/string
+access, the save mutex and ArduinoJson document operations. Each primitive
+returns before Rust continues; none calls a Rust record or serialization sink.
+Progress keeps the existing open/write/flush/close/remove/rename sequence and
+error messages, including the inherited remove-before-rename power-loss window.
+
+Recents/state data and their JSON codec stay C++-owned; one-way primitives;
+ownership move is NOT required for the reader-path goal; owner: none planned
+(SET-OWN family). Settings-save still runs synchronously through its existing
+boundary under ruling 45. Recents UI and Library use their existing facades.
+
+Reader time decisions call the Rust time service directly. Native callbacks
+supply the clock, floor storage, SNTP setup and wait operations. State-path
+reads return borrowed strings without a Rust sink. Protected-book and document-ID
+relays remain pending in R3b; this persistence unit does not retire them.
+
+The [persistence checks](../../test/reader_persistence/README.md) compare actual
+Rust orchestration with the existing native facades, including every serialized
+write failure, and check progress I/O and time-service event order.
 
 ## XML events
 

@@ -407,7 +407,7 @@ impl EpubSession {
         let Some(cache) = self.cache_path(access, b"") else {
             return false;
         };
-        if unsafe { (self.leaves.progress_save)(cache.wire(), data.as_ptr(), size) } == 0 {
+        if !super::persistence::save_progress(self.leaves, &cache, &data[..size as usize]) {
             return false;
         };
         self.loop_log_formatted(

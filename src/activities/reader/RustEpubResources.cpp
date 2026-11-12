@@ -49,7 +49,6 @@
 #include "KOReaderCredentialStore.h"
 #include "KOReaderSyncActivity.h"
 #include "MappedInputManager.h"
-#include "ProgressFile.h"
 #include "ReaderFontSizes.h"
 #include "ReaderUtils.h"
 #include "RecentBooksStore.h"
@@ -516,9 +515,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .file_size = [](void* file) -> uint32_t { return static_cast<HalFile*>(file)->size(); },
       .path_remove_tree = [](XpAppText path) -> uint8_t { return Storage.removeDir(pathText(path)); },
 
-      .progress_save = [](XpAppText cachePath, const uint8_t* bytes, uint32_t size) -> uint8_t {
-        return ProgressFile::writeAtomic(owned(cachePath), bytes, size);
-      },
+      .storage_read_release = [](void* storage) { std::destroy_at(static_cast<String*>(storage)); },
       .paint_dither = [](int32_t x, int32_t y, int32_t width,
                          int32_t height) { target->fillRectDither(x, y, width, height, Color::LightGray); },
       .paint_pixel = [](int32_t x, int32_t y) { target->drawPixel(x, y, false); },
@@ -711,8 +708,13 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .radio_after_paint = [] { bleturner::afterPaint(); },
       .radio_switch_off = [] { bleturner::switchOff(); },
       .radio_request_connect = [] { bleturner::requestConnect(); },
+#ifdef XP_APP_TEST
       .trusted_now = [] { return trustedtime::trustedNow(); },
       .trusted_sync = [](uint32_t timeout) -> uint8_t { return trustedtime::syncNow(timeout); },
+#else
+      .time_services = trustedtime::readerServices,
+      .time_start_sync = trustedtime::readerStartSync,
+#endif
       .wifi_connected = []() -> uint8_t { return WiFi.status() == WL_CONNECTED; },
       .wifi_disconnect = [](uint8_t off) { WiFi.disconnect(off != 0); },
       .restart_reader = [] { silentRestartToReader(); },
@@ -778,6 +780,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
           },
       .end_paint = [](void* handle) { static_cast<EndOfBookOptions*>(handle)->render(*target, *mapped); },
 
+#ifdef XP_APP_TEST
       .recents_remove = [](XpAppText path) -> uint8_t { return RECENT_BOOKS.removeByPath(owned(path)); },
       .recents_add =
           [](const XpAppBook* value) {
@@ -787,13 +790,35 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
           [](XpAppText from, XpAppText to, XpAppText oldCache, XpAppText newCache) {
             RECENT_BOOKS.updatePath(owned(from), owned(to), owned(oldCache), owned(newCache));
           },
-      .state_open_path = [](XpAppTextSink sink, void* context) -> uint8_t {
-        return sink(context, text(APP_STATE.openEpubPath));
-      },
+#else
+      .store_rows = [](void* storage, XpStoreRows* out) { RECENT_BOOKS.readerRows(storage, out); },
+      .store_rows_close = RecentBooksStore::releaseReaderRows,
+      .store_move_row = [](size_t destination, size_t source) { RECENT_BOOKS.moveReaderRow(destination, source); },
+#endif
+      .state_open_path = [] { return text(APP_STATE.openEpubPath); },
       .state_set_open_path =
           [](XpAppText path) { APP_STATE.openEpubPath.assign(reinterpret_cast<const char*>(path.data), path.len); },
       .state_reset_reader_count = [] { APP_STATE.readerActivityLoadCount = 0; },
+#ifdef XP_APP_TEST
       .state_save = [] { APP_STATE.saveToFile(); },
+#else
+      .store_document =
+          [](uint8_t operation, void* storage, XpStoreJsonOps* json, XpStorePersistOps* file, XpStoreState* state) {
+            enum class Operation : uint8_t { State, Recent, Close };
+            switch (static_cast<Operation>(operation)) {
+              case Operation::State:
+                APP_STATE.beginReaderSave(CrossPointState::getFilePath(), storage, json, file);
+                *state = APP_STATE.readerView();
+                break;
+              case Operation::Recent:
+                RECENT_BOOKS.beginReaderSave(RecentBooksStore::getFilePath(), storage, json, file);
+                break;
+              case Operation::Close:
+                PersistableStoreBase::endReaderSave(storage);
+                break;
+            }
+          },
+#endif
       .has_sync_credentials = []() -> uint8_t { return KOREADER_STORE.hasCredentials(); },
       .has_exit_subscriber = []() -> uint8_t { return pluginevents::anySubscriber(pluginevents::Event::ReaderExit); },
       .has_session_subscriber = []() -> uint8_t {
@@ -1034,10 +1059,10 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         *out = {local.tm_year, local.tm_mon, local.tm_mday, local.tm_wday, local.tm_hour, local.tm_min};
         return 1;
       },
-      .storage_read_file = [](XpAppText path, XpAppTextSink sink, void* context) -> uint8_t {
-        const String bytes = Storage.readFile(pathText(path));
-        if (bytes.isEmpty()) return 0;
-        return sink(context, {reinterpret_cast<const uint8_t*>(bytes.c_str()), bytes.length()});
+      .storage_read_file = [](XpAppText path, void* storage) -> XpAppText {
+        static_assert(sizeof(String) <= 6 * sizeof(uintptr_t) && alignof(String) <= alignof(uintptr_t));
+        auto* bytes = std::construct_at(static_cast<String*>(storage), Storage.readFile(pathText(path)));
+        return {reinterpret_cast<const uint8_t*>(bytes->c_str()), bytes->length()};
       },
       .storage_write_file_atomic = [](XpAppText path, const uint8_t* bytes, uint32_t size) -> uint8_t {
         return Storage.writeFileAtomic(pathText(path), bytes, size);

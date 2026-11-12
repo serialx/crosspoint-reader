@@ -172,7 +172,7 @@ impl EpubSession {
             return;
         }
         let now = unsafe { (self.runtime.now_ms)() };
-        let epoch = unsafe { (self.leaves.trusted_now)() };
+        let epoch = unsafe { super::persistence::now(self.leaves) };
         let progress = self.progress_basis_points();
         unsafe {
             (*self.frame(access).as_ptr())

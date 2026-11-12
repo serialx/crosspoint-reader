@@ -202,7 +202,7 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(book.book_install_extractor);
   UNUSED_LEAF(book.book_clear_extractor);
   UNUSED_LEAF(book.book_protection_error);
-  UNUSED_LEAF(physical.progress_save);
+  UNUSED_LEAF(physical.storage_read_release);
   UNUSED_LEAF(book.section.section_open);
   UNUSED_LEAF(book.section.section_close);
   UNUSED_LEAF(book.section.section_page_count);

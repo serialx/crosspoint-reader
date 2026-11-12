@@ -118,7 +118,7 @@ impl EpubSession {
         if settings.remove_read_recents != 0 {
             if at_end && !self.model(|state| state.recents_removed) {
                 let removed = with_book_text(book, super::session_book::path, |path| unsafe {
-                    (self.leaves.recents_remove)(path) != 0
+                    super::stores::remove(self.leaves, path)
                 })
                 .unwrap_or(false);
                 self.model(|state| state.recents_removed = removed);

@@ -609,9 +609,10 @@ returns before Rust continues; none calls a Rust record or serialization sink.
 Progress keeps the existing open/write/flush/close/remove/rename sequence and
 error messages, including the inherited remove-before-rename power-loss window.
 
-Recents/state data and their JSON codec stay C++-owned; one-way primitives;
-ownership move is NOT required for the reader-path goal; owner: none planned
-(SET-OWN family). Settings-save still runs synchronously through its existing
+Recents/state containers and ArduinoJson document operations stay C++-owned;
+the record codec and save orchestration are Rust-owned. Native access uses
+one-way primitives. Moving the containers is not required for the reader-path
+goal; owner: none planned (SET-OWN family). Settings-save still runs synchronously through its existing
 boundary under ruling 45. Recents UI and Library use their existing facades.
 
 Reader time decisions call the Rust time service directly. Native callbacks

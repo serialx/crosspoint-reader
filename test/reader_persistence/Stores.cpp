@@ -42,7 +42,7 @@ Result run(bool rust, int failAt, bool failMkdir) {
   APP_STATE.recentSleepImages[0] = 65535;
   APP_STATE.recentOverlaySleepImages[15] = 32768;
   APP_STATE.showBootScreen = false;
-  store_test::files = {{"/a.epub", "book"}, {"/b.epub", "book"}};
+  store_test::files = {{"/책/읽기 📖.epub", "book"}, {"/b.epub", "book"}};
   store_test::writes = 0; store_test::failAt = failAt; store_test::failMkdir = failMkdir;
   store_test::io.clear(); store_test::logs.clear();
   Result out;
@@ -69,15 +69,15 @@ Result run(bool rust, int failAt, bool failMkdir) {
     capture(true);
   };
   APP_STATE.openEpubPath.clear(); save();
-  APP_STATE.openEpubPath = "/a.epub"; save();
+  APP_STATE.openEpubPath = "/책/읽기 📖.epub"; save();
   add("/missing.epub", "missing", "", "");
-  add("/a.epub", "한글 \"quoted\"\n", "author", "/cache/a/thumb.bmp");
+  add("/책/읽기 📖.epub", "한글 \"quoted\"\n", "author", "/cache/a/thumb.bmp");
   add("/b.epub", "B", "author", "/external.bmp");
-  add("/a.epub", "new title", "new author", "/cache/a/thumb.bmp");
+  add("/책/읽기 📖.epub", std::string(8192, 'x') + " 한글 📖 \"quoted\"\n", "new author", "/cache/a/thumb.bmp");
   remove("/not-listed.epub"); remove("/b.epub");
   add("/b.epub", "B again", "author", "/external.bmp");
-  move("/a.epub", "/read/a.epub", "/cache/a", "/cache/read-a");
-  APP_STATE.openEpubPath = "/read/a.epub"; save();
+  move("/책/읽기 📖.epub", "/read/책/읽기 📖.epub", "/cache/a", "/cache/read-a");
+  APP_STATE.openEpubPath = "/read/책/읽기 📖.epub"; save();
   move("/b.epub", "/read/b.epub", "/cache/b", "/cache/read-b");
   move("/missing.epub", "/read/missing.epub", "", "/other");
   for (int i = 0; i < 12; ++i) {

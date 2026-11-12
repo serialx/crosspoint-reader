@@ -70,7 +70,8 @@ void bindReaderResults() {
   };
   static auto write = leaves.file_open_write;
   leaves.file_open_write = [](XpAppText path, XpAppText origin)->void* {
-    assert(text(path) == readerCache + "/links.bin"); return write(literal("/cache/links.bin"), origin);
+    if (text(path) == readerCache + "/links.bin") return write(literal("/cache/links.bin"), origin);
+    return write(path, origin);
   };
   leaves.recents_add = [](const XpAppBook* row) {
     physical("recent-add", 0); assert(row && text(row->path) == f().path && text(row->title) == "Fixture" && f().extractor);

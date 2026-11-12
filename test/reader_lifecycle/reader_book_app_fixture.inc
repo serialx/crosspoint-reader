@@ -58,14 +58,18 @@ void bindReaderBook() {
   legacyBook.section.page = pageFixture;
   legacyBook.children = childFixture;
   leaves.native_path_hash = [](XpAppText path) -> uint64_t { assert(text(path) == f().path); return 42; };
+  static auto openWrite = leaves.file_open_write;
   leaves.file_open_write = [](XpAppText path, XpAppText origin) -> void* {
+    if (text(path) != readerCache + "/progress.bin.tmp") return openWrite(path, origin);
     assert(f().renderDepth == 1 && !f().modelDepth);
     assert(text(path) == readerCache + "/progress.bin.tmp" && text(origin) == "PRG");
     f().physical("progress-save");
     auto* raw = new uint8_t;
     readerFiles.emplace(raw, ReaderFile{{}, 0, text(path)}); return raw;
   };
+  static auto write = leaves.file_write;
   leaves.file_write = [](void* raw, const uint8_t* bytes, uint32_t size) -> uint32_t {
+    if (!readerFiles.count(raw)) return write(raw, bytes, size);
     assert(bytes && (size == 6 || size == 10));
     auto& file = readerFiles.at(raw); assert(file.path == readerCache + "/progress.bin.tmp");
     file.bytes.assign(bytes, bytes + size); return size;

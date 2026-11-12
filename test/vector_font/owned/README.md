@@ -22,7 +22,7 @@ explicit/synthesized styles, ligatures, coverage, kerning, streamed reads and
 prefix boundaries, corrupt/truncated/missing sources, failed reads and retry,
 cache/table growth, cap flush, reload, release, and pressure retry. Allocation
 requests and peak/live bytes are asserted equal as well as reported. The extended
-CP2 differential also compares complete seek/read offset, length and return traces,
+differential also compares complete seek/read offset, length and return traces,
 negative and late intermittent reads, and corrupt explicit bold/italic sources.
 Host allocation counts do not measure ESP32 PSRAM/internal domains or stack use.
 

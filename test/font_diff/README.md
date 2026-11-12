@@ -74,17 +74,20 @@ SdCardFont implementation remains only as a historical test adapter.
 
 ## TTF integration boundary
 
-`TtfEpdFont::setupFace` sets line metrics, glyph/coverage/bitmap/kerning handlers
-and a small GSUB-derived ligature table; it does not publish intervals or a
+The Rust vector owner
+(`xp-core::font::vector_owned::registration::Registered`) publishes line metrics,
+glyph/coverage/bitmap/kerning handlers and a small GSUB-derived ligature table;
+it does not publish intervals or a
 resident glyph array. Faces initialize lazily, and their ligature table changes
 when the first fault initializes a style. Its glyph vectors, slot indices and
-kerning cache are private and may move or flush during a fault. A stable native
+kerning cache are private and may move or flush during a fault. A stable
 resident view is therefore not available through the current EpdFontData.
 
 Production measurement retains callbacks for dynamic TTF operations. Generic
 Rust lookups return `NotResident` for glyph misses and `None` for dynamic coverage or kerning;
 they never invoke those handlers. CJK kerning still returns zero before the
-handler, matching EpdFont. The native engine releases each borrowed view before
+handler, matching EpdFont. The measurement engine releases each borrowed view before
 faulting and reads current metrics/ligatures afterward. See the
 [production contract](../../docs/contributing/rust.md#native-text-measurement)
-and text oracle for runtime TTF measurement coverage.
+and [vector owner tests](../vector_font/owned/README.md) for shipping TTF coverage;
+the text oracle retains a frozen native vector adapter.

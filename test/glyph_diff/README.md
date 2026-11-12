@@ -4,7 +4,8 @@
 `11be2799` in `reference/`. `instrument.py` exposes owner state in build copies
 and appends that independent raster reference. Firmware draws glyph pixels in
 Rust, and one Rust owner holds the built-in cache, decoder and scan state.
-Temporary SD/TTF handlers retain native font-resource work.
+Rust also owns SD and vector font resources; native callbacks supply physical
+HAL and FreeType operations.
 
 ```sh
 cmake -S test/glyph_diff -B build/glyph-diff -DCMAKE_BUILD_TYPE=Release
@@ -80,8 +81,8 @@ across callbacks; the generation check is not synchronization or a lifetime
 extension. SD's overflow view identifies the first glyph address, entry stride
 and live entry count, so metadata fields inside an entry are never mistaken for
 a glyph. TTF and nonresident/hot-group/overflow sources return a miss. Rust
-handles built-in miss recovery and decoding; temporary native SD/TTF handlers
-provide loading and dynamic bitmaps. No miss callback runs while a Rust loan exists.
+handles built-in miss recovery and decoding; the Rust SD and vector owners
+provide loading and dynamic bitmaps through physical HAL and FreeType leaves. No miss callback runs while a Rust loan exists.
 
 The integrated draw test poisons a stale source view, then frees the consumed
 glyph table and replaces its stable data slot inside the bitmap-miss callback.

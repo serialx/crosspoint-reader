@@ -2,8 +2,9 @@
 
 This freezes the C++ text behavior at `c9330408c0ff5fd22a95d0dbb635b1ff5ffa5dca`
 with SDK `37d272d42732c31065ebed4d9cb90cef7bfa7416`. The harness compiles production
-`GfxRenderer`, `EpdFont`, `EpdFontFamily`, `TtfEpdFont`, MiniBidi and
-UTF-8 code, plus the historical `7bab9148` `SdCardFont` adapter in
+`GfxRenderer`, `EpdFont`, `EpdFontFamily`, MiniBidi and UTF-8 code, plus
+the frozen native `TtfEpdFont` adapter in `test/vector_font/legacy` and the
+historical `7bab9148` `SdCardFont` adapter in
 `test/sdfont_legacy`, the header-only `FontCacheManager` loan handle, and the host-only
 `test/font_cache/legacy/FontDecompressor` compatibility adapter. The SDK's vendored
 FreeType, GSUB and GPOS code are included. At capture, the Rust archive supplied

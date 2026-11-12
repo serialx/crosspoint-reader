@@ -828,7 +828,8 @@ word ordering. The Rust loaded-font registry owns family/style slots and fallbac
 IDs. C++ font facades query this owner. One Rust `FontCacheOwner` holds the
 built-in bitmap cache, decoder and scan/prewarm state. Rust owns SD faces,
 per-style storage, loading, registration, eviction and catalog/system policy.
-TTF file/face storage and the vector cache facade remain native until PT-VEC.
+Rust also owns vector source storage, face lifetimes, registration and cache policy;
+C++ supplies the non-owning FreeType/HAL operations.
 [`GfxRenderer::textProvider`](../../lib/GfxRenderer/GfxRenderer.cpp) obtains the
 Rust registry provider, which supplies style descriptors and dynamic handlers.
 SD glyphs that are not resident and TTF glyph/coverage/kerning work still use
@@ -883,16 +884,17 @@ Standalone scaled glyphs use `xp_native_draw_scaled_pixels` for their advance an
 bilinear scaling. Cached pages use the same Rust glyph painter through the
 page render entry below; loaded text data belongs to the page arena.
 
-C++ font facades dispatch preparation and cache work to Rust. SD containers
-belong to the Rust owner; vector containers and platform objects remain native. The renderer lends the selected
+C++ font facades dispatch preparation and cache work to Rust. SD and vector
+containers belong to the Rust owner; native HAL and FreeType objects occupy
+pinned slots whose lifetimes Rust controls. The renderer lends the selected
 `EpdFont::data` pointer slot, bitmap-source view and exclusive
 framebuffer or strip target for one synchronous run. Rust resolves resident
 built-in/SD and decompressed page-buffer bitmap hits directly. Built-in misses
 use the inline cache and decoder in `font::runtime::FontCacheOwner`, with the
 existing Rust SmallTables inflater. Rust supplies SD views, bitmaps and miss
-recovery, including absent-ID SD loading. Native fallback handles builtin/vector
-fonts; TTF handlers provide the remaining non-SD work. The source view is refreshed
-after miss recovery.
+recovery, including absent-ID SD loading. Vector callbacks enter the Rust family
+owner, which invokes native FreeType leaves for physical work. The source view
+is refreshed after miss recovery.
 Generation changes invalidate borrowed sources; no table or bitmap loan survives
 a callback that can mutate its owner. The EpdFont owner stays live and serialized;
 callbacks cannot unregister it, reenter drawing or change the target geometry.
@@ -1002,14 +1004,16 @@ family/size choices in Rust; native consumers copy and label borrowed results.
 The native chapter owner-address leaf remains with P18-D2 until that context moves.
 
 Firmware builds enable `sd-font-catalog` and `XP_SD_FONT_CATALOG` together.
-PSRAM builds also enable `vector-fonts`; TTF sources, faces and caches remain
-PT-VEC work. Native startup/UI drivers and Rust EPUB/XTC callers execute typed
-font effects synchronously, preserving save/unload/load order. Under ruling 45,
+PSRAM builds also enable `vector-fonts`; Rust owns vector sources, face lifetimes,
+registration, the five-entry variant LRU and caches. Native startup/UI drivers
+and Rust EPUB/XTC callers execute typed font effects synchronously, preserving
+save/unload/load order. Under ruling 45,
 the inherited settings-save callback re-enters settings serialization, whose
 native settings and JSON loans are disjoint from reader state; SET-OWN owns its
-retirement. Inherited PSRAM vector accessor and backend re-entry remains PT-VEC
-work. One Rust policy derives selectable sizes; native settings consumers only
-copy and label the returned choices.
+retirement. Vector selection, loading and cache policy call Rust directly;
+the native vector provider is retired from firmware. One Rust policy derives
+selectable sizes; native settings consumers only copy and label the returned
+choices.
 No SD catalog/control/load/variant policy re-enters through a native effect.
 The `7bab9148` native face/cache/manager/catalog implementations are preserved in
 `test/sdfont_legacy`; older oracle snapshots remain in other test directories.
@@ -1025,11 +1029,12 @@ P18-D2 retires that accessor with the chapter/paragraph payload callers.
 `xp_native_sd_font_view`, `xp_native_sd_font_resident_slice` and
 `xp_native_sd_font_bitmap` remain only in the named host oracle adapter
 `test/sdfont_legacy/gfx_sd_oracle.inc`. The
-`xp_native_sd_font_load` provider is compiled out of the C3 firmware; Rust loads
-absent SD font IDs directly. It remains a vector fallback on PSRAM profiles,
-with retirement owned by PT-VEC. The native allocation/free/diagnostic leaves
-remain in `lib/EpdFont/SdCardFont.cpp`, and the vector physical read callback
-remains in `SdCardFontRegistry.cpp`. See the
+`xp_native_sd_font_load` provider is absent from firmware on both C3 and PSRAM
+profiles; Rust loads absent SD and vector font IDs directly. Historical host
+fixtures retain the provider behind test guards. The native allocation/free/diagnostic
+leaves remain in `lib/EpdFont/SdCardFont.cpp`. The non-owning vector stream read
+adapter is in `lib/hal/VectorFontPhysical.cpp`; it borrows Rust-selected prefix
+bytes and a pinned HAL file and never calls Rust. See the
 [SD font differential](../../test/sdfont_diff/README.md) for compatibility limits.
 
 `sdfont::pool` owns resident glyph/bitmap buffers, prewarm and retention policy,
@@ -1045,12 +1050,17 @@ allocation lifetimes, retention under heap pressure and failure recovery.
 
 `font::cache` keeps the existing eight built-in page slots, hot decompression
 buffer and glyph scratch buffer. Its allocation failures and release order are
-covered by `test/font_cache`. `font::vector` controls lazy FreeType faces, source
-selection, glyph quantization, kerning, cache growth and eviction. C++ provides
-the SDK FreeType calls and existing `PsramVector` storage; borrowed source files
-must outlive the font. No new permanent buffer is added. `test/vector_font`
-records real FreeType glyph bytes and allocation traces under heap pressure;
-`test/font_manager` records registration, ownership and failure paths.
+covered by `test/font_cache`. `xp-ffi::font_vector` owns source storage, registered
+families and variant selection; `xp-core::font::vector_owned` controls lazy face
+initialization, glyph quantization, kerning, cache growth and eviction. Its
+`registration` module publishes stable registry slots. Rust owns the cache buffers
+through the existing font allocator and preserves its abort after a successful
+preflight. C++ supplies eight FreeType physical leaves in
+`lib/hal/VectorFontPhysical.cpp`. Sources and pinned HAL slots outlive every
+borrowing face; registry entries are invalidated before family destruction.
+`test/vector_font` compares the Rust owner against frozen native oracles using
+real FreeType bytes, allocation traces and manager behavior; its lifetime tests
+cover registration, shared sources and pressure loans.
 
 `xp-core::xtc` interprets XTC/XTCH headers, page tables, metadata and chapter
 records, and XTG/XTH page headers. C++ retains HalFile I/O, buffers, owned strings,

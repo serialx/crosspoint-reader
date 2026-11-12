@@ -5,7 +5,8 @@ owns stable faces, per-style tables, scoped pinned file holders, cache policy
 and the loaded-manager list/name. Native code supplies HAL, allocation and
 formatting leaves. Interval tables can be shared across styles and faces.
 Rust also owns SD catalog discovery, variant/fallback and absent-ID policy.
-Native code performs physical storage/allocation and the remaining vector effects.
+Native code performs physical storage/allocation; vector sources, variants and
+caches also belong to Rust and are covered by `test/vector_font`.
 
 Firmware enables Rust `sd-font-catalog` and native `XP_SD_FONT_CATALOG` together.
 The separate system-oracle archive exercises that binding against frozen native
@@ -72,7 +73,7 @@ container allocation inherits its binding failure classification while filename
 allocation is fallible. No new allocator or abort is added by the Rust owner.
 Catalog storage, dirty/update/variant policy and reader/chapter/web/XTC bindings
 have shipping callers. SDK directory and FreeType inspection are physical leaves;
-TTF resources and vector effects remain native until PT-VEC.
+the Rust vector owner controls TTF source and face lifetimes, variants and caches.
 
 Run python3 test/sdfont_owner/catalog_check.py after the CMake and Cargo builds
 for a selected-record differential against the frozen native registry. It

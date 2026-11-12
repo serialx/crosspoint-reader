@@ -49,8 +49,9 @@ The executable uses actual Rust ReaderBook/ReaderSection/Page ownership and nati
 Page facades, TextBlock, ImageBlock,
 `ChapterPlatform.cpp` (chapter facade, page assembler and native sink), Paragraph
 and CSS code, linked to the normal Rust host archive. Measurement and
-rasterization use production GfxRenderer, EpdFont, EpdFontFamily and
-TtfEpdFont/SDK FreeType code, plus the historical `7bab9148` SdCardFont adapter
+rasterization use production GfxRenderer, EpdFont and EpdFontFamily, SDK
+FreeType, the frozen native TtfEpdFont adapter in `test/vector_font/legacy`,
+and the historical `7bab9148` SdCardFont adapter
 in `test/sdfont_legacy`, the header-only FontCacheManager loan handle, and
 the host-only `test/font_cache/legacy/FontDecompressor` compatibility adapter.
 No text measurement is stubbed.

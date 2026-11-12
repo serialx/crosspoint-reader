@@ -58,7 +58,8 @@ glyph extent validation, deferred kern/ligature field decoding and `.cpfont`
 filename size parsing. The historical C++ adapter lends native storage and HAL
 callbacks to those Rust routines. Shipping SD faces, resident buffers, discovery,
 selection and path construction belong to the Rust owner; native code retains
-physical I/O, allocation and diagnostics, plus PT-VEC resources. See
+physical I/O, allocation, diagnostics and FreeType leaves. Rust also owns vector
+source and face lifetimes, variants and caches. See
 [SD owner tests](../sdfont_owner/README.md) for shipping-owner coverage.
 
 For C++ memory/undefined-behavior checks, configure another build with

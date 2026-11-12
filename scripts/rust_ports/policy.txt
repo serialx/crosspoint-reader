@@ -50,8 +50,6 @@ inherited App.text_box_height R1b # Shared app font relay.
 inherited App.text_draw R1b # Shared app font relay.
 inherited App.text_truncate R1b # Shared app font relay.
 inherited App.text_wrap R1b # Shared app font relay.
-inherited EPUB.book_facade_open R4 # Native persistence/state/store or shared app relay.
-inherited EPUB.book_set_extractor R4 # Image ownership relay.
 deferred EPUB.build_metrics R6 # Shared metric table and retained chapter/definition provider adapter; also reachable during reader builds.
 deferred EPUB.child_definition_draw_body R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_definition_payload_find R6 # Deferred dictionary/selection/chapter child bridge.
@@ -83,10 +81,7 @@ inherited EPUB.fonts_ensure_loaded R-RELAY # RELAY-A native SD-font effects adap
 inherited EPUB.fonts_take_corrupt_notice R-RELAY # Small native forwarding port; remove after R2/R3a.
 inherited EPUB.has_exit_subscriber R-RELAY # Small native forwarding port; remove after R2/R3a.
 inherited EPUB.has_session_subscriber R-RELAY # Small native forwarding port; remove after R2/R3a.
-inherited EPUB.image_clear_failures R-RELAY # Small native forwarding port; remove after R2/R3a.
 inherited EPUB.image_dimensions R4 # Image ownership relay.
-inherited EPUB.image_needs_decode R4 # Image ownership relay.
-inherited EPUB.image_release_cache R-RELAY # Small native forwarding port; remove after R2/R3a.
 inherited EPUB.image_supported R4 # Image ownership relay.
 inherited EPUB.paint_dither R2 # Reader chrome font relay.
 inherited EPUB.paint_status R2 # Reader chrome font relay.
@@ -189,20 +184,17 @@ dispatch panel.setCustomLUT (?:_ZN7freeink14FreeInkDisplay12setCustomLUTEbPKh) _
 dispatch panel.deepSleep (?:_ZN7freeink14FreeInkDisplay9deepSleepEv) _ZTVN7freeink15RustPanelDriverE (?:.*9deepSleep.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
 dispatch decrypt.stream root:EPUB.protection_stream _ZTVN7freeink7content12_GLOBAL__N_122ProtectedBookDecryptorE .*13decryptToSink.* # protection_open returns ProtectedBookDecryptor; invoke only decryptToSink until close.
 dispatch decrypt.close root:EPUB.protection_close _ZTVN7freeink7content12_GLOBAL__N_122ProtectedBookDecryptorE .*D0Ev # Deleting destructor of the concrete object returned by protection_open.
-dispatch book.dispose root:EPUB.book_facade_close _ZTVSt19_Sp_counted_deleterIP4EpubSt14default_deleteIS0_ESaIvELN9__gnu_cxx12_Lock_policyE1EE .*10_M_disposeEv # book_facade_open creates this shared_ptr control block; final close disposes the Epub facade.
-dispatch image.extract (?:xp_native_page_image_extract|_ZN12_GLOBAL__N_12ioEPvmPKhPhj) _ZZN12_GLOBAL__N_110BookHandle13bindExtractorEvENUlPvPKcS3_E_4_FUNES1_S3_S3_ # BookHandle::bindExtractor stores ImageBlock::extractFn; image paths call it while the book is alive.
 dispatch font.resolve _ZNK18CrossPointSettings15getReaderFontIdEv _ZZN16SdCardFontSystem5beginER11GfxRendererENUlPvPKchE_4_FUNES2_S4_h # SdCardFontSystem::begin stores sdFontIdResolver; settings sampling calls it only when resolving a font.
 dispatch memory.evict _ZN7freeink13MemoryManager11clearCachesEj _ZNSt17_Function_handlerIFjjEZN11GfxRenderer5beginEvEUljE[0]?_E9_M_invokeERKSt9_Any_dataOj # GfxRenderer::begin registers the two X3 eviction sinks; layout allocation failure and protection reclaim call clearCaches.
 rustfill XpAppCompatibility.home_action _ZNK15ActivityManager16homeButtonActionEv rust/crates/xp-ffi/include/xp_app.h # xp_app_init writes this Rust function to ActivityManager::compatibility for the app lifetime; ActivityManager invokes this field.
 rustfill XpAppCompatibility.activity_facts _ZNK15ActivityManager5factsEv(?:\.isra\.\d+)? rust/crates/xp-ffi/include/xp_app.h # xp_app_init writes this Rust function to ActivityManager::compatibility for the app lifetime; ActivityManager invokes this field.
 rustfill XpAppCompatibility.screenshot_info _ZNK15ActivityManager17getScreenshotInfoEv rust/crates/xp-ffi/include/xp_app.h # xp_app_init writes this Rust function to ActivityManager::compatibility for the app lifetime; ActivityManager invokes this field.
-rustfill XpEpubBookBorrow.spine (?:_ZNK4Epub12getSpineItemEi|_ZZNK4Epub12getSpineItemEiENUlPvPK11XpEpubSpineE_4_FUNES0_S3_) rust/crates/xp-ffi/include/xp_epub_session.h # book_owner/facade.rs BORROW stores the Rust query; Epub calls this field while its borrowed facade is alive.
-rustfill XpEpubBookBorrow.toc (?:_ZNK4Epub10getTocItemEi|_ZZNK4Epub10getTocItemEiENUlPvPK9XpEpubTocE_4_FUNES0_S3_) rust/crates/xp-ffi/include/xp_epub_session.h # book_owner/facade.rs BORROW stores the Rust query; Epub calls this field while its borrowed facade is alive.
-rustfill XpEpubBookBorrow.cumulative (?:_ZNK4Epub26getCumulativeSpineItemSizeEi) rust/crates/xp-ffi/include/xp_epub_session.h # book_owner/facade.rs BORROW stores the Rust query; Epub calls this field while its borrowed facade is alive.
-rustfill XpEpubBookBorrow.spine_for_size (?:_ZNK4Epub20getSpineIndexForSizeEj) rust/crates/xp-ffi/include/xp_epub_session.h # book_owner/facade.rs BORROW stores the Rust query; Epub calls this field while its borrowed facade is alive.
-rustfill XpEpubBookBorrow.stream (?:_ZNK4Epub24readItemContentsToStreamERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEER5Printjb|_ZZNK4Epub24readItemContentsToStreamERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEER5PrintjbENUlPvPKhjE_4_FUNESA_SC_j) rust/crates/xp-ffi/include/xp_epub_session.h # book_owner/facade.rs BORROW stores the Rust query; Epub calls this field while its borrowed facade is alive.
-rustfill XpEpubBookBorrow.item_size (?:_ZNK4Epub11getItemSizeERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEPj) rust/crates/xp-ffi/include/xp_epub_session.h # book_owner/facade.rs BORROW stores the Rust query; Epub calls this field while its borrowed facade is alive.
-callback EPUB.book_facade_open # Stores XpEpubBookBorrow Rust callbacks until book_facade_close; synchronous borrowed book operations release cache locks before sinks.
+rustfill XpEpubBookBorrow.spine (?:_ZNK4Epub12getSpineItemEi|_ZZNK4Epub12getSpineItemEiENUlPvPK11XpEpubSpineE_4_FUNES0_S3_) rust/crates/xp-ffi/include/xp_epub_session.h # Host-fixture-only BORROW registration stores the Rust query; the dormant native borrowed-facade branch calls this field.
+rustfill XpEpubBookBorrow.toc (?:_ZNK4Epub10getTocItemEi|_ZZNK4Epub10getTocItemEiENUlPvPK9XpEpubTocE_4_FUNES0_S3_) rust/crates/xp-ffi/include/xp_epub_session.h # Host-fixture-only BORROW registration stores the Rust query; the dormant native borrowed-facade branch calls this field.
+rustfill XpEpubBookBorrow.cumulative (?:_ZNK4Epub26getCumulativeSpineItemSizeEi) rust/crates/xp-ffi/include/xp_epub_session.h # Host-fixture-only BORROW registration stores the Rust query; the dormant native borrowed-facade branch calls this field.
+rustfill XpEpubBookBorrow.spine_for_size (?:_ZNK4Epub20getSpineIndexForSizeEj) rust/crates/xp-ffi/include/xp_epub_session.h # Host-fixture-only BORROW registration stores the Rust query; the dormant native borrowed-facade branch calls this field.
+rustfill XpEpubBookBorrow.stream (?:_ZNK4Epub24readItemContentsToStreamERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEER5Printjb|_ZZNK4Epub24readItemContentsToStreamERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEER5PrintjbENUlPvPKhjE_4_FUNESA_SC_j) rust/crates/xp-ffi/include/xp_epub_session.h # Host-fixture-only BORROW registration stores the Rust query; the dormant native borrowed-facade branch calls this field.
+rustfill XpEpubBookBorrow.item_size (?:_ZNK4Epub11getItemSizeERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEPj) rust/crates/xp-ffi/include/xp_epub_session.h # Host-fixture-only BORROW registration stores the Rust query; the dormant native borrowed-facade branch calls this field.
 callback EPUB.child_selection # XpEpubOwnedPage.destroy is retained until the deferred selection child releases the page.
 import XP_NETWORK_MODES_PHYSICAL # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 import XP_WIFI_PHYSICAL # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
@@ -236,7 +228,6 @@ import xp_native_chapter_font_owner # Existing direct native ABI at 5ff7aa05; re
 import xp_native_font_cache_diagnostic # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 import xp_native_font_diagnostic # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 import xp_native_page_image_decode # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
-import xp_native_page_image_extract # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 import xp_native_page_image_file # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 import xp_native_page_image_log # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 import xp_native_render_target # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
@@ -261,8 +252,6 @@ inherited App.popup_draw R2b # Runtime-pointer study retirement assignment in RE
 inherited App.popup_progress R2b # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 inherited EPUB.input_facts R-RELAY # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 inherited EPUB.input_snapshot R-RELAY # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
-inherited EPUB.book_facade_close R4 # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
-inherited xp_native_page_image_extract R4 # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 inherited EPUB.protection_stream R3b # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 inherited EPUB.protection_close R3b # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 deferred EPUB.child_header R6 # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
@@ -299,3 +288,4 @@ callback EPUB.time_services # Returns native time service callbacks; no Rust cal
 callback EPUB.time_start_sync # Registers a Rust time notification callback for asynchronous SNTP completion; review context lifetime.
 callback EPUB.store_rows # Visits serialized native store rows through the borrowed Rust row sink.
 callback EPUB.store_document # Returns a native document through the borrowed Rust sink.
+import xp_native_page_image_write # Storage-only sink over the pinned caller-owned HalFile; consumes borrowed bytes synchronously, retains no pointers and never calls Rust, including when protection_stream supplies the bytes.

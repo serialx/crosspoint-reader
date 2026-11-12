@@ -30,6 +30,7 @@ mod open_tests;
 mod load_tests;
 
 pub(super) struct ReaderBook {
+    #[cfg(feature = "app-test")]
     facade: Option<NonNull<c_void>>,
     resources: &'static app_abi::Resources,
     now: unsafe extern "C" fn() -> u32,

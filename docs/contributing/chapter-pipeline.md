@@ -8,9 +8,9 @@ file I/O, font registration/preparation, built-in/TTF caches, JPEGDEC
 integration and physical display operations. Dictionary and settings-preview
 Pages remain native.
 Glyph bitmap views and rasterization run in Rust. The Rust reader also owns its
-loaded book, Section and incremental Chapter build. A native `Epub` facade forwards
-child and sync queries to that same book; the dictionary retains its native
-Chapter adapter. See [Reader book ownership](rust.md#reader-book-ownership) and
+loaded book, Section and incremental Chapter build. The Rust book answers child
+and sync queries directly; borrowed-facade branches remain only in host fixtures.
+The dictionary retains its native Chapter adapter. See [Reader book ownership](rust.md#reader-book-ownership) and
 [Section ownership](rust.md#chapter-and-section-compatibility), and
 [Reader Page ownership](rust.md#reader-page-ownership).
 The Rust application owns navigation, Home, the ordinary EPUB `EpubSession`, and

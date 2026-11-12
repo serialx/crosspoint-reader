@@ -10,13 +10,13 @@ fn main() {
 unsafe extern "C" fn mock_file(file: *mut FileStorage, op: FileOp, path: *const u8, bytes: *mut u8, length: usize) -> usize {
     crate::mock_file(file.cast(), op as u32, path, bytes, length)
 }
+#[export_name = "xp_native_page_image_write"]
+unsafe extern "C" fn mock_write(file: *mut c_void, bytes: *const u8, length: usize) -> u8 {
+    u8::from(crate::mock_file(file, 13, ptr::null(), bytes.cast_mut(), length) == length)
+}
 #[export_name = "xp_native_page_image_decode"]
 unsafe extern "C" fn mock_decode(native: *mut c_void, image: *const Image, cache: *const u8) -> u8 {
     crate::mock_decode(native, image.cast(), cache)
-}
-#[export_name = "xp_native_page_image_extract"]
-unsafe extern "C" fn mock_extract(image: *const Image, query: u8) -> u8 {
-    crate::mock_extract(image.cast(), query)
 }
 #[export_name = "xp_native_page_image_log"]
 unsafe extern "C" fn mock_log(native: *mut c_void, image: *const Image, cache: *const u8, event: u32, a: i32, b: i32) {

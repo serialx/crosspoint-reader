@@ -76,7 +76,7 @@ impl<'a> View<'a> {
         app_abi::Text::from_terminated(&arena[start..start + length + 1])
     }
 
-    pub(super) fn info(self, leaves: &abi::XpEpubLeaves) -> XpEpubPageInfo {
+    pub(super) fn info(self, _leaves: &abi::XpEpubLeaves) -> XpEpubPageInfo {
         #[cfg(feature = "app-test")]
         if let Self::Legacy(raw, services) = self {
             let mut value = core::mem::MaybeUninit::uninit();
@@ -96,9 +96,28 @@ impl<'a> View<'a> {
             images = true;
             if !needs_decode {
                 let (path, source, width, height) = element.image().expect("validated image");
-                needs_decode = unsafe {
-                    (leaves.image_needs_decode)(self.text(path), self.text(source), width, height)
-                } != 0;
+                #[cfg(feature = "app-test")]
+                {
+                    needs_decode = unsafe {
+                        (_leaves.image_needs_decode)(
+                            self.text(path),
+                            self.text(source),
+                            width,
+                            height,
+                        )
+                    } != 0;
+                }
+                #[cfg(not(feature = "app-test"))]
+                {
+                    let _ = source;
+                    needs_decode = unsafe {
+                        crate::page_render::images::needs_decode(
+                            self.text(path).bytes().unwrap(),
+                            i32::from(width),
+                            i32::from(height),
+                        )
+                    };
+                }
             }
         }
         XpEpubPageInfo {

@@ -29,7 +29,14 @@ impl PhysicalResources for XpEpubLeaves {
         unsafe { (self.image_read_window)(ptr::null_mut(), 0) };
     }
     fn release_images(&self) {
-        unsafe { (self.image_release_cache)() };
+        #[cfg(feature = "app-test")]
+        unsafe {
+            (self.image_release_cache)()
+        };
+        #[cfg(not(feature = "app-test"))]
+        unsafe {
+            crate::assets::xp_assets_image_reset(true)
+        };
     }
 }
 impl physical::Physical for XpEpubLeaves {

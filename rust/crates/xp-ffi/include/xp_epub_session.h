@@ -332,12 +332,18 @@ typedef struct XpEpubLeaves {
   void (*render_discard_bw)(void);
   void (*render_orientation)(uint8_t orientation);
   uint32_t (*loan_count)(void);
-  // Opens an unloaded compatibility facade; its getters forward to the Rust book.
-  // Closing requires all Section/child loans to have ended; no Rust book is freed here.
+#ifdef XP_APP_TEST
+  // Host-only compatibility facade; getters forward to the Rust book.
+  // Close requires all fixture loans to end; it does not free the Rust book.
   void* (*book_facade_open)(void* book, const XpEpubBookView* view, const XpEpubBookBorrow* borrow);
+#endif
+#ifdef XP_APP_TEST
   void (*book_facade_close)(void* facade);
-  // Null detaches the extractor; non-null must be this session's own live facade.
+#endif
+#ifdef XP_APP_TEST
+  // Host-only extractor: null detaches; non-null is this fixture's live facade.
   void (*book_set_extractor)(void* facade);
+#endif
   // Null without error is a plain book. Error text is borrowed only during the sink.
   void* (*protection_open)(XpAppText path, XpAppTextSink error, void* context);
   void (*protection_close)(void* protection);
@@ -351,8 +357,12 @@ typedef struct XpEpubLeaves {
   void (*paint_dither)(int32_t x, int32_t y, int32_t width, int32_t height);
   void (*paint_pixel)(int32_t x, int32_t y);
   void (*paint_status)(const XpEpubStatus* status);
+#ifdef XP_APP_TEST
   void (*image_clear_failures)(void);
+#endif
+#ifdef XP_APP_TEST
   void (*image_release_cache)(void);
+#endif
   // Catalog builds request native effects; no font policy runs in this callback.
   void (*fonts_ensure_loaded)(
 #if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
@@ -504,9 +514,9 @@ typedef struct XpEpubLeaves {
   // Lend returns whether this scope owns restoration; nested scopes return zero.
   uint8_t (*framebuffer_lend)(void);
   void (*framebuffer_restore)(uint8_t owned);
-  // Image readiness checks the decoded-cache state.
-  uint8_t (*image_needs_decode)(XpAppText path, XpAppText source, int16_t width, int16_t height);
 #ifdef XP_APP_TEST
+  // Host-only decoded-cache query; shipping checks eligibility directly in Rust.
+  uint8_t (*image_needs_decode)(XpAppText path, XpAppText source, int16_t width, int16_t height);
   int32_t (*font_ascent)(int32_t font);
 #endif
   uint32_t (*render_physical_query)(uint8_t query);
@@ -624,19 +634,20 @@ XP_EPUB_ASSERT(offsetof(XpEpubPeer, addr) == 64, "XpEpubPeer.addr");
 #define XP_EPUB_LEAF_COUNT 167
 #else
 #define XP_EPUB_LEAF_INDEX(index)                                                                                    \
-  ((index) - ((index) >= 26 ? 1 : 0) - ((index) >= 133 ? 1 : 0) - ((index) > 98 ? 1 : 0) - ((index) > 108 ? 1 : 0) - \
-   ((index) > 109 ? 1 : 0) - ((index) > 110 ? 1 : 0) - ((index) > 111 ? 1 : 0) - ((index) > 120 ? 1 : 0))
-#define XP_EPUB_LEAF_COUNT 155
+  ((index) - ((index) >= 9 ? 3 : 0) - ((index) >= 23 ? 2 : 0) - ((index) >= 120 ? 1 : 0) - ((index) >= 26 ? 1 : 0) - \
+   ((index) >= 133 ? 1 : 0) - ((index) > 98 ? 1 : 0) - ((index) > 108 ? 1 : 0) - ((index) > 109 ? 1 : 0) -           \
+   ((index) > 110 ? 1 : 0) - ((index) > 111 ? 1 : 0) - ((index) > 120 ? 1 : 0))
+#define XP_EPUB_LEAF_COUNT 149
 #endif
 #else
 #ifdef XP_APP_TEST
 #define XP_EPUB_LEAF_INDEX(index) ((index) + ((index) >= 24 ? 4 : 0) + ((index) >= 132 ? 1 : 0))
 #define XP_EPUB_LEAF_COUNT 168
 #else
-#define XP_EPUB_LEAF_INDEX(index)                                                                                    \
-  ((index) - ((index) >= 133 ? 1 : 0) - ((index) > 98 ? 1 : 0) - ((index) > 109 ? 1 : 0) - ((index) > 111 ? 1 : 0) - \
-   ((index) > 120 ? 1 : 0))
-#define XP_EPUB_LEAF_COUNT 158
+#define XP_EPUB_LEAF_INDEX(index)                                                                                     \
+  ((index) - ((index) >= 9 ? 3 : 0) - ((index) >= 23 ? 2 : 0) - ((index) >= 120 ? 1 : 0) - ((index) >= 133 ? 1 : 0) - \
+   ((index) > 98 ? 1 : 0) - ((index) > 109 ? 1 : 0) - ((index) > 111 ? 1 : 0) - ((index) > 120 ? 1 : 0))
+#define XP_EPUB_LEAF_COUNT 152
 #endif
 #endif
 XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == XP_EPUB_LEAF_COUNT * sizeof(void (*)(void)), "XpEpubLeaves size");
@@ -649,9 +660,15 @@ XP_EPUB_LEAF_OFFSET(render_restore_bw, 2);
 XP_EPUB_LEAF_OFFSET(render_discard_bw, 3);
 XP_EPUB_LEAF_OFFSET(render_orientation, 4);
 XP_EPUB_LEAF_OFFSET(loan_count, 5);
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(book_facade_open, 6);
+#endif
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(book_facade_close, 7);
+#endif
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(book_set_extractor, 8);
+#endif
 XP_EPUB_LEAF_OFFSET(protection_open, 9);
 XP_EPUB_LEAF_OFFSET(protection_close, 10);
 XP_EPUB_LEAF_OFFSET(protection_encrypted, 11);
@@ -664,8 +681,12 @@ XP_EPUB_LEAF_OFFSET(storage_read_release, 17);
 XP_EPUB_LEAF_OFFSET(paint_dither, 18);
 XP_EPUB_LEAF_OFFSET(paint_pixel, 19);
 XP_EPUB_LEAF_OFFSET(paint_status, 20);
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(image_clear_failures, 21);
+#endif
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(image_release_cache, 22);
+#endif
 XP_EPUB_LEAF_OFFSET(fonts_ensure_loaded, 23);
 #ifdef XP_APP_TEST
 XP_EPUB_ASSERT(offsetof(XpEpubLeaves, fonts_release_caches) == 24 * sizeof(void (*)(void)), "host font fixture offset");
@@ -813,8 +834,8 @@ XP_EPUB_LEAF_OFFSET(image_supported, 115);
 XP_EPUB_LEAF_OFFSET(image_dimensions, 116);
 XP_EPUB_LEAF_OFFSET(framebuffer_lend, 117);
 XP_EPUB_LEAF_OFFSET(framebuffer_restore, 118);
-XP_EPUB_LEAF_OFFSET(image_needs_decode, 119);
 #ifdef XP_APP_TEST
+XP_EPUB_LEAF_OFFSET(image_needs_decode, 119);
 XP_EPUB_LEAF_OFFSET(font_ascent, 120);
 #endif
 XP_EPUB_LEAF_OFFSET(render_physical_query, 121);

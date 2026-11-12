@@ -56,8 +56,9 @@ helpers remain behind `app-test`. Book lifetime/render traces compare current
 EpubSession methods with frozen bytes, without retaining a second dispatch
 engine as their reference implementation.
 
-`reader_book_facade` loads ReaderBook and uses actual Epub facade/CssParser and
-image-extractor code. It checks the six reverse callbacks, nested stream queries,
+`reader_book_facade` loads ReaderBook and uses the retained host-only Epub
+facade/CssParser and native extractor. It checks the six historical reverse
+callbacks, nested stream queries,
 CSS load/clear, native outer allocation failures and forbidden metadata getters.
 The two simulated loan ticks in this test are not a real Section build.
 
@@ -124,6 +125,13 @@ every historical hook path a composed App path. Parser/background progression,
 connected radio, successful clock-sync restart, complete end-menu/Home workflows
 and every Text/More choice retain their separate coverage limits. Host success
 does not establish target stack, allocation budgets or device qualification.
+
+The shipping reader now binds extraction directly to the Rust book and retires
+the native facade and image reset/release/eligibility table slots. Historical
+composition fixtures keep those fields under `XP_APP_TEST` so their original
+ordering and failure checks remain meaningful. The source-including
+[page image file tests](../page_image_pin/README.md) exercise the new extraction
+sink, pinned file lifetime and cache probe independently of those adapters.
 
 ## Original capture history
 

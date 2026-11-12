@@ -208,8 +208,18 @@ extern "C" size_t xp_native_page_image_file(XpPageImageFile* storage, XpPageImag
       return ESP.getFreeHeap();
     case XP_IMAGE_FILE_LARGEST_BLOCK:
       return ESP.getMaxAllocHeap();
+    case XP_IMAGE_FILE_OPEN_WRITE:
+      return Storage.openFileForWrite("EBP", reinterpret_cast<const char*>(path), *file);
+    case XP_IMAGE_FILE_FLUSH:
+      file->flush();
+      return 0;
+    case XP_IMAGE_FILE_REMOVE:
+      return Storage.remove(reinterpret_cast<const char*>(path));
   }
   return 0;
+}
+extern "C" uint8_t xp_native_page_image_write(void* file, const uint8_t* bytes, size_t length) {
+  return static_cast<HalFile*>(file)->write(bytes, length) == length;
 }
 extern "C" uint8_t xp_native_page_image_decode(void* raw, const XpPageImage* image, const uint8_t* cache) {
   const std::string path(reinterpret_cast<const char*>(image->path), image->path_len);
@@ -225,12 +235,14 @@ extern "C" uint8_t xp_native_page_image_decode(void* raw, const XpPageImage* ima
   config.cachePath = reinterpret_cast<const char*>(cache);
   return decoder->decodeToFramebuffer(path, *static_cast<GfxRenderer*>(raw), config) ? 2 : 1;
 }
+#ifdef XP_APP_TEST
 extern "C" uint8_t xp_native_page_image_extract(const XpPageImage* image, uint8_t query) {
   if (query) return ImageBlock::extractFn != nullptr;
   return ImageBlock::extractFn &&
          ImageBlock::extractFn(ImageBlock::extractCtx, reinterpret_cast<const char*>(image->source),
                                reinterpret_cast<const char*>(image->path));
 }
+#endif
 extern "C" void xp_native_page_image_log(void* raw, const XpPageImage* image, const uint8_t* cache, uint32_t event,
                                          int32_t a, int32_t b) {
   Context context{static_cast<GfxRenderer*>(raw),

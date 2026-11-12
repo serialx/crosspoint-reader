@@ -2,7 +2,7 @@
 #[path = "page_render/direct.rs"]
 pub(crate) mod direct;
 #[path = "page_render/images.rs"]
-mod images;
+pub(crate) mod images;
 #[cfg(feature = "reader-strips")]
 #[path = "page_plan.rs"]
 mod page_plan;

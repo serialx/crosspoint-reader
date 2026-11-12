@@ -46,14 +46,21 @@ typedef enum {
   XP_IMAGE_FILE_CLOSE,
   XP_IMAGE_FILE_EXISTS,
   XP_IMAGE_FILE_FREE_HEAP,
-  XP_IMAGE_FILE_LARGEST_BLOCK
+  XP_IMAGE_FILE_LARGEST_BLOCK,
+  XP_IMAGE_FILE_OPEN_WRITE,
+  XP_IMAGE_FILE_FLUSH,
+  XP_IMAGE_FILE_REMOVE
 } XpPageImageFileOp;
 // Physical SDK file/memory operations; paths are terminated, bytes borrowed.
 size_t xp_native_page_image_file(XpPageImageFile*, XpPageImageFileOp, const uint8_t* path, uint8_t*, size_t);
+// Writes borrowed bytes to the caller-owned HalFile; never calls Rust, including for protected streams.
+uint8_t xp_native_page_image_write(void* file, const uint8_t* bytes, size_t length);
 // One decode/raster leaf. 0 no decoder, 1 decode failed, 2 success.
 uint8_t xp_native_page_image_decode(void* native, const XpPageImage*, const uint8_t* cache);
-// Inherited book extraction facade, retired by B3 when Rust owns extraction.
+#ifdef XP_APP_TEST
+// Historical native extraction path for host oracles.
 uint8_t xp_native_page_image_extract(const XpPageImage*, uint8_t query_only);
+#endif
 // Formats an image event through the native logger without retaining borrowed paths.
 void xp_native_page_image_log(void* native, const XpPageImage*, const uint8_t* cache, uint32_t event, int32_t a,
                               int32_t b);

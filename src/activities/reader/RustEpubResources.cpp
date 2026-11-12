@@ -381,6 +381,7 @@ const std::string& borrowed(XpAppNativeText value) {
   pluginevents::emit(pluginevents::Event::ReaderExit, vars, std::size(vars));
 }
 
+#ifdef XP_APP_TEST
 struct BookHandle {
   std::shared_ptr<Epub> book;
 
@@ -397,6 +398,7 @@ struct BookHandle {
   }
 };
 BookHandle& book(void* handle) { return *static_cast<BookHandle*>(handle); }
+#endif
 MappedInputManager::Button inputButton(uint32_t index) {
   using Button = MappedInputManager::Button;
   constexpr Button buttons[] = {Button::Back, Button::Confirm, Button::Left, Button::Right,
@@ -464,6 +466,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .render_discard_bw = [] { target->discardStoredBwBuffer(); },
       .render_orientation = [](uint8_t orientation) { ReaderUtils::applyOrientation(*target, orientation); },
       .loan_count = [] { return target->frameBufferLoanCount(); },
+#ifdef XP_APP_TEST
       .book_facade_open = [](void* owner, const XpEpubBookView* view, const XpEpubBookBorrow* borrow) -> void* {
         auto handle = makeUniqueNoThrow<BookHandle>();
         if (!handle) return nullptr;
@@ -488,6 +491,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
             else
               ImageBlock::setExtractor(nullptr, nullptr);
           },
+#endif
       .protection_open = [](XpAppText path, XpAppTextSink error, void* context) -> void* {
         std::string message;
         auto protection = freeink::content::openProtectedBook(owned(path), message);
@@ -528,8 +532,10 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
             GUI.drawStatusBar(*target, value->book_progress, value->page, value->pages, owned(value->title), 0,
                               value->y_offset, true, value->bookmarked != 0, value->building != 0);
           },
+#ifdef XP_APP_TEST
       .image_clear_failures = [] { ImageBlock::clearRenderFailures(); },
       .image_release_cache = [] { ImageBlock::releaseRenderCache(); },
+#endif
 #if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
       .fonts_ensure_loaded =
           [](uint32_t action, XpSdSettings* settings, XpSdContinuation* token) {
@@ -958,8 +964,8 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
               ESP.restart();
             }
           },
-      .image_needs_decode = epubPage::imageNeedsDecode,
 #ifdef XP_APP_TEST
+      .image_needs_decode = epubPage::imageNeedsDecode,
       .font_ascent = [](int32_t font) -> int32_t { return epubPage::fontAscent(*target, font); },
 #endif
       .render_physical_query = [](uint8_t query) -> uint32_t { return physicalRenderQuery(*target, query); },

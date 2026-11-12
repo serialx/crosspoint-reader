@@ -53,7 +53,14 @@ impl Context for RenderContext<'_, '_> {
         self.access.owner.overlay_geometry().a4 != 0
     }
     fn image_reset(&self) {
-        unsafe { (self.access.owner.leaves.image_clear_failures)() };
+        #[cfg(feature = "app-test")]
+        unsafe {
+            (self.access.owner.leaves.image_clear_failures)()
+        };
+        #[cfg(not(feature = "app-test"))]
+        unsafe {
+            crate::assets::xp_assets_image_reset(false)
+        };
     }
     fn paint(&self, owner: core::pin::Pin<&super::render_resources::PageResources>, mode: u8) {
         #[cfg(not(feature = "reader-strips"))]

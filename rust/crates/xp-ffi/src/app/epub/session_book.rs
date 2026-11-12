@@ -308,21 +308,17 @@ pub(super) unsafe fn open_facade(raw: NonNull<c_void>, leaves: &'static abi::XpE
     #[cfg(not(feature = "app-test"))]
     {
         let _ = leaves;
-        unsafe { ReaderBook::open_facade(raw) }
+        unsafe { set_extractor(Some(raw)) };
+        unsafe { crate::assets::xp_assets_image_reset(false) };
+        true
     }
 }
 
+#[cfg(feature = "app-test")]
 pub(super) unsafe fn facade(raw: *mut c_void) -> *mut c_void {
-    #[cfg(feature = "app-test")]
-    {
-        match unsafe { &*raw.cast::<Loaded>() } {
-            Loaded::Reader(book) => unsafe { queries::facade(book.as_ptr()) },
-            Loaded::Legacy { handle, .. } => handle.as_ptr(),
-        }
-    }
-    #[cfg(not(feature = "app-test"))]
-    unsafe {
-        queries::facade(raw)
+    match unsafe { &*raw.cast::<Loaded>() } {
+        Loaded::Reader(book) => unsafe { queries::facade(book.as_ptr()) },
+        Loaded::Legacy { handle, .. } => handle.as_ptr(),
     }
 }
 
@@ -444,4 +440,9 @@ pub(super) unsafe fn assert_real(raw: NonNull<c_void>) {
         unsafe { &*raw.cast::<Loaded>().as_ptr() },
         Loaded::Reader(_)
     ));
+}
+
+#[cfg(not(feature = "app-test"))]
+pub(super) unsafe fn set_extractor(book: Option<NonNull<c_void>>) {
+    queries::bind_images(book.map_or(core::ptr::null_mut(), NonNull::as_ptr));
 }

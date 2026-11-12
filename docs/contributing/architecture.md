@@ -72,8 +72,9 @@ Reader launches enter the Rust application. Reflowable books use its `EpubSessio
 XTC/XTCH retain the native `ReaderActivity`/`XtcReaderActivity` route.
 The [reader policy boundary](rust-ui.md#reader-policy-boundary) describes Rust policy ownership and native resource lifetimes.
 The reader owns one Rust `ReaderBook` for metadata, cache setup and resource
-lifetimes, and one Rust `ReaderSection` for cache/build/Chapter lifetime. Its
-retained native `Epub` facade forwards child and sync queries to that book.
+lifetimes, and one Rust `ReaderSection` for cache/build/Chapter lifetime. Child
+and sync queries read that Rust book directly; the shipping reader has no native
+`Epub` facade.
 Rust's `page_owner` owns reader Pages and Page metadata. Native `Page` remains
 for dictionary/preview Pages and as borrowed/transferred facades for the retained
 ClipSelection child. Rust footnote and lookup owners hold their single reader
@@ -97,7 +98,7 @@ flowchart LR
     C -->|XTC / XTCH| E[Native XtcReaderActivity]
     D --> G[Parse OPF/TOC and collect CSS refs]
     G --> H[Build/load book.bin and css_rules.cache]
-    H --> I[Native Epub facade / Section layout]
+    H --> I[Section layout over the Rust ReaderBook]
     I --> J[Write section cache]
     J --> K[Render current page via GfxRenderer]
 ```
@@ -128,7 +129,7 @@ flowchart TD
     F --> G[Load TOC and spine]
     G --> H[Load CSS cache or parse manifest/base-dir CSS]
 
-    H --> I[Publish native facade for Section / EpubSession render]
+    H --> I[Bind the image extractor to the ReaderBook]
     I --> J{Section cache exists for current settings?}
     J -->|Yes| K[Read section bin from SD cache]
     J -->|No| L[Parse chapter HTML and layout text]

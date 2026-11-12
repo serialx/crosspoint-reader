@@ -288,6 +288,7 @@ __attribute__((weak)) size_t xp_native_page_image_file(XpPageImageFile*, XpPageI
 }
 __attribute__((weak)) uint8_t xp_native_page_image_decode(void*, const XpPageImage*, const uint8_t*) { std::abort(); }
 __attribute__((weak)) uint8_t xp_native_page_image_extract(const XpPageImage*, uint8_t) { std::abort(); }
+__attribute__((weak)) uint8_t xp_native_page_image_write(void*, const uint8_t*, size_t) { std::abort(); }
 __attribute__((weak)) void xp_native_page_image_log(void*, const XpPageImage*, const uint8_t*, uint32_t, int32_t,
                                                     int32_t) {
   std::abort();

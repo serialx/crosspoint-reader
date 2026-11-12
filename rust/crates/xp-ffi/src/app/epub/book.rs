@@ -73,6 +73,7 @@ impl EpubSession {
         access: &super::ResourceAccess<'_>,
         book: Option<NonNull<c_void>>,
     ) {
+        #[cfg(feature = "app-test")]
         let facade = book.map_or(core::ptr::null_mut(), |book| {
             assert_eq!(
                 self.book(access),
@@ -81,7 +82,15 @@ impl EpubSession {
             );
             unsafe { super::session_book::facade(book.as_ptr()) }
         });
-        unsafe { (self.leaves.book_set_extractor)(facade) };
+        #[cfg(feature = "app-test")]
+        unsafe {
+            (self.leaves.book_set_extractor)(facade)
+        };
+        #[cfg(not(feature = "app-test"))]
+        {
+            assert!(book.is_none() || self.book(access) == book);
+            unsafe { super::session_book::set_extractor(book) };
+        }
     }
 
     pub(super) fn add_recent(&self, book: NonNull<c_void>) {

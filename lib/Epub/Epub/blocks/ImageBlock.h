@@ -9,7 +9,9 @@
 #include "Block.h"
 
 class ImageBlock final : public Block {
+#ifdef XP_APP_TEST
   friend uint8_t xp_native_page_image_extract(const XpPageImage*, uint8_t);
+#endif
 
  public:
   ImageBlock(const std::string& imagePath, const std::string& srcPath, int16_t width, int16_t height);
@@ -30,21 +32,21 @@ class ImageBlock final : public Block {
   void renderPlaceholder(GfxRenderer& renderer, int x, int y) const;
   static void clearRenderFailures();
 
-  // A page render draws its image up to ~13 times (BW double-refresh plus every
-  // grayscale band pass), and each draw streams the whole .pxc off SD. The
-  // first draw caches the pixel payload in RAM (chunked, heap-gated, falls back
-  // to streaming when it doesn't fit); the reader calls this when the page
-  // render completes so nothing stays resident between pages.
+  // Host oracle wrapper for the shared Rust image cache. The first draw retains
+  // pixel payload chunks in RAM when heap permits, otherwise it streams rows.
+  // Shipping reader teardown releases these chunks directly in Rust after the
+  // page render; it does not call this wrapper. Repeated grayscale passes can
+  // reuse the payload within one render.
   static void releaseRenderCache();
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
   static void setRenderReadWindow(uint8_t* data, size_t size);
 #endif
 
-  // Lazy extraction hook: the section build only header-probes images for their
-  // dimensions; the file at imagePath is extracted out of the book on first
-  // render, via this callback (function pointer + context, not std::function —
-  // this is render-loop code). Registered by the reader activity that owns the
-  // Epub, cleared on its exit.
+  // Host oracle extraction hook. Reference fixtures register their native Epub
+  // facade here and clear the borrowed pointer before destroying that facade.
+  // The shipping reader instead binds its stable ReaderBook allocation in Rust.
+  // Lazy extraction still runs on the first render when the source file is
+  // missing; section construction normally probes only the image header.
   using ExtractFn = bool (*)(void* ctx, const char* srcPath, const char* destPath);
   static void setExtractor(void* ctx, ExtractFn fn);
 

@@ -1,10 +1,22 @@
 //! Page image/cache policy stays in Rust; native leaves own only file/decoder work.
 use super::{direct::Target, *};
-use core::{marker::PhantomPinned, mem::MaybeUninit, pin::Pin};
+use core::{cell::UnsafeCell, marker::PhantomPinned, mem::MaybeUninit, pin::Pin};
 use xp_core::{
     assets::image::{Config, Services},
     image::frame::Target as ImageTarget,
 };
+
+pub(crate) type Stream =
+    unsafe fn(*mut c_void, &[u8], xp_core::book::io::Sink, *mut c_void) -> bool;
+struct Extractor(UnsafeCell<(*mut c_void, Option<Stream>)>);
+// SAFETY: the reader resource guard serializes binding, painting and teardown.
+unsafe impl Sync for Extractor {}
+static EXTRACTOR: Extractor = Extractor(UnsafeCell::new((ptr::null_mut(), None)));
+
+#[cfg_attr(feature = "app-test", allow(dead_code))]
+pub(crate) unsafe fn set_extractor(owner: *mut c_void, stream: Option<Stream>) {
+    *EXTRACTOR.0.get() = (owner, stream);
+}
 
 #[repr(C)]
 struct Image {
@@ -44,6 +56,9 @@ enum FileOp {
     Exists,
     FreeHeap,
     LargestBlock,
+    OpenWrite,
+    Flush,
+    Remove,
 }
 extern "C" {
     fn xp_native_page_image_file(
@@ -53,11 +68,13 @@ extern "C" {
         bytes: *mut u8,
         value: usize,
     ) -> usize;
+    fn xp_native_page_image_write(file: *mut c_void, bytes: *const u8, length: usize) -> u8;
     fn xp_native_page_image_decode(
         native: *mut c_void,
         image: *const Image,
         cache: *const u8,
     ) -> u8;
+    #[cfg(feature = "app-test")]
     fn xp_native_page_image_extract(image: *const Image, query: u8) -> u8;
     fn xp_native_page_image_log(
         native: *mut c_void,
@@ -70,7 +87,7 @@ extern "C" {
 }
 use core::mem::size_of;
 struct Physical<'a> {
-    target: &'a Target,
+    target: Option<&'a Target>,
     image: Image,
     file: Pin<&'a mut File>,
     cache: *const u8,
@@ -100,6 +117,67 @@ impl Physical<'_> {
         }
     }
 }
+impl Physical<'_> {
+    unsafe fn extract_stream(&mut self, owner: *mut c_void, stream: Stream) -> bool {
+        let file = self.file.as_mut().pointer();
+        if xp_native_page_image_file(file, FileOp::OpenWrite, self.image.path, ptr::null_mut(), 0)
+            == 0
+        {
+            return false;
+        }
+        let source = slice::from_raw_parts(self.image.source, self.image.source_len);
+        let source = &source[..source
+            .iter()
+            .position(|byte| *byte == 0)
+            .unwrap_or(source.len())];
+        let ok = stream(owner, source, xp_native_page_image_write, file.cast());
+        self.scalar(FileOp::Flush, 0);
+        self.scalar(FileOp::Close, 0);
+        if !ok {
+            xp_native_page_image_file(
+                self.file.as_mut().pointer(),
+                FileOp::Remove,
+                self.image.path,
+                ptr::null_mut(),
+                0,
+            );
+        }
+        ok
+    }
+}
+
+#[cfg_attr(feature = "app-test", allow(dead_code))]
+pub(crate) unsafe fn needs_decode(path: &[u8], width: i32, height: i32) -> bool {
+    if crate::assets::xp_assets_image_failed(path.as_ptr(), path.len()) {
+        return false;
+    }
+    let mut file = core::pin::pin!(File {
+        storage: FileStorage {
+            words: [MaybeUninit::uninit(); if size_of::<usize>() == 4 { 3 } else { 8 }]
+        },
+        pinned: PhantomPinned,
+    });
+    let mut physical = Physical {
+        target: None,
+        image: Image {
+            path: path.as_ptr(),
+            source: c"".as_ptr().cast(),
+            path_len: path.len(),
+            source_len: 0,
+            x: 0,
+            y: 0,
+            width,
+            height,
+        },
+        file: file.as_mut(),
+        cache: c"".as_ptr().cast(),
+        initialized: false,
+    };
+    physical.scalar(FileOp::Init, 0);
+    physical.initialized = true;
+    !xp_core::assets::image::State::valid(path, width, height, &mut physical)
+}
+
 impl Drop for Physical<'_> {
     fn drop(&mut self) {
         if self.initialized {
@@ -145,7 +223,7 @@ unsafe impl Services for Physical<'_> {
         )
     }
     fn target(&mut self) -> ImageTarget {
-        let t = &self.target.glyphs;
+        let t = &self.target.expect("paint target").glyphs;
         ImageTarget {
             data: t.buffer,
             len: t.buffer_len as usize,
@@ -160,9 +238,12 @@ unsafe impl Services for Physical<'_> {
         }
     }
     fn extract(&mut self) {
-        if self.image.source_len == 0
-            || unsafe { xp_native_page_image_extract(&self.image, 1) } == 0
-        {
+        let (owner, stream) = unsafe { *EXTRACTOR.0.get() };
+        #[cfg(feature = "app-test")]
+        let native = unsafe { xp_native_page_image_extract(&self.image, 1) } != 0;
+        #[cfg(not(feature = "app-test"))]
+        let native = false;
+        if self.image.source_len == 0 || (stream.is_none() && !native) {
             return;
         }
         if unsafe {
@@ -178,7 +259,19 @@ unsafe impl Services for Physical<'_> {
             return;
         }
         self.diagnostic(14, 0, 0);
-        if unsafe { xp_native_page_image_extract(&self.image, 0) } == 0 {
+        let ok = if let Some(stream) = stream {
+            unsafe { self.extract_stream(owner, stream) }
+        } else {
+            #[cfg(feature = "app-test")]
+            {
+                unsafe { xp_native_page_image_extract(&self.image, 0) != 0 }
+            }
+            #[cfg(not(feature = "app-test"))]
+            {
+                false
+            }
+        };
+        if !ok {
             self.diagnostic(15, 0, 0);
         }
     }
@@ -191,8 +284,13 @@ unsafe impl Services for Physical<'_> {
         Some(size)
     }
     fn decode(&mut self, cache: &[u8]) -> Option<bool> {
+        self.cache = cache.as_ptr();
         match unsafe {
-            xp_native_page_image_decode(self.target.native, &self.image, cache.as_ptr())
+            xp_native_page_image_decode(
+                self.target.expect("paint target").native,
+                &self.image,
+                cache.as_ptr(),
+            )
         } {
             0 => None,
             1 => Some(false),
@@ -201,7 +299,14 @@ unsafe impl Services for Physical<'_> {
     }
     fn diagnostic(&mut self, event: u32, a: i32, b: i32) {
         unsafe {
-            xp_native_page_image_log(self.target.native, &self.image, self.cache, event, a, b)
+            xp_native_page_image_log(
+                self.target.expect("paint target").native,
+                &self.image,
+                self.cache,
+                event,
+                a,
+                b,
+            )
         }
     }
     #[cfg(feature = "strip-spike")]
@@ -315,7 +420,7 @@ pub(super) unsafe fn paint(
         pinned: PhantomPinned,
     });
     let mut physical = Physical {
-        target,
+        target: Some(target),
         image: Image {
             path: path.as_ptr(),
             source: source.as_ptr(),

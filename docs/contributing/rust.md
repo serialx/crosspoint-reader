@@ -545,41 +545,29 @@ and protection loan. It calls the existing Rust parsing and cache algorithms
 through native file, scratch, clock and decryptor leaves. Paths and metadata are
 byte strings; do not require UTF-8 or cap their lengths to fit an adapter.
 
-`EpubSession` publishes a native `Epub` compatibility object only after load
-succeeds. That object forwards row, size and stream queries to the same Rust
-owner through `XpEpubBookBorrow`; it does not load another book. It keeps the
-cache path and language needed by retained reference-return APIs. Load-time Rust
-CSS is released before publication; the reader's build owns Section-time CSS.
-The borrowed facade's `getCssParser` returns null. Ordinary native Epub objects
-retain their own CSS parser. Chapters, Bookmarks and Toolbar read TOC rows
-from the Rust book under resource access. Bookmark and progress/XPath mapping
-also use the Rust owner. The reader's remaining native facade borrower is the
-ImageBlock extractor callback installed by `BookHandle::bindExtractor`; it holds
-a raw pointer and must detach before `book_facade_close`. The Rust book must
-outlive the facade. Detach the image
-extractor and drop Section before closing the facade and owner. Sync may detach
-and rebind the extractor to the same live facade.
+The reader publishes a Rust-owned image extractor only after load succeeds.
+The binding borrows the stable `ReaderBook` allocation and calls its stream
+reader directly. It is detached before the book is dropped; sync can detach
+and rebind it to the same live owner. Load-time CSS must be released before
+this binding. Chapters, Bookmarks, Toolbar and progress/XPath mapping read the
+same Rust book under resource access.
 
-The reader has no native book-open/load/getter service table. Its remaining
-`book_facade_open`, `book_facade_close` and nullable `book_set_extractor` leaves
-support those retained native borrowers. Facade calls outside its supported
-query/render methods abort through `Epub::requireOwned`: assertions are active
-in the shipping firmware, with no inert release fallback. Facade close also
-asserts that no native borrower remains before deleting the facade. Calling
-native load or metadata getters is not a fallback. Ordinary `Epub`
-objects used by Home, Library, Sleep and sync still own native resources through
-the existing interfaces. Include those objects when accounting for the inline
-facade state's memory cost.
+The shipping reader has no native book facade or book-open/load/getter table.
+Registration of the six queries in `XpEpubBookBorrow` and the native facade
+lifecycle remain only in host oracle fixtures; shipping Rust callers still use
+the query functions directly. Those fixtures test the native reference-return
+APIs and reject unsupported native load/metadata access. Ordinary `Epub` objects
+used by Home, Library, Sleep and sync retain their existing native interfaces.
+Book-owner logs use the leaf described under [Diagnostics](#diagnostics).
 
-The facade supports `getCachePath`, `getLanguage`, `getCssParser`,
-`readItemContentsToStream`, `extractItemToFile`, `getItemSize`, `getSpineItem`,
-`getTocItem`, `getSpineItemsCount`, `getTocItemsCount`,
-`getTocIndexForSpineIndex`, `getCumulativeSpineItemSize`, `getSpineIndexForSize`,
-`getBookSize` and `calculateProgress`. All other public methods are ordinary-book
-only, including load/cache mutation, path/title/author/protection-error getters,
-cover/thumbnail operations, `readItemContentsToBytes`, `getSpineIndexForTocIndex`,
-`getSpineIndexForTextReference` and `resolveHrefToSpineIndex`. Book-owner logs use
-the reader leaf described under [Diagnostics](#diagnostics).
+Image failure reset, RAM-cache release and decoded-cache eligibility run
+directly in Rust. Lazy extraction streams 8,192-byte chunks into an inline,
+pinned HAL file through a storage-only native sink, then flushes and closes it.
+A failed stream removes the partial file. The `.px2` format and cache validation
+rules are unchanged. Image decode
+still enters the native PNG/GIF/JPEG shells; this is an intermediate migration
+state until the reader binds those Rust decoders directly. The native extraction
+adapter and image lifecycle table slots are retained only for host oracles.
 
 `ResourceAccess` precedes the cache lock, then storage. A cache row read releases
 its guard before invoking a sink; the decoded row owns its bytes for the
@@ -656,7 +644,7 @@ must be destroyed first. `PackagePlatform.cpp` implements the shared native
 facades and resource adapter, retaining HalFile ownership, buffered I/O, ZIP
 access, string/deque storage and the size-window lock for those native owners.
 The [reader book owner](#reader-book-ownership) has its own scoped native file and
-cache-lock leaves; its retained Epub facade only lends the same loaded book.
+cache-lock leaves; the reader book owner's facade exists only for host fixtures.
 See the [package oracle](../../test/package_golden/README.md) for parity checks
 and their limits.
 
@@ -1021,11 +1009,11 @@ is involved.
 [`page::render`](../../rust/crates/xp-core/src/page/render.rs) walks the records
 and draws text lines, rules, borders, backgrounds and drop caps. It controls word
 offsets, focus splits, ruby and SUP/SUB shifts. Rust owns image cache,
-placeholder and polarity policy. Typed native file operations and one
-JPEGDEC/converter decode/raster leaf provide physical work; image leaves receive
+placeholder, extraction and polarity policy. Typed native file operations and
+the remaining JPEGDEC/converter decode adapter receive
 paths and dimensions rather than a Page or image index. Inline native file
 storage is pinned before placement construction and stays at that address
-through its destructor. B3 owns the remaining book-extraction facade.
+through its destructor. The image extractor borrows the Rust reader book directly.
 
 Prewarm scanning batches visual codepoints in a fixed 192-byte Rust buffer,
 flushing at line, font or style boundaries and when full. Rust resolves the
@@ -1132,8 +1120,9 @@ Both feed rows directly into the Rust pipeline. JPEGDEC remains the C/C++ decode
 C++ owns HalFile input/output, renderer targets and cache I/O. `xp-core::assets`
 owns image render/cache policy, JPEG-to-BMP conversion, screenshot packing,
 and QR layout. The Rust page-image path in `page_render/images.rs` draws
-placeholders and preserves polarity. Native code supplies typed file, decode,
-extraction and logging operations. Cache byte formats are unchanged.
+placeholders and preserves polarity. Native code supplies typed file operations,
+the extraction write sink, the remaining decode adapter and logging. Cache byte
+formats are unchanged.
 
 PNG uses synchronous `xp_png_dimensions`, `xp_png_render`, `xp_png_bmp` and
 `xp_png_sleep_header` calls. GIF uses `xp_gif_inspect`, `xp_gif_frame` and
@@ -1160,8 +1149,8 @@ fallibly and releases them on success or failure. GIF keeps its 256-byte gray
 palette with decoder storage. There is no per-row allocation. JPEG framebuffer
 decoding needs no additional row buffer. JPEG-to-BMP conversion
 owns an MCU buffer, output row and optional smoothing/scaling/dither buffers;
-all are released at the end of the call. ImageBlock's Rust owner retains its
-cache chunks and shared path/read window until `releaseRenderCache()`. Clearing
+all are released at the end of the call. The shared Rust image owner retains
+cache chunks and its path/read window until `xp_assets_image_reset(true)`. Clearing
 render failures permits retry on the next page render without releasing that
 window. QR bitmap callers own the output storage and must supply a non-null
 pointer with the capacity returned by the plan call.

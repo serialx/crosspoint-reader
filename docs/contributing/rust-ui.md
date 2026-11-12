@@ -444,8 +444,9 @@ needed; the retired EPUB-exclusive service dispatch is not the session boundary.
 `src/activities/reader/RustEpubResources.cpp` implements the typed physical leaves
 in `rust/crates/xp-ffi/include/xp_epub_session.h`. The session owns its loaded
 `ReaderBook` and `ReaderSection` in Rust, including metadata, cache, load and
-incremental Chapter build resources. The native `Epub` facade lends the same
-book to retained native child and sync consumers. Rust's `page_owner` owns reader
+incremental Chapter build resources. Child and sync queries read the Rust book
+directly; the Rust-owned image extractor borrows it for lazy extraction. Native
+facade composition remains only in host fixtures. Rust's `page_owner` owns reader
 Pages and Page metadata. C++ retains dictionary/preview Pages, borrowed/transferred
 Page facades for retained native consumers, the remaining native child
 screens and physical leaves, including file implementations, stores and

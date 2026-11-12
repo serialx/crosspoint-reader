@@ -10,6 +10,7 @@ unsafe fn owner<'a>(raw: *mut c_void) -> &'a ReaderBook {
     unsafe { &*raw.cast::<ReaderBook>() }
 }
 
+#[cfg(feature = "app-test")]
 pub(crate) unsafe fn facade(raw: *mut c_void) -> *mut c_void {
     unsafe {
         (*raw.cast::<ReaderBook>())
@@ -399,4 +400,32 @@ pub(crate) unsafe fn book_view(raw: *mut c_void) -> app_abi::Book {
 }
 pub(crate) unsafe fn cache_bytes<'a>(raw: *mut c_void) -> &'a [u8] {
     unsafe { owner(raw) }.cache_path.bytes()
+}
+
+#[cfg(not(feature = "app-test"))]
+pub(crate) unsafe fn image_stream(
+    raw: *mut c_void,
+    href: &[u8],
+    sink: book::io::Sink,
+    context: *mut c_void,
+) -> bool {
+    stream(raw, app_abi::Text::from_bytes(href), 8192, 0, sink, context) != 0
+}
+
+#[cfg(not(feature = "app-test"))]
+pub(crate) unsafe fn bind_images(raw: *mut c_void) {
+    if !raw.is_null() {
+        assert!(
+            owner(raw).css.is_none(),
+            "load releases CSS before images borrow the book"
+        );
+    }
+    crate::page_render::images::set_extractor(
+        raw,
+        if raw.is_null() {
+            None
+        } else {
+            Some(image_stream)
+        },
+    );
 }

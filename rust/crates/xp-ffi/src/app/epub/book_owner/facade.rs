@@ -1,10 +1,14 @@
 extern crate alloc;
 
-use super::{queries, ReaderBook, Text};
+#[cfg(feature = "app-test")]
+use super::queries;
+use super::{ReaderBook, Text};
+#[cfg(feature = "app-test")]
 use crate::app::epub::abi;
 use alloc::boxed::Box;
 use core::{ffi::c_void, ptr::NonNull};
 
+#[cfg(feature = "app-test")]
 static BORROW: abi::XpEpubBookBorrow = abi::XpEpubBookBorrow {
     spine: queries::spine,
     toc: queries::toc,
@@ -20,6 +24,7 @@ impl ReaderBook {
         NonNull::new(Box::into_raw(book).cast()).unwrap()
     }
 
+    #[cfg(feature = "app-test")]
     pub(in crate::app::epub) unsafe fn open_facade(raw: NonNull<c_void>) -> bool {
         let book = raw.cast::<Self>().as_ptr();
         let (view, leaves) = unsafe {
@@ -50,7 +55,9 @@ impl ReaderBook {
 
     pub(in crate::app::epub) unsafe fn close(raw: NonNull<c_void>) {
         let book = raw.cast::<Self>().as_ptr();
+        #[cfg(feature = "app-test")]
         let (facade, leaves) = unsafe { ((*book).facade.take(), (*book).cache.file.leaves) };
+        #[cfg(feature = "app-test")]
         if let Some(facade) = facade {
             // The handle is retired before native close; it cannot be rebound.
             unsafe { (leaves.book_facade_close)(facade.as_ptr()) };

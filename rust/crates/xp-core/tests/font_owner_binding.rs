@@ -34,6 +34,14 @@ mod web;
 mod web_cases;
 
 static ALLOCATIONS: AtomicUsize = AtomicUsize::new(0);
+// Third slot word mirrors the HAL handle: 0 before open, 1 with I/O active, 2 after
+// close. Native asserts when read/seek/close reach a slot that was never opened.
+const NO_HANDLE: usize = 0;
+const OPEN_HANDLE: usize = 1;
+const CLOSED_HANDLE: usize = 2;
+unsafe fn handle_word(slot: *mut xp_core::sdfont::io::Slot) -> *mut usize {
+    slot.cast::<usize>().add(2)
+}
 
 #[test]
 fn another_registry_cannot_redirect_generation_or_a_captured_scope() {
@@ -225,28 +233,32 @@ unsafe extern "C" fn xp_native_sd_free(data: *mut u8, _: bool) {
 #[no_mangle]
 unsafe extern "C" fn xp_native_sd_handle_init(slot: *mut xp_core::sdfont::io::Slot) {
     slot.cast::<usize>().write(0);
+    handle_word(slot).write(NO_HANDLE);
 }
 #[no_mangle]
-unsafe extern "C" fn xp_native_sd_handle_destroy(_: *mut xp_core::sdfont::io::Slot) {}
+unsafe extern "C" fn xp_native_sd_handle_destroy(slot: *mut xp_core::sdfont::io::Slot) {
+    handle_word(slot).write(NO_HANDLE);
+}
 #[no_mangle]
 unsafe extern "C" fn xp_native_sd_file_open(
     slot: *mut xp_core::sdfont::io::Slot,
     _: *const core::ffi::c_char,
     size: *mut u32,
 ) -> u8 {
+    // Native open installs the HAL handle even when the open fails.
+    slot.cast::<usize>().write(0);
+    handle_word(slot).write(OPEN_HANDLE);
     if catalog_cases::fail_io() {
         return 0;
     }
-    slot.cast::<usize>().write(0);
     *size = SD_BYTES.len() as u32;
     1
 }
-#[no_mangle]
-unsafe extern "C" fn xp_native_sd_file_read(
-    slot: *mut xp_core::sdfont::io::Slot,
-    bytes: *mut u8,
-    length: usize,
-) -> i32 {
+unsafe fn file_read(slot: *mut xp_core::sdfont::io::Slot, bytes: *mut u8, length: usize) -> i32 {
+    assert!(
+        handle_word(slot).read() != NO_HANDLE,
+        "read on a slot with no HAL handle"
+    );
     if catalog_cases::fail_io() {
         return 0;
     }
@@ -256,19 +268,25 @@ unsafe extern "C" fn xp_native_sd_file_read(
     slot.cast::<usize>().write(position + count);
     count as i32
 }
-#[no_mangle]
-unsafe extern "C" fn xp_native_sd_file_seek(
-    slot: *mut xp_core::sdfont::io::Slot,
-    offset: u32,
-) -> u8 {
+unsafe fn file_seek(slot: *mut xp_core::sdfont::io::Slot, offset: u32) -> u8 {
+    assert!(
+        handle_word(slot).read() != NO_HANDLE,
+        "seek on a slot with no HAL handle"
+    );
     if catalog_cases::fail_io() || offset as usize > SD_BYTES.len() {
         return 0;
     }
     slot.cast::<usize>().write(offset as usize);
     1
 }
-#[no_mangle]
-unsafe extern "C" fn xp_native_sd_file_close(_: *mut xp_core::sdfont::io::Slot) {}
+unsafe fn file_close(slot: *mut xp_core::sdfont::io::Slot) {
+    assert!(
+        handle_word(slot).read() != NO_HANDLE,
+        "close on a slot with no HAL handle"
+    );
+    // Native close finishes I/O but keeps the HAL handle until the slot is destroyed.
+    handle_word(slot).write(CLOSED_HANDLE);
+}
 #[no_mangle]
 unsafe extern "C" fn xp_native_sd_diagnostic(
     _: *const core::ffi::c_char,
@@ -362,6 +380,27 @@ fn retained_family_name(expected: &core::ffi::CStr) {
     SD_ALLOCATIONS.with(|live| assert!(live.borrow().is_empty()));
 }
 
+// A failed directory open still assigns a HalFile, so iterating the slot afterwards must not
+// assert; only the HAL operations behind it decide.
+#[test]
+fn unknown_directory_open_still_leaves_an_iterable_handle() {
+    let mut slot = core::mem::MaybeUninit::<xp_core::sdfont::io::Slot>::uninit();
+    let slot = slot.as_mut_ptr();
+    unsafe {
+        xp_native_sd_handle_init(slot);
+        catalog_cases::reset(0, 0);
+        assert_eq!(catalog_cases::directory_open(slot, c"/missing".as_ptr()), 0);
+        let mut name = [0u8; 128];
+        let mut directory = false;
+        assert!(!catalog_cases::directory_next(
+            slot,
+            name.as_mut_ptr(),
+            &mut directory
+        ));
+        xp_native_sd_handle_destroy(slot);
+    }
+}
+
 #[no_mangle]
 unsafe extern "C" fn xp_native_sd_directory_open(
     slot: *mut xp_core::sdfont::io::Slot,
@@ -393,3 +432,69 @@ unsafe extern "C" fn xp_native_sd_inspect(
 
 #[cfg(feature = "sd-font-catalog")]
 unused_native!(xp_plugin_path_candidate(path: *const u8, len: usize) -> bool);
+
+#[test]
+#[should_panic(expected = "directory_next on a slot with no HAL handle")]
+fn directory_next_requires_an_open_attempt() {
+    let mut slot = core::mem::MaybeUninit::<xp_core::sdfont::io::Slot>::uninit();
+    unsafe {
+        xp_native_sd_handle_init(slot.as_mut_ptr());
+        catalog_cases::directory_next(slot.as_mut_ptr(), [0u8; 128].as_mut_ptr(), &mut false);
+    }
+}
+
+// Rust bodies let the contract tests observe panics before the extern-C abort boundary.
+#[no_mangle]
+unsafe extern "C" fn xp_native_sd_file_read(
+    slot: *mut xp_core::sdfont::io::Slot,
+    bytes: *mut u8,
+    length: usize,
+) -> i32 {
+    file_read(slot, bytes, length)
+}
+#[no_mangle]
+unsafe extern "C" fn xp_native_sd_file_seek(
+    slot: *mut xp_core::sdfont::io::Slot,
+    offset: u32,
+) -> u8 {
+    file_seek(slot, offset)
+}
+#[no_mangle]
+unsafe extern "C" fn xp_native_sd_file_close(slot: *mut xp_core::sdfont::io::Slot) {
+    file_close(slot)
+}
+#[test]
+fn physical_slot_contract() {
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+    let mut slots = [const { core::mem::MaybeUninit::<xp_core::sdfont::io::Slot>::uninit() }; 2];
+    unsafe {
+        for slot in &mut slots {
+            xp_native_sd_handle_init(slot.as_mut_ptr());
+        }
+        let mut size = 0;
+        catalog_cases::reset(0, 1);
+        assert_eq!(
+            xp_native_sd_file_open(slots[0].as_mut_ptr(), c"".as_ptr(), &mut size),
+            0
+        );
+        file_close(slots[0].as_mut_ptr());
+        file_close(slots[0].as_mut_ptr());
+        for op in 0..3 {
+            assert!(catch_unwind(AssertUnwindSafe(|| {
+                match op {
+                    0 => {
+                        file_read(slots[1].as_mut_ptr(), [0u8; 1].as_mut_ptr(), 1);
+                    }
+                    1 => {
+                        file_seek(slots[1].as_mut_ptr(), 0);
+                    }
+                    _ => file_close(slots[1].as_mut_ptr()),
+                }
+            }))
+            .is_err());
+        }
+        for slot in &mut slots {
+            xp_native_sd_handle_destroy(slot.as_mut_ptr());
+        }
+    }
+}

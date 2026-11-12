@@ -5,6 +5,9 @@
 #include <cstring>
 #include <map>
 #include <vector>
+
+#include "../../hal_fake_strict.h"
+
 namespace store_test {
 inline std::map<std::string, String> files;
 inline std::vector<std::string> io;
@@ -18,9 +21,19 @@ class HalFile {
   int readLimit = -1;
   size_t writeLimit = SIZE_MAX;
   bool failSeek = false;
-  size_t position() const { return pos; }
-  int available() const { return static_cast<int>(bytes.size() - std::min(pos, bytes.size())); }
+  hal_fake::Impl hasImpl;  // Stands in for HalFile::impl: a move leaves the source without one.
+  // Marks the handle opened; this stub has no storage to open it against.
+  void open() { hasImpl = true; }
+  size_t position() const {
+    hal_fake::requireImpl(hasImpl, "position", "");
+    return pos;
+  }
+  int available() const {
+    hal_fake::requireImpl(hasImpl, "available", "");
+    return static_cast<int>(bytes.size() - std::min(pos, bytes.size()));
+  }
   int read(void* p, size_t n) {
+    hal_fake::requireImpl(hasImpl, "read", "");
     store_test::io.push_back("read:" + std::to_string(n));
     if (readLimit == 0) return -1;
     if (readLimit > 0) n = std::min(n, static_cast<size_t>(readLimit));
@@ -30,6 +43,7 @@ class HalFile {
     return static_cast<int>(n);
   }
   size_t write(const void* p, size_t n) {
+    hal_fake::requireImpl(hasImpl, "write", "");
     store_test::io.push_back("write:" + std::to_string(n));
     n = std::min(n, writeLimit);
     bytes.resize(std::max(bytes.size(), pos + n));
@@ -38,6 +52,7 @@ class HalFile {
     return n;
   }
   bool seek(size_t n) {
+    hal_fake::requireImpl(hasImpl, "seek", "");
     store_test::io.push_back("seek:" + std::to_string(n));
     if (failSeek) return false;
     pos = n;

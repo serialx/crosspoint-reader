@@ -124,6 +124,9 @@ struct ChapterTestAccess {
   }
   static bool finish(ChapterHtmlSlimParser& parser) {
     state(parser);
+    // The documented lifecycle only reaches finishParse() after beginParse() opened the parse
+    // file; drive that open here so the stub owns the handle native close asserts on.
+    if (!parser.parseFile_) Storage.openFileForRead("EHP", parser.filepath, parser.parseFile_);
     return parser.finishParse();
   }
   static int font(ChapterHtmlSlimParser& parser, float scale) {

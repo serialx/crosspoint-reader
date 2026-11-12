@@ -1,3 +1,4 @@
+#include <utility>
 // Host leaves for the original activity effects; no network, flash, or device access.
 #include <algorithm>
 #include <atomic>
@@ -5,6 +6,7 @@
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <functional>
 #include <memory>
@@ -258,26 +260,58 @@ struct Entry {
   bool removeOk;
 };
 static std::vector<Entry> entries;
+// Native HalFile asserts impl != nullptr on every file operation, so a handle that was
+// never opened must not answer. The golden harnesses compile this fixture outside the
+// CMake tree, so the check stays local instead of including the shared test header.
+[[noreturn]] static void unopenedFile(const char* operation) {
+  std::fprintf(stderr, "HalFile fake: %s() on a handle with no impl (never opened or moved from)\n", operation);
+  std::fflush(stderr);
+  std::abort();
+}
+
 struct HalFile {
+  HalFile() = default;
+  HalFile(HalFile&& other) noexcept { *this = std::move(other); }
+  HalFile& operator=(HalFile&& other) noexcept {
+    if (this == &other) return *this;
+    hasImpl = std::exchange(other.hasImpl, false);
+    valid = std::exchange(other.valid, false);
+    root = std::exchange(other.root, false);
+    index = std::exchange(other.index, -1);
+    next = std::exchange(other.next, 0);
+    return *this;
+  }
   bool valid = false, root = false;
   int index = -1, next = 0;
+  bool hasImpl = false;  // Stands in for HalFile::impl != nullptr.
   explicit operator bool() const { return valid; }
-  bool isDirectory() const { return root ? cfg.rootDir : entries[index].dir; }
+  bool isDirectory() const {
+    if (!hasImpl) unopenedFile("isDirectory");
+    return root ? cfg.rootDir : entries[index].dir;
+  }
   size_t fileSize() {
+    if (!hasImpl) unopenedFile("fileSize");
     record("file.size %u", cfg.size);
     return cfg.size;
   }
   void close() {
+    if (!hasImpl) unopenedFile("close");
     if (valid) record("file.close %s", root ? "root" : index < 0 ? "firmware" : entries[index].name);
     valid = false;
   }
   HalFile openNextFile() {
-    if (next >= int(entries.size())) return {};
-    auto n = next++;
+    if (!hasImpl) unopenedFile("openNextFile");
+    HalFile out;
+    out.hasImpl = true;  // Production always returns an entry handle with an impl.
+    if (next >= int(entries.size())) return out;
+    const int n = next++;
     record("file.next %s", entries[n].name);
-    return {true, false, n};
+    out.valid = true;
+    out.index = n;
+    return out;
   }
   void getName(char* p, size_t cap) {
+    if (!hasImpl) unopenedFile("getName");
     snprintf(p, cap, "%s", entries[index].name);
     record("file.name %s", p);
   }
@@ -285,12 +319,17 @@ struct HalFile {
 struct {
   bool openFileForRead(const char* tag, const char* path, HalFile& f) {
     record("file.open %s %s", tag, path);
+    f.hasImpl = true;  // HalStorage installs an impl even when the open fails.
     f.valid = cfg.fileOpen;
     return f.valid;
   }
   HalFile open(const char* path) {
     record("directory.open %s", path);
-    return {cfg.rootOpen, true};
+    HalFile out;
+    out.hasImpl = true;  // HalStorage installs an impl even when the open fails.
+    out.valid = cfg.rootOpen;
+    out.root = true;
+    return out;
   }
   bool removeDir(const char* path) {
     record("directory.remove %s", path);

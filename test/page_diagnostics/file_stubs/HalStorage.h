@@ -4,6 +4,9 @@
 #include <cstdio>
 #include <filesystem>
 #include <string>
+#include <utility>
+
+#include "../../hal_fake_strict.h"
 
 namespace HalFileTest {
 inline size_t failSeekAt = SIZE_MAX;
@@ -20,20 +23,36 @@ class HalFile {
  public:
   HalFile() = default;
   explicit HalFile(const char* path) { open(path, "wb"); }
-  ~HalFile() { close(); }
+  ~HalFile() {
+    if (hasImpl_) close();
+  }
+  HalFile(HalFile&& other) noexcept { *this = std::move(other); }
   HalFile(const HalFile&) = delete;
   HalFile& operator=(const HalFile&) = delete;
+  HalFile& operator=(HalFile&& other) noexcept {
+    if (file_) close();
+    file_ = std::exchange(other.file_, nullptr);
+    writeBytesLeft_ = other.writeBytesLeft_;
+    hasImpl_ = std::move(other.hasImpl_);
+    return *this;
+  }
 
   bool open(const char* path, const char* mode) {
+    hasImpl_ = true;  // HalStorage installs an impl even when the open fails.
     close();
     file_ = std::fopen(path, mode);
     return file_ != nullptr;
   }
-  int available() const { return file_ ? static_cast<int>(size() - position()) : 0; }
+  int available() const {
+    hal_fake::requireImpl(hasImpl_, "available", "");
+    return file_ ? static_cast<int>(size() - position()) : 0;
+  }
   size_t read(void* buffer, size_t count) {
+    hal_fake::requireImpl(hasImpl_, "read", "");
     return position() == HalFileTest::failReadAt ? 0 : (file_ ? std::fread(buffer, 1, count, file_) : 0);
   }
   size_t write(const void* buffer, size_t count) {
+    hal_fake::requireImpl(hasImpl_, "write", "");
     if (HalFileTest::failNextWrite) {
       HalFileTest::failNextWrite = false;
       return 0;
@@ -44,12 +63,20 @@ class HalFile {
     return written;
   }
   size_t write(uint8_t byte) { return write(&byte, 1); }
-  bool flush() { return file_ && std::fflush(file_) == 0; }
+  bool flush() {
+    hal_fake::requireImpl(hasImpl_, "flush", "");
+    return file_ && std::fflush(file_) == 0;
+  }
   bool seek(size_t pos) {
+    hal_fake::requireImpl(hasImpl_, "seek", "");
     return pos != HalFileTest::failSeekAt && file_ && std::fseek(file_, static_cast<long>(pos), SEEK_SET) == 0;
   }
-  bool seekCur(size_t offset) { return file_ && std::fseek(file_, static_cast<long>(offset), SEEK_CUR) == 0; }
+  bool seekCur(size_t offset) {
+    hal_fake::requireImpl(hasImpl_, "seekCur", "");
+    return file_ && std::fseek(file_, static_cast<long>(offset), SEEK_CUR) == 0;
+  }
   bool close() {
+    hal_fake::requireImpl(hasImpl_, "close", "");
     if (!file_) return false;
     const bool ok = std::fclose(file_) == 0;
     file_ = nullptr;
@@ -61,8 +88,12 @@ class HalFile {
   }
   bool isOpen() const { return file_ != nullptr; }
   explicit operator bool() const { return isOpen(); }
-  size_t position() const { return file_ ? static_cast<size_t>(std::ftell(file_)) : 0; }
+  size_t position() const {
+    hal_fake::requireImpl(hasImpl_, "position", "");
+    return file_ ? static_cast<size_t>(std::ftell(file_)) : 0;
+  }
   size_t size() const {
+    hal_fake::requireImpl(hasImpl_, "size", "");
     if (!file_) return 0;
     const long offset = std::ftell(file_);
     std::fseek(file_, 0, SEEK_END);
@@ -77,6 +108,7 @@ class HalFile {
  private:
   std::FILE* file_ = nullptr;
   size_t writeBytesLeft_ = SIZE_MAX;
+  hal_fake::Impl hasImpl_;  // Stands in for HalFile::impl: a move leaves the source without one.
 };
 
 class HalStorage {

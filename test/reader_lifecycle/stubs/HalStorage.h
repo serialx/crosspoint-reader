@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "../../hal_fake_strict.h"
+
 struct StorageTrace {
   std::map<std::string, std::vector<uint8_t>> files;
   bool openOk = true;
@@ -19,15 +21,30 @@ inline StorageTrace storageTrace;
 struct HalFile {
   std::string path;
   bool tracked = false;
+  hal_fake::Impl hasImpl;  // Stands in for HalFile::impl: a move leaves the source without one.
+  HalFile() = default;
+  HalFile(HalFile&& other) noexcept { *this = std::move(other); }
+  HalFile& operator=(HalFile&& other) noexcept {
+    if (this == &other) return *this;
+    if (hasImpl) close();
+    if (tracked) std::printf("file-release %d\n", --storageTrace.liveFiles);
+    path = std::move(other.path);
+    other.path.clear();
+    tracked = std::exchange(other.tracked, false);
+    hasImpl = std::move(other.hasImpl);
+    return *this;
+  }
   ~HalFile() {
-    close();
+    if (hasImpl) close();
     if (tracked) std::printf("file-release %d\n", --storageTrace.liveFiles);
   }
   void close() {
+    hal_fake::requireImpl(hasImpl, "close", path.c_str());
     if (!path.empty()) std::printf("close %s\n", path.c_str());
     path.clear();
   }
   size_t write(const uint8_t* bytes, size_t len) {
+    hal_fake::requireImpl(hasImpl, "write", path.c_str());
     const size_t written = std::min(len, storageTrace.writeLimit);
     storageTrace.files[path].assign(bytes, bytes + written);
     std::printf("write %zu", written);
@@ -36,17 +53,22 @@ struct HalFile {
     return written;
   }
   int read(uint8_t* bytes, size_t len) {
+    hal_fake::requireImpl(hasImpl, "read", path.c_str());
     const auto& data = storageTrace.files[path];
     const size_t count = std::min(len, data.size());
     std::copy_n(data.begin(), count, bytes);
     return static_cast<int>(count);
   }
-  void flush() { std::puts("flush"); }
+  void flush() {
+    hal_fake::requireImpl(hasImpl, "flush", path.c_str());
+    std::puts("flush");
+  }
 };
 
 struct StorageStub {
   bool openFileForWrite(const char*, const std::string& path, HalFile& f) {
     std::printf("open-write %s %d\n", path.c_str(), storageTrace.openOk);
+    f.hasImpl = true;  // HalStorage installs an impl even when the open fails.
     if (!storageTrace.openOk) return false;
     f.path = path;
     f.tracked = storageTrace.trackLifetime;
@@ -56,6 +78,7 @@ struct StorageStub {
   bool openFileForRead(const char*, const std::string& path, HalFile& f) {
     const bool ok = storageTrace.openOk && filesContains(path);
     std::printf("open-read %s %d\n", path.c_str(), ok);
+    f.hasImpl = true;  // HalStorage installs an impl even when the open fails.
     if (!ok) return false;
     f.path = path;
     f.tracked = storageTrace.trackLifetime;

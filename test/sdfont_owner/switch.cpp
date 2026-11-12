@@ -15,6 +15,9 @@
 #include <map>
 #include <vector>
 
+#include "../hal_contract/Slots.h"
+#include "../hal_fake_strict.h"
+
 namespace {
 std::array<uint8_t, 172> font;
 std::vector<uint8_t> bidiWork;
@@ -53,6 +56,11 @@ void fixture() {
 }
 bool operation() { return ++operations != failOperation; }
 void fixed(XpSdFileSlot* slot) { assert(slot->words[0] == reinterpret_cast<uintptr_t>(slot)); }
+// Word 2 stands in for HalFile::impl: an open attempt installs it, destroy clears it.
+constexpr size_t IMPL_WORD = 2;
+void requireImpl(XpSdFileSlot* slot, const char* operation) {
+  hal_fake::requireImpl(slot->words[IMPL_WORD] != 0, operation);
+}
 const char* text(const void*, uint32_t) { return "A"; }
 void run(size_t failAlloc, size_t failIo) {
   assert(live.empty() && handles == 0);
@@ -170,15 +178,18 @@ extern "C" void xp_native_sd_free(uint8_t* data, bool) {
 extern "C" void xp_native_sd_handle_init(XpSdFileSlot* slot) {
   slot->words[0] = reinterpret_cast<uintptr_t>(slot);
   slot->words[1] = 0;
+  slot->words[IMPL_WORD] = 0;
   ++handles;
 }
 extern "C" void xp_native_sd_handle_destroy(XpSdFileSlot* slot) {
   fixed(slot);
   slot->words[0] = 0;
+  slot->words[IMPL_WORD] = 0;
   --handles;
 }
 extern "C" uint8_t xp_native_sd_file_open(XpSdFileSlot* slot, const char*, uint32_t* size) {
   fixed(slot);
+  slot->words[IMPL_WORD] = 1;  // Every open attempt installs an impl, as HalFile does.
   if (!operation()) return 0;
   slot->words[1] = 0;
   *size = font.size();
@@ -186,6 +197,7 @@ extern "C" uint8_t xp_native_sd_file_open(XpSdFileSlot* slot, const char*, uint3
 }
 extern "C" int32_t xp_native_sd_file_read(XpSdFileSlot* slot, uint8_t* bytes, size_t length) {
   fixed(slot);
+  requireImpl(slot, "read");
   assert(!bidiHeld);  // No SD read may run while token shaping holds its workspace.
   if (!operation()) return 0;
   assert(slot->words[1] + length <= font.size());
@@ -195,11 +207,15 @@ extern "C" int32_t xp_native_sd_file_read(XpSdFileSlot* slot, uint8_t* bytes, si
 }
 extern "C" uint8_t xp_native_sd_file_seek(XpSdFileSlot* slot, uint32_t offset) {
   fixed(slot);
+  requireImpl(slot, "seek");
   if (!operation() || offset > font.size()) return 0;
   slot->words[1] = offset;
   return 1;
 }
-extern "C" void xp_native_sd_file_close(XpSdFileSlot* slot) { fixed(slot); }
+extern "C" void xp_native_sd_file_close(XpSdFileSlot* slot) {
+  fixed(slot);
+  requireImpl(slot, "close");
+}
 extern "C" void xp_native_sd_diagnostic(const char*, uint32_t, const uint32_t*, uint32_t, uint32_t, bool) {}
 extern "C" void xp_native_font_cache_diagnostic(const void*, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t) {}
 extern "C" void xp_native_font_diagnostic(void*, uint32_t, uint32_t) {}
@@ -220,7 +236,11 @@ extern "C" void xp_native_bidi_release() {
   assert(bidiHeld);
   bidiHeld = false;
 }
-int main() {
+int main(int argc, char**) {
+  if (argc > 1) {
+    hal_contract::checkSlots([] { failOperation = operations + 1; });
+    return 0;
+  }
   run(0, 0);
   const auto allocationCount = allocations, operationCount = operations;
   for (size_t i = 1; i <= allocationCount; ++i) run(i, 0);

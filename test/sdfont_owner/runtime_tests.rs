@@ -1,10 +1,17 @@
 use super::*;
-use std::{collections::BTreeMap, ffi::CStr, mem::ManuallyDrop, pin::Pin};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    ffi::CStr,
+    mem::ManuallyDrop,
+    pin::Pin,
+};
 
 #[derive(Default)]
 pub(super) struct State {
     bytes: Vec<u8>,
     live: BTreeMap<usize, usize>,
+    /// Slots whose HAL handle an open installed; native asserts on read/seek/finish without it.
+    handles: BTreeSet<usize>,
     events: Vec<(&'static str, usize)>,
     calls: usize,
     fail_at: usize,
@@ -19,25 +26,38 @@ impl Physical<'_> {
         state.calls += 1;
         state.calls != state.fail_at
     }
+    /// Mirrors HalFile::impl: an open installs it, finish keeps it, destroy drops it.
+    fn require_handle(&self, slot: *mut io::Slot, event: &'static str) {
+        assert!(
+            self.0.borrow().handles.contains(&(slot as usize)),
+            "{event} on a slot with no HAL handle"
+        );
+    }
 }
 unsafe impl io::Physical for Physical<'_> {
     unsafe fn init(&mut self, slot: *mut io::Slot) {
         let mut state = self.0.borrow_mut();
         assert!(state.live.insert(slot as usize, 0).is_none());
+        state.handles.remove(&(slot as usize));
         state.events.push(("init", slot as usize));
     }
     unsafe fn destroy(&mut self, slot: *mut io::Slot) {
         self.call(slot, "destroy");
-        assert!(self.0.borrow_mut().live.remove(&(slot as usize)).is_some());
+        let mut state = self.0.borrow_mut();
+        assert!(state.live.remove(&(slot as usize)).is_some());
+        state.handles.remove(&(slot as usize));
     }
     unsafe fn open(&mut self, slot: *mut io::Slot, _: &CStr) -> Option<u32> {
+        self.0.borrow_mut().handles.insert(slot as usize);
         if !self.call(slot, "open") {
             return None;
         }
-        self.0.borrow_mut().live.insert(slot as usize, 0);
-        Some(self.0.borrow().bytes.len() as u32)
+        let mut state = self.0.borrow_mut();
+        state.live.insert(slot as usize, 0);
+        Some(state.bytes.len() as u32)
     }
     unsafe fn read(&mut self, slot: *mut io::Slot, bytes: &mut [u8]) -> usize {
+        self.require_handle(slot, "read");
         if !self.call(slot, "read") {
             return 0;
         }
@@ -49,6 +69,7 @@ unsafe impl io::Physical for Physical<'_> {
         count
     }
     unsafe fn seek(&mut self, slot: *mut io::Slot, offset: u32) -> bool {
+        self.require_handle(slot, "seek");
         if !self.call(slot, "seek") {
             return false;
         }
@@ -57,6 +78,7 @@ unsafe impl io::Physical for Physical<'_> {
         offset as usize <= state.bytes.len()
     }
     unsafe fn finish(&mut self, slot: *mut io::Slot) {
+        self.require_handle(slot, "finish");
         self.call(slot, "finish");
     }
 }
@@ -380,3 +402,46 @@ unsafe extern "C" fn tagged_miss(
 
 #[path = "growth_tests.rs"]
 mod growth_tests;
+
+#[test]
+fn physical_failed_open_keeps_a_closeable_handle() {
+    use io::Physical as _;
+    let state = state(1);
+    let mut physical = Physical(&state);
+    let mut slot = core::mem::MaybeUninit::<io::Slot>::uninit();
+    unsafe {
+        physical.init(slot.as_mut_ptr());
+        assert_eq!(physical.open(slot.as_mut_ptr(), c""), None);
+        physical.finish(slot.as_mut_ptr());
+        physical.finish(slot.as_mut_ptr());
+        physical.destroy(slot.as_mut_ptr());
+    }
+}
+#[test]
+fn physical_rejects_every_operation_without_a_handle() {
+    use io::Physical as _;
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+    for operation in 0..3 {
+        let state = state(0);
+        let mut physical = Physical(&state);
+        let mut slot = core::mem::MaybeUninit::<io::Slot>::uninit();
+        unsafe {
+            physical.init(slot.as_mut_ptr());
+        }
+        assert!(catch_unwind(AssertUnwindSafe(|| unsafe {
+            match operation {
+                0 => {
+                    physical.read(slot.as_mut_ptr(), &mut []);
+                }
+                1 => {
+                    physical.seek(slot.as_mut_ptr(), 0);
+                }
+                _ => physical.finish(slot.as_mut_ptr()),
+            }
+        }))
+        .is_err());
+        unsafe {
+            physical.destroy(slot.as_mut_ptr());
+        }
+    }
+}

@@ -6,6 +6,9 @@
 #include <map>
 #include <string>
 #include <vector>
+
+#include "../../hal_fake_strict.h"
+
 constexpr int O_WRITE = 1, O_CREAT = 2, O_TRUNC = 4;
 struct Node {
   std::vector<uint8_t> bytes;
@@ -19,23 +22,31 @@ class HalFile {
   Node* node = nullptr;
   std::string path;
   size_t cursor = 0, next = 0;
-  bool initialized = false;
+  hal_fake::Impl initialized;  // A move leaves the source without an impl.
   HalFile() = default;
   HalFile(Node* n, std::string p) : node(n), path(std::move(p)), initialized(true) {}
-  explicit operator bool() const { return node != nullptr; }
+  explicit operator bool() const { return initialized && node != nullptr; }
   bool close() {
-    assert(initialized);
+    hal_fake::requireImpl(initialized, "close", path.c_str());
     node = nullptr;
     return true;
   }
-  size_t position() const { return cursor; }
-  size_t fileSize() const { return node ? node->bytes.size() : 0; }
+  size_t position() const {
+    hal_fake::requireImpl(initialized, "position", path.c_str());
+    return cursor;
+  }
+  size_t fileSize() const {
+    hal_fake::requireImpl(initialized, "fileSize", path.c_str());
+    return node ? node->bytes.size() : 0;
+  }
   bool seekSet(size_t n) {
+    hal_fake::requireImpl(initialized, "seekSet", path.c_str());
     if (!node || path == failSeek || n > fileSize()) return false;
     cursor = n;
     return true;
   }
   int read(void* data, size_t n) {
+    hal_fake::requireImpl(initialized, "read", path.c_str());
     if (!node || readLimit == 0) return -1;
     n = std::min(n, fileSize() - cursor);
     if (readLimit > 0) {
@@ -51,6 +62,7 @@ class HalFile {
     return read(&c, 1) == 1 ? c : -1;
   }
   size_t write(const void* data, size_t n) {
+    hal_fake::requireImpl(initialized, "write", path.c_str());
     if (!node || writeLimit == 0) return 0;
     if (writeLimit > 0) {
       n = std::min(n, size_t(writeLimit));
@@ -61,9 +73,16 @@ class HalFile {
     cursor += n;
     return n;
   }
-  bool isDirectory() const { return node && node->directory; }
-  void rewindDirectory() { next = 0; }
+  bool isDirectory() const {
+    hal_fake::requireImpl(initialized, "isDirectory", path.c_str());
+    return node && node->directory;
+  }
+  void rewindDirectory() {
+    hal_fake::requireImpl(initialized, "rewindDirectory", path.c_str());
+    next = 0;
+  }
   size_t getName(char* out, size_t cap) {
+    hal_fake::requireImpl(initialized, "getName", path.c_str());
     auto name = path.substr(path.rfind('/') + 1);
     if (!cap) return 0;
     size_t n = std::min(cap - 1, name.size());
@@ -72,6 +91,7 @@ class HalFile {
     return n;
   }
   HalFile openNextFile() {
+    hal_fake::requireImpl(initialized, "openNextFile", path.c_str());
     size_t i = 0;
     for (auto& [name, value] : files) {
       if (name.rfind(path + '/', 0) != 0 || name.find('/', path.size() + 1) != std::string::npos) continue;

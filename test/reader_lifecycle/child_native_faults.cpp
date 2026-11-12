@@ -6,6 +6,9 @@ static CrossPointPosition position(const XpEpubPosition& value) { return {value.
 
 #include <string_view>
 
+#include "../hal_contract/Contract.h"
+#include "../hal_fake_strict.h"
+
 // IMAGE_IO_ENUM
 struct {
   bool exists(const char* path) {
@@ -14,6 +17,7 @@ struct {
   }
 } Storage;
 struct RecoveryImage {
+  bool hasImpl = false;
   std::string_view path = "/cache/unseen.png", source = "OPS/unseen.png";
   void* extractContext = ImageBlock::extractCtx;
   ImageBlock::ExtractFn extract = ImageBlock::extractFn;
@@ -24,8 +28,10 @@ static size_t recoveryImageIo(void* raw, uint32_t op, const uint8_t*, uint8_t*, 
   switch (static_cast<ImageIo>(op)) {
     // ACTUAL_EXTRACTION_IO
     case ImageIo::OpenCache:
+      self.hasImpl = true;
       return 0;
     case ImageIo::Close:
+      hal_fake::requireImpl(self.hasImpl, "close");
       return 0;
     case ImageIo::FreeHeap:
     case ImageIo::LargestBlock:
@@ -198,6 +204,14 @@ static void syncCaptureFailure(size_t after) {
 }
 
 int main() {
+  {
+    RenderLock lock;
+    RecoveryImage image;
+    hal_contract::rejects([&] { recoveryImageIo(&image, uint32_t(ImageIo::Close), nullptr, nullptr, 0); });
+    assert(recoveryImageIo(&image, uint32_t(ImageIo::OpenCache), nullptr, nullptr, 0) == 0);
+    recoveryImageIo(&image, uint32_t(ImageIo::Close), nullptr, nullptr, 0);
+    recoveryImageIo(&image, uint32_t(ImageIo::Close), nullptr, nullptr, 0);
+  }
   for (int kind = 0; kind < 6; ++kind) {
     outerAllocation(kind, -1);
     outerAllocation(kind, 0);

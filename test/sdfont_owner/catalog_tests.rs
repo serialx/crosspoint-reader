@@ -275,50 +275,73 @@ fn variant_heap_floor_ui_reuse_lru_eviction_and_reload() {
     MEMORY.with(|m| assert!(m.borrow().live.is_empty()));
 }
 
+struct LongPath {
+    root: bool,
+    file: bool,
+    opened: [bool; 2],
+    valid: [bool; 2],
+    logged: Option<String>,
+}
+unsafe impl catalog::Directory for LongPath {
+    fn open(&mut self, path: &CStr, root: bool) -> i32 {
+        self.opened[usize::from(root)] = true;
+        self.valid[usize::from(root)] = !root || path == c"/.fonts";
+        if root {
+            self.root = false;
+        } else {
+            self.file = false;
+        } // Every open attempt leaves the slot holding a HalFile.
+        if !root || path == c"/.fonts" {
+            1
+        } else {
+            0
+        }
+    }
+    fn close(&mut self, root: bool) {
+        // Native close destroys and reinitializes the slot, so no handle is left behind.
+        self.opened[usize::from(root)] = false;
+        self.valid[usize::from(root)] = false;
+    }
+    fn inspect(&mut self, _: &CStr) -> Option<(u16, bool)> {
+        None
+    }
+    fn next(&mut self, root: bool, name: &mut [u8; 128], directory: &mut bool) -> bool {
+        assert!(
+            self.opened[usize::from(root)],
+            "directory_next on a slot with no HAL handle"
+        );
+        if !self.valid[usize::from(root)] {
+            return false;
+        }
+        let used = if root { &mut self.root } else { &mut self.file };
+        if *used {
+            return false;
+        }
+        *used = true;
+        name.fill(0);
+        *directory = root;
+        if root {
+            name[..100].fill(b'A');
+        } else {
+            name[..80].fill(b'B');
+            name[80..90].copy_from_slice(b"_14.cpfont");
+        }
+        true
+    }
+    fn log(&mut self, event: u32, _: &CStr, b: Option<&CStr>, _: usize, _: usize) {
+        if event == 7 {
+            self.logged = Some(b.unwrap().to_str().unwrap().to_owned());
+        }
+    }
+}
+
 #[test]
 fn skipped_long_paths_keep_the_full_diagnostic_directory() {
-    struct LongPath {
-        root: bool,
-        file: bool,
-        logged: Option<String>,
-    }
-    unsafe impl catalog::Directory for LongPath {
-        fn open(&mut self, path: &CStr, root: bool) -> i32 {
-            if !root || path == c"/.fonts" {
-                1
-            } else {
-                0
-            }
-        }
-        fn close(&mut self, _: bool) {}
-        fn inspect(&mut self, _: &CStr) -> Option<(u16, bool)> {
-            None
-        }
-        fn next(&mut self, root: bool, name: &mut [u8; 128], directory: &mut bool) -> bool {
-            let used = if root { &mut self.root } else { &mut self.file };
-            if *used {
-                return false;
-            }
-            *used = true;
-            name.fill(0);
-            *directory = root;
-            if root {
-                name[..100].fill(b'A');
-            } else {
-                name[..80].fill(b'B');
-                name[80..90].copy_from_slice(b"_14.cpfont");
-            }
-            true
-        }
-        fn log(&mut self, event: u32, _: &CStr, b: Option<&CStr>, _: usize, _: usize) {
-            if event == 7 {
-                self.logged = Some(b.unwrap().to_str().unwrap().to_owned());
-            }
-        }
-    }
     let mut physical = LongPath {
         root: false,
         file: false,
+        opened: [false; 2],
+        valid: [false; 2],
         logged: None,
     };
     {
@@ -330,4 +353,38 @@ fn skipped_long_paths_keep_the_full_diagnostic_directory() {
         Some(format!("/.fonts/{}", "A".repeat(100)))
     );
     MEMORY.with(|m| assert!(m.borrow().live.is_empty()));
+}
+
+fn directory_contract(mut dirs: impl catalog::Directory) {
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+    let mut name = [0; 128];
+    let mut is_dir = false;
+    dirs.close(false);
+    assert_eq!(dirs.open(c"/.fonts", true), 1);
+    assert!(catch_unwind(AssertUnwindSafe(|| dirs.next(
+        false,
+        &mut name,
+        &mut is_dir
+    )))
+    .is_err());
+    assert_eq!(dirs.open(c"/.fonts/F0", false), 1);
+    dirs.close(false);
+    assert!(dirs.next(true, &mut name, &mut is_dir));
+    dirs.close(false);
+    dirs.close(true);
+    assert_eq!(dirs.open(c"", true), 0);
+    assert!(!dirs.next(true, &mut name, &mut is_dir));
+    dirs.close(true);
+    dirs.close(true);
+}
+#[test]
+fn directory_fixtures_keep_independent_slots() {
+    directory_contract(catalog_fixture::Directory::new(1));
+    directory_contract(LongPath {
+        root: false,
+        file: false,
+        opened: [false; 2],
+        valid: [false; 2],
+        logged: None,
+    });
 }

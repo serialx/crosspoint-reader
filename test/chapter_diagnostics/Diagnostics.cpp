@@ -277,6 +277,8 @@ TEST_F(ChapterDiagnostics, FinalLayoutFailure) {
   xp_para_add_word(xp_chapter_test_paragraph(parser.semanticState()),
                    {reinterpret_cast<const uint8_t*>(text.data()), 4}, 0, 0, 0, 0, 0, 0, 0);
   xp_test_fail_allocation_after(0);
+  // finishParse() closes the parse file; the lifecycle opens it in beginParse() first.
+  if (!parser.parseFile_) Storage.openFileForRead("EHP", parser.filepath, parser.parseFile_);
   EXPECT_FALSE(parser.finishParse());
   xp_test_fail_allocation_after(SIZE_MAX);
   EXPECT_TRUE(has("ERR:EHP:Text layout dropped content (OOM); failing section build"));

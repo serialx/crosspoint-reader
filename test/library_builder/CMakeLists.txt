@@ -1,4 +1,5 @@
 add_executable(LibraryBuilderTest
+  HalFileContractTest.cpp
   LibraryBuilderTest.cpp
   ${REPO_ROOT}/lib/LibraryIndex/LibraryBuilder.cpp
   ${REPO_ROOT}/lib/LibraryIndex/LibraryIndexFile.cpp

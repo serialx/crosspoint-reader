@@ -11,6 +11,8 @@
 #include <utility>
 #include <vector>
 
+#include "../../hal_fake_strict.h"
+
 // Host model of the physical SD card. It records every physical operation in
 // order, injects a failure or a short transfer at a chosen attempt, and keeps
 // the bytes each operation leaves behind. The SDCardManager method bodies are
@@ -180,21 +182,25 @@ class HalFile {
 
   bool isOpen() const { return impl_ && impl_->open; }
   explicit operator bool() const { return isOpen(); }
-  bool isDirectory() const { return impl_ && impl_->node && impl_->node->directory; }
+  bool isDirectory() const {
+    checkImpl("isDirectory");
+    return impl_->node && impl_->node->directory;
+  }
 
   bool close() {
-    if (!impl_) return false;
+    checkImpl("close");
     if (!impl_->open) return true;
     impl_->open = false;
     return clip_test::event("close", clip_test::pathRef(impl_->path));
   }
 
   void flush() {
-    if (impl_ && impl_->open) clip_test::event("flush", clip_test::pathRef(impl_->path));
+    checkImpl("flush");
+    if (impl_->open) clip_test::event("flush", clip_test::pathRef(impl_->path));
   }
 
   size_t getName(char* name, size_t len) {
-    if (!impl_) return 0;
+    checkImpl("getName");
     const size_t slash = impl_->path.find_last_of('/');
     const std::string base = slash == std::string::npos ? impl_->path : impl_->path.substr(slash + 1);
     if (len > 0) {
@@ -205,7 +211,8 @@ class HalFile {
   }
 
   HalFile openNextFile() {
-    if (!impl_ || !impl_->node || !impl_->node->directory || impl_->child >= impl_->children.size()) return {};
+    checkImpl("openNextFile");
+    if (!impl_->node || !impl_->node->directory || impl_->child >= impl_->children.size()) return closed();
     const std::string entry = impl_->children[impl_->child++];
     clip_test::note("next:" + clip_test::pathRef(impl_->path) + ":" + clip_test::pathRef(entry));
     auto handle = std::make_unique<clip_test::Handle>();
@@ -223,11 +230,13 @@ class HalFile {
   }
 
   void rewindDirectory() {
-    if (impl_) impl_->child = 0;
+    checkImpl("rewindDirectory");
+    impl_->child = 0;
   }
 
   size_t fileSize() {
-    if (!impl_ || !impl_->node) return 0;
+    checkImpl("fileSize");
+    if (!impl_->node) return 0;
     return impl_->node->bytes.size();
   }
 
@@ -235,15 +244,20 @@ class HalFile {
 
   uint64_t fileSize64() { return fileSize(); }
 
-  size_t position() const { return impl_ ? impl_->pos : 0; }
+  size_t position() const {
+    checkImpl("position");
+    return impl_->pos;
+  }
 
   int available() const {
-    if (!impl_ || !impl_->node) return -1;
+    checkImpl("available");
+    if (!impl_->node) return -1;
     return static_cast<int>(impl_->node->bytes.size() - std::min(impl_->pos, impl_->node->bytes.size()));
   }
 
   bool seekSet(const size_t offset) {
-    if (!impl_ || !impl_->open || !impl_->node) return false;
+    checkImpl("seekSet");
+    if (!impl_->open || !impl_->node) return false;
     if (!clip_test::event("seek", clip_test::pathRef(impl_->path) + "@" + std::to_string(offset))) return false;
     if (offset > impl_->node->bytes.size()) return false;
     impl_->pos = offset;
@@ -253,13 +267,15 @@ class HalFile {
   bool seek(const size_t offset) { return seekSet(offset); }
 
   bool seekCur(const int64_t offset) {
-    const int64_t target = static_cast<int64_t>(impl_ ? impl_->pos : 0) + offset;
+    checkImpl("seekCur");
+    const int64_t target = static_cast<int64_t>(impl_->pos) + offset;
     if (target < 0) return false;
     return seekSet(static_cast<size_t>(target));
   }
 
   bool truncate(const uint64_t length) {
-    if (!impl_ || !impl_->open || !impl_->node) return false;
+    checkImpl("truncate");
+    if (!impl_->open || !impl_->node) return false;
     if (!clip_test::event("truncate", clip_test::pathRef(impl_->path) + ":" + std::to_string(length))) return false;
     if (length > impl_->node->bytes.size()) return false;
     impl_->node->bytes.resize(length);
@@ -268,7 +284,8 @@ class HalFile {
   }
 
   int read(void* out, const size_t size) {
-    if (!impl_ || !impl_->open || !impl_->node || impl_->node->directory) {
+    checkImpl("read");
+    if (!impl_->open || !impl_->node || impl_->node->directory) {
       clip_test::event("read", "closed");
       return -1;
     }
@@ -287,7 +304,8 @@ class HalFile {
   }
 
   size_t write(const uint8_t* data, const size_t size) {
-    if (!impl_ || !impl_->open || !impl_->node || impl_->node->directory) {
+    checkImpl("write");
+    if (!impl_->open || !impl_->node || impl_->node->directory) {
       clip_test::event("write", "closed");
       return 0;
     }
@@ -305,6 +323,19 @@ class HalFile {
   }
 
   size_t write(const void* data, const size_t size) { return write(static_cast<const uint8_t*>(data), size); }
+
+  // A failed open or an exhausted directory still owns an impl, as on device.
+  static HalFile closed() {
+    auto handle = std::make_unique<clip_test::Handle>();
+    handle->open = false;
+    return HalFile(std::move(handle));
+  }
+
+ private:
+  // `impl_` is HalFile::impl: present from the first open attempt, kept by close().
+  void checkImpl(const char* operation) const {
+    hal_fake::requireImpl(impl_ != nullptr, operation, impl_ ? impl_->path.c_str() : "");
+  }
 };
 
 using FsFile = HalFile;
@@ -339,15 +370,15 @@ inline HalFile PhysicalVolume::open(const char* path, const oflag_t oflag) {
   const bool create = (oflag & O_CREAT) != 0;
   const bool truncate = (oflag & O_TRUNC) != 0;
   const bool append = (oflag & (O_APPEND | O_AT_END)) != 0;
-  if (!event("open", pathRef(target) + ":" + accessMode(oflag))) return {};
+  if (!event("open", pathRef(target) + ":" + accessMode(oflag))) return HalFile::closed();
   auto found = nodes.find(target);
   if (found == nodes.end()) {
     // FAT needs a creatable parent and an explicit create flag.
-    if (!create || !isDirectory(parentOf(target))) return {};
+    if (!create || !isDirectory(parentOf(target))) return HalFile::closed();
     nodes[target] = std::make_shared<Node>();
     found = nodes.find(target);
   }
-  if (found->second->directory && (create || truncate || append)) return {};
+  if (found->second->directory && (create || truncate || append)) return HalFile::closed();
   auto handle = std::make_unique<Handle>();
   handle->node = found->second;
   handle->path = target;

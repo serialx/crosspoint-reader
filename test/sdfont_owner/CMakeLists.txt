@@ -80,3 +80,8 @@ add_test(NAME SdFontXtcOrder
   COMMAND ${XP_FFI_CARGO} test --manifest-path ${REPO_ROOT}/rust/Cargo.toml -p xp-ui
     --features sd-font-catalog --lib synchronous_font_effects_keep_entry_command_order_and_failures --offline --locked)
 set_tests_properties(SdFontXtcOrder PROPERTIES WORKING_DIRECTORY ${REPO_ROOT}/rust)
+
+add_test(NAME HalContract.sd_switch_slots COMMAND sdfont_owner_switch --hal-contract)
+add_test(NAME HalContract.sd_system_slots COMMAND sdfont_system_candidate --hal-contract)
+add_test(NAME HalContract.sd_rust_slots COMMAND ${XP_FFI_CARGO} test
+  --manifest-path ${CMAKE_CURRENT_SOURCE_DIR}/Cargo.toml --offline --locked --bin sdfont-owner)

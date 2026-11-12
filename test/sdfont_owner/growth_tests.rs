@@ -1,5 +1,5 @@
 use super::*;
-use std::sync::atomic::AtomicU32;
+use std::{cell::Cell, sync::atomic::AtomicU32};
 
 #[derive(Default)]
 struct Trace {
@@ -8,6 +8,11 @@ struct Trace {
     fail_moves: u8,
 }
 thread_local! { static TRACE: RefCell<Trace> = RefCell::default(); }
+// The pool's table callbacks are io::Files over a slot, so this table keeps that outer
+// contract: two slots of depth, a failed open at full depth, and a scan at depth zero that
+// returns instead of asserting (io.rs Files::close/Files::read). The HAL rule lives at
+// Physical below, which is the slot table production's open/read/close land in.
+thread_local! { static TABLE_DEPTH: Cell<u8> = const { Cell::new(0) }; }
 unsafe extern "C" fn growth_alloc(bytes: usize, _: bool) -> *mut u8 {
     let blocked = TRACE.with(|t| {
         let t = t.borrow();
@@ -30,15 +35,30 @@ unsafe extern "C" fn growth_free(p: *mut u8, domain: bool) {
     free(p, domain);
 }
 unsafe extern "C" fn growth_open(_: *mut core::ffi::c_void) -> bool {
+    if TABLE_DEPTH.with(Cell::get) == 2 {
+        return false; // io::Files::open refuses a third nesting level.
+    }
+    TABLE_DEPTH.with(|depth| depth.set(depth.get() + 1));
     true
+}
+unsafe extern "C" fn growth_close(_: *mut core::ffi::c_void, release: bool) {
+    if TABLE_DEPTH.with(Cell::get) == 0 {
+        return; // io::Files::close returns at depth zero.
+    }
+    if release {
+        TABLE_DEPTH.with(|depth| depth.set(depth.get() - 1));
+    }
 }
 unsafe extern "C" fn growth_read(
     context: *mut core::ffi::c_void,
     offset: u32,
     into: *mut u8,
     count: usize,
-    _: bool,
+    seek: bool,
 ) -> bool {
+    if TABLE_DEPTH.with(Cell::get) == 0 {
+        return !seek && count == 0; // read returns zero; a requested seek still fails.
+    }
     let state = &*context.cast::<RefCell<State>>();
     let mut state = state.borrow_mut();
     state.calls += 1;
@@ -97,6 +117,7 @@ struct Outcome {
 fn growth_run(fail: usize, fail_moves: u8) -> Outcome {
     MEMORY.with(|m| *m.borrow_mut() = Memory::default());
     TRACE.with(|t| *t.borrow_mut() = Trace::default());
+    TABLE_DEPTH.with(|depth| depth.set(0));
     let shared = IntervalRegistry::new();
     let state = state(0);
     state.borrow_mut().bytes = growth_fixture();
@@ -109,7 +130,7 @@ fn growth_run(fail: usize, fail_moves: u8) -> Outcome {
     let services = sdfont::pool::Services {
         context: ptr::from_ref(&state).cast_mut().cast(),
         open: growth_open,
-        close: finish,
+        close: growth_close,
         read: growth_read,
         alloc: growth_alloc,
         free: growth_free,
@@ -233,6 +254,58 @@ fn growth_run(fail: usize, fail_moves: u8) -> Outcome {
         complete,
     }
 }
+// The pool table is io::Files over a slot, so its outer callbacks keep Files' behaviour: a
+// scan at depth zero returns instead of asserting, and a third nested open is refused.
+#[test]
+fn pool_table_scans_at_depth_zero_are_safe() {
+    TABLE_DEPTH.with(|depth| depth.set(0));
+    let state = state(0);
+    let mut bytes = [0u8; 4];
+    unsafe {
+        assert!(!growth_read(
+            ptr::from_ref(&state).cast_mut().cast(),
+            0,
+            bytes.as_mut_ptr(),
+            bytes.len(),
+            false,
+        ));
+        growth_close(ptr::null_mut(), false);
+        growth_close(ptr::null_mut(), true);
+    }
+    assert_eq!(TABLE_DEPTH.with(Cell::get), 0);
+}
+
+#[test]
+fn pool_table_nests_two_files_and_keeps_depth_on_finish() {
+    TABLE_DEPTH.with(|depth| depth.set(0));
+    unsafe {
+        assert!(growth_open(ptr::null_mut()));
+        assert!(growth_open(ptr::null_mut()));
+        assert!(!growth_open(ptr::null_mut())); // io::Files has two slots.
+        growth_close(ptr::null_mut(), false); // finish keeps the depth, as Files::close does.
+        assert!(!growth_open(ptr::null_mut()));
+        growth_close(ptr::null_mut(), true);
+        growth_close(ptr::null_mut(), true);
+    }
+    assert_eq!(TABLE_DEPTH.with(Cell::get), 0);
+}
+
+// Native asserts on a read that reaches a slot with no HAL handle, so the fixture must too.
+// The pool table callbacks are extern "C", where a panic would abort instead of unwinding, so
+// that guard is only exercised through the growth runs below.
+#[test]
+#[should_panic(expected = "read on a slot with no HAL handle")]
+fn slot_read_without_an_open_is_rejected() {
+    let state = state(0);
+    let mut physical = Physical(&state);
+    let mut slot = core::mem::MaybeUninit::<io::Slot>::zeroed();
+    unsafe {
+        io::Physical::init(&mut physical, slot.as_mut_ptr());
+        let mut bytes = [0u8; 4];
+        io::Physical::read(&mut physical, slot.as_mut_ptr(), &mut bytes);
+    }
+}
+
 #[test]
 fn bitmap_growth_relocates_tables_and_republishes_views() {
     let run = growth_run(0, 0);
@@ -258,5 +331,14 @@ fn failed_moves_do_not_prevent_later_moves_or_bitmap_rebuild() {
         let run = growth_run(0, mask);
         assert!(run.complete);
         assert_eq!(run.moved, std::array::from_fn(|i| mask & (1 << i) == 0));
+    }
+}
+
+#[test]
+fn zero_depth_empty_read_succeeds_only_without_seek() {
+    TABLE_DEPTH.with(|depth| depth.set(0));
+    unsafe {
+        assert!(growth_read(ptr::null_mut(), 0, ptr::null_mut(), 0, false));
+        assert!(!growth_read(ptr::null_mut(), 0, ptr::null_mut(), 0, true));
     }
 }

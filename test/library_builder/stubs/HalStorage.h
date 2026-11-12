@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "../../hal_fake_strict.h"
+
 inline constexpr int O_WRONLY = 1, O_CREAT = 2, O_TRUNC = 4, O_APPEND = 8, O_RDWR = 16, O_AT_END = 32;
 
 namespace fake {
@@ -106,6 +108,8 @@ inline void duplicateDirectoryEntry(const std::string& path) {
 }  // namespace fake
 
 class HalFile {
+  friend class HalStorage;
+
  public:
   std::shared_ptr<fake::Node> node;
   std::string path;
@@ -114,6 +118,7 @@ class HalFile {
   explicit operator bool() const { return bool(node); }
   bool isOpen() const { return bool(node); }
   bool close() {
+    hal_fake::requireImpl(hasImpl, "close", path.c_str());
     const bool failed = !fake::failClosePath.empty() && path == fake::failClosePath;
     if (failed) {
       fake::failClosePath.clear();
@@ -122,9 +127,16 @@ class HalFile {
     node.reset();
     return !failed;
   }
-  bool isDirectory() const { return node && node->directory; }
-  void rewindDirectory() { pos = 0; }
+  bool isDirectory() const {
+    hal_fake::requireImpl(hasImpl, "isDirectory", path.c_str());
+    return node && node->directory;
+  }
+  void rewindDirectory() {
+    hal_fake::requireImpl(hasImpl, "rewindDirectory", path.c_str());
+    pos = 0;
+  }
   HalFile openNextFile() {
+    hal_fake::requireImpl(hasImpl, "openNextFile", path.c_str());
     std::vector<std::string> children;
     for (const auto& [name, value] : fake::files) {
       std::string parent = name.substr(0, name.find_last_of('/'));
@@ -135,14 +147,16 @@ class HalFile {
     if (extras != fake::extraDirectoryEntries.end()) {
       children.insert(children.end(), extras->second.begin(), extras->second.end());
     }
-    if (pos >= children.size()) return {};
     HalFile file;
+    file.hasImpl = true;  // Production always returns an entry handle with an impl.
+    if (pos >= children.size()) return file;
     file.path = children[pos++];
     file.node = fake::files[file.path];
     fake::directoryEntriesByPath[file.path]++;
     return file;
   }
   size_t getName(char* out, const size_t size) {
+    hal_fake::requireImpl(hasImpl, "getName", path.c_str());
     const std::string name = path.substr(path.find_last_of('/') + 1);
     if (size > 0) {
       std::strncpy(out, name.c_str(), size);
@@ -151,10 +165,17 @@ class HalFile {
     return name.size();
   }
   uint32_t modificationTime() const { return node ? node->time : 0; }
-  uint64_t fileSize64() const { return node ? (node->reportedSize ? node->reportedSize : node->bytes.size()) : 0; }
+  uint64_t fileSize64() const {
+    hal_fake::requireImpl(hasImpl, "fileSize64", path.c_str());
+    return node ? (node->reportedSize ? node->reportedSize : node->bytes.size()) : 0;
+  }
   size_t fileSize() const { return static_cast<size_t>(fileSize64()); }
-  size_t position() const { return pos; }
+  size_t position() const {
+    hal_fake::requireImpl(hasImpl, "position", path.c_str());
+    return pos;
+  }
   bool seekSet(const size_t offset) {
+    hal_fake::requireImpl(hasImpl, "seekSet", path.c_str());
     fake::seeks++;
     if (!node || (node->directory && fake::failDirectorySeek) || (!node->directory && offset > node->bytes.size())) {
       return false;
@@ -164,16 +185,21 @@ class HalFile {
   }
   bool seek(const size_t offset) { return seekSet(offset); }
   bool seekCur(const size_t offset) { return seek(pos + offset); }
-  int available() const { return node ? static_cast<int>(node->bytes.size() - std::min(pos, node->bytes.size())) : -1; }
+  int available() const {
+    hal_fake::requireImpl(hasImpl, "available", path.c_str());
+    return node ? static_cast<int>(node->bytes.size() - std::min(pos, node->bytes.size())) : -1;
+  }
   size_t size() const { return fileSize(); }
-  void flush() {}
+  void flush() { hal_fake::requireImpl(hasImpl, "flush", path.c_str()); }
   bool truncate(const size_t size) {
+    hal_fake::requireImpl(hasImpl, "truncate", path.c_str());
     if (!node || fake::fail(fake::failTruncate) || size > node->bytes.size()) return false;
     node->bytes.resize(size);
     pos = std::min(pos, size);
     return true;
   }
   int read(void* out, size_t size) {
+    hal_fake::requireImpl(hasImpl, "read", path.c_str());
     fake::reads++;
     if (size == 0) return 0;
     if (!node || fake::fail(fake::failRead)) return -1;
@@ -188,6 +214,7 @@ class HalFile {
     return static_cast<int>(size);
   }
   size_t write(const uint8_t* data, size_t size) {
+    hal_fake::requireImpl(hasImpl, "write", path.c_str());
     if (size == 0) return 0;
     fake::writesByPath[path]++;
     if (!fake::failWritePath.empty() && path == fake::failWritePath) {
@@ -206,6 +233,9 @@ class HalFile {
     return size;
   }
   size_t write(const void* data, const size_t size) { return write(static_cast<const uint8_t*>(data), size); }
+
+ private:
+  hal_fake::Impl hasImpl;  // Stands in for HalFile::impl: a move leaves the source without one.
 };
 
 class HalStorage {
@@ -223,8 +253,10 @@ class HalStorage {
     return true;
   }
   HalFile open(const char* path) {
-    if (fake::fail(fake::failOpen)) return {};
+    // HalStorage installs an impl even when the open fails.
     HalFile file;
+    file.hasImpl = true;
+    if (fake::fail(fake::failOpen)) return file;
     const auto found = fake::files.find(path);
     if (found != fake::files.end()) {
       file.node = found->second;

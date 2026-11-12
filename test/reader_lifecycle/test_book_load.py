@@ -30,7 +30,9 @@ def build(output, allocation_faults=False, main_source=None):
     storage = replace_once(storage, 'size_t read(void* buffer, size_t count)', 'int read(void* buffer, size_t count)')
     storage = replace_once(storage, 'bool remove(const std::string& path) {', 'bool remove(const std::string& path) { printf("remove %s\\n", path.c_str());')
     storage = replace_once(storage, 'bool removeDir(const char* path) {', 'bool removeDir(const char* path) { printf("removeDir %s\\n", path);')
-    storage = replace_once(storage, '  bool seek(size_t pos) {', '  bool seek(size_t pos) { if (!file_) { printf("nonio closed-seek %s %zu\\n", path_.c_str(), pos); return false; }')
+    storage = replace_once(storage, '    if (!BookFault::operation("seek", path_, pos)) return false;',
+                           '    if (!file_) { printf("nonio closed-seek %s %zu\\n", path_.c_str(), pos); return false; }\n'
+                           '    if (!BookFault::operation("seek", path_, pos)) return false;')
     if allocation_faults:
         storage = replace_once(storage, 'namespace HalFileTest {',
                                'namespace HalFileTest {\ninline size_t liveFiles = 0, liveObjects = 0;')
@@ -38,8 +40,8 @@ def build(output, allocation_faults=False, main_source=None):
                                '  HalFile() { ++HalFileTest::liveObjects; }')
         storage = replace_once(storage, 'explicit HalFile(const char* path) { open',
                                'explicit HalFile(const char* path) { ++HalFileTest::liveObjects; open')
-        storage = replace_once(storage, '~HalFile() { close(); }',
-                               '~HalFile() { close(); --HalFileTest::liveObjects; }')
+        storage = replace_once(storage, '  ~HalFile() {\n    if (impl_) close();\n  }',
+                               '  ~HalFile() {\n    if (impl_) close();\n    --HalFileTest::liveObjects;\n  }')
         storage = replace_once(storage, '    file_ = std::fopen(path, mode);',
                                '    file_ = std::fopen(path, mode);\n    if (file_) ++HalFileTest::liveFiles;')
         storage = replace_once(storage, '    const bool ok = std::fclose(file_) == 0;',

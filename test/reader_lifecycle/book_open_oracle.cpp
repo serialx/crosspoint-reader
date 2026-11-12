@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "../hal_fake_strict.h"
 #include "physical_defaults.h"
 
 static std::string output;
@@ -50,9 +51,13 @@ struct HalFile {
   std::unique_ptr<Impl> impl;
   HalFile() { ++files; }
   explicit HalFile(std::unique_ptr<Impl> value) : impl(std::move(value)) { ++files; }
+  HalFile(HalFile&& other) noexcept : impl(std::move(other.impl)) { ++files; }
   HalFile& operator=(HalFile&&) = default;
   ~HalFile() { --files; }
-  bool close() { return false; }
+  bool close() {
+    hal_fake::requireImpl(impl != nullptr, "close");
+    return false;
+  }
 };
 class HalStorage {
  public:

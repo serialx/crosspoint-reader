@@ -1,9 +1,11 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <functional>
 #include <string>
+#include <utility>
 #include <vector>
 
 struct Rect {
@@ -44,12 +46,33 @@ static uint8_t CoverIcon[1];
 enum UIIcon { FirstIcon, SecondIcon, ThirdIcon, FourthIcon, FifthIcon, SixthIcon };
 static uint8_t menuIcons[6];
 const uint8_t* iconForName(UIIcon icon) { return &menuIcons[icon]; }
+// Native HalFile asserts impl != nullptr on every file operation, so a handle that was
+// never opened must not answer. The golden harnesses compile this fixture outside the
+// CMake tree, so the check stays local instead of including the shared test header.
+[[noreturn]] static void unopenedFile(const char* operation) {
+  std::fprintf(stderr, "HalFile fake: %s() on a handle with no impl (never opened or moved from)\n", operation);
+  std::fflush(stderr);
+  std::abort();
+}
+
 struct HalFile {
+  HalFile() = default;
+  HalFile(HalFile&& other) noexcept { *this = std::move(other); }
+  HalFile& operator=(HalFile&& other) noexcept {
+    if (this == &other) return *this;
+    hasImpl = std::exchange(other.hasImpl, false);
+    id = std::exchange(other.id, 0);
+    return *this;
+  }
   int id = 0;
-  void close() {}
+  bool hasImpl = false;  // Stands in for HalFile::impl != nullptr.
+  void close() {
+    if (!hasImpl) unopenedFile("close");
+  }
 };
 struct StorageType {
   bool openFileForRead(const char*, const std::string& path, HalFile& file) {
+    file.hasImpl = true;  // HalStorage installs an impl even when the open fails.
     file.id = path.empty() ? 0 : path[0] - '0';
     return coverStatus != 1;
   }

@@ -22,3 +22,6 @@ add_executable(XtcOwnerSwitch Switch.cpp)
 target_include_directories(XtcOwnerSwitch PRIVATE ${REPO_ROOT}/test/book_io/stubs ${REPO_ROOT}/lib/Xtc ${REPO_ROOT}/rust/crates/xp-ffi/include)
 add_test(NAME xtc_owner_switch COMMAND XtcOwnerSwitch)
 add_test(NAME xtc_owner_boundaries COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/boundary.py --out ${CMAKE_CURRENT_BINARY_DIR}/boundaries)
+
+add_test(NAME HalContract.xtc_rust_slots COMMAND ${XP_FFI_CARGO} test
+  --manifest-path ${CMAKE_CURRENT_SOURCE_DIR}/rust/Cargo.toml --offline --locked --bin xtc-boundary)

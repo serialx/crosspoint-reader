@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "../hal_fake_strict.h"
 #include "book_lifetime_session_fixture.h"
 #ifdef LIFETIME_RELEASE_LOG
 #define LOG_DBG(tag, fmt, ...) ((void)0)
@@ -91,8 +92,19 @@ struct ImageBlock {
   }
 };
 struct HalFile {
+  HalFile() = default;
+  HalFile(HalFile&& other) noexcept : HalFile() { *this = std::move(other); }
+  HalFile& operator=(HalFile&& other) noexcept {
+    if (this == &other) return *this;
+    if (open) event("file-close");
+    open = std::exchange(other.open, false);
+    hasImpl = std::move(other.hasImpl);
+    return *this;
+  }
   bool open = false;
+  hal_fake::Impl hasImpl;
   int read(uint8_t* out, size_t capacity) {
+    hal_fake::requireImpl(hasImpl, "read");
     const int n = std::min(config.readSize, static_cast<int>(capacity));
     if (n > 0) memcpy(out, config.bytes.data(), n);
     event("file-read", n);
@@ -109,6 +121,7 @@ struct {
   }
   bool openFileForRead(const char* tag, const std::string& path, HalFile& file) {
     std::printf("open [%s] [%s] %d\n", tag, path.c_str(), config.file);
+    file.hasImpl = true;  // HalStorage installs an impl even when the open fails.
     file.open = config.file;
     return config.file;
   }

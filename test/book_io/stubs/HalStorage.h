@@ -6,6 +6,9 @@
 #include <map>
 #include <string>
 #include <vector>
+
+#include "../../hal_fake_strict.h"
+
 namespace booktest {
 inline std::map<std::string, std::vector<uint8_t>> files;
 inline size_t calls = 0, fail = 0;
@@ -25,16 +28,29 @@ inline bool step(const char* op, const std::string& path, uint64_t arg = 0) {
 }  // namespace booktest
 class HalFile {
  public:
+  HalFile() = default;
+  HalFile(HalFile&& other) noexcept { *this = std::move(other); }
+  HalFile& operator=(HalFile&& other) noexcept {
+    if (this == &other) return *this;
+    if (initialized && opened) close();
+    path = std::move(other.path);
+    position = other.position;
+    opened = std::exchange(other.opened, false);
+    initialized = std::move(other.initialized);
+    return *this;
+  }
   ~HalFile() {
     if (opened) close();
   }
   bool seek64(uint64_t offset) {
+    hal_fake::requireImpl(initialized, "seek64", path.c_str());
     if (!booktest::step("seek", path, offset) || !opened || offset > booktest::files[path].size()) return false;
     position = offset;
     return true;
   }
   bool seek(uint32_t offset) { return seek64(offset); }
   int read(void* out, size_t size) {
+    hal_fake::requireImpl(initialized, "read", path.c_str());
     if (!booktest::step("read", path, size) || !opened) return -1;
     size = std::min(size, booktest::files[path].size() - position);
     if (size) std::memcpy(out, booktest::files[path].data() + position, size);
@@ -42,6 +58,7 @@ class HalFile {
     return static_cast<int>(size);
   }
   size_t write(const void* data, size_t size) {
+    hal_fake::requireImpl(initialized, "write", path.c_str());
     if (!booktest::step("write", path, size) || !opened) return 0;
     auto& bytes = booktest::files[path];
     bytes.resize(std::max(bytes.size(), position + size));
@@ -49,27 +66,36 @@ class HalFile {
     position += size;
     return size;
   }
-  uint64_t fileSize64() const { return opened ? booktest::files[path].size() : 0; }
+  uint64_t fileSize64() const {
+    hal_fake::requireImpl(initialized, "fileSize64", path.c_str());
+    return opened ? booktest::files[path].size() : 0;
+  }
   size_t size() const { return fileSize64(); }
-  bool available() const { return opened && position < booktest::files[path].size(); }
-  bool isOpen() const { return opened; }
-  explicit operator bool() const { return opened; }
+  bool available() const {
+    hal_fake::requireImpl(initialized, "available", path.c_str());
+    return opened && position < booktest::files[path].size();
+  }
+  bool isOpen() const { return initialized && opened; }
+  explicit operator bool() const { return initialized && opened; }
   void close() {
+    hal_fake::requireImpl(initialized, "close", path.c_str());
     booktest::step("close", path);
     opened = false;
   }
   bool open(const std::string& name, bool writing) {
+    initialized = true;  // HalStorage installs an impl even when the open fails.
     path = name;
     position = 0;
     opened = booktest::step(writing ? "open-write" : "open-read", path) && (writing || booktest::files.count(path));
     if (opened && writing) booktest::files[path].clear();
-    return opened;
+    return initialized && opened;
   }
 
  private:
   std::string path;
   size_t position = 0;
   bool opened = false;
+  hal_fake::Impl initialized;  // Stands in for HalFile::impl: a move leaves the source without one.
 };
 inline unsigned long millis() { return 0; }
 struct HalStorage {

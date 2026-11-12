@@ -7,6 +7,7 @@
 #include <cstring>
 #include <string>
 
+#include "../hal_fake_strict.h"
 #include "physical_defaults.h"
 
 static void* inputContext;
@@ -46,15 +47,32 @@ static const XpAppResources resources = [] {
 #undef malloc
 #undef free
 struct HalFile {
+  HalFile(HalFile&& other) noexcept : HalFile() { *this = std::move(other); }
+  HalFile& operator=(HalFile&& other) noexcept {
+    if (this == &other) return *this;
+    hasImpl = std::move(other.hasImpl);
+    return *this;
+  }
+  hal_fake::Impl hasImpl;
   HalFile() { ++files; }
   ~HalFile() { --files; }
-  bool close() { return true; }
-  size_t size() const { return 0; }
-  int read(uint8_t* bytes, size_t size) { return inputRead(inputContext, bytes, size); }
+  bool close() {
+    hal_fake::requireImpl(hasImpl, "close");
+    return true;
+  }
+  size_t size() const {
+    hal_fake::requireImpl(hasImpl, "size");
+    return 0;
+  }
+  int read(uint8_t* bytes, size_t size) {
+    hal_fake::requireImpl(hasImpl, "read");
+    return inputRead(inputContext, bytes, size);
+  }
 };
 struct PhysicalStorage {
-  bool openFileForRead(const char* origin, const char* path, HalFile&) {
+  bool openFileForRead(const char* origin, const char* path, HalFile& file) {
     assert(std::strcmp(origin, "TXT") == 0 && inputPath == path);
+    file.hasImpl = true;  // HalStorage installs an impl even when the open fails.
     return true;
   }
 } Storage;

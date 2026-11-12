@@ -1,42 +1,62 @@
 #pragma once
+#include "../../hal_fake_strict.h"
 #include "WString.h"
+
 constexpr int O_WRONLY = 1, O_CREAT = 2, O_APPEND = 4;
 class HalFile {
   std::string path;
   bool opened = false;
   size_t child = 0;
+  bool hasImpl = false;  // Stands in for HalFile::impl != nullptr.
 
  public:
   HalFile() = default;
-  HalFile(HalFile&& f) : path(std::move(f.path)), opened(f.opened), child(f.child) { f.opened = false; }
+  HalFile(HalFile&& f) : path(std::move(f.path)), opened(f.opened), child(f.child), hasImpl(f.hasImpl) {
+    f.opened = false;
+    f.hasImpl = false;
+  }
   HalFile& operator=(HalFile&& f) {
-    if (opened) close();
+    if (opened) close();  // Production's move-assign is silent for a closed or missing impl.
     path = std::move(f.path);
     opened = f.opened;
     child = f.child;
+    hasImpl = f.hasImpl;
     f.opened = false;
+    f.hasImpl = false;
     return *this;
   }
   ~HalFile() {
-    if (opened) close();
+    if (opened) close();  // Production's destructor is silent for a closed or missing impl.
   }
   explicit operator bool() const { return opened; }
   bool isOpen() const { return opened; }
-  bool isDirectory() const { return oracle::dirs.count(path); }
-  size_t fileSize() const { return oracle::files[path].size(); }
+  bool isDirectory() const {
+    hal_fake::requireImpl(hasImpl, "isDirectory", path.c_str());
+    return oracle::dirs.count(path);
+  }
+  size_t fileSize() const {
+    hal_fake::requireImpl(hasImpl, "fileSize", path.c_str());
+    return oracle::files[path].size();
+  }
   uint64_t fileSize64() const { return fileSize(); }
   void close() {
+    hal_fake::requireImpl(hasImpl, "close", path.c_str());
     oracle::record("close %s", path.c_str());
     opened = false;
   }
-  void flush() { oracle::record("flush %s", path.c_str()); }
+  void flush() {
+    hal_fake::requireImpl(hasImpl, "flush", path.c_str());
+    oracle::record("flush %s", path.c_str());
+  }
   bool truncate(uint64_t n) {
+    hal_fake::requireImpl(hasImpl, "truncate", path.c_str());
     oracle::record("truncate %s %llu", path.c_str(), (unsigned long long)n);
     if (oracle::fault == "truncate") return false;
     oracle::files[path].resize(n);
     return true;
   }
   size_t write(const void* p, size_t n) {
+    hal_fake::requireImpl(hasImpl, "write", path.c_str());
     size_t got = oracle::fault == "write" ? n / 2 : n;
     const auto* b = static_cast<const uint8_t*>(p);
     oracle::files[path].insert(oracle::files[path].end(), b, b + got);
@@ -44,11 +64,13 @@ class HalFile {
     return got;
   }
   size_t getName(char* out, size_t n) {
+    hal_fake::requireImpl(hasImpl, "getName", path.c_str());
     auto name = path.substr(path.rfind('/') + 1);
     snprintf(out, n, "%s", name.c_str());
     return strlen(out);
   }
   bool open(const char* p, int mode = 0) {
+    hasImpl = true;  // HalStorage installs an impl even when the open fails.
     path = p;
     child = 0;
     opened = oracle::fault != "open" && (mode || oracle::files.count(p) || oracle::dirs.count(p));
@@ -57,6 +79,7 @@ class HalFile {
     return opened;
   }
   HalFile openNextFile() {
+    hal_fake::requireImpl(hasImpl, "openNextFile", path.c_str());
     std::set<std::string> children;
     const auto prefix = path + "/";
     for (const auto& p : oracle::dirs)
@@ -64,6 +87,7 @@ class HalFile {
     for (const auto& [p, b] : oracle::files)
       if (p.starts_with(prefix) && p.find('/', prefix.size()) == std::string::npos) children.insert(p);
     HalFile out;
+    out.hasImpl = true;  // Production always returns an entry handle with an impl.
     if (child < children.size()) {
       auto i = children.begin();
       std::advance(i, child++);

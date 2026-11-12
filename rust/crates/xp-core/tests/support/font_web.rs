@@ -78,11 +78,112 @@ struct Fonts {
 unsafe extern "C" {
     fn xp_web_fonts(ctx: *mut c_void, fonts: *const Fonts, route: u32);
 }
+// Mirrors XpWebIo in rust/crates/xp-ffi/include/xp_web.h; keep the order in sync.
+#[repr(u32)]
+#[derive(Clone, Copy)]
+enum Io {
+    Exists,
+    Open,
+    Close,
+    IsOpen,
+    IsDir,
+    Size,
+    Next,
+    Name,
+    Read,
+    Write,
+    Mkdir,
+    Remove,
+    Rmdir,
+    ClientWrite,
+    ClientClear,
+    Create,
+    Available,
+    OpenRead,
+    EnsureDir,
+    Replace,
+    OpenAppend,
+    Flush,
+    CreatePlugin,
+}
+const CLOSE: u32 = Io::Close as u32;
+const IS_OPEN: u32 = Io::IsOpen as u32;
+const SIZE: u32 = Io::Size as u32;
+const CREATE: u32 = Io::Create as u32;
+const OPEN_READ: u32 = Io::OpenRead as u32;
+// The web server owns one HalFile per slot.
+const SLOTS: usize = 3;
 struct Context {
     owner: *const Owner,
     response: Vec<u8>,
     paths: Vec<Vec<u8>>,
     events: Vec<u32>,
+    // Production indexes a separate HalFile by slot: an open attempt installs the impl, close
+    // only ends I/O, so the impl survives repeated close and never-opened slots have none.
+    fail_open: bool,
+    impls: [bool; SLOTS],
+    open: [bool; SLOTS],
+}
+fn slot_index(slot: u32) -> usize {
+    assert!((slot as usize) < SLOTS, "unexpected slot {slot}");
+    slot as usize
+}
+fn require_impl(c: &Context, slot: u32, operation: &str) {
+    assert!(
+        c.impls[slot_index(slot)],
+        "{operation} on a slot with no HAL handle"
+    );
+}
+fn slot_io(c: &mut Context, op: u32, slot: u32, path: *const c_char) -> usize {
+    if slot as usize >= SLOTS {
+        return 0;
+    }
+    match op {
+        OPEN_READ => {
+            // HalStorage installs the impl for every open attempt.
+            c.paths
+                .push(unsafe { CStr::from_ptr(path) }.to_bytes().to_vec());
+            c.impls[slot_index(slot)] = true;
+            c.open[slot_index(slot)] = !c.fail_open && !unsafe { CStr::from_ptr(path) }.is_empty();
+            usize::from(c.open[slot_index(slot)])
+        }
+        SIZE => {
+            require_impl(c, slot, "Size");
+            if c.open[slot_index(slot)] {
+                73
+            } else {
+                0
+            }
+        }
+        CLOSE => {
+            require_impl(c, slot, "Close");
+            c.open[slot_index(slot)] = false;
+            0
+        }
+        _ => panic!("unexpected I/O {op}"),
+    }
+}
+fn upload_slot_io(c: &mut Context, op: u32, slot: u32, path: *const c_char) -> usize {
+    if slot as usize >= SLOTS {
+        return 0;
+    }
+    match op {
+        IS_OPEN => usize::from(c.open[slot_index(slot)]),
+        CREATE => {
+            // Create opens the upload target, so the slot holds an impl from here on.
+            c.paths
+                .push(unsafe { CStr::from_ptr(path) }.to_bytes().to_vec());
+            c.impls[slot_index(slot)] = true;
+            c.open[slot_index(slot)] = !c.fail_open && !unsafe { CStr::from_ptr(path) }.is_empty();
+            usize::from(c.open[slot_index(slot)])
+        }
+        CLOSE => {
+            require_impl(c, slot, "Close");
+            c.open[slot_index(slot)] = false;
+            0
+        }
+        _ => panic!("I/O {op}"),
+    }
 }
 unsafe extern "C" fn span(_: *mut c_void, _: *const c_char) -> Span {
     Span::EMPTY
@@ -95,21 +196,12 @@ unsafe extern "C" fn send(ctx: *mut c_void, code: u16, kind: *const c_char, body
 unsafe extern "C" fn io(
     ctx: *mut c_void,
     op: u32,
-    _: u32,
+    slot: u32,
     path: *const c_char,
     _: *mut u8,
     _: usize,
 ) -> usize {
-    let c = &mut *ctx.cast::<Context>();
-    match op {
-        17 => {
-            c.paths.push(CStr::from_ptr(path).to_bytes().to_vec());
-            1
-        } // OpenRead
-        5 => 73, // Size
-        2 => 0,  // Close
-        _ => panic!("unexpected I/O {op}"),
-    }
+    slot_io(&mut *ctx.cast::<Context>(), op, slot, path)
 }
 unsafe extern "C" fn owner(ctx: *mut c_void, vectors: *mut bool) -> *const Owner {
     *vectors = false;
@@ -204,6 +296,9 @@ fn activated_font_list_matches_native_response_and_file_operation_order() {
             response: Vec::new(),
             paths: Vec::new(),
             events: Vec::new(),
+            fail_open: false,
+            impls: [false; SLOTS],
+            open: [false; SLOTS],
         };
         xp_web_fonts((&mut context as *mut Context).cast(), &fonts, 0);
         assert_eq!(
@@ -402,6 +497,9 @@ fn activated_config_borrows_then_copies_rust_choices_and_keeps_response_bytes() 
             response: Vec::new(),
             paths: Vec::new(),
             events: Vec::new(),
+            fail_open: false,
+            impls: [false; SLOTS],
+            open: [false; SLOTS],
         };
         xp_web_config((&mut context as *mut Context).cast(), &config, 0);
         assert_eq!(
@@ -480,21 +578,12 @@ unsafe extern "C" fn upload_buffer(ctx: *mut c_void, allocate: bool) -> *mut u8 
 unsafe extern "C" fn upload_io(
     ctx: *mut c_void,
     op: u32,
-    _: u32,
+    slot: u32,
     path: *const c_char,
     _: *mut u8,
     _: usize,
 ) -> usize {
-    match op {
-        3 => 0,
-        15 => {
-            (*ctx.cast::<Context>())
-                .paths
-                .push(CStr::from_ptr(path).to_bytes().to_vec());
-            1
-        }
-        _ => panic!("I/O {op}"),
-    }
+    upload_slot_io(&mut *ctx.cast::<Context>(), op, slot, path)
 }
 unsafe extern "C" fn upload_install(
     ctx: *mut c_void,
@@ -580,6 +669,9 @@ fn activated_upload_selects_root_and_path_before_native_storage_effect() {
                 response: Vec::new(),
                 paths: Vec::new(),
                 events: Vec::new(),
+                fail_open: false,
+                impls: [false; SLOTS],
+                open: [false; SLOTS],
             },
             family: Vec::new(),
             path: Vec::new(),
@@ -613,5 +705,129 @@ fn activated_upload_selects_root_and_path_before_native_storage_effect() {
             [b"/.fonts/ShortFont/ShortFont_14.cpfont".to_vec()]
         );
         font_registry::xp_font_registry_drop(owner);
+    }
+}
+
+fn slot_context() -> Context {
+    Context {
+        owner: ptr::null(),
+        response: Vec::new(),
+        paths: Vec::new(),
+        events: Vec::new(),
+        fail_open: false,
+        impls: [false; SLOTS],
+        open: [false; SLOTS],
+    }
+}
+
+// Production indexes one HalFile per slot: open installs the impl, close only ends I/O, and
+// a slot that no open touched has none. These pin both directions of that contract.
+#[test]
+fn listen_open_close_close_and_size_after_close_are_valid() {
+    let mut c = slot_context();
+    assert_eq!(slot_io(&mut c, OPEN_READ, 0, c"a.cpfont".as_ptr()), 1);
+    assert_eq!(slot_io(&mut c, CLOSE, 0, ptr::null()), 0);
+    assert_eq!(slot_io(&mut c, CLOSE, 0, ptr::null()), 0); // close keeps the impl
+    assert_eq!(slot_io(&mut c, SIZE, 0, ptr::null()), 0); // closed file size
+}
+
+#[test]
+#[should_panic(expected = "Close on a slot with no HAL handle")]
+fn close_on_a_never_opened_slot_is_rejected() {
+    let mut c = slot_context();
+    slot_io(&mut c, CLOSE, 1, ptr::null());
+}
+
+#[test]
+#[should_panic(expected = "Close on a slot with no HAL handle")]
+fn close_on_a_slot_other_than_the_opened_one_is_rejected() {
+    let mut c = slot_context();
+    assert_eq!(slot_io(&mut c, OPEN_READ, 0, c"a.cpfont".as_ptr()), 1);
+    slot_io(&mut c, CLOSE, 1, ptr::null());
+}
+
+#[test]
+#[should_panic(expected = "Size on a slot with no HAL handle")]
+fn size_on_a_never_opened_slot_is_rejected() {
+    let mut c = slot_context();
+    slot_io(&mut c, SIZE, 0, ptr::null());
+}
+
+#[test]
+fn upload_create_then_is_open_then_repeated_close_is_valid() {
+    let mut c = slot_context();
+    assert_eq!(upload_slot_io(&mut c, CREATE, 0, c"a.cpfont".as_ptr()), 1);
+    assert_eq!(upload_slot_io(&mut c, IS_OPEN, 0, ptr::null()), 1);
+    assert_eq!(upload_slot_io(&mut c, CLOSE, 0, ptr::null()), 0);
+    assert_eq!(upload_slot_io(&mut c, IS_OPEN, 0, ptr::null()), 0);
+    assert_eq!(upload_slot_io(&mut c, CLOSE, 0, ptr::null()), 0);
+}
+
+#[test]
+#[should_panic(expected = "Close on a slot with no HAL handle")]
+fn upload_close_without_create_is_rejected() {
+    let mut c = slot_context();
+    upload_slot_io(&mut c, CLOSE, 0, ptr::null());
+}
+
+#[test]
+fn all_native_slots_and_out_of_range_indices() {
+    for slot in 0..3 {
+        let mut c = slot_context();
+        assert_eq!(upload_slot_io(&mut c, IS_OPEN, slot, ptr::null()), 0);
+        assert_eq!(slot_io(&mut c, OPEN_READ, slot, c"a.cpfont".as_ptr()), 1);
+        assert_eq!(slot_io(&mut c, SIZE, slot, ptr::null()), 73);
+        slot_io(&mut c, CLOSE, slot, ptr::null());
+        assert_eq!(
+            upload_slot_io(&mut c, CREATE, slot, c"a.cpfont".as_ptr()),
+            1
+        );
+        assert_eq!(upload_slot_io(&mut c, IS_OPEN, slot, ptr::null()), 1);
+        upload_slot_io(&mut c, CLOSE, slot, ptr::null());
+        upload_slot_io(&mut c, CLOSE, slot, ptr::null());
+        assert_eq!(upload_slot_io(&mut c, IS_OPEN, slot, ptr::null()), 0);
+    }
+    for slot in [3, u32::MAX] {
+        let mut c = slot_context();
+        for op in [OPEN_READ, SIZE, CLOSE] {
+            assert_eq!(slot_io(&mut c, op, slot, ptr::null()), 0);
+        }
+        for op in [CREATE, IS_OPEN, CLOSE] {
+            assert_eq!(upload_slot_io(&mut c, op, slot, ptr::null()), 0);
+        }
+        assert!(c.paths.is_empty());
+    }
+}
+
+#[test]
+fn every_slot_preserves_failed_open_cleanup_and_its_own_guards() {
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+    for slot in 0..3 {
+        for op in [SIZE, CLOSE] {
+            let mut c = slot_context();
+            assert!(
+                catch_unwind(AssertUnwindSafe(|| slot_io(&mut c, op, slot, ptr::null()))).is_err()
+            );
+        }
+        let mut c = slot_context();
+        assert!(catch_unwind(AssertUnwindSafe(|| upload_slot_io(
+            &mut c,
+            CLOSE,
+            slot,
+            ptr::null()
+        )))
+        .is_err());
+        for empty in [false, true] {
+            let path = if empty { c"" } else { c"missing" };
+            c.fail_open = !empty;
+            assert_eq!(slot_io(&mut c, OPEN_READ, slot, path.as_ptr()), 0);
+            assert_eq!(slot_io(&mut c, SIZE, slot, ptr::null()), 0);
+            slot_io(&mut c, CLOSE, slot, ptr::null());
+            slot_io(&mut c, CLOSE, slot, ptr::null());
+            assert_eq!(upload_slot_io(&mut c, CREATE, slot, path.as_ptr()), 0);
+            assert_eq!(upload_slot_io(&mut c, IS_OPEN, slot, ptr::null()), 0);
+            upload_slot_io(&mut c, CLOSE, slot, ptr::null());
+            upload_slot_io(&mut c, CLOSE, slot, ptr::null());
+        }
     }
 }

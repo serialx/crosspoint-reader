@@ -9,6 +9,9 @@ pub struct Directory {
     root: usize,
     file: usize,
     family: usize,
+    // Native directory open assigns a HalFile to the slot; next iterates that handle.
+    opened: [bool; 2],
+    valid: [bool; 2],
 }
 impl Directory {
     pub fn new(families: usize) -> Self {
@@ -20,27 +23,41 @@ impl Directory {
             root: 0,
             file: 0,
             family: 0,
+            opened: [false; 2],
+            valid: [false; 2],
         }
     }
 }
 unsafe impl catalog::Directory for Directory {
     fn open(&mut self, path: &CStr, root: bool) -> i32 {
+        self.opened[usize::from(root)] = true;
+        self.valid[usize::from(root)] = false; // Every open attempt leaves the slot holding a HalFile.
         if root {
             self.root = 0;
-            return i32::from(path == c"/.fonts");
+            self.valid[1] = path == c"/.fonts";
+            return i32::from(self.valid[1]);
         }
         self.file = 0;
         let text = path.to_str().unwrap();
-        self.family = text
+        let family = text
             .rsplit('/')
             .next()
             .unwrap()
             .trim_start_matches('F')
-            .parse()
-            .unwrap();
-        1
+            .parse::<usize>();
+        let Ok(family) = family else { return 0 };
+        self.family = family;
+        self.valid[0] = family < self.families;
+        i32::from(self.valid[0])
     }
     fn next(&mut self, root: bool, name: &mut [u8; 128], directory: &mut bool) -> bool {
+        assert!(
+            self.opened[usize::from(root)],
+            "directory_next on a slot with no HAL handle"
+        );
+        if !self.valid[usize::from(root)] {
+            return false;
+        }
         let text = if root {
             if self.root == self.families {
                 return false;
@@ -83,7 +100,11 @@ unsafe impl catalog::Directory for Directory {
         name[..text.len()].copy_from_slice(text.as_bytes());
         true
     }
-    fn close(&mut self, _: bool) {}
+    fn close(&mut self, root: bool) {
+        // Native close destroys and reinitializes the slot, so no handle is left behind.
+        self.opened[usize::from(root)] = false;
+        self.valid[usize::from(root)] = false;
+    }
     fn inspect(&mut self, _: &CStr) -> Option<(u16, bool)> {
         None
     }

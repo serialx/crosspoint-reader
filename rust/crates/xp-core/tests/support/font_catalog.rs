@@ -15,6 +15,11 @@ struct Fixture {
     fail_io: usize,
 }
 thread_local! { static FIXTURE: RefCell<Fixture> = RefCell::new(Fixture::default()); }
+// Third slot word: nonzero once the slot holds a HAL handle, as native slots do.
+const HANDLE_WORD: usize = 2;
+unsafe fn has_handle(slot: *mut Slot) -> bool {
+    slot.cast::<usize>().add(HANDLE_WORD).read() != 0
+}
 pub(super) fn reset(fail_alloc: usize, fail_io: usize) {
     FIXTURE.with(|f| {
         *f.borrow_mut() = Fixture {
@@ -49,6 +54,10 @@ pub(super) fn largest() -> usize {
     FIXTURE.with(|f| if f.borrow().enabled { 200 * 1024 } else { 0 })
 }
 pub(super) unsafe fn directory_open(slot: *mut Slot, path: *const c_char) -> i32 {
+    // Native assigns a HalFile to the slot for every open attempt, including a failed one.
+    slot.cast::<usize>().add(HANDLE_WORD).write(1);
+    slot.cast::<usize>().write(0);
+    slot.cast::<usize>().add(1).write(0);
     let enabled = FIXTURE.with(|f| f.borrow().enabled);
     if !enabled {
         return 0;
@@ -66,8 +75,15 @@ pub(super) unsafe fn directory_open(slot: *mut Slot, path: *const c_char) -> i32
     1
 }
 pub(super) unsafe fn directory_next(slot: *mut Slot, name: *mut u8, directory: *mut bool) -> bool {
+    assert!(
+        has_handle(slot),
+        "directory_next on a slot with no HAL handle"
+    );
     let node = slot.cast::<usize>().read();
     let index = slot.cast::<usize>().add(1).read();
+    if node == 0 {
+        return false;
+    }
     let vector = FIXTURE.with(|f| f.borrow().vector);
     let long_name = FIXTURE.with(|f| f.borrow().long_name);
     let names: &[&CStr] = if node == 1 && long_name {

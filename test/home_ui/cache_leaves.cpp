@@ -2,8 +2,11 @@
 #include <array>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <memory>
 #include <string>
+#include <utility>
+
 namespace freeink::ui {
 struct Rect {
   int16_t x = 0, y = 0, width = 0, height = 0;
@@ -40,8 +43,27 @@ class GfxRenderer {
   void fillRect(int, int, int, int) { paintTrace |= 4; }
   void fillRectDither(int, int, int, int, Color) { paintTrace |= 8; }
 };
+// Native HalFile asserts impl != nullptr on every file operation, so a handle that was
+// never opened must not answer. The golden harnesses compile this fixture outside the
+// CMake tree, so the check stays local instead of including the shared test header.
+[[noreturn]] static void unopenedFile(const char* operation) {
+  std::fprintf(stderr, "HalFile fake: %s() on a handle with no impl (never opened or moved from)\n", operation);
+  std::fflush(stderr);
+  std::abort();
+}
+
 struct HalFile {
-  void close() {}
+  HalFile() = default;
+  HalFile(HalFile&& other) noexcept { *this = std::move(other); }
+  HalFile& operator=(HalFile&& other) noexcept {
+    if (this == &other) return *this;
+    hasImpl = std::exchange(other.hasImpl, false);
+    return *this;
+  }
+  bool hasImpl = false;  // Stands in for HalFile::impl != nullptr.
+  void close() {
+    if (!hasImpl) unopenedFile("close");
+  }
 };
 enum class BmpReaderError { Ok, Invalid };
 struct Bitmap {
@@ -51,7 +73,10 @@ struct Bitmap {
   int getHeight() const { return 140; }
 };
 struct StorageType {
-  bool openFileForRead(const char*, const std::string&, HalFile&) { return bitmapStatus != 2; }
+  bool openFileForRead(const char*, const std::string&, HalFile& file) {
+    file.hasImpl = true;  // HalStorage installs an impl even when the open fails.
+    return bitmapStatus != 2;
+  }
 } Storage;
 struct Theme {
   bool drawCoverThumbFill(GfxRenderer&, const Bitmap&, Rect, int) {

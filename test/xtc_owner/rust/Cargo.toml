@@ -11,4 +11,4 @@ path = "lib.rs"
 [[bin]]
 name = "xtc-boundary"
 path = "boundary.rs"
-test = false
+test = true

@@ -212,6 +212,7 @@ void scaling(JsonDocument& result, const std::string& kind, size_t count) {
 void buffered(JsonDocument& result, size_t capacity, bool failAlloc, bool shortIo) {
   store_test::failAlloc = failAlloc;
   HalFile file;
+  file.open();
   file.writeLimit = shortIo ? 3 : SIZE_MAX;
   {
     serialization::BufferedFileWriter out(file, capacity);

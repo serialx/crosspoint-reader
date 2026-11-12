@@ -77,7 +77,10 @@ static bool lent = false, expectBorrow = false, failAfterInspection = false, rej
 #include <HalStorage.h>
 #undef HalFile
 struct HalFile : HostFile {
+  HalFile() = default;
   ~HalFile() { ++closes; }
+  HalFile(HalFile&& other) noexcept : HalFile() { *this = std::move(other); }
+  HalFile& operator=(HalFile&&) = default;
 };
 struct BookMetadataCache {
   static void lockReadCursor() {}

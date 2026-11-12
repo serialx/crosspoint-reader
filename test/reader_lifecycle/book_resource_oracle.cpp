@@ -7,6 +7,7 @@
 #include <mutex>
 #include <string>
 
+#include "../hal_fake_strict.h"
 #include "physical_defaults.h"
 
 extern "C" uint32_t xp_epub_test_book_resources(const XpEpubLeaves*, XpAppText, uint8_t, XpBookSink, void*);
@@ -47,13 +48,25 @@ struct BookMetadataCache {
 // ACTUAL_MUTEX_METHODS
 
 struct HalFile {
+  HalFile() = default;
+  HalFile(HalFile&& other) noexcept : HalFile() { *this = std::move(other); }
+  HalFile& operator=(HalFile&& other) noexcept {
+    if (this == &other) return *this;
+    if (open) close();
+    open = std::exchange(other.open, false);
+    position = std::move(other.position);
+    hasImpl = std::move(other.hasImpl);
+    return *this;
+  }
   bool open = false;
   size_t position = 0;
+  hal_fake::Impl hasImpl;
   ~HalFile() {
     assert(depth == 0);
     if (open) ++closes;
   }
   bool close() {
+    hal_fake::requireImpl(hasImpl, "close");
     assert(depth == 0);
     if (!open) return false;
     open = false;
@@ -61,13 +74,18 @@ struct HalFile {
     return true;
   }
   bool seek(uint32_t offset) {
+    hal_fake::requireImpl(hasImpl, "seek");
     assert(depth == 1);
     if (failSeek) return false;
     position = offset;
     return true;
   }
-  size_t size() const { return 8; }
+  size_t size() const {
+    hal_fake::requireImpl(hasImpl, "size");
+    return 8;
+  }
   int read(uint8_t* bytes, uint32_t length) {
+    hal_fake::requireImpl(hasImpl, "read");
     assert(depth == 1 && position + length <= 8);
     if (failRead) return -1;
     if (shortRead) length /= 2;
@@ -79,6 +97,7 @@ struct HalFile {
 struct PhysicalStorage {
   bool openFileForRead(const char*, const char* path, HalFile& file) {
     assert(std::string(path) == bookPath);
+    file.hasImpl = true;  // HalStorage installs an impl even when the open fails.
     if (failOpen) return false;
     file.open = true;
     ++opens;

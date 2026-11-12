@@ -13,6 +13,9 @@ struct File {
     size: u64,
     table_at: u64,
     opened: bool,
+    // Native open installs the HAL handle; close keeps it, so only a never-opened File lacks one.
+    handle: bool,
+    fail_open: bool,
 }
 impl File {
     fn new(count: u64) -> Self {
@@ -25,6 +28,8 @@ impl File {
             size: table_at + 16,
             table_at,
             opened: false,
+            handle: false,
+            fail_open: false,
         };
         file.header[..4].copy_from_slice(b"XTC\0");
         file.header[4] = 1;
@@ -48,8 +53,9 @@ unsafe extern "C" fn open(p: *mut c_void, _: *const u8) -> bool {
     println!("open");
     let f = &mut *p.cast::<File>();
     f.at = 0;
-    f.opened = true;
-    true
+    f.opened = !f.fail_open;
+    f.handle = true;
+    f.opened
 }
 unsafe extern "C" fn parent_open(p: *mut c_void) -> bool {
     open(p, ptr::null())
@@ -57,12 +63,15 @@ unsafe extern "C" fn parent_open(p: *mut c_void) -> bool {
 unsafe extern "C" fn is_open(p: *mut c_void) -> bool {
     (*p.cast::<File>()).opened
 }
-unsafe extern "C" fn close(p: *mut c_void) {
+unsafe fn file_close(p: *mut c_void) {
     println!("close");
-    (*p.cast::<File>()).opened = false;
-}
-unsafe extern "C" fn read(p: *mut c_void, out: *mut u8, n: usize) -> i32 {
     let f = &mut *p.cast::<File>();
+    assert!(f.handle, "close on a file with no HAL handle");
+    f.opened = false;
+}
+unsafe fn file_read(p: *mut c_void, out: *mut u8, n: usize) -> i32 {
+    let f = &mut *p.cast::<File>();
+    assert!(f.handle, "read on a file with no HAL handle");
     println!("read {} {n}", f.at);
     let source = if f.at == 0 && n == 56 {
         &f.header[..]
@@ -82,13 +91,17 @@ unsafe extern "C" fn read(p: *mut c_void, out: *mut u8, n: usize) -> i32 {
     f.at += n as u64;
     n as i32
 }
-unsafe extern "C" fn seek(p: *mut c_void, at: u64) -> bool {
+unsafe fn file_seek(p: *mut c_void, at: u64) -> bool {
     println!("seek {at}");
-    (*p.cast::<File>()).at = at;
+    let f = &mut *p.cast::<File>();
+    assert!(f.handle, "seek on a file with no HAL handle");
+    f.at = at;
     true
 }
-unsafe extern "C" fn size(p: *mut c_void) -> u64 {
-    (*p.cast::<File>()).size
+unsafe fn file_size(p: *mut c_void) -> u64 {
+    let f = &*p.cast::<File>();
+    assert!(f.handle, "size on a file with no HAL handle");
+    f.size
 }
 unsafe extern "C" fn diagnostic(_: *mut c_void, event: u32, a: u32, b: u32, c: u32, d: u32) {
     println!("log {event} {a} {b} {c} {d}");
@@ -207,4 +220,55 @@ fn main() {
         }
     }
     panic!("the boundary allocator must terminate before returning")
+}
+
+unsafe extern "C" fn close(p: *mut c_void) {
+    file_close(p)
+}
+unsafe extern "C" fn read(p: *mut c_void, out: *mut u8, n: usize) -> i32 {
+    file_read(p, out, n)
+}
+unsafe extern "C" fn seek(p: *mut c_void, at: u64) -> bool {
+    file_seek(p, at)
+}
+unsafe extern "C" fn size(p: *mut c_void) -> u64 {
+    file_size(p)
+}
+#[test]
+fn file_table_contract() {
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+    let mut file = File::new(1);
+    let p = ptr::addr_of_mut!(file).cast();
+    unsafe {
+        assert!(!is_open(p));
+        for op in 0..4 {
+            assert!(catch_unwind(AssertUnwindSafe(|| match op {
+                0 => {
+                    file_read(p, [0u8; 56].as_mut_ptr(), 56);
+                }
+                1 => {
+                    file_seek(p, 0);
+                }
+                2 => {
+                    file_size(p);
+                }
+                _ => file_close(p),
+            }))
+            .is_err());
+        }
+        (*p.cast::<File>()).fail_open = true;
+        assert!(!open(p, c"".as_ptr().cast()));
+        assert!(!is_open(p));
+        close(p);
+        close(p);
+        (*p.cast::<File>()).fail_open = false;
+        assert!(parent_open(p));
+        assert!(is_open(p));
+        assert!(seek(p, 0));
+        assert_eq!(read(p, [0u8; 56].as_mut_ptr(), 56), 56);
+        assert!(size(p) > 0);
+        close(p);
+        assert!(!is_open(p));
+        close(p);
+    }
 }

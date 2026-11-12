@@ -8,6 +8,7 @@
 #include <cstring>
 #include <string>
 
+#include "../hal_fake_strict.h"
 #include "physical_defaults.h"
 
 extern "C" {
@@ -51,13 +52,33 @@ static const XpAppResources resources = [] {
 #undef free
 static bool lent = false, expectBorrow = false, failAfterInspection = false, rejectSink = false, reclaimEarly = false;
 struct HalFile {
+  HalFile() = default;
+  HalFile(HalFile&& other) noexcept : HalFile() { *this = std::move(other); }
+  HalFile& operator=(HalFile&& other) noexcept {
+    if (this == &other) return *this;
+    hasImpl = std::move(other.hasImpl);
+    return *this;
+  }
+  hal_fake::Impl hasImpl;
   ~HalFile() { ++closes; }
-  bool close() { return true; }
-  bool seek(uint32_t) { return true; }
-  int read(uint8_t*, uint32_t) { return -1; }
+  bool close() {
+    hal_fake::requireImpl(hasImpl, "close");
+    return true;
+  }
+  bool seek(uint32_t) {
+    hal_fake::requireImpl(hasImpl, "seek");
+    return true;
+  }
+  int read(uint8_t*, uint32_t) {
+    hal_fake::requireImpl(hasImpl, "read");
+    return -1;
+  }
 };
 struct PhysicalStorage {
-  bool openFileForRead(const char*, const char*, HalFile&) { return true; }
+  bool openFileForRead(const char*, const char*, HalFile& file) {
+    file.hasImpl = true;  // HalStorage installs an impl even when the open fails.
+    return true;
+  }
 } Storage;
 struct BookMetadataCache {
   static void lockReadCursor() {}

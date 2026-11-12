@@ -57,6 +57,8 @@ struct HalFile : HostFile {
     --liveFiles;
     ++closes;
   }
+  HalFile(HalFile&& other) noexcept : HalFile() { *this = std::move(other); }
+  HalFile& operator=(HalFile&&) = default;
 };
 static const XpAppResources resources = [] {
   XpAppResources value = unexpectedAppResources();

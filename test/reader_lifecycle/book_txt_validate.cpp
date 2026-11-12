@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "../hal_fake_strict.h"
 #include "physical_defaults.h"
 
 using Files = std::map<std::string, std::string>;
@@ -33,20 +34,33 @@ static void record(const char* level, const char* origin, const char* format, Ar
 #define LOG_ERR(origin, format, ...) record("ERR", origin, format, ##__VA_ARGS__)
 #define LOG_INF(origin, format, ...) record("INF", origin, format, ##__VA_ARGS__)
 struct HalFile {
+  HalFile(HalFile&& other) noexcept : HalFile() { *this = std::move(other); }
+  HalFile& operator=(HalFile&& other) noexcept {
+    if (this == &other) return *this;
+    if (hasImpl) close();
+    path = std::move(other.path);
+    position = std::move(other.position);
+    other.path.clear();
+    hasImpl = std::move(other.hasImpl);
+    return *this;
+  }
   std::string path;
   size_t position = 0;
+  hal_fake::Impl hasImpl;
   HalFile() { ++liveFiles; }
   ~HalFile() {
-    close();
+    if (hasImpl) close();
     --liveFiles;
   }
   bool close() {
+    hal_fake::requireImpl(hasImpl, "close");
     if (path.empty()) return false;
     events.push_back("close " + path);
     path.clear();
     return true;
   }
   int read(uint8_t* bytes, size_t length) {
+    hal_fake::requireImpl(hasImpl, "read");
     if (!operation("read " + path + " " + std::to_string(length))) return -1;
     const auto& data = files.at(path);
     const size_t count = std::min(length, data.size() - position);
@@ -55,6 +69,7 @@ struct HalFile {
     return count;
   }
   size_t size() const {
+    hal_fake::requireImpl(hasImpl, "size");
     events.push_back("size " + path);
     return files.at(path).size();
   }
@@ -62,6 +77,7 @@ struct HalFile {
 struct PhysicalStorage {
   bool exists(const char* path) { return operation("exists " + std::string(path)) && files.contains(path); }
   bool openFileForRead(const char* origin, const std::string& path, HalFile& file) {
+    file.hasImpl = true;  // HalStorage installs an impl even when the open fails.
     if (!operation("open " + std::string(origin) + " " + path) || !files.contains(path)) return false;
     file.path = path;
     return true;

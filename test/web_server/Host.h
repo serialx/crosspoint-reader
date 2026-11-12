@@ -16,6 +16,7 @@
 #include <utility>
 #include <vector>
 
+#include "../hal_fake_strict.h"
 #include "src/network/ProtectedPaths.h"
 #include "stubs/WString.h"
 
@@ -165,19 +166,29 @@ class HalFile {
   }
   explicit operator bool() const { return bool(node); }
   bool isOpen() const { return bool(node); }
-  void flush() { host::trace.push_back("flush:" + path); }
-  bool isDirectory() const { return node && node->directory; }
+  void flush() {
+    hal_fake::requireImpl(hasImpl, "flush", path.c_str());
+    host::trace.push_back("flush:" + path);
+  }
+  bool isDirectory() const {
+    hal_fake::requireImpl(hasImpl, "isDirectory", path.c_str());
+    return node && node->directory;
+  }
   void close() {
-    if (!hasImpl) {
-      std::cerr << "HalFile::close: impl == nullptr\n";
-      std::abort();
-    }
+    hal_fake::requireImpl(hasImpl, "close", path.c_str());
     if (node) host::trace.push_back("close:" + path);
     node.reset();
   }
-  size_t size() const { return node ? node->bytes.size() : 0; }
-  int available() const { return node ? static_cast<int>(size() - pos) : 0; }
+  size_t size() const {
+    hal_fake::requireImpl(hasImpl, "size", path.c_str());
+    return node ? node->bytes.size() : 0;
+  }
+  int available() const {
+    hal_fake::requireImpl(hasImpl, "available", path.c_str());
+    return node ? static_cast<int>(size() - pos) : 0;
+  }
   size_t getName(char* out, size_t cap) const {
+    hal_fake::requireImpl(hasImpl, "getName", path.c_str());
     const auto name = path.substr(path.rfind('/') + 1);
     if (cap) {
       std::strncpy(out, name.c_str(), cap);
@@ -186,6 +197,7 @@ class HalFile {
     return name.size();
   }
   HalFile openNextFile() {
+    hal_fake::requireImpl(hasImpl, "openNextFile", path.c_str());
     size_t i = 0;
     for (auto& [name, n] : host::files) {
       auto parent = name.substr(0, name.rfind('/'));
@@ -196,9 +208,10 @@ class HalFile {
         return HalFile(name, n);
       }
     }
-    return {};
+    return HalFile(path, nullptr);  // Exhaustion still returns an entry handle with an impl.
   }
   int read(uint8_t* data, size_t n) {
+    hal_fake::requireImpl(hasImpl, "read", path.c_str());
     host::trace.push_back("read:" + path + ":" + std::to_string(n));
     if (!node || host::fail("read")) return -1;
     n = std::min(n, size() - pos);
@@ -207,6 +220,7 @@ class HalFile {
     return n;
   }
   size_t write(const uint8_t* data, size_t n) {
+    hal_fake::requireImpl(hasImpl, "write", path.c_str());
     host::trace.push_back("write:" + path + ":" + std::to_string(n));
     if (!node || host::fail("write")) return 0;
     n = std::min(n, host::writeLimit);

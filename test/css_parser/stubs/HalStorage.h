@@ -7,6 +7,8 @@
 #include <utility>
 #include <vector>
 
+#include "../../hal_fake_strict.h"
+
 namespace css_io_test {
 inline size_t readLimit = SIZE_MAX, writeLimit = SIZE_MAX;
 inline int readsBeforeStop = -1;
@@ -31,12 +33,22 @@ struct Trace {
 class HalFile {
  public:
   HalFile() = default;
-  ~HalFile() { close(); }
+  ~HalFile() {
+    if (hasImpl_) close();
+  }
 
+  HalFile(HalFile&& other) noexcept { *this = std::move(other); }
   HalFile(const HalFile&) = delete;
   HalFile& operator=(const HalFile&) = delete;
+  HalFile& operator=(HalFile&& other) noexcept {
+    if (file_) close();
+    file_ = std::exchange(other.file_, nullptr);
+    hasImpl_ = std::move(other.hasImpl_);
+    return *this;
+  }
 
   bool open(const char* path, const char* mode) {
+    hasImpl_ = true;  // HalStorage installs an impl even when the open fails.
     close();
     css_io_test::record(std::string("open:") + mode);
     file_ = std::fopen(path, mode);
@@ -44,6 +56,7 @@ class HalFile {
   }
 
   int available() const {
+    hal_fake::requireImpl(hasImpl_, "available", "");
     if (!file_) return 0;
     const long position = std::ftell(file_);
     if (position < 0 || std::fseek(file_, 0, SEEK_END) != 0) return 0;
@@ -53,6 +66,7 @@ class HalFile {
   }
 
   int read(void* buffer, size_t count) {
+    hal_fake::requireImpl(hasImpl_, "read", "");
     if (!file_) return -1;
     css_io_test::record("read:" + std::to_string(count));
     if (css_io_test::readsBeforeStop == 0) return 0;
@@ -61,15 +75,20 @@ class HalFile {
   }
 
   size_t write(const void* buffer, size_t count) {
+    hal_fake::requireImpl(hasImpl_, "write", "");
     css_io_test::record("write:" + std::to_string(count));
     return file_ ? std::fwrite(buffer, 1, std::min(count, css_io_test::writeLimit), file_) : 0;
   }
 
   size_t write(uint8_t byte) { return write(&byte, 1); }
 
-  bool seekCur(size_t count) { return file_ && std::fseek(file_, static_cast<long>(count), SEEK_CUR) == 0; }
+  bool seekCur(size_t count) {
+    hal_fake::requireImpl(hasImpl_, "seekCur", "");
+    return file_ && std::fseek(file_, static_cast<long>(count), SEEK_CUR) == 0;
+  }
 
   bool close() {
+    hal_fake::requireImpl(hasImpl_, "close", "");
     if (!file_) return false;
     css_io_test::record("close");
     const bool ok = std::fclose(file_) == 0;
@@ -81,6 +100,7 @@ class HalFile {
 
  private:
   std::FILE* file_ = nullptr;
+  hal_fake::Impl hasImpl_;  // Stands in for HalFile::impl: a move leaves the source without one.
 };
 
 class HalStorage {

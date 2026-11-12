@@ -11,6 +11,7 @@ int main(int argc, char** argv) {
   uint32_t request[2];
   while (fread(request, sizeof(request), 1, stdin) == 1) {
     HalFile output;
+    output.markOpen();  // The decoder writes into an opened sink on device.
     DictZip::ExtractError error;
     const auto start = std::chrono::steady_clock::now();
     bool ok = false;

@@ -64,6 +64,8 @@ struct HalFile : HostFile {
     --liveFiles;
     ++closes;
   }
+  HalFile(HalFile&& other) noexcept : HalFile() { *this = std::move(other); }
+  HalFile& operator=(HalFile&&) = default;
 };
 struct BookMetadataCache {
   static void lockReadCursor() {}

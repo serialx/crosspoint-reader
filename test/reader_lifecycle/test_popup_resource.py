@@ -91,6 +91,13 @@ def native_leaf(text, name):
         if production.strip() != ".hyphen_language = Hyphenator::setPreferredLanguageId,":
             raise ValueError("Hyphen language fixture branch changed")
         text = text[:start] + host + text[end:]
+    # Composed fixtures use XP_APP_TEST's legacy protection ABI. The shipping
+    # protection path has its own SDK-backed differential composition.
+    if name == 'protection_stream':
+        start = text.index('#ifdef XP_APP_TEST\n      .protection_stream = ')
+        text = text[start:text.index('#else', start)]
+        if '#endif' in text:
+            raise ValueError('Protection host branch boundary changed')
     matches = list(re.finditer(r'\.' + re.escape(name) + r'\s*=\s*', text))
     if len(matches) != 1:
         raise ValueError('Expected one native initializer: ' + name)

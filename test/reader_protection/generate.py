@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Synthetic EPUBs with a published test key, never real book or device keys."""
 from pathlib import Path
-import argparse, zipfile, zlib
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+import argparse, subprocess, zipfile, zlib
 
 TEST_KEY = bytes(range(16))
 CHAPTER = b'<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Public protection test</title></head><body><h1>Public protection test</h1>' + b'<p>The same words must appear before and after the reader port.</p>' * 100 + b'</body></html>'
@@ -14,8 +13,12 @@ def generate(out):
     compressed = zlib.compress(CHAPTER, wbits=-15)
     padded = compressed + bytes([16-len(compressed)%16]) * (16-len(compressed)%16)
     iv = bytes(range(16, 32))
-    encrypt = Cipher(algorithms.AES(TEST_KEY), modes.CBC(iv)).encryptor()
-    encrypted = iv + encrypt.update(padded) + encrypt.finalize()
+    encrypt = subprocess.run(['openssl', 'enc', '-aes-128-cbc', '-nopad',
+                              '-K', TEST_KEY.hex(), '-iv', iv.hex()],
+                             input=padded, capture_output=True)
+    if encrypt.returncode:
+        raise RuntimeError('OpenSSL failed to encrypt the public test fixture')
+    encrypted = iv + encrypt.stdout
     manifest = f'''<?xml version="1.0"?><encryption xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><EncryptedData xmlns="http://www.w3.org/2001/04/xmlenc#"><EncryptionMethod Algorithm="http://www.w3.org/2001/04/xmlenc#aes128-cbc"/><CipherData><CipherReference URI="OPS/chapter.xhtml"/></CipherData><EncryptionProperties><EncryptionProperty><Compression xmlns="http://www.idpf.org/2016/encryption#compression" Method="8" OriginalLength="{len(CHAPTER)}"/></EncryptionProperty></EncryptionProperties></EncryptedData></encryption>'''.encode()
     for kind in ('protected', 'plain', 'unsupported', 'bad-xml', 'corrupt-content'):
         with zipfile.ZipFile(out / (kind+'.epub'), 'w') as book:

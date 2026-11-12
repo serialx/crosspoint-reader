@@ -26,6 +26,6 @@ reader dispatch. Adding a native sink requires updating the shared Rust path.
 
 Run through CTest, or run `run.py --build /tmp/protection-check` and
 `reclaim_order.py --build /tmp/protection-pressure`. Host generation requires
-Python cryptography and the existing OpenSSL installation. Emulator qualification
+Python's standard library and the existing OpenSSL installation. Emulator qualification
 uses the same generated public-key book and provisions its key through the existing
 `POST /api/book-key` endpoint; it does not alter the device secret or key format.

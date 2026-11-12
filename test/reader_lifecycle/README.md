@@ -239,3 +239,11 @@ and forwards every callback to the current mapped-input fixture. Idle admission
 uses one facts/settings sample for its confirm threshold; the ordinary path
 still re-reads facts after touch consumers. Settings snapshots are local to page
 dispatch, and are not retained across frames or settings-writing helpers.
+
+The strict Rust `poll_lite` cases live in
+`rust/crates/xp-ffi/src/app/epub/children/toolbar_owner/poll_lite_tests.rs` and run
+through the [Home app-owner suite](../home_ui/README.md), including strict Miri.
+They also check that an undrawn link-note slot skips radio status, while a drawn
+empty title detects a new note and drawn notes detect changes or disappearance.
+The native link-note fixtures retain their original output traces and assert
+that only drawn title slots fetch status during the loop.

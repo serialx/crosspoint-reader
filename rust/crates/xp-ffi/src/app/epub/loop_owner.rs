@@ -101,7 +101,8 @@ impl EpubSession {
         self.remember_book();
         self.loop_radio_after();
         self.loop_link_note();
-        // Settings-writing branches leave this dispatch; font/layout helpers read afresh.
+        // Writers run on the loop task or leave these fields alone; a concurrent writer
+        // would invalidate this reuse. Settings-writing branches leave this dispatch.
         let settings = self.settings(false);
         if self.model(|state| state.orientation) != settings.orientation {
             self.apply_orientation(settings.orientation);

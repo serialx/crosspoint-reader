@@ -88,15 +88,17 @@ impl SdFontCacheCompat for Compat {
     }
     unsafe fn clear(&mut self, font: i32, backend: Backend, kind: ClearKind) {
         if backend == Backend::Sd {
+            #[cfg(feature = "app-test")]
             if crate::font_sd::clear(self.0, font, kind) {
                 return;
             }
             #[cfg(not(feature = "app-test"))]
-            return;
+            crate::font_sd::clear(self.0, font, kind);
         }
         #[cfg(feature = "vector-fonts")]
         if backend == Backend::Vector {
             crate::font_vector::clear(self.0, font, kind);
+            #[cfg(feature = "app-test")]
             return;
         }
         #[cfg(feature = "app-test")]

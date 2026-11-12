@@ -472,7 +472,6 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   bool fromJson(JsonVariantConst doc);
 
   float getReaderLineCompression() const;
-  unsigned long getSleepTimeoutMs() const;
   int getRefreshFrequency() const;
 };
 

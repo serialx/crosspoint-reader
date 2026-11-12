@@ -56,3 +56,22 @@ TEST(LinkNoteTitle, PaintWithoutAStatusBarDoesNotLoop) {
   // That paint drew no status bar (a screen without one): no further repaint is asked.
   for (int i = 0; i < 3; ++i) EXPECT_FALSE(t.repaint(LinkNote::Failed));
 }
+
+TEST(LinkNoteTitle, EmptyDrawnTitleDetectsAnAppearingNote) {
+  LinkNoteTitle t;
+  t.draw(true, LinkNote::None);
+  EXPECT_TRUE(t.repaint(LinkNote::Connecting));
+  t.draw(true, LinkNote::Connecting);
+  EXPECT_FALSE(t.repaint(LinkNote::Connecting));
+}
+
+TEST(LinkNoteTitle, EnableDisableWhileDrawnRepaintsEachTransition) {
+  LinkNoteTitle t;
+  t.draw(true, LinkNote::None);
+  EXPECT_TRUE(t.repaint(LinkNote::Connecting));
+  t.draw(true, LinkNote::Connecting);
+  EXPECT_TRUE(t.repaint(LinkNote::None));
+  EXPECT_FALSE(t.repaint(LinkNote::Connecting));
+  t.draw(true, LinkNote::None);
+  EXPECT_TRUE(t.repaint(LinkNote::Connecting));
+}

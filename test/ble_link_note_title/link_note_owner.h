@@ -165,7 +165,7 @@ class LinkNoteTitle {
     const auto oldRadio = radioReads;
     xp_epub_test_loop(owner);
     const auto after = observe();
-    assert(radioReads == oldRadio + 1 && !renderDepth);
+    assert(radioReads == oldRadio + unsigned(before.note_shown) && !renderDepth);
     assert(after.note_shown <= before.note_shown);
     if (after.note_shown) assert(after.note == before.note);
     // Observe consumption by the ordinary loop; do not compare note values in C++.

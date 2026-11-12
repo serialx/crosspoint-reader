@@ -27,26 +27,23 @@ impl EpubSession {
         let Some(_access) = self.try_resources() else {
             return;
         };
-        let note = self.radio_status().note;
-        let repaint = self.loop_repaint_note(note);
-        if repaint {
-            self.request_update();
-        }
-    }
-
-    fn loop_repaint_note(&self, note: u8) -> bool {
+        // The historical loop oracle substitutes its own drawn-note state.
         #[cfg(feature = "app-test")]
         if let Some(hooks) = self.loop_hooks {
-            return unsafe { (hooks.link_repaint)(hooks.context, note) != 0 };
-        }
-        self.model(|state| {
-            if state.link_note_drawn.is_some_and(|drawn| drawn != note) {
-                state.link_note_drawn = None;
-                true
-            } else {
-                false
+            let note = self.radio_status().note;
+            if unsafe { (hooks.link_repaint)(hooks.context, note) != 0 } {
+                self.request_update();
             }
-        })
+            return;
+        }
+        // The render lock keeps the drawn slot stable across the status leaf.
+        let Some(drawn) = self.model(|state| state.link_note_drawn) else {
+            return;
+        };
+        if drawn != self.radio_status().note {
+            self.model(|state| state.link_note_drawn = None);
+            self.request_update();
+        }
     }
 
     fn loop_framebuffer(&self) -> bool {

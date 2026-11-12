@@ -47,3 +47,9 @@ table still performs consuming input reads, that a new session fetches its own
 table, and that settings reads observe new orientation and long-menu values.
 They also run under the strict-Miri command above; no mock policy replaces the
 input-table accessor.
+
+The link-note polling cases use the real owner state and strict physical leaves,
+without the historical loop-policy hooks. They cover absent and hidden titles,
+empty drawn titles, note changes, enable/disable transitions and an unavailable
+render lock; the status leaf must run only under the render lock, outside the
+model lock.

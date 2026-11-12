@@ -161,8 +161,6 @@ float CrossPointSettings::getReaderLineCompression() const {
   return xp_setting_line_compression(sdFontFamilyName[0] != 0, lineSpacing);
 }
 
-unsigned long CrossPointSettings::getSleepTimeoutMs() const { return xp_setting_sleep_ms(sleepTimeoutMinutes); }
-
 int CrossPointSettings::getRefreshFrequency() const { return xp_setting_refresh(refreshFrequency); }
 
 void CrossPointSettings::clearSdFontFamily() {

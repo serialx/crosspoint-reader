@@ -18,6 +18,8 @@ workspace = args.workspace.resolve()
 copy = work / "rust-input"
 shutil.copytree(workspace, copy, dirs_exist_ok=True, copy_function=shutil.copy,
                 ignore=shutil.ignore_patterns("target"))
+(work / "src").mkdir(parents=True, exist_ok=True)
+shutil.copy(workspace.parent / "src/fontIds.h", work / "src/fontIds.h")
 (work / "scripts").mkdir(parents=True, exist_ok=True)
 shutil.copy(workspace.parent / "scripts/gen_i18n.py", work / "scripts/gen_i18n.py")
 shutil.copytree(workspace.parent / "lib/I18n/translations", work / "lib/I18n/translations", dirs_exist_ok=True)

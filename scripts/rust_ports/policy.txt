@@ -52,7 +52,7 @@ inherited App.text_truncate R1b # Shared app font relay.
 inherited App.text_wrap R1b # Shared app font relay.
 inherited EPUB.book_facade_open R4 # Native persistence/state/store or shared app relay.
 inherited EPUB.book_set_extractor R4 # Image ownership relay.
-inherited EPUB.build_metrics R1b # Remaining font owner relay.
+deferred EPUB.build_metrics R6 # Shared metric table and retained chapter/definition provider adapter; also reachable during reader builds.
 deferred EPUB.child_definition_draw_body R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_definition_payload_find R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_definition_payload_prepare R6 # Deferred dictionary/selection/chapter child bridge.
@@ -79,17 +79,10 @@ deferred EPUB.end_input R5 # Deferred preview/popup/end-of-book path.
 deferred EPUB.end_load R5 # Deferred preview/popup/end-of-book path.
 deferred EPUB.end_open R5 # Deferred preview/popup/end-of-book path.
 deferred EPUB.end_paint R5 # Deferred preview/popup/end-of-book path.
-inherited EPUB.font_ascent R1b # Remaining font owner relay.
-inherited EPUB.font_codepoint R1b # Remaining font owner relay.
-inherited EPUB.font_line_height R1b # Remaining font owner relay.
-inherited EPUB.font_ready R1b # Remaining font owner relay.
-inherited EPUB.font_text_advance R1b # Remaining font owner relay.
-inherited EPUB.font_variant R1b # Remaining font owner relay.
-inherited EPUB.fonts_ensure_loaded R1b # Remaining font owner relay.
+inherited EPUB.fonts_ensure_loaded R-RELAY # RELAY-A native SD-font effects adapter; Rust owns font policy, settings serialization remains SET-OWN.
 inherited EPUB.fonts_take_corrupt_notice R-RELAY # Small native forwarding port; remove after R2/R3a.
 inherited EPUB.has_exit_subscriber R-RELAY # Small native forwarding port; remove after R2/R3a.
 inherited EPUB.has_session_subscriber R-RELAY # Small native forwarding port; remove after R2/R3a.
-inherited EPUB.hyphen_language R1b # Remaining font owner relay.
 inherited EPUB.image_clear_failures R-RELAY # Small native forwarding port; remove after R2/R3a.
 inherited EPUB.image_dimensions R4 # Image ownership relay.
 inherited EPUB.image_needs_decode R4 # Image ownership relay.

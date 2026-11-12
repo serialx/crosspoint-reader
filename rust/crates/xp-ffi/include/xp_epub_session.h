@@ -494,7 +494,7 @@ typedef struct XpEpubLeaves {
 #ifdef XP_APP_TEST
   uint8_t (*font_codepoint)(int32_t font, uint32_t codepoint, uint8_t style, int32_t* advance, int32_t* top);
 #endif
-  // Preserve the hint observed by retained native dictionary/paragraph clients.
+  // Rust-selected hyphenation ID for the retained native chapter/paragraph caches.
   XpEpubHyphenLanguage hyphen_language;
   uint32_t (*file_position)(void* file);
   void (*file_flush)(void* file);

@@ -1208,14 +1208,6 @@ EPUB.end_paint xp_ui_reader_list_publish
 EPUB.end_paint xp_ui_reader_list_view
 EPUB.end_paint xp_ui_reader_theme_compose
 EPUB.end_paint xp_ui_render
-EPUB.font_ascent xp_font_registry_query
-EPUB.font_codepoint xp_font_registry_provider
-EPUB.font_codepoint xp_native_codepoint
-EPUB.font_line_height xp_font_registry_query
-EPUB.font_ready xp_font_registry_query
-EPUB.font_text_advance xp_font_registry_provider
-EPUB.font_text_advance xp_native_advance
-EPUB.font_variant xp_font_registry_query
 EPUB.fonts_ensure_loaded LANGUAGE_CODES
 EPUB.fonts_ensure_loaded xp_ble_write_json
 EPUB.fonts_ensure_loaded xp_i18n_language_from_code
@@ -1234,7 +1226,6 @@ EPUB.fonts_take_corrupt_notice xp_sd_font_take_corrupt_notice
 EPUB.framebuffer_lend xp_display_execute
 EPUB.has_exit_subscriber xp_plugin_any
 EPUB.has_session_subscriber xp_plugin_any
-EPUB.hyphen_language xp_hyphen_language
 EPUB.image_clear_failures xp_assets_image_reset
 EPUB.image_dimensions xp_book_image_decoder
 EPUB.image_dimensions xp_book_image_dimensions

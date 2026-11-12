@@ -41,7 +41,7 @@ The operation contracts are:
 | --- | --- |
 | Process image | Rust selects cache suffixes/counters, probe/extraction retries and failed-cache removal. The reader owns path/input/scratch lifetime in `section_owner`; native decoder, file and framebuffer leaves perform physical operations. `ChapterPlatform.cpp` supplies the retained dictionary backend. Resolved paths remain in the selected backend until the next probe. Rust computes CSS sizing and placement in the original order. |
 | Reclaim paragraph memory | Preserve the cache-reclamation retry on paragraph allocation failure; request 4 KiB of free memory, then retry once. |
-| Font provider and preparation | C++ resolves scale to font ID, prepares fonts and supplies native descriptors and dynamic handlers. Rust reads line metrics and computes advances, spaces, kerning, codepoint metrics and SD-font status. Host callback adapters retain the metric query slots. |
+| Font provider and preparation | On catalog firmware, Rust resolves scale to a font ID and checks readiness through the loaded-font registry and SD catalog. Rust derives line height, advances, spaces, kerning, codepoint metrics and SD-font status; native code loads faces and supplies descriptors and dynamic handlers. Host test tables retain scalar metric callbacks; non-catalog builds retain native variant/readiness callbacks. |
 | Complete page | Rust queries whether a byte sink is installed, then selects it or the native Page decoder. The selected sink borrows one complete encoded page, with u16 paragraph/list indices and u32 visible offset. The reader performs one physical file write and records the same LUT entry in its Rust build records. The callback reports success, stop or failure; it retains no byte pointer. |
 | Popup | Show the existing indexing popup at the original probe/extraction point. The image single-shot latch is Rust-owned and distinct from the driver's large-file popup. |
 | Anchors | The reader owns pending/TOC IDs and completed anchors in Rust, moving text into fixed-size record chunks. The dictionary backend retains its native strings. Both preserve membership decisions and the original u16 page transition. |
@@ -49,11 +49,12 @@ The operation contracts are:
 
 Rust consumes each packed `XpParaLine` synchronously and encodes its text, style,
 font slots and ruby through the page builder. Metrics use native font descriptors;
-synthetic host renderers retain scalar metric callbacks. The narrow `font_ready`
-callback preserves `ensureFontLoaded` and fallback before measuring inline font
-ascent; it creates no page object. Image probing retains paths in the selected
-backend until the image encoder has consumed their borrowed spans. No `ImageBlock` is constructed
-on the Section build path.
+synthetic host renderers retain scalar metric callbacks. On catalog firmware,
+Rust checks readiness through the registry/SD catalog and reads inline ascent
+from the registry. The retained native dictionary sink still calls
+`ensureFontLoaded` and applies fallback before measuring ascent. Image probing
+retains paths in the selected backend until the image encoder has consumed their
+borrowed spans. No `ImageBlock` is constructed on the Section build path.
 
 Rules, drop caps, boxes and table separators remain plain records until completion.
 Encoded lines and images live in one chapter-owned byte buffer. Slot indexes survive

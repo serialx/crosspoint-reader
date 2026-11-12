@@ -3,9 +3,9 @@
 #include <BidiUtils.h>
 #include <GfxRenderer.h>
 
-#if !defined(XP_APP_TEST) && !defined(XP_NATIVE_TEXT_MEASUREMENT)
-#error "Firmware requires the direct Rust text provider"
-#endif
+// GfxRenderer.h selects the direct provider for firmware.
+// Scalar metric callbacks below remain for XP_APP_TEST fixtures.
+// Their stub renderer does not define XP_NATIVE_TEXT_MEASUREMENT.
 #include <Logging.h>
 #include <Memory.h>
 #include <MemoryManager.h>

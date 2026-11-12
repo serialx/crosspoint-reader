@@ -4,7 +4,7 @@
 // The ContentProtection SDK lib is storage-agnostic (it works against a
 // ByteSource). This file is the firmware-side glue that backs that seam with
 // the device's SD storage: a HalStorage-backed ByteSource and the
-// openProtectedBook() entry point the reader calls. The book's content key
+// reader primitives and the native openProtectedBook() gate. The content key
 // comes from its device-wrapped "<book>.key" (BookKey.h), written when the
 // book was fulfilled; the reader carries no rights or account scheme.
 

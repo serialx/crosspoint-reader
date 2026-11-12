@@ -13,11 +13,10 @@ physical App.refresh xp_display_abort xp_display_capabilities xp_display_drop xp
 physical WiFi.clock_sync xp_hal_clock_sync # Clock HAL synchronization.
 physical XP_WIFI_PHYSICAL xp_hal_clock_sync # Same clock HAL slot reached through the directly imported Wi-Fi table.
 physical xp_native_page_image_decode xp_book_image_yield xp_image_row # JPEGDEC streaming row/yield callbacks.
-physical EPUB.protection_open xp_inflate_init xp_inflate_state_align xp_inflate_state_size xp_inflate_step # SDK crypto/miniz byte streams.
+physical EPUB.protection_index xp_inflate_init xp_inflate_state_align xp_inflate_state_size xp_inflate_step # SDK ProtectedBook index scans encryption XML through MinizCompat; named physical byte stream, no reader policy callback.
 # SDK UI measurement/drawing continuations use runtime callbacks; audit them at R8b.
 # Battery HAL and nested clipping_physical callbacks also require manual R8b review.
-callback EPUB.protection_open # Reports an open failure through the supplied error sink.
-callback EPUB.protection_stream # SDK decryption streams bytes to the supplied sink.
+callback EPUB.protection_stream # Prepare opens caller-owned SD scratch; Read synchronously emits SDK decrypted bytes to the borrowed sink, which is not retained after Read returns.
 callback EPUB.popup_show # Retains label/choice callbacks until the popup is dismissed; review both lifetimes.
 callback EPUB.end_input # Delivers the selected end-menu action synchronously.
 callback EPUB.state_open_path # Copies the stored open path through the supplied text sink.
@@ -85,7 +84,6 @@ inherited EPUB.paint_dither R2 # Reader chrome font relay.
 inherited EPUB.paint_status R2 # Reader chrome font relay.
 deferred EPUB.popup_paint R5 # Deferred preview/popup/end-of-book path.
 deferred EPUB.popup_process_render R5 # Deferred preview/popup/end-of-book path.
-inherited EPUB.protection_open R3b # Protection/document identity relay.
 inherited EPUB.restart_reader R3a # Native persistence/state/store or shared app relay.
 inherited EPUB.settings_save R3a # Native persistence/state/store or shared app relay.
 deferred Legacy.create R7 # Deferred legacy activity factory including XTC/TOC; static closure spans all activities.
@@ -172,10 +170,9 @@ dispatch panel.setHoldPeriodicFullRefresh (?:_ZN7freeink14FreeInkDisplay26setHol
 dispatch panel.grayscaleRevert (?:_ZN7freeink14FreeInkDisplay15grayscaleRevertEv) _ZTVN7freeink15RustPanelDriverE (?:.*15grayscaleRevert.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
 dispatch panel.setCustomLUT (?:_ZN7freeink14FreeInkDisplay12setCustomLUTEbPKh) _ZTVN7freeink15RustPanelDriverE (?:.*12setCustomLut.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
 dispatch panel.deepSleep (?:_ZN7freeink14FreeInkDisplay9deepSleepEv) _ZTVN7freeink15RustPanelDriverE (?:.*9deepSleep.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
-dispatch decrypt.stream root:EPUB.protection_stream _ZTVN7freeink7content12_GLOBAL__N_122ProtectedBookDecryptorE .*13decryptToSink.* # protection_open returns ProtectedBookDecryptor; invoke only decryptToSink until close.
-dispatch decrypt.close root:EPUB.protection_close _ZTVN7freeink7content12_GLOBAL__N_122ProtectedBookDecryptorE .*D0Ev # Deleting destructor of the concrete object returned by protection_open.
+dispatch decrypt.close root:EPUB.protection_close _ZTVN7freeink7content12_GLOBAL__N_122ProtectedBookDecryptorE .*D0Ev # Deleting destructor of the concrete object returned by protection_finish Take; no decryption or policy callback is invoked.
 dispatch font.resolve _ZNK18CrossPointSettings15getReaderFontIdEv _ZZN16SdCardFontSystem5beginER11GfxRendererENUlPvPKchE_4_FUNES2_S4_h # SdCardFontSystem::begin stores sdFontIdResolver; settings sampling calls it only when resolving a font.
-dispatch memory.evict _ZN7freeink13MemoryManager11clearCachesEj _ZNSt17_Function_handlerIFjjEZN11GfxRenderer5beginEvEUljE[0]?_E9_M_invokeERKSt9_Any_dataOj # GfxRenderer::begin registers the two X3 eviction sinks; layout allocation failure and protection reclaim call clearCaches.
+dispatch memory.evict _ZN7freeink13MemoryManager11clearCachesEj _ZNSt17_Function_handlerIFjjEZN11GfxRenderer5beginEvEUljE[0]?_E9_M_invokeERKSt9_Any_dataOj # GfxRenderer::begin registers the two X3 eviction sinks; layout allocation failure and non-reader protection reclaim call clearCaches; reader reclaim uses the Rust pressure list directly.
 rustfill XpAppCompatibility.home_action _ZNK15ActivityManager16homeButtonActionEv rust/crates/xp-ffi/include/xp_app.h # xp_app_init writes this Rust function to ActivityManager::compatibility for the app lifetime; ActivityManager invokes this field.
 rustfill XpAppCompatibility.activity_facts _ZNK15ActivityManager5factsEv(?:\.isra\.\d+)? rust/crates/xp-ffi/include/xp_app.h # xp_app_init writes this Rust function to ActivityManager::compatibility for the app lifetime; ActivityManager invokes this field.
 rustfill XpAppCompatibility.screenshot_info _ZNK15ActivityManager17getScreenshotInfoEv rust/crates/xp-ffi/include/xp_app.h # xp_app_init writes this Rust function to ActivityManager::compatibility for the app lifetime; ActivityManager invokes this field.
@@ -242,8 +239,8 @@ inherited App.popup_draw R2b # Runtime-pointer study retirement assignment in RE
 inherited App.popup_progress R2b # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 inherited EPUB.input_facts R-RELAY # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 inherited EPUB.input_snapshot R-RELAY # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
-inherited EPUB.protection_stream R3b # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
-inherited EPUB.protection_close R3b # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
+deferred EPUB.protection_close NONREADER # One-way destruction; vtable references reach decryptToSink -> reclaimContentCaches, but the deleting destructor never calls decryptToSink.
+deferred EPUB.protection_finish NONREADER # One-way key install/transfer/destruction; Take writes the native vptr, but no finish stage calls decryptToSink -> reclaimContentCaches; reader streaming calls readPrepared after direct Rust eviction.
 deferred EPUB.child_header R6 # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 deferred EPUB.child_utility_footer R6 # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 deferred EPUB.child_directional_hints R6 # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
@@ -264,7 +261,7 @@ physical EPUB.render_geometry xp_display_capabilities # Stored RustPanelDriver v
 physical EPUB.render_physical_query xp_display_capabilities # Stored RustPanelDriver virtual method; panel capability/operation continuation.
 physical EPUB.render_restore_bw xp_display_execute # Stored RustPanelDriver virtual method; panel capability/operation continuation.
 physical EPUB.framebuffer_lend xp_display_execute # Stored RustPanelDriver virtual method; panel capability/operation continuation.
-physical EPUB.protection_stream xp_inflate_init xp_inflate_state_align xp_inflate_state_size xp_inflate_step # ProtectedBook decryptToSink uses SDK ZIP/miniz byte-stream decompression through MinizCompat.
+physical EPUB.protection_stream xp_inflate_init xp_inflate_state_align xp_inflate_state_size xp_inflate_step # Reader readPrepared calls SDK ZIP/miniz byte-stream decompression through MinizCompat directly; legacy decryptToSink is not called.
 callback xp_dialog_deliver # Borrows XpAppLegacy to deliver a dialog result synchronously; retained parent stays owned by the app.
 callback xp_keyboard_deliver # Borrows XpAppLegacy to deliver a keyboard result synchronously; no callback retention.
 callback xp_native_render_target # Fills XpPageTarget and XpUiPaint output tables with native callbacks; incoming output fields are not invoked.
@@ -280,3 +277,4 @@ callback EPUB.store_rows # Visits serialized native store rows through the borro
 callback EPUB.store_document # Returns a native document through the borrowed Rust sink.
 import xp_native_page_image_write # Storage-only sink over the pinned caller-owned HalFile; consumes borrowed bytes synchronously, retains no pointers and never calls Rust, including when protection_stream supplies the bytes.
 import xp_native_page_image_codec_log # One-way synchronous diagnostic formatting; borrowed image/cache/file snapshot, no retained pointers and no Rust callbacks.
+callback EPUB.key_platform # Writes native-only key/NVS service pointers into caller-owned scratch; no Rust callback is accepted or retained; End destroys the AES/path context.

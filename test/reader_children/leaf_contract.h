@@ -10,13 +10,13 @@
 #define SIGNATURE(field, type) CONTRACT(_Generic(((XpEpubLeaves*)0)->field, type: 1, default: 0))
 #endif
 
-#ifdef XP_APP_TEST
+#ifdef XP_APP_TEST  // Original noncatalog host indices, matching Rust leaf_index().
 #define FONT_LEAF_INDEX(index) (index)
 #else
-#define FONT_LEAF_INDEX(index)                                                                                       \
-  ((index) - ((index) >= 9 ? 3 : 0) - ((index) >= 23 ? 2 : 0) - ((index) >= 124 ? 1 : 0) - ((index) >= 28 ? 4 : 0) - \
-   ((index) >= 137 ? 1 : 0) - ((index) >= 138 ? 1 : 0) - ((index) > 102 ? 1 : 0) - ((index) > 113 ? 1 : 0) -         \
-   ((index) > 115 ? 1 : 0) - ((index) > 124 ? 1 : 0))
+#define FONT_LEAF_INDEX(index)                                                                                      \
+  ((index) - ((index) >= 64 ? 6 : 0) - ((index) >= 97 ? 1 : 0) - ((index) >= 9 ? 3 : 0) - ((index) >= 23 ? 2 : 0) - \
+   ((index) >= 124 ? 1 : 0) - ((index) >= 28 ? 4 : 0) - ((index) >= 137 ? 1 : 0) - ((index) >= 138 ? 1 : 0) -       \
+   ((index) > 102 ? 1 : 0) - ((index) > 113 ? 1 : 0) - ((index) > 115 ? 1 : 0) - ((index) > 124 ? 1 : 0))
 #endif
 
 typedef void (*ChildTheme)(XpUiReaderTheme*, XpUiReaderThemeFacts*, uint8_t);

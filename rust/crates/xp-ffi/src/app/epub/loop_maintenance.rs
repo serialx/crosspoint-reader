@@ -19,7 +19,7 @@ impl EpubSession {
             .is_some_and(|section| unsafe { ReaderSection::building(section) })
         {
             self.model(|state| state.facts.radio_released = false);
-            unsafe { (self.leaves.radio_after_paint)() };
+            unsafe { self.leaves.radio_after_paint() };
         }
     }
 
@@ -128,7 +128,7 @@ impl EpubSession {
         if unsafe { ReaderSection::building(section) }
             || unsafe { !ReaderSection::partial(section) }
             || self.model(|state| state.viewport.0 == 0 || state.partial_start_failed)
-            || unsafe { (self.leaves.radio_holds_heap)() } != 0
+            || unsafe { self.leaves.radio_holds_heap() } != 0
             || self
                 .model(|state| state.current.page)
                 .wrapping_add(PARTIAL_REBUILD_START_MARGIN)
@@ -139,7 +139,10 @@ impl EpubSession {
         self.release_idle_strips(&access);
         let (width, height) = self.model(|state| state.viewport);
         let mut spec = MaybeUninit::<abi::XpEpubRenderSpec>::uninit();
-        unsafe { (self.leaves.settings_render_spec)(width, height, spec.as_mut_ptr()) };
+        unsafe {
+            self.leaves
+                .settings_render_spec(width, height, spec.as_mut_ptr())
+        };
         let started =
             unsafe { ReaderSection::start(section, &spec.assume_init(), None, self.runtime) };
         self.publish_section(&access);

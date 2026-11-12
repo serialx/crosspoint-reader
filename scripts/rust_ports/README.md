@@ -1,6 +1,7 @@
 # Native Rust port gate
 
-The default-X3 baseline is firmware source `5aee6afa`, after R1 and R3a.
+The initial default-X3 baseline was firmware source `5aee6afa`, after R1 and R3a.
+Later units retire entries through reviewed lock diffs.
 `ports.lock` holds sorted **root target** reference pairs; `dynamic.lock` holds
 sorted **table field-name** entries for the six declared port tables and
 Rust-filled tables, and **table slot-index** entries for other tables. Both are

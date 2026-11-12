@@ -1189,8 +1189,6 @@ EPUB.fonts_ensure_loaded xp_sync_server_type
 EPUB.fonts_ensure_loaded xp_sync_store_save
 EPUB.fonts_take_corrupt_notice xp_sd_font_take_corrupt_notice
 EPUB.framebuffer_lend xp_display_execute
-EPUB.has_exit_subscriber xp_plugin_any
-EPUB.has_session_subscriber xp_plugin_any
 EPUB.image_dimensions xp_book_image_decoder
 EPUB.image_dimensions xp_book_image_dimensions
 EPUB.image_dimensions xp_book_image_yield
@@ -1304,14 +1302,6 @@ EPUB.protection_stream xp_inflate_init
 EPUB.protection_stream xp_inflate_state_align
 EPUB.protection_stream xp_inflate_state_size
 EPUB.protection_stream xp_inflate_step
-EPUB.radio_after_paint xp_ble_after_paint
-EPUB.radio_before_build xp_ble_before_build
-EPUB.radio_holds_heap xp_ble_holds_heap
-EPUB.radio_request_connect xp_ble_request_connect
-EPUB.radio_settle_start xp_ble_settle_start
-EPUB.radio_status xp_ble_note
-EPUB.radio_status xp_ble_status
-EPUB.radio_switch_off xp_ble_switch_off
 EPUB.render_geometry xp_display_capabilities
 EPUB.render_physical_operation xp_display_abort
 EPUB.render_physical_operation xp_display_capabilities
@@ -1323,8 +1313,6 @@ EPUB.render_physical_operation xp_hal_wake_reason
 EPUB.render_physical_query xp_display_capabilities
 EPUB.render_restore_bw xp_display_execute
 EPUB.restart_reader xp_i18n_get
-EPUB.settings_render_spec xp_sd_catalog_query
-EPUB.settings_render_spec xp_setting_line_compression
 EPUB.settings_save LANGUAGE_CODES
 EPUB.settings_save xp_ble_write_json
 EPUB.settings_save xp_i18n_language_from_code

@@ -421,7 +421,8 @@ impl EpubSession {
         unsafe {
             let ptr = out.as_mut_ptr();
             core::ptr::addr_of_mut!((*ptr).margins).write(margins);
-            (self.leaves.settings_render_spec)(width, height, core::ptr::addr_of_mut!((*ptr).spec));
+            self.leaves
+                .settings_render_spec(width, height, core::ptr::addr_of_mut!((*ptr).spec));
         }
     }
 
@@ -793,7 +794,7 @@ impl EpubSession {
         let Some(book) = self.book(access) else {
             return;
         };
-        unsafe { (self.leaves.radio_settle_start)() };
+        unsafe { self.leaves.radio_settle_start() };
         self.book_settle(access);
         self.model(|state| state.current.spine = state.current.spine.max(0));
         let count = unsafe { (super::session_book::spine_count)(book.as_ptr()) };

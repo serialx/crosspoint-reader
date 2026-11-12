@@ -461,9 +461,9 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   };
   StatusBarSpec statusBarSpec() const;
 
-  // Resolved text-rendering configuration for the Epub layout engine. The
-  // viewport is renderer/orientation-derived, so the caller supplies it —
-  // passing it in keeps a spec from ever existing in a half-filled state.
+  // Host/oracle render-spec builder, with the caller-supplied viewport.
+  // Shipping EPUB resolves font/compression in Rust, then reads raw fields;
+  // this builder remains the native oracle for that completed configuration.
   // Unlocked for the same reason as statusBarSpec(); see the note above.
   ReaderRenderSpec readerRenderSpec(uint16_t viewportWidth, uint16_t viewportHeight) const;
 

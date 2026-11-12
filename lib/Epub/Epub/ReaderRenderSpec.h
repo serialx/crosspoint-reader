@@ -7,11 +7,11 @@
 // engine. Section-cache validation keys on every field: a section file built
 // with a different spec is discarded and rebuilt.
 //
-// Build one via CrossPointSettings::readerRenderSpec(width, height), which
-// fills every field: the settings-derived ones from the store, the viewport
-// from the caller. Taking the viewport as arguments is what keeps a spec from
-// existing in a half-filled state — the 0 defaults below are a last-resort
-// backstop (a 0x0 viewport lays out nothing), not an invitation to omit it.
+// CrossPointSettings::readerRenderSpec builds this for host oracles, including
+// the caller-supplied viewport. Shipping EPUB composes its wire spec in Rust:
+// resolve the font through settings_snapshot, calculate compression, then read
+// the remaining raw fields. Only the completed spec reaches the layout engine.
+// A 0x0 viewport lays out nothing; callers must provide both dimensions.
 struct ReaderRenderSpec {
   int fontId = 0;
   float lineCompression = 1.0f;

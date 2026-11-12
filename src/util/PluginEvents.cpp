@@ -118,6 +118,8 @@ void refreshSubscriptions() {
   xp_plugin_subscriptions(subscribers, &ops);
 }
 
+const XpPluginSubscriber* subscriptionView() { return subscribers; }
+
 bool anySubscriber(Event e) { return xp_plugin_any(subscribers, static_cast<uint32_t>(e)); }
 uint8_t subscriptionMask(const char* plugin) { return xp_plugin_mask(subscribers, span(plugin)); }
 bool wantsConnectAny() {

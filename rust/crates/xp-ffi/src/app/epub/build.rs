@@ -11,7 +11,8 @@ impl EpubSession {
     pub(super) fn radio_status(&self) -> abi::XpEpubRadio {
         let mut status = core::mem::MaybeUninit::uninit();
         unsafe {
-            (self.leaves.radio_status)(status.as_mut_ptr(), core::ptr::null_mut());
+            self.leaves
+                .radio_status(status.as_mut_ptr(), core::ptr::null_mut());
             status.assume_init()
         }
     }
@@ -20,7 +21,7 @@ impl EpubSession {
         if !self.model(|state| state.facts.radio_released)
             && (!*asked || self.radio_status().starting == 0)
         {
-            let released = unsafe { (self.leaves.radio_before_build)() } != 0;
+            let released = unsafe { self.leaves.radio_before_build() } != 0;
             self.model(|state| state.facts.radio_released = released);
         }
         *asked = true;
@@ -106,7 +107,7 @@ impl EpubSession {
     fn build_wanted_locked(&self, access: &ResourceAccess<'_>) -> bool {
         self.section(access).is_some_and(|section| {
             (unsafe { ReaderSection::building(section) })
-                && unsafe { (self.leaves.radio_holds_heap)() } == 0
+                && unsafe { self.leaves.radio_holds_heap() } == 0
                 && self.model(|state| state.current.spine != state.failed_build_spine)
         })
     }
@@ -121,7 +122,7 @@ impl EpubSession {
             unsafe { (observer.read)(observer.context, u8::from(building)) };
         }
         building
-            && unsafe { (self.leaves.radio_holds_heap)() } == 0
+            && unsafe { self.leaves.radio_holds_heap() } == 0
             && self.model(|state| state.current.spine != state.failed_build_spine)
     }
 

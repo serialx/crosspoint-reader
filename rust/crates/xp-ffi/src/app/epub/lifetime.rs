@@ -197,7 +197,7 @@ impl EpubSession {
         self.settle_overlay_refresh(access);
         self.discard_overlay_page(access);
         if self.model(|state| state.facts.radio_released) {
-            unsafe { (self.leaves.radio_after_paint)() };
+            unsafe { self.leaves.radio_after_paint() };
         }
         if self.model(|state| state.history.depth > 0) && self.book(access).is_some() {
             self.save_links(access);

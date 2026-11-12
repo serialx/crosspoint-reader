@@ -99,11 +99,11 @@ impl EpubSession {
         unsafe {
             (self.leaves.settings_ble_enabled)(u8::from(enabled));
             if !enabled {
-                (self.leaves.radio_switch_off)();
+                self.leaves.radio_switch_off();
             }
             (self.leaves.settings_save)();
             if enabled {
-                (self.leaves.radio_request_connect)();
+                self.leaves.radio_request_connect();
             }
         }
     }

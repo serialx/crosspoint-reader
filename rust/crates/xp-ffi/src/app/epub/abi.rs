@@ -443,12 +443,21 @@ pub struct XpEpubLeaves {
     pub path_mkdir: unsafe extern "C" fn(path: XpAppText) -> u8,
     pub native_path_hash: unsafe extern "C" fn(path: XpAppText) -> u64,
     pub heap_snapshot: unsafe extern "C" fn(out: *mut XpEpubHeap),
+    #[cfg(not(feature = "app-test"))]
+    pub radio_peer: unsafe extern "C" fn(*mut XpEpubPeer),
+    #[cfg(feature = "app-test")]
     pub radio_status: unsafe extern "C" fn(out: *mut XpEpubRadio, peer_or_null: *mut XpEpubPeer),
+    #[cfg(feature = "app-test")]
     pub radio_before_build: unsafe extern "C" fn() -> u8,
+    #[cfg(feature = "app-test")]
     pub radio_settle_start: unsafe extern "C" fn(),
+    #[cfg(feature = "app-test")]
     pub radio_holds_heap: unsafe extern "C" fn() -> u8,
+    #[cfg(feature = "app-test")]
     pub radio_after_paint: unsafe extern "C" fn(),
+    #[cfg(feature = "app-test")]
     pub radio_switch_off: unsafe extern "C" fn(),
+    #[cfg(feature = "app-test")]
     pub radio_request_connect: unsafe extern "C" fn(),
     #[cfg(feature = "app-test")]
     pub trusted_now: unsafe extern "C" fn() -> i64,
@@ -543,7 +552,11 @@ pub struct XpEpubLeaves {
         *mut crate::settings::State,
     ),
     pub has_sync_credentials: unsafe extern "C" fn() -> u8,
+    #[cfg(not(feature = "app-test"))]
+    pub subscribers: unsafe extern "C" fn() -> *const crate::plugin::Subscriber,
+    #[cfg(feature = "app-test")]
     pub has_exit_subscriber: unsafe extern "C" fn() -> u8,
+    #[cfg(feature = "app-test")]
     pub has_session_subscriber: unsafe extern "C" fn() -> u8,
     pub document_id: unsafe extern "C" fn(
         path: XpAppText,
@@ -692,11 +705,13 @@ const _: () = {
     assert!(core::mem::align_of::<XpEpubPeer>() == 1);
     assert!(core::mem::offset_of!(XpEpubPeer, name) == 0);
     assert!(core::mem::offset_of!(XpEpubPeer, addr) == 64);
+    #[cfg(feature = "app-test")]
     assert!(
         core::mem::offset_of!(XpEpubLeaves, radio_status)
             == leaf_index(57) * core::mem::size_of::<unsafe extern "C" fn()>()
     );
 };
+#[cfg(feature = "app-test")]
 const _: fn(&XpEpubLeaves) = |leaves| {
     let _: unsafe extern "C" fn(*mut XpEpubRadio, *mut XpEpubPeer) = leaves.radio_status;
 };
@@ -867,12 +882,19 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, path_mkdir) == leaf_index(54) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, native_path_hash) == leaf_index(55) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, heap_snapshot) == leaf_index(56) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, radio_status) == leaf_index(57) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, radio_before_build) == leaf_index(58) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, radio_settle_start) == leaf_index(59) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, radio_holds_heap) == leaf_index(60) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, radio_after_paint) == leaf_index(61) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, radio_switch_off) == leaf_index(62) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, radio_request_connect) == leaf_index(63) * pointer);
     #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, trusted_now) == leaf_index(64) * pointer);
@@ -927,7 +949,9 @@ const _: () = {
     #[cfg(not(feature = "app-test"))]
     assert!(core::mem::offset_of!(XpEpubLeaves, store_document) == leaf_index(93) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, has_sync_credentials) == leaf_index(94) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, has_exit_subscriber) == leaf_index(95) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(
         core::mem::offset_of!(XpEpubLeaves, has_session_subscriber) == leaf_index(96) * pointer
     );
@@ -995,7 +1019,7 @@ const _: () = assert!(
         == leaf_index(138) * core::mem::size_of::<usize>()
 );
 
-// Host oracle fixtures retain their native policy and metric callbacks.
+// Host oracle fixtures retain their policy, metric and forwarding callbacks.
 const fn leaf_index(index: usize) -> usize {
     if cfg!(feature = "app-test") {
         index
@@ -1024,6 +1048,8 @@ const fn leaf_index(index: usize) -> usize {
             } else {
                 0
             }
+            - if index >= 64 { 6 } else { 0 }
+            - if index >= 97 { 1 } else { 0 }
             - if index >= 137 { 1 } else { 0 }
             - if index >= 138 { 1 } else { 0 }
             - if cfg!(feature = "sd-font-catalog") && index >= 30 {
@@ -1033,3 +1059,15 @@ const fn leaf_index(index: usize) -> usize {
             }
     }
 }
+
+#[cfg(not(feature = "app-test"))]
+const _: () = {
+    assert!(
+        core::mem::offset_of!(XpEpubLeaves, radio_peer)
+            == leaf_index(57) * core::mem::size_of::<usize>()
+    );
+    assert!(
+        core::mem::offset_of!(XpEpubLeaves, subscribers)
+            == leaf_index(95) * core::mem::size_of::<usize>()
+    );
+};

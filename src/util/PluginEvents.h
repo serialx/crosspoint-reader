@@ -1,5 +1,7 @@
 #pragma once
 
+#include <xp_plugin.h>
+
 #include <cstddef>
 #include <cstdint>
 
@@ -65,6 +67,8 @@ void refreshSubscriptions();
 
 // True when at least one plugin subscribes to `e` (a few string compares).
 bool anySubscriber(Event e);
+// App-task query only: borrow through return, never across refreshSubscriptions().
+const XpPluginSubscriber* subscriptionView();
 
 // Bit per Event the named plugin subscribes to (0 = none), for disclosing
 // what leaves the device. Reflects the last refreshSubscriptions().

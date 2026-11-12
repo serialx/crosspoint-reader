@@ -254,7 +254,10 @@ impl EpubSession {
     fn paint_connected_status(&self, access: &ResourceAccess<'_>, status: &abi::XpEpubStatus) {
         let mut flags = MaybeUninit::uninit();
         let mut peer = MaybeUninit::<abi::XpEpubPeer>::uninit();
-        unsafe { (self.leaves.radio_status)(flags.as_mut_ptr(), peer.as_mut_ptr()) };
+        unsafe {
+            self.leaves
+                .radio_status(flags.as_mut_ptr(), peer.as_mut_ptr())
+        };
         let peer = unsafe { peer.assume_init() };
         let source = if peer.name[0] != 0 {
             &peer.name[..]

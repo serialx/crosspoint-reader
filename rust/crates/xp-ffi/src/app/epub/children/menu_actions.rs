@@ -112,11 +112,11 @@ impl Menu {
                 unsafe {
                     (parent.leaves.settings_ble_enabled)(u8::from(enabled));
                     if !enabled {
-                        (parent.leaves.radio_switch_off)();
+                        parent.leaves.radio_switch_off();
                     }
                     (parent.leaves.settings_save)();
                     if enabled {
-                        (parent.leaves.radio_request_connect)();
+                        parent.leaves.radio_request_connect();
                     }
                 }
                 parent.request_update();

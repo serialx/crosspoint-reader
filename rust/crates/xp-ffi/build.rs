@@ -35,7 +35,7 @@ fn generate_plugin_contract() {
             _ => panic!("unknown plugin contract record: {kind}"),
         }
     }
-    let mut output = String::from("#[repr(u32)]\nenum Event {\n");
+    let mut output = String::from("#[repr(u32)]\npub(crate) enum Event {\n");
     for (name, id, _) in &events {
         writeln!(output, "{name} = {id},").unwrap();
     }

@@ -161,7 +161,10 @@ impl EpubSession {
             return unsafe { (hooks.signature)(hooks.context, width, height) };
         }
         let mut spec = MaybeUninit::<abi::XpEpubRenderSpec>::uninit();
-        unsafe { (self.leaves.settings_render_spec)(width, height, spec.as_mut_ptr()) };
+        unsafe {
+            self.leaves
+                .settings_render_spec(width, height, spec.as_mut_ptr())
+        };
         let spec = unsafe { spec.assume_init() };
         let fields = [
             spec.font as u32,

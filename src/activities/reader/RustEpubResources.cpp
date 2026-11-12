@@ -597,6 +597,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
           },
       .settings_render_spec =
           [](uint16_t width, uint16_t height, XpEpubRenderSpec* out) {
+#ifdef XP_APP_TEST
             const auto spec = SETTINGS.readerRenderSpec(width, height);
             *out = {.font = spec.fontId,
                     .compression = spec.lineCompression,
@@ -611,6 +612,22 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
                     .embedded_style = spec.embeddedStyle,
                     .images = spec.imageRendering,
                     .focus_reading = spec.focusReadingEnabled};
+#else
+            const auto& settings = SETTINGS;
+            *out = {.font = 0,
+                    .compression = 0,
+                    .width = width,
+                    .height = height,
+                    .paragraph_spacing = static_cast<uint8_t>(settings.extraParagraphSpacing != 0),
+                    .paragraph_indent = settings.paragraphIndentSpaces,
+                    .character_spacing = settings.getCharacterSpacing(),
+                    .word_spacing_percent = settings.wordSpacing,
+                    .alignment = settings.paragraphAlignment,
+                    .hyphenation = static_cast<uint8_t>(settings.hyphenationEnabled != 0),
+                    .embedded_style = static_cast<uint8_t>(settings.embeddedStyle != 0),
+                    .images = settings.imageRendering,
+                    .focus_reading = static_cast<uint8_t>(settings.focusReadingEnabled != 0)};
+#endif
           },
       .settings_orientation = [](uint8_t value) { SETTINGS.orientation = value; },
       .settings_font_size = [](uint8_t value) { SETTINGS.fontPointSize = value; },
@@ -694,6 +711,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .path_mkdir = [](XpAppText path) -> uint8_t { return Storage.mkdir(pathText(path)); },
       .native_path_hash = [](XpAppText path) -> uint64_t { return std::hash<std::string_view>{}(view(path)); },
       .heap_snapshot = [](XpEpubHeap* out) { *out = {ESP.getFreeHeap(), ESP.getMaxAllocHeap()}; },
+#ifdef XP_APP_TEST
       .radio_status =
           [](XpEpubRadio* out, XpEpubPeer* peer) {
             const auto status = bleturner::status();
@@ -718,6 +736,15 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .radio_after_paint = [] { bleturner::afterPaint(); },
       .radio_switch_off = [] { bleturner::switchOff(); },
       .radio_request_connect = [] { bleturner::requestConnect(); },
+#else
+      .radio_peer =
+          [](XpEpubPeer* peer) {
+            *peer = {};
+            const auto linked = bleturner::linked();
+            snprintf(reinterpret_cast<char*>(peer->name), sizeof(peer->name), "%s", linked.name);
+            snprintf(reinterpret_cast<char*>(peer->addr), sizeof(peer->addr), "%s", linked.addr);
+          },
+#endif
 #ifdef XP_APP_TEST
       .trusted_now = [] { return trustedtime::trustedNow(); },
       .trusted_sync = [](uint32_t timeout) -> uint8_t { return trustedtime::syncNow(timeout); },
@@ -830,10 +857,14 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
           },
 #endif
       .has_sync_credentials = []() -> uint8_t { return KOREADER_STORE.hasCredentials(); },
+#ifdef XP_APP_TEST
       .has_exit_subscriber = []() -> uint8_t { return pluginevents::anySubscriber(pluginevents::Event::ReaderExit); },
       .has_session_subscriber = []() -> uint8_t {
         return pluginevents::anySubscriber(pluginevents::Event::ReaderSession);
       },
+#else
+      .subscribers = pluginevents::subscriptionView,
+#endif
       .document_id = [](XpAppText path, XpAppTextSink sink, void* context) -> uint8_t {
         const auto document = KOReaderDocumentId::calculate(owned(path));
         return sink(context, text(document));

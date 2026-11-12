@@ -119,7 +119,7 @@ impl EpubSession {
             return;
         }
         let (session, worthy) = self.base_session_snapshot();
-        if !worthy || unsafe { (self.leaves.has_session_subscriber)() } == 0 {
+        if !worthy || unsafe { self.leaves.has_session_subscriber() } == 0 {
             self.reset_session();
             return;
         }
@@ -157,7 +157,7 @@ impl EpubSession {
         unsafe { self.leaves.font_release(self.resources.font_owner) };
         self.log_memory(false);
         self.flush_session();
-        if unsafe { (self.leaves.has_exit_subscriber)() } != 0 {
+        if unsafe { self.leaves.has_exit_subscriber() } != 0 {
             let percent = self.base_exit_percent();
             unsafe { (self.leaves.emit_exit)(self.path().wire(), percent) };
         }

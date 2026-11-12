@@ -77,10 +77,8 @@ deferred EPUB.end_input R5 # Deferred preview/popup/end-of-book path.
 deferred EPUB.end_load R5 # Deferred preview/popup/end-of-book path.
 deferred EPUB.end_open R5 # Deferred preview/popup/end-of-book path.
 deferred EPUB.end_paint R5 # Deferred preview/popup/end-of-book path.
-inherited EPUB.fonts_ensure_loaded R-RELAY # RELAY-A native SD-font effects adapter; Rust owns font policy, settings serialization remains SET-OWN.
+inherited EPUB.fonts_ensure_loaded R-RELAY # SET-OWN family owns catalog settings serialization; R-RELAY is the gate token because SET-OWN has none. Noncatalog retains native font effects; outside RELAY-B.
 inherited EPUB.fonts_take_corrupt_notice R-RELAY # Small native forwarding port; remove after R2/R3a.
-inherited EPUB.has_exit_subscriber R-RELAY # Small native forwarding port; remove after R2/R3a.
-inherited EPUB.has_session_subscriber R-RELAY # Small native forwarding port; remove after R2/R3a.
 inherited EPUB.image_dimensions R4 # Image ownership relay.
 inherited EPUB.image_supported R4 # Image ownership relay.
 inherited EPUB.paint_dither R2 # Reader chrome font relay.
@@ -88,15 +86,7 @@ inherited EPUB.paint_status R2 # Reader chrome font relay.
 deferred EPUB.popup_paint R5 # Deferred preview/popup/end-of-book path.
 deferred EPUB.popup_process_render R5 # Deferred preview/popup/end-of-book path.
 inherited EPUB.protection_open R3b # Protection/document identity relay.
-inherited EPUB.radio_after_paint R-RELAY # Small native forwarding port; remove after R2/R3a.
-inherited EPUB.radio_before_build R-RELAY # Small native forwarding port; remove after R2/R3a.
-inherited EPUB.radio_holds_heap R-RELAY # Small native forwarding port; remove after R2/R3a.
-inherited EPUB.radio_request_connect R-RELAY # Small native forwarding port; remove after R2/R3a.
-inherited EPUB.radio_settle_start R-RELAY # Small native forwarding port; remove after R2/R3a.
-inherited EPUB.radio_status R-RELAY # Small native forwarding port; remove after R2/R3a.
-inherited EPUB.radio_switch_off R-RELAY # Small native forwarding port; remove after R2/R3a.
 inherited EPUB.restart_reader R3a # Native persistence/state/store or shared app relay.
-inherited EPUB.settings_render_spec R-RELAY # Small native forwarding port; remove after R2/R3a.
 inherited EPUB.settings_save R3a # Native persistence/state/store or shared app relay.
 deferred Legacy.create R7 # Deferred legacy activity factory including XTC/TOC; static closure spans all activities.
 inherited Modes.paint R1b # Shared SDK UI font references; references are not proof of execution.

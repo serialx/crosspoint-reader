@@ -6,6 +6,7 @@
 #include "xp_ffi.h"
 #include "xp_font_registry.h"
 #include "xp_hal.h"
+#include "xp_plugin.h"
 #include "xp_settings.h"
 #include "xp_ui_dictionary.h"
 #include "xp_ui_reader.h"
@@ -383,6 +384,7 @@ typedef struct XpEpubLeaves {
 #endif
   // Font is meaningful only when requested; otherwise font is zero and resolution is skipped.
   void (*settings_snapshot)(uint8_t resolve_font, XpEpubSettings* out);
+  // Shipping copies raw fields; Rust fills font/compression from settings_snapshot.
   void (*settings_render_spec)(uint16_t width, uint16_t height, XpEpubRenderSpec* out);
   void (*settings_orientation)(uint8_t value);
   void (*settings_font_size)(uint8_t value);
@@ -409,6 +411,7 @@ typedef struct XpEpubLeaves {
   uint8_t (*path_mkdir)(XpAppText path);
   uint64_t (*native_path_hash)(XpAppText path);
   void (*heap_snapshot)(XpEpubHeap* out);
+#ifdef XP_APP_TEST
   void (*radio_status)(XpEpubRadio* out, XpEpubPeer* peer_or_null);
   uint8_t (*radio_before_build)(void);
   void (*radio_settle_start)(void);
@@ -416,6 +419,9 @@ typedef struct XpEpubLeaves {
   void (*radio_after_paint)(void);
   void (*radio_switch_off)(void);
   void (*radio_request_connect)(void);
+#else
+  void (*radio_peer)(XpEpubPeer* out);  // One-way: live linked name and address only.
+#endif
 #ifdef XP_APP_TEST
   int64_t (*trusted_now)(void);
   uint8_t (*trusted_sync)(uint32_t timeout_ms);
@@ -471,8 +477,13 @@ typedef struct XpEpubLeaves {
                          XpStoreState* state);
 #endif
   uint8_t (*has_sync_credentials)(void);
+#ifdef XP_APP_TEST
   uint8_t (*has_exit_subscriber)(void);
   uint8_t (*has_session_subscriber)(void);
+#else
+  // Borrowed until the synchronous query returns; subscription refresh stays on the app task.
+  const XpPluginSubscriber* (*subscribers)(void);
+#endif
   uint8_t (*document_id)(XpAppText path, XpAppTextSink sink, void* context);
   void (*emit_open)(XpAppText path);
   void (*emit_exit)(XpAppText path, int32_t percent);
@@ -627,27 +638,29 @@ XP_EPUB_ASSERT(offsetof(XpEpubRadio, note) == 4, "XpEpubRadio.note");
 XP_EPUB_ASSERT(sizeof(XpEpubPeer) == 82, "XpEpubPeer size");
 XP_EPUB_ASSERT(offsetof(XpEpubPeer, name) == 0, "XpEpubPeer.name");
 XP_EPUB_ASSERT(offsetof(XpEpubPeer, addr) == 64, "XpEpubPeer.addr");
-#ifdef XP_SD_FONT_CATALOG
+#ifdef XP_SD_FONT_CATALOG  // Offsets below use original native-table indices.
 #ifdef XP_APP_TEST
 #define XP_EPUB_LEAF_INDEX(index) \
   ((index) + ((index) >= 24 ? 4 : 0) + ((index) >= 132 ? 1 : 0) - ((index) >= 26 ? 1 : 0))
 #define XP_EPUB_LEAF_COUNT 167
 #else
-#define XP_EPUB_LEAF_INDEX(index)                                                                                    \
-  ((index) - ((index) >= 9 ? 3 : 0) - ((index) >= 23 ? 2 : 0) - ((index) >= 120 ? 1 : 0) - ((index) >= 26 ? 1 : 0) - \
-   ((index) >= 133 ? 1 : 0) - ((index) > 98 ? 1 : 0) - ((index) > 108 ? 1 : 0) - ((index) > 109 ? 1 : 0) -           \
-   ((index) > 110 ? 1 : 0) - ((index) > 111 ? 1 : 0) - ((index) > 120 ? 1 : 0))
-#define XP_EPUB_LEAF_COUNT 149
+#define XP_EPUB_LEAF_INDEX(index)                                                                                   \
+  ((index) - ((index) >= 60 ? 6 : 0) - ((index) >= 93 ? 1 : 0) - ((index) >= 9 ? 3 : 0) - ((index) >= 23 ? 2 : 0) - \
+   ((index) >= 120 ? 1 : 0) - ((index) >= 26 ? 1 : 0) - ((index) >= 133 ? 1 : 0) - ((index) > 98 ? 1 : 0) -         \
+   ((index) > 108 ? 1 : 0) - ((index) > 109 ? 1 : 0) - ((index) > 110 ? 1 : 0) - ((index) > 111 ? 1 : 0) -          \
+   ((index) > 120 ? 1 : 0))
+#define XP_EPUB_LEAF_COUNT 142
 #endif
 #else
 #ifdef XP_APP_TEST
 #define XP_EPUB_LEAF_INDEX(index) ((index) + ((index) >= 24 ? 4 : 0) + ((index) >= 132 ? 1 : 0))
 #define XP_EPUB_LEAF_COUNT 168
 #else
-#define XP_EPUB_LEAF_INDEX(index)                                                                                     \
-  ((index) - ((index) >= 9 ? 3 : 0) - ((index) >= 23 ? 2 : 0) - ((index) >= 120 ? 1 : 0) - ((index) >= 133 ? 1 : 0) - \
-   ((index) > 98 ? 1 : 0) - ((index) > 109 ? 1 : 0) - ((index) > 111 ? 1 : 0) - ((index) > 120 ? 1 : 0))
-#define XP_EPUB_LEAF_COUNT 152
+#define XP_EPUB_LEAF_INDEX(index)                                                                                   \
+  ((index) - ((index) >= 60 ? 6 : 0) - ((index) >= 93 ? 1 : 0) - ((index) >= 9 ? 3 : 0) - ((index) >= 23 ? 2 : 0) - \
+   ((index) >= 120 ? 1 : 0) - ((index) >= 133 ? 1 : 0) - ((index) > 98 ? 1 : 0) - ((index) > 109 ? 1 : 0) -         \
+   ((index) > 111 ? 1 : 0) - ((index) > 120 ? 1 : 0))
+#define XP_EPUB_LEAF_COUNT 145
 #endif
 #endif
 XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == XP_EPUB_LEAF_COUNT * sizeof(void (*)(void)), "XpEpubLeaves size");
@@ -732,6 +745,7 @@ XP_EPUB_LEAF_OFFSET(path_rename, 49);
 XP_EPUB_LEAF_OFFSET(path_mkdir, 50);
 XP_EPUB_LEAF_OFFSET(native_path_hash, 51);
 XP_EPUB_LEAF_OFFSET(heap_snapshot, 52);
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(radio_status, 53);
 XP_EPUB_LEAF_OFFSET(radio_before_build, 54);
 XP_EPUB_LEAF_OFFSET(radio_settle_start, 55);
@@ -739,6 +753,9 @@ XP_EPUB_LEAF_OFFSET(radio_holds_heap, 56);
 XP_EPUB_LEAF_OFFSET(radio_after_paint, 57);
 XP_EPUB_LEAF_OFFSET(radio_switch_off, 58);
 XP_EPUB_LEAF_OFFSET(radio_request_connect, 59);
+#else
+XP_EPUB_LEAF_OFFSET(radio_peer, 53);
+#endif
 #ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(trusted_now, 60);
 #else
@@ -796,8 +813,12 @@ XP_EPUB_LEAF_OFFSET(state_save, 89);
 XP_EPUB_LEAF_OFFSET(store_document, 89);
 #endif
 XP_EPUB_LEAF_OFFSET(has_sync_credentials, 90);
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(has_exit_subscriber, 91);
 XP_EPUB_LEAF_OFFSET(has_session_subscriber, 92);
+#else
+XP_EPUB_LEAF_OFFSET(subscribers, 91);
+#endif
 XP_EPUB_LEAF_OFFSET(document_id, 93);
 XP_EPUB_LEAF_OFFSET(emit_open, 94);
 XP_EPUB_LEAF_OFFSET(emit_exit, 95);
@@ -936,7 +957,14 @@ _Static_assert(_Generic(((XpEpubGeometry*)0)->has_font_cache, uint8_t: 1, defaul
 _Static_assert(_Alignof(XpEpubGeometry) == 4, "XpEpubGeometry alignment");
 #endif
 
-#ifndef __cplusplus
+#if !defined(__cplusplus) && defined(XP_APP_TEST)
 _Static_assert(_Generic(((XpEpubLeaves*)0)->radio_status, void (*)(XpEpubRadio*, XpEpubPeer*): 1, default: 0),
                "XpEpubLeaves.radio_status signature");
+#endif
+
+#if !defined(__cplusplus) && !defined(XP_APP_TEST)
+_Static_assert(_Generic(((XpEpubLeaves*)0)->radio_peer, void (*)(XpEpubPeer*): 1, default: 0),
+               "XpEpubLeaves.radio_peer signature");
+_Static_assert(_Generic(((XpEpubLeaves*)0)->subscribers, const XpPluginSubscriber* (*)(void): 1, default: 0),
+               "XpEpubLeaves.subscribers signature");
 #endif

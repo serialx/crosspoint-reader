@@ -1232,8 +1232,8 @@ a reviewed mapping. File-local symbols include their object path; addresses and
 internal lambda names are absent. A new root/target pair cannot reuse a physical exception;
 a different Rust caller using the same root remains invisible. The summary
 counts pairs by class and owner. “Common path clean” means no inherited/unowned
-pairs remain, not proof of execution reachability. The baseline is `5aee6afa`,
-after R1 and R3a. Follow the [update and review rules](../../scripts/rust_ports/README.md).
+pairs remain, not proof of execution reachability. The initial baseline was `5aee6afa`,
+after R1 and R3a; later units retire entries through reviewed lock diffs. Follow the [update and review rules](../../scripts/rust_ports/README.md).
 
 This is a **reference check, not an execution proof**. Taking a vtable address,
 infeasible branches, weak definitions and unlinked native objects can over-report.
@@ -1254,3 +1254,20 @@ with unresolved indirect sites, direct/tail calls and object provenance. It has
 14 physical notes, no large generated uncertainty baseline, and no CTest/build
 gate registration. A passing port check does not complete that linked-image and
 runtime-callback proof.
+
+### Reader forwarding ports
+
+Shipping EPUB code calls the BLE runtime owner directly for status, chapter-build
+release, settling, heap occupancy, paint completion, switch-off and connection requests. The
+native `radio_peer` slot only copies the linked device name and address. Host
+oracles retain their original callbacks under `app-test`; the production adapter
+is tested by `reader_direct_relays`, which compiles the shipping `ports.rs`
+against stub owners.
+
+Plugin subscription queries borrow the native eight-entry table only for the
+synchronous Rust predicate. Refresh and queries remain on the app task; the
+reader neither retains the pointer nor caches subscription results. Render specs
+resolve their font through the existing settings snapshot, compute compression
+in Rust, then read the remaining raw settings. R1c still owns the snapshot's
+native font resolver; this change does not claim that inherited chain is gone.
+No new allocation, cache or persistent state is introduced.

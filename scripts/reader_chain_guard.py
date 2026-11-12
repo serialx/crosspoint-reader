@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check linked default-X3 reader language crossings (standard library only)."""
+"""Audit linked default-X3 reader language crossings (standard library only)."""
 
 import argparse
 import bisect
@@ -1095,12 +1095,6 @@ def main():
         ),
     )
     parser.add_argument(
-        "--allowlist", type=pathlib.Path, default=CONFIG / "allowlist.json"
-    )
-    parser.add_argument(
-        "--uncertainty-baseline", type=pathlib.Path, default=CONFIG / "uncertainty.json"
-    )
-    parser.add_argument(
         "--report", type=pathlib.Path, default=ROOT / ".pio/reader-chain-report.json"
     )
     args = parser.parse_args()
@@ -1113,31 +1107,19 @@ def main():
             args.objdump,
             json.loads((CONFIG / "roots.json").read_text()),
         )
-        allowed = json.loads(args.allowlist.read_text())
-        report["errors"] = compare(report, allowed)
-        report["errors"] += compare_uncertainty(
-            report, json.loads(args.uncertainty_baseline.read_text())
-        )
-        report["summary"] = summarize(report, allowed)
+        report["physical_notes"] = json.loads((CONFIG / "allowlist.json").read_text())[
+            "physical"
+        ]
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
         print(
             f"{len(report['boundaries'])} native boundaries; "
             f"{len(report['unresolved_indirect'])} unresolved indirect sites; "
             f"{len(report['unresolved_external'])} external direct sites; "
-            f"{len(report['errors'])} baseline differences; {time.monotonic() - start:.2f}s"
+            f"audit only; {time.monotonic() - start:.2f}s"
         )
         print(f"Report: {args.report}")
-        summary = report["summary"]
-        print(
-            "Summary: "
-            + ", ".join(f"{k}={v}" for k, v in summary["classes"].items())
-            + "; owners: "
-            + ", ".join(f"{k}={v}" for k, v in sorted(summary["owners"].items()))
-            + "; common path clean: "
-            + ("yes" if summary["common_path_clean"] else "no")
-        )
-        return int(bool(report["errors"]))
+        return 0
     except (
         ValueError,
         OSError,

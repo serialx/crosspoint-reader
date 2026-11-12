@@ -1,0 +1,147 @@
+# Default X3 native ports. Exact roots; no wildcard ownership or physical permission.
+table EPUB _ZZ17rustEpubResourcesR11GfxRendererR18MappedInputManagerE6leaves XpEpubLeaves rust/crates/xp-ffi/include/xp_epub_session.h # Reader session ports.
+table App _ZZ16rustAppResourcesR11GfxRendererR18MappedInputManagerE9resources XpAppResources rust/crates/xp-ffi/include/xp_app.h # Shared application ports.
+table Legacy _ZZN15ActivityManager5beginERK12XpAppRuntimeE6legacy XpAppLegacy rust/crates/xp-ffi/include/xp_app.h # Legacy activities.
+table WiFi XP_WIFI_PHYSICAL XpWifiPhysical rust/crates/xp-ffi/include/xp_network_owner.h # Wi-Fi owner ports.
+table Modes XP_NETWORK_MODES_PHYSICAL XpNetworkModesPhysical rust/crates/xp-ffi/include/xp_network_owner.h # Network mode ports.
+# Physical permission is an exact root/export pair and still requires a lock line.
+physical EPUB.input_raw_contact xp_hal_input_adc # ADC HAL sample.
+physical EPUB.input_services xp_hal_tilt_take # Tilt HAL sample.
+physical EPUB.local_calendar xp_hal_clock_read # Clock HAL calendar.
+physical EPUB.render_physical_operation xp_display_abort xp_display_capabilities xp_display_drop xp_display_execute xp_display_init_v2 xp_hal_display_refresh xp_hal_wake_reason # Panel/bus HAL continuation.
+physical App.refresh xp_display_abort xp_display_capabilities xp_display_drop xp_display_execute xp_display_init_v2 xp_hal_display_refresh xp_hal_wake_reason # Panel/bus HAL continuation.
+physical WiFi.clock_sync xp_hal_clock_sync # Clock HAL synchronization.
+physical XP_WIFI_PHYSICAL xp_hal_clock_sync # Same clock HAL slot reached through the directly imported Wi-Fi table.
+physical xp_native_page_image_decode xp_book_image_yield xp_image_row # JPEGDEC streaming row/yield callbacks.
+physical EPUB.protection_open xp_inflate_init xp_inflate_state_align xp_inflate_state_size xp_inflate_step # SDK crypto/miniz byte streams.
+# SDK UI measurement/drawing continuations use runtime callbacks; audit them at R8b.
+# Battery HAL and nested clipping_physical callbacks also require manual R8b review.
+callback EPUB.protection_open # Reports an open failure through the supplied error sink.
+callback EPUB.protection_stream # SDK decryption streams bytes to the supplied sink.
+callback EPUB.popup_show # Retains label/choice callbacks until the popup is dismissed; review both lifetimes.
+callback EPUB.end_input # Delivers the selected end-menu action synchronously.
+callback EPUB.state_open_path # Copies the stored open path through the supplied text sink.
+callback EPUB.document_id # Returns document identity through the supplied text sink.
+callback EPUB.child_definition_payload_lookup # Supplies a query callback during native definition payload construction.
+callback EPUB.child_definition_payload_plain # Supplies text callbacks during native payload construction.
+callback EPUB.storage_read_file # Delivers file bytes to the bookmark/text sink.
+callback App.recents_visit # Visits stored recent-book records through a caller-supplied sink.
+callback App.library_row # Returns a library record through a caller-supplied sink.
+callback App.book_thumb_path # Returns the book thumbnail path through a text sink.
+callback App.thumbnail_path # Returns the derived thumbnail path through a text sink.
+callback App.text_wrap # Delivers native line wrapping results to the Rust continuation.
+callback App.text_truncate # Delivers native text truncation results to the Rust continuation.
+callback Legacy.with_result # The synchronous continuation destroys the child and delivers the stack-owned result.
+callback Legacy.screenshot_info # Copies native screenshot metadata through the supplied sink.
+callback EPUB.clipping_physical # Nested callback struct; not inferred from pointer-to-struct type.
+inherited App.bitmap_draw R1b # Shared app font relay.
+inherited App.book_close R4 # Book thumbnail/image facade relay.
+inherited App.book_generate_thumb R4 # Book thumbnail/image facade relay.
+inherited App.book_generate_thumb_from_source R4 # Book thumbnail/image facade relay.
+inherited App.book_load R4 # Book thumbnail/image facade relay.
+inherited App.book_progress R4 # Book thumbnail/image facade relay.
+inherited App.book_thumb_path R4 # Book thumbnail/image facade relay.
+inherited App.library_open R3a # Native persistence/state/store or shared app relay.
+inherited App.library_rebuild R3a # Native persistence/state/store or shared app relay.
+inherited App.library_row R3a # Native persistence/state/store or shared app relay.
+inherited App.placeholder_draw R1b # Shared app font relay.
+inherited App.recent_update R3a # Native persistence/state/store or shared app relay.
+inherited App.text_box_height R1b # Shared app font relay.
+inherited App.text_draw R1b # Shared app font relay.
+inherited App.text_truncate R1b # Shared app font relay.
+inherited App.text_wrap R1b # Shared app font relay.
+inherited EPUB.book_facade_open R3a # Native persistence/state/store or shared app relay.
+inherited EPUB.book_set_extractor R4 # Image ownership relay.
+inherited EPUB.build_metrics R1b # Remaining font owner relay.
+deferred EPUB.child_definition_draw_body R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_definition_payload_find R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_definition_payload_prepare R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_definition_selection_build R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_definition_selection_child R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_list_help R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_list_icon R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_list_theme R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_lookup_find R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_lookup_index R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_lookup_open R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_qr_draw R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_selection R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_sync R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_text_settings R5 # Deferred preview/popup/end-of-book path.
+deferred EPUB.child_toolbar_icon R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_utility_layout R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_wifi R6 # Deferred dictionary/selection/chapter child bridge.
+inherited EPUB.document_id R3b # Protection/document identity relay.
+inherited EPUB.emit_exit R3a # Native persistence/state/store or shared app relay.
+inherited EPUB.emit_open R3a # Native persistence/state/store or shared app relay.
+inherited EPUB.emit_session R3a # Native persistence/state/store or shared app relay.
+deferred EPUB.end_input R5 # Deferred preview/popup/end-of-book path.
+deferred EPUB.end_load R5 # Deferred preview/popup/end-of-book path.
+deferred EPUB.end_open R5 # Deferred preview/popup/end-of-book path.
+deferred EPUB.end_paint R5 # Deferred preview/popup/end-of-book path.
+inherited EPUB.font_ascent R1b # Remaining font owner relay.
+inherited EPUB.font_codepoint R1b # Remaining font owner relay.
+inherited EPUB.font_line_height R1b # Remaining font owner relay.
+inherited EPUB.font_ready R1b # Remaining font owner relay.
+inherited EPUB.font_text_advance R1b # Remaining font owner relay.
+inherited EPUB.font_variant R1b # Remaining font owner relay.
+inherited EPUB.fonts_ensure_loaded R1b # Remaining font owner relay.
+inherited EPUB.fonts_take_corrupt_notice R-RELAY # Small native forwarding port; remove after R2/R3a.
+inherited EPUB.has_exit_subscriber R-RELAY # Small native forwarding port; remove after R2/R3a.
+inherited EPUB.has_session_subscriber R-RELAY # Small native forwarding port; remove after R2/R3a.
+inherited EPUB.hyphen_language R1b # Remaining font owner relay.
+inherited EPUB.image_clear_failures R-RELAY # Small native forwarding port; remove after R2/R3a.
+inherited EPUB.image_dimensions R4 # Image ownership relay.
+inherited EPUB.image_needs_decode R4 # Image ownership relay.
+inherited EPUB.image_release_cache R-RELAY # Small native forwarding port; remove after R2/R3a.
+inherited EPUB.image_supported R4 # Image ownership relay.
+inherited EPUB.paint_dither R2 # Reader chrome font relay.
+inherited EPUB.paint_status R2 # Reader chrome font relay.
+deferred EPUB.popup_paint R5 # Deferred preview/popup/end-of-book path.
+deferred EPUB.popup_process_render R5 # Deferred preview/popup/end-of-book path.
+inherited EPUB.progress_save R3a # Native persistence/state/store or shared app relay.
+inherited EPUB.protection_open R3b # Protection/document identity relay.
+inherited EPUB.radio_after_paint R-RELAY # Small native forwarding port; remove after R2/R3a.
+inherited EPUB.radio_before_build R-RELAY # Small native forwarding port; remove after R2/R3a.
+inherited EPUB.radio_holds_heap R-RELAY # Small native forwarding port; remove after R2/R3a.
+inherited EPUB.radio_request_connect R-RELAY # Small native forwarding port; remove after R2/R3a.
+inherited EPUB.radio_settle_start R-RELAY # Small native forwarding port; remove after R2/R3a.
+inherited EPUB.radio_status R-RELAY # Small native forwarding port; remove after R2/R3a.
+inherited EPUB.radio_switch_off R-RELAY # Small native forwarding port; remove after R2/R3a.
+inherited EPUB.recents_add R3a # Native persistence/state/store or shared app relay.
+inherited EPUB.recents_remove R3a # Native persistence/state/store or shared app relay.
+inherited EPUB.recents_update_path R3a # Native persistence/state/store or shared app relay.
+inherited EPUB.restart_reader R3a # Native persistence/state/store or shared app relay.
+inherited EPUB.settings_render_spec R-RELAY # Small native forwarding port; remove after R2/R3a.
+inherited EPUB.settings_save R3a # Native persistence/state/store or shared app relay.
+inherited EPUB.state_save R3a # Native persistence/state/store or shared app relay.
+inherited EPUB.trusted_now R3a # Native persistence/state/store or shared app relay.
+inherited EPUB.trusted_sync R3a # Native persistence/state/store or shared app relay.
+deferred Legacy.create R7 # Deferred legacy activity factory including XTC/TOC; static closure spans all activities.
+inherited Modes.paint R1b # Shared SDK UI font references; references are not proof of execution.
+inherited Modes.resources R1b # Shared SDK UI font references; references are not proof of execution.
+inherited WiFi.clock_mark_and_save R3a # Native persistence/state/store or shared app relay.
+inherited WiFi.credential_lookup R3a # Native persistence/state/store or shared app relay.
+inherited WiFi.layout R1b # Shared SDK UI font references; references are not proof of execution.
+inherited WiFi.line R1b # Shared SDK UI font references; references are not proof of execution.
+inherited WiFi.paint R1b # Shared SDK UI font references; references are not proof of execution.
+inherited WiFi.plugin_drain R3a # Native persistence/state/store or shared app relay.
+inherited WiFi.store_has R3a # Native persistence/state/store or shared app relay.
+inherited WiFi.store_last R3a # Native persistence/state/store or shared app relay.
+inherited WiFi.store_load R3a # Native persistence/state/store or shared app relay.
+inherited WiFi.store_remove R3a # Native persistence/state/store or shared app relay.
+inherited WiFi.store_save R3a # Native persistence/state/store or shared app relay.
+inherited WiFi.width R1b # Shared SDK UI font references; references are not proof of execution.
+inherited XP_NETWORK_MODES_PHYSICAL R3a # Native persistence/state/store or shared app relay.
+inherited XP_WIFI_PHYSICAL R3a # Native persistence/state/store or shared app relay.
+deferred xp_dialog_format R6 # Deferred child dialog/keyboard bridge.
+deferred xp_dialog_layout R6 # Deferred child dialog/keyboard bridge.
+deferred xp_dialog_metrics R6 # Deferred child dialog/keyboard bridge.
+deferred xp_keyboard_chrome R6 # Deferred child dialog/keyboard bridge.
+deferred xp_keyboard_draw_key R6 # Deferred child dialog/keyboard bridge.
+deferred xp_keyboard_metrics R6 # Deferred child dialog/keyboard bridge.
+inherited xp_native_page_image_decode R4 # Native image decode relay.
+inherited xp_native_render_target R1b # Target query references font paths; audit says the branch is unreachable.
+deferred xp_settings_shell_paint R5 # Deferred text settings shell.
+deferred xp_settings_shell_snapshot R5 # Deferred text settings shell.
+deferred xp_settings_shell_theme_reload R5 # Deferred text settings shell.

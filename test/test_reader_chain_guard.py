@@ -283,32 +283,19 @@ class PreventionTests(unittest.TestCase):
             {e["kind"] for e in guard.compare_uncertainty(report, baseline)},
         )
 
-    def test_cli_rejects_non_xp_indirect_relay(self):
-        allowed, baseline = self.allowlist(), self.baseline()
+    def test_cli_reports_unresolved_sites_without_a_gate(self):
         self.nodes[9] = node("relay", "native")
         self.nodes[9]["indirect"] = [{"pc": "0x90", "instruction": "jalr a5"}]
         self.nodes[1]["edges"].append({"target": 9, "pc": "0x44", "kind": "jal"})
         with tempfile.TemporaryDirectory() as directory:
-            path = pathlib.Path(directory)
-            (path / "allowed.json").write_text(json.dumps(allowed))
-            (path / "unknown.json").write_text(json.dumps(baseline))
-            argv = [
-                "guard",
-                "--allowlist",
-                str(path / "allowed.json"),
-                "--uncertainty-baseline",
-                str(path / "unknown.json"),
-                "--report",
-                str(path / "report.json"),
-            ]
+            path = pathlib.Path(directory) / "report.json"
             with (
                 mock.patch.object(guard, "build_graph", return_value=self.report()),
-                mock.patch("sys.argv", argv),
+                mock.patch("sys.argv", ["audit", "--report", str(path)]),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
-                self.assertEqual(guard.main(), 1)
-            errors = json.loads((path / "report.json").read_text())["errors"]
-            self.assertIn("new-unresolved", {e["kind"] for e in errors})
+                self.assertEqual(guard.main(), 0)
+            self.assertTrue(json.loads(path.read_text())["unresolved_indirect"])
 
     def test_unknown_baseline_requires_a_review_reason(self):
         self.nodes[2]["indirect"] = [{"pc": "0x20", "instruction": "jalr a5"}]

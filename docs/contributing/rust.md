@@ -868,10 +868,17 @@ Reordering scratch, shaping and anchors overlap only when their lifetimes do
 not; visual UTF-8 reuses dead logical-character storage. Measurement and drawing
 share this workspace and add no visual-string allocation. The small C++ bidi
 wrapper also serves dictionary, selection and keyboard callers.
+Those native wrappers use the shared compile-time workspace constants in
+`xp_ffi.h`; Rust checks them against its actual layout during compilation.
+They do not call Rust for workspace metadata, including on warm reuse.
 
 The production paragraph metric table points directly to the Rust font provider.
+The legacy chapter/definition table in `ChapterPlatform.cpp` still uses a native
+provider adapter; its removal belongs to R6.
 Shared application translation resolves strings in Rust after querying the current
-native language; width and line height read the borrowed Rust font owner. Their
+native `language` field; this is a one-way native state read, not a physical leaf.
+The reader-path goal does not require moving language ownership. Width and line
+height read the borrowed Rust font owner. Their
 legacy callbacks remain only in host oracle tables. TOC row prewarming also stays
 in Rust, including the virtual ellipsis row used by truncation. SDK component
 measurement and painting still use the synchronous native target interface.

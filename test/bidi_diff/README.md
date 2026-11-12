@@ -70,8 +70,11 @@ cargo fmt --all --manifest-path rust/Cargo.toml
 ```
 
 `xp-core::bidi::Workspace::EMPTY` can initialize persistent caller-owned storage.
-C callers use `xp_bidi_workspace_size/align/init`; initialize once and reuse
-exclusively. The current workspace is 3,072 bytes with 4-byte alignment on C3
+The production native wrappers use `XP_BIDI_WORKSPACE_SIZE/ALIGNMENT` from
+`xp_ffi.h` and value-initialize their retained allocation; they never call Rust
+for workspace metadata or initialization. Standalone C test clients may still
+use `xp_bidi_workspace_size/align/init`; initialize once and reuse exclusively.
+The current workspace is 3,072 bytes with 4-byte alignment on C3
 and the host. A 1,536-byte logical line shares storage with visual UTF-8 after
 reordering; the other 1,536 bytes overlay algorithm scratch, shaped characters
 and anchors whose lifetimes do not overlap. It should not be constructed on a
@@ -104,3 +107,8 @@ result for callers that use that API directly.
 allocation, invalid size and alignment, then successful acquisition and reuse.
 It checks zero initialization, retry after failure, mutex release and retention
 of the same workspace without reinitializing it on a warm acquisition.
+Successful test allocations are poisoned first, so missing zero initialization
+fails deterministically. `BidiNativeWrappers` exercises all four production
+wrappers with failed cold allocations, a successful retry and warm reuse.
+Native compatibility wrappers use the shared size/alignment constants rather
+than Rust metadata callbacks; Rust compile-time assertions reject a layout mismatch.

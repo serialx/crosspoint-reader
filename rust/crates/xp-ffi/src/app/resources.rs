@@ -368,7 +368,7 @@ impl abi::Resources {
         }
         #[cfg(not(any(test, feature = "app-test")))]
         {
-            let text = xp_core::i18n::get((self.translate)(), id);
+            let text = xp_core::i18n::get((self.language)(), id);
             abi::Text::from_bytes(core::ffi::CStr::from_ptr(text).to_bytes())
         }
     }

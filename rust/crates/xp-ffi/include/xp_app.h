@@ -301,7 +301,7 @@ enum { XP_APP_BOOK_REFLOWABLE, XP_APP_BOOK_XTC };
 #ifdef XP_APP_TEST
 typedef XpAppText (*XpAppTranslate)(uint16_t string_id);
 #else
-typedef uint8_t (*XpAppTranslate)(void);  // Current language; Rust resolves the string ID.
+typedef uint8_t (*XpAppLanguage)(void);
 #endif
 typedef struct {
   XpAppHomeSettings (*settings_snapshot)(void);
@@ -328,7 +328,11 @@ typedef struct {
   uint8_t (*bitmap_draw)(void* bitmap, XpUiRect rect, int32_t shift);
   void (*bitmap_close)(void* bitmap);
   void (*theme_snapshot)(XpAppTheme* theme);
+#ifdef XP_APP_TEST
   XpAppTranslate translate;
+#else
+  XpAppLanguage language;
+#endif
   void (*header_draw)(XpUiRect rect, XpAppText title);
   void (*footer_draw)(const XpAppText labels[4]);
   void (*placeholder_draw)(XpUiRect rect);

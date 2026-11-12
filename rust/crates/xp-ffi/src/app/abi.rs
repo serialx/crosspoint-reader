@@ -572,7 +572,7 @@ pub struct Resources {
     #[cfg(any(test, feature = "app-test"))]
     pub translate: unsafe extern "C" fn(u16) -> Text,
     #[cfg(not(any(test, feature = "app-test")))]
-    pub translate: unsafe extern "C" fn() -> u8,
+    pub language: unsafe extern "C" fn() -> u8,
     pub header_draw: unsafe extern "C" fn(xp_ui::scene::Rect, Text),
     pub footer_draw: unsafe extern "C" fn(*const Text),
     pub placeholder_draw: unsafe extern "C" fn(xp_ui::scene::Rect),

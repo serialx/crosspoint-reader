@@ -99,10 +99,30 @@ fn check_book_constants() {
     }
 }
 
+fn generate_bidi_workspace_contract() {
+    let header = "include/xp_ffi.h";
+    println!("cargo:rerun-if-changed={header}");
+    let source = fs::read_to_string(header).expect("read bidi workspace contract");
+    let mut output = String::new();
+    for name in ["XP_BIDI_WORKSPACE_SIZE", "XP_BIDI_WORKSPACE_ALIGNMENT"] {
+        let prefix = format!("#define {name} ");
+        let value: usize = source
+            .lines()
+            .find_map(|line| line.strip_prefix(&prefix))
+            .expect("bidi workspace constant")
+            .parse()
+            .expect("bidi workspace integer");
+        writeln!(output, "const {name}: usize = {value};").unwrap();
+    }
+    let out = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo OUT_DIR"));
+    fs::write(out.join("bidi_workspace.rs"), output).expect("write bidi workspace contract");
+}
+
 fn main() {
     check_book_constants();
     if std::env::args().any(|arg| arg == "--write-header") {
         return;
     }
     generate_plugin_contract();
+    generate_bidi_workspace_contract();
 }

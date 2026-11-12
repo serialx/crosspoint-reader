@@ -44,3 +44,4 @@ target_include_directories(BidiWorkspaceLease PRIVATE ${REPO_ROOT}/test/minibidi
 target_link_libraries(BidiWorkspaceLease PRIVATE xp_ffi_host)
 target_compile_options(BidiWorkspaceLease PRIVATE -UNDEBUG)
 add_test(NAME BidiWorkspaceLease COMMAND BidiWorkspaceLease)
+add_test(NAME BidiNativeWrappers COMMAND BidiWorkspaceLease --native)

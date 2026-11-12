@@ -1,6 +1,12 @@
 use core::{ffi::c_void, mem, slice};
 use xp_core::bidi::{self, Status, Workspace};
 
+include!(concat!(env!("OUT_DIR"), "/bidi_workspace.rs"));
+const _: () = {
+    assert!(mem::size_of::<Workspace>() == XP_BIDI_WORKSPACE_SIZE);
+    assert!(mem::align_of::<Workspace>() == XP_BIDI_WORKSPACE_ALIGNMENT);
+};
+
 fn valid<T>(ptr: *const T, len: usize) -> bool {
     len == 0
         || (!ptr.is_null()

@@ -995,6 +995,8 @@ bool xp_gif_bmp(const XpGifInput*, const XpGifBmpConfig*, const XpGifOutput*);
  * Ignore word_order output unless status == 1 (C++ also writes partial results).
  * The original 128-codepoint/128-word limits still return 0, not an error.
  */
+#define XP_BIDI_WORKSPACE_SIZE 3072
+#define XP_BIDI_WORKSPACE_ALIGNMENT 4
 size_t xp_bidi_workspace_size(void);
 size_t xp_bidi_workspace_align(void);
 int32_t xp_bidi_workspace_init(void* work, size_t size);

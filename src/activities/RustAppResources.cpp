@@ -238,7 +238,7 @@ const XpAppResources& rustAppResources(GfxRenderer& renderer, MappedInputManager
 #ifdef XP_APP_TEST
       .translate = [](uint16_t id) -> XpAppText { return text(I18N.get(static_cast<StrId>(id))); },
 #else
-      .translate = []() -> uint8_t { return static_cast<uint8_t>(I18N.getLanguage()); },
+      .language = []() -> uint8_t { return static_cast<uint8_t>(I18N.getLanguage()); },
 #endif
       .header_draw =
           [](XpUiRect bounds, XpAppText title) {

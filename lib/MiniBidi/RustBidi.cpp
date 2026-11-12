@@ -12,8 +12,8 @@ void logBidiLimit() {
   LOG_DBG("BIDI", "applyBidiVisual: input exceeds BIDI_MAX_LINE (%d chars), returning unprocessed", 128);
 }
 std::mutex bidiMutex;
-struct alignas(uint32_t) BidiWorkspace {
-  uint8_t bytes[3072];
+struct alignas(XP_BIDI_WORKSPACE_ALIGNMENT) BidiWorkspace {
+  uint8_t bytes[XP_BIDI_WORKSPACE_SIZE];
 };
 std::unique_ptr<BidiWorkspace> bidiWorkspace;
 BidiWorkspace* getWorkspace(size_t size, size_t alignment) {
@@ -46,7 +46,7 @@ bool isTransparentMark(uint32_t cp) { return xp_bidi_transparent_mark(cp); }
 bool applyBidiVisual(const char* text, std::string& out, int direction) {
   if (!text || !*text) return false;
   const std::lock_guard<std::mutex> lock(bidiMutex);
-  auto* work = getWorkspace(xp_bidi_workspace_size(), xp_bidi_workspace_align());
+  auto* work = getWorkspace(XP_BIDI_WORKSPACE_SIZE, XP_BIDI_WORKSPACE_ALIGNMENT);
   if (!work) return false;
   const auto status =
       xp_bidi_visual_visit(reinterpret_cast<const uint8_t*>(text), strlen(text), direction, work, &out,
@@ -60,7 +60,7 @@ void appendShapedRtlTokens(const char* text, std::string& out) {
   // Avoid allocating the retained workspace for entirely LTR chapters.
   if (!xp_book_bidi_should_shape(reinterpret_cast<const uint8_t*>(text))) return;
   const std::lock_guard<std::mutex> lock(bidiMutex);
-  auto* work = getWorkspace(xp_bidi_workspace_size(), xp_bidi_workspace_align());
+  auto* work = getWorkspace(XP_BIDI_WORKSPACE_SIZE, XP_BIDI_WORKSPACE_ALIGNMENT);
   if (!work) return;
   xp_bidi_rtl_tokens(
       reinterpret_cast<const uint8_t*>(text), strlen(text), work, &out,
@@ -75,7 +75,7 @@ bool computeVisualWordOrder(const std::vector<std::string>& words, bool rtl, std
   order.reserve(words.size());
   order.resize(words.size());
   const std::lock_guard<std::mutex> lock(bidiMutex);
-  auto* work = getWorkspace(xp_bidi_workspace_size(), xp_bidi_workspace_align());
+  auto* work = getWorkspace(XP_BIDI_WORKSPACE_SIZE, XP_BIDI_WORKSPACE_ALIGNMENT);
   const bool result = work && xp_bidi_words(
                                   words.size(), &words,
                                   [](const void* ctx, size_t i, size_t* len) {
@@ -93,7 +93,7 @@ bool computeVisualWordOrder(std::span<const char> text, std::span<const uint16_t
                                offsets.size(), order.size()))
     return false;
   const std::lock_guard<std::mutex> lock(bidiMutex);
-  auto* work = getWorkspace(xp_bidi_workspace_size(), xp_bidi_workspace_align());
+  auto* work = getWorkspace(XP_BIDI_WORKSPACE_SIZE, XP_BIDI_WORKSPACE_ALIGNMENT);
   return work && xp_bidi_word_order(reinterpret_cast<const uint8_t*>(text.data()), text.size(), offsets.data(),
                                     offsets.size(), rtl, work, sizeof(BidiWorkspace), order.data(), order.size()) == 1;
 }

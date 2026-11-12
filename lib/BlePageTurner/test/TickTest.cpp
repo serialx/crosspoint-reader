@@ -103,6 +103,65 @@ TEST_F(TickTest, NoStartOutsideAShownBookOrWhileItIndexes) {
   EXPECT_EQ(host().yields, 0u);
 }
 
+TEST_F(TickTest, DisabledPollsDoNotDelayEnableInTheSameVisit) {
+  config.enabled = 0;
+  for (int i = 0; i < 100; ++i) {
+    EXPECT_FALSE(pass(fake::reading()));
+    EXPECT_EQ(bleturner::linkNote(), bleturner::LinkNote::None);
+  }
+  EXPECT_EQ(radio().creates, 0u);
+  config.enabled = 1;
+  pass(fake::reading());
+  EXPECT_EQ(radio().creates, 1u);
+  EXPECT_TRUE(radio().running);
+}
+
+TEST_F(TickTest, DisabledPollCancelsAnInFlightStart) {
+  bleturner::tick(fake::reading());
+  ASSERT_TRUE(radio().startQueued);
+  config.enabled = 0;
+  EXPECT_FALSE(bleturner::tick(fake::reading()));
+  radio().runStart();
+  EXPECT_FALSE(radio().running);
+  EXPECT_EQ(radio().beginCalls, 0u);
+  config.enabled = 1;
+  pass(fake::reading());
+  EXPECT_TRUE(radio().running);
+}
+
+TEST_F(TickTest, DisabledPollKeepsTryingAnUnfinishedStop) {
+  running();
+  config.enabled = 0;
+  radio().endResult = false;
+  pass(fake::reading());
+  const auto calls = radio().endCalls;
+  ASSERT_GT(calls, 0u);
+  EXPECT_TRUE(radio().stopping);
+  EXPECT_EQ(bleturner::linkNote(), bleturner::LinkNote::None);
+  radio().endResult = true;
+  pass(fake::reading());
+  EXPECT_GT(radio().endCalls, calls);
+  EXPECT_FALSE(radio().running);
+  config.enabled = 1;
+  pass(fake::reading());
+  EXPECT_TRUE(radio().running);
+}
+
+TEST_F(TickTest, DisabledPollConsumesRequestsWithoutRearmingIdle) {
+  ASSERT_TRUE(bleturner::detail::stopForIdle());
+  config.enabled = 0;
+  bleturner::requestConnect();
+  bleturner::afterPaint();
+  pass(fake::reading());
+  EXPECT_TRUE(bleturner::status().idleStopped);
+  config.enabled = 1;
+  pass(fake::reading());
+  EXPECT_EQ(radio().creates, 0u);
+  bleturner::requestConnect();
+  pass(fake::reading());
+  EXPECT_TRUE(radio().running);
+}
+
 TEST_F(TickTest, BookNotReadyToYieldIsAskedAgainNextPass) {
   host().yieldResult = false;
   pass(fake::reading());

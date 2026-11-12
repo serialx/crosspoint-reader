@@ -22,7 +22,7 @@ impl EpubSession {
     }
 
     pub(super) fn mapped_button(&self, button: u32, query: ButtonQuery, threshold: u32) -> bool {
-        let services = unsafe { &*(self.leaves.input_services)() };
+        let services = self.input_services();
         unsafe {
             services.button.expect("mapped button query")(
                 services.context,

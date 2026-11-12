@@ -265,7 +265,7 @@ impl Clippings {
         let mut long_press = false;
         let mut long_touch = None;
         if !suppressed {
-            let services = unsafe { &*(parent.leaves.input_services)() };
+            let services = parent.input_services();
             long_press = services.button.is_some_and(|button| unsafe {
                 button(services.context, CONFIRM, ButtonQuery::Long as u8, 700) != 0
             });

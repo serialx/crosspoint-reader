@@ -74,6 +74,10 @@ Main task -> xp_app_loop -> Rust Application
                             render request -> shared native render task
 ```
 
+The driver and EPUB reader use the [loop sampling contract](contributing/rust-ui.md#loop-sampling).
+Input service addresses are stable, but gesture results remain consumable within
+a frame; activity code must not cache those results across consumers.
+
 ## Migration Checklist
 
 Reader-list owners share admission and list preparation through

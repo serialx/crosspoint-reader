@@ -94,6 +94,33 @@ exercise the ordinary owner through App without those policy replacements.
 Firmware symbol inventories must exclude both `xp_app_test_*` and `xp_epub_test_*`.
 The reader oracle documentation describes the scope of each kind of test.
 
+## Loop sampling
+
+The native `loop_settings` leaf supplies stored sleep minutes in the existing
+32-bit `XpAppSettings.sleep_minutes` slot. The Rust driver calls the same
+`xp_setting_sleep_ms` policy directly at the timeout check. Input's Home-action
+sampling still reads current settings independently, without a sleep conversion.
+
+Each EPUB session lazily borrows the boot-lifetime input-services table once.
+Only its address is retained: button, hold, repeat and gesture callbacks still
+read current input, including consumption by earlier callbacks. Idle admission
+reuses its input facts and settings for the confirm threshold, before any input
+consumer runs. The ordinary page path reads facts again after touch handling.
+
+The page-dispatch method keeps a stack-local settings snapshot for its own
+scalar decisions. Settings-changing orientation and overlay branches return;
+helpers that can write settings keep their fresh reads. There is no cross-loop
+settings cache. UI settings and web writes run in their active activity's loop;
+reader callbacks run synchronously, and transitions/results drain outside the
+page dispatch. Font loading can update font selection separately, so this
+snapshot is not used for font resolution or layout.
+
+A disabled BLE tick still records the scene/visit, consumes connect and paint
+requests, cancels pending starts, and attempts radio shutdown. It then clears
+the link note and returns without computing enabled-radio verdicts. Every tick
+reads the live enable setting; enabled, idle-stopped and reconnect paths retain
+the normal state machine.
+
 ## Reader child ownership
 
 | Route | State, storage and results | Native services |

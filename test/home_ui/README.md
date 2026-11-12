@@ -35,3 +35,9 @@ Run `python3 test/home_ui/differential_oracle.py`, then the complete host CTest
 suite. These tests do not establish hardware behavior: verify repeated
 Home/book/Home, all themes/polarities, remapping and orientations, touch/held
 input, popup close, sleep/wake and physical Home/power on a device.
+
+The `poll_lite` cases use fail-closed EPUB leaves to check that a cached service
+table still performs consuming input reads, that a new session fetches its own
+table, and that settings reads observe new orientation and long-menu values.
+They also run under the strict-Miri command above; no mock policy replaces the
+input-table accessor.

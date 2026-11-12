@@ -254,10 +254,22 @@ impl EpubSession {
         }
         let mut input = core::mem::MaybeUninit::uninit();
         unsafe { (self.leaves.input_facts)(input.as_mut_ptr()) };
-        if unsafe { input.assume_init() }.board_touch != 0 {
+        let board_touch = unsafe { input.assume_init() }.board_touch;
+        if board_touch != 0 {
             return 0;
         }
-        match self.settings(false).long_menu {
+        self.confirm_threshold_for(board_touch, self.settings(false).long_menu)
+    }
+
+    pub(super) fn confirm_threshold_for(&self, board_touch: u8, long_menu: u8) -> u32 {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.loop_hooks {
+            return unsafe { (hooks.threshold)(hooks.context) };
+        }
+        if board_touch != 0 {
+            return 0;
+        }
+        match long_menu {
             2 | 3 | 5 | 6 => 400,
             0 if unsafe { (self.leaves.has_sync_credentials)() } != 0 => 1000,
             _ => 0,

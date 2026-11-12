@@ -232,3 +232,10 @@ key/rights failure leaves moved clipping files at the destination while restorin
 the book path; this behavior is explicitly tested rather than silently changed.
 The switch packet records six child fixture generations plus this separate seam
 so architecture review can assess the retained fixture layering.
+
+The polling reduction keeps the frozen input-consumption and full-loop traces.
+`input_session_rust.inc` requires exactly one service-table fetch for the session
+and forwards every callback to the current mapped-input fixture. Idle admission
+uses one facts/settings sample for its confirm threshold; the ordinary path
+still re-reads facts after touch consumers. Settings snapshots are local to page
+dispatch, and are not retained across frames or settings-writing helpers.

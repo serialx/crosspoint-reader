@@ -75,7 +75,7 @@ struct SettingField {
 };
 struct Settings {
   uint32_t getPowerButtonDuration() const { reads.push_back(1); return 700; }
-  uint32_t getSleepTimeoutMs() const { reads.push_back(2); return 1200; }
+  SettingField sleepTimeoutMinutes{2};
   SettingField homeButtonTapAction{3}, homeButtonDoubleTapAction{4}, homeButtonLongPressAction{5},
     shortPwrBtn{6}, doubleClickPwrLight{7}, slideSwitchAction{8}, tiltPageTurn{9}, orientation{10},
     fadingFix{11}, screenInverted{12}, touchReaderControls{13}, frontlightOn{14};
@@ -162,7 +162,16 @@ int main() {
     loopSettings(&config);
     assert(settingsLookups == n && reads.size() == 14);
     for (unsigned i = 0; i < 14; ++i) assert(reads[i] == (i == 2 ? 3 + n : i + 1));
-    assert(config.home_tap == 3 + n && config.power_duration == 700 && config.sleep_timeout == 1200);
+    assert(config.home_tap == 3 + n && config.power_duration == 700 && config.sleep_minutes == 2);
+  }
+
+  // Each writer ultimately updates the same stored fields. Every snapshot must
+  // read those fields again, including zero, Never, and invalid stored minutes.
+  for (unsigned minutes = 0; minutes < 256; ++minutes) {
+    storedSettings.sleepTimeoutMinutes.index = minutes;
+    storedSettings.orientation.index = minutes % 4;
+    loopSettings(&config);
+    assert(config.sleep_minutes == minutes && config.reader_orientation == minutes % 4);
   }
 
   XpAppMappedSnapshot driver;

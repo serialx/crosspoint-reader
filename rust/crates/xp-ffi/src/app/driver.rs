@@ -230,8 +230,9 @@ fn iteration(app: &App, state: &mut State) {
         sleep(app, false);
         return;
     }
-    if settings.sleep_timeout > 0 && elapsed(app, *last_activity) >= settings.sleep_timeout {
-        unsafe { (app.runtime.diagnostic)(6, settings.sleep_timeout, 0) };
+    let sleep_timeout = crate::settings::xp_setting_sleep_ms(settings.sleep_minutes as u8);
+    if sleep_timeout > 0 && elapsed(app, *last_activity) >= sleep_timeout {
+        unsafe { (app.runtime.diagnostic)(6, sleep_timeout, 0) };
         sleep(app, true);
         return;
     }

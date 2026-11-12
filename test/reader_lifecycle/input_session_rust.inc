@@ -13,7 +13,7 @@ uint8_t xp_epub_test_input_menu(void*);
 static void* inputOwner = nullptr;
 static const MappedInputManager* currentInput = nullptr;
 static int inputModelDepth = 0;
-static unsigned ownerButtonCalls = 0, ownerTouchCalls = 0;
+static unsigned ownerButtonCalls = 0, ownerTouchCalls = 0, inputTableCalls = 0;
 static unsigned ownerBookTouchCalls = 0, ownerMenuCalls = 0, languageCalls = 0;
 static unsigned char markerBook = 0;
 static bool currentRtl = false;
@@ -53,24 +53,27 @@ static void createInputOwner() {
   };
   leaves.physical.input_services = []() -> const XpUiReaderInputServices* {
     assert(inputModelDepth == 0 && currentInput);
-    static XpUiReaderInputServices physical;
-    physical = ReaderUtils::inputServices(*currentInput);
+    ++inputTableCalls;
+    assert(inputTableCalls == 1);
     // Wrap only to assert the lock contract; all probes use the extracted bridge.
     static const XpUiReaderInputServices checked{
-        &physical,
+        nullptr,
         [](void* raw, uint32_t mask, uint8_t query, uint32_t threshold) -> uint8_t {
           assert(inputModelDepth == 0 && currentInput);
-          auto& service = *static_cast<XpUiReaderInputServices*>(raw);
+          assert(raw == nullptr);
+          const auto service = ReaderUtils::inputServices(*currentInput);
           return service.button(service.context, mask, query, threshold);
         },
         [](void* raw, uint8_t query) -> uint32_t {
           assert(inputModelDepth == 0 && currentInput);
-          auto& service = *static_cast<XpUiReaderInputServices*>(raw);
+          assert(raw == nullptr);
+          const auto service = ReaderUtils::inputServices(*currentInput);
           return service.read(service.context, query);
         },
         [](void* raw, int32_t* x, int32_t* y) -> uint8_t {
           assert(inputModelDepth == 0 && currentInput);
-          auto& service = *static_cast<XpUiReaderInputServices*>(raw);
+          assert(raw == nullptr);
+          const auto service = ReaderUtils::inputServices(*currentInput);
           return service.tap(service.context, x, y);
         }};
     return &checked;

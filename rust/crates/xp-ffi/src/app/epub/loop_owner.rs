@@ -101,8 +101,10 @@ impl EpubSession {
         self.remember_book();
         self.loop_radio_after();
         self.loop_link_note();
-        if self.model(|state| state.orientation) != self.settings(false).orientation {
-            self.apply_orientation(self.settings(false).orientation);
+        // Settings-writing branches leave this dispatch; font/layout helpers read afresh.
+        let settings = self.settings(false);
+        if self.model(|state| state.orientation) != settings.orientation {
+            self.apply_orientation(settings.orientation);
             self.request_update();
             return;
         }
@@ -112,7 +114,7 @@ impl EpubSession {
             && self.model(|state| state.current.spine)
                 >= unsafe { (super::session_book::spine_count)(book.as_ptr()) };
         self.clear_end_options();
-        if self.settings(false).remove_read_recents != 0 {
+        if settings.remove_read_recents != 0 {
             if at_end && !self.model(|state| state.recents_removed) {
                 let removed = with_book_text(book, super::session_book::path, |path| unsafe {
                     (self.leaves.recents_remove)(path) != 0
@@ -125,7 +127,7 @@ impl EpubSession {
             }
         }
         let move_to_read = at_end
-            && self.settings(false).move_finished != 0
+            && settings.move_finished != 0
             && !with_book_text(book, super::session_book::path, |path| {
                 let inside = is_in_read_folder(unsafe { path.bytes() }.unwrap_or_default());
                 #[cfg(feature = "app-test")]
@@ -157,7 +159,7 @@ impl EpubSession {
             self.request_update();
             return;
         }
-        if !at_end && self.settings(false).touch_controls != 0 {
+        if !at_end && settings.touch_controls != 0 {
             if let Some((x, y)) = self.screen_point(true) {
                 self.model(|state| {
                     state.auto_turn = false;
@@ -219,7 +221,7 @@ impl EpubSession {
             && self.mapped_button(CONFIRM, ButtonQuery::Long, threshold);
         let released = self.loop_released(CONFIRM);
         if long {
-            match u32::from(self.settings(false).long_menu) {
+            match u32::from(settings.long_menu) {
                 values::LONG_MENU_BOOKMARK => self.loop_bookmark(),
                 values::LONG_MENU_SYNC => {
                     if self.loop_sync() {
@@ -270,10 +272,7 @@ impl EpubSession {
                 _ => {}
             }
         }
-        if !at_end
-            && self.settings(false).touch_controls != 0
-            && self.mapped_query(Query::HasTouch) != 0
-        {
+        if !at_end && settings.touch_controls != 0 && self.mapped_query(Query::HasTouch) != 0 {
             if let Some((x, y)) = self.screen_point(false) {
                 match self.link_href_at_point(x, y) {
                     Ok(Some(href)) => {
@@ -307,7 +306,7 @@ impl EpubSession {
         if self.handle_back() {
             return;
         }
-        if u32::from(self.settings(false).short_power) == values::POWER_CREATE_CLIPPING
+        if u32::from(settings.short_power) == values::POWER_CREATE_CLIPPING
             && self.loop_released(POWER)
             && !self.loop_released(DOWN)
         {
@@ -315,7 +314,7 @@ impl EpubSession {
             return;
         }
         if (!end_menu && self.mapped_query(Query::HomeAction) == values::HOME_FOOTNOTES)
-            || (u32::from(self.settings(false).short_power) == values::POWER_FOOTNOTES
+            || (u32::from(settings.short_power) == values::POWER_FOOTNOTES
                 && self.loop_released(POWER)
                 && !self.loop_released(DOWN))
         {

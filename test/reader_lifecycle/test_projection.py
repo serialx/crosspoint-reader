@@ -25,8 +25,8 @@ RAW_SHA = '64aba34e646ddb061e380bdbc3e8e6d5780a00dda74c32157a6c18ae64946562'
 MUTANTS = (
     ('paragraph-page-one', POSITION, b'paragraph(if page > 0 {', b'paragraph(if page > 1 {'),
     ('percent-upper-bound', PROJECTION, b'progress.clamp(0.0, 1.0)', b'progress.clamp(0.0, 0.5)'),
-    ('touch-threshold', PROJECTION, b'if unsafe { input.assume_init() }.board_touch != 0 {',
-     b'if false {'),
+    ('touch-threshold', PROJECTION, b'let board_touch = unsafe { input.assume_init() }.board_touch;',
+     b'let board_touch = 0;'),
     ('cross-spine-lock-omitted', PROJECTION, b'let access = self.lock_resources();',
      b'let access = unsafe { self.borrowed_resources() };'),
 )

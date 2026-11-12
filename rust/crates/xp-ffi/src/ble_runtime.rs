@@ -593,6 +593,22 @@ pub unsafe extern "C" fn xp_ble_tick(scene: *const Scene) -> bool {
         MAIN.idle_clock.set(false);
     }
     v.id = s.visit;
+    if (*cfg()).enabled == 0 {
+        MAIN.visit.set(v);
+        MAIN.connect.set(false);
+        REARM.store(false, Relaxed);
+        // Cancellation and cleanup still run even when a disabled radio is starting.
+        suspend(0);
+        let up = reader && running() && !IN_FLIGHT.load(Acquire);
+        if !up {
+            MAIN.note_up.set(false);
+        } else if !MAIN.note_up.get() || entered {
+            MAIN.note_up.set(true);
+            MAIN.note_since.set(now());
+        }
+        NOTE.store(0, Relaxed);
+        return false;
+    }
     let requested = MAIN.connect.get();
     let painted = REARM.swap(false, Relaxed);
     if reader

@@ -260,7 +260,7 @@ typedef struct {
   uint8_t suppressed_release, cpu_hold;
 } XpAppMappedSnapshot;
 typedef struct {
-  uint32_t power_duration, sleep_timeout, idle_power_saving;
+  uint32_t power_duration, sleep_minutes, idle_power_saving;
   uint8_t home_tap, home_double, home_long, short_power, double_power_light;
   uint8_t slide_action, tilt, reader_orientation, fading_fix;
   uint8_t screen_inverted, touch_reader, frontlight_on, is_x4pro, is_papermono;

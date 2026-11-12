@@ -549,7 +549,7 @@ const XpAppRuntime& appRuntime() {
             *settings = {};
             const auto& stored = SETTINGS;
             settings->power_duration = stored.getPowerButtonDuration();
-            settings->sleep_timeout = stored.getSleepTimeoutMs();
+            settings->sleep_minutes = stored.sleepTimeoutMinutes;
             settings->idle_power_saving = HalPowerManager::IDLE_POWER_SAVING_MS;
             settings->home_tap = stored.homeButtonTapAction;
             settings->home_double = stored.homeButtonDoubleTapAction;

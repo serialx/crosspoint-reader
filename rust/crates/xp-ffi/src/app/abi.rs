@@ -413,7 +413,7 @@ pub struct MappedSnapshot {
 #[derive(Clone, Copy)]
 pub struct Settings {
     pub power_duration: u32,
-    pub sleep_timeout: u32,
+    pub sleep_minutes: u32,
     pub idle_power_saving: u32,
     pub home_tap: u8,
     pub home_double: u8,

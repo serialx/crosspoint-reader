@@ -81,6 +81,7 @@ pub(super) struct EpubSession {
     state: UnsafeCell<State>,
     guarded: GuardedCell,
     leaves: &'static abi::XpEpubLeaves,
+    input_services: core::cell::OnceCell<&'static xp_ui::reader::input::Services>,
     runtime: &'static app_abi::Runtime,
     resources: &'static app_abi::Resources,
     #[cfg(feature = "app-test")]
@@ -165,6 +166,7 @@ impl EpubSession {
                 .write(UnsafeCell::new(State::new(fast_initial, frequency)));
             GuardedCell::initialize(core::ptr::addr_of_mut!((*ptr).guarded));
             core::ptr::addr_of_mut!((*ptr).leaves).write(leaves);
+            core::ptr::addr_of_mut!((*ptr).input_services).write(core::cell::OnceCell::new());
             core::ptr::addr_of_mut!((*ptr).runtime).write(runtime);
             core::ptr::addr_of_mut!((*ptr).resources).write(resources);
             #[cfg(feature = "app-test")]

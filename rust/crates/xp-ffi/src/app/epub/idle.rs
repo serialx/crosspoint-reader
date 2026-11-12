@@ -31,7 +31,7 @@ impl EpubSession {
         }
         let input = unsafe { input.assume_init() };
         let settings = self.settings(false);
-        let threshold = self.confirm_long_press_threshold();
+        let threshold = self.confirm_threshold_for(input.board_touch, settings.long_menu);
         let sample = self.model(|state| idle::Snapshot {
             busy: 1,
             has_epub: u8::from(book.is_some()),

@@ -100,7 +100,7 @@ impl EpubSession {
     }
 
     pub(super) fn mapped_query(&self, query: Query) -> u32 {
-        let services = unsafe { &*(self.leaves.input_services)() };
+        let services = self.input_services();
         unsafe { services.read.expect("mapped input query")(services.context, query as u8) }
     }
 

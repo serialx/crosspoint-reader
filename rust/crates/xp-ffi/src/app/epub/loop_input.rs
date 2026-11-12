@@ -2,6 +2,13 @@ use super::{book::with_book_text, projection::RemoteShortcut, state::Overlay, Ep
 use xp_ui::reader::input;
 
 impl EpubSession {
+    // The native table and its mapped-input context live for the whole boot.
+    // Cache only the table address; every callback still reads and consumes live input.
+    pub(super) fn input_services(&self) -> &xp_ui::reader::input::Services {
+        self.input_services
+            .get_or_init(|| unsafe { &*(self.leaves.input_services)() })
+    }
+
     pub(super) fn book_touch_turn(&self) -> input::Turn {
         #[cfg(feature = "app-test")]
         if let Some(hooks) = self.base_hooks {
@@ -18,7 +25,7 @@ impl EpubSession {
         let geometry = self.overlay_geometry();
         unsafe {
             input::touch(
-                *(self.leaves.input_services)(),
+                *self.input_services(),
                 self.input_config(),
                 geometry.width,
                 geometry.height,
@@ -35,7 +42,7 @@ impl EpubSession {
         let geometry = self.overlay_geometry();
         unsafe {
             input::menu(
-                *(self.leaves.input_services)(),
+                *self.input_services(),
                 self.settings(false).show_menu,
                 geometry.width,
                 geometry.height,

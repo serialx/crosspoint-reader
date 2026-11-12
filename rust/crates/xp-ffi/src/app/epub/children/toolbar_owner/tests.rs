@@ -297,3 +297,6 @@ fn toolbar_install_target_survives_install_input_removal_and_reopen() {
         assert_eq!((a.attempts, a.created, a.freed), (5, 4, 4));
     });
 }
+
+#[path = "poll_lite_tests.rs"]
+mod poll_lite;

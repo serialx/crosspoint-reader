@@ -49,6 +49,8 @@ target_include_directories(SectionGoldenDump PRIVATE
   ${REPO_ROOT}/lib/GfxRenderer
   ${REPO_ROOT}/lib/Utf8
   ${REPO_ROOT}/lib/Memory
+  ${REPO_ROOT}/lib/GifSupport
+  ${REPO_ROOT}/lib/PngDiagnostics
   ${REPO_ROOT}/lib/Serialization
   ${REPO_ROOT}/lib/MiniBidi
   ${REPO_ROOT}/lib/XmlParserUtils

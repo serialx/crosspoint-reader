@@ -134,3 +134,20 @@ add_test(NAME ImagePipelineDiagnostics COMMAND ${Python3_EXECUTABLE}
   --corpus ${CMAKE_CURRENT_SOURCE_DIR}/corpus.tar.gz
   --goldens ${CMAKE_CURRENT_SOURCE_DIR}/pipeline-diagnostic-goldens.json.gz
   --report ${CMAKE_CURRENT_BINARY_DIR}/pipeline-diagnostic-results.json)
+
+# The same frozen variant-2 records also exercise the shipping Rust reader binding.
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ReaderImageLeaves.cpp
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/reader_leaves.py
+    ${REPO_ROOT}/lib/Epub/Epub/blocks/ImageBlock.cpp ${CMAKE_CURRENT_BINARY_DIR}/ReaderImageLeaves.cpp
+  DEPENDS reader_leaves.py ${REPO_ROOT}/lib/Epub/Epub/blocks/ImageBlock.cpp VERBATIM)
+get_target_property(READER_IMAGE_SOURCES image_oracle SOURCES)
+add_executable(image_reader_oracle ${READER_IMAGE_SOURCES}
+  ${CMAKE_CURRENT_BINARY_DIR}/ReaderImageLeaves.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/converters/ImageDecoderFactory.cpp)
+target_include_directories(image_reader_oracle PRIVATE ${PNG_BENCH_INCLUDES})
+target_compile_definitions(image_reader_oracle PRIVATE __LINUX__ READER_IMAGE_ORACLE XP_FFI_HOST_FAULT_INJECTION)
+target_link_libraries(image_reader_oracle PRIVATE xp_ffi_host)
+add_test(NAME ReaderImageGoldens COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/reader_run.py $<TARGET_FILE:image_reader_oracle>)
+add_test(NAME ReaderImageFailures COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/reader_failures.py $<TARGET_FILE:image_reader_oracle>)

@@ -251,3 +251,13 @@ pub unsafe extern "C" fn xp_epub_test_section_fixture_facade(raw: *mut c_void) -
     }
     unsafe { super::super::book_owner::queries::facade(book.as_ptr()) }
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_section_fixture_bind_images(raw: *mut c_void) {
+    let book = if raw.is_null() {
+        core::ptr::null_mut()
+    } else {
+        (*raw.cast::<Fixture>()).book.as_ptr()
+    };
+    super::super::book_owner::queries::bind_images(book);
+}

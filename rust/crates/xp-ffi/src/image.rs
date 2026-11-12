@@ -7,10 +7,10 @@ use xp_core::image::{
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Callbacks {
-    context: *mut c_void,
-    target: unsafe extern "C" fn(*mut c_void, *mut Target),
-    io: unsafe extern "C" fn(*mut c_void, u32, *const u8, usize) -> bool,
-    diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, u32, u32, u32, u32)>,
+    pub(crate) context: *mut c_void,
+    pub(crate) target: unsafe extern "C" fn(*mut c_void, *mut Target),
+    pub(crate) io: unsafe extern "C" fn(*mut c_void, u32, *const u8, usize) -> bool,
+    pub(crate) diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, u32, u32, u32, u32)>,
 }
 impl ByteSink for Callbacks {
     fn image_diagnostic(&mut self, event: Diagnostic, a: u32, b: u32, c: u32, d: u32) {

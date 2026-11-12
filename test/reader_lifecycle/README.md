@@ -255,3 +255,8 @@ They also check that an undrawn link-note slot skips radio status, while a drawn
 empty title detects a new note and drawn notes detect changes or disappearance.
 The native link-note fixtures retain their original output traces and assert
 that only drawn title slots fetch status during the loop.
+
+The book/Section fixture also binds the production Rust image extractor and paints
+a stored PNG through the shipping image state. A ZIP read failure and an extracted
+source short write must remove the partial source, suppress retries within that
+render, and recover after the failure set is cleared for the next render.

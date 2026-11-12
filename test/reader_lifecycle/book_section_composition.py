@@ -23,9 +23,10 @@ def section_command(root, work, source, binary, archive=None):
     storage.write_text(storage.read_text().replace('std::fopen(path, mode)',
         'std::fopen(path, std::strcmp(mode, "wb") == 0 ? "w+b" : mode)'))
     includes = [
-        'lib/KOReaderSync', 'lib/Epub', 'test/section_golden/stubs',
+        'lib/KOReaderSync', 'lib/Epub', 'lib/hal', 'test/section_golden/stubs',
         'test/section_golden', 'lib/EpdFont', 'lib/GfxRenderer', 'lib/AsciiText',
         'lib/MiniBidi', 'lib/XmlParserUtils', 'lib', 'src', 'lib/Epub/Epub/parsers',
+        'lib/GifSupport', 'lib/PngDiagnostics',
     ]
     # Keep common HalStorage first and actual Epub before the Section oracle stubs.
     position = command.index('-I') + 2
@@ -46,7 +47,7 @@ def section_command(root, work, source, binary, archive=None):
     return command
 
 
-def section_fixture(work):
+def section_fixture(work, images=False):
     cache = work / 'fixture'
     cache.mkdir(exist_ok=True)
     (cache / 'sections').mkdir(exist_ok=True)
@@ -72,6 +73,8 @@ def section_fixture(work):
     with zipfile.ZipFile(work / 'source.epub', 'w', compression=zipfile.ZIP_STORED) as archive:
         archive.writestr('a.xhtml', html)
         archive.writestr('b.xhtml', b'image!')
+        if images:
+            archive.writestr('image.png', (Path(__file__).resolve().parents[1] / 'page_image_pin/fixtures/tiny.png').read_bytes())
     return work / 'source.epub', cache
 
 

@@ -78,3 +78,20 @@ correct output on panels whose framebuffer exceeds 65,535 bytes. The existing
 
 The [GIF compatibility suite](../gif_support/README.md) separately covers BMP
 consumers, malformed streams, allocation failures, and large-fixture timing.
+
+## Direct reader binding
+
+`ReaderImageGoldens` calls the production Rust page-image decode binding through
+an app-test-only entry. It compares success, framebuffer bytes and complete cache
+bytes/existence/length against all 4,608 existing variant-2 records. The immutable
+corpus and golden hashes are checked; no records are recaptured. The existing
+pipeline diagnostic milestones are also checked for all 96 corpus images. Renderer-query
+counts are omitted because the reader lends the existing target snapshot.
+
+`ReaderImageFailures` compares that binding with the native shell under the strict
+HalFile fake: source/cache open, seek, read, write, close and Rust allocation
+failures, including strip targets. PNG continues if cache creation fails; GIF
+returns failure. The test asserts that Rust allocations are released. Native
+leaf bodies are extracted from ImageBlock.cpp at build time, so the test exercises
+the shipping storage and log adapters. JPEG still uses its native decode shell
+until the JPEG binding unit lands.

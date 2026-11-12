@@ -2,7 +2,10 @@
 
 #include <FontCacheManager.h>
 #include <GfxRenderer.h>
+#include <GifCommon.h>
+#include <HalMemory.h>
 #include <Logging.h>
+#include <PngDiagnostics.h>
 #include <xp_book.h>
 #include <xp_ffi.h>
 
@@ -41,7 +44,8 @@ enum class ImageDiagnostic : uint32_t {
   DecodeFailed = 12,
   DecodeComplete = 13,
   ExtractBegin = 14,
-  ExtractFailed = 15
+  ExtractFailed = 15,
+  Unsupported = 16
 };
 enum class ImageIo : uint32_t {
   OpenCache,
@@ -124,6 +128,9 @@ void target(void* raw, XpImageTarget* output) { *output = imageWriteTarget(*stat
 void diagnostic(void* raw, uint32_t event, [[maybe_unused]] int32_t a, [[maybe_unused]] int32_t b) {
   [[maybe_unused]] auto& self = *static_cast<Context*>(raw);
   switch (static_cast<ImageDiagnostic>(event)) {
+    case ImageDiagnostic::Unsupported:
+      LOG_ERR("DEC", "No decoder found for image: %s", self.path.data());
+      break;
     case ImageDiagnostic::ExtractBegin:
       LOG_DBG("IMG", "Lazy-extracting %s -> %s", self.source.data(), self.path.data());
       break;
@@ -200,8 +207,7 @@ extern "C" size_t xp_native_page_image_file(XpPageImageFile* storage, XpPageImag
     case XP_IMAGE_FILE_SIZE:
       return file->size();
     case XP_IMAGE_FILE_CLOSE:
-      file->close();
-      return 0;
+      return file->close();
     case XP_IMAGE_FILE_EXISTS:
       return Storage.exists(reinterpret_cast<const char*>(path));
     case XP_IMAGE_FILE_FREE_HEAP:
@@ -215,12 +221,86 @@ extern "C" size_t xp_native_page_image_file(XpPageImageFile* storage, XpPageImag
       return 0;
     case XP_IMAGE_FILE_REMOVE:
       return Storage.remove(reinterpret_cast<const char*>(path));
+    case XP_IMAGE_FILE_POSITION:
+      return file->position();
+    case XP_IMAGE_FILE_READ_RAW:
+      return static_cast<size_t>(file->read(bytes, value));
+    case XP_IMAGE_FILE_OPEN_PNG:
+      return Storage.openFileForRead("PNG", reinterpret_cast<const char*>(path), *file);
+    case XP_IMAGE_FILE_OPEN_GIF:
+      return Storage.openFileForRead("GIF", reinterpret_cast<const char*>(path), *file);
+    case XP_IMAGE_FILE_OPEN_CACHE_WRITE:
+      return Storage.openFileForWrite("IMG", reinterpret_cast<const char*>(path), *file);
+    case XP_IMAGE_FILE_IS_OPEN:
+      return file->isOpen();
+    case XP_IMAGE_FILE_NOW:
+      return millis();
+    case XP_IMAGE_FILE_YIELD:
+      vTaskDelay(1);
+      return 0;
+    case XP_IMAGE_FILE_FREE_INTERNAL_HEAP:
+      return HalMemory::getInternalHeap().freeBytes;
   }
   return 0;
 }
 extern "C" uint8_t xp_native_page_image_write(void* file, const uint8_t* bytes, size_t length) {
   return static_cast<HalFile*>(file)->write(bytes, length) == length;
 }
+extern "C" void xp_native_page_image_codec_log(const XpPageImageCodecLog* state, uint32_t event, uint32_t a, uint32_t b,
+                                               uint32_t c, uint32_t d) {
+  enum class Format : uint8_t { Png, Jpeg, Gif };
+  const auto& image = *state->image;
+  const auto* path = reinterpret_cast<const char*>(image.path);
+  const auto* cache = reinterpret_cast<const char*>(state->cache);
+  if (event >= XP_IMAGE_DIAG_CacheBand && event <= XP_IMAGE_DIAG_JpegSummary) {
+    logImageDiagnostic(event, a, b, c, d, cache, path, state->color, state->depth);
+  } else if (static_cast<Format>(state->format) == Format::Png) {
+    switch (event) {
+      case XP_IMAGE_CODEC_BEGIN:
+        LOG_DBG("IMG", "Using %s decoder", "PNG");
+        LOG_DBG("PNG", "Decoding PNG: %s", path);
+        break;
+      case XP_IMAGE_CODEC_OPEN:
+        LOG_ERR("PNG", "Failed to open PNG");
+        break;
+      case XP_PNG_DIAG_DecodeComplete:
+        LOG_DBG("PNG", "PNG decoding complete - render time: %lu ms", static_cast<unsigned long>(state->elapsed));
+        break;
+      default:
+        logPngDiagnostic(event, a, b, c, d, image.width, image.height, path);
+        break;
+    }
+  } else {
+    switch (event) {
+      case XP_IMAGE_CODEC_BEGIN:
+        LOG_DBG("IMG", "Using %s decoder", "GIF");
+        LOG_DBG("GIF", "Decoding GIF: %s", path);
+        break;
+      case XP_IMAGE_CODEC_OPEN:
+        LOG_ERR("GIF", "Failed to open source for header inspection: %s", path);
+        LOG_ERR("GIF", "Failed to parse GIF header: %s", path);
+        break;
+      case XP_IMAGE_CODEC_SEEK:
+        LOG_ERR("GIF", "Seek failed at offset %d", static_cast<int>(a));
+        break;
+      case XP_IMAGE_CODEC_READ:
+        LOG_ERR("GIF", "Read failed at offset %d for %d bytes", static_cast<int>(a), static_cast<int>(b));
+        break;
+      default: {
+        GifCommon::Source source{*reinterpret_cast<HalFile*>(state->input)};
+        source.path = path;
+        source.cachePath = cache;
+        source.targetWidth = image.width;
+        source.targetHeight = image.height;
+        source.freeHeap = state->free_heap;
+        source.seekFailed = state->seek_failed != 0;
+        GifCommon::Source::diagnostic(&source, event, a, b, c, d);
+        break;
+      }
+    }
+  }
+}
+
 extern "C" uint8_t xp_native_page_image_decode(void* raw, const XpPageImage* image, const uint8_t* cache) {
   const std::string path(reinterpret_cast<const char*>(image->path), image->path_len);
   auto* decoder = ImageDecoderFactory::getDecoder(path);

@@ -20,7 +20,7 @@ target_include_directories(assets_oracle PRIVATE stubs
   ${REPO_ROOT}/test/image_golden/stubs
   ${REPO_ROOT}/test/chapter_html_slim_parser/stubs
   ${REPO_ROOT}/lib/JpegToBmpConverter ${REPO_ROOT}/lib/GfxRenderer
-  ${REPO_ROOT}/lib/Memory ${REPO_ROOT}/lib/Utf8 ${REPO_ROOT}/src/util
+  ${REPO_ROOT}/lib/Memory ${REPO_ROOT}/lib/GifSupport ${REPO_ROOT}/lib/PngDiagnostics ${REPO_ROOT}/lib/Utf8 ${REPO_ROOT}/src/util
   ${DECODER_SOURCE_DIR}/JPEGDEC/src ${REPO_ROOT}/lib/QRCode/src)
 target_link_libraries(assets_oracle PRIVATE xp_ffi_host)
 enable_testing()

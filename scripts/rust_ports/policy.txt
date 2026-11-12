@@ -289,3 +289,4 @@ callback EPUB.time_start_sync # Registers a Rust time notification callback for 
 callback EPUB.store_rows # Visits serialized native store rows through the borrowed Rust row sink.
 callback EPUB.store_document # Returns a native document through the borrowed Rust sink.
 import xp_native_page_image_write # Storage-only sink over the pinned caller-owned HalFile; consumes borrowed bytes synchronously, retains no pointers and never calls Rust, including when protection_stream supplies the bytes.
+import xp_native_page_image_codec_log # One-way synchronous diagnostic formatting; borrowed image/cache/file snapshot, no retained pointers and no Rust callbacks.

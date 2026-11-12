@@ -1,5 +1,7 @@
 //! Page image/cache policy stays in Rust; native leaves own only file/decoder work.
 use super::{direct::Target, *};
+#[path = "images/decode.rs"]
+mod decode;
 use core::{cell::UnsafeCell, marker::PhantomPinned, mem::MaybeUninit, pin::Pin};
 use xp_core::{
     assets::image::{Config, Services},
@@ -59,6 +61,15 @@ enum FileOp {
     OpenWrite,
     Flush,
     Remove,
+    Position,
+    ReadRaw,
+    OpenPng,
+    OpenGif,
+    OpenCacheWrite,
+    IsOpen,
+    Now,
+    Yield,
+    FreeInternalHeap,
 }
 extern "C" {
     fn xp_native_page_image_file(
@@ -285,6 +296,17 @@ unsafe impl Services for Physical<'_> {
     }
     fn decode(&mut self, cache: &[u8]) -> Option<bool> {
         self.cache = cache.as_ptr();
+        let path = unsafe { slice::from_raw_parts(self.image.path, self.image.path_len) };
+        match decode::format(path) {
+            Some(format @ (decode::Format::Png | decode::Format::Gif)) => {
+                return Some(decode::render(self, format))
+            }
+            Some(decode::Format::Jpeg) => {}
+            None => {
+                self.diagnostic(16, 0, 0);
+                return None;
+            }
+        }
         match unsafe {
             xp_native_page_image_decode(
                 self.target.expect("paint target").native,
@@ -457,4 +479,49 @@ pub(super) unsafe fn paint(
         2 => placeholder(target, x, y, width, height),
         _ => (),
     }
+}
+
+// Host oracle enters the same Physical::decode implementation as the reader.
+#[cfg(feature = "app-test")]
+#[no_mangle]
+unsafe extern "C" fn xp_page_image_test_decode(
+    target: *const Target,
+    image: *const Image,
+    cache: *const u8,
+) -> u8 {
+    let mut file = core::pin::pin!(File {
+        storage: FileStorage {
+            words: [MaybeUninit::uninit(); if size_of::<usize>() == 4 { 3 } else { 8 }]
+        },
+        pinned: PhantomPinned,
+    });
+    let mut physical = Physical {
+        target: Some(&*target),
+        image: ptr::read(image),
+        file: file.as_mut(),
+        cache,
+        initialized: false,
+    };
+    physical.scalar(FileOp::Init, 0);
+    physical.initialized = true;
+    match physical.decode(core::ffi::CStr::from_ptr(cache.cast()).to_bytes_with_nul()) {
+        None => 0,
+        Some(false) => 1,
+        Some(true) => 2,
+    }
+}
+
+#[cfg(feature = "app-test")]
+#[no_mangle]
+unsafe extern "C" fn xp_page_image_test_paint(target: &Target, image: &Image) {
+    paint(
+        target,
+        slice::from_raw_parts(image.path, image.path_len),
+        slice::from_raw_parts(image.source, image.source_len),
+        image.x,
+        image.y,
+        image.width,
+        image.height,
+        false,
+    );
 }

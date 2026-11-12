@@ -9,10 +9,10 @@ use xp_core::{
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Input {
-    context: *mut c_void,
-    read: unsafe extern "C" fn(*mut c_void, u32, *mut u8, usize) -> usize,
-    poll: unsafe extern "C" fn(*mut c_void),
-    diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, u32, u32, u32, u32)>,
+    pub(crate) context: *mut c_void,
+    pub(crate) read: unsafe extern "C" fn(*mut c_void, u32, *mut u8, usize) -> usize,
+    pub(crate) poll: unsafe extern "C" fn(*mut c_void),
+    pub(crate) diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, u32, u32, u32, u32)>,
 }
 impl Read for Input {
     fn diagnostic(&mut self, event: Diagnostic, a: u32, b: u32, c: u32, d: u32) {

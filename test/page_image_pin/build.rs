@@ -12,8 +12,10 @@ unsafe extern "C" fn mock_file(file: *mut FileStorage, op: FileOp, path: *const 
 }
 #[export_name = "xp_native_page_image_write"]
 unsafe extern "C" fn mock_write(file: *mut c_void, bytes: *const u8, length: usize) -> u8 {
-    u8::from(crate::mock_file(file, 13, ptr::null(), bytes.cast_mut(), length) == length)
+    u8::from(crate::mock_file(file, 1000, ptr::null(), bytes.cast_mut(), length) == length)
 }
+#[export_name = "xp_native_page_image_codec_log"]
+unsafe extern "C" fn mock_codec_log(_: *const c_void, _: u32, _: u32, _: u32, _: u32, _: u32) {}
 #[export_name = "xp_native_page_image_decode"]
 unsafe extern "C" fn mock_decode(native: *mut c_void, image: *const Image, cache: *const u8) -> u8 {
     crate::mock_decode(native, image.cast(), cache)
@@ -32,6 +34,11 @@ fn native_file_storage_is_not_unpin() {
     let _ = <File as Ambiguous<_>>::marker;
 }
 "#);
+    let decode = PathBuf::from("../../rust/crates/xp-ffi/src/page_render/images/decode.rs");
+    println!("cargo:rerun-if-changed={}", decode.display());
+    let directory = PathBuf::from(env::var_os("OUT_DIR").unwrap()).join("images");
+    fs::create_dir_all(&directory).unwrap();
+    fs::copy(decode, directory.join("decode.rs")).unwrap();
     fs::write(
         PathBuf::from(env::var_os("OUT_DIR").unwrap()).join("images.rs"),
         source,

@@ -1,3 +1,6 @@
+#include <xp_page_paint.h>
+
+#include <fstream>
 #include <mutex>
 #include <thread>
 
@@ -14,6 +17,8 @@ uint8_t xp_epub_test_section_fixture_advance(void*, int32_t, uint8_t);
 uint8_t xp_epub_test_section_fixture_load(void*, const XpEpubRenderSpec*);
 void xp_epub_test_section_fixture_facts(void*, uint32_t (*)[4]);
 
+void xp_epub_test_section_fixture_bind_images(void*);
+void xp_page_image_test_paint(const XpPageTarget*, const XpPageImage*);
 size_t xp_test_live_allocations();
 }
 static std::mutex renderMutex;
@@ -90,6 +95,69 @@ static void exercise(void* section, void* raw) {
       "mapper cache opens=%u; active parser closes before Book.\n",
       ticks, mappingSectionOpens);
 }
+static std::string imageOutput, sourceBook;
+static unsigned faultHits;
+static void extractionFailures(void* owner, const std::string& source, const std::string& cache) {
+  sourceBook = source;
+  imageOutput = cache + "/extract.png";
+  const std::string pixelCache = cache + "/extract.px2";
+  const std::string href = "image.png";
+  uint8_t pixels[8]{};
+  XpPageTarget target{
+      {pixels, sizeof(pixels), 8, 8, 1, 0, 8, {0, 0, 8, 8}, 3, 0, 0, 0, 0}, nullptr, &driverRenderer, 0};
+  const XpPageImage image{reinterpret_cast<const uint8_t*>(imageOutput.c_str()),
+                          reinterpret_cast<const uint8_t*>(href.c_str()),
+                          imageOutput.size(),
+                          href.size(),
+                          0,
+                          0,
+                          4,
+                          4};
+  // Disable the reference hook: only the shipping Rust extractor can satisfy this paint.
+  ImageBlock::setExtractor(nullptr, nullptr);
+  xp_epub_test_section_fixture_bind_images(owner);
+  for (int fault = 0; fault < 2; ++fault) {
+    std::filesystem::remove(imageOutput);
+    std::filesystem::remove(pixelCache);
+    xp_assets_image_reset(true);
+    xp_assets_image_reset(false);
+    faultHits = 0;
+    if (fault == 0) {
+      HalFileTest::readLimit = [](const char* path, size_t, size_t count) -> size_t {
+        if (path == sourceBook) {
+          ++faultHits;
+          return 0;
+        }
+        return count;
+      };
+    } else {
+      HalFileTest::writeLimit = [](const char* path, size_t, size_t count) -> size_t {
+        if (path == imageOutput && count) {
+          ++faultHits;
+          return count - 1;
+        }
+        return count;
+      };
+    }
+    xp_page_image_test_paint(&target, &image);
+    assert(faultHits > 0);
+    assert(!std::filesystem::exists(imageOutput) && !std::filesystem::exists(pixelCache));
+    assert(xp_assets_image_failed(image.path, image.path_len));
+    const auto firstHits = faultHits;
+    xp_page_image_test_paint(&target, &image);
+    assert(faultHits == firstHits);  // Failed paths are suppressed within this render.
+    HalFileTest::readLimit = nullptr;
+    HalFileTest::writeLimit = nullptr;
+    xp_assets_image_reset(false);
+    xp_page_image_test_paint(&target, &image);
+    assert(std::filesystem::file_size(imageOutput) > 0 && std::filesystem::file_size(pixelCache) == 8);
+    assert(!xp_assets_image_failed(image.path, image.path_len));
+  }
+  xp_epub_test_section_fixture_bind_images(nullptr);
+  xp_assets_image_reset(true);
+  xp_assets_image_reset(false);
+  std::puts("shipping image extraction: read failure and short write remove partial sources; next render retries");
+}
 int main(int argc, char** argv) {
   assert(argc == 3);
   std::string path = argv[1], cache = argv[2];
@@ -112,6 +180,7 @@ int main(int argc, char** argv) {
   auto* facade = xp_epub_test_section_fixture_facade(owner);
   assert(facade);
   exercise(owner, facade);
+  extractionFailures(owner, path, cache);
   xp_epub_test_section_fixture_close(owner);
   assert(driverRenderer.loanDepth == 0);
   assert(xp_test_live_allocations() == 0 && nativeBuffers.empty());

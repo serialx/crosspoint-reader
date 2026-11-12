@@ -1117,20 +1117,24 @@ alpha conversion, Bayer dithering, framebuffer writes, streaming 2-bit pixel
 cache packing, and header dimension probes. `xp-core::png` owns PNG decoding and
 BMP conversion; `xp-core::gif` exposes the local `xp-gif` decoder and BMP converter.
 Both feed rows directly into the Rust pipeline. JPEGDEC remains the C/C++ decoder.
-C++ owns HalFile input/output, renderer targets and cache I/O. `xp-core::assets`
+Native consumers own HalFile input/output and renderer targets. The reader owns
+its pinned file lifetimes and cache I/O callbacks in Rust. `xp-core::assets`
 owns image render/cache policy, JPEG-to-BMP conversion, screenshot packing,
 and QR layout. The Rust page-image path in `page_render/images.rs` draws
 placeholders and preserves polarity. Native code supplies typed file operations,
-the extraction write sink, the remaining decode adapter and logging. Cache byte
-formats are unchanged.
+the extraction write sink, the remaining JPEG decode adapter and logging. Rust
+selects PNG/GIF by extension and calls the existing Rust decoders directly. Two
+pinned inline file cells lend source and cache handles; callback tables point to
+Rust functions and retain no byte spans. Cache byte formats are unchanged.
 
 PNG uses synchronous `xp_png_dimensions`, `xp_png_render`, `xp_png_bmp` and
 `xp_png_sleep_header` calls. GIF uses `xp_gif_inspect`, `xp_gif_frame` and
 `xp_gif_bmp`. Callbacks and contexts stay live for the call and cannot reenter;
 input reads and output writes retain no byte spans. Target callbacks lend
 exclusive framebuffer memory, and I/O callbacks preserve that loan. Decoder
-rows stay within Rust; file, target, cache and progress callbacks still cross
-the ABI. PNG BMP conversion can borrow exclusive aligned scratch through the
+rows stay within Rust. On the reader path, PNG/GIF callbacks also stay in Rust;
+only storage, clock, yield, heap and logging operations call native leaves. Other
+consumers retain their native callback tables. PNG BMP conversion can borrow exclusive aligned scratch through the
 C++ BuildScratch facade; Rust neither frees nor retains that loan.
 
 JPEG's `xp_image_*` lifecycle in `xp_ffi.h` uses caller-owned opaque storage. After a
@@ -1152,7 +1156,11 @@ owns an MCU buffer, output row and optional smoothing/scaling/dither buffers;
 all are released at the end of the call. The shared Rust image owner retains
 cache chunks and its path/read window until `xp_assets_image_reset(true)`. Clearing
 render failures permits retry on the next page render without releasing that
-window. QR bitmap callers own the output storage and must supply a non-null
+window. Reader PNG continues without caching when cache creation fails; GIF
+fails as before. The reader no longer allocates a GIF converter object at decode
+dispatch, so that allocation can no longer report an unsupported format. The
+remaining native build-time probe still uses its factory until that probe moves.
+QR bitmap callers own the output storage and must supply a non-null
 pointer with the capacity returned by the plan call.
 
 JPEG conversion buffers and the page cache window/chunks retain their former

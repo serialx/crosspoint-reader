@@ -9,13 +9,13 @@ type Read = unsafe extern "C" fn(*mut c_void, u32, *mut u8, usize) -> usize;
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Services {
-    context: *mut c_void,
-    read: Read,
-    target: Option<unsafe extern "C" fn(*mut c_void, *mut Target)>,
-    write: unsafe extern "C" fn(*mut c_void, u32, *const u8, usize) -> bool,
-    progress: unsafe extern "C" fn(*mut c_void),
-    size: u32,
-    diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, u32, u32, u32, u32)>,
+    pub(crate) context: *mut c_void,
+    pub(crate) read: Read,
+    pub(crate) target: Option<unsafe extern "C" fn(*mut c_void, *mut Target)>,
+    pub(crate) write: unsafe extern "C" fn(*mut c_void, u32, *const u8, usize) -> bool,
+    pub(crate) progress: unsafe extern "C" fn(*mut c_void),
+    pub(crate) size: u32,
+    pub(crate) diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, u32, u32, u32, u32)>,
 }
 impl Source for Services {
     fn diagnostic(&mut self, event: Diagnostic, a: u32, b: u32, c: u32, d: u32) {

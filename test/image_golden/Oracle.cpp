@@ -6,6 +6,37 @@
 #include <PngToFramebufferConverter.h>
 #endif
 
+#ifdef READER_IMAGE_ORACLE
+#include <xp_page_paint.h>
+extern "C" uint8_t xp_page_image_test_decode(const XpPageTarget*, const XpPageImage*, const uint8_t*);
+#include <HalStorage.h>
+
+#include <cstring>
+extern "C" void xp_test_fail_allocation_after(size_t);
+extern "C" size_t xp_test_live_allocations();
+static std::string faultSource, faultCache, fault;
+static size_t faultIndex = 0, faultCalls = 0;
+static void injectFault(const std::string& source, const std::string& cache) {
+  faultSource = source;
+  faultCache = cache;
+  if (const auto* value = std::getenv("READER_IMAGE_FAULT")) fault = value;
+  if (const auto* value = std::getenv("READER_IMAGE_FAULT_INDEX")) faultIndex = std::strtoul(value, nullptr, 10);
+  HalFileTest::allowOpen = [](const char* path, const char*) {
+    return !((fault == "source-open" && path == faultSource) || (fault == "cache-open" && path == faultCache));
+  };
+  HalFileTest::allowSeek = [](const char* path, size_t) {
+    return !(fault == "seek" && path == faultSource && faultCalls++ == faultIndex);
+  };
+  HalFileTest::readLimit = [](const char* path, size_t, size_t length) {
+    return fault == "read" && path == faultSource && faultCalls++ == faultIndex ? size_t(0) : length;
+  };
+  HalFileTest::writeLimit = [](const char* path, size_t, size_t length) {
+    return fault == "write" && path == faultCache && faultCalls++ == faultIndex ? size_t(0) : length;
+  };
+  HalFileTest::failNextClose = fault == "close";
+  xp_test_fail_allocation_after(fault == "allocation" ? faultIndex : SIZE_MAX);
+}
+#endif
 #include <fstream>
 #include <iterator>
 #include <vector>
@@ -94,7 +125,40 @@ int main(int argc, char** argv) {
     u32(dims.height);
     u32(accepted);
   }
+#ifdef READER_IMAGE_ORACLE
+  if (variant != 2) return 3;
+  XpPageTarget targetView{};
+  auto& glyph = targetView.glyphs;
+  glyph.buffer = renderer.buffer.data();
+  glyph.bufferLen = 99 * renderer.rows;
+  glyph.width = 792;
+  glyph.height = 528;
+  glyph.stride = 99;
+  glyph.originY = renderer.origin;
+  glyph.rows = renderer.rows;
+  glyph.orientation = renderer.orientation;
+  glyph.plane = renderer.mode;
+  glyph.absolute = renderer.absolute;
+  targetView.native = &renderer;
+  const XpPageImage image{reinterpret_cast<const uint8_t*>(path.c_str()),
+                          reinterpret_cast<const uint8_t*>(""),
+                          path.size(),
+                          0,
+                          config.x,
+                          config.y,
+                          config.maxWidth,
+                          config.maxHeight};
+  injectFault(path, cache);
+  const bool success =
+      std::getenv("READER_IMAGE_LEGACY")
+          ? decoder->decodeToFramebuffer(path, renderer, config)
+          : xp_page_image_test_decode(&targetView, &image, reinterpret_cast<const uint8_t*>(cache.c_str())) == 2;
+  if (xp_test_live_allocations()) return 4;
+  xp_test_fail_allocation_after(SIZE_MAX);
+  u32(success);
+#else
   u32(decoder->decodeToFramebuffer(path, renderer, config));
+#endif
   blob(renderer.buffer);
   blob(renderer.calls);
   std::ifstream cached(cache, std::ios::binary);

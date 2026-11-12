@@ -402,7 +402,7 @@ pub(crate) unsafe fn cache_bytes<'a>(raw: *mut c_void) -> &'a [u8] {
     unsafe { owner(raw) }.cache_path.bytes()
 }
 
-#[cfg(not(feature = "app-test"))]
+#[cfg_attr(feature = "app-test", allow(dead_code))]
 pub(crate) unsafe fn image_stream(
     raw: *mut c_void,
     href: &[u8],
@@ -412,7 +412,7 @@ pub(crate) unsafe fn image_stream(
     stream(raw, app_abi::Text::from_bytes(href), 8192, 0, sink, context) != 0
 }
 
-#[cfg(not(feature = "app-test"))]
+#[cfg_attr(feature = "app-test", allow(dead_code))]
 pub(crate) unsafe fn bind_images(raw: *mut c_void) {
     if !raw.is_null() {
         assert!(

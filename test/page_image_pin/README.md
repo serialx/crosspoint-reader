@@ -12,3 +12,9 @@ For pointer checks, use `MIRIFLAGS=-Zmiri-strict-provenance cargo +nightly miri 
 The `reader-strips` feature exercises the same source with the optional row
 seeking contract enabled. Decoder and ZIP behavior have their own oracles; this
 harness verifies the binding and file lifetime rather than decoding pixels.
+
+The direct PNG/GIF cases decode tiny fixtures while tracking both pinned file
+cells independently. Each fake records its own address, cursor and open state;
+movement, unbalanced destruction, wrong file identity or stale cache paths fail
+the test. Run both the normal and reader-strips configurations and strict-provenance
+Miri. Decoder fixture bytes come from the existing image corpus.

@@ -53,24 +53,22 @@ source = source.replace(render, render + """
 source = '#include <cstddef>\nextern "C" size_t xp_test_allocation_attempts();\n' + source
 # The HalFile init/drop interval excludes image allocations from the text allocation
 # count, matching the ImageBlock::render scope above without a firmware test hook.
+# Reader decoders nest a cache handle within the source handle's lifetime.
+source = '#include <cstddef>\nnamespace { size_t imageFileDepth = 0, imageAllocationStart = 0; }\n' + source
 init = re.compile(r'case XP_IMAGE_FILE_INIT:\s*new \(storage\) HalFile\(\);\s*return 0;')
 drop = re.compile(r'case XP_IMAGE_FILE_DROP:\s*file->~HalFile\(\);\s*return 0;')
 if len(init.findall(source)) != 1 or len(drop.findall(source)) != 1:
     raise SystemExit('Direct image allocation window changed')
 source = init.sub('''case XP_IMAGE_FILE_INIT: {
       extern size_t pageGoldenImageAllocations;
-      static_assert(sizeof(HalFile) + sizeof(size_t) <= sizeof(XpPageImageFile));
       new (storage) HalFile();
-      const size_t start = xp_test_allocation_attempts();
-      std::memcpy(reinterpret_cast<uint8_t*>(storage) + sizeof(*storage) - sizeof(start), &start, sizeof(start));
+      if (imageFileDepth++ == 0) imageAllocationStart = xp_test_allocation_attempts();
       return 0;
     }''', source)
 source = drop.sub('''case XP_IMAGE_FILE_DROP: {
       extern size_t pageGoldenImageAllocations;
-      size_t start;
-      std::memcpy(&start, reinterpret_cast<uint8_t*>(storage) + sizeof(*storage) - sizeof(start), sizeof(start));
       file->~HalFile();
-      pageGoldenImageAllocations += xp_test_allocation_attempts() - start;
+      if (--imageFileDepth == 0) pageGoldenImageAllocations += xp_test_allocation_attempts() - imageAllocationStart;
       return 0;
     }''', source)
 (out / 'ImageBlock.cpp').write_text(source)

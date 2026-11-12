@@ -49,12 +49,38 @@ typedef enum {
   XP_IMAGE_FILE_LARGEST_BLOCK,
   XP_IMAGE_FILE_OPEN_WRITE,
   XP_IMAGE_FILE_FLUSH,
-  XP_IMAGE_FILE_REMOVE
+  XP_IMAGE_FILE_REMOVE,
+  XP_IMAGE_FILE_POSITION,
+  XP_IMAGE_FILE_READ_RAW,
+  XP_IMAGE_FILE_OPEN_PNG,
+  XP_IMAGE_FILE_OPEN_GIF,
+  XP_IMAGE_FILE_OPEN_CACHE_WRITE,
+  XP_IMAGE_FILE_IS_OPEN,
+  XP_IMAGE_FILE_NOW,
+  XP_IMAGE_FILE_YIELD,
+  XP_IMAGE_FILE_FREE_INTERNAL_HEAP
 } XpPageImageFileOp;
 // Physical SDK file/memory operations; paths are terminated, bytes borrowed.
 size_t xp_native_page_image_file(XpPageImageFile*, XpPageImageFileOp, const uint8_t* path, uint8_t*, size_t);
 // Writes borrowed bytes to the caller-owned HalFile; never calls Rust, including for protected streams.
 uint8_t xp_native_page_image_write(void* file, const uint8_t* bytes, size_t length);
+typedef enum {
+  XP_IMAGE_CODEC_BEGIN = 50,
+  XP_IMAGE_CODEC_OPEN,
+  XP_IMAGE_CODEC_SEEK,
+  XP_IMAGE_CODEC_READ
+} XpPageImageCodecEvent;
+typedef struct {
+  const XpPageImage* image;
+  const uint8_t* cache;
+  XpPageImageFile* input;
+  uint32_t free_heap, elapsed;
+  int32_t color, depth;
+  uint8_t format, seek_failed;
+} XpPageImageCodecLog;
+// Borrows diagnostic state and paths; formatting does not retain or call Rust.
+void xp_native_page_image_codec_log(const XpPageImageCodecLog*, uint32_t event, uint32_t a, uint32_t b, uint32_t c,
+                                    uint32_t d);
 // One decode/raster leaf. 0 no decoder, 1 decode failed, 2 success.
 uint8_t xp_native_page_image_decode(void* native, const XpPageImage*, const uint8_t* cache);
 #ifdef XP_APP_TEST

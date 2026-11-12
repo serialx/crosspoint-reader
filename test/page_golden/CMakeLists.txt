@@ -58,7 +58,7 @@ target_include_directories(PageGolden PRIVATE ${INSTRUMENTED} stubs .
   ${REPO_ROOT}/lib/Serialization ${REPO_ROOT}/lib/XmlParserUtils
   ${REPO_ROOT}/src ${REPO_ROOT}/lib/GfxRenderer ${REPO_ROOT}/test/sdfont_legacy ${REPO_ROOT}/lib/EpdFont
   ${REPO_ROOT}/lib/MiniBidi ${REPO_ROOT}/lib/Memory ${REPO_ROOT}/lib/Utf8
-  ${REPO_ROOT}/lib/InflateReader
+  ${REPO_ROOT}/lib/InflateReader ${REPO_ROOT}/lib/GifSupport ${REPO_ROOT}/lib/PngDiagnostics
   ${FONT_SDK}/include ${FONT_SDK}/third_party/freetype/include ${FONT_SDK}/third_party/stb)
 target_compile_definitions(PageGolden PRIVATE BOARD_HAS_PSRAM=1
   FREEINK_FONT_ENABLE_AUTOHINT=1)

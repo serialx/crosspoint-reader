@@ -5,6 +5,13 @@ use std::cell::{Cell, RefCell};
 static TEST_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
 use xp_core::glyph::Surface;
 
+#[path = "../../rust/crates/xp-ffi/src/gif.rs"]
+mod gif;
+#[path = "../../rust/crates/xp-ffi/src/image.rs"]
+mod image;
+#[path = "../../rust/crates/xp-ffi/src/png.rs"]
+mod png;
+
 mod direct {
     pub struct Target {
         pub glyphs: xp_core::glyph::GlyphTarget,
@@ -23,7 +30,8 @@ thread_local! {
     static BYTES: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
     static CACHE_VALID: Cell<bool> = const { Cell::new(false) };
     static FAILED: Cell<bool> = const { Cell::new(false) };
-    static FILE: Cell<*mut c_void> = const { Cell::new(ptr::null_mut()) };
+    static FILES: RefCell<Vec<*mut c_void>> = const { RefCell::new(Vec::new()) };
+    static DECODE_KIND: Cell<u8> = const { Cell::new(0) };
     static DROPS: Cell<usize> = const { Cell::new(0) };
     static OPERATIONS: Cell<usize> = const { Cell::new(0) };
     static REJECT_OPEN: Cell<bool> = const { Cell::new(false) };
@@ -38,19 +46,25 @@ unsafe fn mock_file(
 ) -> usize {
     EVENTS.with(|events| events.borrow_mut().push(operation));
     if operation == 0 {
-        FILE.with(|active| assert!(active.replace(file).is_null()));
+        FILES.with(|active| {
+            let mut files = active.borrow_mut();
+            assert!(!files.contains(&file));
+            files.push(file);
+        });
+        file.cast::<usize>().add(1).write(0);
+        file.cast::<usize>().add(2).write(0);
         // A native placement object can retain its own address.
         file.cast::<*mut c_void>().write(file);
         return 0;
     }
-    FILE.with(|active| assert_eq!(file, active.get()));
+    FILES.with(|active| assert!(active.borrow().contains(&file)));
     let retained = file.cast::<*mut c_void>().read();
     assert_eq!(retained, file);
     assert_eq!(retained.cast::<*mut c_void>().read(), file);
     OPERATIONS.with(|count| count.set(count.get() + 1));
     match operation {
         1 => {
-            FILE.with(|active| active.set(ptr::null_mut()));
+            FILES.with(|active| active.borrow_mut().retain(|p| *p != file));
             DROPS.with(|count| count.set(count.get() + 1));
             0
         }
@@ -62,12 +76,42 @@ unsafe fn mock_file(
             }
             length
         }
-        4 => 1,
-        5 => 8,
+        4 => {
+            file.cast::<usize>().add(1).write(length);
+            1
+        }
+        5 => {
+            if DECODE_KIND.with(Cell::get) == 0 {
+                8
+            } else {
+                decode_bytes().len()
+            }
+        }
+        6 => {
+            file.cast::<usize>().add(2).write(0);
+            1
+        }
+        13 => file.cast::<usize>().add(1).read(),
+        14 => {
+            let offset = file.cast::<usize>().add(1).read();
+            let input = decode_bytes();
+            let count = length.min(input.len().saturating_sub(offset));
+            ptr::copy_nonoverlapping(input.as_ptr().add(offset.min(input.len())), bytes, count);
+            file.cast::<usize>().add(1).write(offset + count);
+            count
+        }
+        15..=17 => {
+            file.cast::<usize>().add(1).write(0);
+            file.cast::<usize>().add(2).write(1);
+            1
+        }
+        18 => file.cast::<usize>().add(2).read(),
+        19 => 300,
+        21 => 80_000,
         8 | 9 => 80_000,
         10 => usize::from(FAULT.with(Cell::get) != 10),
-        13 => {
-            let written = if FAULT.with(Cell::get) == 13 {
+        1000 => {
+            let written = if FAULT.with(Cell::get) == 1000 {
                 length - 1
             } else {
                 length
@@ -82,6 +126,13 @@ unsafe fn mock_file(
     }
 }
 
+fn decode_bytes() -> &'static [u8] {
+    if DECODE_KIND.with(Cell::get) == 1 {
+        include_bytes!("fixtures/tiny.png")
+    } else {
+        include_bytes!("fixtures/tiny.gif")
+    }
+}
 unsafe fn mock_decode(_: *mut c_void, _: *const c_void, _: *const u8) -> u8 {
     2
 }
@@ -107,10 +158,15 @@ mod assets {
         let mut bytes = [0; 8];
         assert_eq!(services.read(&mut bytes), 8);
         services.seek(0);
-        assert_eq!(services.size(), 8);
+        let size = if super::DECODE_KIND.with(core::cell::Cell::get) == 0 {
+            8
+        } else {
+            super::decode_bytes().len()
+        };
+        assert_eq!(services.size(), size);
         services.close();
         assert_eq!(services.heap(), (80_000, 80_000));
-        assert_eq!(services.source_size(), Some(8));
+        assert_eq!(services.source_size(), Some(size));
         assert_eq!(services.decode(b"cache\0"), Some(true));
         1
     }
@@ -149,9 +205,21 @@ mod tests {
             native: ptr::null_mut(),
             inverted: 0,
         };
-        unsafe { images::paint(&target, b"image\0", b"source\0", 0, 0, 4, 4, false) };
-        assert!(FILE.with(Cell::get).is_null());
-        assert_eq!(DROPS.with(Cell::get), 1);
+        let path = match DECODE_KIND.with(Cell::get) {
+            1 => c"image.png",
+            2 => c"image.gif",
+            _ => c"image.jpg",
+        };
+        unsafe { images::paint(&target, path.to_bytes(), b"source\0", 0, 0, 4, 4, false) };
+        assert!(FILES.with(|files| files.borrow().is_empty()));
+        assert_eq!(
+            DROPS.with(Cell::get),
+            if DECODE_KIND.with(Cell::get) == 0 {
+                1
+            } else {
+                2
+            }
+        );
         assert!(
             OPERATIONS.with(Cell::get)
                 >= if EXTRACT.with(Cell::get) {
@@ -162,6 +230,18 @@ mod tests {
                     10
                 }
         );
+    }
+
+    #[test]
+    fn direct_codecs_keep_both_file_cells_pinned() {
+        let _guard = TEST_GUARD.lock().unwrap();
+        for kind in [1, 2] {
+            BYTES.with(|bytes| bytes.borrow_mut().clear());
+            DECODE_KIND.with(|value| value.set(kind));
+            draw(false);
+            BYTES.with(|bytes| assert_eq!(&bytes.borrow()[..4], &[4, 0, 4, 0]));
+        }
+        DECODE_KIND.with(|value| value.set(0));
     }
 
     #[test]
@@ -188,7 +268,7 @@ mod tests {
             let payload = b"extracted image bytes";
             sink(file, payload.as_ptr(), payload.len()) != 0
         }
-        for fault in [0, 10, 13] {
+        for fault in [0, 10, 1000] {
             FAULT.with(|value| value.set(fault));
             EVENTS.with(|events| events.borrow_mut().clear());
             BYTES.with(|bytes| bytes.borrow_mut().clear());
@@ -201,9 +281,9 @@ mod tests {
                 images::set_extractor(ptr::null_mut(), None);
             }
             let expected: &[u32] = match fault {
-                0 => &[0, 7, 10, 13, 11, 6, 1],
+                0 => &[0, 7, 10, 1000, 11, 6, 1],
                 10 => &[0, 7, 10, 1],
-                _ => &[0, 7, 10, 13, 11, 6, 12, 1],
+                _ => &[0, 7, 10, 1000, 11, 6, 12, 1],
             };
             EVENTS.with(|events| assert_eq!(events.borrow().as_slice(), expected));
             if fault == 0 {

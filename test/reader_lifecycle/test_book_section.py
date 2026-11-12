@@ -24,17 +24,22 @@ def main():
         cpp, binary = work / 'section.cpp', work / 'section'
         cpp.write_text(source)
         subprocess.run(section_command(ROOT, work, cpp, binary, archive=args.archive), check=True)
-        book, cache = section_fixture(work)
+        book, cache = section_fixture(work, images=True)
         result = subprocess.run([str(binary), str(book), str(cache)], capture_output=True)
         assert result.returncode == 0, (result.returncode, result.stderr.decode(errors='replace')[-5000:])
         summary = [line for line in result.stdout.decode().splitlines() if line.startswith('actual Section/')]
         assert len(summary) == 1
         print(summary[0])
+        image_summary = [line for line in result.stdout.decode().splitlines()
+                         if line.startswith('shipping image extraction:')]
+        assert len(image_summary) == 1
+        print(image_summary[0])
     print(json.dumps(dict(source_sha256=hashlib.sha256(source.encode()).hexdigest(),
                           production=['ReaderBook', 'Epub facade', 'ReaderSection', 'Chapter',
-                                      'Rust CSS', 'native Page', 'cache-only Section', 'ProgressMapper', 'ChapterXPathResolver'],
+                                      'Rust CSS', 'native Page', 'cache-only Section', 'ProgressMapper', 'ChapterXPathResolver',
+                                      'shipping image State/Physical paint and ReaderBook extractor'],
                           policy_hooks=0, limits=['host storage and font/renderer fakes',
-                                                 'image decoding disabled in the Section workload',
+                                                 'Section workload disables images; separate shipping paint exercises extraction faults',
                                                  'serialized render thread ticks; not a hardware timing measurement'])))
 
 

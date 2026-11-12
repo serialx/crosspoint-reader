@@ -1,94 +1,117 @@
 # Native Rust port gate
 
-`policy.txt` is human-owned. `ports.lock` is the sorted set of **root Rust-symbol**
-pairs from the default-X3 native object files. It contains references, not proof
-that a path executes. The baseline is firmware source `5ff7aa05`, after R1.
-R-RELAY owns the 13 small EPUB forwarding roots (14 pairs, including the two
-exports used by `radio_status`).
+The default-X3 baseline is firmware source `5aee6afa`, after R1 and R3a.
+`ports.lock` holds sorted **root target** reference pairs; `dynamic.lock` holds
+sorted **table slot-index** entries. Both are generated and both reject new and
+stale entries. The latter includes all native data symbols with function
+relocations whose targets reach Rust, not just reader-reachable tables. It also
+includes every field of the explicitly declared Rust-filled tables.
 
-Run `python3 scripts/check_rust_ports.py` after a default build. The PlatformIO
-prelink hook uses `custom_rust_ports = enforce`; `report` prints the same errors
-without stopping the link for an explicitly requested audit. Both new and stale lock pairs fail. Physical pairs are
-bound to an exact root and export, and require lock entries too. A new caller
-cannot reuse a physical exception. Deferred roots (R5/R6/R7) obey the same lock.
+Run `python3 scripts/check_rust_ports.py` after a matching build. PlatformIO runs
+an always-built, noncached alias after the ELF's object/archive dependencies;
+an order-only dependency schedules it before linking or restoring the ELF.
+The `buildprog` alias also requires it on no-link builds. Mode is an explicit
+input: `enforce` fails on errors, while `report` prints errors and continues.
+A direct toolchain invocation, disabled post script, or explicitly selected
+report mode can bypass enforcement. Other board environments have no hook.
 
-## Updating the baseline
+## Policy contracts
 
-Build the matching source and generate a candidate without overwriting the lock:
+Every line requires a reason after `#`; patterns are full regular-expression
+matches against exact mangled symbols, not demangled guesses.
+
+| Kind | Fields after its key | Meaning |
+|---|---|---|
+| table | symbol-pattern struct header | Decode each pointer slot from the named native table. |
+| patch | function-symbol | Key is Table.field; one static missing relocation is filled by this reviewed runtime store. |
+| import | none | Key is the exact direct import; even a clean import needs a reviewed signature/ownership contract. |
+| callback | none | Key is the root; explain parameter direction, retention and lifetime. |
+| dispatch | caller-pattern target-pattern [method-pattern] | Bind a native caller to a stored function, or only matching method slots of a named vtable. |
+| rustfill | caller-pattern header | Key is Struct.field; bind native callers to this Rust-filled function slot. |
+| physical | exact Rust targets | Bind permission to specific root/target pairs, which must also exist in ports.lock. |
+| inherited/deferred | owner | Assign nonphysical pairs from that root to a plan task. |
+
+A dispatch caller can be `root:Table.field`, resolving the compiled function in
+that slot without relying on its lambda ordinal. A vtable target requires a
+method pattern: matching the whole vtable would falsely make theme snapshots
+and protection size/encryption queries reach unrelated methods. Every caller,
+target and method must exist. Patch targets are exact native function symbols;
+compiler renumbering requires a reviewed rename update. Rust-filled structs must
+have a caller contract for every field. Stable `Struct.field` pseudo-targets
+represent Rust-private functions; Rust code is not parsed to infer the writer.
+
+File-local data/vtable symbols include their relative object path (without the
+incidental PlatformIO library hash); global/COMDAT symbols retain shared identity.
+The generated dynamic lock uses slot indices within the owning symbol, not
+addresses or distances to neighboring symbols. Internal function renames do not
+change it. It records hot/cold slot status, not every export reachable from that
+slot; the root/target lock catches endpoint growth along modelled root paths.
+A different route to the same root/target pair, or a new caller of an existing
+hot slot without a dispatch edge, can escape. Review the pointer store and its
+invocation together.
+
+Direct imports are ratcheted through the import policy even when no static Rust
+reference exists. Header prototypes add callback requirements for function
+pointers, callback typedefs and structs containing callback fields. Signatures
+missing from these headers and opaque void pointers are reviewed manually at an
+import change. The inventory rule catches a new callback helper regardless of
+whether its prototype is available. It does not prove behavior changes hidden
+behind an existing opaque signature. Callback output tables may be annotated
+explicitly too; receiving output storage is not itself a Rust callback.
+
+## Updating either lock
+
+Use matching, freshly built default-X3 objects and the linked Rust archive:
 
 ```sh
-python3 scripts/check_rust_ports.py --write-lock /tmp/ports.next --json /tmp/ports.paths.json
+python3 scripts/check_rust_ports.py --write-lock /tmp/ports.next \
+  --write-dynamic-lock /tmp/dynamic.next --json /tmp/ports.paths.json
 ```
 
-This command still reports differences and exits nonzero. Inspect the candidate
-diff and the reported native section paths, then copy it over `ports.lock` and
-run the check again. Use a fresh native build when source files have been removed:
-a directory scan can otherwise include stale `.o` files. The linked Rust archive
-must come from the same build. Do not use host or another board's objects.
+Writing candidates does not suppress errors. Review both diffs and every new
+native witness path, then copy candidates to the checked-in locks and rerun.
+When files are removed, clean stale `.o` files first. The directory inventory
+includes unlinked objects and cannot distinguish an obsolete object from an
+intended input. Stale import, callback, owner and physical declarations also
+fail; retire their policy lines with the removed paths.
 
-A legitimate update reason is one of:
+Legitimate update reasons and reviewer checks:
 
-- The named task removed a native relay: remove its pairs and the now-unused owner
-  line; identify the source change and verify that no replacement pair appeared.
-- A port or export was renamed or split with unchanged behavior: identify each
-  old/new pair and show its path before and after. Do not hide growth in a rename.
-- A deliberate new native callback or physical operation is required: give the
-  requirement, exact caller/root and exports, lifetime/streaming contract, and
-  reason it cannot call the Rust owner directly. This is an explicit scope change.
-- A task was deliberately deferred or reassigned: explain the plan decision;
-  retain every pair. Changing ownership does not permit growth.
-- Compiler/SDK changes changed references: provide both object inventories and
-  explain each changed path. A clean source diff alone is insufficient.
+- A plan task removed a relay: identify the source change, remove its pairs and
+  obsolete bindings/owners, and check for replacement paths. Ownership changes
+  alone do not authorize growth. R-RELAY, R1c, R2b and R-RUNTIME are plan tasks;
+  NONREADER and R5/R6/R7 are explicit deferred buckets.
+- A port, function or field was renamed/reordered: map every old/new identity
+  and compare behavior. Moving data or inserting an unrelated symbol must not
+  change either lock. Do not normalize distinct symbols together.
+- A new callback or physical operation is deliberately required: state the
+  requirement, exact root/targets, writer and caller, retained context lifetime
+  and why Rust cannot invoke its owner directly. Add the import/callback or
+  dispatch/rustfill contract and review every new pair and hot slot.
+- A compiler/SDK change alters references: preserve both object inventories,
+  explain each changed path/slot and check weak runtime binding assumptions.
 
-The reviewer checks the actual source/signature and native path for **every**
-addition, verifies ownership against the plan, and checks callback lifetimes and
-physical scope. A new physical line must name the particular root and exports,
-not an endpoint wildcard. Check that removed pairs really disappeared and that
-new tables, callback typedefs, and non-pointer fields have not bypassed decoding.
-Never refresh the lock just to make the build green. The file is larger than the study's 40–60-line target: exact per-root ownership
-plus tables, callbacks and physical contracts cannot fit that target without
-hiding the owners.
+A new physical line cannot globally permit an endpoint. A new root/target pair
+always needs a lock change; a new Rust caller of an existing root is not visible.
+Never refresh a lock only to make the build green. Coarse deferred root ownership
+is a retirement assignment, not evidence that every path executes off-reader.
 
-## Boundaries of the check
+## Remaining proof obligations
 
-The mode is an explicit SCons dependency, so switching from report to enforce
-cannot reuse a target validated only in report mode.
+The graph sees references, including address-taking, vptr writes, infeasible
+branches and duplicate weak/COMDAT bodies. For example, protection_close's
+conservative path enters decryptToSink through a destructor's vtable reference;
+the destructor does not invoke that method. Physical annotations never stop
+traversal. Project objects use -fno-rtti, so which function invokes which stored pointer
+remains a manual dispatch/rustfill binding. Prebuilt C++ exception RTTI fragments
+do not describe the project classes. A new target slot is visible; a new
+unmodelled use of an already-hot slot need not be. Runtime-created pointers,
+stored std::function state and callback lifetimes remain manual R8b work.
 
-All native `.o` files under the build directory are inspected, including locally
-compiled SDK and Arduino objects. Prebuilt archives and ROM are not walked.
-Rust is only its archive symbol table; no Rust code or linked instructions are
-analysed. Weak `compiler_builtins` fallbacks are excluded only when target `nm` also finds
-a strong definition in the default C3 libgcc/libm/libc archives. Those archives
-are read for symbol precedence, never traversed. `build_rust.py` orders the native
-runtime before Rust. New weak fallbacks without a native definition and all weak
-application exports remain visible. This is not an `xp_` naming filter. A
-toolchain, multilib or link-order change requires reviewing this rule.
-
-Every allocated native section is followed, including static data pointing to
-other data or functions. Section-level reachability over-reports infeasible
-branches, address-taking and several objects in one section. Duplicate native
-weak definitions are all followed. A Rust definition is also reported when a
-native definition has the same name; this does not choose the final linker
-winner. Physical annotations do not stop traversal.
-The lock compares root/export pairs, not individual native call sites. Rerouting
-a path without changing its endpoints does not change the lock.
-Runtime-created pointers (virtual objects built elsewhere, stored `std::function`,
-startup-populated tables) remain invisible. The callback list identifies typed
-callback parameters; it does not prove their targets or lifetime. Nested callback
-structs need manual entries. The `XP_SD_FONT_CATALOG` default build has nine EPUB
-callback-taking slots: `font_sizes` is compiled out and R1 removed
-`child_prewarm_rows`.
-
-Direct imports include two data tables as well as functions: this deliberately
-checks their full closure in addition to individually named Wi-Fi/mode slots.
-A newly imported static table is therefore walked even without a policy table
-line; a table passed to Rust only at runtime still needs an explicit decoder.
-A table's size, header field count and one R_RISCV_32 relocation per four-byte
-slot must agree. Headers are preprocessed for the default X3 configuration.
-Native bitcode/LTO-only objects are outside this decoder's input contract; changing
-native compilation flags requires reviewing it. Only default X3 is supported. x4pro is Xtensa/ESP32-S3 and is **not determined**;
-the hook does not run there and its relocation dialect is not accepted here.
-
-“Common path clean: yes” means zero inherited/unowned reference pairs in these
-roots, not a proof that all executions avoid Rust → C++ → Rust. The R8b linked
-image audit and manual runtime callback review remain necessary.
+Locally compiled SDK/Arduino objects are inspected; prebuilt archives and ROM
+are not walked. Rust is only a symbol table. Weak compiler-builtins fallbacks
+are omitted only when a strong native libgcc/libm/libc definition precedes Rust
+in the default link. New unmatched weak fallbacks and application weak exports
+remain visible. Native LTO sections and other object formats/architectures fail;
+x4pro/Xtensa is not determined. No catch-all indirect-call edges enter this gate.
+The linked-image audit and manual runtime review are required for final R8b.

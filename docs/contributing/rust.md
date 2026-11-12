@@ -1178,57 +1178,69 @@ successful header probe alone does not establish that the decoder accepts an ima
 
 ## Native Rust port gate (default X3)
 
-The port check is the gate for new native relays back into Rust. After a firmware
-build, run one command from the matching checkout:
+The port check rejects new native references back into Rust and new unreviewed
+Rust-callable imports. Run it on matching default-X3 build outputs:
 
 ```sh
 python3 scripts/check_rust_ports.py
 ```
 
-The default-X3 PlatformIO build also runs it **before the final link**.
-`custom_rust_ports = enforce` stops the build on violations. A temporary
-`report` setting prints the same diagnostics without stopping the link. Other board
-environments do not run this hook. Python and the installed target GNU tools are
-sufficient; there are no new firmware dependencies or device operations.
+Every default-X3 PlatformIO firmware build runs an independent validation action
+after its object/archive inputs, before any link or cached ELF restoration. It
+also runs on an up-to-date build that does not link. `custom_rust_ports = enforce`
+stops the build on violations; `report` prints them and allows the build to
+continue for an explicitly requested audit. Running a toolchain directly or a
+build that does not execute PlatformIO's post script bypasses this hook. Other
+boards are not covered.
 
-Roots are the Rust archive's undefined symbols that native objects define, plus
-every slot in the EPUB, App, Legacy, Wi-Fi and network-mode tables. The checker
-preprocesses the table headers, verifies one pointer relocation per slot and
-walks native per-function/data-section relocations. Rust/native identity comes
-from the archive and object symbol tables, never an `xp_native_` name. It does
-not disassemble instructions or inspect Rust code. Weak compiler-runtime
-fallbacks are excluded only when target `nm` finds a native libgcc/libm/libc
-definition that the build resolves first; those archives are read for symbol
-precedence, not traversed. Other Rust exports, including new weak fallbacks and
-weak application exports, are checked.
+Roots are the Rust archive's undefined symbols defined by native objects and
+all slots in six tables: EPUB, App, Legacy, Wi-Fi, network modes and Runtime.
+`XpAppRuntime` has 27 static relocations and seven explicitly declared patches;
+the size, header field count, relocations and patches must agree. Native
+function/data-section relocations form a reference graph. Rust is only an archive
+symbol table: no Rust code or linked instructions are analysed. Symbol names
+such as `xp_native_*` do not determine language.
 
-[`policy.txt`](../../scripts/rust_ports/policy.txt) names physical root/export
-contracts, callback-taking slots and owners. `ports.lock` records sorted exact
-root/export pairs. New pairs and removed pairs both fail, so task completion must
-shrink the lock. Physical exceptions are bound to their root and export and still
-need lock entries. Deferred R5/R6/R7 roots obey the same ratchet. The summary gives
-pair counts per class and owner; “common path clean” means no inherited or
-unowned pairs remain. The lock starts at `5ff7aa05`, after R1; R-RELAY covers
-the small forwarding ports. See the [baseline update and review
-rules](../../scripts/rust_ports/README.md) before generating a replacement lock.
+[`policy.txt`](../../scripts/rust_ports/policy.txt) holds these reviewed contracts:
 
-The check sees **references, not executions**. It can over-report infeasible
-branches, static function addresses and shared data sections. It cannot follow
-pointers created at runtime: virtual calls on objects built elsewhere, previously
-stored `std::function` values, or tables filled at startup. Callback parameter
-annotations do not prove their targets; nested callback structs require manual
-review. Prebuilt archives and ROM are not walked; locally compiled SDK and
-Arduino objects are. This checks all configured ports, not which Rust reader
-path calls them. Use a fresh native build after removing source files to avoid
-stale objects. x4pro uses Xtensa/ESP32-S3; correctness and counts on that target
-are not determined. This implementation accepts the default-X3 relocation and
-pointer layout only.
+- `import`: every direct root, including clean ones, with a signature/ownership
+  review reason. A new native helper taking a Rust callback cannot enter silently.
+- `callback`: function-pointer or callback-struct parameters of table slots and
+  direct imports, detected from the preprocessed ABI headers. Opaque signatures
+  and pointer retention still need manual review when an import changes.
+- `dispatch`: a named native caller and a stored function or specific vtable
+  method, including startup-created theme/panel objects and eviction sinks.
+- `rustfill`: the native callers of each field in a Rust-filled table. Stable
+  `Struct.field` targets represent Rust-private functions without compiler hashes.
+- `physical`, `inherited`, and `deferred`: exact root/target permissions and task
+  owners. NONREADER is a deferred owner; R5/R6/R7 remain deferred too.
 
-For the final R8b linked-image proof, run `python3 scripts/reader_chain_guard.py`
-with a matching ELF/map. It remains an on-demand audit with explicit unresolved
-indirect sites, direct/tail calls, object provenance and source callback evidence.
-It has no uncertainty baseline or inherited ELF allowlist and is outside CTest
-and the build gate; its 14 physical endpoint notes remain for manual review.
-A clean port check alone does not prove that runtime callbacks cannot re-enter
-Rust. The [audit notes](../../scripts/reader_chain_guard/README.md) describe its
-LTO, indirect-call and layout limits.
+`ports.lock` records sorted root/target pairs. `dynamic.lock` records each named
+native table/vtable slot that reaches Rust, including slots outside the root
+closure, plus the declared Rust-filled tables. Both reject additions and stale
+entries. File-local symbols include their object path; slot indices are relative to the owning table; addresses and internal
+lambda names are absent. A new root/target pair cannot reuse a physical exception;
+a different Rust caller using the same root remains invisible. The summary
+counts pairs by class and owner. “Common path clean” means no inherited/unowned
+pairs remain, not proof of execution reachability. The baseline is `5aee6afa`,
+after R1 and R3a. Follow the [update and review rules](../../scripts/rust_ports/README.md).
+
+This is a **reference check, not an execution proof**. Taking a vtable address,
+infeasible branches, weak definitions and unlinked native objects can over-report.
+The runtime bindings remain manual: project objects have no RTTI hierarchy, so the checker cannot infer
+which stored pointer a particular function invokes. A new use of an existing hot
+slot can still escape when its caller has no dispatch contract. Changes inside
+Rust, callback lifetime, opaque pointers and previously unseen startup stores
+remain R8b review work. The “any indirect call may reach any hot target” bound is
+for the final audit only.
+
+Prebuilt archives and ROM bodies are not walked. Weak `compiler_builtins`
+fallbacks are excluded only when target `nm` finds a strong native runtime
+binding that the default link resolves first. Native LTO sections and non-ELF32
+RISC-V objects fail explicitly. x4pro/Xtensa remains **not determined**.
+
+`scripts/reader_chain_guard.py` remains an on-demand linked ELF/map audit for R8b,
+with unresolved indirect sites, direct/tail calls and object provenance. It has
+14 physical notes, no large generated uncertainty baseline, and no CTest/build
+gate registration. A passing port check does not complete that linked-image and
+runtime-callback proof.

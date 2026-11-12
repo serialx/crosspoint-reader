@@ -22,6 +22,7 @@ class HookEnvironment:
     def __init__(self, mode="enforce", profile="default"):
         self.mode, self.profile = mode, profile
         self.dependencies, self.actions = [], []
+        self.always, self.required, self.aliases = [], [], []
 
     def subst(self, name):
         return {
@@ -49,8 +50,26 @@ class HookEnvironment:
     def VerboseAction(self, action, description):
         return action
 
-    def AddPreAction(self, target, action):
-        self.actions.append(action)
+    def File(self, name):
+        return self
+
+    def children(self):
+        return ["native.o", "libxp_ffi.a"]
+
+    def Alias(self, name, sources, action=None):
+        self.aliases.append((name, sources))
+        if action:
+            self.actions.append(action)
+        return name
+
+    def AlwaysBuild(self, node):
+        self.always.append(node)
+
+    def NoCache(self, node):
+        self.uncached = node
+
+    def Requires(self, program, check):
+        self.required.append((program, check))
 
 
 class PortTests(unittest.TestCase):
@@ -119,12 +138,13 @@ class PortTests(unittest.TestCase):
         )
         errors, _ = self.run_check()
         for name in ["xp_bidi_workspace_size", "xp_bidi_workspace_align"]:
-            self.assertTrue(
-                any(
-                    "new Reader.bidi -> " + name in e and ".text.bidi_wrapper" in e
-                    for e in errors
+            for root in ["Reader.bidi", "xp_keyboard_metrics"]:
+                self.assertTrue(
+                    any(
+                        "new " + root + " -> " + name in e and ".text.bidi_wrapper" in e
+                        for e in errors
+                    )
                 )
-            )
 
     def test_physical_reuse_by_new_caller_fails(self):
         self.native = self.native.replace(
@@ -213,6 +233,9 @@ class PortTests(unittest.TestCase):
             )
             self.assertIn(env.Value(mode), env.dependencies)
             self.assertEqual(len(env.actions), 1)
+            self.assertEqual(env.always, ["check_rust_ports"])
+            self.assertIn((env, "check_rust_ports"), env.required)
+            self.assertIn(("buildprog", "check_rust_ports"), env.aliases)
             with mock.patch("subprocess.call", return_value=1) as call:
                 self.assertEqual(env.actions[0]([], [], env), 1)
             command = call.call_args.args[0]
@@ -264,6 +287,160 @@ class PortTests(unittest.TestCase):
                 for e in self.run_check()[0]
             )
         )
+
+    def test_dispatch_makes_clean_root_dirty(self):
+        self.config["dispatch"]["stored"] = ["xp_native_bidi_acquire", "bidi_wrapper"]
+        errors, _ = self.run_check()
+        self.assertTrue(
+            any("new xp_native_bidi_acquire -> xp_bidi_reorder" in e for e in errors)
+        )
+
+    def test_dispatch_selects_one_table_slot(self):
+        self.config["dispatch"]["virtual"] = [
+            "xp_native_bidi_acquire",
+            "PORTS",
+            "panel",
+        ]
+        errors, _ = self.run_check()
+        self.assertTrue(
+            any("new xp_native_bidi_acquire -> xp_panel" in e for e in errors)
+        )
+        self.assertFalse(
+            any("new xp_native_bidi_acquire -> xp_bidi_reorder" in e for e in errors)
+        )
+        self.config["dispatch"]["virtual"][2] = "missing_method"
+        with self.assertRaisesRegex(ValueError, "no named method"):
+            self.run_check()
+
+    def test_rust_filled_table(self):
+        self.headers["ports.h"] += (
+            "\ntypedef struct { void (*action)(void); } Filled;\n"
+        )
+        self.config["rustfill"]["Filled.action"] = ["xp_native_bidi_acquire", "ports.h"]
+        errors, _ = self.run_check()
+        self.assertTrue(
+            any("new xp_native_bidi_acquire -> Filled.action" in e for e in errors)
+        )
+        self.config["rustfill"]["Filled.missing"] = self.config["rustfill"].pop(
+            "Filled.action"
+        )
+        with self.assertRaisesRegex(ValueError, "missing header field"):
+            self.run_check()
+
+    def test_dynamic_new_vtable_and_slot_fail(self):
+        old, _ = ports.dynamic_inventory(
+            ports.objects(self.native.splitlines()), self.rust[0]
+        )
+        changed = self.native.replace("PORTS", "_ZTVNew")
+        new, counts = ports.dynamic_inventory(
+            ports.objects(changed.splitlines()), self.rust[0]
+        )
+        self.assertEqual(counts["hot_vtables"], 1)
+        self.assertTrue(
+            any(
+                "new dynamic slot _ZTVNew" in e for e in ports.compare_dynamic(new, old)
+            )
+        )
+        changed = (
+            self.native.replace("8 OBJECT", "12 OBJECT")
+            .replace("000008 00 A", "00000c 00 A")
+            .replace(
+                "00000004 00000301 R_RISCV_32 00000000 panel + 0",
+                "00000004 00000301 R_RISCV_32 00000000 panel + 0\n00000008 00000301 R_RISCV_32 00000000 panel + 0",
+            )
+        )
+        new, _ = ports.dynamic_inventory(
+            ports.objects(changed.splitlines()), self.rust[0]
+        )
+        self.assertTrue(
+            any(
+                "new dynamic slot PORTS@ports.cpp.o 2" in e
+                for e in ports.compare_dynamic(new, old)
+            )
+        )
+
+    def test_stale_dynamic_lock_fails(self):
+        old, _ = ports.dynamic_inventory(
+            ports.objects(self.native.splitlines()), self.rust[0]
+        )
+        self.assertTrue(
+            all(
+                e.startswith("stale dynamic slot")
+                for e in ports.compare_dynamic(set(), old)
+            )
+        )
+        self.assertTrue(old)
+
+    def test_new_direct_callback_import_requires_contract(self):
+        self.native += "\nFile: relay.cpp.o\n  [ 1] .text.reader_relay PROGBITS 00000000 000034 000010 00 AX 0 0 4\n  1: 00000000 16 FUNC GLOBAL DEFAULT 1 reader_relay\n"
+        self.rust[1].add("reader_relay")
+        self.headers["ports.h"] += "\nvoid reader_relay(void (*sink)(void));\n"
+        errors, _ = self.run_check()
+        self.assertTrue(any("reader_relay: new direct import" in e for e in errors))
+        self.config["import"]["reader_relay"] = []
+        self.assertTrue(
+            any(
+                "reader_relay: direct import with callback" in e
+                for e in self.run_check()[0]
+            )
+        )
+        self.config["callback"]["reader_relay"] = []
+        self.assertEqual(self.run_check()[0], [])
+
+    def test_nested_callback_struct_parameter(self):
+        self.headers["ports.h"] += (
+            "\ntypedef struct { void (*sink)(void); } Callbacks;\n"
+        )
+        self.headers["ports.h"] = self.headers["ports.h"].replace(
+            "(*panel)(void)", "(*panel)(const Callbacks* callbacks)"
+        )
+        self.assertTrue(
+            any("Reader.panel: callback-taking" in e for e in self.run_check()[0])
+        )
+
+    def test_runtime_patch_is_explicit_and_checked(self):
+        self.native = self.native.replace(
+            "00000004 00000301 R_RISCV_32 00000000 panel + 0", ""
+        )
+        with self.assertRaisesRegex(ValueError, "relocation mismatch"):
+            self.run_check()
+        self.config["patch"]["Reader.panel"] = ["panel"]
+        self.assertEqual(self.run_check()[0], [])
+
+    def test_dynamic_lock_ignores_internal_function_rename(self):
+        old, _ = ports.dynamic_inventory(
+            ports.objects(self.native.splitlines()), self.rust[0]
+        )
+        changed = self.native.replace("bidi_wrapper", "renamed_wrapper")
+        new, _ = ports.dynamic_inventory(
+            ports.objects(changed.splitlines()), self.rust[0]
+        )
+        self.assertEqual(new, old)
+
+    def test_native_lto_rejected(self):
+        self.native = self.native.replace(
+            ".text.bidi_wrapper PROGBITS", ".gnu.lto_bidi PROGBITS"
+        )
+        with self.assertRaisesRegex(ValueError, "native LTO"):
+            self.run_check()
+
+    def test_distinct_file_local_tables_do_not_share_identity(self):
+        old, _ = ports.dynamic_inventory(
+            ports.objects(self.native.splitlines()), self.rust[0]
+        )
+        changed = self.native + self.native.replace("ports.cpp.o", "other.cpp.o")
+        new, _ = ports.dynamic_inventory(
+            ports.objects(changed.splitlines()), self.rust[0]
+        )
+        self.assertTrue(
+            any("new dynamic slot" in e for e in ports.compare_dynamic(new, old))
+        )
+
+    def test_library_path_normalization_cannot_merge_local_tables(self):
+        changed = self.native.replace("ports.cpp.o", "libaa/Book/ports.cpp.o")
+        changed += self.native.replace("ports.cpp.o", "libbb/Book/ports.cpp.o")
+        with self.assertRaisesRegex(ValueError, "ambiguous local table identity"):
+            ports.dynamic_inventory(ports.objects(changed.splitlines()), self.rust[0])
 
 
 if __name__ == "__main__":

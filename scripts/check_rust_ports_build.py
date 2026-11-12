@@ -1,4 +1,4 @@
-"""Register the native Rust-port check before the default-X3 final link."""
+"""Validate native Rust ports on every default-X3 build, including cache hits."""
 
 import subprocess
 import sys
@@ -16,6 +16,7 @@ if env.subst("$PIOENV") == "default":
     checker = project / "scripts/check_rust_ports.py"
     policy = project / "scripts/rust_ports/policy.txt"
     lock = project / "scripts/rust_ports/ports.lock"
+    dynamic_lock = project / "scripts/rust_ports/dynamic.lock"
 
     def check_ports(source, target, env):
         command = [
@@ -31,22 +32,32 @@ if env.subst("$PIOENV") == "default":
             str(policy),
             "--lock",
             str(lock),
+            "--dynamic-lock",
+            str(dynamic_lock),
         ]
         if mode == "report":
             command.append("--report")
         return subprocess.call(command, cwd=project)
 
+    program = env.File("$BUILD_DIR/${PROGNAME}.elf")
+    check = env.Alias(
+        "check_rust_ports",
+        program.children(),
+        env.VerboseAction(check_ports, "Checking native Rust ports"),
+    )
+    env.AlwaysBuild(check)
+    env.NoCache(check)
     env.Depends(
-        "$BUILD_DIR/${PROGNAME}.elf",
+        check,
         [
             str(checker),
             str(policy),
             str(lock),
+            str(dynamic_lock),
             env.Value(mode),
             str(project / "scripts/check_rust_ports_build.py"),
         ],
     )
-    env.AddPreAction(
-        "$BUILD_DIR/${PROGNAME}.elf",
-        env.VerboseAction(check_ports, "Checking native Rust ports"),
-    )
+    # Order-only dependency: validation also runs when ELF is current or cached.
+    env.Requires(program, check)
+    env.Alias("buildprog", check)

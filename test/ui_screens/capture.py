@@ -27,6 +27,29 @@ def records(path):
     return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
 
+def activity_at(console, timestamp):
+    """Track live activity instances; returning parents do not log another enter."""
+    active = []
+    for row in console:
+        if row['t'] > timestamp:
+            break
+        line = row['line']
+        if line.startswith('ESP-ROM:'):
+            active.clear()
+        match = re.search(r'(Entering|Exiting) activity: (.+)', line)
+        if not match:
+            continue
+        action, name = match.groups()
+        if action == 'Entering':
+            active.append(name)
+        elif name in active:
+            # Replacement can destroy a suspended parent before its child.
+            del active[len(active) - 1 - active[::-1].index(name)]
+        else:
+            raise ValueError(f'Activity exit without enter at {row["t"]}: {name}')
+    return active[-1] if active else None
+
+
 def steps_for(group, machine):
     steps = [] if group.get('boot') else ['ready']
     for screen in group['screens']:
@@ -68,21 +91,7 @@ def summarize(run, group, machine):
                 before['t'] <= r['t'] <= shot['t'] and 'Entering deep sleep' in r['line'] for r in console):
             raise RuntimeError(f'{run}/{sid}: sleep completion missing before capture')
         logs = [r['line'] for r in console if before['t'] <= r['t'] <= after['t']]
-        activity = None
-        stack = []
-        for r in console:
-            if r['t'] > shot['t']:
-                break
-            match = re.search(r'Entering activity: (.+)', r['line'])
-            if match:
-                activity = match[1]
-            if 'Pushed to activity stack' in r['line']:
-                stack.append(activity)
-            if 'Popped from activity stack' in r['line']:
-                activity = stack.pop()
-            exited = re.search(r'Exiting activity: (.+)', r['line'])
-            if exited and stack and stack[-1] == exited[1]:
-                stack.pop()
+        activity = activity_at(console, shot['t'])
         refresh = []
         controller_modes = []
         controller_logs = logs

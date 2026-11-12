@@ -13,6 +13,13 @@ pixel and recorded refresh transition. It uses eink-qemu button injection,
 synthetic SD-card contents, and a fixed RTC. It never opens a serial device,
 flashes firmware, or contacts a real access point.
 
+Activity checks follow matching enter/exit logs, including returns to a parent
+that does not emit another enter. Historical push/pop messages are redundant;
+they must not restore the parent twice. Repeated activity names represent
+separate instances, and a ROM restart clears the prior lifecycle. The retained
+Clock return trace in `activity_return_trace.json` tests the former stale-name
+failure without rerunning the emulator or changing a golden.
+
 The baseline is firmware `539ebafcadd233bf11c68cdeb05c24454bdab22a`, with FreeInk
 SDK `37d272d42732c31065ebed4d9cb90cef7bfa7416`. The Phase 9 evidence lives outside
 the repository in `crosspoint-evidence/riir-round-2026-10/p9-o2/`.

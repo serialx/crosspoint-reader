@@ -2,7 +2,7 @@
 
 CrossPoint runs on touch devices (Seeed Sticky, M5Paper, M5Stack PaperMono, LilyGo T5, Xteink X4 Pro) alongside the button-only Xteink X3/X4. Every screen must work with both input styles.
 
-New screens use the [Rust UI runtime](rust-ui.md). Rust owns state, layout and input policy; the Rust application owns navigation. Legacy `RustActivityAdapter` facades retain resource bindings and publication for their screens. Home, the keyboard, Wi-Fi selection, the EPUB session and its Menu, Chapters, Percent and QR children have direct Rust owners; the session also owns Toolbar. Use the existing family host when it fits the screen. Rust-owned screens paint through the direct Rust scene entry; native-origin screens enter the same renderer through `xp_ui_render`. FreeInkUI still supplies shared resource painters and supports remaining C++ surfaces.
+New screens use the [Rust UI runtime](rust-ui.md). Rust owns state, layout and input policy; the Rust application owns navigation. Legacy `RustActivityAdapter` facades retain resource bindings and publication for their screens. Home, the keyboard, Wi-Fi selection, the EPUB session and its Menu, Chapters, Percent, QR, Bookmarks, Clippings, clipping selection, dictionary lookup/Definition and Footnote children have direct Rust owners; the session also owns Toolbar. Use the existing family host when it fits the screen. Rust-owned screens paint through the direct Rust scene entry; native-origin screens enter the same renderer through `xp_ui_render`. FreeInkUI still supplies shared resource painters and supports remaining C++ surfaces.
 
 ## Picking the right host
 

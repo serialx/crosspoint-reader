@@ -321,8 +321,8 @@ exports and physical drawing services for as long as their callers remain.
 
 ## Drawing and resources
 
-Rust-owned screens call `app::scene::paint` directly. It borrows the current
-`XpPageTarget` and clear/text services through `xp_native_render_target`, then
+In shipping builds, Rust-owned screens call `app::scene::paint` directly. It
+borrows the current `XpPageTarget` and clear/text services through `xp_native_render_target`, then
 calls `xp_ui::ffi::render` in Rust. The shipping `XpAppResources` table has no
 `paint_scene` callback. Native-origin screens use `GfxRenderer::drawUiScene` and
 `xp_ui_render` to enter the same renderer.
@@ -352,10 +352,11 @@ existing SDK text-box service. XTC hint labels also reuse its existing font
 layout helper. These services remain C++ facades over the existing Rust text
 code; there is no second font or line-breaking engine. This is an intermediate
 migration: inherited SDK component/measurement calls into Rust remain, with
-retirement owner **SDK interface (future)**. Application text/chrome policy is
-not moved by the direct scene entry. The EPUB page status bar uses a separate
-render path, so removing the scene round trip does not remove warm-turn status
-work.
+retirement owner **SDK interface (future)**, until a separately qualified
+interface can consume prepared geometry/text without Rust callbacks. Application
+text/chrome policy is not moved by the direct scene entry. The EPUB page status
+bar uses a separate render path, so removing the scene round trip does not
+remove warm-turn status work.
 
 Resource commands hold a handle and generation. The owner validates every
 resource before the first pixel changes, then paints it synchronously. A

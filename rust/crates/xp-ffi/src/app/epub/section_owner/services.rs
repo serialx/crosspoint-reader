@@ -38,10 +38,6 @@ use xp_core::{
 pub(super) struct Fonts {
     pub metrics: &'static Metrics,
     pub allocator: &'static Allocator,
-    pub variant: unsafe extern "C" fn(i32, f32) -> i32,
-    pub line_height: unsafe extern "C" fn(i32, f32) -> i32,
-    pub ready: unsafe extern "C" fn(i32, i32) -> i32,
-    pub codepoint: unsafe extern "C" fn(i32, u32, u8, *mut i32, *mut i32) -> u8,
 }
 
 #[derive(Clone, Copy)]
@@ -235,15 +231,26 @@ unsafe impl ReaderServices for BuildServices {
                 return result;
             }
         }
-        unsafe { (self.fonts.variant)(font, scale) }
+        unsafe {
+            self.leaves
+                .font_variant(self.resources.font_owner, font, scale)
+        }
     }
     fn line_height(&self, font: i32, compression: f32) -> i32 {
-        unsafe { (self.fonts.line_height)(font, compression) }
+        #[cfg(feature = "app-test")]
+        {
+            unsafe { (self.leaves.font_line_height)(font, compression) }
+        }
+        #[cfg(not(feature = "app-test"))]
+        {
+            (unsafe { self.resources.line_height(font) } as f32 * compression + 0.5) as i32
+        }
     }
     fn codepoint(&self, font: i32, codepoint: u32, style: u8) -> Option<(i32, i32)> {
-        let (mut advance, mut top) = (0, 0);
-        (unsafe { (self.fonts.codepoint)(font, codepoint, style, &mut advance, &mut top) } != 0)
-            .then_some((advance, top))
+        unsafe {
+            self.leaves
+                .font_codepoint(self.resources.font_owner, font, codepoint, style)
+        }
     }
     fn font_ready(&self, font: i32, fallback: i32) -> i32 {
         #[cfg(feature = "sd-font-catalog")]
@@ -256,7 +263,10 @@ unsafe impl ReaderServices for BuildServices {
                 return result;
             }
         }
-        unsafe { (self.fonts.ready)(font, fallback) }
+        unsafe {
+            self.leaves
+                .font_ready(self.resources.font_owner, font, fallback)
+        }
     }
     fn complete(&self, bytes: &[u8], position: Position) -> assembly::Result {
         // Reserve before writing/publishing. A failed write still records its zero offset.

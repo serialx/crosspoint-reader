@@ -13,6 +13,10 @@
 #include <Epub/hyphenation/Hyphenator.h>
 #include <FontCacheManager.h>
 #include <GfxRenderer.h>
+
+#if !defined(XP_APP_TEST) && !defined(XP_NATIVE_TEXT_MEASUREMENT)
+#error "Firmware requires the direct Rust text provider"
+#endif
 #include <HalClock.h>
 #include <HalDisplay.h>
 #include <HalGPIO.h>
@@ -276,7 +280,7 @@ XpParaMetrics sectionMetrics{
 #endif
     nullptr,
     nullptr,
-#else
+#elif defined(XP_APP_TEST)
     textAdvance,
     [](void* c, int32_t f, uint8_t s) -> int32_t {
       return sectionRenderer(c).getSpaceWidth(f, static_cast<EpdFontFamily::Style>(s));
@@ -299,7 +303,7 @@ XpParaMetrics sectionMetrics{
 #else
     xp_font_registry_provider,
 #endif
-#else
+#elif defined(XP_APP_TEST)
     nullptr,
 #endif
     nullptr};
@@ -855,9 +859,11 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
                 break;
             }
           },
+#ifdef XP_APP_TEST
       .font_text_advance = [](XpAppText value, int32_t font, uint8_t style, int8_t spacing) -> int32_t {
         return target->getTextAdvanceX(font, pathText(value), static_cast<EpdFontFamily::Style>(style), spacing);
       },
+#endif
       .log_enabled = [](uint8_t severity) -> uint8_t {
 #ifdef ENABLE_SERIAL_LOG
         switch (severity) {
@@ -884,6 +890,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
                             uint32_t bytes) { InflateStream::logAllocationFailure(pathText(allocation), bytes); },
       .build_metrics = []() -> const XpParaMetrics* { return &sectionMetrics; },
       .build_allocator = paragraphAllocator,
+#if defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
       .font_variant = [](int32_t font, float scale) -> int32_t {
 #if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
         return target->resolveNonSdFontVariant(font, scale);
@@ -891,9 +898,13 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         return target->resolveFontVariant(font, scale);
 #endif
       },
+#endif
+#ifdef XP_APP_TEST
       .font_line_height = [](int32_t font, float compression) -> int32_t {
         return target->getLineHeight(font, compression);
       },
+#endif
+#if defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
       .font_ready = [](int32_t font, int32_t fallback) -> int32_t {
 #if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
         return font == fallback || target->ensureNonSdFontLoaded(font) ? font : fallback;
@@ -901,6 +912,8 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         return font == fallback || target->ensureFontLoaded(font) ? font : fallback;
 #endif
       },
+#endif
+#ifdef XP_APP_TEST
       .font_codepoint = [](int32_t font, uint32_t codepoint, uint8_t style, int32_t* advance, int32_t* top) -> uint8_t {
         int32_t measuredAdvance = 0;
         int measuredTop = 0;
@@ -910,10 +923,15 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         *top = measuredTop;
         return found;
       },
+#endif
+#ifdef XP_APP_TEST
       .hyphen_language = [](XpAppText language) -> int32_t {
         Hyphenator::setPreferredLanguage(owned(language));
         return Hyphenator::preferredLanguageId();
       },
+#else
+      .hyphen_language = Hyphenator::setPreferredLanguageId,
+#endif
       .file_position = [](void* file) -> uint32_t { return static_cast<HalFile*>(file)->position(); },
       .file_flush = [](void* file) { static_cast<HalFile*>(file)->flush(); },
       .image_supported = [](XpAppText path) -> uint8_t {
@@ -941,7 +959,9 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
             }
           },
       .image_needs_decode = epubPage::imageNeedsDecode,
+#ifdef XP_APP_TEST
       .font_ascent = [](int32_t font) -> int32_t { return epubPage::fontAscent(*target, font); },
+#endif
       .render_physical_query = [](uint8_t query) -> uint32_t { return physicalRenderQuery(*target, query); },
       .render_physical_operation = [](const XpEpubPhysicalOp* op) -> uint32_t {
         return physicalRenderOperation(*target, *op);
@@ -1069,7 +1089,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       },
   };
   if (!sectionMetrics.context) {
-#if defined(XP_NATIVE_TEXT_MEASUREMENT) && !defined(XP_APP_TEST)
+#ifndef XP_APP_TEST
     sectionMetrics.context = const_cast<XpLoadedFonts*>(target->getFontMap().raw());
 #else
     sectionMetrics.context = target;

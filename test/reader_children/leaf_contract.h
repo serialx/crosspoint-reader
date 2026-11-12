@@ -13,7 +13,9 @@
 #ifdef XP_APP_TEST
 #define FONT_LEAF_INDEX(index) (index)
 #else
-#define FONT_LEAF_INDEX(index) ((index) - ((index) >= 28 ? 4 : 0) - ((index) >= 137 ? 1 : 0) - ((index) >= 138 ? 1 : 0))
+#define FONT_LEAF_INDEX(index)                                                                                         \
+  ((index) - ((index) >= 28 ? 4 : 0) - ((index) >= 137 ? 1 : 0) - ((index) >= 138 ? 1 : 0) - ((index) > 102 ? 1 : 0) - \
+   ((index) > 113 ? 1 : 0) - ((index) > 115 ? 1 : 0) - ((index) > 124 ? 1 : 0))
 #endif
 
 typedef void (*ChildTheme)(XpUiReaderTheme*, XpUiReaderThemeFacts*, uint8_t);

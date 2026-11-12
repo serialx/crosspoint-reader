@@ -305,10 +305,6 @@ impl ReaderSection {
             fonts: Fonts {
                 metrics: unsafe { &*(leaves.build_metrics)() },
                 allocator: unsafe { &*(leaves.build_allocator)() },
-                variant: leaves.font_variant,
-                line_height: leaves.font_line_height,
-                ready: leaves.font_ready,
-                codepoint: leaves.font_codepoint,
             },
             image: Physical {
                 supported: leaves.image_supported,
@@ -383,7 +379,7 @@ impl ReaderSection {
                 .output(|file| cleanup(&build.services().paths, file, leaves, !reused));
             return false;
         };
-        build.configure(toc, unsafe { (leaves.hyphen_language)(language.wire()) });
+        build.configure(toc, unsafe { leaves.hyphen_language(language.wire()) });
         drop(language);
         // Publish ownership before begin: begin failure follows abandon, including old-cache removal.
         unsafe {

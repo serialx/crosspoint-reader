@@ -319,6 +319,12 @@ typedef struct {
   int32_t year, month, day, weekday, hour, minute;
 } XpEpubCalendar;
 
+#ifdef XP_APP_TEST
+typedef int32_t (*XpEpubHyphenLanguage)(XpAppText language);
+#else
+typedef void (*XpEpubHyphenLanguage)(int32_t language);
+#endif
+
 typedef struct XpEpubLeaves {
   void (*render_margins)(int32_t* margins);
   void (*render_geometry)(XpEpubGeometry* out);
@@ -462,7 +468,9 @@ typedef struct XpEpubLeaves {
   void (*emit_exit)(XpAppText path, int32_t percent);
   void (*emit_session)(XpAppText path, XpAppText document, const XpEpubSessionEvent* event);
   void (*log)(uint8_t severity, XpAppText origin, XpAppText message);
+#ifdef XP_APP_TEST
   int32_t (*font_text_advance)(XpAppText text, int32_t font, uint8_t style, int8_t character_spacing);
+#endif
   uint8_t (*log_enabled)(uint8_t severity);
   void (*input_snapshot)(XpUiInput* out);
   // Lock order: ResourceAccess, cache, Storage.
@@ -474,12 +482,20 @@ typedef struct XpEpubLeaves {
   // Physical layout tables have process lifetime and never borrow a chapter owner.
   const XpParaMetrics* (*build_metrics)(void);
   const XpParaAllocator* (*build_allocator)(void);
+#if defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
   int32_t (*font_variant)(int32_t font, float scale);
+#endif
+#ifdef XP_APP_TEST
   int32_t (*font_line_height)(int32_t font, float compression);
+#endif
+#if defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
   int32_t (*font_ready)(int32_t font, int32_t fallback);
+#endif
+#ifdef XP_APP_TEST
   uint8_t (*font_codepoint)(int32_t font, uint32_t codepoint, uint8_t style, int32_t* advance, int32_t* top);
+#endif
   // Preserve the hint observed by retained native dictionary/paragraph clients.
-  int32_t (*hyphen_language)(XpAppText language);
+  XpEpubHyphenLanguage hyphen_language;
   uint32_t (*file_position)(void* file);
   void (*file_flush)(void* file);
   uint8_t (*image_supported)(XpAppText path);
@@ -490,7 +506,9 @@ typedef struct XpEpubLeaves {
   void (*framebuffer_restore)(uint8_t owned);
   // Image readiness checks the decoded-cache state.
   uint8_t (*image_needs_decode)(XpAppText path, XpAppText source, int16_t width, int16_t height);
+#ifdef XP_APP_TEST
   int32_t (*font_ascent)(int32_t font);
+#endif
   uint32_t (*render_physical_query)(uint8_t query);
   uint32_t (*render_physical_operation)(const XpEpubPhysicalOp* operation);
   // Window/source pointers remain borrowed only until explicit detach.
@@ -605,16 +623,20 @@ XP_EPUB_ASSERT(offsetof(XpEpubPeer, addr) == 64, "XpEpubPeer.addr");
   ((index) + ((index) >= 24 ? 4 : 0) + ((index) >= 132 ? 1 : 0) - ((index) >= 26 ? 1 : 0))
 #define XP_EPUB_LEAF_COUNT 167
 #else
-#define XP_EPUB_LEAF_INDEX(index) ((index) - ((index) >= 26 ? 1 : 0) - ((index) >= 133 ? 1 : 0))
-#define XP_EPUB_LEAF_COUNT 161
+#define XP_EPUB_LEAF_INDEX(index)                                                                                    \
+  ((index) - ((index) >= 26 ? 1 : 0) - ((index) >= 133 ? 1 : 0) - ((index) > 98 ? 1 : 0) - ((index) > 108 ? 1 : 0) - \
+   ((index) > 109 ? 1 : 0) - ((index) > 110 ? 1 : 0) - ((index) > 111 ? 1 : 0) - ((index) > 120 ? 1 : 0))
+#define XP_EPUB_LEAF_COUNT 155
 #endif
 #else
 #ifdef XP_APP_TEST
 #define XP_EPUB_LEAF_INDEX(index) ((index) + ((index) >= 24 ? 4 : 0) + ((index) >= 132 ? 1 : 0))
 #define XP_EPUB_LEAF_COUNT 168
 #else
-#define XP_EPUB_LEAF_INDEX(index) ((index) - ((index) >= 133 ? 1 : 0))
-#define XP_EPUB_LEAF_COUNT 162
+#define XP_EPUB_LEAF_INDEX(index)                                                                                    \
+  ((index) - ((index) >= 133 ? 1 : 0) - ((index) > 98 ? 1 : 0) - ((index) > 109 ? 1 : 0) - ((index) > 111 ? 1 : 0) - \
+   ((index) > 120 ? 1 : 0))
+#define XP_EPUB_LEAF_COUNT 158
 #endif
 #endif
 XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == XP_EPUB_LEAF_COUNT * sizeof(void (*)(void)), "XpEpubLeaves size");
@@ -760,7 +782,9 @@ XP_EPUB_LEAF_OFFSET(emit_open, 94);
 XP_EPUB_LEAF_OFFSET(emit_exit, 95);
 XP_EPUB_LEAF_OFFSET(emit_session, 96);
 XP_EPUB_LEAF_OFFSET(log, 97);
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(font_text_advance, 98);
+#endif
 XP_EPUB_LEAF_OFFSET(log_enabled, 99);
 XP_EPUB_LEAF_OFFSET(input_snapshot, 100);
 XP_EPUB_LEAF_OFFSET(cache_lock, 101);
@@ -770,10 +794,18 @@ XP_EPUB_LEAF_OFFSET(scratch_release, 104);
 XP_EPUB_LEAF_OFFSET(inflate_oom_log, 105);
 XP_EPUB_LEAF_OFFSET(build_metrics, 106);
 XP_EPUB_LEAF_OFFSET(build_allocator, 107);
+#if defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
 XP_EPUB_LEAF_OFFSET(font_variant, 108);
+#endif
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(font_line_height, 109);
+#endif
+#if defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
 XP_EPUB_LEAF_OFFSET(font_ready, 110);
+#endif
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(font_codepoint, 111);
+#endif
 XP_EPUB_LEAF_OFFSET(hyphen_language, 112);
 XP_EPUB_LEAF_OFFSET(file_position, 113);
 XP_EPUB_LEAF_OFFSET(file_flush, 114);
@@ -782,7 +814,9 @@ XP_EPUB_LEAF_OFFSET(image_dimensions, 116);
 XP_EPUB_LEAF_OFFSET(framebuffer_lend, 117);
 XP_EPUB_LEAF_OFFSET(framebuffer_restore, 118);
 XP_EPUB_LEAF_OFFSET(image_needs_decode, 119);
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(font_ascent, 120);
+#endif
 XP_EPUB_LEAF_OFFSET(render_physical_query, 121);
 XP_EPUB_LEAF_OFFSET(render_physical_operation, 122);
 XP_EPUB_LEAF_OFFSET(image_read_window, 123);
@@ -860,10 +894,12 @@ _Static_assert(_Generic(((XpEpubLeaves*)0)->end_input,
 _Static_assert(_Generic(((XpEpubLeaves*)0)->recents_add, void (*)(const XpAppBook*): 1, default: 0),
                "XpEpubLeaves.recents_add signature");
 #endif
+#ifdef XP_APP_TEST
 _Static_assert(_Generic(((XpEpubLeaves*)0)->font_text_advance,
                    int32_t (*)(XpAppText, int32_t, uint8_t, int8_t): 1,
                    default: 0),
                "XpEpubLeaves.font_text_advance signature");
+#endif
 #endif
 
 #ifndef __cplusplus

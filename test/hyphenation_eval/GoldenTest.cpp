@@ -68,6 +68,15 @@ TEST(HyphenationGolden, ExactCppOutputs) {
     ASSERT_EQ(index, count % words.size());
     Hyphenator::setPreferredLanguage(tag == "-" ? "" : tag);
     const auto actual = Hyphenator::breakOffsets(words[index], fallback != 0);
+    const std::string language = tag == "-" ? "" : tag;
+    Hyphenator::setPreferredLanguageId(
+        xp_hyphen_language(reinterpret_cast<const uint8_t*>(language.data()), language.size()));
+    const auto mirrored = Hyphenator::breakOffsets(words[index], fallback != 0);
+    ASSERT_EQ(mirrored.size(), actual.size());
+    for (size_t i = 0; i < actual.size(); ++i) {
+      EXPECT_EQ(mirrored[i].byteOffset, actual[i].byteOffset);
+      EXPECT_EQ(mirrored[i].requiresInsertedHyphen, actual[i].requiresInsertedHyphen);
+    }
     std::ostringstream result;
     result << tag << ' ' << fallback << ' ' << index;
     for (const auto& br : actual) result << ' ' << br.byteOffset << ':' << br.requiresInsertedHyphen;

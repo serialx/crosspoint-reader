@@ -1,6 +1,10 @@
 #include <BidiUtils.h>
 #include <FsHelpers.h>
 #include <GfxRenderer.h>
+
+#if !defined(XP_APP_TEST) && !defined(XP_NATIVE_TEXT_MEASUREMENT)
+#error "Firmware requires the direct Rust text provider"
+#endif
 #include <HalStorage.h>
 #include <Logging.h>
 #include <Memory.h>
@@ -424,7 +428,7 @@ const XpParaMetrics ChapterPageAssembler::metrics_{
 #endif
     nullptr,
     nullptr,
-#else
+#elif defined(XP_APP_TEST)
     textAdvance,
     [](void* c, int32_t f, uint8_t s) -> int32_t {
       return metricRenderer(c).getSpaceWidth(f, static_cast<EpdFontFamily::Style>(s));
@@ -443,7 +447,7 @@ const XpParaMetrics ChapterPageAssembler::metrics_{
 #endif
 #ifdef XP_NATIVE_TEXT_MEASUREMENT
     [](const void* ctx) -> XpNativeProvider { return metricRenderer(const_cast<void*>(ctx)).textProvider(); },
-#else
+#elif defined(XP_APP_TEST)
     nullptr,
 #endif
     nullptr};
@@ -469,7 +473,7 @@ const XpChapterSink ChapterPageAssembler::sink_ = {
     },
 #ifdef XP_NATIVE_TEXT_MEASUREMENT
     nullptr,
-#else
+#elif defined(XP_APP_TEST)
     [](void* ctx, int32_t font, uint32_t cp, uint8_t style, int32_t* advance, int32_t* top) -> uint8_t {
       int32_t measuredAdvance = 0;
       int measuredTop = 0;

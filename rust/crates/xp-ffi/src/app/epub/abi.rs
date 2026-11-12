@@ -551,6 +551,7 @@ pub struct XpEpubLeaves {
         event: *const XpEpubSessionEvent,
     ),
     pub log: unsafe extern "C" fn(severity: u8, origin: XpAppText, message: XpAppText),
+    #[cfg(feature = "app-test")]
     pub font_text_advance:
         unsafe extern "C" fn(text: XpAppText, font: i32, style: u8, character_spacing: i8) -> i32,
     pub log_enabled: unsafe extern "C" fn(severity: u8) -> u8,
@@ -562,11 +563,18 @@ pub struct XpEpubLeaves {
     pub inflate_oom_log: unsafe extern "C" fn(allocation: XpAppText, bytes: u32),
     pub build_metrics: unsafe extern "C" fn() -> *const xp_core::para::paragraph::Metrics,
     pub build_allocator: unsafe extern "C" fn() -> *const xp_core::para::Allocator,
+    #[cfg(any(feature = "app-test", not(feature = "sd-font-catalog")))]
     pub font_variant: unsafe extern "C" fn(i32, f32) -> i32,
+    #[cfg(feature = "app-test")]
     pub font_line_height: unsafe extern "C" fn(i32, f32) -> i32,
+    #[cfg(any(feature = "app-test", not(feature = "sd-font-catalog")))]
     pub font_ready: unsafe extern "C" fn(i32, i32) -> i32,
+    #[cfg(feature = "app-test")]
     pub font_codepoint: unsafe extern "C" fn(i32, u32, u8, *mut i32, *mut i32) -> u8,
+    #[cfg(feature = "app-test")]
     pub hyphen_language: unsafe extern "C" fn(XpAppText) -> i32,
+    #[cfg(not(feature = "app-test"))]
+    pub hyphen_language: unsafe extern "C" fn(i32),
     pub file_position: unsafe extern "C" fn(*mut core::ffi::c_void) -> u32,
     pub file_flush: unsafe extern "C" fn(*mut core::ffi::c_void),
     pub image_supported: unsafe extern "C" fn(XpAppText) -> u8,
@@ -574,6 +582,7 @@ pub struct XpEpubLeaves {
     pub framebuffer_lend: unsafe extern "C" fn() -> u8,
     pub framebuffer_restore: unsafe extern "C" fn(u8),
     pub image_needs_decode: unsafe extern "C" fn(XpAppText, XpAppText, i16, i16) -> u8,
+    #[cfg(feature = "app-test")]
     pub font_ascent: unsafe extern "C" fn(i32) -> i32,
     pub render_physical_query: unsafe extern "C" fn(u8) -> u32,
     pub render_physical_operation:
@@ -616,6 +625,7 @@ const _: () = {
         core::mem::offset_of!(XpEpubLeaves, log)
             == leaf_index(101) * core::mem::size_of::<unsafe extern "C" fn()>()
     );
+    #[cfg(feature = "app-test")]
     assert!(
         core::mem::offset_of!(XpEpubLeaves, font_text_advance)
             == leaf_index(102) * core::mem::size_of::<unsafe extern "C" fn()>()
@@ -630,6 +640,7 @@ const _: fn(&XpEpubLeaves) = |leaves| {
     ) = leaves.end_input;
     #[cfg(feature = "app-test")]
     let _: unsafe extern "C" fn(*const app_abi::Book) = leaves.recents_add;
+    #[cfg(feature = "app-test")]
     let _: unsafe extern "C" fn(XpAppText, i32, u8, i8) -> i32 = leaves.font_text_advance;
 };
 
@@ -912,6 +923,7 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, emit_exit) == leaf_index(99) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, emit_session) == leaf_index(100) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, log) == leaf_index(101) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, font_text_advance) == leaf_index(102) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, log_enabled) == leaf_index(103) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, input_snapshot) == leaf_index(104) * pointer);
@@ -922,9 +934,13 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, inflate_oom_log) == leaf_index(109) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, build_metrics) == leaf_index(110) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, build_allocator) == leaf_index(111) * pointer);
+    #[cfg(any(feature = "app-test", not(feature = "sd-font-catalog")))]
     assert!(core::mem::offset_of!(XpEpubLeaves, font_variant) == leaf_index(112) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, font_line_height) == leaf_index(113) * pointer);
+    #[cfg(any(feature = "app-test", not(feature = "sd-font-catalog")))]
     assert!(core::mem::offset_of!(XpEpubLeaves, font_ready) == leaf_index(114) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, font_codepoint) == leaf_index(115) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, hyphen_language) == leaf_index(116) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, file_position) == leaf_index(117) * pointer);
@@ -934,6 +950,7 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, framebuffer_lend) == leaf_index(121) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, framebuffer_restore) == leaf_index(122) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, image_needs_decode) == leaf_index(123) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, font_ascent) == leaf_index(124) * pointer);
     assert!(
         core::mem::offset_of!(XpEpubLeaves, render_physical_query) == leaf_index(125) * pointer
@@ -964,7 +981,7 @@ const _: () = assert!(
         == leaf_index(138) * core::mem::size_of::<usize>()
 );
 
-// The five native policy slots exist only for frozen host oracle fixtures.
+// Host oracle fixtures retain their native policy and metric callbacks.
 const fn leaf_index(index: usize) -> usize {
     if cfg!(feature = "app-test") {
         index
@@ -976,6 +993,20 @@ const fn leaf_index(index: usize) -> usize {
     } else {
         index
             - if index >= 28 { 4 } else { 0 }
+            - if index > 102 { 1 } else { 0 }
+            - if index > 113 { 1 } else { 0 }
+            - if index > 115 { 1 } else { 0 }
+            - if index > 124 { 1 } else { 0 }
+            - if cfg!(feature = "sd-font-catalog") && index > 112 {
+                1
+            } else {
+                0
+            }
+            - if cfg!(feature = "sd-font-catalog") && index > 114 {
+                1
+            } else {
+                0
+            }
             - if index >= 137 { 1 } else { 0 }
             - if index >= 138 { 1 } else { 0 }
             - if cfg!(feature = "sd-font-catalog") && index >= 30 {

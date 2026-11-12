@@ -33,12 +33,19 @@ impl ClipPage<'_, '_> {
         self.page.word(element, index)
     }
     fn word_font(&self, element: u16, index: u16, base: i32) -> i32 {
-        self.page.word_font(self.owner.leaves, element, index, base)
+        self.page.word_font(
+            self.owner.leaves,
+            self.owner.resources.font_owner,
+            element,
+            index,
+            base,
+        )
     }
 
     fn width(&self, word: &abi::XpEpubWord, font: i32) -> i32 {
         unsafe {
-            (self.owner.leaves.font_text_advance)(
+            self.owner.leaves.font_text_advance(
+                self.owner.resources.font_owner,
                 word.text,
                 font,
                 word.style & !UNDERLINE,
@@ -64,7 +71,8 @@ impl ClipPage<'_, '_> {
         let text = unsafe { word.text.bytes() }.unwrap_or_default();
         let skip = if text.starts_with(EM_SPACE) {
             unsafe {
-                (self.owner.leaves.font_text_advance)(
+                self.owner.leaves.font_text_advance(
+                    self.owner.resources.font_owner,
                     app_abi::Text::from_terminated(EM_SPACE_C),
                     font,
                     word.style & !UNDERLINE,
@@ -81,15 +89,29 @@ impl ClipPage<'_, '_> {
                 width = width.min(next.wrapping_sub(word.x).wrapping_sub(skip));
             }
         }
-        let line_font = self.page.line_font(self.owner.leaves, element, base);
+        let line_font = self.page.line_font(
+            self.owner.leaves,
+            self.owner.resources.font_owner,
+            element,
+            base,
+        );
         let x = left
             .wrapping_add(line.x)
             .wrapping_add(word.x)
             .wrapping_add(skip);
-        let ruby = self.page.ruby_shift(self.owner.leaves, element, line_font);
-        let offset = self
-            .page
-            .word_y_offset(self.owner.leaves, element, index, base);
+        let ruby = self.page.ruby_shift(
+            self.owner.leaves,
+            self.owner.resources.font_owner,
+            element,
+            line_font,
+        );
+        let offset = self.page.word_y_offset(
+            self.owner.leaves,
+            self.owner.resources.font_owner,
+            element,
+            index,
+            base,
+        );
         let y = top
             .wrapping_add(line.y)
             .wrapping_add(ruby)

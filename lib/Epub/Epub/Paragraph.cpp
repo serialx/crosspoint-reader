@@ -2,6 +2,10 @@
 
 #include <BidiUtils.h>
 #include <GfxRenderer.h>
+
+#if !defined(XP_APP_TEST) && !defined(XP_NATIVE_TEXT_MEASUREMENT)
+#error "Firmware requires the direct Rust text provider"
+#endif
 #include <Logging.h>
 #include <Memory.h>
 #include <MemoryManager.h>
@@ -181,7 +185,7 @@ void Paragraph::layoutLines(const GfxRenderer& source, int fontId, uint16_t view
 #endif
       nullptr,
       nullptr,
-#else
+#elif defined(XP_APP_TEST)
       advance,
       [](void* c, int32_t f, uint8_t s) -> int32_t {
         return renderer(c).getSpaceWidth(f, static_cast<EpdFontFamily::Style>(s));
@@ -204,7 +208,7 @@ void Paragraph::layoutLines(const GfxRenderer& source, int fontId, uint16_t view
 #else
       xp_font_registry_provider,
 #endif
-#else
+#elif defined(XP_APP_TEST)
       nullptr,
 #endif
       nullptr};

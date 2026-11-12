@@ -118,6 +118,31 @@ fn generate_bidi_workspace_contract() {
     fs::write(out.join("bidi_workspace.rs"), output).expect("write bidi workspace contract");
 }
 
+fn generate_builtin_font_ids() {
+    let header = "../../../src/fontIds.h";
+    println!("cargo:rerun-if-changed={header}");
+    let source = fs::read_to_string(header).expect("read builtin font IDs");
+    let ids: Vec<i32> = [12, 14, 16, 18]
+        .iter()
+        .map(|size| {
+            let prefix = format!("#define NOTOSANS_{size}_FONT_ID (");
+            source
+                .lines()
+                .find_map(|line| line.strip_prefix(&prefix))
+                .and_then(|value| value.strip_suffix(')'))
+                .expect("builtin font ID")
+                .parse()
+                .expect("font ID integer")
+        })
+        .collect();
+    let out = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo OUT_DIR"));
+    fs::write(
+        out.join("builtin_font_ids.rs"),
+        format!("const BUILTIN_FONT_IDS: [i32; 4] = {ids:?};"),
+    )
+    .expect("write builtin font IDs");
+}
+
 fn main() {
     check_book_constants();
     if std::env::args().any(|arg| arg == "--write-header") {
@@ -125,4 +150,5 @@ fn main() {
     }
     generate_plugin_contract();
     generate_bidi_workspace_contract();
+    generate_builtin_font_ids();
 }

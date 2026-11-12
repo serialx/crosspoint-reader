@@ -13,6 +13,7 @@ mod child;
 mod child_result;
 pub(super) mod children;
 mod clipping;
+mod fonts;
 mod guarded;
 mod idle;
 mod lifetime;

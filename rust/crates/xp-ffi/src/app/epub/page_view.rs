@@ -1,3 +1,4 @@
+use super::app_abi::FontOwner;
 #[cfg(feature = "app-test")]
 use super::test_support::legacy_page::LegacyPageServices;
 use super::{abi, app_abi, page_records::*};
@@ -168,6 +169,7 @@ impl<'a> View<'a> {
     pub(super) fn word_font(
         self,
         leaves: &abi::XpEpubLeaves,
+        owner: FontOwner,
         element: u16,
         index: u16,
         base: i32,
@@ -181,24 +183,36 @@ impl<'a> View<'a> {
             .word(index, base)
             .expect("validated word")
             .font;
-        unsafe { (leaves.font_ready)(font, base) }
+        unsafe { leaves.font_ready(owner, font, base) }
     }
 
-    pub(super) fn line_font(self, leaves: &abi::XpEpubLeaves, element: u16, base: i32) -> i32 {
+    pub(super) fn line_font(
+        self,
+        leaves: &abi::XpEpubLeaves,
+        owner: FontOwner,
+        element: u16,
+        base: i32,
+    ) -> i32 {
         #[cfg(feature = "app-test")]
         if let Self::Legacy(raw, services) = self {
             return unsafe { (services.page_line_font)(raw.as_ptr(), element, base) };
         }
         let font = self.line(element).block_font(base).expect("validated font");
-        unsafe { (leaves.font_ready)(font, base) }
+        unsafe { leaves.font_ready(owner, font, base) }
     }
 
-    pub(super) fn ruby_shift(self, leaves: &abi::XpEpubLeaves, element: u16, font: i32) -> i32 {
+    pub(super) fn ruby_shift(
+        self,
+        leaves: &abi::XpEpubLeaves,
+        owner: FontOwner,
+        element: u16,
+        font: i32,
+    ) -> i32 {
         #[cfg(feature = "app-test")]
         if let Self::Legacy(raw, services) = self {
             return unsafe { (services.page_line_ruby_shift)(raw.as_ptr(), element, font) };
         }
-        let ascent = unsafe { (leaves.font_ascent)(font) };
+        let ascent = unsafe { leaves.font_ascent(owner, font) };
         if self.line(element).has_ruby() {
             ascent / 2
         } else {
@@ -209,6 +223,7 @@ impl<'a> View<'a> {
     pub(super) fn word_y_offset(
         self,
         leaves: &abi::XpEpubLeaves,
+        owner: FontOwner,
         element: u16,
         index: u16,
         base: i32,
@@ -221,15 +236,17 @@ impl<'a> View<'a> {
         let Some(fonts) = line.fonts().expect("validated fonts") else {
             return 0;
         };
-        let mut ascent = unsafe { (leaves.font_ascent)(self.line_font(leaves, element, base)) };
+        let mut ascent =
+            unsafe { leaves.font_ascent(owner, self.line_font(leaves, owner, element, base)) };
         for font in fonts {
             if font != 0 {
-                ascent =
-                    ascent.max(unsafe { (leaves.font_ascent)((leaves.font_ready)(font, base)) });
+                ascent = ascent.max(unsafe {
+                    leaves.font_ascent(owner, leaves.font_ready(owner, font, base))
+                });
             }
         }
         ascent.wrapping_sub(unsafe {
-            (leaves.font_ascent)(self.word_font(leaves, element, index, base))
+            leaves.font_ascent(owner, self.word_font(leaves, owner, element, index, base))
         })
     }
 

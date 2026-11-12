@@ -119,13 +119,13 @@ pub unsafe extern "C" fn xp_epub_test_page_query(
         unsafe { text.write(view.word(element, word)) };
     }
     if !metrics.is_null() {
-        let line_font = view.line_font(leaves, element, font);
+        let line_font = view.line_font(leaves, app_abi::FontOwner::NONE, element, font);
         unsafe {
             metrics.write([
                 line_font,
-                view.word_font(leaves, element, word, font),
-                view.word_y_offset(leaves, element, word, font),
-                view.ruby_shift(leaves, element, line_font),
+                view.word_font(leaves, app_abi::FontOwner::NONE, element, word, font),
+                view.word_y_offset(leaves, app_abi::FontOwner::NONE, element, word, font),
+                view.ruby_shift(leaves, app_abi::FontOwner::NONE, element, line_font),
             ])
         };
     }

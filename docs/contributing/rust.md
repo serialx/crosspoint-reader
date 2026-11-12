@@ -898,6 +898,15 @@ Those native wrappers use the shared compile-time workspace constants in
 `xp_ffi.h`; Rust checks them against its actual layout during compilation.
 They do not call Rust for workspace metadata, including on warm reuse.
 
+The EPUB section builder reads line and codepoint metrics directly in Rust.
+Builtin font variant selection and readiness checks use the Rust loaded-font
+registry; clipping advance and selection ascent use the same owner. The build
+script derives builtin IDs from `src/fontIds.h`. Host oracle tables keep their
+metric callbacks behind explicit test guards; firmware without the direct text
+provider fails compilation. Rust selects the publication hyphenation language and mirrors
+only the resulting ID into the existing native cache for chapter/Definition
+clients (R6); this one-way write neither allocates nor calls back into Rust.
+
 The production paragraph metric table points directly to the Rust font provider.
 The legacy chapter/definition table in `ChapterPlatform.cpp` still uses a native
 provider adapter; its removal belongs to R6.

@@ -83,6 +83,14 @@ def popup_class(text):
 
 
 def native_leaf(text, name):
+    if name == "hyphen_language":
+        # Host fixtures keep the text callback; firmware mirrors the Rust-selected ID.
+        start = text.index("#ifdef XP_APP_TEST\n      .hyphen_language =")
+        end = text.index("#endif", start)
+        host, production = text[start:end].split("#else")
+        if production.strip() != ".hyphen_language = Hyphenator::setPreferredLanguageId,":
+            raise ValueError("Hyphen language fixture branch changed")
+        text = text[:start] + host + text[end:]
     matches = list(re.finditer(r'\.' + re.escape(name) + r'\s*=\s*', text))
     if len(matches) != 1:
         raise ValueError('Expected one native initializer: ' + name)

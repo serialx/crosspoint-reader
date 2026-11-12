@@ -476,11 +476,163 @@ class PreventionTests(unittest.TestCase):
 42000004: 0007a783 lw a5,{offset}(a5) # 3c000100 <callbacks+0x8>
 42000008: 9782 jalr a5
 """
-            nodes = guard.parse_disassembly(source, lambda _: "native.cpp.o")
+            symbols = guard.ReferenceSymbols(
+                [("callbacks", 0x3C0000F8, 16, 1)], {"callbacks": "callbacks"}
+            )
+            nodes = guard.parse_disassembly(source, lambda _: "native.cpp.o", symbols)
             return list(guard.site_identities(nodes[0x42000000]))
 
         self.assertEqual(sites(100)[0]["id"], sites(200)[0]["id"])
         self.assertIn("lw[symbol:callbacks+0x8]", sites(100)[0]["pointer_source"])
+
+    def relocation_report(self, data_address, nearby, slot=8):
+        source = f"""42000000 <reader>:
+42000000: 000007b7 lui a5,0x3c000
+42000004: 00078793 addi a5,a5,32 # {data_address:08x} <{nearby}>
+42000008: 0007a783 lw a5,{slot}(a5)
+4200000c: 9782 jalr a5
+"""
+        symbols = guard.ReferenceSymbols(
+            [("terminator.1", 0x3C000000, 8, 1), ("unrelated", 0x3C000080, 4, 1)],
+            {"terminator.1": "terminator.1", "unrelated": "unrelated"},
+        )
+        nodes = guard.parse_disassembly(source, lambda _: "reader.cpp.o", symbols)
+        return guard.analyse(nodes, {"reader": 0x42000000})
+
+    def test_unrelated_symbol_and_anonymous_data_relocation_pass(self):
+        before = self.relocation_report(0x3C000054, "terminator.1+0x54")
+        after = self.relocation_report(0x3C000094, "unrelated+0x14")
+        baseline = {
+            "contract_reason": "Relocation fixture",
+            "sites": {
+                s["id"]: {"reason": "Unknown fixture slot"}
+                for s in before["unresolved_indirect"]
+            },
+            "contracts": before["contracts"],
+        }
+        self.assertEqual(guard.compare_uncertainty(after, baseline), [])
+        self.assertEqual(len(after["unowned_references"]), 1)
+        self.assertNotIn("terminator", before["unresolved_indirect"][0]["id"])
+
+    def test_actual_anonymous_table_slot_change_fails(self):
+        before = self.relocation_report(0x3C000054, "terminator.1+0x54")
+        after = self.relocation_report(0x3C000094, "unrelated+0x14", slot=12)
+        self.assertNotEqual(before["contracts"], after["contracts"])
+        self.assertNotEqual(
+            before["unresolved_indirect"][0]["id"],
+            after["unresolved_indirect"][0]["id"],
+        )
+        baseline = {
+            "contract_reason": "Fixture",
+            "sites": {
+                s["id"]: {"reason": "Fixture slot"}
+                for s in before["unresolved_indirect"]
+            },
+            "contracts": before["contracts"],
+        }
+        self.assertTrue(
+            {"new-unresolved", "stale-unresolved", "changed-contract"}
+            <= {e["kind"] for e in guard.compare_uncertainty(after, baseline)}
+        )
+
+    def test_verified_symbol_field_offset_is_retained(self):
+        symbols = guard.ReferenceSymbols([("ops", 0x3C000000, 16, 1)], {"ops": "ops"})
+        self.assertEqual(symbols.resolve(0x3C000008), "ops+0x8")
+        self.assertEqual(symbols.resolve(0x3C00000C), "ops+0xc")
+        self.assertIsNone(symbols.resolve(0x3C000010))
+
+    def test_split_relocation_reused_without_second_annotation(self):
+        def report(address):
+            source = f"""42000000 <reader>:
+42000000: 000007b7 lui a5,{hex(address >> 12)}
+42000004: 00078693 addi a3,a5,{address & 4095} # {address:08x} <ops>
+42000008: 00000713 li a4,0
+4200000c: 00078793 addi a5,a5,{address & 4095}
+42000010: 0007a783 lw a5,8(a5)
+42000014: 9782 jalr a5
+"""
+            symbols = guard.ReferenceSymbols([("ops", address, 16, 1)], {"ops": "ops"})
+            return guard.analyse(
+                guard.parse_disassembly(source, lambda _: "reader.cpp.o", symbols),
+                {"reader": 0x42000000},
+            )
+
+        before, after = report(0x3C000100), report(0x3C001200)
+        self.assertEqual(before["contracts"], after["contracts"])
+        self.assertEqual(
+            before["unresolved_indirect"][0]["id"],
+            after["unresolved_indirect"][0]["id"],
+        )
+
+    def test_commas_in_demangled_label_do_not_leave_raw_addresses(self):
+        def code(address):
+            source = f"""{address:08x} <reader(int, int)>:
+{address:08x}: c501 beqz a0,{address + 4:08x} <reader(int, int)+0x4>
+{address + 4:08x}: 8082 ret
+"""
+            symbols = guard.ReferenceSymbols(
+                [("r", address, 8, 2)], {"r": "reader(int, int)"}
+            )
+            return guard.parse_disassembly(source, lambda _: "reader.cpp.o", symbols)[
+                address
+            ]["code"]
+
+        self.assertEqual(code(0x42000000), code(0x42001000))
+
+    def test_library_directory_hash_and_rust_cgu_are_not_identity(self):
+        self.assertEqual(
+            guard.object_id("build/lib123/Gfx/Renderer.cpp.o"),
+            guard.object_id("build/lib456/Gfx/Renderer.cpp.o"),
+        )
+        self.assertEqual(
+            guard.object_id("lib.a(xp_ffi-cgu.1.rcgu.o)"),
+            guard.object_id("lib.a(xp_ffi-cgu.3.rcgu.o)"),
+        )
+
+    def test_linker_call_relaxation_preserves_contract_and_physical_sites(self):
+        def report(long_call):
+            call = (
+                "42000004: 00010097 auipc ra,0x10\n42000008: ffc080e7 jalr -4(ra) # 42010000 <native>"
+                if long_call
+                else "42000004: 000000ef jal 42010000 <native>"
+            )
+            end = 0x4200000C if long_call else 0x42000008
+            source = f"""42000000 <reader>:
+42000000: c501 beqz a0,{end:08x} <reader+0x{end - 0x42000000:x}>
+{call}
+{end:08x}: 8082 ret
+42010000 <native>:
+42010000: 000000ef jal 42020000 <callback>
+42010004: 8082 ret
+42020000 <callback>:
+42020000: 8082 ret
+"""
+            nodes = guard.parse_disassembly(
+                source,
+                lambda a: "native.cpp.o" if a == 0x42010000 else "lib.a(x.rcgu.o)",
+            )
+            return guard.analyse(nodes, {"reader": 0x42000000})
+
+        short, long = report(False), report(True)
+        self.assertEqual(short["contracts"], long["contracts"])
+        self.assertEqual(
+            short["boundaries"][0]["call_sites"], long["boundaries"][0]["call_sites"]
+        )
+
+    def test_high_parts_merge_equal_values_but_not_conflicting_values(self):
+        def state(other):
+            code = [
+                (0x42000000, "beqz", "a0,4200000c <reader+0xc>"),
+                (0x42000004, "lui", "s1,0x3c000"),
+                (0x42000008, "j", "42000010 <reader+0x10>"),
+                (0x4200000C, "lui", "s1," + other),
+                (0x42000010, "jal", "42000100 <callee>"),
+                (0x42000014, "addi", "a0,s1,32"),
+            ]
+            return guard.high_part_states(code)[5]
+
+        self.assertEqual(state("0x3c000")["s1"][0], 0x3C000000)
+        self.assertNotIn("s1", state("0x3c001"))
 
     def test_rust_codegen_hashes_do_not_define_contract_identity(self):
         left = (
@@ -505,6 +657,48 @@ class PreventionTests(unittest.TestCase):
         allowed["inherited"][0]["owner"] = "R99"
         with self.assertRaises(ValueError):
             guard.compare(self.report(), allowed)
+
+    def test_deferred_owners_and_common_path_summary(self):
+        for owner in ("R5", "R6", "R7"):
+            allowed = self.allowlist()
+            allowed["deferred"] = allowed.pop("inherited")
+            allowed["inherited"] = []
+            for entry in allowed["deferred"]:
+                entry["owner"] = owner
+            self.assertEqual(guard.compare(self.report(), allowed), [])
+            summary = guard.summarize(self.report(), allowed)
+            self.assertTrue(summary["common_path_clean"])
+            self.assertEqual(summary["owners"][owner], len(allowed["deferred"]))
+            allowed["deferred"][0]["owner"] = "R99"
+            with self.assertRaises(ValueError):
+                guard.compare(self.report(), allowed)
+        for owner in ("R3a", "R3b"):
+            allowed = self.allowlist()
+            allowed["inherited"][0]["owner"] = owner
+            self.assertEqual(guard.compare(self.report(), allowed), [])
+            self.assertFalse(
+                guard.summarize(self.report(), allowed)["common_path_clean"]
+            )
+
+    def test_deferred_growth_and_retirement_need_baseline_change(self):
+        allowed = self.allowlist()
+        allowed["deferred"] = allowed.pop("inherited")
+        allowed["inherited"] = []
+        for entry in allowed["deferred"]:
+            entry["owner"] = "R5"
+        self.nodes[9] = node("new_deferred_relay", "native", [4])
+        self.nodes[1]["edges"].append({"target": 9, "pc": "0x99", "kind": "jal"})
+        self.assertIn(
+            "new-boundary", {e["kind"] for e in guard.compare(self.report(), allowed)}
+        )
+        report = self.report()
+        report["boundaries"] = []
+        self.assertIn(
+            "stale-boundary", {e["kind"] for e in guard.compare(report, allowed)}
+        )
+        allowed["deferred"][0]["owner"] = "R1"
+        with self.assertRaises(ValueError):
+            guard.compare(report, allowed)
 
 
 if __name__ == "__main__":

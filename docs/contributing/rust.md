@@ -1200,7 +1200,8 @@ linked object ranges, including rustc archive members; an `xp_native_*` name
 can still belong to Rust. C and C++ are both treated as native.
 
 `scripts/reader_chain_guard/allowlist.json` separates named physical continuations
-from inherited work owned by R1, R1b, and R2–R7. R1b owns the remaining font
+from common-path `inherited` work owned by R1, R1b, R2, R3a, R3b and R4,
+and `deferred` work owned by R5–R7. R1b owns the remaining font
 queries after R1. Each entry specifies an exact native object/function, Rust
 callers (or table-slot/source-callback roots), and first Rust return endpoints.
 Physical entries also pin individual caller sites and a hash of the complete
@@ -1211,8 +1212,11 @@ inspection; they do not define the physical exception.
 
 `scripts/reader_chain_guard/uncertainty.json` records each unresolved indirect
 call/tail site with a reason. Identity uses the containing object/function,
-pointer-load source (symbol, field/vtable offset where derivable), instruction
-kind, and occurrence number, never its PC. PCs remain diagnostic fields. A new
+pointer-load source (verified symbol, field/vtable offset where derivable), instruction
+kind, and occurrence number, never its PC. ELF extents must verify ownership;
+nearest-symbol offsets outside an object are not identities. Anonymous references
+use the consuming instruction/site ordinal and appear in `unowned_references`.
+PCs remain diagnostic fields. A new
 site fails even if the analyser cannot find its target; a removed site fails
 until its baseline entry is removed. This gates the inherited 10,774 sites
 individually, not just their count. Candidates do not erase unknown-site records.
@@ -1239,12 +1243,13 @@ When a task removes chains or resolves unknowns:
    hashes after reviewing their code and callback-supplying contracts.
 3. For an identity-only rename, map old and new entries one-to-one and preserve
    their reasons, owners, and exact constraints. Legacy Rust symbol hashes,
-   Rust object hashes, LLVM suffixes, build prefixes, and annotated relocations
+   Rust object hashes/codegen units, PlatformIO directory hashes, LLVM suffixes,
+   build prefixes, verified address constructions and direct-call relaxation
    are normalized. Lambda ordinals, register allocation, inlining, and local
-   branch offsets can still cause churn; do not replace the whole baseline.
+   block order can still cause churn; do not replace the whole baseline.
 4. A new unknown site requires an explicit reviewed reason for that particular
    site, its supplying contract, and remaining proof work. A new inherited
-   boundary needs an existing R1/R1b/R2–R7 owner; a physical exception needs a
+   boundary needs an existing owner from its class; a physical exception needs a
    specific reason and the reviewed caller sites/subgraph. Commit the narrow
    baseline changes with the implementation, then rerun the guard and CTest.
 
@@ -1270,6 +1275,13 @@ provenance can erase boundaries despite symbol normalization; the audited build
 policy must remain intact. Direct RISC-V tails are followed; unresolved indirect
 tails are gated. External direct targets without linked bodies are reported
 separately and included in their callers' code contracts.
+
+The output lists counts by class and owner. “Common path clean: yes” means no
+observed `inherited` entries remain; it does not replace a passing guard or the
+common-path R8b proof. New/stale deferred entries fail too. See
+[`scripts/reader_chain_guard/README.md`](../../scripts/reader_chain_guard/README.md)
+for acceptable update reasons and the required per-key reviewer evidence,
+including changes to function hashes and physical contracts.
 
 The `reader_chain_guard` CTest test uses a small graph fixture and synthetic
 RISC-V disassembly, so host CI tests analysis and allowlist behavior without a

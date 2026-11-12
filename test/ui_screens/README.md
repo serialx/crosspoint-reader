@@ -68,7 +68,9 @@ choices, custom and cover sleep images, boot, SD failure, and crash display.
 
 `coverage.json` accounts for every `.cpp` under `src/activities`, including shared
 implementation files and activities whose offline entry displays Wi-Fi selection.
-The host test fails when an activity source is added without an inventory entry.
+The host test requires every current C++ activity source to have an inventory
+entry. The same table names selected Rust screen owners after their native
+owners retire; every declared source path must still exist.
 This is a finite state-family matrix, not proof of every data-dependent screen or
 every combination of settings. In particular:
 

@@ -11,6 +11,13 @@ record supported nonreader orientations and x4pro/PSRAM cases separately from
 the historical X3/X4 matrix. New named paired captures keep the existing goldens
 unchanged and retain their own parent/candidate provenance.
 
+UI-SCENE CP1 limits x4pro sampling to Home, file browser, an EPUB page and the
+reader menu reached by the pinned toolset's existing touch navigation. The rest
+of the x4pro screen matrix remains a coverage gap; CP1 adds no touch-navigation
+tooling. Wi-Fi Save/Forget prompts remain missing, with owner **Wi-Fi margin
+task**. CP1 uses the existing Wi-Fi list, connection-flow and password-keyboard
+fixtures; it does not add prompt-state injection.
+
 ## Entry and capability gates
 
 | Activity/state family | Why the existing suite cannot reach it | Smallest proposed fixture and source contract |

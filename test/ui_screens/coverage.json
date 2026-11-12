@@ -52,16 +52,6 @@
       ]
     },
     {
-      "source": "src/activities/UiListActivity.cpp",
-      "status": "shared-implementation",
-      "reason": "No separate activity entry; exercised through its concrete callers."
-    },
-    {
-      "source": "src/activities/UiTabListActivity.cpp",
-      "status": "shared-implementation",
-      "reason": "No separate activity entry; exercised through its concrete callers."
-    },
-    {
       "source": "src/activities/boot_sleep/BootActivity.cpp",
       "status": "captured",
       "groups": [
@@ -257,13 +247,13 @@
       "reason": "Native input, font metrics and translated popup resources for the Rust dictionary screen family."
     },
     {
-      "source": "src/activities/reader/DictionaryWordSelectActivity.cpp",
+      "source": "rust/crates/xp-ffi/src/app/epub/children/lookup_view.rs",
       "status": "transient-route",
       "groups": [
         "dictionary"
       ],
       "reason": "Lookup/index busy popup is traversed before DictionaryDefinition; the settled screenshot is the definition. Lookup misses and I/O/OOM popups are not captured.",
-      "contract": "src/activities/reader/DictionaryWordSelectActivity.cpp:30"
+      "contract": "rust/crates/xp-ffi/src/app/epub/children/lookup_view.rs"
     },
     {
       "source": "src/activities/reader/EndOfBookOptions.cpp",
@@ -271,7 +261,7 @@
       "reason": "No separate activity entry; exercised through its concrete callers."
     },
     {
-      "source": "src/activities/reader/EpubReaderActivity.cpp",
+      "source": "rust/crates/xp-ffi/src/app/epub/mod.rs",
       "status": "captured",
       "groups": [
         "bookmarks",
@@ -285,7 +275,7 @@
       "activity": "EpubReader"
     },
     {
-      "source": "src/activities/reader/EpubReaderBookmarksActivity.cpp",
+      "source": "rust/crates/xp-ffi/src/app/epub/children/bookmark_view.rs",
       "status": "captured",
       "groups": [
         "bookmarks"
@@ -293,7 +283,7 @@
       "activity": "EpubReaderBookmarks"
     },
     {
-      "source": "src/activities/reader/EpubReaderChapterSelectionActivity.cpp",
+      "source": "rust/crates/xp-ffi/src/app/epub/children/chapter_view.rs",
       "status": "captured",
       "groups": [
         "reader"
@@ -301,7 +291,7 @@
       "activity": "EpubReaderChapterSelection"
     },
     {
-      "source": "src/activities/reader/EpubReaderClippingListActivity.cpp",
+      "source": "rust/crates/xp-ffi/src/app/epub/children/clipping_view.rs",
       "status": "captured",
       "groups": [
         "clippings"
@@ -309,7 +299,7 @@
       "activity": "EpubReaderClippings"
     },
     {
-      "source": "src/activities/reader/EpubReaderFootnoteSelectActivity.cpp",
+      "source": "rust/crates/xp-ffi/src/app/epub/children/footnote.rs",
       "status": "captured",
       "groups": [
         "footnotes"
@@ -317,7 +307,7 @@
       "activity": "EpubReaderFootnoteSelect"
     },
     {
-      "source": "src/activities/reader/EpubReaderMenuActivity.cpp",
+      "source": "rust/crates/xp-ffi/src/app/epub/children/menu_view.rs",
       "status": "captured",
       "groups": [
         "reader",
@@ -326,7 +316,7 @@
       "activity": "EpubReaderMenu"
     },
     {
-      "source": "src/activities/reader/EpubReaderPercentSelectionActivity.cpp",
+      "source": "rust/crates/xp-ffi/src/app/epub/children/percent.rs",
       "status": "captured",
       "groups": [
         "percent"
@@ -352,7 +342,7 @@
       "reason": "Shared KOReader scene binding, exercised by the canned sync result and missing-progress fixtures."
     },
     {
-      "source": "src/activities/reader/QrDisplayActivity.cpp",
+      "source": "rust/crates/xp-ffi/src/app/epub/children/qr.rs",
       "status": "captured",
       "groups": [
         "qr"
@@ -370,7 +360,7 @@
       "reason": "No separate activity entry; exercised through its concrete callers."
     },
     {
-      "source": "src/activities/reader/ReaderToolbarUi.cpp",
+      "source": "rust/crates/xp-ffi/src/app/epub/children/toolbar_view.rs",
       "status": "shared-implementation",
       "reason": "No separate activity entry; exercised through its concrete callers."
     },
@@ -747,9 +737,61 @@
       ]
     },
     {
-      "source": "src/activities/RustAppResult.cpp",
+      "source": "src/activities/network/WifiSelectionPhysical.cpp",
       "status": "shared-implementation",
-      "reason": "Typed result conversion for native child and parent activities; no separate screen."
+      "groups": [
+        "wifi"
+      ],
+      "reason": "Radio/layout/SDK resource leaves for the Rust-owned Wi-Fi scene."
+    },
+    {
+      "source": "src/activities/reader/RustEpubResources.cpp",
+      "status": "shared-implementation",
+      "groups": [
+        "reader",
+        "toolbar",
+        "bookmarks",
+        "dictionary"
+      ],
+      "reason": "Native physical resources and chrome shared by Rust EPUB owners."
+    },
+    {
+      "source": "src/activities/reader/RustReaderDrawing.cpp",
+      "status": "shared-implementation",
+      "groups": [
+        "reader",
+        "toolbar",
+        "dictionary"
+      ],
+      "reason": "Native drawing resources used by Rust reader scenes."
+    },
+    {
+      "source": "src/activities/reader/RustReaderLookup.cpp",
+      "status": "shared-implementation",
+      "groups": [
+        "dictionary",
+        "plugin-readme"
+      ],
+      "reason": "Native lookup view resources shared by Rust dictionary scenes."
+    },
+    {
+      "source": "src/activities/reader/DefinitionPayload.cpp",
+      "status": "shared-implementation",
+      "groups": [
+        "dictionary",
+        "plugin-readme"
+      ],
+      "reason": "Definition text conversion feeding the Rust-owned definition scene."
+    },
+    {
+      "source": "src/activities/util/DialogActivity.cpp",
+      "status": "shared-implementation",
+      "groups": [
+        "general",
+        "controls",
+        "reader-popups"
+      ],
+      "reason": "Native resource and result adapter for Rust confirmation, interval and message dialogs."
     }
   ],
   "additional_limits": [

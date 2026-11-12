@@ -68,7 +68,9 @@ class OracleTests(unittest.TestCase):
         coverage = json.loads((here / 'coverage.json').read_text())
         actual = {str(p.relative_to(repo)) for p in (repo / 'src/activities').rglob('*.cpp')}
         declared = [r['source'] for r in coverage['sources']]
-        self.assertEqual(actual, set(declared))
+        self.assertEqual(actual, {p for p in declared if p.endswith('.cpp')})
+        for source in declared:
+            self.assertTrue((repo / source).is_file(), source)
         self.assertEqual(len(declared), len(set(declared)))
         groups = {g['id'] for g in json.loads((here / 'screens.json').read_text())['groups']}
         for row in coverage['sources']:

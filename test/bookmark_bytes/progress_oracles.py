@@ -93,7 +93,7 @@ def main():
     args.build.mkdir(parents=True, exist_ok=True)
     target = args.build / 'rust'
     subprocess.run(['cargo', 'build', '--offline', '--locked', '--manifest-path', str(HERE/'rust/Cargo.toml'),
-                    '--target-dir', str(target), '--bin', 'bookmark-xpath', '--bin', 'bookmark-progress-logs'], check=True)
+                    '--target-dir', str(target), '--features', 'app-test', '--bin', 'bookmark-xpath', '--bin', 'bookmark-progress-logs'], check=True)
     xpath = [sys.executable, str(ROOT/'test/koreader_xpath_resolver/oracle.py'), '--oracle', str(target/'debug/bookmark-xpath'), 'verify']
     subprocess.run(xpath, check=True)
     for control in ('offset', 'progress'):

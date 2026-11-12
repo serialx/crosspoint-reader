@@ -19,6 +19,8 @@ pub(super) use package::diagnostics::xml_error;
 mod txt;
 mod writer;
 pub(super) use writer::io::{Buffered, FileSlot};
+#[cfg(not(feature = "app-test"))]
+mod protection;
 mod zip;
 
 #[cfg(feature = "app-test")]
@@ -218,6 +220,7 @@ pub(super) enum OpenError {
 }
 
 impl Protection {
+    #[cfg(feature = "app-test")]
     pub(super) fn open(leaves: &'static XpEpubLeaves, path: &Text) -> Result<Self, OpenError> {
         #[derive(Default)]
         struct Capture {
@@ -272,9 +275,20 @@ impl Protection {
     }
 
     // The sink and context stay valid for the synchronous native stream.
-    pub(super) unsafe fn stream(&self, path: &[u8], sink: Sink, context: *mut c_void) -> bool {
+    pub(super) unsafe fn stream(
+        &self,
+        #[cfg(not(feature = "app-test"))] resources: &'static app_abi::Resources,
+        path: &[u8],
+        sink: Sink,
+        context: *mut c_void,
+    ) -> bool {
         match self {
             Self::Plain => false,
+            #[cfg(not(feature = "app-test"))]
+            Self::Encrypted(loan) => unsafe {
+                protection::stream(loan, resources, path, sink, context)
+            },
+            #[cfg(feature = "app-test")]
             Self::Encrypted(loan) => unsafe {
                 (loan.leaves.protection_stream)(
                     loan.handle.as_ptr(),

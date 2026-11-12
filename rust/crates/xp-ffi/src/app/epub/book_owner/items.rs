@@ -96,8 +96,13 @@ impl Items<'_> {
                 written: 0,
             };
             let ok = unsafe {
-                self.protection
-                    .stream(&path, append, (&mut output as *mut Output).cast())
+                self.protection.stream(
+                    #[cfg(not(feature = "app-test"))]
+                    self.resources,
+                    &path,
+                    append,
+                    (&mut output as *mut Output).cast(),
+                )
             };
             if !ok || output.written != length {
                 drop(buffer);
@@ -152,7 +157,15 @@ impl Items<'_> {
             return false;
         };
         if self.protection.is_encrypted(&path) {
-            let ok = unsafe { self.protection.stream(&path, sink, context) };
+            let ok = unsafe {
+                self.protection.stream(
+                    #[cfg(not(feature = "app-test"))]
+                    self.resources,
+                    &path,
+                    sink,
+                    context,
+                )
+            };
             if !ok {
                 self.failed(&path);
             }

@@ -242,3 +242,6 @@ add_subdirectory(xtc_owner)
 
 add_subdirectory(reader_persistence)
 add_subdirectory(reader_relays)
+
+
+add_subdirectory(reader_protection)

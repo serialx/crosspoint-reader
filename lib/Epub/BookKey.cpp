@@ -27,9 +27,9 @@ struct Context {
   std::optional<AesGcm> gcm;
   std::string path, tmp;
 };
-XpBookKeyServices services(Context& context) {
+XpBookKeyServices services(Context& context, bool (*secret)(void*, uint8_t*)) {
   return {&context,
-          [](void*, uint8_t* secret) { return deviceSecret(*reinterpret_cast<uint8_t (*)[32]>(secret)); },
+          secret,
           [](void*, const uint8_t* input, size_t size, uint8_t* out) { return wc_Sha256Hash(input, size, out) == 0; },
           [](void*, uint8_t* bytes, size_t size) { esp_fill_random(bytes, size); },
           [](void* opaque, const XpBookKeyCipher* call) {
@@ -68,7 +68,8 @@ XpBookKeyServices services(Context& context) {
 
 bool write(const std::string& bookPath, const uint8_t* key, size_t keyLen, int64_t expiresAt) {
   Context context{bookPath, {}, {}, {}};
-  const auto io = services(context);
+  const auto io =
+      services(context, [](void*, uint8_t* out) { return deviceSecret(*reinterpret_cast<uint8_t (*)[32]>(out)); });
   const int32_t result = xp_book_key_write(key, keyLen, expiresAt, &io);
   if (result == 2) LOG_ERR("BKEY", "Wrap failed");
   return result == 0;
@@ -76,12 +77,43 @@ bool write(const std::string& bookPath, const uint8_t* key, size_t keyLen, int64
 
 size_t read(const std::string& bookPath, uint8_t (&key)[MAX_KEY_LEN], int64_t* expiresAt) {
   Context context{bookPath, {}, {}, {}};
-  const auto io = services(context);
+  const auto io =
+      services(context, [](void*, uint8_t* out) { return deviceSecret(*reinterpret_cast<uint8_t (*)[32]>(out)); });
   const int32_t result = xp_book_key_read(key, expiresAt, &io);
   if (result < 0) {
     LOG_ERR("BKEY", "Key not wrapped by this device or tampered: %s", bookPath.c_str());
     return 0;
   }
   return static_cast<size_t>(result);
+}
+
+struct ReaderContext {
+  std::string path;
+  Context context;
+  uint32_t nvsHandle{};
+  explicit ReaderContext(XpAppText path)
+      : path(reinterpret_cast<const char*>(path.data), path.len), context{this->path, {}, {}, {}} {}
+};
+static_assert(sizeof(ReaderContext) <= 24 * sizeof(uintptr_t));
+static_assert(alignof(ReaderContext) <= alignof(uintptr_t));
+void readerPlatform(void* storage, uint8_t operation, XpAppText path, void* out) {
+  auto* context = static_cast<ReaderContext*>(storage);
+  switch (static_cast<ReaderOperation>(operation)) {
+    case ReaderOperation::Begin:
+      new (context) ReaderContext(path);
+      *static_cast<XpBookKeyServices*>(out) = services(context->context, [](void*, uint8_t*) { return false; });
+      break;
+    case ReaderOperation::End:
+      context->~ReaderContext();
+      break;
+    case ReaderOperation::BorrowSecret: {
+      auto& secret = *static_cast<ReaderSecret*>(out);
+      secret.state = borrowDeviceSecret(&context->nvsHandle, &secret.services);
+      break;
+    }
+    case ReaderOperation::ReleaseSecret:
+      releaseDeviceSecret();
+      break;
+  }
 }
 }  // namespace bookkey

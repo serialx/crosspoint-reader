@@ -346,11 +346,20 @@ typedef struct XpEpubLeaves {
   void (*book_set_extractor)(void* facade);
 #endif
   // Null without error is a plain book. Error text is borrowed only during the sink.
+#ifdef XP_APP_TEST
   void* (*protection_open)(XpAppText path, XpAppTextSink error, void* context);
+#else
+  uint8_t (*protection_index)(void* storage, uint8_t stage, XpAppText path);
+#endif
   void (*protection_close)(void* protection);
   uint8_t (*protection_encrypted)(void* protection, XpAppText path);
   uint32_t (*protection_size)(void* protection, XpAppText path);
+#ifdef XP_APP_TEST
   uint8_t (*protection_stream)(void* protection, XpAppText path, XpBookSink sink, void* context);
+#else
+  uint8_t (*protection_stream)(void* protection, void* storage, uint8_t stage, XpAppText path, XpBookSink sink,
+                               void* context);
+#endif
   uint8_t (*file_seek)(void* file, uint32_t offset);
   uint32_t (*file_size)(void* file);
   uint8_t (*path_remove_tree)(XpAppText path);
@@ -589,6 +598,10 @@ typedef struct XpEpubLeaves {
   uint8_t (*local_calendar)(XpEpubCalendar* out);
   XpAppText (*storage_read_file)(XpAppText path, void* storage);
   uint8_t (*storage_write_file_atomic)(XpAppText path, const uint8_t* bytes, uint32_t size);
+#ifndef XP_APP_TEST
+  void* (*protection_finish)(void* storage, uint8_t stage, const uint8_t* key, size_t length);
+  void (*key_platform)(void* storage, uint8_t operation, XpAppText path, void* out);
+#endif
 } XpEpubLeaves;
 
 #ifdef __cplusplus
@@ -649,7 +662,7 @@ XP_EPUB_ASSERT(offsetof(XpEpubPeer, addr) == 64, "XpEpubPeer.addr");
    ((index) >= 120 ? 1 : 0) - ((index) >= 26 ? 1 : 0) - ((index) >= 133 ? 1 : 0) - ((index) > 98 ? 1 : 0) -         \
    ((index) > 108 ? 1 : 0) - ((index) > 109 ? 1 : 0) - ((index) > 110 ? 1 : 0) - ((index) > 111 ? 1 : 0) -          \
    ((index) > 120 ? 1 : 0))
-#define XP_EPUB_LEAF_COUNT 142
+#define XP_EPUB_LEAF_COUNT 144
 #endif
 #else
 #ifdef XP_APP_TEST
@@ -660,7 +673,7 @@ XP_EPUB_ASSERT(offsetof(XpEpubPeer, addr) == 64, "XpEpubPeer.addr");
   ((index) - ((index) >= 60 ? 6 : 0) - ((index) >= 93 ? 1 : 0) - ((index) >= 9 ? 3 : 0) - ((index) >= 23 ? 2 : 0) - \
    ((index) >= 120 ? 1 : 0) - ((index) >= 133 ? 1 : 0) - ((index) > 98 ? 1 : 0) - ((index) > 109 ? 1 : 0) -         \
    ((index) > 111 ? 1 : 0) - ((index) > 120 ? 1 : 0))
-#define XP_EPUB_LEAF_COUNT 145
+#define XP_EPUB_LEAF_COUNT 147
 #endif
 #endif
 XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == XP_EPUB_LEAF_COUNT * sizeof(void (*)(void)), "XpEpubLeaves size");
@@ -682,7 +695,13 @@ XP_EPUB_LEAF_OFFSET(book_facade_close, 7);
 #ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(book_set_extractor, 8);
 #endif
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(protection_open, 9);
+#else
+XP_EPUB_LEAF_OFFSET(protection_index, 9);
+XP_EPUB_LEAF_OFFSET(protection_finish, 163);
+XP_EPUB_LEAF_OFFSET(key_platform, 164);
+#endif
 XP_EPUB_LEAF_OFFSET(protection_close, 10);
 XP_EPUB_LEAF_OFFSET(protection_encrypted, 11);
 XP_EPUB_LEAF_OFFSET(protection_size, 12);

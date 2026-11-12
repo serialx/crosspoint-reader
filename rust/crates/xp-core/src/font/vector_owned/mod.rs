@@ -61,33 +61,7 @@ pub unsafe trait Rasterizer: Default {
     fn ligature(self: Pin<&mut Self>, components: &[u32]) -> u32;
     fn release_gsub(self: Pin<&mut Self>);
 }
-/// Only disjoint caches may be evicted; the caller excludes this entire family.
-pub trait Pressure {
-    fn free_default(&mut self) -> usize;
-    fn render(&mut self) -> usize;
-    fn sd(&mut self) -> usize;
-    fn vector(&mut self) -> usize;
-    /// The render sink deferred clearing this active family until its callback returned.
-    fn clear_active_frame(&mut self) -> bool {
-        false
-    }
-}
-/// Same target and sink order as MemoryManager::ensureFree; the active family
-/// is excluded by the pressure context, and scan/registration loans stay intact.
-pub fn reclaim(pressure: &mut impl Pressure) {
-    let have = pressure.free_default();
-    if have >= 16 * 1024 {
-        return;
-    }
-    let target = 16 * 1024 - have;
-    let mut freed = pressure.render();
-    if freed < target {
-        freed += pressure.sd();
-    }
-    if freed < target {
-        pressure.vector();
-    }
-}
+pub use super::pressure::{reclaim, Pressure};
 #[derive(Clone, Copy, Default)]
 pub struct Metrics {
     pub ascent: i32,

@@ -27,13 +27,23 @@ pub struct Services {
 }
 
 unsafe fn wrap_key(services: &Services, kek: &mut [u8; 32]) -> bool {
-    let mut secret = [0u8; 32];
-    if !(services.secret)(services.context, secret.as_mut_ptr()) {
+    derive_key(services, kek, |out| {
+        (services.secret)(services.context, out)
+    })
+}
+
+unsafe fn derive_key(
+    services: &Services,
+    kek: &mut [u8; 32],
+    secret: impl FnOnce(*mut u8) -> bool,
+) -> bool {
+    let mut bytes = [0u8; 32];
+    if !secret(bytes.as_mut_ptr()) {
         return false;
     }
     let mut input = [0u8; 41];
     input[..9].copy_from_slice(b"book-key:");
-    input[9..].copy_from_slice(&secret);
+    input[9..].copy_from_slice(&bytes);
     (services.hash)(
         services.context,
         input.as_ptr(),
@@ -87,6 +97,20 @@ pub unsafe fn write(key: &[u8], expires: i64, services: &Services) -> i32 {
 /// Services obey write's contract. Key is disjoint writable storage. Expiry is
 /// changed only on successful authenticated opening, matching the old facade.
 pub unsafe fn read(key: *mut u8, expires: *mut i64, services: &Services) -> i32 {
+    read_with_secret(key, expires, services, |out| {
+        (services.secret)(services.context, out)
+    })
+}
+
+/// Read with a directly called secret service, sharing the record and crypto sequence.
+/// # Safety
+/// The storage and callback contracts of `read` apply to `secret` as well.
+pub unsafe fn read_with_secret(
+    key: *mut u8,
+    expires: *mut i64,
+    services: &Services,
+    secret: impl FnOnce(*mut u8) -> bool,
+) -> i32 {
     let mut file = [0u8; MAX_RECORD];
     let count = (services.read)(services.context, file.as_mut_ptr(), file.len());
     if count < 13 || count as usize > file.len() || &file[..4] != b"FIBK" {
@@ -101,7 +125,7 @@ pub unsafe fn read(key: *mut u8, expires: *mut i64, services: &Services) -> i32 
         return 0;
     }
     let mut kek = [0u8; 32];
-    if !wrap_key(services, &mut kek) {
+    if !derive_key(services, &mut kek, secret) {
         return 0;
     }
     let cipher = Cipher {

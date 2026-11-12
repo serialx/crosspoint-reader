@@ -32,7 +32,7 @@ enum Pass {
 pub(super) struct Document<'writer, 'path> {
     pass: Pass,
     kind: Kind,
-    leaves: &'static XpEpubLeaves,
+    pub(super) leaves: &'static XpEpubLeaves,
     writer: Option<&'writer mut Writer<'path>>,
     metadata_only: bool,
     pub(super) error: Error,
@@ -150,7 +150,6 @@ impl<'writer, 'path> Document<'writer, 'path> {
         count
     }
 
-    #[cfg(feature = "app-test")]
     pub(super) fn finish(&mut self, diagnostics: &Diagnostics) -> bool {
         self.error = Error::default();
         let io = self.writer.as_mut().map(|writer| writer.streams.io());
@@ -165,6 +164,11 @@ impl<'writer, 'path> Document<'writer, 'path> {
         };
         diagnostics::error(self.leaves, self.kind, &self.error);
         ok
+    }
+
+    #[cfg(not(feature = "app-test"))]
+    pub(super) fn needs_protection(&self) -> bool {
+        matches!(&self.pass, Pass::Simple(pass) if pass.protection)
     }
 
     pub(super) fn value(&self, field: u32) -> &[u8] {

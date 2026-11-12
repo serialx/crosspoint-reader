@@ -135,7 +135,12 @@ impl<'a> Context<'a> {
     fn operation(&mut self, operation: u32, argument: u32) -> Result<u32, ()> {
         let diagnostics = diagnostics::services(self.leaves);
         match operation {
-            x if x == O::OpenProtection as u32 => match Protection::open(self.leaves, self.path) {
+            x if x == O::OpenProtection as u32 => match Protection::open(
+                #[cfg(not(feature = "app-test"))]
+                self.resources,
+                self.leaves,
+                self.path,
+            ) {
                 Ok(protection) => {
                     if matches!(protection, Protection::Encrypted(_)) {
                         log::message(

@@ -1,5 +1,5 @@
 //! Application HAL policy. SDK objects and synchronization stay with the C++ facade.
-mod secret;
+pub(crate) mod secret;
 pub(crate) mod time;
 use core::mem;
 

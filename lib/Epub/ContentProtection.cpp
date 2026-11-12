@@ -24,6 +24,7 @@
 #include <xp_ffi.h>
 
 #include "BookKey.h"
+#include "ReaderProtection.h"
 
 namespace freeink {
 namespace content {
@@ -49,6 +50,7 @@ void reclaimContentCaches() {
 class SdByteSource : public ByteSource {
  public:
   explicit SdByteSource(std::string path) : path_(std::move(path)) {}
+  const std::string& path() const { return path_; }
   bool open() {
     file_ = Storage.open(path_.c_str(), O_RDONLY);
     return file_ && file_.isOpen();
@@ -81,6 +83,11 @@ class ProtectedBookDecryptor : public ContentDecryptor {
     // reconstructing and reopening it per encrypted entry.
     if (!source_.ensureOpen()) return false;
     reclaimContentCaches();
+    return readPrepared(itemPath, sink, context);
+  }
+
+  bool prepare() { return source_.ensureOpen(); }
+  bool readPrepared(const std::string& itemPath, ContentChunkSink sink, void* context) {
     if (!book_->decryptEntryToSink(source_, crypto(), itemPath, sink, context)) {
       LOG_ERR("CPRO", "Decrypt failed: %s (%s), free=%u max_block=%u", itemPath.c_str(), book_->lastError().c_str(),
               static_cast<unsigned>(ESP.getFreeHeap()), static_cast<unsigned>(ESP.getMaxAllocHeap()));
@@ -94,7 +101,84 @@ class ProtectedBookDecryptor : public ContentDecryptor {
   std::unique_ptr<ProtectedBook> book_;
 };
 
+struct ReaderIndex {
+  SdByteSource source;
+  ZipScan scan;
+  std::unique_ptr<ProtectedBook> book;
+};
+static_assert(sizeof(ReaderIndex) <= 24 * sizeof(uintptr_t));
+static_assert(alignof(ReaderIndex) <= alignof(uintptr_t));
+static_assert(sizeof(std::string) <= 6 * sizeof(uintptr_t));
+static_assert(alignof(std::string) <= alignof(uintptr_t));
+
 }  // namespace
+
+uint8_t readerProtectionIndex(void* storage, uint8_t stage, XpAppText path) {
+  switch (static_cast<IndexStage>(stage)) {
+    case IndexStage::Construct:
+      new (storage) ReaderIndex{SdByteSource(std::string(reinterpret_cast<const char*>(path.data), path.len)), {}, {}};
+      return 0;
+    case IndexStage::Scan:
+      break;
+  }
+  auto& index = *static_cast<ReaderIndex*>(storage);
+  if (!index.source.open() || !index.scan.open(index.source)) {
+    LOG_ERR("CPRO", "Cannot index protected container");
+    return 0;
+  }
+  index.book = makeUniqueNoThrow<ProtectedBook>();
+  if (!index.book) return 2;
+  if (!index.book->openFromScan(index.source, std::move(index.scan))) {
+    LOG_ERR("CPRO", "Manifest open failed: %s", index.book->lastError().c_str());
+    return 3;
+  }
+  return index.book->isProtected() ? 1 : 4;
+}
+
+void* readerProtectionFinish(void* storage, uint8_t stage, const uint8_t* key, size_t length) {
+  auto& index = *static_cast<ReaderIndex*>(storage);
+  ContentDecryptor* result = nullptr;
+  switch (static_cast<FinishStage>(stage)) {
+    case FinishStage::InstallKey:
+      index.book->setContentKey(key, length);
+      return nullptr;
+    case FinishStage::Take:
+      result = makeUniqueNoThrow<ProtectedBookDecryptor>(index.source.path(), std::move(index.book)).release();
+      break;
+    case FinishStage::Discard:
+      break;
+  }
+  index.~ReaderIndex();
+  return result;
+}
+
+uint8_t readerProtectionStream(void* handle, void* storage, uint8_t stage, XpAppText path, XpBookSink sink,
+                               void* context) {
+  auto& book = *static_cast<ProtectedBookDecryptor*>(handle);
+  auto* item = static_cast<std::string*>(storage);
+  switch (static_cast<StreamStage>(stage)) {
+    case StreamStage::Prepare:
+      new (item) std::string(reinterpret_cast<const char*>(path.data), path.len);
+      if (book.prepare()) return 1;
+      item->~basic_string();
+      return 0;
+    case StreamStage::Read:
+      break;
+  }
+  struct Output {
+    XpBookSink sink;
+    void* context;
+  } output{sink, context};
+  const bool result = book.readPrepared(
+      *item,
+      [](void* raw, const uint8_t* bytes, size_t size) {
+        auto& out = *static_cast<Output*>(raw);
+        return out.sink(out.context, bytes, size) != 0;
+      },
+      &output);
+  item->~basic_string();
+  return result;
+}
 
 std::unique_ptr<ContentDecryptor> openProtectedBook(const std::string& epubPath, std::string& err) {
   err.clear();

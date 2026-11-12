@@ -358,21 +358,34 @@ pub struct XpEpubLeaves {
     pub book_facade_close: unsafe extern "C" fn(facade: *mut core::ffi::c_void),
     #[cfg(feature = "app-test")]
     pub book_set_extractor: unsafe extern "C" fn(facade: *mut core::ffi::c_void),
+    #[cfg(feature = "app-test")]
     pub protection_open: unsafe extern "C" fn(
         path: XpAppText,
         error: XpAppTextSink,
         context: *mut core::ffi::c_void,
     ) -> *mut core::ffi::c_void,
+    #[cfg(not(feature = "app-test"))]
+    pub protection_index: unsafe extern "C" fn(*mut core::ffi::c_void, u8, XpAppText) -> u8,
     pub protection_close: unsafe extern "C" fn(protection: *mut core::ffi::c_void),
     pub protection_encrypted:
         unsafe extern "C" fn(protection: *mut core::ffi::c_void, path: XpAppText) -> u8,
     pub protection_size:
         unsafe extern "C" fn(protection: *mut core::ffi::c_void, path: XpAppText) -> u32,
+    #[cfg(feature = "app-test")]
     pub protection_stream: unsafe extern "C" fn(
         protection: *mut core::ffi::c_void,
         path: XpAppText,
         sink: xp_core::book::io::Sink,
         context: *mut core::ffi::c_void,
+    ) -> u8,
+    #[cfg(not(feature = "app-test"))]
+    pub protection_stream: unsafe extern "C" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        u8,
+        XpAppText,
+        xp_core::book::io::Sink,
+        *mut core::ffi::c_void,
     ) -> u8,
     pub file_seek: unsafe extern "C" fn(file: *mut core::ffi::c_void, offset: u32) -> u8,
     pub file_size: unsafe extern "C" fn(file: *mut core::ffi::c_void) -> u32,
@@ -619,6 +632,16 @@ pub struct XpEpubLeaves {
     pub local_calendar: unsafe extern "C" fn(*mut crate::app::bookmarks::export::Calendar) -> u8,
     pub storage_read_file: unsafe extern "C" fn(XpAppText, *mut core::ffi::c_void) -> XpAppText,
     pub storage_write_file_atomic: unsafe extern "C" fn(XpAppText, *const u8, u32) -> u8,
+    #[cfg(not(feature = "app-test"))]
+    pub protection_finish: unsafe extern "C" fn(
+        *mut core::ffi::c_void,
+        u8,
+        *const u8,
+        usize,
+    ) -> *mut core::ffi::c_void,
+    #[cfg(not(feature = "app-test"))]
+    pub key_platform:
+        unsafe extern "C" fn(*mut core::ffi::c_void, u8, XpAppText, *mut core::ffi::c_void),
 }
 
 const _: () = {
@@ -640,7 +663,8 @@ const _: () = {
     );
     assert!(
         core::mem::size_of::<XpEpubLeaves>()
-            == leaf_index(168) * core::mem::size_of::<unsafe extern "C" fn()>()
+            == (leaf_index(168) + if cfg!(feature = "app-test") { 0 } else { 2 })
+                * core::mem::size_of::<unsafe extern "C" fn()>()
     );
     assert!(
         core::mem::offset_of!(XpEpubLeaves, log)
@@ -752,6 +776,7 @@ const _: () = {
 };
 
 const _: () = {
+    #[cfg(feature = "app-test")]
     assert!(
         core::mem::offset_of!(XpEpubLeaves, protection_open)
             == leaf_index(9) * core::mem::size_of::<usize>()
@@ -820,7 +845,16 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, book_facade_close) == leaf_index(7) * pointer);
     #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, book_set_extractor) == leaf_index(8) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, protection_open) == leaf_index(9) * pointer);
+    #[cfg(not(feature = "app-test"))]
+    {
+        assert!(core::mem::offset_of!(XpEpubLeaves, protection_index) == leaf_index(9) * pointer);
+        assert!(
+            core::mem::offset_of!(XpEpubLeaves, protection_finish) == leaf_index(168) * pointer
+        );
+        assert!(core::mem::offset_of!(XpEpubLeaves, key_platform) == leaf_index(169) * pointer);
+    }
     assert!(core::mem::offset_of!(XpEpubLeaves, protection_close) == leaf_index(10) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, protection_encrypted) == leaf_index(11) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, protection_size) == leaf_index(12) * pointer);

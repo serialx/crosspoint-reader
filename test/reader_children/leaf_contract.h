@@ -29,7 +29,13 @@ typedef void (*ChildFonts)(void);
 typedef void (*ChildPrewarm)(int32_t, const void*, XpEpubChildRowText, uint32_t);
 
 CONTRACT(offsetof(XpEpubLeaves, clipping_physical) == FONT_LEAF_INDEX(162) * sizeof(void (*)(void)));
+#ifdef XP_APP_TEST
 CONTRACT(sizeof(XpEpubLeaves) == FONT_LEAF_INDEX(168) * sizeof(void (*)(void)));
+#else
+CONTRACT(sizeof(XpEpubLeaves) == FONT_LEAF_INDEX(170) * sizeof(void (*)(void)));
+CONTRACT(offsetof(XpEpubLeaves, protection_finish) == FONT_LEAF_INDEX(168) * sizeof(void (*)(void)));
+CONTRACT(offsetof(XpEpubLeaves, key_platform) == FONT_LEAF_INDEX(169) * sizeof(void (*)(void)));
+#endif
 CONTRACT(offsetof(XpEpubLeaves, child_list_theme) == FONT_LEAF_INDEX(130) * sizeof(void (*)(void)));
 CONTRACT(offsetof(XpEpubLeaves, child_utility_layout) == FONT_LEAF_INDEX(131) * sizeof(void (*)(void)));
 CONTRACT(offsetof(XpEpubLeaves, child_header) == FONT_LEAF_INDEX(132) * sizeof(void (*)(void)));

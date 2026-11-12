@@ -617,8 +617,8 @@ boundary under ruling 45. Recents UI and Library use their existing facades.
 
 Reader time decisions call the Rust time service directly. Native callbacks
 supply the clock, floor storage, SNTP setup and wait operations. State-path
-reads return borrowed strings without a Rust sink. Protected-book and document-ID
-relays remain pending in R3b; this persistence unit does not retire them.
+reads return borrowed strings without a Rust sink. Document-ID sampling and its
+result sink remain pending in the unit after R3b.
 
 The [persistence checks](../../test/reader_persistence/README.md) compare actual
 Rust orchestration with the existing native facades, including every serialized
@@ -1272,3 +1272,28 @@ resolve their font through the existing settings snapshot, compute compression
 in Rust, then read the remaining raw settings. R1c still owns the snapshot's
 native font resolver; this change does not claim that inherited chain is gone.
 No new allocation, cache or persistent state is introduced.
+
+## Reader protected-book boundary
+
+The Rust reader probes every book for an encryption manifest before checking its
+file type. It calls the Rust ZIP, package, wrapped-key and trusted-time code
+directly, and owns the loan decision and error mapping. Missing ZIP end records
+and manifests without a supported AES method retain their existing plain-book
+classification.
+
+Native primitives hold the SDK container index, protected stream, AES transaction,
+and existing device-secret mutex/cache. Caller-owned temporary storage keeps the
+index SD handle open through key reading and the loan check. AES cleanup still
+happens when key reading returns. Rust clears its temporary content-key copy on
+every exit. The SDK keeps the session key for the existing decryptor lifetime.
+
+Cache reclaim calls the shared Rust pressure sequence in native registration
+order: render glyphs, SD mini-cache, then vector glyph arenas when compiled in.
+The stream opens its SD handle before reclaim. Persistent SD advances are retained.
+The named physical continuation is the SDK protected byte stream, including
+`lib/miniz/src/MinizCompat.cpp` calls to `xp_inflate_*` and its synchronous byte sink.
+
+`openProtectedBook` remains for native EPUB callers such as sync, sleep covers,
+home progress and thumbnails. The [protection tests](../../test/reader_protection/README.md)
+compare this gate with the shipping Rust gate until native EPUB ownership moves.
+No key format, protected-book error text or persisted book data changes here.

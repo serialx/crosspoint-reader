@@ -1,4 +1,6 @@
 #pragma once
+#include <xp_app.h>
+#include <xp_hal.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -23,4 +25,13 @@ bool write(const std::string& bookPath, const uint8_t* key, size_t keyLen, int64
 // wrapped by this device, or tampered.
 size_t read(const std::string& bookPath, uint8_t (&key)[MAX_KEY_LEN], int64_t* expiresAt);
 
+}  // namespace bookkey
+
+namespace bookkey {
+enum class ReaderOperation : uint8_t { Begin, End, BorrowSecret, ReleaseSecret };
+struct ReaderSecret {
+  XpHalSecret* state;
+  XpHalSecretServices services;
+};
+void readerPlatform(void* storage, uint8_t operation, XpAppText path, void* out);
 }  // namespace bookkey

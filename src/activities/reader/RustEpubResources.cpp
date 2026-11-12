@@ -3,6 +3,7 @@
 #include <BidiUtils.h>
 #include <BlePageTurner.h>
 #include <BoardConfig.h>
+#include <BookKey.h>
 #include <BuildScratch.h>
 #include <ContentProtection.h>
 #include <Epub.h>
@@ -26,6 +27,7 @@
 #include <KOReaderDocumentId.h>
 #include <Logging.h>
 #include <Memory.h>
+#include <ReaderProtection.h>
 #ifdef XP_APP_TEST
 #include <SdCardFont.h>
 #endif
@@ -492,12 +494,16 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
               ImageBlock::setExtractor(nullptr, nullptr);
           },
 #endif
+#ifdef XP_APP_TEST
       .protection_open = [](XpAppText path, XpAppTextSink error, void* context) -> void* {
         std::string message;
         auto protection = freeink::content::openProtectedBook(owned(path), message);
         if (!message.empty()) error(context, text(message));
         return protection.release();
       },
+#else
+      .protection_index = freeink::content::readerProtectionIndex,
+#endif
       .protection_close = [](void* protection) { delete static_cast<freeink::content::ContentDecryptor*>(protection); },
       .protection_encrypted = [](void* protection, XpAppText path) -> uint8_t {
         return static_cast<freeink::content::ContentDecryptor*>(protection)->isEncrypted(owned(path));
@@ -505,6 +511,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .protection_size = [](void* protection, XpAppText path) -> uint32_t {
         return static_cast<freeink::content::ContentDecryptor*>(protection)->decryptedSize(owned(path));
       },
+#ifdef XP_APP_TEST
       .protection_stream = [](void* protection, XpAppText path, XpBookSink sink, void* context) -> uint8_t {
         struct Output {
           XpBookSink sink;
@@ -519,6 +526,9 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
                 },
                 &output);
       },
+#else
+      .protection_stream = freeink::content::readerProtectionStream,
+#endif
       .file_seek = [](void* file, uint32_t offset) -> uint8_t { return static_cast<HalFile*>(file)->seek(offset); },
       .file_size = [](void* file) -> uint32_t { return static_cast<HalFile*>(file)->size(); },
       .path_remove_tree = [](XpAppText path) -> uint8_t { return Storage.removeDir(pathText(path)); },
@@ -1124,6 +1134,10 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .storage_write_file_atomic = [](XpAppText path, const uint8_t* bytes, uint32_t size) -> uint8_t {
         return Storage.writeFileAtomic(pathText(path), bytes, size);
       },
+#ifndef XP_APP_TEST
+      .protection_finish = freeink::content::readerProtectionFinish,
+      .key_platform = bookkey::readerPlatform,
+#endif
   };
   if (!sectionMetrics.context) {
 #ifndef XP_APP_TEST

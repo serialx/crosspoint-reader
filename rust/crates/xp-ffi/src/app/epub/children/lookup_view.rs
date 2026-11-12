@@ -79,10 +79,10 @@ impl Drawing<'_> {
 }
 impl Metrics for Drawing<'_> {
     fn width(&mut self, font: i32, _: &[u8], style: u8) -> i32 {
-        unsafe { (self.services.text_width)(self.message, font, style) }
+        unsafe { self.services.text_width(self.message, font, style) }
     }
     fn line_height(&mut self, font: i32) -> i32 {
-        unsafe { (self.services.line_height)(font) }
+        unsafe { self.services.line_height(font) }
     }
 }
 impl Drop for Drawing<'_> {
@@ -124,7 +124,7 @@ impl LookupData {
             STR_DICT_DECOMPRESS_ERROR,
             STR_DICT_ERROR,
         ];
-        let message = unsafe { (services.translate)(messages[usize::from(state.message)]) };
+        let message = unsafe { services.translate(messages[usize::from(state.message)]) };
         let frame = self.frame.get();
         let mut drawing = Drawing {
             owner: self,

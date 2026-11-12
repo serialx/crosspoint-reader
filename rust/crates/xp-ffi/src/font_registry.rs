@@ -36,8 +36,15 @@ extern "C" {
     #[cfg(any(not(feature = "sd-font-catalog"), feature = "app-test"))]
     pub(crate) fn xp_native_sd_font_load(native: *mut c_void, font: i32) -> u8;
     fn xp_native_font_diagnostic(native: *mut c_void, event: u32, value: u32);
-    pub(crate) fn xp_native_bidi_acquire() -> *mut xp_core::bidi::Workspace;
+    fn xp_native_bidi_acquire(size: usize, alignment: usize) -> *mut xp_core::bidi::Workspace;
     pub(crate) fn xp_native_bidi_release();
+}
+
+pub(crate) unsafe extern "C" fn acquire_bidi() -> *mut xp_core::bidi::Workspace {
+    xp_native_bidi_acquire(
+        size_of::<xp_core::bidi::Workspace>(),
+        align_of::<xp_core::bidi::Workspace>(),
+    )
 }
 
 #[repr(C)]
@@ -62,7 +69,7 @@ impl Owner {
     pub(crate) unsafe fn slot(owner: *const Self, id: i32, style: u8) -> *const *const FontData {
         (*owner).registry.slot(id, style)
     }
-    unsafe fn data(owner: *const Self, id: i32, style: u8) -> *const FontData {
+    pub(crate) unsafe fn data(owner: *const Self, id: i32, style: u8) -> *const FontData {
         let slot = Self::slot(owner, id, style);
         if slot.is_null() {
             ptr::null()
@@ -188,7 +195,8 @@ pub(crate) unsafe fn report(owner: *const Owner, event: u32, value: u32) {
 /// # Safety
 /// Owner, font slots and native context obey the serialized synchronous provider contract.
 #[no_mangle]
-pub unsafe extern "C" fn xp_font_registry_provider(owner: *const Owner) -> Provider {
+pub unsafe extern "C" fn xp_font_registry_provider(owner: *const c_void) -> Provider {
+    let owner = owner.cast::<Owner>();
     Provider {
         context: owner.cast_mut().cast(),
         generation: (*owner).registry.generation,
@@ -196,7 +204,7 @@ pub unsafe extern "C" fn xp_font_registry_provider(owner: *const Owner) -> Provi
         glyph,
         coverage,
         kern,
-        bidi_acquire: xp_native_bidi_acquire,
+        bidi_acquire: acquire_bidi,
         bidi_release: xp_native_bidi_release,
         prewarm,
         diagnostic: Some(diagnostic),

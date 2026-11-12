@@ -199,14 +199,11 @@ void Paragraph::layoutLines(const GfxRenderer& source, int fontId, uint16_t view
       visualOrder,
 #endif
 #ifdef XP_NATIVE_TEXT_MEASUREMENT
-      [](void* ctx, XpNativeProvider* out) -> uint8_t {
 #ifdef XP_APP_TEST
-        *out = renderer(ctx).textProvider();
+      [](const void* ctx) -> XpNativeProvider { return renderer(const_cast<void*>(ctx)).textProvider(); },
 #else
-        *out = xp_font_registry_provider(static_cast<const XpLoadedFonts*>(ctx));
+      xp_font_registry_provider,
 #endif
-        return true;
-      },
 #else
       nullptr,
 #endif

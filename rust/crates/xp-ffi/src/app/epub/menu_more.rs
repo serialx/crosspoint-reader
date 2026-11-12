@@ -53,7 +53,7 @@ impl EpubSession {
             unsafe {
                 (self.leaves.popup_show)(
                     popup.as_ptr(),
-                    (self.resources.translate)(title),
+                    self.resources.translate(title),
                     app_abi::Text::from_bytes(&b"\0"[..0]),
                     count as u32,
                     selected,
@@ -154,7 +154,7 @@ impl EpubSession {
             }
             x if x == Action::Auto as u8 => {
                 let labels = [
-                    unsafe { (self.resources.translate)(ids::STR_STATE_OFF) },
+                    unsafe { self.resources.translate(ids::STR_STATE_OFF) },
                     app_abi::Text::from_bytes(b"1"),
                     app_abi::Text::from_bytes(b"3"),
                     app_abi::Text::from_bytes(b"6"),

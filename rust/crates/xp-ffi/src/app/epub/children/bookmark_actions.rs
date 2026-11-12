@@ -31,7 +31,7 @@ unsafe extern "C" fn label(
         OptionKind::Delete => &[ids::STR_CANCEL, ids::STR_DELETE],
     };
     keys.get(index as usize).map_or(0, |key| unsafe {
-        sink(sink_context, (parent.resources.translate)(*key))
+        sink(sink_context, parent.resources.translate(*key))
     })
 }
 unsafe extern "C" fn choose(context: *mut c_void, index: i32) {
@@ -69,7 +69,7 @@ impl Bookmarks {
         unsafe {
             (parent.leaves.popup_show)(
                 handle.as_ptr(),
-                (parent.resources.translate)(title),
+                parent.resources.translate(title),
                 abi::Text::from_terminated(b"\0"),
                 count,
                 0,
@@ -125,7 +125,7 @@ impl Bookmarks {
         let launched = parent.with_bookmarks(&access, |rows| {
             let row = rows.get(index)?;
             Some(keyboard::launch(&keyboard::Launch {
-                title: unsafe { (parent.resources.translate)(ids::STR_RENAME) },
+                title: unsafe { parent.resources.translate(ids::STR_RENAME) },
                 initial: abi::Text::from_terminated(row.name.terminated()),
                 maximum: 128,
                 input_type: 0,

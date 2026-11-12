@@ -426,7 +426,7 @@ impl EpubSession {
     }
 
     fn book_popup(&self, label: u16) {
-        unsafe { (self.resources.popup_draw)((self.resources.translate)(label)) };
+        unsafe { (self.resources.popup_draw)(self.resources.translate(label)) };
     }
 
     fn book_clear(&self, access: &ResourceAccess<'_>) {
@@ -441,7 +441,7 @@ impl EpubSession {
         self.book_clear(access);
         let empty = app_abi::Text::from_bytes(&[]);
         let hints = [
-            unsafe { (self.resources.translate)(ids::STR_BACK) },
+            unsafe { self.resources.translate(ids::STR_BACK) },
             empty,
             empty,
             empty,
@@ -458,8 +458,8 @@ impl EpubSession {
     #[inline(never)]
     fn book_error_text(&self, label: u16) {
         let geometry = self.book_geometry();
-        let text = unsafe { (self.resources.translate)(label) };
-        let width = unsafe { (self.resources.text_width)(text, geometry.ui_font_12, 1) };
+        let text = unsafe { self.resources.translate(label) };
+        let width = unsafe { self.resources.text_width(text, geometry.ui_font_12, 1) };
         let command = Command {
             rect: Rect {
                 x: ((geometry.width - width) / 2) as i16,

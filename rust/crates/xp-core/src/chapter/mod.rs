@@ -194,11 +194,9 @@ impl State {
         core::ptr::addr_of_mut!((*out).assembly).write(assembly::Assembly::new(assembly_options));
         core::ptr::addr_of_mut!((*out).page_storage).write(page_storage);
         let (metrics, context) = backend.metrics();
-        let mut provider = core::mem::MaybeUninit::uninit();
-        let engine = metrics.native.and_then(|fill| {
-            (fill(context, provider.as_mut_ptr()) != 0)
-                .then(|| crate::textm::native::Engine::new(provider.assume_init()))
-        });
+        let engine = metrics
+            .native
+            .map(|fill| crate::textm::native::Engine::new(fill(context)));
         core::ptr::addr_of_mut!((*out).native_engine).write(engine);
         core::ptr::addr_of_mut!((*out).css).write(css);
         core::ptr::addr_of_mut!((*out).alignment).write(alignment);

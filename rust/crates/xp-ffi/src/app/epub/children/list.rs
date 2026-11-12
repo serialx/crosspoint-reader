@@ -55,7 +55,7 @@ impl Drawing<'_> {
             }
             list::FOOTER => {
                 let labels = [STR_BACK, STR_SELECT, STR_DIR_UP, STR_DIR_DOWN]
-                    .map(|key| unsafe { (this.services.translate)(key) });
+                    .map(|key| unsafe { this.services.translate(key) });
                 unsafe { (this.services.footer_draw)(labels.as_ptr()) };
             }
             handle => {
@@ -169,7 +169,7 @@ pub(super) fn width(
     font: i32,
     style: u8,
 ) -> Result<i32, Error> {
-    let value = unsafe { (services.text_width)(text.ok_or(Error::Invalid)?, font, style) };
+    let value = unsafe { services.text_width(text.ok_or(Error::Invalid)?, font, style) };
     if value < 0 {
         Err(Error::Invalid)
     } else {
@@ -202,7 +202,7 @@ pub(super) fn height(
     }
 }
 pub(super) fn line(services: &abi::Resources, font: i32) -> Result<i32, Error> {
-    let value = unsafe { (services.line_height)(font) };
+    let value = unsafe { services.line_height(font) };
     if value < 0 {
         Err(Error::Invalid)
     } else {

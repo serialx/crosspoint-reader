@@ -113,14 +113,14 @@ impl EpubSession {
         self.model(|state| state.popup = PopupIntent::LoadFailure { offer_sync });
         unsafe {
             let labels = [
-                (self.resources.translate)(if offer_sync {
+                self.resources.translate(if offer_sync {
                     ids::STR_CLOCK_SYNC_NOW
                 } else {
                     ids::STR_OK_BUTTON
                 }),
-                (self.resources.translate)(ids::STR_OK_BUTTON),
+                self.resources.translate(ids::STR_OK_BUTTON),
             ];
-            let message = (self.resources.translate)(message);
+            let message = self.resources.translate(message);
             let access = self.lock_resources();
             self.show_failure_choices(&access, message, &labels[..if offer_sync { 2 } else { 1 }]);
         }
@@ -163,7 +163,7 @@ impl EpubSession {
             return;
         }
         let synced = unsafe {
-            let message = (self.resources.translate)(ids::STR_SYNCING_TIME);
+            let message = self.resources.translate(ids::STR_SYNCING_TIME);
             (self.resources.popup_draw)(message);
             let synced = (self.leaves.trusted_sync)(5000) != 0;
             (self.leaves.wifi_disconnect)(0);
@@ -174,10 +174,10 @@ impl EpubSession {
             self.model(|state| state.popup = PopupIntent::RetryTime);
             unsafe {
                 let labels = [
-                    (self.resources.translate)(ids::STR_RETRY),
-                    (self.resources.translate)(ids::STR_OK_BUTTON),
+                    self.resources.translate(ids::STR_RETRY),
+                    self.resources.translate(ids::STR_OK_BUTTON),
                 ];
-                let message = (self.resources.translate)(ids::STR_CLOCK_SYNC_FAIL);
+                let message = self.resources.translate(ids::STR_CLOCK_SYNC_FAIL);
                 let access = self.lock_resources();
                 self.show_failure_choices(&access, message, &labels);
             }

@@ -116,17 +116,17 @@ impl Texts<'_> {
             TextResource::Continue => STR_CONTINUE_READING,
             _ => return None,
         };
-        Some(unsafe { (self.services.translate)(string_id) })
+        Some(unsafe { self.services.translate(string_id) })
     }
 
     fn measure(&self, handle: TextResource, font: i32, bold: bool) -> Result<i16, Error> {
         let text = self.lookup(handle).ok_or(Error::Invalid)?;
-        i16::try_from(unsafe { (self.services.text_width)(text, font, u8::from(bold)) })
+        i16::try_from(unsafe { self.services.text_width(text, font, u8::from(bold)) })
             .map_err(|_| Error::Invalid)
     }
 
     fn line_height(&self, font: i32) -> Result<i16, Error> {
-        i16::try_from(unsafe { (self.services.line_height)(font) }).map_err(|_| Error::Invalid)
+        i16::try_from(unsafe { self.services.line_height(font) }).map_err(|_| Error::Invalid)
     }
 
     fn is_empty(&self, handle: TextResource) -> bool {
@@ -213,7 +213,7 @@ impl view::Texts for Texts<'_> {
         let mut max_width = 0;
         for text in &*capture.lines {
             max_width = max_width
-                .max(unsafe { (self.services.text_width)(text.wire(), font, u8::from(bold)) });
+                .max(unsafe { self.services.text_width(text.wire(), font, u8::from(bold)) });
         }
         Ok(view::Lines {
             book: book as u8,

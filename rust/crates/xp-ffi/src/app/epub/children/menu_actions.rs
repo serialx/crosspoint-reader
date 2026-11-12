@@ -30,10 +30,10 @@ unsafe extern "C" fn label(
             .get(index as usize) else {
                 return 0;
             };
-            unsafe { (parent.resources.translate)(*key) }
+            unsafe { parent.resources.translate(*key) }
         }
         MenuOption::AutoTurn => match index {
-            0 => unsafe { (parent.resources.translate)(ids::STR_STATE_OFF) },
+            0 => unsafe { parent.resources.translate(ids::STR_STATE_OFF) },
             1 => abi::Text::from_terminated(b"1\0"),
             2 => abi::Text::from_terminated(b"3\0"),
             3 => abi::Text::from_terminated(b"6\0"),
@@ -76,7 +76,7 @@ impl Menu {
         unsafe {
             (parent.leaves.popup_show)(
                 handle.as_ptr(),
-                (parent.resources.translate)(title),
+                parent.resources.translate(title),
                 abi::Text::from_terminated(b"\0"),
                 count,
                 i32::from(selected),

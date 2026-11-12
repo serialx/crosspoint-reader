@@ -861,10 +861,20 @@ against a concurrent free. The bidi mutex protects only bidi storage.
 [`BidiUtils`](../../lib/MiniBidi/RustBidi.cpp) owns the existing lazily allocated
 3,072-byte workspace and mutex. Rust borrows it exclusively through
 `xp_native_bidi_acquire/release`, holding the lease while visual text is used.
+Rust supplies the workspace size and alignment to the native allocation leaf;
+value initialization zeros the scratch bytes without calling back into Rust.
+An allocation or contract failure releases the lease and retries on the next use.
 Reordering scratch, shaping and anchors overlap only when their lifetimes do
 not; visual UTF-8 reuses dead logical-character storage. Measurement and drawing
 share this workspace and add no visual-string allocation. The small C++ bidi
 wrapper also serves dictionary, selection and keyboard callers.
+
+The production paragraph metric table points directly to the Rust font provider.
+Shared application translation resolves strings in Rust after querying the current
+native language; width and line height read the borrowed Rust font owner. Their
+legacy callbacks remain only in host oracle tables. TOC row prewarming also stays
+in Rust, including the virtual ellipsis row used by truncation. SDK component
+measurement and painting still use the synchronous native target interface.
 
 The [bidi differential](../../test/bidi_diff/README.md),
 [font-table differential](../../test/font_diff/README.md),

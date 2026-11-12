@@ -47,7 +47,7 @@ impl PercentLabels {
             (&mut self.front, STR_STEP_HINT_FRONT, &b" 1%"[..]),
             (&mut self.side, STR_STEP_HINT_SIDE, &b" 10%"[..]),
         ] {
-            let text = unsafe { (services.translate)(key) };
+            let text = unsafe { services.translate(key) };
             buffer.append(unsafe { text.bytes() }.unwrap_or(&[]));
             buffer.append(suffix);
         }
@@ -60,8 +60,8 @@ struct Labels<'a> {
 impl Labels<'_> {
     fn text(&self, handle: u32) -> Option<abi::Text> {
         Some(match handle {
-            utility::TITLE => unsafe { (self.services.translate)(STR_GO_TO_PERCENT) },
-            utility::CONFIRM => unsafe { (self.services.translate)(STR_CONFIRM) },
+            utility::TITLE => unsafe { self.services.translate(STR_GO_TO_PERCENT) },
+            utility::CONFIRM => unsafe { self.services.translate(STR_CONFIRM) },
             utility::READOUT => self.storage.readout.wire(),
             utility::MINIMUM => abi::Text::from_terminated(b"0%\0"),
             utility::MAXIMUM => abi::Text::from_terminated(b"100%\0"),
@@ -86,8 +86,8 @@ impl Labels<'_> {
         let command = unsafe { &*command };
         if command.resource == utility::FOOTER {
             let labels = [
-                unsafe { (this.services.translate)(STR_BACK) },
-                unsafe { (this.services.translate)(STR_SELECT) },
+                unsafe { this.services.translate(STR_BACK) },
+                unsafe { this.services.translate(STR_SELECT) },
                 abi::Text::from_terminated(b"-\0"),
                 abi::Text::from_terminated(b"+\0"),
             ];

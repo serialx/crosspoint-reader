@@ -158,6 +158,7 @@ void drawReaderToolbarIcon(GfxRenderer& renderer, const uint32_t icon, const XpU
   renderer.setClipRect(old[0], old[1], old[2], old[3]);
 }
 
+#ifdef XP_APP_TEST
 void prewarmReaderRows(GfxRenderer& renderer, const int32_t font, const void* context,
                        XpAppText (*row)(const void*, uint32_t), const uint32_t count) {
   struct Rows {
@@ -173,3 +174,5 @@ void prewarmReaderRows(GfxRenderer& renderer, const int32_t font, const void* co
       },
       &rows, count);
 }
+
+#endif

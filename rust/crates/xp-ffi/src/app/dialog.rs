@@ -80,7 +80,7 @@ unsafe impl Host for NativeHost {
         }
     }
     fn with_translation<R>(&self, id: u16, consume: impl FnOnce(&CStr) -> R) -> R {
-        let text = unsafe { (self.app.resources.translate)(id) };
+        let text = unsafe { self.app.resources.translate(id) };
         consume(if text.len == 0 {
             c""
         } else {
@@ -147,7 +147,7 @@ unsafe impl Host for NativeHost {
     }
     fn footer(&self, _: &Command, clip: Rect, labels: [Label; 4]) {
         let labels = labels.map(|label| match label {
-            Label::Translation(id) => unsafe { (self.app.resources.translate)(id) },
+            Label::Translation(id) => unsafe { self.app.resources.translate(id) },
             Label::Literal(text) => native_text(text),
         });
         unsafe { xp_dialog_footer(self.object.as_ptr(), clip, labels.as_ptr()) };

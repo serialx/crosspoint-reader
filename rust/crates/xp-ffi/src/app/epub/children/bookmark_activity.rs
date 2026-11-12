@@ -18,7 +18,7 @@ impl Toc for GuardedToc<'_, '_> {
         };
         let index = unsafe { session_book::toc_for_spine(book.as_ptr(), i32::from(spine)) };
         if index < 0 {
-            let title = unsafe { (parent.resources.translate)(STR_UNNAMED).bytes() };
+            let title = unsafe { parent.resources.translate(STR_UNNAMED).bytes() };
             return title.is_some_and(|title| output.assign_parts(&[prefix, title]).is_ok());
         }
         struct Fill<'a> {

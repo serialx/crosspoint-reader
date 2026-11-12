@@ -97,7 +97,7 @@ impl Drawing<'_> {
             }
             view::FOOTER => {
                 let empty = abi::Text::from_bytes(b"");
-                let translate = |id| unsafe { (this.services.translate)(id) };
+                let translate = |id| unsafe { this.services.translate(id) };
                 let labels = [
                     translate(STR_BACK),
                     if state.lookup != 0 {
@@ -125,10 +125,10 @@ impl Drawing<'_> {
 }
 impl Metrics for Drawing<'_> {
     fn width(&mut self, font: i32, _: &[u8], style: u8) -> i32 {
-        unsafe { (self.services.text_width)(self.message, font, style) }
+        unsafe { self.services.text_width(self.message, font, style) }
     }
     fn line_height(&mut self, font: i32) -> i32 {
-        unsafe { (self.services.line_height)(font) }
+        unsafe { self.services.line_height(font) }
     }
 }
 impl Drop for Drawing<'_> {
@@ -170,7 +170,7 @@ impl DefinitionSession {
             (self.physical.layout)(ptr::addr_of_mut!((*frame).layout), -1, -1);
         }
         let message = if unsafe { (*frame).state.message_visible } != 0 {
-            unsafe { (services.translate)((*frame).state.message) }
+            unsafe { services.translate((*frame).state.message) }
         } else {
             abi::Text::from_bytes(b"")
         };

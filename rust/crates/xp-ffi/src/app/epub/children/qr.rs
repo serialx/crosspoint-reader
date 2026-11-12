@@ -35,12 +35,12 @@ impl Drawing<'_> {
         let command = unsafe { &*command };
         match command.resource {
             utility::HEADER => unsafe {
-                (this.physical.header)(command.rect, (this.services.translate)(STR_DISPLAY_QR), 0)
+                (this.physical.header)(command.rect, this.services.translate(STR_DISPLAY_QR), 0)
             },
             utility::FOOTER => {
                 let empty = abi::Text::from_terminated(b"\0");
                 let labels = [
-                    unsafe { (this.services.translate)(STR_BACK) },
+                    unsafe { this.services.translate(STR_BACK) },
                     empty,
                     empty,
                     empty,

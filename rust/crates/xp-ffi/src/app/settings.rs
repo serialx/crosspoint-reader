@@ -64,7 +64,7 @@ unsafe impl Host for NativeHost {
     }
     fn translate(&self, id: u16) -> &'static CStr {
         // I18n::get delegates to the immutable built-in Rust translation table.
-        let value = unsafe { (self.app.resources.translate)(id) };
+        let value = unsafe { self.app.resources.translate(id) };
         if value.len == 0 {
             c""
         } else {
@@ -75,7 +75,7 @@ unsafe impl Host for NativeHost {
         unsafe { xp_settings_shell_snapshot(out) };
     }
     fn width(&self, value: &CStr, font: i32, style: u8) -> i32 {
-        unsafe { (self.app.resources.text_width)(text(value), font, style) }
+        unsafe { self.app.resources.text_width(text(value), font, style) }
     }
     fn height(&self, value: &CStr, font: i32, style: u8, lines: u8, width: i16) -> i32 {
         unsafe {
@@ -91,7 +91,7 @@ unsafe impl Host for NativeHost {
         }
     }
     fn line(&self, font: i32) -> i32 {
-        unsafe { (self.app.resources.line_height)(font) }
+        unsafe { self.app.resources.line_height(font) }
     }
     #[inline(never)]
     fn paint(&self, scene: &Scene<'_>, resources: &mut impl Resources) -> bool {

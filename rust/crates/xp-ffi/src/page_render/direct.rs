@@ -219,7 +219,7 @@ pub(crate) unsafe fn paint(arena: &[u8], target: &Target, request: &Request) -> 
     if !target.glyphs.valid() || target.glyphs.buffer.is_null() || target.fonts.is_null() {
         return 1;
     }
-    let provider = fonts::xp_font_registry_provider(target.fonts);
+    let provider = fonts::xp_font_registry_provider(target.fonts.cast());
     let mut paint = GlyphPaint {
         target: ptr::read(&target.glyphs),
         source: core::mem::zeroed(),

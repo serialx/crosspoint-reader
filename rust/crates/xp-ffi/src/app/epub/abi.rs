@@ -935,6 +935,7 @@ const fn leaf_index(index: usize) -> usize {
         index
             - if index >= 28 { 4 } else { 0 }
             - if index >= 137 { 1 } else { 0 }
+            - if index >= 138 { 1 } else { 0 }
             - if cfg!(feature = "sd-font-catalog") && index >= 30 {
                 1
             } else {

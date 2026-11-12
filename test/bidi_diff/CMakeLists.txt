@@ -15,6 +15,11 @@ foreach(name minibidi.c minibidi.h BidiUtils.cpp bidiclasses.t bidi_pairs.t)
     WORKING_DIRECTORY ${REPO_ROOT} OUTPUT_FILE ${BIDI_REFERENCE}/${name}
     COMMAND_ERROR_IS_FATAL ANY)
 endforeach()
+# The frozen algorithm keeps its own workspace; adapt only the lease signature.
+file(READ ${BIDI_REFERENCE}/BidiUtils.cpp BIDI_REFERENCE_SOURCE)
+string(REPLACE "xp_native_bidi_acquire()" "xp_native_bidi_acquire(size_t, size_t)"
+  BIDI_REFERENCE_SOURCE "${BIDI_REFERENCE_SOURCE}")
+file(WRITE ${BIDI_REFERENCE}/BidiUtils.cpp "${BIDI_REFERENCE_SOURCE}")
 add_executable(BidiDiff
   main.cpp
   ${BIDI_REFERENCE}/minibidi.c
@@ -32,3 +37,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/corpus.txt
 add_custom_target(BidiCorpus DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/corpus.txt)
 add_dependencies(BidiDiff BidiCorpus)
 add_test(NAME BidiDifferential COMMAND BidiDiff ${CMAKE_CURRENT_BINARY_DIR}/corpus.txt)
+
+add_executable(BidiWorkspaceLease workspace_lease.cpp ${REPO_ROOT}/lib/MiniBidi/RustBidi.cpp)
+target_include_directories(BidiWorkspaceLease PRIVATE ${REPO_ROOT}/test/minibidi_arabic/stubs
+  ${REPO_ROOT}/lib/MiniBidi ${REPO_ROOT}/lib/Memory)
+target_link_libraries(BidiWorkspaceLease PRIVATE xp_ffi_host)
+target_compile_options(BidiWorkspaceLease PRIVATE -UNDEBUG)
+add_test(NAME BidiWorkspaceLease COMMAND BidiWorkspaceLease)

@@ -23,6 +23,7 @@ pub(super) trait ChapterBook {
 }
 struct ChapterRows<'a> {
     services: &'a abi::Resources,
+    #[cfg(feature = "app-test")]
     physical: &'a Physical,
     book: &'a mut dyn ChapterBook,
     window: &'a mut Window,
@@ -30,6 +31,7 @@ struct ChapterRows<'a> {
     present: bool,
     font: i32,
 }
+#[cfg(feature = "app-test")]
 unsafe extern "C" fn prewarm_label(context: *const c_void, index: u32) -> abi::Text {
     let window = unsafe { &*context.cast::<Window>() };
     window
@@ -40,9 +42,9 @@ unsafe extern "C" fn prewarm_label(context: *const c_void, index: u32) -> abi::T
 impl Rows for ChapterRows<'_> {
     fn text(&self, handle: u32) -> Option<abi::Text> {
         match handle {
-            list::HEADER => Some(unsafe { (self.services.translate)(STR_SELECT_CHAPTER) }),
+            list::HEADER => Some(unsafe { self.services.translate(STR_SELECT_CHAPTER) }),
             list::EMPTY => Some(if self.present {
-                unsafe { (self.services.translate)(STR_NO_CHAPTERS) }
+                unsafe { self.services.translate(STR_NO_CHAPTERS) }
             } else {
                 abi::Text::from_terminated(b"\0")
             }),
@@ -69,6 +71,7 @@ impl list::Resources for ChapterRows<'_> {
             return Err(Error::Invalid);
         }
         if before != (self.window.first(), self.window.labels().len()) {
+            #[cfg(feature = "app-test")]
             unsafe {
                 (self.physical.prewarm_rows)(
                     self.font,
@@ -76,6 +79,10 @@ impl list::Resources for ChapterRows<'_> {
                     prewarm_label,
                     self.window.labels().len() as u32,
                 )
+            };
+            #[cfg(not(feature = "app-test"))]
+            unsafe {
+                prewarm(self.services, self.font, self.window)
             };
         }
         Ok(())
@@ -136,6 +143,7 @@ impl Chapters {
         let sampled = unsafe { physical.sample_theme(&mut frame.list.theme, ThemeMode::List) };
         let mut rows = ChapterRows {
             services,
+            #[cfg(feature = "app-test")]
             physical,
             book,
             window: &mut frame.window,
@@ -161,4 +169,53 @@ impl Chapters {
         }
         result.map(|prepared| prepared.command_count)
     }
+}
+
+#[cfg(not(feature = "app-test"))]
+unsafe fn prewarm(services: &abi::Resources, font: i32, window: &Window) {
+    let owner = services
+        .font_owner
+        .get()
+        .cast::<crate::font_registry::Owner>();
+    if (*owner).registry.fallback(font) == 0 {
+        return;
+    }
+    let provider = crate::font_registry::xp_font_registry_provider(owner.cast());
+    let mut fallback = font;
+    for text in window.labels() {
+        if text.is_empty() {
+            continue;
+        }
+        let bytes = text.bytes();
+        let len = bytes
+            .iter()
+            .position(|&byte| byte == 0)
+            .unwrap_or(bytes.len());
+        let text = text.wire();
+        fallback = crate::textm::xp_native_resolve(&provider, font, text.data, len, 0);
+        if fallback != font {
+            break;
+        }
+    }
+    if fallback == font || crate::font_sd::control(owner).face(fallback).is_none() {
+        return;
+    }
+    unsafe extern "C" fn row(context: *const c_void, index: u32) -> *const u8 {
+        let window = &*context.cast::<Window>();
+        window
+            .labels()
+            .get(index as usize)
+            .map_or(c"…".as_ptr().cast(), |text| text.wire().data)
+    }
+    crate::font_sd::xp_sd_font_prewarm(
+        owner,
+        fallback,
+        row,
+        (window as *const Window).cast(),
+        window.labels().len() as u32 + 1,
+        1,
+        0,
+        0,
+        1,
+    );
 }

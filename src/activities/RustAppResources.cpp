@@ -235,7 +235,11 @@ const XpAppResources& rustAppResources(GfxRenderer& renderer, MappedInputManager
             theme->touch = BoardConfig::hasTouch();
             theme->body_bold = m.listTitleBold;
           },
+#ifdef XP_APP_TEST
       .translate = [](uint16_t id) -> XpAppText { return text(I18N.get(static_cast<StrId>(id))); },
+#else
+      .translate = []() -> uint8_t { return static_cast<uint8_t>(I18N.getLanguage()); },
+#endif
       .header_draw =
           [](XpUiRect bounds, XpAppText title) {
             GUI.drawHeader(*target, rect(bounds), title.data ? cstr(title) : nullptr, nullptr, false);
@@ -257,10 +261,12 @@ const XpAppResources& rustAppResources(GfxRenderer& renderer, MappedInputManager
           },
       .text_draw = [](const XpUiCommand* command, XpUiRect clip,
                       XpAppText value) { target->drawUiText(*command, clip, cstr(value)); },
+#ifdef XP_APP_TEST
       .text_width = [](XpAppText value, int32_t font, uint8_t style) -> int32_t {
         return target->getTextWidth(font, cstr(value), static_cast<EpdFontFamily::Style>(style));
       },
       .line_height = [](int32_t font) -> int32_t { return target->getLineHeight(font); },
+#endif
       .text_wrap = [](XpAppText value, XpAppTextLayout layout, XpAppTextSink sink, void* context) -> uint8_t {
         const auto lines = target->wrappedText(layout.font, cstr(value), layout.width, layout.lines,
                                                static_cast<EpdFontFamily::Style>(layout.style));

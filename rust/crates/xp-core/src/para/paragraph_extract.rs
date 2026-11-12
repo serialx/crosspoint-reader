@@ -480,15 +480,12 @@ unsafe fn extract(
 /// but cannot change or destroy the paragraph; metrics callbacks cannot reenter it.
 pub unsafe fn layout(p: *mut Paragraph, m: &Metrics, o: &Options) {
     if let Some(fill) = m.native {
-        let mut provider = core::mem::MaybeUninit::uninit();
-        if fill(m.context, provider.as_mut_ptr()) != 0 {
-            let engine = crate::textm::native::Engine::new(provider.assume_init());
-            let metrics = Metrics {
-                engine: &engine,
-                ..*m
-            };
-            return layout_inner(p, &metrics, o);
-        }
+        let engine = crate::textm::native::Engine::new(fill(m.context));
+        let metrics = Metrics {
+            engine: &engine,
+            ..*m
+        };
+        return layout_inner(p, &metrics, o);
     }
     layout_inner(p, m, o);
 }

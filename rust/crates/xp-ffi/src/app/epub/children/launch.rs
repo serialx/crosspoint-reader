@@ -38,7 +38,7 @@ impl EpubSession {
             write!(total, "{}", args.pages).ok()?;
             write!(percent, "{}", args.percent).ok()?;
             let translated =
-                |id| unsafe { (self.resources.translate)(id).bytes().unwrap_or_default() };
+                |id| unsafe { self.resources.translate(id).bytes().unwrap_or_default() };
             let mut progress = Text::default();
             let chapter = args.pages > 0;
             progress

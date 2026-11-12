@@ -123,9 +123,8 @@ XpParaMetrics metrics(Fixture& f, bool native) {
                                                              styles, small);
   };
   if (native) {
-    m.native = [](void* c, XpNativeProvider* out) -> uint8_t {
-      *out = static_cast<Fixture*>(c)->provider();
-      return 1;
+    m.native = [](const void* c) -> XpNativeProvider {
+      return static_cast<Fixture*>(const_cast<void*>(c))->provider();
     };
     return m;
   }

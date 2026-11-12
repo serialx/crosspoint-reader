@@ -163,7 +163,9 @@ unused_native!(
 );
 unused_native!(xp_native_sd_font_load(native: *mut c_void, font: i32) -> u8);
 unused_native!(xp_native_font_diagnostic(native: *mut c_void, event: u32, value: u32));
-unused_native!(xp_native_bidi_acquire() -> *mut xp_core::bidi::Workspace);
+unused_native!(
+    xp_native_bidi_acquire(_size: usize, _alignment: usize) -> *mut xp_core::bidi::Workspace
+);
 unused_native!(xp_native_bidi_release());
 
 #[no_mangle]
@@ -337,7 +339,7 @@ fn retained_family_name(expected: &core::ffi::CStr) {
     unsafe {
         xp_font_registry_init(owner, &generation, ptr::null_mut());
         assert_eq!(font_sd::xp_sd_font_load(owner, &family, 14, 101, 0), 101);
-        let provider = font_registry::xp_font_registry_provider(owner);
+        let provider = font_registry::xp_font_registry_provider(owner.cast());
         let slot = core::mem::transmute::<
             font_registry::QueryResult,
             *const *const xp_core::font::raw::FontData,

@@ -60,9 +60,7 @@ impl Collection {
         };
         if library.count().is_none() {
             drop(library);
-            unsafe {
-                (self.services.popup_draw)((self.services.translate)(STR_LIBRARY_REBUILDING))
-            };
+            unsafe { (self.services.popup_draw)(self.services.translate(STR_LIBRARY_REBUILDING)) };
             if unsafe { (self.services.library_rebuild)(u8::from(metadata)) } == 0 {
                 return;
             }
@@ -207,7 +205,7 @@ fn grid_cover(
             return;
         }
         if popup.is_none() {
-            let rect = unsafe { (services.popup_draw)((services.translate)(STR_LOADING_POPUP)) };
+            let rect = unsafe { (services.popup_draw)(services.translate(STR_LOADING_POPUP)) };
             unsafe { (services.popup_progress)(rect, 0) };
             *popup = Some(rect);
         }
@@ -263,7 +261,7 @@ pub fn load_covers(
             continue;
         }
         let rect = *popup.get_or_insert_with(|| unsafe {
-            (services.popup_draw)((services.translate)(STR_LOADING_POPUP))
+            (services.popup_draw)(services.translate(STR_LOADING_POPUP))
         });
         unsafe { (services.popup_progress)(rect, (10 + index * (90 / identities.len())) as i32) };
         before_generate();

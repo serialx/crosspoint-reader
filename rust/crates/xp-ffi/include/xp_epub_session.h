@@ -488,8 +488,8 @@ typedef struct XpEpubLeaves {
   void (*child_toolbar_icon)(uint32_t icon, XpUiRect rect, XpUiRect clip);
 #ifdef XP_APP_TEST
   void (*child_clear_fonts)(void);
-#endif
   void (*child_prewarm_rows)(int32_t font, const void* context, XpEpubChildRowText text, uint32_t count);
+#endif
   // Dictionary operations preserve native engine results; Rust owns ordering and popup policy.
   void (*child_lookup_init)(XpEpubLookupStorage* storage, XpAppText query);
   void (*child_lookup_drop)(XpEpubLookupStorage* storage);
@@ -587,16 +587,16 @@ XP_EPUB_ASSERT(offsetof(XpEpubPeer, addr) == 64, "XpEpubPeer.addr");
   ((index) + ((index) >= 24 ? 4 : 0) + ((index) >= 132 ? 1 : 0) - ((index) >= 26 ? 1 : 0))
 #define XP_EPUB_LEAF_COUNT 167
 #else
-#define XP_EPUB_LEAF_INDEX(index) ((index) - ((index) >= 26 ? 1 : 0))
-#define XP_EPUB_LEAF_COUNT 162
+#define XP_EPUB_LEAF_INDEX(index) ((index) - ((index) >= 26 ? 1 : 0) - ((index) >= 133 ? 1 : 0))
+#define XP_EPUB_LEAF_COUNT 161
 #endif
 #else
 #ifdef XP_APP_TEST
 #define XP_EPUB_LEAF_INDEX(index) ((index) + ((index) >= 24 ? 4 : 0) + ((index) >= 132 ? 1 : 0))
 #define XP_EPUB_LEAF_COUNT 168
 #else
-#define XP_EPUB_LEAF_INDEX(index) (index)
-#define XP_EPUB_LEAF_COUNT 163
+#define XP_EPUB_LEAF_INDEX(index) ((index) - ((index) >= 133 ? 1 : 0))
+#define XP_EPUB_LEAF_COUNT 162
 #endif
 #endif
 XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == XP_EPUB_LEAF_COUNT * sizeof(void (*)(void)), "XpEpubLeaves size");
@@ -759,7 +759,9 @@ XP_EPUB_ASSERT(offsetof(XpEpubLeaves, child_clear_fonts) == 135 * sizeof(void (*
 XP_EPUB_ASSERT(offsetof(XpEpubLeaves, child_clear_fonts) == 136 * sizeof(void (*)(void)), "host font fixture offset");
 #endif
 #endif
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(child_prewarm_rows, 132);
+#endif
 XP_EPUB_LEAF_OFFSET(child_lookup_init, 133);
 XP_EPUB_LEAF_OFFSET(child_lookup_drop, 134);
 XP_EPUB_LEAF_OFFSET(child_lookup_open, 135);

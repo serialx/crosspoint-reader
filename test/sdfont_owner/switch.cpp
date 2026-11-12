@@ -222,7 +222,7 @@ extern "C" void xp_native_font_diagnostic(void*, uint32_t, uint32_t) {}
 extern "C" const XpLoadedFonts* xp_native_chapter_font_owner(void* context) {
   return static_cast<XpLoadedFonts*>(context);
 }
-extern "C" void* xp_native_bidi_acquire() {
+extern "C" void* xp_native_bidi_acquire(size_t, size_t) {
   assert(!bidiHeld);
   if (bidiWork.empty()) {
     bidiWork.resize(xp_bidi_workspace_size());

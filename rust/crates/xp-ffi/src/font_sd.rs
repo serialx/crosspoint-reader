@@ -516,7 +516,7 @@ unsafe fn prepare<'a>(
         .any(|s| s.iter().any(|b| (0xd6..=0xdb).contains(b)));
     let visit = |emit: &mut dyn FnMut(&[u8])| {
         let work = if rtl {
-            crate::font_registry::xp_native_bidi_acquire()
+            crate::font_registry::acquire_bidi()
         } else {
             ptr::null_mut()
         };

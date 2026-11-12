@@ -99,3 +99,8 @@ The native text engine preserves the original RTL-lead-byte precheck and
 falls back to logical text when visual conversion emits no bytes. The C++
 `applyBidiVisual` compatibility wrapper preserves its distinct success-with-empty
 result for callers that use that API directly.
+
+`BidiWorkspaceLease` exercises the production allocation leaf with a failed
+allocation, invalid size and alignment, then successful acquisition and reuse.
+It checks zero initialization, retry after failure, mutex release and retention
+of the same workspace without reinitializing it on a warm acquisition.

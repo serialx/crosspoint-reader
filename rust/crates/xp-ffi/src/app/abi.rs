@@ -569,7 +569,10 @@ pub struct Resources {
     pub bitmap_draw: unsafe extern "C" fn(*mut core::ffi::c_void, xp_ui::scene::Rect, i32) -> u8,
     pub bitmap_close: unsafe extern "C" fn(*mut core::ffi::c_void),
     pub theme_snapshot: unsafe extern "C" fn(*mut Theme),
+    #[cfg(any(test, feature = "app-test"))]
     pub translate: unsafe extern "C" fn(u16) -> Text,
+    #[cfg(not(any(test, feature = "app-test")))]
+    pub translate: unsafe extern "C" fn() -> u8,
     pub header_draw: unsafe extern "C" fn(xp_ui::scene::Rect, Text),
     pub footer_draw: unsafe extern "C" fn(*const Text),
     pub placeholder_draw: unsafe extern "C" fn(xp_ui::scene::Rect),
@@ -577,7 +580,9 @@ pub struct Resources {
     pub popup_progress: unsafe extern "C" fn(xp_ui::scene::Rect, i32),
     pub icon_draw: unsafe extern "C" fn(u8, xp_ui::scene::Rect),
     pub text_draw: unsafe extern "C" fn(*const xp_ui::scene::Command, xp_ui::scene::Rect, Text),
+    #[cfg(any(test, feature = "app-test"))]
     pub text_width: unsafe extern "C" fn(Text, i32, u8) -> i32,
+    #[cfg(any(test, feature = "app-test"))]
     pub line_height: unsafe extern "C" fn(i32) -> i32,
     pub text_wrap: unsafe extern "C" fn(Text, TextLayout, TextSink, *mut core::ffi::c_void) -> u8,
     pub text_truncate:
@@ -599,7 +604,8 @@ pub struct Resources {
 
 const _: () = assert!(
     core::mem::size_of::<Resources>()
-        == (46 + cfg!(any(test, feature = "app-test")) as usize) * core::mem::size_of::<usize>()
+        == (44 + 3 * cfg!(any(test, feature = "app-test")) as usize)
+            * core::mem::size_of::<usize>()
 );
 
 #[repr(C)]

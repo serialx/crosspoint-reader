@@ -626,8 +626,8 @@ impl PaintContext<'_> {
                 };
             }
             Resource::Footer => {
-                let translate = this.services.translate;
-                let labels = unsafe {
+                let translate = |id| unsafe { this.services.translate(id) };
+                let labels = {
                     [
                         if this.state.snapshot.continuing {
                             translate(STR_RESUME)
@@ -730,7 +730,7 @@ fn grid_layout(theme: abi::Theme, progress: i32, services: &abi::Resources) -> g
         small_font: theme.small_font,
         title_font: theme.title_font,
         progress,
-        space_sm: (unsafe { (services.line_height)(theme.body_font) } / 6).max(4) as i16,
+        space_sm: (unsafe { services.line_height(theme.body_font) } / 6).max(4) as i16,
         space_lg: 16,
         header_side: theme.header_side,
         header_top: theme.top_padding,

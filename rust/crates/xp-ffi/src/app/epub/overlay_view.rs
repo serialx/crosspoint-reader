@@ -333,7 +333,7 @@ impl EpubSession {
             Overlay::Toolbar => unreachable!(),
         };
         model.item_count = count;
-        model.panel_title = unsafe { (self.resources.translate)(title) };
+        model.panel_title = unsafe { self.resources.translate(title) };
         self.paint_overlay_model(access, mode, &model);
     }
 }

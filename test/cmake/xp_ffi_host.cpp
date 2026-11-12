@@ -274,7 +274,7 @@ __attribute__((weak)) void xp_native_sd_font_resident_slice(void*, int32_t, uint
 }
 __attribute__((weak)) uint8_t xp_native_sd_font_load(void*, int32_t) { std::abort(); }
 __attribute__((weak)) void xp_native_font_diagnostic(void*, uint32_t, uint32_t) { std::abort(); }
-__attribute__((weak)) void* xp_native_bidi_acquire() { std::abort(); }
+__attribute__((weak)) void* xp_native_bidi_acquire(size_t, size_t) { std::abort(); }
 __attribute__((weak)) void xp_native_bidi_release() { std::abort(); }
 }
 

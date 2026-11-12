@@ -298,6 +298,11 @@ enum { XP_APP_MEMORY_DEFAULT, XP_APP_MEMORY_PSRAM_ONLY };
 typedef uint8_t XpAppBookKind;
 enum { XP_APP_BOOK_REFLOWABLE, XP_APP_BOOK_XTC };
 
+#ifdef XP_APP_TEST
+typedef XpAppText (*XpAppTranslate)(uint16_t string_id);
+#else
+typedef uint8_t (*XpAppTranslate)(void);  // Current language; Rust resolves the string ID.
+#endif
 typedef struct {
   XpAppHomeSettings (*settings_snapshot)(void);
   uint8_t (*recents_visit)(XpAppBookSink sink, void* context);
@@ -323,7 +328,7 @@ typedef struct {
   uint8_t (*bitmap_draw)(void* bitmap, XpUiRect rect, int32_t shift);
   void (*bitmap_close)(void* bitmap);
   void (*theme_snapshot)(XpAppTheme* theme);
-  XpAppText (*translate)(uint16_t string_id);
+  XpAppTranslate translate;
   void (*header_draw)(XpUiRect rect, XpAppText title);
   void (*footer_draw)(const XpAppText labels[4]);
   void (*placeholder_draw)(XpUiRect rect);
@@ -331,8 +336,10 @@ typedef struct {
   void (*popup_progress)(XpUiRect rect, int32_t percent);
   void (*icon_draw)(uint8_t icon, XpUiRect rect);
   void (*text_draw)(const XpUiCommand* command, XpUiRect clip, XpAppText text);
+#ifdef XP_APP_TEST
   int32_t (*text_width)(XpAppText text, int32_t font, uint8_t style);
   int32_t (*line_height)(int32_t font);
+#endif
   uint8_t (*text_wrap)(XpAppText text, XpAppTextLayout layout, XpAppTextSink sink, void* context);
   uint8_t (*text_truncate)(XpAppText text, XpAppTextLayout layout, XpAppTextSink sink, void* context);
   int32_t (*text_box_height)(XpAppText text, XpAppTextLayout layout);
@@ -414,7 +421,7 @@ static_assert(sizeof(XpAppCompatibility) == 3 * sizeof(void*));
 #ifdef XP_APP_TEST
 static_assert(sizeof(XpAppResources) == 47 * sizeof(void*));
 #else
-static_assert(sizeof(XpAppResources) == 46 * sizeof(void*));
+static_assert(sizeof(XpAppResources) == 44 * sizeof(void*));
 #endif
 static_assert(sizeof(XpAppRuntime) == 34 * sizeof(void*));
 static_assert(offsetof(XpAppRuntime, render_owned_by_current_task_retire_p18) == 33 * sizeof(void*));

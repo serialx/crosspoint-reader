@@ -54,7 +54,7 @@ impl<N: Label> Rows for BookmarkRows<'_, N> {
             _ => None,
         };
         if let Some(key) = key {
-            return Some(unsafe { (self.services.translate)(key) });
+            return Some(unsafe { self.services.translate(key) });
         }
         let (index, slot) = RowSlot::decode(handle)?;
         self.window.subtitle(usize::from(index))?;
@@ -82,14 +82,14 @@ impl<N: Label> Rows for BookmarkRows<'_, N> {
             unsafe {
                 (self.details.help)(
                     command.rect,
-                    (self.services.translate)(STR_HOLD_OPEN_FOR_ACTIONS),
+                    self.services.translate(STR_HOLD_OPEN_FOR_ACTIONS),
                 )
             };
             return true;
         }
         if command.resource == list::FOOTER {
             let mut labels = [STR_BACK, STR_SELECT, STR_DIR_UP, STR_DIR_DOWN]
-                .map(|key| unsafe { (self.services.translate)(key) });
+                .map(|key| unsafe { self.services.translate(key) });
             if self.records.is_empty() {
                 labels[1] = abi::Text::from_terminated(b"\0");
             }

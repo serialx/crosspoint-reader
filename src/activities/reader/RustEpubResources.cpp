@@ -260,52 +260,50 @@ void prepareText(void* context, int32_t font, const XpParaSpan* spans, uint32_t 
   return BidiUtils::computeVisualWordOrder({reinterpret_cast<const char*>(text.data), text.len}, {offsets, count}, rtl,
                                            {order, count});
 }
-XpParaMetrics sectionMetrics{nullptr,
-                             nullptr,  // Layout tracing is installed only by the host instrumenter.
+XpParaMetrics sectionMetrics{
+    nullptr,
+    nullptr,  // Layout tracing is installed only by the host instrumenter.
 #ifdef XP_NATIVE_TEXT_MEASUREMENT
-                             nullptr,
-                             nullptr,
-                             nullptr,
-                             nullptr,
-                             nullptr,
-                             nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
 #ifdef XP_APP_TEST
-                             prepareText,
+    prepareText,
 #else
-                             xp_sd_font_prepare_spans,
+    xp_sd_font_prepare_spans,
 #endif
-                             nullptr,
-                             nullptr,
+    nullptr,
+    nullptr,
 #else
-                             textAdvance,
-                             [](void* c, int32_t f, uint8_t s) -> int32_t {
-                               return sectionRenderer(c).getSpaceWidth(f, static_cast<EpdFontFamily::Style>(s));
-                             },
-                             [](void* c, int32_t f, uint32_t a, uint32_t b, uint8_t s, int8_t t) -> int32_t {
-                               return sectionRenderer(c).getKerning(f, a, b, static_cast<EpdFontFamily::Style>(s), t);
-                             },
-                             [](void* c, int32_t f, uint32_t a, uint32_t b, uint8_t s) -> int32_t {
-                               return sectionRenderer(c).getSpaceAdvance(f, a, b, static_cast<EpdFontFamily::Style>(s));
-                             },
-                             [](void* c, int32_t f) -> int32_t { return sectionRenderer(c).getFontAscenderSize(f); },
-                             [](void* c, int32_t f) -> uint8_t { return sectionRenderer(c).isSdCardFont(f); },
-                             prepareText,
-                             startsRtl,
-                             visualOrder,
+    textAdvance,
+    [](void* c, int32_t f, uint8_t s) -> int32_t {
+      return sectionRenderer(c).getSpaceWidth(f, static_cast<EpdFontFamily::Style>(s));
+    },
+    [](void* c, int32_t f, uint32_t a, uint32_t b, uint8_t s, int8_t t) -> int32_t {
+      return sectionRenderer(c).getKerning(f, a, b, static_cast<EpdFontFamily::Style>(s), t);
+    },
+    [](void* c, int32_t f, uint32_t a, uint32_t b, uint8_t s) -> int32_t {
+      return sectionRenderer(c).getSpaceAdvance(f, a, b, static_cast<EpdFontFamily::Style>(s));
+    },
+    [](void* c, int32_t f) -> int32_t { return sectionRenderer(c).getFontAscenderSize(f); },
+    [](void* c, int32_t f) -> uint8_t { return sectionRenderer(c).isSdCardFont(f); },
+    prepareText,
+    startsRtl,
+    visualOrder,
 #endif
 #ifdef XP_NATIVE_TEXT_MEASUREMENT
-                             [](void* ctx, XpNativeProvider* out) -> uint8_t {
 #ifdef XP_APP_TEST
-                               *out = sectionRenderer(ctx).textProvider();
+    [](const void* ctx) -> XpNativeProvider { return sectionRenderer(const_cast<void*>(ctx)).textProvider(); },
 #else
-                               *out = xp_font_registry_provider(static_cast<const XpLoadedFonts*>(ctx));
+    xp_font_registry_provider,
 #endif
-                               return true;
-                             },
 #else
-                             nullptr,
+    nullptr,
 #endif
-                             nullptr};
+    nullptr};
 
 // Persisted input settings consumed by the ordinary Rust reader.
 static_assert(static_cast<uint32_t>(HomeButtonAction::Footnotes) == 4);
@@ -946,9 +944,9 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
           [] {
             if (auto* cache = target->getFontCacheManager()) cache->clearCache();
           },
-#endif
       .child_prewarm_rows = [](int32_t font, const void* context, XpEpubChildRowText row,
                                uint32_t count) { prewarmReaderRows(*target, font, context, row, count); },
+#endif
       .child_lookup_init = readerLookup::init,
       .child_lookup_drop = readerLookup::drop,
       .child_lookup_open = readerLookup::open,

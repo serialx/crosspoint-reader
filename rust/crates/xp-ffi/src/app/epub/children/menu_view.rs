@@ -41,7 +41,7 @@ impl Rows for MenuRows<'_> {
                 let action = self.items.actions().get(index)?;
                 match slot {
                     RowSlot::Label => {
-                        Some(unsafe { (self.services.translate)(self.items.label(index)?) })
+                        Some(unsafe { self.services.translate(self.items.label(index)?) })
                     }
                     RowSlot::Value => match action {
                         Action::Orientation => [
@@ -51,9 +51,9 @@ impl Rows for MenuRows<'_> {
                             STR_LANDSCAPE_CCW,
                         ]
                         .get(usize::from(self.state.orientation))
-                        .map(|key| unsafe { (self.services.translate)(*key) }),
+                        .map(|key| unsafe { self.services.translate(*key) }),
                         Action::Auto => match self.state.page_turn {
-                            0 => Some(unsafe { (self.services.translate)(STR_STATE_OFF) }),
+                            0 => Some(unsafe { self.services.translate(STR_STATE_OFF) }),
                             1 => Some(abi::Text::from_terminated(b"1\0")),
                             2 => Some(abi::Text::from_terminated(b"3\0")),
                             3 => Some(abi::Text::from_terminated(b"6\0")),

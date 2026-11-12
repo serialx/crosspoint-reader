@@ -87,7 +87,7 @@ impl EpubSession {
             return;
         }
         unsafe {
-            let label = (self.resources.translate)(xp_core::i18n::ids::STR_INDEXING);
+            let label = self.resources.translate(xp_core::i18n::ids::STR_INDEXING);
             (self.resources.popup_draw)(label);
         }
         let frame = self.active_frame(access);

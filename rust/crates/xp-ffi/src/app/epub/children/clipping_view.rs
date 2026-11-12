@@ -46,12 +46,12 @@ impl Rows for ClippingRows<'_> {
             _ => None,
         };
         if let Some(key) = key {
-            return Some(unsafe { (self.services.translate)(key) });
+            return Some(unsafe { self.services.translate(key) });
         }
         let row = self.row_for(handle)?;
         match RowSlot::decode(handle)?.1 {
             RowSlot::Label => Some(if row.chapter[0] == 0 {
-                unsafe { (self.services.translate)(STR_CLIPPINGS) }
+                unsafe { self.services.translate(STR_CLIPPINGS) }
             } else {
                 let end = row.chapter.iter().position(|byte| *byte == 0)?;
                 abi::Text::from_terminated(&row.chapter[..=end])
@@ -75,7 +75,7 @@ impl Rows for ClippingRows<'_> {
             unsafe {
                 (self.details.help)(
                     command.rect,
-                    (self.services.translate)(STR_HOLD_SELECT_TO_DELETE),
+                    self.services.translate(STR_HOLD_SELECT_TO_DELETE),
                 )
             };
             return true;
@@ -150,7 +150,7 @@ unsafe fn loading(services: &abi::Resources, screen: Rect) -> Result<(), Error> 
     if unsafe { crate::app::scene::paint(services, &scene, &paint) } == 0 {
         return Err(Error::Invalid);
     }
-    unsafe { (services.popup_draw)((services.translate)(STR_LOADING_POPUP)) };
+    unsafe { (services.popup_draw)(services.translate(STR_LOADING_POPUP)) };
     Ok(())
 }
 impl Clippings {

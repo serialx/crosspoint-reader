@@ -13,7 +13,7 @@
 #ifdef XP_APP_TEST
 #define FONT_LEAF_INDEX(index) (index)
 #else
-#define FONT_LEAF_INDEX(index) ((index) - ((index) >= 28 ? 4 : 0) - ((index) >= 137 ? 1 : 0))
+#define FONT_LEAF_INDEX(index) ((index) - ((index) >= 28 ? 4 : 0) - ((index) >= 137 ? 1 : 0) - ((index) >= 138 ? 1 : 0))
 #endif
 
 typedef void (*ChildTheme)(XpUiReaderTheme*, XpUiReaderThemeFacts*, uint8_t);
@@ -35,8 +35,8 @@ CONTRACT(offsetof(XpEpubLeaves, child_qr_draw) == FONT_LEAF_INDEX(134) * sizeof(
 CONTRACT(offsetof(XpEpubLeaves, child_toolbar_icon) == FONT_LEAF_INDEX(135) * sizeof(void (*)(void)));
 #ifdef XP_APP_TEST
 CONTRACT(offsetof(XpEpubLeaves, child_clear_fonts) == FONT_LEAF_INDEX(136) * sizeof(void (*)(void)));
-#endif
 CONTRACT(offsetof(XpEpubLeaves, child_prewarm_rows) == FONT_LEAF_INDEX(137) * sizeof(void (*)(void)));
+#endif
 SIGNATURE(child_list_theme, ChildTheme);
 SIGNATURE(child_utility_layout, ChildLayout);
 SIGNATURE(child_header, ChildHeader);
@@ -45,8 +45,8 @@ SIGNATURE(child_qr_draw, ChildQr);
 SIGNATURE(child_toolbar_icon, ChildIcon);
 #ifdef XP_APP_TEST
 SIGNATURE(child_clear_fonts, ChildFonts);
-#endif
 SIGNATURE(child_prewarm_rows, ChildPrewarm);
+#endif
 SIGNATURE(clipping_physical, const XpClippingPhysical*);
 
 CONTRACT(offsetof(XpEpubLeaves, child_list_help) == FONT_LEAF_INDEX(163) * sizeof(void (*)(void)));

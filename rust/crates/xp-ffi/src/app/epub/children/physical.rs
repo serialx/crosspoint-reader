@@ -1,4 +1,5 @@
 use crate::app::abi;
+#[cfg(feature = "app-test")]
 use core::ffi::c_void;
 use xp_ui::{
     model::Metrics,
@@ -22,6 +23,7 @@ pub(crate) struct Physical {
     pub(super) toolbar_icon: unsafe extern "C" fn(u32, Rect, Rect),
     #[cfg(feature = "app-test")]
     pub(super) clear_fonts: unsafe extern "C" fn(),
+    #[cfg(feature = "app-test")]
     pub(super) prewarm_rows: unsafe extern "C" fn(
         i32,
         *const c_void,
@@ -57,14 +59,14 @@ impl Metrics for Fonts<'_> {
         -1
     }
     fn line_height(&mut self, font: i32) -> i32 {
-        unsafe { (self.0.line_height)(font) }
+        unsafe { self.0.line_height(font) }
     }
 }
 
 const _: () = {
     let font_fields = if cfg!(feature = "app-test") { 1 } else { 0 };
     let pointer = core::mem::size_of::<unsafe extern "C" fn()>();
-    assert!(core::mem::size_of::<Physical>() == (7 + font_fields) * pointer);
+    assert!(core::mem::size_of::<Physical>() == (6 + 2 * font_fields) * pointer);
     assert!(core::mem::align_of::<Physical>() == core::mem::align_of::<unsafe extern "C" fn()>());
     assert!(core::mem::offset_of!(Physical, list_theme) == 0);
     assert!(core::mem::offset_of!(Physical, utility_layout) == pointer);
@@ -74,6 +76,7 @@ const _: () = {
     assert!(core::mem::offset_of!(Physical, toolbar_icon) == 5 * pointer);
     #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(Physical, clear_fonts) == 6 * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(Physical, prewarm_rows) == (6 + font_fields) * pointer);
 };
 const _: fn(&Physical) = |p| {
@@ -85,6 +88,7 @@ const _: fn(&Physical) = |p| {
     let _: unsafe extern "C" fn(u32, Rect, Rect) = p.toolbar_icon;
     #[cfg(feature = "app-test")]
     let _: unsafe extern "C" fn() = p.clear_fonts;
+    #[cfg(feature = "app-test")]
     let _: unsafe extern "C" fn(
         i32,
         *const c_void,

@@ -26,7 +26,7 @@ unsafe extern "C" fn label(
         ClippingOption::Delete => [ids::STR_CANCEL, ids::STR_DELETE],
     };
     keys.get(index as usize).map_or(0, |key| unsafe {
-        sink(sink_context, (parent.resources.translate)(*key))
+        sink(sink_context, parent.resources.translate(*key))
     })
 }
 unsafe extern "C" fn choose(context: *mut c_void, index: i32) {
@@ -96,7 +96,7 @@ impl Clippings {
         unsafe {
             (parent.leaves.popup_show)(
                 handle.as_ptr(),
-                (parent.resources.translate)(title),
+                parent.resources.translate(title),
                 abi::Text::from_terminated(b"\0"),
                 count,
                 0,
@@ -158,7 +158,7 @@ impl Clippings {
         operation.read(|store| {
             let row = store.row(index)?;
             let title = if row.chapter[0] == 0 {
-                unsafe { (parent.resources.translate)(ids::STR_CLIPPINGS) }
+                unsafe { parent.resources.translate(ids::STR_CLIPPINGS) }
             } else {
                 abi::Text::from_terminated(
                     &row.chapter[..=row.chapter.iter().position(|b| *b == 0)?],

@@ -62,7 +62,7 @@ XpFontQueryResult xp_font_registry_query(const XpLoadedFonts*, XpFontQuery, int3
                                          XpRegisteredFont* out);
 // Rust callbacks read this owner directly; native context is used only for the
 // named temporary SD/cache operations. The provider is borrowed synchronously.
-XpNativeProvider xp_font_registry_provider(const XpLoadedFonts*);
+XpNativeProvider xp_font_registry_provider(const void* owner);
 // Fills a synchronous glyph-source loan from a registered FontData and the current generation.
 void xp_font_registry_source(const XpLoadedFonts*, const void* font, XpGlyphSource* out);
 // Native-origin cache scopes borrow their explicit Rust owner synchronously.

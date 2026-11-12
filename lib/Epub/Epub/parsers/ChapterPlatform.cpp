@@ -442,10 +442,7 @@ const XpParaMetrics ChapterPageAssembler::metrics_{
     visualOrder,
 #endif
 #ifdef XP_NATIVE_TEXT_MEASUREMENT
-    [](void* ctx, XpNativeProvider* out) -> uint8_t {
-      *out = metricRenderer(ctx).textProvider();
-      return true;
-    },
+    [](const void* ctx) -> XpNativeProvider { return metricRenderer(const_cast<void*>(ctx)).textProvider(); },
 #else
     nullptr,
 #endif

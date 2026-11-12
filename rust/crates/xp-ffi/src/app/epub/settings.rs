@@ -66,7 +66,7 @@ pub(super) unsafe extern "C" fn label_at(
             let Some(&id) = ids.get(index as usize) else {
                 return 0;
             };
-            sink(sink_context, (source.owner.resources.translate)(id))
+            sink(sink_context, source.owner.resources.translate(id))
         }
         Labels::Borrowed(rows) => rows
             .get(index as usize)
@@ -303,7 +303,7 @@ impl EpubSession {
         unsafe {
             (self.leaves.popup_show)(
                 popup.as_ptr(),
-                (self.resources.translate)(title),
+                self.resources.translate(title),
                 app_abi::Text::from_bytes(&b"\0"[..0]),
                 count as u32,
                 selected,

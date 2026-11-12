@@ -96,7 +96,7 @@ impl RowText<'_> {
 
 impl EpubSession {
     fn value_label(&self, id: u16) -> app_abi::Text {
-        unsafe { (self.resources.translate)(id) }
+        unsafe { self.resources.translate(id) }
     }
 
     fn row_label(&self, id: u16) -> RowText<'_> {

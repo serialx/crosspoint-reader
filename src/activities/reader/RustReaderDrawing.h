@@ -16,5 +16,8 @@ void drawReaderHeader(GfxRenderer& renderer, XpUiRect bounds, XpAppText title, b
 void drawReaderUtilityFooter(GfxRenderer& renderer, const MappedInputManager& input, XpUiRect clip,
                              const XpAppText* labels);
 void drawReaderToolbarIcon(GfxRenderer& renderer, uint32_t icon, XpUiRect bounds, XpUiRect clip);
+#ifdef XP_APP_TEST
 void prewarmReaderRows(GfxRenderer& renderer, int32_t font, const void* context,
                        XpAppText (*row)(const void*, uint32_t), uint32_t count);
+
+#endif

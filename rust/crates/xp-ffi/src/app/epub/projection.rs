@@ -240,9 +240,10 @@ impl EpubSession {
         self.model(|state| state.auto_turn = false);
         if self.model(|state| core::mem::take(&mut state.sync_save_error)) {
             unsafe {
-                (self.resources.popup_draw)((self.resources.translate)(
-                    xp_core::i18n::ids::STR_SAVE_PROGRESS_FAILED,
-                ));
+                (self.resources.popup_draw)(
+                    self.resources
+                        .translate(xp_core::i18n::ids::STR_SAVE_PROGRESS_FAILED),
+                );
             }
         }
     }

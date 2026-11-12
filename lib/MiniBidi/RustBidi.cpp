@@ -16,14 +16,16 @@ struct alignas(uint32_t) BidiWorkspace {
   uint8_t bytes[3072];
 };
 std::unique_ptr<BidiWorkspace> bidiWorkspace;
-BidiWorkspace* getWorkspace() {
+BidiWorkspace* getWorkspace(size_t size, size_t alignment) {
   if (!bidiWorkspace) {
     bidiWorkspace = makeUniqueNoThrow<BidiWorkspace>();
     if (!bidiWorkspace) {
       LOG_ERR("BIDI", "Failed to allocate %zu-byte workspace", sizeof(BidiWorkspace));
       return nullptr;
     }
-    if (xp_bidi_workspace_init(bidiWorkspace.get(), sizeof(BidiWorkspace)) != 1) {
+    // Value initialization above zeros the Rust scratch workspace.
+    if (size > sizeof(BidiWorkspace) || alignment == 0 ||
+        reinterpret_cast<uintptr_t>(bidiWorkspace.get()) % alignment != 0) {
       LOG_ERR("BIDI", "Incompatible workspace size/alignment");
       bidiWorkspace.reset();
     }
@@ -44,7 +46,7 @@ bool isTransparentMark(uint32_t cp) { return xp_bidi_transparent_mark(cp); }
 bool applyBidiVisual(const char* text, std::string& out, int direction) {
   if (!text || !*text) return false;
   const std::lock_guard<std::mutex> lock(bidiMutex);
-  auto* work = getWorkspace();
+  auto* work = getWorkspace(xp_bidi_workspace_size(), xp_bidi_workspace_align());
   if (!work) return false;
   const auto status =
       xp_bidi_visual_visit(reinterpret_cast<const uint8_t*>(text), strlen(text), direction, work, &out,
@@ -58,7 +60,7 @@ void appendShapedRtlTokens(const char* text, std::string& out) {
   // Avoid allocating the retained workspace for entirely LTR chapters.
   if (!xp_book_bidi_should_shape(reinterpret_cast<const uint8_t*>(text))) return;
   const std::lock_guard<std::mutex> lock(bidiMutex);
-  auto* work = getWorkspace();
+  auto* work = getWorkspace(xp_bidi_workspace_size(), xp_bidi_workspace_align());
   if (!work) return;
   xp_bidi_rtl_tokens(
       reinterpret_cast<const uint8_t*>(text), strlen(text), work, &out,
@@ -73,7 +75,7 @@ bool computeVisualWordOrder(const std::vector<std::string>& words, bool rtl, std
   order.reserve(words.size());
   order.resize(words.size());
   const std::lock_guard<std::mutex> lock(bidiMutex);
-  auto* work = getWorkspace();
+  auto* work = getWorkspace(xp_bidi_workspace_size(), xp_bidi_workspace_align());
   const bool result = work && xp_bidi_words(
                                   words.size(), &words,
                                   [](const void* ctx, size_t i, size_t* len) {
@@ -91,14 +93,14 @@ bool computeVisualWordOrder(std::span<const char> text, std::span<const uint16_t
                                offsets.size(), order.size()))
     return false;
   const std::lock_guard<std::mutex> lock(bidiMutex);
-  auto* work = getWorkspace();
+  auto* work = getWorkspace(xp_bidi_workspace_size(), xp_bidi_workspace_align());
   return work && xp_bidi_word_order(reinterpret_cast<const uint8_t*>(text.data()), text.size(), offsets.data(),
                                     offsets.size(), rtl, work, sizeof(BidiWorkspace), order.data(), order.size()) == 1;
 }
 }  // namespace BidiUtils
-extern "C" void* xp_native_bidi_acquire() {
+extern "C" void* xp_native_bidi_acquire(size_t size, size_t alignment) {
   bidiMutex.lock();
-  auto* workspace = getWorkspace();
+  auto* workspace = getWorkspace(size, alignment);
   if (!workspace) bidiMutex.unlock();
   return workspace;
 }

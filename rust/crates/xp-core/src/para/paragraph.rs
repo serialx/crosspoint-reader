@@ -78,8 +78,7 @@ pub struct Metrics {
     pub prepare: unsafe extern "C" fn(*mut c_void, i32, *const Span, u32, u8, u8, u8, u8),
     pub starts_rtl: Option<unsafe extern "C" fn(Span, i32) -> u8>,
     pub visual_order: Option<unsafe extern "C" fn(Span, *const u16, u32, u8, *mut u16) -> u8>,
-    pub native:
-        Option<unsafe extern "C" fn(*mut c_void, *mut crate::textm::native::Provider) -> u8>,
+    pub native: Option<unsafe extern "C" fn(*const c_void) -> crate::textm::native::Provider>,
     pub engine: *const crate::textm::native::Engine,
 }
 

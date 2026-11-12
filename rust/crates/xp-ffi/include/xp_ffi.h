@@ -244,7 +244,7 @@ typedef struct {
   void (*prepare)(void*, int32_t, const XpParaSpan*, uint32_t, uint8_t, uint8_t, uint8_t, uint8_t);
   uint8_t (*starts_rtl)(XpParaSpan, int32_t);
   uint8_t (*visual_order)(XpParaSpan, const uint16_t*, uint32_t, uint8_t, uint16_t*);
-  uint8_t (*native)(void*, XpNativeProvider*);
+  XpNativeProvider (*native)(const void*);
   const void* engine;  // Internal synchronous Rust layout context; C++ initializes null.
 } XpParaMetrics;
 typedef struct {
@@ -1148,7 +1148,7 @@ int32_t xp_native_space(const XpNativeProvider*, int32_t, uint8_t);
 int32_t xp_native_gap(const XpNativeProvider*, int32_t, uint32_t, uint32_t, uint8_t);
 int32_t xp_native_kern(const XpNativeProvider*, int32_t, uint32_t, uint32_t, uint8_t, int8_t);
 uint8_t xp_native_codepoint(const XpNativeProvider*, int32_t, uint32_t, uint8_t, int32_t*, int32_t*);
-void* xp_native_bidi_acquire();
+void* xp_native_bidi_acquire(size_t size, size_t alignment);
 void xp_native_bidi_release();
 
 // Glyph rasterization. Numeric orientation/plane values

@@ -359,3 +359,54 @@ impl Drop for Library {
         unsafe { (self.services.library_close)(self.object.as_ptr()) };
     }
 }
+
+impl abi::Resources {
+    pub unsafe fn translate(&self, id: u16) -> abi::Text {
+        #[cfg(any(test, feature = "app-test"))]
+        {
+            (self.translate)(id)
+        }
+        #[cfg(not(any(test, feature = "app-test")))]
+        {
+            let text = xp_core::i18n::get((self.translate)(), id);
+            abi::Text::from_bytes(core::ffi::CStr::from_ptr(text).to_bytes())
+        }
+    }
+    pub unsafe fn text_width(&self, text: abi::Text, font: i32, style: u8) -> i32 {
+        #[cfg(any(test, feature = "app-test"))]
+        {
+            (self.text_width)(text, font, style)
+        }
+        #[cfg(not(any(test, feature = "app-test")))]
+        {
+            let provider =
+                crate::font_registry::xp_font_registry_provider(self.font_owner.get().cast());
+            let bytes = text.bytes().unwrap_or_default();
+            let len = bytes
+                .iter()
+                .position(|&byte| byte == 0)
+                .unwrap_or(bytes.len());
+            crate::textm::xp_native_width(&provider, font, text.data, len, style, -1)
+        }
+    }
+    pub unsafe fn line_height(&self, font: i32) -> i32 {
+        #[cfg(any(test, feature = "app-test"))]
+        {
+            (self.line_height)(font)
+        }
+        #[cfg(not(any(test, feature = "app-test")))]
+        {
+            let owner = self.font_owner.get().cast();
+            let data = crate::font_registry::Owner::data(owner, font, 0);
+            if data.is_null() {
+                crate::font_registry::report(
+                    owner,
+                    xp_core::textm::native::DiagnosticEvent::MissingFont as u32,
+                    font as u32,
+                );
+                return 0;
+            }
+            i32::from((*data).advance_y)
+        }
+    }
+}

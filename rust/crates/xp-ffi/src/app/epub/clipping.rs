@@ -94,7 +94,7 @@ impl ClipPage<'_, '_> {
             .wrapping_add(line.y)
             .wrapping_add(ruby)
             .wrapping_add(offset);
-        let height = unsafe { (self.owner.resources.line_height)(font) };
+        let height = unsafe { self.owner.resources.line_height(font) };
         Rect {
             x,
             y,
@@ -456,7 +456,7 @@ impl EpubSession {
                         None
                     };
                     if let Some((x, width)) = bridge {
-                        let height = unsafe { (self.resources.line_height)(font) };
+                        let height = unsafe { self.resources.line_height(font) };
                         page.fill(Rect {
                             x,
                             y: rect.y,
@@ -465,7 +465,7 @@ impl EpubSession {
                         });
                     }
                 }
-                let height = unsafe { (self.resources.line_height)(font) };
+                let height = unsafe { self.resources.line_height(font) };
                 page.fill(Rect { height, ..rect });
                 previous = Some((rect.x, rect.width));
                 highlighted += 1;

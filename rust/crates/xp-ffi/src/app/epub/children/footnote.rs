@@ -94,7 +94,7 @@ impl Footnote {
             STR_DIR_UP,
             STR_DIR_DOWN,
         ]
-        .map(|id| unsafe { (services.translate)(id) });
+        .map(|id| unsafe { services.translate(id) });
         unsafe { (leaves.child_selection_physical.directional_hints)(labels.as_ptr()) };
     }
 

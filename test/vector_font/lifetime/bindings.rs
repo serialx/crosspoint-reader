@@ -273,7 +273,7 @@ unsafe extern "C" fn xp_native_chapter_font_owner(context: *mut c_void) -> *cons
     context.cast()
 }
 #[no_mangle]
-unsafe extern "C" fn xp_native_bidi_acquire() -> *mut xp_core::bidi::Workspace {
+unsafe extern "C" fn xp_native_bidi_acquire(_size: usize, _alignment: usize) -> *mut xp_core::bidi::Workspace {
     panic!("unused bidi leaf")
 }
 #[no_mangle]

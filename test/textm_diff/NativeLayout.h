@@ -8,10 +8,7 @@ inline void nativeLayout(Test& test, const XpNativeProvider& provider) {
   } context{&provider, 0};
   XpParaMetrics metrics{};
   metrics.context = &context;
-  metrics.native = [](void* c, XpNativeProvider* out) -> uint8_t {
-    *out = *static_cast<Context*>(c)->provider;
-    return 1;
-  };
+  metrics.native = [](const void* c) -> XpNativeProvider { return *static_cast<const Context*>(c)->provider; };
   metrics.prepare = [](void*, int32_t, const XpParaSpan*, uint32_t, uint8_t, uint8_t, uint8_t, uint8_t) {};
   const XpParaAllocator allocator{[](size_t bytes, uint8_t) { return std::malloc(bytes); }, std::free};
   constexpr const char* words[] = {"office",      "AVATAR",     "discretionary", "internationalization",

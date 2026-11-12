@@ -23,7 +23,7 @@ TRACE_SHA = '8be7ba135789c7113820501add64c572272f6d9a1ec23c6f222db0217cc1c42c'
 RUST_MUTANTS = (
     ('ignore-cancellation', b'if cancelled || unsafe { (self.leaves.wifi_connected)() } == 0 {',
      b'if false || unsafe { (self.leaves.wifi_connected)() } == 0 {'),
-    ('sync-timeout', b'(self.leaves.trusted_sync)(5000)', b'(self.leaves.trusted_sync)(4999)'),
+    ('sync-timeout', b'super::persistence::sync_time(self.leaves, 5000)', b'super::persistence::sync_time(self.leaves, 4999)'),
     ('save-stale-path', b'(self.leaves.state_set_open_path)(self.path().wire());',
      b'(self.leaves.state_set_open_path)(app_abi::Text::from_bytes(b"original.epub"));'),
 )

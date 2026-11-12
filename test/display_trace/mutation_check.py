@@ -21,6 +21,9 @@ shutil.copytree(workspace, copy, dirs_exist_ok=True, copy_function=shutil.copy,
 (work / "scripts").mkdir(parents=True, exist_ok=True)
 shutil.copy(workspace.parent / "scripts/gen_i18n.py", work / "scripts/gen_i18n.py")
 shutil.copytree(workspace.parent / "lib/I18n/translations", work / "lib/I18n/translations", dirs_exist_ok=True)
+(work / "test/ui_runtime").mkdir(parents=True, exist_ok=True)
+shutil.copy(workspace.parent / "test/ui_runtime/scene_paint_oracle.inc",
+            work / "test/ui_runtime/scene_paint_oracle.inc")
 source = copy / "crates/xp-display/src" / ("uc8253.rs" if args.kind == "sleep" else "papermono.rs")
 text = source.read_text()
 old, new = (("bus.cmd(0x07);", "bus.cmd(0x06);") if args.kind == "sleep" else

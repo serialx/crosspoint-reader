@@ -203,7 +203,7 @@ pub unsafe fn render(
     {
         return 0;
     }
-    let Some(scene) = (unsafe { scene(view) }) else {
+    let Some(ref scene) = (unsafe { scene(view) }) else {
         return 0;
     };
     if services.text.is_none() && scene.commands.iter().any(|c| c.kind == Kind::Text as u8) {
@@ -216,7 +216,7 @@ pub unsafe fn render(
     };
     u8::from(
         draw::render(
-            &scene,
+            scene,
             Rect {
                 x: 0,
                 y: 0,

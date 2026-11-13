@@ -363,8 +363,11 @@ typedef struct {
   const void* const* font_owner;
 } XpAppResources;
 
+// Ordered phases: POLL, FEEDBACK, FINISH. Only POLL returns a sample; the others return zero.
 typedef enum { XP_APP_INPUT_POLL, XP_APP_INPUT_FEEDBACK, XP_APP_INPUT_FINISH } XpAppInputPhase;
+// The seven guarded Runtime field alternatives are fixture-only HOST-RETIRE debt.
 typedef struct {
+// Fixture-only alternative (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   void (*input_mapped_snapshot)(uint8_t poll, uint8_t full, uint8_t consume_release, XpAppMappedSnapshot* frame);
   void (*input_shared_power_mode)(uint8_t enabled);
@@ -381,18 +384,20 @@ typedef struct {
   void (*header_back_clear)(void);
   uint32_t (*now_ms)(void);
   void (*delay_ms)(uint32_t ms);
-  // The five XP_APP_TEST alternatives below are fixture-only HOST-RETIRE debt, absent from firmware.
+// Fixture-only alternative (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   void (*idle_wait)(uint32_t max_ms, uint32_t slice_ms);
 #else
   void (*raw_input_sample)(XpHalRawInput* out);
 #endif
   void (*yield_task)(void);
+// Fixture-only alternative (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   void (*power_saving)(uint8_t enabled);
 #else
   void (*power_context)(XpHalPowerContext* out);
 #endif
+// Fixture-only alternative (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   uint8_t (*tilt_update)(uint8_t enabled, uint8_t orientation, uint8_t reader);
 #else
@@ -405,11 +410,13 @@ typedef struct {
   void (*screenshot)(void);
   void (*touch_feedback)(uint8_t long_press);
   uint8_t (*frontlight_present)(void);
+// Fixture-only alternative (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   uint8_t (*frontlight_state)(void);
 #else
   XpHalLight* (*light_state)(void);
 #endif
+// Fixture-only alternative (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   void (*frontlight_set)(uint8_t enabled);
 #else

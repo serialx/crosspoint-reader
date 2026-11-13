@@ -57,6 +57,7 @@ class MappedInputManager {
 #endif
   bool injectRemoteClick(RemoteButton button);
   bool hasRemoteClick() const { return remoteInput.button != RemoteButton::None; }
+  // Explicit Home arguments replace the native compatibility lookup with the Rust owner's result.
   bool wasPressed(Button button) const;
   bool wasPressed(Button button, HomeButtonAction home) const;
   bool wasReleased(Button button) const;

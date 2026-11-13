@@ -2,6 +2,7 @@ use super::{abi, App, Feedback, HomeAction, HomeBindings, HomeContact};
 
 #[cfg(not(feature = "app-test"))]
 #[repr(u8)]
+// Send in order; only Poll returns a sample. Feedback and Finish return zero.
 enum PollPhase {
     Poll,
     Feedback,

@@ -165,10 +165,13 @@ inline XpUiReaderInputServices makeInputServices(const MappedInputManager& input
       }};
 }
 
+// Native callbacks take MappedInputManager* as their context.
 inline XpUiReaderInputServices inputServices(const MappedInputManager& input) {
   return makeInputServices<false>(input);
 }
 
+// Raw callbacks require XpEpubInputQuery*, with mapped set to the returned table.context.
+// Do not invoke them with table.context itself (it is the mapped-input pointer).
 inline XpUiReaderInputServices inputSources(const MappedInputManager& input) { return makeInputServices<true>(input); }
 
 inline bool gestureAllowsSwipe(const uint8_t gesture) { return xp_ui_reader_gesture(gesture) & 2; }

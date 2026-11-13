@@ -61,9 +61,10 @@ inline XpUiInput rustInputSnapshotImpl(const Mapped& mappedInput, Home home) {
 }
 
 inline XpUiInput rustInputSnapshot(const MappedInputManager& mappedInput) {
-  return rustInputSnapshotImpl<false>(mappedInput, 1);
+  return rustInputSnapshotImpl<false>(mappedInput, 1 /* HomeButtonAction::Ignore; unused by this specialization */);
 }
 
+// The explicit Home argument replaces the native compatibility lookup.
 template <typename Home>
 inline XpUiInput rustInputSnapshot(const MappedInputManager& mappedInput, Home home) {
   return rustInputSnapshotImpl<true>(mappedInput, home);

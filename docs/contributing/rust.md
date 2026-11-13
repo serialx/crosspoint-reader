@@ -1350,9 +1350,9 @@ reuses `XpUiReaderInputServices` with `XpEpubInputQuery` as the synchronous call
 context. `runtime_input_native` and `runtime_input_shipping` test those boundaries.
 The old injected host signatures remain HOST-RETIRE debt, not shipping policy.
 
-The qualified X3 and x4pro profiles disable haptics. Metalio retains the existing
-native-to-Rust haptic policy continuation; this unit does not establish a clean
-input boundary for that profile. SDK internals, stored hooks and ROM still need
+The native feedback step still calls Rust haptic policy when `FREEINK_CAP_HAPTIC`
+is enabled (`lib/hal/HalHaptics.h`); this unit does not establish a clean input
+boundary for profiles with that capability. SDK internals, stored hooks and ROM still need
 the final R8b audit. This change does not resolve the inherited concurrent
 frontlight read/write problem or move BLE delivery, sleep or screenshot policy.
 

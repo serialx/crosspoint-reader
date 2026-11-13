@@ -333,18 +333,22 @@ typedef struct XpEpubLeaves {
   void (*render_discard_bw)(void);
   void (*render_orientation)(uint8_t orientation);
   uint32_t (*loan_count)(void);
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   // Host-only compatibility facade; getters forward to the Rust book.
   // Close requires all fixture loans to end; it does not free the Rust book.
   void* (*book_facade_open)(void* book, const XpEpubBookView* view, const XpEpubBookBorrow* borrow);
 #endif
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   void (*book_facade_close)(void* facade);
 #endif
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   // Host-only extractor: null detaches; non-null is this fixture's live facade.
   void (*book_set_extractor)(void* facade);
 #endif
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   // Null without error is a plain book. Error text is borrowed only during the sink.
   void* (*protection_open)(XpAppText path, XpAppTextSink error, void* context);
@@ -355,6 +359,7 @@ typedef struct XpEpubLeaves {
   void (*protection_close)(void* protection);
   uint8_t (*protection_encrypted)(void* protection, XpAppText path);
   uint32_t (*protection_size)(void* protection, XpAppText path);
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   uint8_t (*protection_stream)(void* protection, XpAppText path, XpBookSink sink, void* context);
 #else
@@ -369,9 +374,11 @@ typedef struct XpEpubLeaves {
   void (*paint_dither)(int32_t x, int32_t y, int32_t width, int32_t height);
   void (*paint_pixel)(int32_t x, int32_t y);
   void (*paint_status)(const XpEpubStatus* status);
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   void (*image_clear_failures)(void);
 #endif
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   void (*image_release_cache)(void);
 #endif
@@ -383,6 +390,7 @@ typedef struct XpEpubLeaves {
       void
 #endif
   );
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   void (*fonts_release_caches)(void);
   uint8_t (*fonts_prewarm_begin)(XpEpubFontScan* storage);
@@ -406,12 +414,14 @@ typedef struct XpEpubLeaves {
   void (*settings_inversion)(uint8_t value);
   void (*settings_ble_enabled)(uint8_t value);
   void (*settings_save)(void);
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   const XpUiReaderInputServices* (*input_services)(void);
 #else
-  // Callback context must be XpEpubInputQuery, initialized with the returned table's mapped pointer.
+  // Callback context must be XpEpubInputQuery, initialized from the returned table's context (MappedInputManager*).
   const XpUiReaderInputServices* (*input_sources)(void);
 #endif
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   void (*input_facts)(XpEpubInputFacts* out);
 #else
@@ -432,6 +442,7 @@ typedef struct XpEpubLeaves {
   uint8_t (*path_mkdir)(XpAppText path);
   uint64_t (*native_path_hash)(XpAppText path);
   void (*heap_snapshot)(XpEpubHeap* out);
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   void (*radio_status)(XpEpubRadio* out, XpEpubPeer* peer_or_null);
   uint8_t (*radio_before_build)(void);
@@ -443,6 +454,7 @@ typedef struct XpEpubLeaves {
 #else
   void (*radio_peer)(XpEpubPeer* out);  // One-way: live linked name and address only.
 #endif
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   int64_t (*trusted_now)(void);
   uint8_t (*trusted_sync)(uint32_t timeout_ms);
@@ -479,6 +491,7 @@ typedef struct XpEpubLeaves {
   uint8_t (*end_menu_active)(void* end);
   void (*end_input)(void* end, void (*result)(void* context, uint8_t action, XpAppText selected_path), void* context);
   void (*end_paint)(void* end);
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   uint8_t (*recents_remove)(XpAppText path);
   void (*recents_add)(const XpAppBook* book);
@@ -491,6 +504,7 @@ typedef struct XpEpubLeaves {
   XpAppText (*state_open_path)(void);
   void (*state_set_open_path)(XpAppText path);
   void (*state_reset_reader_count)(void);
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   void (*state_save)(void);
 #else
@@ -498,6 +512,7 @@ typedef struct XpEpubLeaves {
                          XpStoreState* state);
 #endif
   uint8_t (*has_sync_credentials)(void);
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   uint8_t (*has_exit_subscriber)(void);
   uint8_t (*has_session_subscriber)(void);
@@ -510,10 +525,12 @@ typedef struct XpEpubLeaves {
   void (*emit_exit)(XpAppText path, int32_t percent);
   void (*emit_session)(XpAppText path, XpAppText document, const XpEpubSessionEvent* event);
   void (*log)(uint8_t severity, XpAppText origin, XpAppText message);
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   int32_t (*font_text_advance)(XpAppText text, int32_t font, uint8_t style, int8_t character_spacing);
 #endif
   uint8_t (*log_enabled)(uint8_t severity);
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   void (*input_snapshot)(XpUiInput* out);
 #else
@@ -532,12 +549,14 @@ typedef struct XpEpubLeaves {
 #if defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
   int32_t (*font_variant)(int32_t font, float scale);
 #endif
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   int32_t (*font_line_height)(int32_t font, float compression);
 #endif
 #if defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
   int32_t (*font_ready)(int32_t font, int32_t fallback);
 #endif
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   uint8_t (*font_codepoint)(int32_t font, uint32_t codepoint, uint8_t style, int32_t* advance, int32_t* top);
 #endif
@@ -551,6 +570,7 @@ typedef struct XpEpubLeaves {
   // Lend returns whether this scope owns restoration; nested scopes return zero.
   uint8_t (*framebuffer_lend)(void);
   void (*framebuffer_restore)(uint8_t owned);
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   // Host-only decoded-cache query; shipping checks eligibility directly in Rust.
   uint8_t (*image_needs_decode)(XpAppText path, XpAppText source, int16_t width, int16_t height);
@@ -569,6 +589,7 @@ typedef struct XpEpubLeaves {
   void (*child_utility_footer)(XpUiRect clip, const XpAppText* labels);
   void (*child_qr_draw)(XpUiRect bounds, XpAppText payload);
   void (*child_toolbar_icon)(uint32_t icon, XpUiRect rect, XpUiRect clip);
+  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   void (*child_clear_fonts)(void);
   void (*child_prewarm_rows)(int32_t font, const void* context, XpEpubChildRowText text, uint32_t count);
@@ -991,9 +1012,13 @@ _Static_assert(_Generic(((XpEpubLeaves*)0)->log_enabled, uint8_t (*)(uint8_t): 1
 
 #ifndef __cplusplus
 #ifdef XP_APP_TEST
+_Static_assert(_Generic(((XpEpubLeaves*)0)->input_facts, void (*)(XpEpubInputFacts*): 1, default: 0),
+               "XpEpubLeaves.input_facts signature");
 _Static_assert(_Generic(((XpEpubLeaves*)0)->input_snapshot, void (*)(XpUiInput*): 1, default: 0),
                "XpEpubLeaves.input_snapshot signature");
 #else
+_Static_assert(_Generic(((XpEpubLeaves*)0)->input_facts, void (*)(uint8_t, XpEpubInputFacts*): 1, default: 0),
+               "XpEpubLeaves.input_facts signature");
 _Static_assert(_Generic(((XpEpubLeaves*)0)->input_snapshot, void (*)(uint8_t, XpUiInput*): 1, default: 0),
                "XpEpubLeaves.input_snapshot signature");
 #endif

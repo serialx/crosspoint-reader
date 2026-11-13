@@ -37,8 +37,10 @@ follow `SETTINGS.sideButtonLayout`. Inspect
 ### Input frames and ownership
 
 [ActivityManager::loop()](../../src/activities/ActivityManager.cpp) forwards to the
-Rust app driver, which updates `MappedInputManager` before activity dispatch.
-Activities read that shared snapshot; a second update can erase an edge.
+Rust app driver, which orders `pollRaw`, Rust edge policy, `pollFeedback`, Rust
+Home policy and `pollFinish` before activity dispatch. Native transfer loops
+still use `MappedInputManager::update()`. Activities read that shared snapshot;
+a second update can erase an edge.
 
 | Query | Physical-button meaning |
 | --- | --- |

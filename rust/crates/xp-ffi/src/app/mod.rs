@@ -204,8 +204,9 @@ struct App {
 }
 
 struct Storage(UnsafeCell<Option<App>>);
-// Init precedes task creation. Navigation/input/driver are loop-only; render uses
-// the lifetime-locked target and widths, while signals use the model critical section.
+// Init precedes task creation. Render uses the lifetime-locked target and widths;
+// signals use the model critical section. Loop input polling precedes the render
+// lock: readers of live input need separate synchronization (INPUT-RENDER-FIX).
 unsafe impl Sync for Storage {}
 static APP: Storage = Storage(UnsafeCell::new(None));
 

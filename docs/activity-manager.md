@@ -74,8 +74,9 @@ Main task -> xp_app_loop -> Rust Application
 ```
 
 The driver and EPUB reader use the [loop sampling contract](contributing/rust-ui.md#loop-sampling).
-Input service addresses are stable, but gesture results remain consumable within
-a frame; activity code must not cache those results across consumers.
+The native input-source table address is stable; its query context is built per
+call. Gesture results remain consumable within a frame; activity code must not
+cache those results across consumers.
 
 ## Migration Checklist
 

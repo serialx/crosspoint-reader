@@ -164,9 +164,9 @@ enter the Rust family owner and call native FreeType leaves for physical work.
 Cached EPUB, footnote and lookup views call the Rust page painter directly.
 Native rich dictionary, selection and settings preview pages, plus library
 Details HTML descriptions, enter the same painter through `xp_page_paint`.
-Rust traverses page records and owns image cache, placeholder and polarity policy
-over typed native file, extraction and logging operations. JPEGDEC remains a physical leaf. Plain
-dictionary display still draws wrapped spans directly.
+Rust traverses page records and owns image extraction, cache, placeholder and
+polarity policy over native storage and logging leaves. JPEGDEC remains a physical
+leaf. Plain dictionary display still draws wrapped spans directly.
 See the [page rendering contract](rust.md#page-rendering),
 [glyph drawing contract](rust.md#native-glyph-drawing) and
 [native measurement contract](rust.md#native-text-measurement) for

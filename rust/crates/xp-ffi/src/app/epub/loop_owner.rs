@@ -205,6 +205,14 @@ impl EpubSession {
                 .wrapping_sub(self.model(|state| state.last_turn_ms))
                 >= self.model(|state| state.turn_duration_ms)
             {
+                if self.model(|state| {
+                    state.partial_start_failed
+                        && state.facts.section.is_some_and(|facts| {
+                            facts.partial && state.current.page >= i32::from(facts.pages) - 1
+                        })
+                }) {
+                    return;
+                }
                 let succeeded = self.page_turn(true);
                 self.note_page_turn(true, succeeded);
                 self.request_update();

@@ -286,7 +286,10 @@ physical fakes: `reader_harden_sync_metadata_failure` preserves the true local s
 `reader_harden_cosmetic_failure` paints toolbar/status without failed titles;
 `reader_chapter_resource_guard` omits failed list labels without command growth or
 idle metadata reads; and `reader_harden_chapter_recovery` plus
-`reader_harden_recovery_input` cover saved-page recovery and explicit input.
+`reader_harden_recovery_input` cover saved-page recovery, bounded idle behavior and
+explicit continuation through the partial watermark (successful retry stays in the
+chapter; persistent failure restores the saved page). `reader_harden_recovery_back`
+drives the real Back input and App transition to Home after failed preparation.
 `reader_harden_menu_failure` also covers menu actions without a prepared section.
 `reader_harden_forced_break` uses the exact CP0 synthetic HTML: its healthy section
 has three pages and 2,132 bytes; failed row reads or allocation publish no section.

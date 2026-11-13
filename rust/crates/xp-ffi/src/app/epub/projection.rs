@@ -415,7 +415,9 @@ impl EpubSession {
             spine_count,
             position.page,
             facts.pages,
-            facts.building,
+            // A partial cache ends at a watermark, not at the chapter end.
+            // Explicit Next lets render extend it once, even after a failed start.
+            facts.building || facts.partial,
             forward,
         );
         self.apply_page_move(movement, true)

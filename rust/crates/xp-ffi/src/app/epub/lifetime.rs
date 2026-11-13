@@ -189,6 +189,7 @@ impl EpubSession {
         self.model(|state| {
             state.facts.book = false;
             state.facts.spine_count = 0;
+            state.partial_start_failed = false;
         });
         if let Some(book) = book {
             unsafe {

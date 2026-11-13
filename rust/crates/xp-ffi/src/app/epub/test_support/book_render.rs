@@ -291,3 +291,34 @@ pub(in crate::app::epub) fn legacy_size(value: u32) -> Option<u32> {
     SIZE_FAULT.store(mask >> 1, core::sync::atomic::Ordering::Relaxed);
     (mask & 1 == 0).then_some(value)
 }
+
+// Drive real page navigation on the same owner used by the render sequence.
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_book_turn(raw: *mut c_void, forward: u8) -> u8 {
+    unsafe extern "C" fn unused(_: *mut c_void) -> u8 {
+        panic!("unexpected projection")
+    }
+    unsafe extern "C" fn no_op(_: *mut c_void) {}
+    let owner = &mut *raw.cast::<EpubSession>();
+    owner.projection_hooks = Some(super::ProjectionHooks {
+        context: core::ptr::null_mut(),
+        toolbar_menu: unused,
+        base_input: unused,
+        acknowledge: no_op,
+        clear: no_op,
+        fallback: no_op,
+    });
+    let result = owner.page_turn(forward != 0);
+    owner.projection_hooks = None;
+    u8::from(result)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_recovery_back(raw: *mut c_void) -> u8 {
+    let owner = &*raw.cast::<EpubSession>();
+    owner.model(|state| {
+        assert!(state.facts.section.is_none());
+        state.partial_start_failed = true;
+    });
+    u8::from(owner.handle_back())
+}

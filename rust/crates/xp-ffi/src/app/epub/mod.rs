@@ -297,7 +297,6 @@ impl EpubSession {
                 building: ReaderSection::building(section),
                 #[cfg(feature = "app-test")]
                 complete: ReaderSection::complete(section),
-                #[cfg(feature = "app-test")]
                 partial: ReaderSection::partial(section),
             }
         });

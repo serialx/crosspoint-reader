@@ -390,6 +390,15 @@ impl EpubSession {
                 state.deferred.percent = false;
             });
         }
+        self.model(|state| {
+            if state
+                .facts
+                .section
+                .is_some_and(|facts| !facts.partial || facts.building)
+            {
+                state.partial_start_failed = false;
+            }
+        });
         true
     }
 
@@ -678,6 +687,11 @@ impl EpubSession {
     }
 
     fn book_extend(&self, access: &ResourceAccess<'_>, spec: &abi::XpEpubRenderSpec) -> bool {
+        let extending = self.model(|state| {
+            state.facts.section.is_some_and(|facts| {
+                (facts.partial || facts.building) && state.current.page >= i32::from(facts.pages)
+            })
+        });
         if (self.book_partial(access) || self.book_building(access))
             && self.model(|state| state.current.page) >= self.book_page_count(access)
             && !self.book_room(access)
@@ -711,7 +725,11 @@ impl EpubSession {
                 return false;
             }
         }
-        !self.book_building(access) || self.book_build_to_page(access)
+        let succeeded = !self.book_building(access) || self.book_build_to_page(access);
+        if succeeded && extending {
+            self.model(|state| state.partial_start_failed = false);
+        }
+        succeeded
     }
 
     fn book_render_page(&self, access: &ResourceAccess<'_>, viewport: &Viewport) -> bool {

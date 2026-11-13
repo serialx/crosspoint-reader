@@ -108,7 +108,6 @@ pub(super) struct SectionFacts {
     pub(super) building: bool,
     #[cfg(feature = "app-test")]
     pub(super) complete: bool,
-    #[cfg(feature = "app-test")]
     pub(super) partial: bool,
 }
 #[derive(Clone, Copy, Default)]

@@ -60,9 +60,9 @@ def mutate_function(source, name, before, after):
 
 
 def recovery_expectation(trace):
-    # Only failed create/start/build cases now inhibit eager recovery builds.
-    # Keep every healthy event and every other error-state field byte-identical.
-    output = []; case = -1; changed = 0
+    # Failed create/start/build inhibits idle recovery; successful extension clears it.
+    # Keep every event and every other state field byte-identical.
+    output = []; case = -1; changed = cleared = 0
     for line in trace.splitlines(keepends=True):
         if line.startswith(b'case '):
             case = int(line.split()[1])
@@ -70,8 +70,12 @@ def recovery_expectation(trace):
             fields = line.split(b' ')
             assert fields[2:5] == [b'-999', b'-1', b'0']
             fields[4] = b'1'; line = b' '.join(fields); changed += 1
+        if case in (13, 14) and line.startswith(b'state '):
+            fields = line.split(b' ')
+            assert fields[2:5] == [b'8', b'10', b'1']
+            fields[4] = b'0'; line = b' '.join(fields); cleared += 1
         output.append(line)
-    assert changed == 24
+    assert changed == 24 and cleared == 16
     return b''.join(output)
 
 

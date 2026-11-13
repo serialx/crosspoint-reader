@@ -29,3 +29,7 @@ add_test(NAME reader_harden_cosmetic_failure
 add_test(NAME reader_harden_recovery_input
   COMMAND ${CMAKE_COMMAND} -E env XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}
     ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_recovery_input.py)
+
+add_test(NAME reader_harden_recovery_back
+  COMMAND ${CMAKE_COMMAND} -E env XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_recovery_back.py)

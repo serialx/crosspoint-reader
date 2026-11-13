@@ -569,9 +569,13 @@ existing save-error convention and log an error.
 Reader spine/TOC queries return failure on a short read, failed seek or allocation
 failure instead of sending an empty row. Section preparation propagates this
 failure before saving a section. The reader shows the existing index-failed popup,
-keeps the book open, and restores the last successfully saved position in memory.
-Previous requests that cached page; a readable partial cache is not extended during
-recovery. The menu and leaving the book remain available. There is no automatic
+keeps the book open, and restores the last successfully saved position when one exists.
+Previous requests that cached page. Recovery inhibits automatic partial extension;
+explicit Next at the cached watermark retries extension once in the same chapter.
+Success clears the inhibition; failure shows the popup and restores the last saved
+page without skipping unbuilt content. Successful chapter preparation and leaving
+the book also clear the inhibition. Reopening the saved partial cache keeps it until
+explicit extension succeeds. The menu and Back remain available. There is no idle
 retry of the failed preparation; no incomplete section is saved.
 TOC page selection rejects a partial result if any required metadata row fails.
 Toolbar and status titles, Contents labels, and bookmark subtitles omit unavailable

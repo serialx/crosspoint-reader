@@ -203,8 +203,8 @@ void restartToHomeAfterStorageHandoff() {
   ESP.restart();
 }
 
-// Bluetooth page turner (lib/BlePageTurner): what the module may ask of this firmware. The module
-// owns the radio; loop() tells it what is on screen, and the screen changes and sleep ask it to stop.
+// BLE physical host callbacks: heap, file transfer, speed and logging. Rust drives the tick and
+// screen admission; the native sleep path still calls beforeSleep.
 namespace pageturner {
 std::atomic<bool> holdsCpu{false};
 

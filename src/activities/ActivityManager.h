@@ -82,8 +82,8 @@ class ActivityManager {
   bool preventAutoSleep() const;
   bool requiresExclusiveStorageLoop() const;
   bool isReaderActivity() const;
-  // Bluetooth page turner (lib/BlePageTurner): the book in front, whether it has painted a page, and
-  // a page or chapter turn from a remote. False when no book in front took the turn.
+  // BLE scene queries. The remote adapters below are HOST-RETIRE fixture debt;
+  // shipping delivery constructs events in Rust (app/ble_ports.rs).
   bool isForegroundReader() const;
   bool isRemoteReaderContext() const;
   bool remoteClick(RemoteButton button);

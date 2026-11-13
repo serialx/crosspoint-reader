@@ -1337,7 +1337,10 @@ This is a **reference check, not an execution proof**. Taking a vtable address,
 infeasible branches, weak definitions and unlinked native objects can over-report.
 The runtime bindings remain manual: project objects have no RTTI hierarchy, so the checker cannot infer
 which stored pointer a particular function invokes. A new use of an existing hot
-slot can still escape when its caller has no dispatch contract. Changes inside
+slot can still escape when its caller has no dispatch contract. A new callback
+assigned to BSS at startup can also escape even when its target is new:
+`dynamic.lock` tracks static hot slots, not every runtime assignment or caller.
+Review the store and invocation together. Changes inside
 Rust, callback lifetime, opaque pointers and previously unseen startup stores
 remain R8b review work. The “any indirect call may reach any hot target” bound is
 for the final audit only.
@@ -1428,7 +1431,7 @@ frontlight read/write problem. Sleep and screenshot orchestration remain deferre
 
 The shipping loop calls the Rust BLE state machine directly after one live native
 Wi-Fi observation. Screen changes call its stop/admission entry directly. Native
-radio, clock, logging and existing task primitives remain physical services.
+radio, clock, logging and existing task primitives remain native services.
 The BLE state machine still reads enablement every pass; disabled cancellation,
 retry/rearm and same-next-tick enable behavior are unchanged.
 
@@ -1451,7 +1454,8 @@ lose their release/delivery/restart callbacks. Injected app and BLE oracle
 callbacks remain explicitly under `app-test` / `XP_APP_TEST` as HOST-RETIRE debt;
 there is no retained native application delivery/restart/cache relay body.
 `runtime_direct_ble` compiles the actual shipping adapters, and
-`runtime_ble_native_phases` checks the native RTC/reset primitives. The existing
+`runtime_ble_native_phases` compiles the shipping restart-phase lambda against
+stub RTC/reset state and checks phase order, light payload and magic. The existing
 C3/S3 BLE oracles still cover the shared state machine. Physical pairing, radio
 IRQ timing, restart display retention and frontlight restoration require device
 checks; host fixtures and the port-reference gate do not prove them.

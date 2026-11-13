@@ -18,6 +18,7 @@ void noRestart() {}
 #endif
 void noHold(bool) {}
 void noLog(bool, const char*, va_list) {}
+// Guarded entries are host-oracle debt; shipping calls the Rust owner directly.
 constexpr Host kNoHost{noHeap,
 #ifdef XP_APP_TEST
                        noRelease, noDeliver,
@@ -110,6 +111,7 @@ void heapMap() {
   }
 }
 
+// Guarded entries are host-oracle debt; shipping calls the Rust owner directly.
 const rust::Services services{[] { return host->heap(); },
 #ifdef XP_APP_TEST
                               [] { return host->releaseCaches(); },

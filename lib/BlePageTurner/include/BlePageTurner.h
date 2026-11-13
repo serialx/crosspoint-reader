@@ -14,7 +14,7 @@
 //
 // Threads:
 //   - begin, xp_ble_tick, xp_ble_before_screen, beforeSleep, afterPaint, the settings calls and
-//     delivery, restart and Host::yieldForRadio run on the host's main loop.
+//     the Rust delivery/restart callbacks and Host::yieldForRadio run on the host's main loop.
 //     xp_ble_tick reads the clock itself (RadioPort::nowMs): a remote's hold is timed against the
 //     moment its frame arrived, which can be later than the start of the pass.
 //   - beforeChapterBuild runs on the host's render task while it holds its render lock.
@@ -128,7 +128,7 @@ struct Host {
 // (RadioPolicy.h) lets the radio start there.
 enum class Where : uint8_t { Elsewhere, Reader, PairingScreen, Home };
 
-// Host -> module, once per main-loop pass.
+// Rust -> module, once per main-loop pass.
 struct Scene {
   Where where;
   // Changes whenever the screen in front changes (a new visit of the book).
@@ -143,9 +143,6 @@ struct Scene {
 
 void begin(const Host& host, Config& config);
 void requestConnect();
-// Rust drives xp_ble_tick directly and calls xp_ble_before_screen before a screen change.
-// Screen admission returns false while stopping/startup is in flight; retry next pass.
-// A radio started at Home is retained when the next screen is a reader.
 // Stops the radio now, waiting up to timeoutMs: a start in flight is cancelled or let finish, then
 // the stack stops. False: it did not stop in time. Main loop. A host that covers the page with a
 // sheet calls it first, and reports the book as Elsewhere while the sheet is up.
@@ -185,7 +182,7 @@ Why why();
 // What the book's status bar says about the remote in place of its title. Connecting from the
 // moment a book is entered until a remote links; Failed when the radio was refused for this
 // visit or ran kLinkNoteFailMs without a link, until the next page turn; None otherwise.
-// nextLinkNote (RadioPolicy.h) decides; tick() and acknowledgeLinkNote() apply it.
+// nextLinkNote (RadioPolicy.h) decides; xp_ble_tick and acknowledgeLinkNote() apply it.
 enum class LinkNote : uint8_t { None, Connecting, Failed, Connected, LowMemory };
 // The note for the book in front. Any task.
 LinkNote linkNote();

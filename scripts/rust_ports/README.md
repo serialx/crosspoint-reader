@@ -92,8 +92,9 @@ Legitimate update reasons and reviewer checks:
   obsolete bindings/owners, and check for replacement paths. Ownership changes
   alone do not authorize growth. R-RELAY, R2b and R-RUNTIME are plan tasks;
   NONREADER, R5/R6/R7, RUNTIME-SHOT, RUNTIME-SLEEP and SET-OWN are explicit
-  deferred buckets. The latter three name the accepted rare orchestration
-  exceptions; changing an owner does not permit a new pair.
+  deferred buckets. RUNTIME-SHOT and RUNTIME-SLEEP cover rare orchestration;
+  SET-OWN covers settings persistence that re-enters Rust codecs, not a physical
+  exception. Changing an owner does not permit a new pair.
 - A port, function or field was renamed/reordered: map every old/new identity
   and compare behavior. Moving data or inserting an unrelated symbol must not
   change either lock. Do not normalize distinct symbols together.

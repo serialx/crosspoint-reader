@@ -1,15 +1,58 @@
 //! Synchronous Rust text runs over the existing font owner and pixel target.
-use crate::page_render::direct::Target;
+use crate::page_render::direct::{xp_native_render_target, Target};
 use crate::{
     font_registry::{self, Owner},
     font_runtime, font_sd, textm,
 };
-use core::{ffi::c_void, ptr};
+use core::{ffi::c_void, mem::MaybeUninit, ptr};
 use xp_core::{
     font::raw::{FontData, Glyph},
     glyph::{Bitmap, BitmapSource, Draw},
     textm::native::{DiagnosticEvent, Engine},
 };
+
+/// Paint the reader's single-line error without changing the renderer's clip.
+#[inline(never)]
+pub(crate) unsafe fn reader_error(
+    command: &xp_ui::scene::Command,
+    clip: xp_ui::scene::Rect,
+    text: &[u8],
+) {
+    let mut target = MaybeUninit::uninit();
+    let cache = xp_native_render_target(target.as_mut_ptr(), ptr::null_mut()) != 0;
+    let mut target = target.assume_init();
+    let bounds = &mut target.glyphs.clip;
+    bounds.left = bounds.left.max(i32::from(clip.x));
+    bounds.top = bounds.top.max(i32::from(clip.y));
+    bounds.right = bounds.right.min(i32::from(clip.x) + i32::from(clip.w));
+    bounds.bottom = bounds.bottom.min(i32::from(clip.y) + i32::from(clip.h));
+    bounds.right = bounds.right.max(bounds.left);
+    bounds.bottom = bounds.bottom.max(bounds.top);
+    target.glyphs.scanning = if cache {
+        font_runtime::scanning(target.fonts)
+    } else {
+        0
+    };
+    Run::new(&target, cache).draw_styled(
+        command.font,
+        i32::from(command.rect.x),
+        i32::from(command.rect.y),
+        text,
+        command.style,
+        command.paint != 1,
+    );
+}
+
+#[cfg(feature = "app-test")]
+#[no_mangle]
+pub unsafe extern "C" fn xp_app_test_reader_error(
+    command: *const xp_ui::scene::Command,
+    clip: xp_ui::scene::Rect,
+    text: *const u8,
+    len: usize,
+) {
+    reader_error(&*command, clip, core::slice::from_raw_parts(text, len));
+}
 
 pub(crate) struct Run<'a> {
     pub target: &'a Target,

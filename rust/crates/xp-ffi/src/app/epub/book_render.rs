@@ -522,7 +522,15 @@ impl EpubSession {
             w: geometry.width as i16,
             h: geometry.height as i16,
         };
-        unsafe { (self.resources.text_draw)(&command, clip, text) };
+        // Retain the existing injected fixture boundary; shipping paints directly.
+        #[cfg(any(test, feature = "app-test"))]
+        unsafe {
+            (self.resources.text_draw)(&command, clip, text)
+        };
+        #[cfg(not(any(test, feature = "app-test")))]
+        unsafe {
+            crate::text_run::reader_error(&command, clip, text.bytes().unwrap_or_default())
+        };
     }
 
     fn book_sync_error(&self) {

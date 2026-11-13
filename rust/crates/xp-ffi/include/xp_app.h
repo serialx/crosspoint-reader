@@ -12,6 +12,7 @@ extern "C" {
 
 // Theme/state snapshot only; no font queries or painting.
 typedef struct {
+  // Shared popup geometry only; no dictionary ownership or callbacks.
   XpUiDictionaryPopup layout;
   int16_t progress_height;
   uint8_t progress_outline, progress_clamp, progress_fill_black, progress_outline_black;
@@ -346,8 +347,8 @@ typedef struct {
   void (*header_draw)(XpUiRect rect, XpAppText title);
   void (*footer_draw)(const XpAppText labels[4]);
   void (*placeholder_draw)(XpUiRect rect);
-// Fixture-only callbacks (HOST-RETIRE); shipping composes directly in Rust.
 #ifdef XP_APP_TEST
+  // Fixture-only callbacks (HOST-RETIRE); shipping composes directly in Rust.
   XpUiRect (*popup_draw)(XpAppText text);
   void (*popup_progress)(XpUiRect rect, int32_t percent);
 #else

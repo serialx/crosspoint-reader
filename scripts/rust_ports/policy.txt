@@ -1,6 +1,7 @@
 # Default X3 native ports. Exact roots; no wildcard ownership or physical permission.
 table EPUB _ZZ17rustEpubResourcesR11GfxRendererR18MappedInputManagerE6leaves XpEpubLeaves rust/crates/xp-ffi/include/xp_epub_session.h # Reader session ports.
 table App _ZZ16rustAppResourcesR11GfxRendererR18MappedInputManagerE9resources XpAppResources rust/crates/xp-ffi/include/xp_app.h # Shared application ports.
+# App.popup_facts is a one-way native theme/state read; no font query, painting or Rust callback.
 table Legacy _ZZN15ActivityManager5beginERK12XpAppRuntimeE6legacy XpAppLegacy rust/crates/xp-ffi/include/xp_app.h # Legacy activities.
 table WiFi XP_WIFI_PHYSICAL XpWifiPhysical rust/crates/xp-ffi/include/xp_network_owner.h # Wi-Fi owner ports.
 table Modes XP_NETWORK_MODES_PHYSICAL XpNetworkModesPhysical rust/crates/xp-ffi/include/xp_network_owner.h # Network mode ports.
@@ -71,7 +72,7 @@ deferred EPUB.end_open R5 # Deferred preview/popup/end-of-book path.
 deferred EPUB.end_paint R5 # Deferred preview/popup/end-of-book path.
 deferred EPUB.fonts_ensure_loaded SET-OWN # Catalog settings serialization; named exception in the R-RUNTIME decision, outside RELAY-B. Noncatalog retains native font effects.
 inherited EPUB.fonts_take_corrupt_notice R-RELAY # Reference-gate entry is already a direct Rust target in the shipping EPUB table, not a native relay; retained for the final R8b classification.
-deferred EPUB.paint_dither R6 # Clipping selection highlight only; calls the font scan query before dithering.
+deferred EPUB.paint_dither R6 # Saved-highlight shade exception: runs on page turns for books with saved clippings; calls the font scan query before dithering.
 physical EPUB.status_facts xp_hal_clock_format xp_hal_clock_read xp_hal_power_battery # Native settings/theme facts are one-way reads; RTC formatting/read and battery sampling are named HAL continuations, with no reader layout or text work.
 deferred EPUB.popup_paint R5 # Deferred preview/popup/end-of-book path.
 deferred EPUB.popup_process_render R5 # Deferred preview/popup/end-of-book path.
@@ -226,7 +227,7 @@ deferred EPUB.child_header R6 # Runtime-pointer study retirement assignment in R
 deferred EPUB.child_utility_footer R6 # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 deferred EPUB.child_directional_hints R6 # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 deferred App.header_draw NONREADER # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
-deferred App.footer_draw NONREADER # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
+deferred App.footer_draw THEME-FOOTER # Reader reaches this only on error screens; three theme layouts remain shared with other screens, owned by the future all-screens footer migration.
 deferred EPUB.popup_input R5 # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 deferred Runtime.screenshot RUNTIME-SHOT # Explicit R-RUNTIME decision: rare screenshot storage/feedback orchestration, not a page-turn path.
 deferred Runtime.settings_save SET-OWN # Explicit R-RUNTIME decision and ruling 45: synchronous settings serialization, not a page-turn path.

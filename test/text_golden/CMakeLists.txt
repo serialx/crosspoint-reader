@@ -123,3 +123,18 @@ add_test(NAME ReaderPopupPixels COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SO
   $<TARGET_FILE:ReaderPopupPixels>)
 add_test(NAME ReaderPopupDispatch COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/popup_dispatch.py
   ${REPO_ROOT})
+
+# Compare the reader error painter with the real native clipped text operation.
+add_executable(ReaderErrorPixels ErrorPixels.cpp ${TEXT_GOLDEN_SOURCES}
+  ${INSTRUMENTED}/RustUiRenderer.cpp
+  ${REPO_ROOT}/freeink-sdk/libs/ui/FreeInkUI/src/FreeInkUI.cpp)
+target_include_directories(ReaderErrorPixels BEFORE PRIVATE status_stubs ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(ReaderErrorPixels PRIVATE $<TARGET_PROPERTY:UiSceneTarget,INCLUDE_DIRECTORIES>)
+target_compile_definitions(ReaderErrorPixels PRIVATE $<TARGET_PROPERTY:ReaderPopupPixels,COMPILE_DEFINITIONS>)
+target_compile_options(ReaderErrorPixels PRIVATE $<TARGET_PROPERTY:ReaderPopupPixels,COMPILE_OPTIONS>)
+target_link_options(ReaderErrorPixels PRIVATE $<TARGET_PROPERTY:TextGolden,LINK_OPTIONS>)
+target_link_libraries(ReaderErrorPixels PRIVATE xp_ffi_host)
+add_test(NAME ReaderErrorPixels COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/status_pixels.py
+  $<TARGET_FILE:ReaderErrorPixels>)
+add_test(NAME ReaderErrorDispatch COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/error_dispatch.py
+  ${REPO_ROOT})

@@ -75,3 +75,13 @@ progress refresh. It compiles the reader restart branch and the native restart
 preparation/finish bodies separately to check sleep cancellation, retained
 light state and paint-before-reset ordering. BLE restart composition remains
 covered by `runtime_direct_ble` on the same Resources method boundary.
+## Reader error text
+
+`ReaderErrorPixels` compares the actual Rust error painter with native
+`GfxRenderer::drawUiText`: all three English, Hebrew and Arabic translations,
+plus Korean samples (there is no Korean translation catalog), four orientations,
+both polarities, five existing clips and scan/prewarm states. Each font invocation
+checks 1,440 exact framebuffers and clip/orientation preservation. It uses the
+same built-in/public SD-font runner as the popup test; `--korean-font` adds a real
+Korean fallback font. `ReaderErrorDispatch` compiles the actual shipping helper
+without a native text-draw field and checks font, style, centering, y and clip.

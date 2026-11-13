@@ -1477,7 +1477,16 @@ A cold restart helper checks sleep precedence before reading the live light
 state, arms the existing reader RTC target, draws the translated loading popup,
 waits 50 ms and requests reset. Native primitives own the RTC fields and reset;
 Rust owns this sequence. Native non-BLE maintenance restart callers retain their
-existing adapter. The popup itself remains the separate R2b owner.
+existing adapter. The shared loading popup is composed in Rust through the styled
+text run; native code supplies only theme facts and physical refresh.
+
+The reader paints page-load, empty-chapter and out-of-bounds messages through
+the same styled Rust text run, intersecting the screen clip with the existing
+target clip. Message selection, bold font, centering and y position are unchanged.
+The error-screen Back footer remains a named `THEME-FOOTER` exception: its three
+native theme layouts are shared with other screens and await an all-screens
+footer migration. Saved clipping highlights also remain with R6 and can run on
+page turns; they are not an unreachable path.
 
 Runtime replaces `ble_tick` / `ble_before_screen_change` with `wifi_active` /
 `ble_restart`, preserving its 34 slots. The shipping BLE Host and Services tables

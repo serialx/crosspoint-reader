@@ -162,6 +162,18 @@ typedef struct {
 } XpEpubPopupInput;
 
 typedef struct {
+  int32_t screen_width, screen_height, margin_left, margin_right, margin_bottom;
+  int32_t status_height, progress_height, status_margin, horizontal_margin, corner, offset_y;
+  int32_t battery_width, battery_height, font, estimate_font;
+  const uint8_t* bookmark;
+  uint16_t battery_percent;
+  uint8_t show_count, show_percent, title_mode, show_battery, show_battery_percent;
+  uint8_t clock_mode, bar_mode, bar_height, clock_available, clock_valid, charging, battery_style;
+  uint8_t clock[9];
+} XpEpubStatusFacts;
+
+#ifdef XP_APP_TEST
+typedef struct {
   XpAppText title;
   float book_progress;
   int32_t page;
@@ -170,6 +182,7 @@ typedef struct {
   uint8_t bookmarked;
   uint8_t building;
 } XpEpubStatus;
+#endif
 
 typedef struct {
   XpAppText xpath;
@@ -373,7 +386,11 @@ typedef struct XpEpubLeaves {
   void (*storage_read_release)(void* storage);
   void (*paint_dither)(int32_t x, int32_t y, int32_t width, int32_t height);
   void (*paint_pixel)(int32_t x, int32_t y);
+#ifdef XP_APP_TEST
   void (*paint_status)(const XpEpubStatus* status);
+#else
+  void (*status_facts)(XpEpubStatusFacts* out);
+#endif
   // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   void (*image_clear_failures)(void);
@@ -652,6 +669,9 @@ typedef struct XpEpubLeaves {
 #else
 #define XP_EPUB_ASSERT(condition, message) _Static_assert(condition, message)
 #endif
+XP_EPUB_ASSERT(sizeof(XpEpubStatusFacts) == (sizeof(void*) == 8 ? 96 : 88), "XpEpubStatusFacts size");
+XP_EPUB_ASSERT(offsetof(XpEpubStatusFacts, bookmark) == (sizeof(void*) == 8 ? 64 : 60), "XpEpubStatusFacts.bookmark");
+XP_EPUB_ASSERT(offsetof(XpEpubStatusFacts, clock) == (sizeof(void*) == 8 ? 86 : 78), "XpEpubStatusFacts.clock");
 XP_EPUB_ASSERT(sizeof(XpEpubPageView) == (sizeof(void*) == 8 ? 24 : 12), "XpEpubPageView size");
 XP_EPUB_ASSERT(sizeof(XpEpubOwnedPage) == sizeof(XpEpubPageView) + 2 * sizeof(void*), "XpEpubOwnedPage size");
 XP_EPUB_ASSERT(offsetof(XpEpubOwnedPage, owner) == sizeof(XpEpubPageView), "XpEpubOwnedPage.owner");
@@ -754,7 +774,11 @@ XP_EPUB_LEAF_OFFSET(path_remove_tree, 16);
 XP_EPUB_LEAF_OFFSET(storage_read_release, 17);
 XP_EPUB_LEAF_OFFSET(paint_dither, 18);
 XP_EPUB_LEAF_OFFSET(paint_pixel, 19);
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(paint_status, 20);
+#else
+XP_EPUB_LEAF_OFFSET(status_facts, 20);
+#endif
 #ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(image_clear_failures, 21);
 #endif

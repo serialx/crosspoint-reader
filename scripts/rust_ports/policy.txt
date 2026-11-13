@@ -76,8 +76,8 @@ deferred EPUB.end_open R5 # Deferred preview/popup/end-of-book path.
 deferred EPUB.end_paint R5 # Deferred preview/popup/end-of-book path.
 inherited EPUB.fonts_ensure_loaded R-RELAY # SET-OWN family owns catalog settings serialization; R-RELAY is the gate token because SET-OWN has none. Noncatalog retains native font effects; outside RELAY-B.
 inherited EPUB.fonts_take_corrupt_notice R-RELAY # Small native forwarding port; remove after R2/R3a.
-inherited EPUB.paint_dither R2 # Reader chrome font relay.
-inherited EPUB.paint_status R2 # Reader chrome font relay.
+deferred EPUB.paint_dither R6 # Clipping selection highlight only; calls the font scan query before dithering.
+physical EPUB.status_facts xp_hal_clock_format xp_hal_clock_read xp_hal_power_battery # Native settings/theme facts are one-way reads; RTC formatting/read and battery sampling are named HAL continuations, with no reader layout or text work.
 deferred EPUB.popup_paint R5 # Deferred preview/popup/end-of-book path.
 deferred EPUB.popup_process_render R5 # Deferred preview/popup/end-of-book path.
 inherited EPUB.restart_reader R3a # Native persistence/state/store or shared app relay.

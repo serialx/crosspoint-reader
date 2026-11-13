@@ -596,7 +596,7 @@ pub unsafe extern "C" fn xp_native_draw_pixels(
     );
 }
 #[allow(clippy::too_many_arguments)]
-unsafe fn draw_pixels(
+pub(crate) unsafe fn draw_pixels(
     provider: *const Provider,
     id: i32,
     data: *const u8,

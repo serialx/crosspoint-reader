@@ -77,3 +77,28 @@ target_link_options(LibraryHeaderPixels PRIVATE $<TARGET_PROPERTY:TextGolden,LIN
 target_link_libraries(LibraryHeaderPixels PRIVATE xp_ffi_host)
 add_test(NAME LibraryHeaderPixels COMMAND ${Python3_EXECUTABLE} ${LIBRARY_HEADER_TEST}/library_pixels.py
   $<TARGET_FILE:LibraryHeaderPixels>)
+
+# Native status drawing remains the oracle for the Rust EPUB composer.
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/status_spec.inc ${CMAKE_CURRENT_BINARY_DIR}/status_native.inc
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/status_methods.py ${REPO_ROOT} ${CMAKE_CURRENT_BINARY_DIR}
+  DEPENDS status_methods.py ${REPO_ROOT}/test/reader_lifecycle/test_popup_resource.py
+    ${REPO_ROOT}/src/CrossPointSettings.h ${REPO_ROOT}/src/components/themes/BaseTheme.cpp
+    ${REPO_ROOT}/src/components/themes/lyra/LyraTheme.cpp ${REPO_ROOT}/src/components/UITheme.cpp
+    ${REPO_ROOT}/src/activities/reader/RustEpubResources.cpp VERBATIM)
+add_executable(ReaderStatusPixels StatusPixels.cpp ${TEXT_GOLDEN_SOURCES}
+  ${CMAKE_CURRENT_BINARY_DIR}/status_spec.inc ${CMAKE_CURRENT_BINARY_DIR}/status_native.inc)
+target_include_directories(ReaderStatusPixels BEFORE PRIVATE status_stubs ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(ReaderStatusPixels PRIVATE $<TARGET_PROPERTY:TextGolden,INCLUDE_DIRECTORIES>)
+target_compile_definitions(ReaderStatusPixels PRIVATE $<TARGET_PROPERTY:TextGolden,COMPILE_DEFINITIONS>
+  XP_FFI_HOST_FAULT_INJECTION TEST_DISPLAY_WIDTH=528 TEST_DISPLAY_HEIGHT=792)
+target_compile_options(ReaderStatusPixels PRIVATE $<TARGET_PROPERTY:TextGolden,COMPILE_OPTIONS> -UNDEBUG)
+target_link_options(ReaderStatusPixels PRIVATE $<TARGET_PROPERTY:TextGolden,LINK_OPTIONS>)
+target_link_libraries(ReaderStatusPixels PRIVATE xp_ffi_host)
+add_test(NAME ReaderStatusPixels COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/status_pixels.py
+  $<TARGET_FILE:ReaderStatusPixels>)
+add_test(NAME ReaderStatusLayout COMMAND ${XP_FFI_CARGO} test --manifest-path ${REPO_ROOT}/rust/Cargo.toml
+  -p xp-ui --test reader_status --offline --locked)
+set_tests_properties(ReaderStatusLayout PROPERTIES WORKING_DIRECTORY ${REPO_ROOT}/rust)
+
+add_test(NAME ReaderStatusDispatch COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/status_dispatch.py
+  ${REPO_ROOT})

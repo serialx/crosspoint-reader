@@ -314,3 +314,5 @@ impl EpubSession {
 
 #[cfg(feature = "app-test")]
 pub(super) use test_support::legacy_book::LegacyBookServices;
+
+mod status_paint;

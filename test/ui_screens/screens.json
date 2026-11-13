@@ -4554,6 +4554,159 @@
           ]
         }
       ]
+    },
+    {
+      "id": "reader-status-book",
+      "fixture": "reader-status-long",
+      "rotates": true,
+      "settings": {
+        "statusBarTitle": 0,
+        "statusBarChapterPageCount": 0,
+        "statusBarBookProgressPercentage": 1,
+        "statusBarBattery": 1,
+        "hideBatteryPercentage": 1,
+        "statusBarClock": 2,
+        "clockFormat": 1,
+        "statusBarProgressBar": 0,
+        "statusBarProgressBarThickness": 0,
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "reader-status-book",
+          "activity": "EpubReader",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "wait-log:Page render"
+          ]
+        },
+        {
+          "id": "reader-status-book-bookmark",
+          "activity": "EpubReader",
+          "steps": [
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reader-status-chapter",
+      "fixture": "reader-status-rtl",
+      "rotates": true,
+      "settings": {
+        "statusBarTitle": 1,
+        "statusBarChapterPageCount": 1,
+        "statusBarBookProgressPercentage": 0,
+        "statusBarBattery": 1,
+        "hideBatteryPercentage": 0,
+        "statusBarClock": 1,
+        "clockFormat": 0,
+        "statusBarProgressBar": 1,
+        "statusBarProgressBarThickness": 2,
+        "uiTheme": 1,
+        "sdFontFamilyName": "StatusHebrew",
+        "fontSize": 14
+      },
+      "screens": [
+        {
+          "id": "reader-status-chapter",
+          "activity": "EpubReader",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "wait-log:Page render"
+          ]
+        },
+        {
+          "id": "reader-status-chapter-bookmark",
+          "activity": "EpubReader",
+          "steps": [
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reader-status-cjk",
+      "fixture": "reader-status-cjk",
+      "rotates": true,
+      "settings": {
+        "statusBarTitle": 0,
+        "statusBarChapterPageCount": 1,
+        "statusBarBookProgressPercentage": 1,
+        "statusBarBattery": 0,
+        "statusBarClock": 2,
+        "clockFormat": 0,
+        "statusBarProgressBar": 0,
+        "statusBarProgressBarThickness": 1,
+        "uiTheme": 3,
+        "sdFontFamilyName": "Pretendard",
+        "fontSize": 14
+      },
+      "screens": [
+        {
+          "id": "reader-status-cjk",
+          "activity": "EpubReader",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "wait-log:Page render"
+          ]
+        },
+        {
+          "id": "reader-status-cjk-bookmark",
+          "activity": "EpubReader",
+          "steps": [
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reader-status-hidden",
+      "fixture": "reader",
+      "rotates": true,
+      "settings": {
+        "statusBarTitle": 2,
+        "statusBarChapterPageCount": 0,
+        "statusBarBookProgressPercentage": 0,
+        "statusBarBattery": 0,
+        "statusBarClock": 0,
+        "statusBarProgressBar": 1,
+        "statusBarProgressBarThickness": 0,
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "reader-status-hidden",
+          "activity": "EpubReader",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "wait-log:Page render"
+          ]
+        },
+        {
+          "id": "reader-status-hidden-bookmark",
+          "activity": "EpubReader",
+          "steps": [
+            "press:confirm",
+            "press:down",
+            "press:down",
+            "press:confirm"
+          ]
+        }
+      ]
     }
   ]
 }

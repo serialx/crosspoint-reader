@@ -53,6 +53,7 @@ mod section_cache;
 mod settings;
 mod system_items;
 mod text;
+mod text_run;
 mod textm;
 mod web;
 mod web_jobs;

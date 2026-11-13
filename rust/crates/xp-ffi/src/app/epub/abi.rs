@@ -394,7 +394,10 @@ pub struct XpEpubLeaves {
     pub storage_read_release: unsafe extern "C" fn(*mut core::ffi::c_void),
     pub paint_dither: unsafe extern "C" fn(x: i32, y: i32, width: i32, height: i32),
     pub paint_pixel: unsafe extern "C" fn(x: i32, y: i32),
+    #[cfg(feature = "app-test")]
     pub paint_status: unsafe extern "C" fn(status: *const XpEpubStatus),
+    #[cfg(not(feature = "app-test"))]
+    pub status_facts: unsafe extern "C" fn(out: *mut xp_ui::reader::status::Facts),
     #[cfg(feature = "app-test")]
     pub image_clear_failures: unsafe extern "C" fn(),
     #[cfg(feature = "app-test")]
@@ -879,7 +882,10 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, storage_read_release) == leaf_index(17) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, paint_dither) == leaf_index(18) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, paint_pixel) == leaf_index(19) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, paint_status) == leaf_index(20) * pointer);
+    #[cfg(not(feature = "app-test"))]
+    assert!(core::mem::offset_of!(XpEpubLeaves, status_facts) == leaf_index(20) * pointer);
     #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, image_clear_failures) == leaf_index(21) * pointer);
     #[cfg(feature = "app-test")]

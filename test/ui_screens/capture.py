@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import re
+import shutil
 import subprocess
 import time
 from pathlib import Path
@@ -162,6 +163,7 @@ def main():
     p.add_argument('--orientations', nargs='+', type=int, choices=range(4), default=list(range(4)))
     p.add_argument('--dark', nargs='+', type=int, choices=[0, 1], default=[0, 1])
     p.add_argument('--groups', nargs='+')
+    p.add_argument('--font-dir', type=Path, help='optional font families copied to each isolated card')
     p.add_argument('--gdb', type=Path, default=Path.home() / '.platformio/packages/tool-riscv32-esp-elf-gdb/bin/riscv32-esp-elf-gdb')
     args = p.parse_args()
     from contracts import executable_identity, expected_contract, validate_recording
@@ -183,7 +185,9 @@ def main():
             'xtc_fixture_sha256': sha(HERE.parent / 'xtc_diff/generate.py'),
             'emulator': identity, 'executable_identity': executable_identity(identity), 'artifacts': artifacts,
             'build': str(build), 'rtc': '2026-01-01T09:00:00', 'sleep': 'off', 'turbo': False,
-            'ghosting': False, 'input_quiet_ms': 200, 'runs': []}
+            'ghosting': False, 'input_quiet_ms': 200, 'runs': [],
+            'font_files': {str(path.relative_to(args.font_dir)): sha(path)
+                           for path in sorted(args.font_dir.rglob('*')) if path.is_file()} if args.font_dir else {}}
     save(out / 'manifest.json', meta)
     started = time.monotonic()
     try:
@@ -208,6 +212,10 @@ def main():
                             save(config / filename, contents)
                         from fixtures import prepare
                         assets = prepare(case, group.get('fixture', 'empty'))
+                        if args.font_dir:
+                            fonts = case / 'assets' / '.fonts'
+                            shutil.copytree(args.font_dir, fonts)
+                            assets.append((fonts, '/'))
                         script = case / 'steps.txt'
                         script.write_text('\n'.join(steps_for(group, machine)) + '\n')
                         input_quiet = group.get('input_quiet_ms', meta['input_quiet_ms'])
@@ -244,7 +252,7 @@ def main():
                                                  for folder in [config, case / 'assets']
                                                  for path in sorted(folder.rglob('*')) if path.is_file()}
                         entry['script_sha256'] = sha(script)
-                        entry['contract'] = expected_contract(suite, group, machine, orientation, dark)
+                        entry['contract'] = expected_contract(suite, group, machine, orientation, dark, meta['font_files'])
                         validate_recording(case, entry, entry['contract'])
                         for screen in entry['screens']:
                             if screen['activity_observed'] != screen['activity_expected']:

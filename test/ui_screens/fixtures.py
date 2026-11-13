@@ -1,12 +1,13 @@
 """Small public, synthetic fixtures generated outside the source tree."""
 import importlib.util
+import html
 import struct
 import zipfile
 import zlib
 from pathlib import Path
 
 
-def epub(path):
+def epub(path, title="UI Oracle", chapter="First chapter"):
     files = {
         'mimetype': 'application/epub+zip',
         'META-INF/container.xml': '<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="book.opf" media-type="application/oebps-package+xml"/></rootfiles></container>',
@@ -15,6 +16,8 @@ def epub(path):
         'one.xhtml': '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><body><h1>Oracle</h1><p>Oracle reader screen with a <a epub:type="noteref" href="two.xhtml#note">footnote</a> and <a epub:type="noteref" href="two.xhtml#note2">second note</a>.</p>' + '<p>Oracle text for selection, bookmarks, clippings and dictionary lookup. This deterministic paragraph has no private content.</p>' * 8 + '</body></html>',
         'two.xhtml': '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><body><h1>Last chapter</h1><aside epub:type="footnote" id="note"><p>Oracle footnote definition.</p></aside><p>The end of the test book.</p><aside epub:type="footnote" id="note2"><p>Second oracle note.</p></aside></body></html>',
     }
+    files['book.opf'] = files['book.opf'].replace('<dc:title>UI Oracle</dc:title>', '<dc:title>' + html.escape(title) + '</dc:title>')
+    files['nav.xhtml'] = files['nav.xhtml'].replace('First chapter</a>', html.escape(chapter) + '</a>')
     with zipfile.ZipFile(path, 'w') as archive:
         for name, value in files.items():
             info = zipfile.ZipInfo(name, (2026, 1, 1, 0, 0, 0))
@@ -87,8 +90,16 @@ def prepare(case, kind):
         (plugin / 'manifest.json').write_text('{"title":"Oracle Plugin","description":"Offline UI fixture"}\n')
         (plugin / 'README.md').write_text('Oracle plugin instructions.\n\nThis synthetic plugin has no executable code or network requests.\n')
         return [(plugin, '/.crosspoint/plugins')]
+    status_titles = {
+        'reader-status-long': 'A long book title that must fit between the clock, battery and progress clusters',
+        'reader-status-rtl': 'עברית العربية — A mixed title',
+        'reader-status-cjk': '한글 책 제목 — 읽기와 페이지 넘기기',
+    }
+    title = status_titles.get(kind)
+    if title is not None:
+        kind = 'reader'
     if kind in ('reader', 'reader-next', 'files', 'library'):
-        epub(root / 'Oracle.epub')
+        epub(root / 'Oracle.epub', title or 'UI Oracle', title or 'First chapter')
     if kind in ('reader', 'reader-next'):
         dictionary = root / 'Oracle'
         dictionary.mkdir()

@@ -6,6 +6,7 @@ use super::{
 };
 use core::{ffi::c_void, mem::MaybeUninit};
 use xp_core::i18n::ids;
+use xp_ui::reader::status::Facts;
 
 const TEXT_NAMES: [u16; 5] = [
     ids::STR_FONT,
@@ -233,6 +234,7 @@ impl EpubSession {
     fn paint_status_title(
         &self,
         access: &ResourceAccess<'_>,
+        _facts: &Facts,
         status: &abi::XpEpubStatus,
         title: app_abi::Text,
     ) {
@@ -245,13 +247,25 @@ impl EpubSession {
             ),
             ..*status
         };
-        unsafe { (self.leaves.paint_status)(&value) };
+        #[cfg(feature = "app-test")]
+        unsafe {
+            (self.leaves.paint_status)(&value)
+        };
+        #[cfg(not(feature = "app-test"))]
+        unsafe {
+            super::status_paint::paint(_facts, &value)
+        };
     }
 
     // Keep the peer snapshot and the existing 64-byte snprintf result out of the
     // common status frame. Only a connected note needs these local buffers.
     #[inline(never)]
-    fn paint_connected_status(&self, access: &ResourceAccess<'_>, status: &abi::XpEpubStatus) {
+    fn paint_connected_status(
+        &self,
+        access: &ResourceAccess<'_>,
+        facts: &Facts,
+        status: &abi::XpEpubStatus,
+    ) {
         let mut flags = MaybeUninit::uninit();
         let mut peer = MaybeUninit::<abi::XpEpubPeer>::uninit();
         unsafe {
@@ -286,7 +300,37 @@ impl EpubSession {
             length += count;
             at += step;
         }
-        self.paint_status_title(access, status, app_abi::Text::from_bytes(&title[..length]));
+        self.paint_status_title(
+            access,
+            facts,
+            status,
+            app_abi::Text::from_bytes(&title[..length]),
+        );
+    }
+
+    #[inline(never)]
+    fn status_facts(&self) -> Facts {
+        #[cfg(feature = "app-test")]
+        {
+            let mut geometry = MaybeUninit::uninit();
+            unsafe { (self.leaves.render_geometry)(geometry.as_mut_ptr()) };
+            let geometry: abi::XpEpubGeometry = unsafe { geometry.assume_init() };
+            Facts {
+                title_mode: geometry.title_mode,
+                status_height: geometry.status_height,
+                progress_height: geometry.progress_height,
+                status_margin: geometry.status_margin,
+                ..Facts::default()
+            }
+        }
+        #[cfg(not(feature = "app-test"))]
+        {
+            let mut facts = MaybeUninit::uninit();
+            unsafe {
+                (self.leaves.status_facts)(facts.as_mut_ptr());
+                facts.assume_init()
+            }
+        }
     }
 
     pub(super) fn render_status_bar(&self, access: &ResourceAccess<'_>) {
@@ -310,16 +354,10 @@ impl EpubSession {
             unsafe { (super::session_book::progress)(book.as_ptr(), spine, fraction) }
                 .map(|value| value * 100.0)
         });
-        let Some(progress) = progress else {
-            self.reject_reader_scene();
-            return;
-        };
-        self.export_percent(Some((progress + 0.5) as i32));
-        let mut geometry = MaybeUninit::uninit();
-        unsafe { (self.leaves.render_geometry)(geometry.as_mut_ptr()) };
-        let geometry: abi::XpEpubGeometry = unsafe { geometry.assume_init() };
+        self.export_percent(progress.map(|value| (value + 0.5) as i32));
+        let facts = self.status_facts();
         let raw_note = self.radio_status().note;
-        let shown = geometry.title_mode != 2;
+        let shown = facts.title_mode != 2;
         let note = if shown { raw_note } else { 0 };
         self.model(|state| state.link_note_drawn = shown.then_some(note));
         #[cfg(feature = "app-test")]
@@ -328,7 +366,7 @@ impl EpubSession {
         }
         let mut status = abi::XpEpubStatus {
             title: app_abi::Text::from_bytes(&[]),
-            book_progress: progress,
+            book_progress: progress.unwrap_or(-1.0),
             page,
             pages: count,
             y_offset: 0,
@@ -336,9 +374,19 @@ impl EpubSession {
             building: 0,
         };
         match note {
-            3 => self.paint_connected_status(access, &status),
-            4 => self.paint_status_title(access, &status, self.value_label(ids::STR_BT_LOW_MEMORY)),
-            1 => self.paint_status_title(access, &status, self.value_label(ids::STR_BT_CONNECTING)),
+            3 => self.paint_connected_status(access, &facts, &status),
+            4 => self.paint_status_title(
+                access,
+                &facts,
+                &status,
+                self.value_label(ids::STR_BT_LOW_MEMORY),
+            ),
+            1 => self.paint_status_title(
+                access,
+                &facts,
+                &status,
+                self.value_label(ids::STR_BT_CONNECTING),
+            ),
             0 => {
                 let (automatic, duration) =
                     self.model(|state| (state.auto_turn, state.turn_duration_ms));
@@ -357,38 +405,37 @@ impl EpubSession {
                     {
                         return;
                     }
-                    if geometry.status_height == 0
-                        || geometry.status_height == geometry.progress_height
-                    {
-                        status.y_offset = geometry.status_margin;
+                    if facts.status_height == 0 || facts.status_height == facts.progress_height {
+                        status.y_offset = facts.status_margin;
                     }
-                    self.paint_status_title(access, &status, title.wire());
-                } else if geometry.title_mode == 1 {
+                    self.paint_status_title(access, &facts, &status, title.wire());
+                } else if facts.title_mode == 1 {
                     if self
                         .with_chapter_title(access, false, |title| {
-                            self.paint_status_title(access, &status, title)
+                            self.paint_status_title(access, &facts, &status, title)
                         })
                         .is_none()
                     {
-                        self.paint_status_title(
-                            access,
-                            &status,
-                            app_abi::Text::from_terminated(b"\0"),
-                        );
+                        self.paint_status_title(access, &facts, &status, status.title);
                     }
-                } else if geometry.title_mode == 0 {
+                } else if facts.title_mode == 0 {
                     if let Some(book) = book {
                         with_book_text(book, super::session_book::title, |title| {
-                            self.paint_status_title(access, &status, title)
+                            self.paint_status_title(access, &facts, &status, title)
                         });
                     } else {
-                        self.paint_status_title(access, &status, status.title);
+                        self.paint_status_title(access, &facts, &status, status.title);
                     }
                 } else {
-                    self.paint_status_title(access, &status, status.title);
+                    self.paint_status_title(access, &facts, &status, status.title);
                 }
             }
-            _ => self.paint_status_title(access, &status, self.value_label(ids::STR_BT_FAILED)),
+            _ => self.paint_status_title(
+                access,
+                &facts,
+                &status,
+                self.value_label(ids::STR_BT_FAILED),
+            ),
         }
     }
 }

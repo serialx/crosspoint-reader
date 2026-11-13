@@ -43,6 +43,45 @@ class ContractTests(unittest.TestCase):
                     'artifact_dir': self.case.name, 'contract': self.contract,
                     'input_sha256': input_files(self.case), 'script_sha256': sha(self.case / 'steps.txt')}
 
+    def add_optional_font(self):
+        font = self.case / 'assets/.fonts/Demo/Demo_14.cpfont'
+        font.parent.mkdir(parents=True)
+        font.write_bytes(b'font fixture')
+        files = {'Demo/Demo_14.cpfont': sha(font)}
+        try:
+            contract = expected_contract(self.suite, self.group, 'x3', 0, 0, font_files=files)
+        except TypeError as error:
+            self.fail(f'Optional font inputs cannot be declared: {error}')
+        self.run['contract'] = contract
+        self.run['input_sha256'] = input_files(self.case)
+        directory = self.case / 'assets/.fonts'
+        self.run['command'] += ['--put', str(directory) + '=/']
+        path = self.case / 'run/run.jsonl'
+        start = json.loads(path.read_text())
+        start['card']['staged'].append({'host': str(directory), 'card_dir': '/'})
+        path.write_text(json.dumps(start) + '\n')
+        return font, contract
+
+    def test_optional_font_contract(self):
+        font, contract = self.add_optional_font()
+        self.assertEqual(contract['inputs']['assets/.fonts/Demo/Demo_14.cpfont'], sha(font))
+        self.assertIn({'source': 'assets/.fonts/Demo/Demo_14.cpfont',
+                       'destination': '/.fonts/Demo/Demo_14.cpfont', 'sha256': sha(font)}, contract['staged'])
+        validate_recording(self.case, self.run, contract)
+
+    def test_optional_font_changed_bytes_rejected(self):
+        font, contract = self.add_optional_font()
+        font.write_bytes(b'changed font')
+        self.run['input_sha256'] = input_files(self.case)
+        with self.assertRaisesRegex(ValueError, 'inventory'):
+            validate_recording(self.case, self.run, contract)
+
+    def test_optional_font_wrong_directory_rejected(self):
+        _, contract = self.add_optional_font()
+        self.run['command'][-1] = self.run['command'][-1][:-1] + '/.fonts'
+        with self.assertRaisesRegex(ValueError, 'destinations'):
+            validate_recording(self.case, self.run, contract)
+
     def test_valid_contract(self):
         validate_recording(self.case, self.run, self.contract)
 

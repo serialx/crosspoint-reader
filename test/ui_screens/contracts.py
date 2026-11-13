@@ -53,7 +53,7 @@ def staged_files(case, puts):
     return staged
 
 
-def expected_contract(suite, group, machine, orientation, dark):
+def expected_contract(suite, group, machine, orientation, dark, font_files=None):
     settings = dict(suite['settings'], orientation=orientation, screenInverted=dark)
     settings.update(group.get('settings', {}))
     configs = {'settings.json': settings, 'state.json': {'showBootScreen': True}, **group.get('config_files', {})}
@@ -64,12 +64,22 @@ def expected_contract(suite, group, machine, orientation, dark):
             (case / 'config' / name).write_text(json.dumps(contents, indent=2) + '\n')
         assets = prepare(case, group.get('fixture', 'empty'))
         puts = [(p, '/.crosspoint') for p in sorted((case / 'config').iterdir())] + assets
-        return {'fixture': group.get('fixture', 'empty'), 'configs': configs,
+        contract = {'fixture': group.get('fixture', 'empty'), 'configs': configs,
                 'inputs': input_files(case), 'staged': staged_files(case, puts),
                 'steps': steps_for(group, machine), 'input_quiet_ms': group.get('input_quiet_ms', 200),
                 'boot': group.get('boot', False), 'fault': group.get('fault'),
                 'screens': [{'id': s['id'], 'activity': s['activity']} for s in group['screens']
                             if machine in s.get('machines', ['x3', 'x4'])]}
+
+
+    for name, digest in sorted((font_files or {}).items()):
+        path = PurePosixPath(name)
+        if path.is_absolute() or not path.parts or any(part.startswith('.') for part in path.parts):
+            raise ValueError(f'Invalid staged font path: {name}')
+        source = 'assets/.fonts/' + name
+        contract['inputs'][source] = digest
+        contract['staged'].append({'source': source, 'destination': '/.fonts/' + name, 'sha256': digest})
+    return contract
 
 
 def validate_recording(case, run, expected, legacy=False):

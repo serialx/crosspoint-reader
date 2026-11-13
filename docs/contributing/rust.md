@@ -1021,6 +1021,28 @@ before allocation; failure leaves both counts zero. ResourceAccess guards these
 buffers. Shutdown closes the Rust render resources, then releases links before
 footnotes. The historical C++ metadata class exists only in host tests.
 
+EPUB status drawing is composed in Rust. `reader::status` formats counters and
+places the progress, battery, clock, bookmark and title; `text_run` uses the
+existing Rust font provider and glyph painter directly. The native `status_facts`
+slot supplies settings/theme measurements, the active battery style and the
+battery/RTC HAL values. It does not measure or draw text. The physical target loan
+is shared with page painting; the composer reads the font owner's scan flag after
+that loan because the page snapshot deliberately omits it. Scan passes still
+write the battery tip and bookmark pixels, matching the retained native painter.
+
+A title uses local fallible `SmallZ` storage. Up to 15 bytes fit inline before
+truncation; truncating a 13–15-byte title can allocate 17–19 bytes including NUL
+because the shared helper reserves room for an ellipsis. Longer titles reserve
+their byte length plus four once and reuse that buffer for truncation candidates.
+The buffer dies after each paint, replacing native title/candidate copies without
+adding retained session state. Allocation failure omits only the title. Counters use a 32-byte
+stack buffer and integer formatting with half-even percent rounding. Battery
+percentage is sampled once and reused for its icon and text; the clock is formatted
+once per paint. Native height helpers still read settings separately, so the facts
+are not an atomic settings snapshot. The native status painter remains for
+XTC and the settings preview; old EPUB fixture callbacks remain test-only under
+HOST-RETIRE. See [status comparisons](../../test/text_golden/STATUS.md).
+
 The session's inline `render_resources::PageResources` owns the frame, plane and
 scratch buffers, optional strip storage and idle-prewarm scope. `ResourceAccess`
 keeps each resource borrow within the existing render-lock scope. Storage is

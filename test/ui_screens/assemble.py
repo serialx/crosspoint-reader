@@ -28,6 +28,8 @@ def assemble(sources, out, allow_partial=False):
             raise ValueError(f'Unfinished or unapproved partial recording: {root}')
         if reference is None:
             reference = meta
+        if meta.get('font_files', {}) != reference.get('font_files', {}):
+            raise ValueError(f'Incompatible font inputs: {root}')
         for key in common:
             if meta[key] != reference[key]:
                 raise ValueError(f'Incompatible source: {root}/{key}')
@@ -57,7 +59,7 @@ def assemble(sources, out, allow_partial=False):
         if (run['machine'], run['orientation'], run['dark'], run['group']) != (machine, orientation, dark, group['id']):
             raise ValueError(f'Case identity mismatch: {name}')
         case = case_directory(root, run)
-        contract = expected_contract(suite, group, machine, orientation, dark)
+        contract = expected_contract(suite, group, machine, orientation, dark, reference.get('font_files', {}))
         validate_recording(case, run, contract)
         for screen in run['screens']:
             if sha(root / screen['image']) != screen['png_sha256']:
@@ -81,7 +83,7 @@ def assemble(sources, out, allow_partial=False):
         run['assembly_source_manifest'] = str(root / 'manifest.json')
         runs.append(run)
     meta = {key: reference[key] for key in common}
-    meta.update(emulator=reference['emulator'], status='passed', suite_sha256=sha(HERE / 'screens.json'), build=reference['build'], runs=runs,
+    meta.update(font_files=reference.get('font_files', {}), emulator=reference['emulator'], status='passed', suite_sha256=sha(HERE / 'screens.json'), build=reference['build'], runs=runs,
                 harness_sha256={name: sha(HERE / name) for name in ['capture.py', 'contracts.py', 'fixtures.py', 'fault.py', 'screens.json']},
                 recording_sources=recordings, replaced_cases=replaced, extraction_tool_sha256=sha(__file__),
                 host_seconds=round(max(r['end_epoch'] for r in recordings) - min(r['start_epoch'] for r in recordings), 3),

@@ -22,6 +22,7 @@
 #include <HalDisplay.h>
 #include <HalGPIO.h>
 #include <HalMemory.h>
+#include <HalPowerManager.h>
 #include <HalStorage.h>
 #include <InflateStream.h>
 #include <KOReaderDocumentId.h>
@@ -72,6 +73,7 @@
 #include "components/RustInputSnapshot.h"
 #include "components/UITheme.h"
 #include "components/UiAppHelpers.h"
+#include "components/icons/bookmark.h"
 #include "fontIds.h"
 #include "util/HomeButtonInput.h"
 #include "util/PluginEvents.h"
@@ -539,11 +541,57 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .paint_dither = [](int32_t x, int32_t y, int32_t width,
                          int32_t height) { target->fillRectDither(x, y, width, height, Color::LightGray); },
       .paint_pixel = [](int32_t x, int32_t y) { target->drawPixel(x, y, false); },
+#ifdef XP_APP_TEST
       .paint_status =
           [](const XpEpubStatus* value) {
             GUI.drawStatusBar(*target, value->book_progress, value->page, value->pages, owned(value->title), 0,
                               value->y_offset, true, value->bookmarked != 0, value->building != 0);
           },
+#else
+      .status_facts =
+          [](XpEpubStatusFacts* out) {
+            *out = {};
+            const auto sb = SETTINGS.statusBarSpec();
+            const auto& theme = UITheme::getInstance();
+            const auto& metrics = theme.getMetrics();
+            int margins[4];
+            target->getOrientedViewableTRBL(&margins[0], &margins[1], &margins[2], &margins[3]);
+            out->margin_right = margins[1];
+            out->margin_bottom = margins[2];
+            out->margin_left = margins[3];
+            out->screen_width = target->getScreenWidth();
+            out->screen_height = target->getScreenHeight();
+            out->status_height = UITheme::getInstance().getStatusBarHeight();
+            out->progress_height = UITheme::getInstance().getProgressBarHeight();
+            out->status_margin = metrics.statusBarVerticalMargin;
+            out->horizontal_margin = metrics.statusBarHorizontalMargin;
+            out->corner = BoardConfig::ACTIVE.bottomCornerRadius ? BoardConfig::ACTIVE.bottomCornerRadius
+                                                                 : BoardConfig::ACTIVE.cornerRadius;
+            out->offset_y = BoardConfig::ACTIVE.statusBarOffsetY;
+            out->battery_width = metrics.batteryWidth;
+            out->battery_height = metrics.batteryHeight;
+            out->font = SMALL_FONT_ID;
+            out->estimate_font = UI_10_FONT_ID;
+            out->bookmark = BookmarkStatusIcon + 4;
+            out->show_count = sb.showChapterPageCount;
+            out->show_percent = sb.showBookProgressPercent;
+            out->title_mode = sb.titleMode;
+            out->show_battery = sb.showBattery;
+            out->show_battery_percent = sb.showBatteryPercent;
+            out->clock_mode = sb.clockMode;
+            out->bar_mode = sb.progressBarMode;
+            out->bar_height = sb.progressBarHeightPx;
+            out->clock_available = halClock.isAvailable();
+            out->clock_valid =
+                sb.showsClock() && out->clock_available &&
+                halClock.formatTime(reinterpret_cast<char*>(out->clock), sizeof(out->clock), sb.clock12h);
+            if (sb.showBattery) {
+              out->battery_percent = powerManager.getBatteryPercentage();
+              out->charging = gpio.isUsbConnected();
+            }
+            out->battery_style = GUI.batteryFillStyle();
+          },
+#endif
 #ifdef XP_APP_TEST
       .image_clear_failures = [] { ImageBlock::clearRenderFailures(); },
       .image_release_cache = [] { ImageBlock::releaseRenderCache(); },

@@ -42,6 +42,13 @@ mod font_runtime {
 }
 mod page_render {
     pub use crate::page_plan_storage::Plan;
+    pub mod images {
+        use core::ffi::c_void;
+        type Stream = unsafe fn(*mut c_void, &[u8], xp_core::book::io::Sink, *mut c_void) -> bool;
+        pub(crate) unsafe fn set_extractor(_: *mut c_void, _: Option<Stream>) {
+            panic!("owner fixture must use its book observer");
+        }
+    }
     pub mod direct {
         use core::{cell::Cell, ffi::c_void};
         #[repr(C)]

@@ -114,7 +114,8 @@ and clear/text services. Native-origin UI screens enter the same renderer throug
 `xp_ui_render`. SDK component/measurement services remain native; this scene path
 is separate from the EPUB page path, whose status bar is composed in Rust from
 the one-way `status_facts` leaf. The native status painter remains for XTC and
-the settings preview.
+the settings preview. Loading popups and progress are also composed in Rust from
+a one-way theme snapshot; the existing refresh service submits the result.
 
 ## Reader internals call graph
 

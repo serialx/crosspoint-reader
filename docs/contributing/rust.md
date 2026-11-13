@@ -1551,3 +1551,19 @@ reads or failed seeks. A negative native read causes an oversized MD5 access
 (upstream bug 7); the integer conversion itself is defined.
 The [document-ID test](../../test/reader_document_id/README.md) covers healthy
 boundary parity, failure cancellation, recovery and an open book's lifetime.
+
+## Loading popup boundary
+
+`app/popup.rs` composes loading messages and progress through the shared Rust
+text run, rounded geometry and framebuffer surface. `App.popup_facts` reads the
+current theme constants and screen dimensions without measuring or painting.
+The existing FAST refresh service submits each popup/progress update, including
+an empty progress rectangle. Library rebuild and thumbnail callers share this
+path. Native-origin screens retain their existing BaseTheme painter.
+
+Protected-open retry prepares the native restart first. Sleep cancellation
+skips the popup and reset; otherwise Rust paints before native delay/reset.
+Sleep arbitration and retained RTC/frontlight state remain RUNTIME-SLEEP owned.
+The old popup callbacks and no-argument restart callback remain only for injected
+host fixtures (HOST-RETIRE); shipping dispatch and native restart-phase tests
+exercise the production signatures separately.

@@ -57,3 +57,21 @@ width. Failed chapter-title rows use an empty title and still paint the status.
 `reader_status_unknown_progress` owner composition injects its checked result and
 verifies status painting, page rendering, progress saving and a usable scene.
 `reader_harden_cosmetic_failure` checks missing-title recovery.
+
+## Loading popup comparisons
+
+`ReaderPopupPixels` compares the actual Rust loading/progress painter with the
+native BaseTheme methods. `popup_methods.py` extracts the production methods,
+three metric sets and facts reader; Lyra3Covers uses its inherited Lyra metrics.
+The matrix covers four orientations, both polarities, scan/prewarm, seven message
+cases, seven progress values and collapsed progress widths. It compares exact
+framebuffers and returned popup bounds, using built-in and public SD fonts;
+`status_pixels.py --korean-font PATH` adds Korean fallback. The shared status
+pixel test remains a regression for the style-capable text run.
+
+`ReaderPopupDispatch` compiles the actual shipping Resources methods with no
+host callback fields, checking facts/paint/FAST-refresh order and degenerate
+progress refresh. It compiles the reader restart branch and the native restart
+preparation/finish bodies separately to check sleep cancellation, retained
+light state and paint-before-reset ordering. BLE restart composition remains
+covered by `runtime_direct_ble` on the same Resources method boundary.

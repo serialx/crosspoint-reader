@@ -85,7 +85,7 @@ impl EpubSession {
             self.disable_fast_initial_refresh();
             unsafe {
                 let label = self.resources.translate(xp_core::i18n::ids::STR_INDEXING);
-                (self.resources.popup_draw)(label);
+                self.resources.popup_draw(label);
             }
         }
         // The pending path is moved into the loaded owner, or restored on failure.

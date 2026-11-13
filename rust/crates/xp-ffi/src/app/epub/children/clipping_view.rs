@@ -150,7 +150,7 @@ unsafe fn loading(services: &abi::Resources, screen: Rect) -> Result<(), Error> 
     if unsafe { crate::app::scene::paint(services, &scene, &paint) } == 0 {
         return Err(Error::Invalid);
     }
-    unsafe { (services.popup_draw)(services.translate(STR_LOADING_POPUP)) };
+    unsafe { services.popup_draw(services.translate(STR_LOADING_POPUP)) };
     Ok(())
 }
 impl Clippings {

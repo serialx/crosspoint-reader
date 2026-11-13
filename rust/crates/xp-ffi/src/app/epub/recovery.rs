@@ -1,3 +1,5 @@
+#[cfg(not(feature = "app-test"))]
+use super::abi::RestartPhase;
 use super::{
     app_abi,
     settings::{label_at, LabelSource, Labels},
@@ -164,7 +166,7 @@ impl EpubSession {
         }
         let synced = unsafe {
             let message = self.resources.translate(ids::STR_SYNCING_TIME);
-            (self.resources.popup_draw)(message);
+            self.resources.popup_draw(message);
             let synced = super::persistence::sync_time(self.leaves, 5000);
             (self.leaves.wifi_disconnect)(0);
             (self.runtime.delay_ms)(30);
@@ -187,7 +189,14 @@ impl EpubSession {
         unsafe {
             (self.leaves.state_set_open_path)(self.path().wire());
             super::stores::save_state(self.leaves);
+            #[cfg(feature = "app-test")]
             (self.leaves.restart_reader)();
+            #[cfg(not(feature = "app-test"))]
+            if (self.leaves.restart_reader)(RestartPhase::Prepare as u8) != 0 {
+                self.resources
+                    .popup_draw(self.resources.translate(ids::STR_LOADING_POPUP));
+                (self.leaves.restart_reader)(RestartPhase::Finish as u8);
+            }
         }
         self.reopen_reader();
     }

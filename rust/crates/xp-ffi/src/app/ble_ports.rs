@@ -107,7 +107,7 @@ pub(crate) unsafe fn restart() {
     }
     let light = app.runtime.frontlight_state();
     (app.runtime.ble_restart)(abi::BleRestartPhase::Arm as u8, light);
-    (app.resources.popup_draw)(
+    app.resources.popup_draw(
         app.resources
             .translate(xp_core::i18n::ids::STR_LOADING_POPUP),
     );

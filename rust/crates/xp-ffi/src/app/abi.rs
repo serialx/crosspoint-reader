@@ -576,8 +576,12 @@ pub struct Resources {
     pub header_draw: unsafe extern "C" fn(xp_ui::scene::Rect, Text),
     pub footer_draw: unsafe extern "C" fn(*const Text),
     pub placeholder_draw: unsafe extern "C" fn(xp_ui::scene::Rect),
+    #[cfg(any(test, feature = "app-test"))]
     pub popup_draw: unsafe extern "C" fn(Text) -> xp_ui::scene::Rect,
+    #[cfg(any(test, feature = "app-test"))]
     pub popup_progress: unsafe extern "C" fn(xp_ui::scene::Rect, i32),
+    #[cfg(not(any(test, feature = "app-test")))]
+    pub popup_facts: unsafe extern "C" fn(*mut super::popup::Facts),
     pub icon_draw: unsafe extern "C" fn(u8, xp_ui::scene::Rect),
     pub text_draw: unsafe extern "C" fn(*const xp_ui::scene::Command, xp_ui::scene::Rect, Text),
     #[cfg(any(test, feature = "app-test"))]
@@ -604,7 +608,7 @@ pub struct Resources {
 
 const _: () = assert!(
     core::mem::size_of::<Resources>()
-        == (44 + 3 * cfg!(any(test, feature = "app-test")) as usize)
+        == (43 + 4 * cfg!(any(test, feature = "app-test")) as usize)
             * core::mem::size_of::<usize>()
 );
 

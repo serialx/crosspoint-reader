@@ -60,7 +60,10 @@ impl Collection {
         };
         if library.count().is_none() {
             drop(library);
-            unsafe { (self.services.popup_draw)(self.services.translate(STR_LIBRARY_REBUILDING)) };
+            unsafe {
+                self.services
+                    .popup_draw(self.services.translate(STR_LIBRARY_REBUILDING))
+            };
             if unsafe { (self.services.library_rebuild)(u8::from(metadata)) } == 0 {
                 return;
             }
@@ -205,8 +208,8 @@ fn grid_cover(
             return;
         }
         if popup.is_none() {
-            let rect = unsafe { (services.popup_draw)(services.translate(STR_LOADING_POPUP)) };
-            unsafe { (services.popup_progress)(rect, 0) };
+            let rect = unsafe { services.popup_draw(services.translate(STR_LOADING_POPUP)) };
+            unsafe { services.popup_progress(rect, 0) };
             *popup = Some(rect);
         }
         let success = if kind == abi::BOOK_REFLOWABLE {
@@ -236,7 +239,7 @@ pub fn load_covers(
             grid_cover(services, identity, cover, height, &mut popup);
             if let Some(rect) = popup {
                 unsafe {
-                    (services.popup_progress)(rect, ((index + 1) * 100 / identities.len()) as i32)
+                    services.popup_progress(rect, ((index + 1) * 100 / identities.len()) as i32)
                 };
             }
             continue;
@@ -261,9 +264,9 @@ pub fn load_covers(
             continue;
         }
         let rect = *popup.get_or_insert_with(|| unsafe {
-            (services.popup_draw)(services.translate(STR_LOADING_POPUP))
+            services.popup_draw(services.translate(STR_LOADING_POPUP))
         });
-        unsafe { (services.popup_progress)(rect, (10 + index * (90 / identities.len())) as i32) };
+        unsafe { services.popup_progress(rect, (10 + index * (90 / identities.len())) as i32) };
         before_generate();
         if !book.generate(height, false) {
             cover.clear();

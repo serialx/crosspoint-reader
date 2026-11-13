@@ -75,7 +75,7 @@ deferred EPUB.paint_dither R6 # Clipping selection highlight only; calls the fon
 physical EPUB.status_facts xp_hal_clock_format xp_hal_clock_read xp_hal_power_battery # Native settings/theme facts are one-way reads; RTC formatting/read and battery sampling are named HAL continuations, with no reader layout or text work.
 deferred EPUB.popup_paint R5 # Deferred preview/popup/end-of-book path.
 deferred EPUB.popup_process_render R5 # Deferred preview/popup/end-of-book path.
-inherited EPUB.restart_reader R3a # Native persistence/state/store or shared app relay.
+# RUNTIME-SLEEP exception: EPUB.restart_reader is now one-way; sleep arbitration and retained RTC/frontlight restart state remain native; Rust paints between prepare and finish.
 inherited EPUB.settings_save R3a # Native persistence/state/store or shared app relay.
 deferred Legacy.create R7 # Deferred legacy activity factory including XTC/TOC; static closure spans all activities.
 inherited Modes.paint R1b # Shared SDK UI font references; references are not proof of execution.
@@ -116,8 +116,6 @@ patch Runtime.notify_render _ZZN15ActivityManager5beginERK12XpAppRuntimeENUlvE4_
 patch Runtime.render_unlock _ZZN15ActivityManager5beginERK12XpAppRuntimeENUlPvE6_4_FUNES3_ # ActivityManager.cpp:248-270 overwrites this null static slot before xp_app_init; synchronous mutex/task primitive.
 dispatch theme.header root:App.header_draw|EPUB.child_header _ZTV(?:9BaseTheme|9LyraTheme|16Lyra3CoversTheme|16RoundedRaffTheme) .*10drawHeader.* # UITheme::setTheme stores one of these four concrete themes; select only the invoked virtual method.
 dispatch theme.footer root:App.footer_draw|EPUB.child_utility_footer _ZTV(?:9BaseTheme|9LyraTheme|16Lyra3CoversTheme|16RoundedRaffTheme) .*15drawButtonHints.* # UITheme::setTheme stores one of these four concrete themes; select only the invoked virtual method.
-dispatch theme.popup root:App.popup_draw _ZTV(?:9BaseTheme|9LyraTheme|16Lyra3CoversTheme|16RoundedRaffTheme) .*9drawPopup.* # UITheme::setTheme stores one of these four concrete themes; select only the invoked virtual method.
-dispatch theme.progress root:App.popup_progress _ZTV(?:9BaseTheme|9LyraTheme|16Lyra3CoversTheme|16RoundedRaffTheme) .*17fillPopupProgress.* # UITheme::setTheme stores one of these four concrete themes; select only the invoked virtual method.
 dispatch theme.directional root:EPUB.child_directional_hints _ZTV(?:9BaseTheme|9LyraTheme|16Lyra3CoversTheme|16RoundedRaffTheme) .*15drawButtonHints.* # UITheme::setTheme stores one of these four concrete themes; select only the invoked virtual method.
 dispatch theme.battery (?:_ZNK9BaseTheme15drawBatteryLeftERK11GfxRenderer4Rectb) _ZTV(?:9BaseTheme|9LyraTheme|16Lyra3CoversTheme|16RoundedRaffTheme) .*15fillBatteryIcon.* # UITheme::setTheme stores one of these four concrete themes; select only the invoked virtual method.
 dispatch panel.selectDriver (?:_ZN7freeink14FreeInkDisplay12selectDriverEv) _ZTVN7freeink15RustPanelDriverE (?:.*17setBackgroundHint.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
@@ -222,8 +220,6 @@ import xp_native_sd_path_exists # Existing direct native ABI at 5ff7aa05; review
 import xp_settings_shell_paint # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 import xp_settings_shell_snapshot # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 import xp_settings_shell_theme_reload # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
-inherited App.popup_draw R2b # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
-inherited App.popup_progress R2b # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 deferred EPUB.protection_close NONREADER # One-way destruction; vtable references reach decryptToSink -> reclaimContentCaches, but the deleting destructor never calls decryptToSink.
 deferred EPUB.protection_finish NONREADER # One-way key install/transfer/destruction; Take writes the native vptr, but no finish stage calls decryptToSink -> reclaimContentCaches; reader streaming calls readPrepared after direct Rust eviction.
 deferred EPUB.child_header R6 # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.

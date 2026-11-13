@@ -102,3 +102,24 @@ set_tests_properties(ReaderStatusLayout PROPERTIES WORKING_DIRECTORY ${REPO_ROOT
 
 add_test(NAME ReaderStatusDispatch COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/status_dispatch.py
   ${REPO_ROOT})
+
+# Same production native painter as oracle, including theme metric extraction.
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/popup_native.inc
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/popup_methods.py ${REPO_ROOT}
+    ${CMAKE_CURRENT_BINARY_DIR}/popup_native.inc
+  DEPENDS popup_methods.py ${REPO_ROOT}/test/reader_lifecycle/test_popup_resource.py
+    ${REPO_ROOT}/src/components/themes/BaseTheme.cpp ${REPO_ROOT}/src/components/themes/BaseTheme.h
+    ${REPO_ROOT}/src/components/themes/lyra/LyraTheme.h ${REPO_ROOT}/src/components/themes/roundedraff/RoundedRaffTheme.h
+    ${REPO_ROOT}/src/activities/RustAppResources.cpp VERBATIM)
+add_executable(ReaderPopupPixels PopupPixels.cpp ${TEXT_GOLDEN_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/popup_native.inc)
+target_include_directories(ReaderPopupPixels BEFORE PRIVATE status_stubs ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(ReaderPopupPixels PRIVATE $<TARGET_PROPERTY:TextGolden,INCLUDE_DIRECTORIES>)
+target_compile_definitions(ReaderPopupPixels PRIVATE $<TARGET_PROPERTY:TextGolden,COMPILE_DEFINITIONS>
+  TEST_DISPLAY_WIDTH=528 TEST_DISPLAY_HEIGHT=792)
+target_compile_options(ReaderPopupPixels PRIVATE $<TARGET_PROPERTY:TextGolden,COMPILE_OPTIONS> -UNDEBUG)
+target_link_options(ReaderPopupPixels PRIVATE $<TARGET_PROPERTY:TextGolden,LINK_OPTIONS>)
+target_link_libraries(ReaderPopupPixels PRIVATE xp_ffi_host)
+add_test(NAME ReaderPopupPixels COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/status_pixels.py
+  $<TARGET_FILE:ReaderPopupPixels>)
+add_test(NAME ReaderPopupDispatch COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/popup_dispatch.py
+  ${REPO_ROOT})

@@ -88,6 +88,9 @@ mod abi {
         pub popup_draw: unsafe extern "C" fn(u16),
     }
     impl Resources {
+        pub unsafe fn popup_draw(&self, id: u16) {
+            (self.popup_draw)(id);
+        }
         pub unsafe fn translate(&self, id: u16) -> u16 {
             record(Call::Translate(id));
             id

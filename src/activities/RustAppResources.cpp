@@ -251,8 +251,32 @@ const XpAppResources& rustAppResources(GfxRenderer& renderer, MappedInputManager
             GUI.drawButtonHints(*target, mappedLabels.btn1, mappedLabels.btn2, mappedLabels.btn3, mappedLabels.btn4);
           },
       .placeholder_draw = [](XpUiRect bounds) { GUI.drawCoverPlaceholder(*target, rect(bounds)); },
+#ifdef XP_APP_TEST
       .popup_draw = [](XpAppText message) -> XpUiRect { return rect(GUI.drawPopup(*target, cstr(message))); },
       .popup_progress = [](XpUiRect bounds, int32_t percent) { GUI.fillPopupProgress(*target, rect(bounds), percent); },
+#else
+      .popup_facts =
+          [](XpAppPopupFacts* out) {
+            const auto& m = UITheme::getInstance().getMetrics();
+            *out = {};
+            out->layout.screen = {0, 0, static_cast<int16_t>(target->getScreenWidth()),
+                                  static_cast<int16_t>(target->getScreenHeight())};
+            out->layout.font = UI_12_FONT_ID;
+            out->layout.margin_x = m.popupMarginX;
+            out->layout.margin_y = m.popupMarginY;
+            out->layout.frame = m.popupFrameThickness;
+            out->layout.radius = m.popupCornerRadius;
+            out->layout.text_y = m.popupTextBaselineOffsetY;
+            out->layout.top_ratio = m.popupTopOffsetRatio;
+            out->layout.bold = m.popupTextBold;
+            out->layout.inverted = m.popupTextInverted;
+            out->progress_height = m.popupProgressBarHeight;
+            out->progress_outline = m.popupProgressDrawOutline;
+            out->progress_clamp = m.popupProgressClampPercent;
+            out->progress_fill_black = m.popupProgressFillInverted;
+            out->progress_outline_black = m.popupProgressOutlineInverted;
+          },
+#endif
       .icon_draw =
           [](uint8_t icon, XpUiRect bounds) {
             static constexpr const uint8_t* icons[] = {BookIcon,     FolderIcon,    LibraryIcon, BlocksIcon,

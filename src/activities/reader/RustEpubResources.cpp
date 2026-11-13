@@ -776,7 +776,20 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
 #endif
       .wifi_connected = []() -> uint8_t { return WiFi.status() == WL_CONNECTED; },
       .wifi_disconnect = [](uint8_t off) { WiFi.disconnect(off != 0); },
+#ifdef XP_APP_TEST
       .restart_reader = [] { silentRestartToReader(); },
+#else
+      .restart_reader = [](uint8_t phase) -> uint8_t {
+        switch (static_cast<XpEpubRestartPhase>(phase)) {
+          case XP_EPUB_RESTART_PREPARE:
+            return prepareSilentRestartToReader();
+          case XP_EPUB_RESTART_FINISH:
+            finishSilentRestart();
+            return 1;
+        }
+        return 0;
+      },
+#endif
       .child_text_settings = []() -> void* {
         return makeLegacyActivity<TextSettingsActivity>(*target, *mapped, &sdFontSystem.registry(),
                                                         TextSettingsActivity::Tab::Family)

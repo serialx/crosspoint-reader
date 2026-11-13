@@ -4,6 +4,13 @@ use super::super::abi::{Text as XpAppText, TextSink as XpAppTextSink};
 use super::app_abi;
 use xp_ui::reader::input::Services as XpUiReaderInputServices;
 
+#[cfg(not(feature = "app-test"))]
+#[repr(u8)]
+pub enum RestartPhase {
+    Prepare,
+    Finish,
+}
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct XpEpubPosition {
@@ -477,7 +484,10 @@ pub struct XpEpubLeaves {
     pub time_start_sync: unsafe extern "C" fn() -> crate::hal::time::SyncServices,
     pub wifi_connected: unsafe extern "C" fn() -> u8,
     pub wifi_disconnect: unsafe extern "C" fn(off: u8),
+    #[cfg(feature = "app-test")]
     pub restart_reader: unsafe extern "C" fn(),
+    #[cfg(not(feature = "app-test"))]
+    pub restart_reader: unsafe extern "C" fn(u8) -> u8,
     pub child_text_settings: unsafe extern "C" fn() -> *mut core::ffi::c_void,
     pub child_selection: unsafe extern "C" fn(
         pages: *mut XpEpubOwnedPage,

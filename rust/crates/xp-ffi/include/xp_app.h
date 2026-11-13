@@ -4,10 +4,18 @@
 
 #include "xp_hal.h"
 #include "xp_ui.h"
+#include "xp_ui_dictionary.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// Theme/state snapshot only; no font queries or painting.
+typedef struct {
+  XpUiDictionaryPopup layout;
+  int16_t progress_height;
+  uint8_t progress_outline, progress_clamp, progress_fill_black, progress_outline_black;
+} XpAppPopupFacts;
 
 // All views and sinks are synchronous. Only accepted activity pointers transfer ownership.
 // Tables are immutable for the application lifetime. No callback retains a borrowed view.
@@ -338,8 +346,13 @@ typedef struct {
   void (*header_draw)(XpUiRect rect, XpAppText title);
   void (*footer_draw)(const XpAppText labels[4]);
   void (*placeholder_draw)(XpUiRect rect);
+// Fixture-only callbacks (HOST-RETIRE); shipping composes directly in Rust.
+#ifdef XP_APP_TEST
   XpUiRect (*popup_draw)(XpAppText text);
   void (*popup_progress)(XpUiRect rect, int32_t percent);
+#else
+  void (*popup_facts)(XpAppPopupFacts* facts);
+#endif
   void (*icon_draw)(uint8_t icon, XpUiRect rect);
   void (*text_draw)(const XpUiCommand* command, XpUiRect clip, XpAppText text);
 #ifdef XP_APP_TEST
@@ -472,7 +485,7 @@ static_assert(sizeof(XpAppCompatibility) == 3 * sizeof(void*));
 #ifdef XP_APP_TEST
 static_assert(sizeof(XpAppResources) == 47 * sizeof(void*));
 #else
-static_assert(sizeof(XpAppResources) == 44 * sizeof(void*));
+static_assert(sizeof(XpAppResources) == 43 * sizeof(void*));
 #endif
 static_assert(sizeof(XpHalRawInput) == 12);
 static_assert(offsetof(XpHalRawInput, first) == 4);

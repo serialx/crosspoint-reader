@@ -25,6 +25,7 @@ mod home_text;
 mod input_ports;
 mod keyboard;
 mod network_modes;
+mod popup;
 mod resources;
 mod result;
 mod runtime_ports;

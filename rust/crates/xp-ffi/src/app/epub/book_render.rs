@@ -451,7 +451,7 @@ impl EpubSession {
     }
 
     fn book_popup(&self, label: u16) {
-        unsafe { (self.resources.popup_draw)(self.resources.translate(label)) };
+        unsafe { self.resources.popup_draw(self.resources.translate(label)) };
     }
 
     fn book_clear(&self, access: &ResourceAccess<'_>) {

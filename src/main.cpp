@@ -158,18 +158,29 @@ static void armSilentReboot(const uint32_t target) {
 
 // Returns instead of rebooting when sleep supersedes the reboot; callers keep
 // running in that case.
-static void silentRestartTo(const uint32_t target, const char* targetName) {
-  if (deepSleepInProgress) return;  // sleeping supersedes the heap-defrag reboot
+static bool prepareSilentRestartTo(const uint32_t target, const char* targetName) {
+  if (deepSleepInProgress) return false;  // sleeping supersedes the heap-defrag reboot
   armSilentReboot(target);
   LOG_DBG("MAIN", "Silent restart (target=%s)", targetName);
+  return true;
+}
+
+bool prepareSilentRestartToReader() { return prepareSilentRestartTo(SILENT_REBOOT_TARGET_READER, "reader"); }
+
+void finishSilentRestart() {
+  delay(50);
+  ESP.restart();
+}
+
+static void silentRestartTo(const uint32_t target, const char* targetName) {
+  if (!prepareSilentRestartTo(target, targetName)) return;
   // E-ink retains the previous frame until the target's first paint lands
   // (~2-3s). Without an overlay, users don't see the reboot and fire input
   // through to the new activity. On Home, Select on the default
   // selectorIndex=0 opens the most-recent book, looking like a trampoline back
   // to the reader they just exited.
   GUI.drawPopup(renderer, tr(STR_LOADING_POPUP));
-  delay(50);
-  ESP.restart();
+  finishSilentRestart();
 }
 
 void silentRestart() { silentRestartTo(SILENT_REBOOT_TARGET_HOME, "home"); }

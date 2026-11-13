@@ -23,6 +23,7 @@ struct Context {
     font: i32,
     fallback: bool,
     has_cache: bool,
+    style: u8,
 }
 impl<'a> Run<'a> {
     pub unsafe fn new(target: &'a Target, has_cache: bool) -> Self {
@@ -35,7 +36,10 @@ impl<'a> Run<'a> {
         }
     }
     pub fn width(&self, font: i32, text: &[u8]) -> i32 {
-        self.engine.width(font, text, 0, -1)
+        self.width_styled(font, text, 0)
+    }
+    pub fn width_styled(&self, font: i32, text: &[u8], style: u8) -> i32 {
+        self.engine.width(font, text, style, -1)
     }
     pub unsafe fn height(&self, font: i32) -> i32 {
         let data = Owner::data(self.target.fonts, font, 0);
@@ -62,11 +66,23 @@ impl<'a> Run<'a> {
         y + 6
     }
     pub unsafe fn draw(&self, font: i32, x: i32, y: i32, text: &[u8]) {
+        self.draw_styled(font, x, y, text, 0, true);
+    }
+    #[allow(clippy::too_many_arguments)]
+    pub unsafe fn draw_styled(
+        &self,
+        font: i32,
+        x: i32,
+        y: i32,
+        text: &[u8],
+        style: u8,
+        black: bool,
+    ) {
         let len = text.iter().position(|&x| x == 0).unwrap_or(text.len());
         if len == 0 {
             return;
         }
-        let resolved = self.engine.resolve(font, &text[..len], 0);
+        let resolved = self.engine.resolve(font, &text[..len], style);
         let data = Owner::data(self.target.fonts, resolved, 0);
         let mut baseline = if data.is_null() { 0 } else { (*data).ascender };
         if resolved != font {
@@ -77,7 +93,7 @@ impl<'a> Run<'a> {
             source: core::mem::zeroed(),
             x,
             y: y + baseline,
-            state: 1,
+            state: u8::from(black),
         };
         let mut context = Context {
             owner: self.target.fonts,
@@ -86,6 +102,7 @@ impl<'a> Run<'a> {
             font: resolved,
             fallback: resolved != font,
             has_cache: self.has_cache,
+            style,
         };
         let provider = font_registry::xp_font_registry_provider(self.target.fonts.cast());
         textm::draw_pixels(
@@ -93,7 +110,7 @@ impl<'a> Run<'a> {
             resolved,
             text.as_ptr(),
             len,
-            0,
+            style,
             0,
             -1,
             0,
@@ -112,13 +129,13 @@ unsafe extern "C" fn prepare(
 ) -> *const *const FontData {
     let c = &mut *raw.cast::<Context>();
     if c.has_cache && font_runtime::scanning(c.owner) != 0 {
-        font_runtime::record_text(c.owner, c.font, text.cast(), 0);
+        font_runtime::record_text(c.owner, c.font, text.cast(), c.style);
         return ptr::null();
     }
     if c.fallback {
-        font_sd::resident(c.owner, c.font, 0, text, len, false);
+        font_sd::resident(c.owner, c.font, c.style, text, len, false);
     }
-    c.slot = Owner::slot(c.owner, c.font, 0);
+    c.slot = Owner::slot(c.owner, c.font, c.style);
     if c.slot.is_null() {
         font_registry::report(c.owner, DiagnosticEvent::MissingFont as u32, c.font as u32);
         return ptr::null();

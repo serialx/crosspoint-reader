@@ -20,6 +20,8 @@ extern "C" {
 // Text views are synchronous; no callback drains navigation.
 // Resource handles must close before their backing owner.
 
+typedef enum { XP_EPUB_RESTART_PREPARE, XP_EPUB_RESTART_FINISH } XpEpubRestartPhase;
+
 typedef struct {
   int32_t spine;
   int32_t page;
@@ -462,7 +464,13 @@ typedef struct XpEpubLeaves {
 #endif
   uint8_t (*wifi_connected)(void);
   void (*wifi_disconnect)(uint8_t off);
+#ifdef XP_APP_TEST
   void (*restart_reader)(void);
+#else
+  // PREPARE arbitrates sleep and arms retained state; zero means cancelled.
+  // FINISH delays/reboots, only after successful preparation and popup paint.
+  uint8_t (*restart_reader)(uint8_t phase);
+#endif
   // Deferred child factories return an owned native legacy wrapper for App adoption.
   // Non-null consumes each Rust Page owner; null leaves every owner with the caller.
   void* (*child_text_settings)(void);

@@ -7,6 +7,11 @@
 // comes back exactly as it was, regardless of the Restore Light on Wake
 // preference.
 
+// Reader prepares first, paints its Rust loading popup, then finishes synchronously.
+// False means sleep superseded restart; do not paint or finish.
+bool prepareSilentRestartToReader();
+void finishSilentRestart();
+
 void silentRestart();            // home screen
 void silentRestartToReader();    // currently-open EPUB (APP_STATE.openEpubPath)
 void silentRestartToSettings();  // settings screen

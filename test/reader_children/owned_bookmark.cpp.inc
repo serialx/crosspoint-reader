@@ -461,7 +461,7 @@ static int runOwnedBookmarks(const std::string& mode, bool cancelled) {
     }
   }
   closeToSleep();
-  assert(readerFiles.empty() && readerFacades.empty() && readerBuffers.empty());
+  assert(readerFiles.empty() && readerBooks.empty() && readerBuffers.empty());
   assert(readerSectionOpens == readerSectionCloses && f().handles.empty());
   assert(results.children.empty() && results.born == results.dead);
   assert(clipping_fixture::readerLiveAllocations() == (mode == "bookmarks-oom" || mode == "bookmarks-stack-oom" ? 0u : 1u));

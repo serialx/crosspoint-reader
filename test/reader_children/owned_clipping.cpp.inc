@@ -230,7 +230,7 @@ static int runOwnedClippings(const std::string& mode, bool cancelled) {
     assert(xp_app_test_current_epub() == results.owner && !xp_epub_test_has_child(results.owner));
   }
   closeToSleep();
-  assert(readerFiles.empty() && readerFacades.empty() && readerBuffers.empty());
+  assert(readerFiles.empty() && readerBooks.empty() && readerBuffers.empty());
   assert(readerSectionOpens == readerSectionCloses && f().handles.empty());
   assert(results.children.empty() && results.born == results.dead);
   assert(clipping_fixture::readerLiveAllocations() == (mode == "clippings-oom" ? 0u : 1u));

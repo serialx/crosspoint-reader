@@ -291,7 +291,7 @@ int main(int argc, char** argv) {
       assert(childKind() == 1); paintChild(); returnChild(XP_UI_BACK);
     }
     closeToSleep();
-    assert(readerFiles.empty() && readerFacades.empty() && readerBuffers.empty());
+    assert(readerFiles.empty() && readerBooks.empty() && readerBuffers.empty());
     assert(readerSectionOpens == readerSectionCloses && state.handles.empty());
     assert(clipping_fixture::readerLiveAllocations() == 1 && !state.renderDepth && !state.modelDepth);
     std::printf("owned App %s cancelled=%u: retained TextSettings return restores menu/preview and releases toolbar\n", mode.c_str(), cancelled);
@@ -325,7 +325,7 @@ int main(int argc, char** argv) {
     assert(observation.spine == 0 && observation.next_page == 0);
   }
   closeToSleep();
-  assert(readerFiles.empty() && readerFacades.empty() && readerBuffers.empty());
+  assert(readerFiles.empty() && readerBooks.empty() && readerBuffers.empty());
   assert(readerSectionOpens == readerSectionCloses && state.handles.empty());
   assert(clipping_fixture::readerLiveAllocations() == 1 && !state.renderDepth && !state.modelDepth);
   assert(activeChildMarker.empty() && (childMarkerEntries != 0) == childDebugEnabled);

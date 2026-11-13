@@ -164,8 +164,7 @@ Cached EPUB, footnote and lookup views call the Rust page painter directly.
 Native rich dictionary, selection and settings preview pages, plus library
 Details HTML descriptions, enter the same painter through `xp_page_paint`.
 Rust traverses page records and owns image cache, placeholder and polarity policy
-over typed native file, extraction and logging operations. JPEG decoding still
-enters the native adapter. Plain
+over typed native file, extraction and logging operations. JPEGDEC remains a physical leaf. Plain
 dictionary display still draws wrapped spans directly.
 See the [page rendering contract](rust.md#page-rendering),
 [glyph drawing contract](rust.md#native-glyph-drawing) and

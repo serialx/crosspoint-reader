@@ -12,10 +12,18 @@ extern "C" uint8_t xp_page_image_test_decode(const XpPageTarget*, const XpPageIm
 #include <HalStorage.h>
 
 #include <cstring>
+#include <new>
 extern "C" void xp_test_fail_allocation_after(size_t);
 extern "C" size_t xp_test_live_allocations();
 static std::string faultSource, faultCache, fault;
 static size_t faultIndex = 0, faultCalls = 0;
+static bool failNativeAllocation = false;
+static size_t nativeAllocationIndex = 0;
+void* operator new(size_t size, const std::nothrow_t&) noexcept {
+  if (failNativeAllocation && nativeAllocationIndex++ == faultIndex) return nullptr;
+  return std::malloc(size);
+}
+
 static void injectFault(const std::string& source, const std::string& cache) {
   faultSource = source;
   faultCache = cache;
@@ -34,6 +42,8 @@ static void injectFault(const std::string& source, const std::string& cache) {
     return fault == "write" && path == faultCache && faultCalls++ == faultIndex ? size_t(0) : length;
   };
   HalFileTest::failNextClose = fault == "close";
+  failNativeAllocation = fault == "native-allocation";
+  if (fault == "heap") ESP.freeHeap = faultIndex;
   xp_test_fail_allocation_after(fault == "allocation" ? faultIndex : SIZE_MAX);
 }
 #endif
@@ -154,6 +164,8 @@ int main(int argc, char** argv) {
           ? decoder->decodeToFramebuffer(path, renderer, config)
           : xp_page_image_test_decode(&targetView, &image, reinterpret_cast<const uint8_t*>(cache.c_str())) == 2;
   if (xp_test_live_allocations()) return 4;
+  if (failNativeAllocation && nativeAllocationIndex <= faultIndex) return 5;
+  failNativeAllocation = false;
   xp_test_fail_allocation_after(SIZE_MAX);
   u32(success);
 #else

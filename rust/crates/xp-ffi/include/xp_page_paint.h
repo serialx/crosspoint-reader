@@ -81,8 +81,25 @@ typedef struct {
 // Borrows diagnostic state and paths; formatting does not retain or call Rust.
 void xp_native_page_image_codec_log(const XpPageImageCodecLog*, uint32_t event, uint32_t a, uint32_t b, uint32_t c,
                                     uint32_t d);
-// Remaining reader JPEG decode adapter. 0 no decoder, 1 decode failed, 2 success.
-uint8_t xp_native_page_image_decode(void* native, const XpPageImage*, const uint8_t* cache);
+// JPEGDEC facts and synchronous row loan. Rust owns close/pipeline-drop/free order.
+typedef struct {
+  void* decoder;
+  const uint8_t* path;
+  void* rows;
+  int32_t width, height, result, error;
+  uint8_t progressive;
+} XpPageJpeg;
+typedef enum {
+  XP_PAGE_JPEG_ALLOCATE,
+  XP_PAGE_JPEG_OPEN,
+  XP_PAGE_JPEG_FACTS,
+  XP_PAGE_JPEG_CONFIGURE,
+  XP_PAGE_JPEG_DECODE,
+  XP_PAGE_JPEG_CLOSE,
+  XP_PAGE_JPEG_FREE
+} XpPageJpegOp;
+uint32_t xp_native_page_jpeg(XpPageJpeg*, XpPageJpegOp, uint32_t argument);
+void xp_native_page_jpeg_log(const XpPageJpeg*, uint32_t event, uint32_t argument);
 #ifdef XP_APP_TEST
 // Historical native extraction path for host oracles.
 uint8_t xp_native_page_image_extract(const XpPageImage*, uint8_t query_only);

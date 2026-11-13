@@ -7,6 +7,7 @@
 #include <Logging.h>
 #include <Memory.h>
 #include <xp_book.h>
+#include <xp_page_paint.h>
 
 #include <memory>
 #include <new>
@@ -96,6 +97,66 @@ int jpegDrawCallback(JPEGDRAW* draw) {
   return ctx->pipeline.row(row) ? 1 : 0;
 }
 
+void logJpegDiagnostic(const char* path, int width, int height, int error, int result, uint32_t event,
+                       uint32_t argument) {
+  switch (static_cast<XpBookJpegEvent>(event)) {
+    case XP_BOOK_JPEG_EVENT_HEAP:
+      LOG_ERR("JPG", "Not enough heap for JPEG decoder (%u free, need %u)", argument, MIN_FREE_HEAP_FOR_JPEG);
+      break;
+    case XP_BOOK_JPEG_EVENT_DIMENSION_HEAP:
+      LOG_ERR("JPG", "Not enough heap for JPEG decoder (%u free, need %u)", argument, MIN_FREE_HEAP_FOR_JPEG);
+      break;
+    case XP_BOOK_JPEG_EVENT_DIMENSION_ALLOCATION:
+      LOG_ERR("JPG", "Failed to allocate JPEG decoder for dimensions");
+      break;
+    case XP_BOOK_JPEG_EVENT_DIMENSION_OPEN:
+      LOG_ERR("JPG", "Failed to open JPEG for dimensions (err=%d): %s", error, path);
+      break;
+    case XP_BOOK_JPEG_EVENT_DIMENSIONS:
+      LOG_DBG("JPG", "Image dimensions: %dx%d", width, height);
+      break;
+    case XP_BOOK_JPEG_EVENT_RENDER:
+      LOG_DBG("JPG", "Decoding JPEG: %s", path);
+      break;
+    case XP_BOOK_JPEG_EVENT_ALLOCATION:
+      LOG_ERR("JPG", "Failed to allocate JPEG decoder");
+      break;
+    case XP_BOOK_JPEG_EVENT_OPEN:
+      LOG_ERR("JPG", "Failed to open JPEG (err=%d): %s", error, path);
+      break;
+    case XP_BOOK_JPEG_EVENT_PROGRESSIVE:
+      LOG_INF("JPG", "Progressive JPEG detected - decoding DC coefficients only (lower quality)");
+      break;
+    case XP_BOOK_JPEG_EVENT_CACHE:
+      LOG_ERR("JPG", "Failed to start cache stream, continuing without caching");
+      break;
+    case XP_BOOK_JPEG_EVENT_DECODE:
+      LOG_ERR("JPG", "Decode failed (rc=%d, lastError=%d)", result, error);
+      break;
+    case XP_BOOK_JPEG_EVENT_TIME:
+      break;
+  }
+}
+
+extern "C" int32_t xp_page_image_jpeg_row(void*, const XpImageRow*);
+int readerJpegDraw(JPEGDRAW* draw) {
+  if (!draw->pUser) return 0;
+  const XpImageRow row{draw->x,
+                       draw->y,
+                       draw->iWidthUsed,
+                       draw->iHeight,
+                       draw->iWidth,
+                       reinterpret_cast<const uint8_t*>(draw->pPixels),
+                       static_cast<size_t>(draw->iWidth) * draw->iHeight,
+                       nullptr,
+                       0,
+                       0,
+                       0,
+                       8,
+                       0};
+  return xp_page_image_jpeg_row(draw->pUser, &row);
+}
+
 struct JpegDimensionsContext {
   const std::string& path;
   ImageDimensions& dimensions;
@@ -135,43 +196,8 @@ struct JpegDimensionsContext {
   }
   static void diagnostic(void* raw, uint32_t event, uint32_t argument) {
     auto& c = *static_cast<JpegDimensionsContext*>(raw);
-    switch (static_cast<XpBookJpegEvent>(event)) {
-      case XP_BOOK_JPEG_EVENT_HEAP:
-        LOG_ERR("JPG", "Not enough heap for JPEG decoder (%u free, need %u)", argument, MIN_FREE_HEAP_FOR_JPEG);
-        break;
-      case XP_BOOK_JPEG_EVENT_DIMENSION_HEAP:
-        LOG_ERR("JPG", "Not enough heap for JPEG decoder (%u free, need %u)", argument, MIN_FREE_HEAP_FOR_JPEG);
-        break;
-      case XP_BOOK_JPEG_EVENT_DIMENSION_ALLOCATION:
-        LOG_ERR("JPG", "Failed to allocate JPEG decoder for dimensions");
-        break;
-      case XP_BOOK_JPEG_EVENT_DIMENSION_OPEN:
-        LOG_ERR("JPG", "Failed to open JPEG for dimensions (err=%d): %s", c.jpeg->getLastError(), c.path.c_str());
-        break;
-      case XP_BOOK_JPEG_EVENT_DIMENSIONS:
-        LOG_DBG("JPG", "Image dimensions: %dx%d", c.dimensions.width, c.dimensions.height);
-        break;
-      case XP_BOOK_JPEG_EVENT_RENDER:
-        LOG_DBG("JPG", "Decoding JPEG: %s", c.path.c_str());
-        break;
-      case XP_BOOK_JPEG_EVENT_ALLOCATION:
-        LOG_ERR("JPG", "Failed to allocate JPEG decoder");
-        break;
-      case XP_BOOK_JPEG_EVENT_OPEN:
-        LOG_ERR("JPG", "Failed to open JPEG (err=%d): %s", c.jpeg->getLastError(), c.path.c_str());
-        break;
-      case XP_BOOK_JPEG_EVENT_PROGRESSIVE:
-        LOG_INF("JPG", "Progressive JPEG detected - decoding DC coefficients only (lower quality)");
-        break;
-      case XP_BOOK_JPEG_EVENT_CACHE:
-        LOG_ERR("JPG", "Failed to start cache stream, continuing without caching");
-        break;
-      case XP_BOOK_JPEG_EVENT_DECODE:
-        LOG_ERR("JPG", "Decode failed (rc=%d, lastError=%d)", c.result, c.jpeg->getLastError());
-        break;
-      case XP_BOOK_JPEG_EVENT_TIME:
-        break;
-    }
+    logJpegDiagnostic(c.path.c_str(), c.dimensions.width, c.dimensions.height, c.jpeg ? c.jpeg->getLastError() : 0,
+                      c.result, event, argument);
   }
 };
 struct JpegRenderContext : JpegDimensionsContext {
@@ -273,4 +299,73 @@ bool JpegToFramebufferConverter::decodeToFramebuffer(const std::string& imagePat
 
 bool JpegToFramebufferConverter::supportsFormat(const std::string& extension) {
   return FsHelpers::hasJpgExtension(extension);
+}
+
+extern "C" uint32_t xp_native_page_jpeg(XpPageJpeg* state, XpPageJpegOp operation, uint32_t argument) {
+  auto* jpeg = static_cast<JPEGDEC*>(state->decoder);
+  switch (operation) {
+    case XP_PAGE_JPEG_ALLOCATE:
+      state->decoder = new (std::nothrow) JPEGDEC();
+      return state->decoder != nullptr;
+    case XP_PAGE_JPEG_OPEN:
+      state->result = jpeg->open(reinterpret_cast<const char*>(state->path), jpegOpen, jpegClose, jpegRead, jpegSeek,
+                                 state->rows ? readerJpegDraw : nullptr);
+      state->error = jpeg->getLastError();
+      return state->result == 1;
+    case XP_PAGE_JPEG_FACTS:
+      state->width = jpeg->getWidth();
+      state->height = jpeg->getHeight();
+      state->progressive = jpeg->getJPEGType() == JPEG_MODE_PROGRESSIVE;
+      break;
+    case XP_PAGE_JPEG_CONFIGURE:
+      jpeg->setPixelType(EIGHT_BIT_GRAYSCALE);
+      jpeg->setUserPointer(state->rows);
+      break;
+    case XP_PAGE_JPEG_DECODE: {
+      int scale = 0;
+      switch (argument) {
+        case 2:
+          scale = JPEG_SCALE_HALF;
+          break;
+        case 4:
+          scale = JPEG_SCALE_QUARTER;
+          break;
+        case 8:
+          scale = JPEG_SCALE_EIGHTH;
+          break;
+        default:
+          break;
+      }
+      state->result = jpeg->decode(0, 0, scale);
+      state->error = jpeg->getLastError();
+      return state->result == 1;
+    }
+    case XP_PAGE_JPEG_CLOSE:
+      jpeg->close();
+      break;
+    case XP_PAGE_JPEG_FREE:
+      delete jpeg;
+      state->decoder = nullptr;
+      break;
+  }
+  return 0;
+}
+extern "C" void xp_native_page_jpeg_log(const XpPageJpeg* state, uint32_t event, uint32_t argument) {
+  if (event == XP_BOOK_JPEG_EVENT_TIME) {
+    LOG_DBG("JPG", "JPEG decoding complete - render time: %lu ms", static_cast<unsigned long>(argument));
+  } else if (event == 12) {
+    const auto width = static_cast<long long>(state->width), height = static_cast<long long>(state->height);
+    if (argument == 1) {
+      LOG_ERR("IMG", "Invalid %s dimensions: %lldx%lld", "JPEG", width, height);
+    } else if (argument == 2) {
+      LOG_ERR("IMG", "%s dimensions exceed supported limit: %lldx%lld (max %lld per dimension)", "JPEG", width, height,
+              32767LL);
+    } else if (argument == 3) {
+      LOG_ERR("IMG", "%s too large (%lldx%lld = %lld pixels), max supported: %lld pixels", "JPEG", width, height,
+              width * height, 8388608LL);
+    }
+  } else {
+    logJpegDiagnostic(reinterpret_cast<const char*>(state->path), state->width, state->height, state->error,
+                      state->result, event, argument);
+  }
 }

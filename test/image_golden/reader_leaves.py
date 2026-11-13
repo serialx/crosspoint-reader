@@ -4,7 +4,7 @@ import re, sys
 source, output = map(Path, sys.argv[1:])
 s = source.read_text()
 names = ['xp_native_page_image_file', 'xp_native_page_image_write',
-         'xp_native_page_image_codec_log', 'xp_native_page_image_decode']
+         'xp_native_page_image_codec_log']
 parts = ['#include <xp_page_paint.h>\n#include <ImageDecoderFactory.h>\n'
          '#include <ImagePipeline.h>\n#include <GifCommon.h>\n'
          '#include <PngDiagnostics.h>\n#include <HalMemory.h>\n']

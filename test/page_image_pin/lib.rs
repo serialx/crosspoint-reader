@@ -5,12 +5,17 @@ use std::cell::{Cell, RefCell};
 static TEST_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
 use xp_core::glyph::Surface;
 
+#[path = "../../rust/crates/xp-ffi/src/book_policy.rs"]
+mod book_policy;
 #[path = "../../rust/crates/xp-ffi/src/gif.rs"]
 mod gif;
 #[path = "../../rust/crates/xp-ffi/src/image.rs"]
 mod image;
 #[path = "../../rust/crates/xp-ffi/src/png.rs"]
 mod png;
+mod book_parser {
+    include!(concat!(env!("OUT_DIR"), "/book_parser.rs"));
+}
 
 mod direct {
     pub struct Target {
@@ -167,7 +172,10 @@ mod assets {
         services.close();
         assert_eq!(services.heap(), (80_000, 80_000));
         assert_eq!(services.source_size(), Some(size));
-        assert_eq!(services.decode(b"cache\0"), Some(true));
+        assert_eq!(
+            services.decode(b"cache\0"),
+            Some(super::FAULT.with(core::cell::Cell::get) != 2004)
+        );
         1
     }
 }
@@ -214,7 +222,7 @@ mod tests {
         assert!(FILES.with(|files| files.borrow().is_empty()));
         assert_eq!(
             DROPS.with(Cell::get),
-            if DECODE_KIND.with(Cell::get) == 0 {
+            if EXTRACT.with(Cell::get) || reject {
                 1
             } else {
                 2
@@ -235,13 +243,37 @@ mod tests {
     #[test]
     fn direct_codecs_keep_both_file_cells_pinned() {
         let _guard = TEST_GUARD.lock().unwrap();
-        for kind in [1, 2] {
+        for kind in [0, 1, 2] {
             BYTES.with(|bytes| bytes.borrow_mut().clear());
             DECODE_KIND.with(|value| value.set(kind));
             draw(false);
+            BYTES.with(|bytes| {
+                assert!(
+                    bytes.borrow().len() >= 4,
+                    "kind={kind}, events={:?}",
+                    EVENTS.with(|e| e.borrow().clone())
+                )
+            });
             BYTES.with(|bytes| assert_eq!(&bytes.borrow()[..4], &[4, 0, 4, 0]));
         }
         DECODE_KIND.with(|value| value.set(0));
+    }
+
+    #[test]
+    fn jpeg_failure_closes_input_before_aborting_cache_and_freeing_decoder() {
+        let _guard = TEST_GUARD.lock().unwrap();
+        DECODE_KIND.with(|value| value.set(0));
+        FAULT.with(|value| value.set(2004));
+        EVENTS.with(|events| events.borrow_mut().clear());
+        draw(false);
+        EVENTS.with(|events| {
+            let events = events.borrow();
+            let close_input = events.iter().position(|op| *op == 2005).unwrap();
+            let abort_cache = events.iter().position(|op| *op == 12).unwrap();
+            let free_decoder = events.iter().position(|op| *op == 2006).unwrap();
+            assert!(close_input < abort_cache && abort_cache < free_decoder);
+        });
+        FAULT.with(|value| value.set(0));
     }
 
     #[test]

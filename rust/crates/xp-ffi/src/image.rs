@@ -54,9 +54,9 @@ unsafe impl Sink for Callbacks {
         target
     }
 }
-struct Context {
-    pipeline: Pipeline,
-    callbacks: Callbacks,
+pub(crate) struct Context {
+    pub(crate) pipeline: Pipeline,
+    pub(crate) callbacks: Callbacks,
 }
 const _: () = assert!(mem::size_of::<Context>() <= 48 * mem::size_of::<usize>());
 const _: () = assert!(mem::align_of::<Context>() <= mem::align_of::<usize>());

@@ -2,6 +2,8 @@
 use super::{direct::Target, *};
 #[path = "images/decode.rs"]
 mod decode;
+#[path = "images/jpeg.rs"]
+mod jpeg;
 use core::{cell::UnsafeCell, marker::PhantomPinned, mem::MaybeUninit, pin::Pin};
 use xp_core::{
     assets::image::{Config, Services},
@@ -80,11 +82,6 @@ extern "C" {
         value: usize,
     ) -> usize;
     fn xp_native_page_image_write(file: *mut c_void, bytes: *const u8, length: usize) -> u8;
-    fn xp_native_page_image_decode(
-        native: *mut c_void,
-        image: *const Image,
-        cache: *const u8,
-    ) -> u8;
     #[cfg(feature = "app-test")]
     fn xp_native_page_image_extract(image: *const Image, query: u8) -> u8;
     fn xp_native_page_image_log(
@@ -298,28 +295,15 @@ unsafe impl Services for Physical<'_> {
         self.cache = cache.as_ptr();
         let path = unsafe { slice::from_raw_parts(self.image.path, self.image.path_len) };
         match decode::format(path) {
-            Some(format @ (decode::Format::Png | decode::Format::Gif)) => {
-                return Some(decode::render(self, format))
-            }
-            Some(decode::Format::Jpeg) => {}
+            Some(format) => Some(decode::render(self, format)),
             None => {
                 // ImageDiagnostic::Unsupported in the native log formatter.
                 self.diagnostic(16, 0, 0);
-                return None;
+                None
             }
         }
-        match unsafe {
-            xp_native_page_image_decode(
-                self.target.expect("paint target").native,
-                &self.image,
-                cache.as_ptr(),
-            )
-        } {
-            0 => None,
-            1 => Some(false),
-            _ => Some(true),
-        }
     }
+
     fn diagnostic(&mut self, event: u32, a: i32, b: i32) {
         unsafe {
             xp_native_page_image_log(

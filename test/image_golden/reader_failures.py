@@ -24,9 +24,11 @@ def main():
         cases = [('none', 0), ('source-open', 0), ('cache-open', 0), ('close', 0)]
         cases += [(kind, index) for kind, count in [('write', 6), ('seek', 3), ('read', 8), ('allocation', 14)]
                   for index in range(count)]
-        for name in ['RGBA-37x29.png', 'gif-37x29-0-0.gif']:
+        for name in ['RGBA-37x29.png', 'gif-37x29-0-0.gif', 'gray-37x29.jpg']:
             for target in [0, 28]:
-                for fault, index in cases:
+                jpeg_faults = [('heap', 36 * 1024 - 1), ('heap', 36 * 1024),
+                               ('native-allocation', 0), ('native-allocation', 1)] if name.endswith('.jpg') else []
+                for fault, index in cases + jpeg_faults:
                     pair = []
                     for legacy in [True, False]:
                         env = dict(os.environ, READER_IMAGE_FAULT=fault, READER_IMAGE_FAULT_INDEX=str(index))
@@ -44,7 +46,7 @@ def main():
                                      'success': actual['status'][15]})
                     assert pair[0] == pair[1], (name, target, fault, index, pair)
                     if fault == 'cache-open':
-                        assert pair[1]['success'] == int(name.endswith('.png')) and not pair[1]['cache_exists'], pair
+                        assert pair[1]['success'] == int(not name.endswith('.gif')) and not pair[1]['cache_exists'], pair
                     results.append(dict(image=name, target=target, fault=fault, index=index, **pair[1]))
     binary.parent.joinpath('reader-failure-results.json').write_text(
         json.dumps(dict(cases=len(results), results=results), indent=2) + '\n')

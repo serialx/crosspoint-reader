@@ -3,10 +3,10 @@ use core::ffi::c_void;
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Services {
-    ctx: *mut c_void,
-    operation: Option<unsafe extern "C" fn(*mut c_void, u32, u32) -> u32>,
-    millis: Option<unsafe extern "C" fn(*mut c_void) -> u32>,
-    diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, u32)>,
+    pub(crate) ctx: *mut c_void,
+    pub(crate) operation: Option<unsafe extern "C" fn(*mut c_void, u32, u32) -> u32>,
+    pub(crate) millis: Option<unsafe extern "C" fn(*mut c_void) -> u32>,
+    pub(crate) diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, u32)>,
 }
 struct ParseServices {
     io: Services,

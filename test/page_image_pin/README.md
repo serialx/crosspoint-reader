@@ -18,3 +18,9 @@ cells independently. Each fake records its own address, cursor and open state;
 movement, unbalanced destruction, wrong file identity or stale cache paths fail
 the test. Run both the normal and reader-strips configurations and strict-provenance
 Miri. Decoder fixture bytes come from the existing image corpus.
+
+The JPEG case compiles the shipping operation table and row callback with a
+synchronous native-record fake. It keeps that record borrowed across two row
+callbacks, checks strict-provenance aliasing, and injects decode failure to verify
+that input close precedes cache abort and JPEGDEC release. The sequence itself is
+extracted verbatim from book_parser.rs; image and dimension policies are shared.

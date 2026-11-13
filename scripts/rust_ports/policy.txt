@@ -12,7 +12,6 @@ physical EPUB.render_physical_operation xp_display_abort xp_display_capabilities
 physical App.refresh xp_display_abort xp_display_capabilities xp_display_drop xp_display_execute xp_display_init_v2 xp_hal_display_refresh xp_hal_wake_reason # Panel/bus HAL continuation.
 physical WiFi.clock_sync xp_hal_clock_sync # Clock HAL synchronization.
 physical XP_WIFI_PHYSICAL xp_hal_clock_sync # Same clock HAL slot reached through the directly imported Wi-Fi table.
-physical xp_native_page_image_decode xp_book_image_yield xp_image_row # JPEGDEC streaming row/yield callbacks.
 physical EPUB.protection_index xp_inflate_init xp_inflate_state_align xp_inflate_state_size xp_inflate_step # SDK ProtectedBook index scans encryption XML through MinizCompat; named physical byte stream, no reader policy callback.
 # SDK UI measurement/drawing continuations use runtime callbacks; audit them at R8b.
 # Battery HAL and nested clipping_physical callbacks also require manual R8b review.
@@ -109,7 +108,6 @@ deferred xp_dialog_metrics R6 # Deferred child dialog/keyboard bridge.
 deferred xp_keyboard_chrome R6 # Deferred child dialog/keyboard bridge.
 deferred xp_keyboard_draw_key R6 # Deferred child dialog/keyboard bridge.
 deferred xp_keyboard_metrics R6 # Deferred child dialog/keyboard bridge.
-inherited xp_native_page_image_decode R4 # Native image decode relay.
 inherited xp_native_render_target R1b # Target query references font paths; audit says the branch is unreachable.
 deferred xp_settings_shell_paint R5 # Deferred text settings shell.
 deferred xp_settings_shell_snapshot R5 # Deferred text settings shell.
@@ -214,7 +212,6 @@ import xp_native_bidi_release # Existing direct native ABI at 5ff7aa05; review i
 import xp_native_chapter_font_owner # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 import xp_native_font_cache_diagnostic # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 import xp_native_font_diagnostic # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
-import xp_native_page_image_decode # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 import xp_native_page_image_file # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 import xp_native_page_image_log # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 import xp_native_render_target # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
@@ -276,3 +273,7 @@ import xp_native_page_image_codec_log # One-way synchronous diagnostic formattin
 callback EPUB.key_platform # Writes native-only key/NVS service pointers into caller-owned scratch; no Rust callback is accepted or retained; End destroys the AES/path context.
 callback Runtime.power_context # Returns existing native power state plus physical services for one synchronous call; state mutation remains under the existing Rust HAL mutex.
 callback Runtime.tilt_context # Returns existing native tilt state and IMU services for one synchronous app-loop call; no callback or context is retained.
+import xp_native_page_jpeg # Physical JPEGDEC operations only; Rust owns decode sequence, dimensions policy, pipeline and close/drop/free order.
+callback xp_native_page_jpeg # rows borrows the stable Rust JPEG context; JPEGDEC retains it only between configure and close and its block callback synchronously calls xp_page_image_jpeg_row, the accepted physical stream up-call.
+physical xp_native_page_jpeg xp_page_image_jpeg_row # JPEGDEC block callback only; file callbacks stay native and pipeline/clock/yield orchestration stays Rust-owned.
+import xp_native_page_jpeg_log # One-way synchronous diagnostic formatting from borrowed JPEG facts; no retained pointers or Rust calls.

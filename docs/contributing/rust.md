@@ -566,7 +566,7 @@ directly in Rust. Lazy extraction streams 8,192-byte chunks into an inline,
 pinned HAL file through a storage-only native sink, then flushes and closes it.
 A failed stream removes the partial file. The `.px2` format and cache validation
 rules are unchanged. Image decode selects formats in Rust and calls the shared
-Rust decoder operations directly. JPEG still enters the native adapter.
+Rust decoder operations directly.
 The native extraction adapter and image lifecycle table slots remain only for
 host oracles.
 
@@ -1012,7 +1012,7 @@ is involved.
 and draws text lines, rules, borders, backgrounds and drop caps. It controls word
 offsets, focus splits, ruby and SUP/SUB shifts. Rust owns image cache,
 placeholder, extraction and polarity policy. Typed native file operations and
-the remaining JPEGDEC/converter decode adapter receive
+the JPEGDEC physical leaf receive
 paths and dimensions rather than a Page or image index. Inline native file
 storage is pinned before placement construction and stays at that address
 through its destructor. The image extractor borrows the Rust reader book directly.
@@ -1124,8 +1124,8 @@ its pinned file lifetimes and cache I/O callbacks in Rust. `xp-core::assets`
 owns image render/cache policy, JPEG-to-BMP conversion, screenshot packing,
 and QR layout. The Rust page-image path in `page_render/images.rs` draws
 placeholders and preserves polarity. Native code supplies typed file operations,
-the extraction write sink, the remaining JPEG decode adapter and logging. Rust
-selects PNG/GIF by extension and calls the existing Rust decoders directly. Two
+the extraction write sink, JPEGDEC operations and logging. Rust
+selects PNG, GIF and JPEG by extension and calls the existing Rust operations directly. Two
 pinned inline file cells lend source and cache handles; callback tables point to
 Rust functions and retain no byte spans. Cache byte formats are unchanged.
 
@@ -1139,7 +1139,13 @@ only storage, clock, yield, heap and logging operations call native leaves. Othe
 consumers retain their native callback tables. PNG BMP conversion can borrow exclusive aligned scratch through the
 C++ BuildScratch facade; Rust neither frees nor retains that loan.
 
-JPEG's `xp_image_*` lifecycle in `xp_ffi.h` uses caller-owned opaque storage. After a
+The reader owns its JPEG pipeline inline and supplies Rust callbacks to the
+unchanged `xp_book_jpeg` sequence. JPEGDEC and its file callbacks stay native;
+its block callback is the one retained native-to-Rust continuation. Native facts
+and Rust row state use disjoint storage during that callback. Cleanup closes the
+JPEG file, aborts/drops the pipeline, then frees JPEGDEC, including decode failure.
+
+Native consumers use the `xp_image_*` lifecycle in `xp_ffi.h` with caller-owned opaque storage. After a
 successful init, call prepare once, optionally begin the cache, submit rows,
 finish once, then destroy exactly once. Destroy also aborts an unfinished cache.
 JPEG prepare is a no-op but follows the same lifecycle. The C++ adapter keeps
@@ -1158,7 +1164,7 @@ owns an MCU buffer, output row and optional smoothing/scaling/dither buffers;
 all are released at the end of the call. The shared Rust image owner retains
 cache chunks and its path/read window until `xp_assets_image_reset(true)`. Clearing
 render failures permits retry on the next page render without releasing that
-window. Reader PNG continues without caching when cache creation fails; GIF
+window. Reader PNG and JPEG continue without caching when cache creation fails; GIF
 fails as before. The reader no longer allocates a GIF converter object at decode
 dispatch, so that allocation can no longer report an unsupported format. The
 remaining native build-time probe still uses its factory until that probe moves.

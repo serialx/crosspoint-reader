@@ -254,6 +254,8 @@ extern "C" void xp_native_page_image_codec_log(const XpPageImageCodecLog* state,
   const auto* cache = reinterpret_cast<const char*>(state->cache);
   if (event >= XP_IMAGE_DIAG_CacheBand && event <= XP_IMAGE_DIAG_JpegSummary) {
     logImageDiagnostic(event, a, b, c, d, cache, path, state->color, state->depth);
+  } else if (static_cast<Format>(state->format) == Format::Jpeg) {
+    if (event == XP_IMAGE_CODEC_BEGIN) LOG_DBG("IMG", "Using %s decoder", "JPEG");
   } else if (static_cast<Format>(state->format) == Format::Png) {
     switch (event) {
       case XP_IMAGE_CODEC_BEGIN:
@@ -301,20 +303,6 @@ extern "C" void xp_native_page_image_codec_log(const XpPageImageCodecLog* state,
   }
 }
 
-extern "C" uint8_t xp_native_page_image_decode(void* raw, const XpPageImage* image, const uint8_t* cache) {
-  const std::string path(reinterpret_cast<const char*>(image->path), image->path_len);
-  auto* decoder = ImageDecoderFactory::getDecoder(path);
-  if (!decoder) return 0;
-  LOG_DBG("IMG", "Using %s decoder", decoder->getFormatName());
-  RenderConfig config;
-  config.x = image->x;
-  config.y = image->y;
-  config.maxWidth = image->width;
-  config.maxHeight = image->height;
-  config.useExactDimensions = true;
-  config.cachePath = reinterpret_cast<const char*>(cache);
-  return decoder->decodeToFramebuffer(path, *static_cast<GfxRenderer*>(raw), config) ? 2 : 1;
-}
 #ifdef XP_APP_TEST
 extern "C" uint8_t xp_native_page_image_extract(const XpPageImage* image, uint8_t query) {
   if (query) return ImageBlock::extractFn != nullptr;

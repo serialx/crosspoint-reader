@@ -30,9 +30,9 @@ enum Event {
     Read = 53,
 }
 #[repr(C)]
-struct Log {
+pub(super) struct Log {
     image: *const Image,
-    cache: *const u8,
+    pub(super) cache: *const u8,
     input: *mut FileStorage,
     free_heap: u32,
     elapsed: u32,
@@ -44,15 +44,46 @@ struct Log {
 extern "C" {
     fn xp_native_page_image_codec_log(log: *const Log, event: u32, a: u32, b: u32, c: u32, d: u32);
 }
-struct Decode<'a, 'b> {
-    physical: &'a mut Physical<'b>,
-    cache: Pin<&'a mut File>,
-    log: Log,
-    last_yield: u32,
+pub(super) struct Decode<'a, 'b> {
+    pub(super) physical: &'a mut Physical<'b>,
+    pub(super) cache: Pin<&'a mut File>,
+    pub(super) log: Log,
+    pub(super) last_yield: u32,
     decode_start: u32,
     decoding: bool,
 }
 impl Decode<'_, '_> {
+    pub(super) fn callbacks(raw: *mut Self) -> crate::image::Callbacks {
+        crate::image::Callbacks {
+            context: raw.cast(),
+            target: Self::target,
+            io: Self::write,
+            diagnostic: Some(Self::diagnostic),
+        }
+    }
+    fn config(&mut self) -> image::Config {
+        let target = self.physical.target();
+        let (screen_width, screen_height) = if target.orientation & 1 == 0 {
+            (target.height, target.width)
+        } else {
+            (target.width, target.height)
+        };
+        let image = &self.physical.image;
+        image::Config {
+            x: image.x,
+            y: image.y,
+            max_width: image.width,
+            max_height: image.height,
+            screen_width,
+            screen_height,
+            crop_x: 0.0,
+            crop_y: 0.0,
+            exact: 1,
+            dither: 1,
+            alpha: 0,
+            kind: self.log.format as u8,
+        }
+    }
     fn emit(&self, event: u32, a: u32, b: u32, c: u32, d: u32) {
         unsafe { xp_native_page_image_codec_log(&self.log, event, a, b, c, d) }
     }
@@ -70,7 +101,7 @@ impl Decode<'_, '_> {
     unsafe extern "C" fn target(raw: *mut c_void, out: *mut ImageTarget) {
         *out = (&mut *raw.cast::<Self>()).physical.target();
     }
-    unsafe extern "C" fn progress(raw: *mut c_void) {
+    pub(super) unsafe extern "C" fn progress(raw: *mut c_void) {
         let this = &mut *raw.cast::<Self>();
         let now = this.physical.scalar(FileOp::Now, 0) as u32;
         if now.wrapping_sub(this.last_yield) >= 250 {
@@ -156,7 +187,9 @@ impl Drop for Decode<'_, '_> {
     fn drop(&mut self) {
         // The decoder has aborted/finished its pipeline before these handles close.
         self.cache_op(FileOp::Drop);
-        self.physical.scalar(FileOp::Close, 0);
+        if self.log.format != Format::Jpeg {
+            self.physical.scalar(FileOp::Close, 0);
+        }
     }
 }
 #[inline(never)]
@@ -189,6 +222,10 @@ pub(super) fn render(physical: &mut Physical<'_>, format: Format) -> bool {
     };
     context.cache_op(FileOp::Init);
     context.emit(Event::Begin as u32, 0, 0, 0, 0);
+    if format == Format::Jpeg {
+        let config = context.config();
+        return super::jpeg::render(&mut context, config);
+    }
     if format == Format::Png {
         context.last_yield = context.physical.scalar(FileOp::Now, 0) as u32;
     }
@@ -212,27 +249,7 @@ pub(super) fn render(physical: &mut Physical<'_>, format: Format) -> bool {
     if format == Format::Gif {
         context.log.free_heap = context.physical.scalar(FileOp::FreeInternalHeap, 0) as u32;
     }
-    let target = context.physical.target();
-    let (screen_width, screen_height) = if target.orientation & 1 == 0 {
-        (target.height, target.width)
-    } else {
-        (target.width, target.height)
-    };
-    let image = &context.physical.image;
-    let config = image::Config {
-        x: image.x,
-        y: image.y,
-        max_width: image.width,
-        max_height: image.height,
-        screen_width,
-        screen_height,
-        crop_x: 0.0,
-        crop_y: 0.0,
-        exact: 1,
-        dither: 1,
-        alpha: 0,
-        kind: format as u8,
-    };
+    let config = context.config();
     let raw = ptr::from_mut(&mut context).cast();
     let cache = unsafe { *context.log.cache != 0 };
     unsafe {

@@ -93,5 +93,6 @@ HalFile fake: source/cache open, seek, read, write, close and Rust allocation
 failures, including strip targets. PNG continues if cache creation fails; GIF
 returns failure. The test asserts that Rust allocations are released. Native
 leaf bodies are extracted from ImageBlock.cpp at build time, so the test exercises
-the shipping storage and log adapters. JPEG still uses its native decode shell
-until the JPEG binding unit lands.
+the shipping storage and log adapters. JPEG uses the production native JPEGDEC leaf with Rust row/pipeline callbacks;
+its heap threshold, decoder/file-handle allocations and cache failures are compared
+with the retained native shell.

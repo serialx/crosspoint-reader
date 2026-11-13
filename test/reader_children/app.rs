@@ -3,6 +3,13 @@
 
 #[path = "../../rust/crates/xp-ffi/src/app/abi.rs"]
 pub(crate) mod abi;
+// Preserve the fixture callback while production composes the popup directly.
+impl abi::Resources {
+    pub unsafe fn popup_draw(&self, text: abi::Text) -> xp_ui::scene::Rect {
+        (self.popup_draw)(text)
+    }
+}
+
 #[path = "../../rust/crates/xp-ffi/src/app/bookmarks/mod.rs"]
 pub(crate) mod bookmarks;
 #[path = "../../rust/crates/xp-ffi/src/app/clippings/io.rs"]

@@ -13,6 +13,8 @@ mod child;
 mod child_result;
 pub(super) mod children;
 mod clipping;
+#[cfg(any(not(feature = "app-test"), feature = "chapter-test"))]
+mod events;
 mod fonts;
 mod guarded;
 mod idle;

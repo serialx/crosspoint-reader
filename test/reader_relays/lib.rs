@@ -106,7 +106,12 @@ mod abi {
         pub width: u16,
         pub height: u16,
     }
+    pub struct XpEpubSessionEvent {
+        pub duration_seconds: u32,
+    }
     pub struct XpEpubLeaves {
+        pub event_codec: unsafe extern "C" fn(),
+        pub event_append: unsafe extern "C" fn(),
         pub radio_peer: unsafe extern "C" fn(*mut XpEpubPeer),
         pub subscribers: unsafe extern "C" fn() -> *const Subscriber,
         pub settings_snapshot: unsafe extern "C" fn(u8, *mut XpEpubSettings),
@@ -151,6 +156,8 @@ unsafe extern "C" fn spec(width: u16, height: u16, out: *mut abi::XpEpubRenderSp
 }
 fn leaves() -> abi::XpEpubLeaves {
     abi::XpEpubLeaves {
+        event_codec: codec,
+        event_append: append,
         radio_peer: peer,
         subscribers,
         settings_snapshot: snapshot,
@@ -258,6 +265,7 @@ thread_local! {
     static LOADED: std::cell::Cell<i32> = const {std::cell::Cell::new(0)};
 }
 mod app_abi {
+    pub use super::abi::Text;
     #[derive(Clone, Copy)]
     pub struct FontOwner(pub usize);
     impl FontOwner {
@@ -283,4 +291,73 @@ mod fonts {
     };
     include!(concat!(env!("OUT_DIR"), "/builtin_font_ids.rs"));
     include!(concat!(env!("OUT_DIR"), "/settings_method.rs"));
+}
+
+// Shipping composition has no emit_* function pointers in its leaf table.
+unsafe extern "C" fn codec() {
+    panic!("dispatch must enter Rust before codec resources");
+}
+unsafe extern "C" fn append() {
+    panic!("dispatch must enter Rust before append resources");
+}
+mod events {
+    use super::{abi, app_abi, plugin};
+    pub struct Ports {
+        pub subscribers: unsafe extern "C" fn() -> *const plugin::Subscriber,
+        pub codec: unsafe extern "C" fn(),
+        pub append: unsafe extern "C" fn(),
+    }
+    fn resources(p: &Ports) {
+        assert_eq!(
+            p.subscribers as usize,
+            super::subscribers as *const () as usize
+        );
+        assert_eq!(p.codec as usize, super::codec as *const () as usize);
+        assert_eq!(p.append as usize, super::append as *const () as usize);
+    }
+    pub unsafe fn open(p: &Ports, path: app_abi::Text) {
+        resources(p);
+        assert_eq!(path.data, b"book");
+        super::record("open");
+    }
+    pub unsafe fn exit(p: &Ports, path: app_abi::Text, percent: i32) {
+        resources(p);
+        assert_eq!(path.data, b"book");
+        assert_eq!(percent, 67);
+        super::record("exit");
+    }
+    pub unsafe fn session(
+        p: &Ports,
+        path: app_abi::Text,
+        document: app_abi::Text,
+        event: &abi::XpEpubSessionEvent,
+    ) {
+        resources(p);
+        assert_eq!(path.data, b"book");
+        assert_eq!(document.data, b"id");
+        assert_eq!(event.duration_seconds, 10);
+        super::record("session");
+    }
+}
+#[test]
+fn reader_events_dispatch_to_rust_with_the_two_resource_ports() {
+    let path = || abi::Text {
+        len: 4,
+        data: b"book",
+    };
+    unsafe {
+        leaves().emit_open(path());
+        leaves().emit_session(
+            path(),
+            abi::Text {
+                len: 2,
+                data: b"id",
+            },
+            &abi::XpEpubSessionEvent {
+                duration_seconds: 10,
+            },
+        );
+        leaves().emit_exit(path(), 67);
+    }
+    assert_eq!(take(), ["open", "session", "exit"]);
 }

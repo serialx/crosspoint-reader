@@ -3,6 +3,38 @@ use super::abi::{XpEpubLeaves, XpEpubPeer, XpEpubRadio, XpEpubRenderSpec};
 use super::app_abi::FontOwner;
 
 impl XpEpubLeaves {
+    #[cfg(not(feature = "app-test"))]
+    fn event_ports(&self) -> super::events::Ports {
+        super::events::Ports {
+            subscribers: self.subscribers,
+            codec: self.event_codec,
+            append: self.event_append,
+        }
+    }
+    pub(super) unsafe fn emit_open(&self, path: super::app_abi::Text) {
+        #[cfg(feature = "app-test")]
+        (self.emit_open)(path);
+        #[cfg(not(feature = "app-test"))]
+        super::events::open(&self.event_ports(), path);
+    }
+    pub(super) unsafe fn emit_exit(&self, path: super::app_abi::Text, percent: i32) {
+        #[cfg(feature = "app-test")]
+        (self.emit_exit)(path, percent);
+        #[cfg(not(feature = "app-test"))]
+        super::events::exit(&self.event_ports(), path, percent);
+    }
+    pub(super) unsafe fn emit_session(
+        &self,
+        path: super::app_abi::Text,
+        document: super::app_abi::Text,
+        event: *const super::abi::XpEpubSessionEvent,
+    ) {
+        #[cfg(feature = "app-test")]
+        (self.emit_session)(path, document, event);
+        #[cfg(not(feature = "app-test"))]
+        super::events::session(&self.event_ports(), path, document, &*event);
+    }
+
     pub(super) unsafe fn radio_status(&self, out: *mut XpEpubRadio, peer: *mut XpEpubPeer) {
         #[cfg(feature = "app-test")]
         (self.radio_status)(out, peer);

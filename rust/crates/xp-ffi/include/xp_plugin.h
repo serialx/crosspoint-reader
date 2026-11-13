@@ -264,6 +264,16 @@ typedef struct {
   void (*append)(void*, const XpPluginSubscriber*, size_t);
   void (*oversize)(void*, size_t);
 } XpPluginEmitOps;
+// Pinned caller storage for the native JSON/line and outbox-file contexts.
+// The pointed-to objects stay at the same address until their matching destroy call.
+typedef union {
+  uint64_t alignment;
+  unsigned char bytes[24 * sizeof(void*)];
+} XpPluginEventStorage;
+typedef union {
+  uint64_t alignment;
+  unsigned char bytes[12 * sizeof(void*)];
+} XpPluginAppendStorage;
 void xp_plugin_emit(const XpPluginSubscriber table[XP_PLUGIN_MAX_EVENT_PLUGINS], XpPluginSequence*, uint32_t event,
                     const XpPluginVar*, size_t count, const XpPluginEmitOps*);
 typedef struct {

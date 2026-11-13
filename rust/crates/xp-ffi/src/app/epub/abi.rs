@@ -575,13 +575,20 @@ pub struct XpEpubLeaves {
     #[cfg(not(feature = "app-test"))]
     pub document_io:
         unsafe extern "C" fn(*mut core::ffi::c_void, u8, *const u8, *mut u8, u32) -> i64,
+    #[cfg(feature = "app-test")]
     pub emit_open: unsafe extern "C" fn(path: XpAppText),
+    #[cfg(feature = "app-test")]
     pub emit_exit: unsafe extern "C" fn(path: XpAppText, percent: i32),
+    #[cfg(feature = "app-test")]
     pub emit_session: unsafe extern "C" fn(
         path: XpAppText,
         document: XpAppText,
         event: *const XpEpubSessionEvent,
     ),
+    #[cfg(not(feature = "app-test"))]
+    pub event_codec: super::events::Codec,
+    #[cfg(not(feature = "app-test"))]
+    pub event_append: super::events::Append,
     pub log: unsafe extern "C" fn(severity: u8, origin: XpAppText, message: XpAppText),
     #[cfg(feature = "app-test")]
     pub font_text_advance:
@@ -990,9 +997,16 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, document_id) == leaf_index(97) * pointer);
     #[cfg(not(feature = "app-test"))]
     assert!(core::mem::offset_of!(XpEpubLeaves, document_io) == leaf_index(97) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, emit_open) == leaf_index(98) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, emit_exit) == leaf_index(99) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, emit_session) == leaf_index(100) * pointer);
+    #[cfg(not(feature = "app-test"))]
+    assert!(core::mem::offset_of!(XpEpubLeaves, event_codec) == leaf_index(98) * pointer);
+    #[cfg(not(feature = "app-test"))]
+    assert!(core::mem::offset_of!(XpEpubLeaves, event_append) == leaf_index(99) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, log) == leaf_index(101) * pointer);
     #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, font_text_advance) == leaf_index(102) * pointer);
@@ -1069,6 +1083,7 @@ const fn leaf_index(index: usize) -> usize {
             - if index > 120 { 2 } else { 0 }
             - if index >= 124 { 1 } else { 0 }
             - if index >= 28 { 4 } else { 0 }
+            - if index > 100 { 1 } else { 0 }
             - if index > 102 { 1 } else { 0 }
             - if index > 113 { 1 } else { 0 }
             - if index > 115 { 1 } else { 0 }

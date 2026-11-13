@@ -27,7 +27,16 @@
   (CATALOG_NATIVE_LEAF_INDEX(index) - ((index) >= 64 ? 6 : 0) - ((index) >= 97 ? 1 : 0) - ((index) >= 9 ? 3 : 0) - \
    ((index) >= 23 ? 2 : 0) - ((index) >= 124 ? 1 : 0) - ((index) >= 28 ? 4 : 0) - ((index) >= 137 ? 1 : 0) -       \
    ((index) >= 138 ? 1 : 0) - ((index) > 102 ? 1 : 0) - ((index) > 113 ? 1 : 0) - ((index) > 115 ? 1 : 0) -        \
-   ((index) > 124 ? 1 : 0) - ((index) > 120 ? 2 : 0))
+   ((index) > 124 ? 1 : 0) - ((index) > 120 ? 2 : 0) - ((index) > 100 ? 1 : 0))
+#endif
+
+#ifndef XP_APP_TEST
+typedef XpPluginSequence* (*EventCodec)(XpPluginEventStorage*, XpPluginEmitOps*);
+typedef void (*EventAppend)(XpPluginAppendStorage*, void*, const XpPluginSubscriber*, XpPluginOps*);
+SIGNATURE(event_codec, EventCodec);
+SIGNATURE(event_append, EventAppend);
+CONTRACT(offsetof(XpEpubLeaves, event_codec) == FONT_LEAF_INDEX(98) * sizeof(void (*)(void)));
+CONTRACT(offsetof(XpEpubLeaves, event_append) == FONT_LEAF_INDEX(99) * sizeof(void (*)(void)));
 #endif
 
 typedef void (*ChildTheme)(XpUiReaderTheme*, XpUiReaderThemeFacts*, uint8_t);

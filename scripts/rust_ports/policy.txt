@@ -65,9 +65,6 @@ deferred EPUB.child_text_settings R5 # Deferred preview/popup/end-of-book path.
 deferred EPUB.child_toolbar_icon R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_utility_layout R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_wifi R6 # Deferred dictionary/selection/chapter child bridge.
-inherited EPUB.emit_exit R3a # Native persistence/state/store or shared app relay.
-inherited EPUB.emit_open R3a # Native persistence/state/store or shared app relay.
-inherited EPUB.emit_session R3a # Native persistence/state/store or shared app relay.
 deferred EPUB.end_input R5 # Deferred preview/popup/end-of-book path.
 deferred EPUB.end_load R5 # Deferred preview/popup/end-of-book path.
 deferred EPUB.end_open R5 # Deferred preview/popup/end-of-book path.
@@ -265,3 +262,6 @@ callback xp_native_page_jpeg # rows borrows the stable Rust JPEG context; JPEGDE
 physical xp_native_page_jpeg xp_page_image_jpeg_row # JPEGDEC block callback only; file callbacks stay native and pipeline/clock/yield orchestration stays Rust-owned.
 import xp_native_page_jpeg_log # One-way synchronous diagnostic formatting from borrowed JPEG facts; no retained pointers or Rust calls.
 # EPUB.document_io is a one-way HAL file/SDK MD5 primitive in caller storage; no sampling, string sink or Rust callback.
+
+callback EPUB.event_codec # Constructs pinned caller-owned JSON storage and returns native-only codec callbacks plus the shared sequence; no Rust callback is accepted or retained.
+callback EPUB.event_append # Constructs pinned caller-owned outbox storage and returns native-only file callbacks; destruction ends all borrowed event/subscriber references.

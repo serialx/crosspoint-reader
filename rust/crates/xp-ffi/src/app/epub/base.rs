@@ -110,7 +110,7 @@ impl EpubSession {
             if let Some(book) = self.loop_book() {
                 self.add_recent(book);
             }
-            (self.leaves.emit_open)(self.path().wire());
+            self.leaves.emit_open(self.path().wire());
         }
     }
 
@@ -141,7 +141,10 @@ impl EpubSession {
                     start_progress: session.start_progress,
                     end_progress: session.end_progress,
                 };
-                unsafe { (self.leaves.emit_session)(self.path().wire(), document, &event) };
+                unsafe {
+                    self.leaves
+                        .emit_session(self.path().wire(), document, &event)
+                };
             }
             // Keep the document bytes alive through emission and reset.
             self.reset_session();
@@ -166,7 +169,7 @@ impl EpubSession {
         self.flush_session();
         if unsafe { self.leaves.has_exit_subscriber() } != 0 {
             let percent = self.base_exit_percent();
-            unsafe { (self.leaves.emit_exit)(self.path().wire(), percent) };
+            unsafe { self.leaves.emit_exit(self.path().wire(), percent) };
         }
         unsafe {
             (self.leaves.render_orientation)(0);

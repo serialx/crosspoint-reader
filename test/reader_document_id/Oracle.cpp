@@ -22,24 +22,97 @@ bool subscribed = true;
 std::string emitted;
 int locks = 0;
 
-namespace pluginevents {
-enum class Event { ReaderSession };
-struct Var {
-  const char* name;
-  const char* value;
+// Physical fakes observe the actual Rust formatter/emit/append owners.
+struct EventCodec {
+  std::vector<std::pair<std::string, std::string>> vars;
 };
-void emit(Event event, const Var* vars, size_t count) {
-  assert(event == Event::ReaderSession && count == 8 && locks == 0);
-  assert(std::string(vars[0].name) == "book" && std::string(vars[0].value) == "/session.epub");
-  const char* values[] = {"100", "110", "10", "123", "456", "10000"};
-  for (size_t i = 2; i < count; ++i) assert(std::string(vars[i].value) == values[i - 2]);
-  emitted = vars[1].value;
-  assert(emitted.size() == 32);
-  document_test::event("emit " + emitted);
+struct EventFile {
+  EventCodec* codec;
+  bool open = false;
+};
+int liveCodecs = 0, liveEventFiles = 0;
+static_assert(sizeof(EventCodec) <= sizeof(XpPluginEventStorage));
+static_assert(sizeof(EventFile) <= sizeof(XpPluginAppendStorage));
+XpPluginSequence* eventCodec(XpPluginEventStorage* storage, XpPluginEmitOps* ops) {
+  auto* c = reinterpret_cast<EventCodec*>(storage);
+  if (!ops) {
+    assert(liveCodecs == 1 && liveEventFiles == 0);
+    c->~EventCodec();
+    --liveCodecs;
+    document_test::event("codec.close");
+    return nullptr;
+  }
+  assert(locks == 0 && liveCodecs == 0);
+  // The document-ID file is gone; the attached ReaderBook may still own its ZIP.
+  const auto& trace = document_test::trace;
+  assert(trace.size() >= 3 && trace[trace.size() - 3] == "close" && trace[trace.size() - 2] == "destroy");
+  new (storage) EventCodec;
+  ++liveCodecs;
+  document_test::event("codec.open");
+  static XpPluginSequence sequence{};
+  *ops = {c,
+          [](void*) -> uint32_t { return 1; },
+          [](void*) -> int64_t { return 1000; },
+          [](void* raw, const char* key, const char* value, bool envelope) {
+            if (!envelope) static_cast<EventCodec*>(raw)->vars.emplace_back(key, value);
+          },
+          [](void*, const char* key, int64_t value) { assert(std::string(key) == "ts" && value == 1000); },
+          [](void*, const char* key) { assert(std::string(key) == "vars"); },
+          [](void* raw) -> size_t {
+            const auto& vars = static_cast<EventCodec*>(raw)->vars;
+            const char* keys[] = {"book",
+                                  "document",
+                                  "start_time",
+                                  "end_time",
+                                  "duration_seconds",
+                                  "start_progress_bp",
+                                  "end_progress_bp",
+                                  "progress_scale"};
+            const char* values[] = {"100", "110", "10", "123", "456", "10000"};
+            assert(vars.size() == 8 && locks == 0);
+            for (size_t i = 0; i < vars.size(); ++i) assert(vars[i].first == keys[i]);
+            assert(vars[0].second == "/session.epub" && vars[1].second.size() == 32);
+            for (size_t i = 2; i < vars.size(); ++i) assert(vars[i].second == values[i - 2]);
+            return 1;  // The separate plugin fixture checks actual JSON/outbox bytes.
+          },
+          nullptr,
+          [](void*, size_t) { std::abort(); }};
+  return &sequence;
 }
-}  // namespace pluginevents
-const char* pathText(XpAppText text) { return reinterpret_cast<const char*>(text.data); }
-// ACTUAL_EMIT_SESSION
+void eventAppend(XpPluginAppendStorage* storage, void* event, const XpPluginSubscriber*, XpPluginOps* ops) {
+  auto* file = reinterpret_cast<EventFile*>(storage);
+  if (!ops) {
+    assert(liveEventFiles == 1 && file->open);
+    file->~EventFile();
+    --liveEventFiles;
+    document_test::event("append.close");
+    return;
+  }
+  assert(liveCodecs == 1 && liveEventFiles == 0);
+  new (storage) EventFile{static_cast<EventCodec*>(event)};
+  ++liveEventFiles;
+  *ops = {file, [](void* raw, uint32_t operation, uint64_t) -> uint64_t {
+            auto& f = *static_cast<EventFile*>(raw);
+            switch (operation) {
+              case XP_PLUGIN_FILE_OPEN:
+                f.open = true;
+                return 1;
+              case XP_PLUGIN_FILE_SIZE:
+                assert(f.open);
+                return 0;
+              case XP_PLUGIN_FILE_WRITE:
+                assert(f.open && locks == 0);
+                emitted = f.codec->vars[1].second;
+                document_test::event("emit " + emitted);
+                return 1;
+              case XP_PLUGIN_FILE_FLUSH:
+                assert(f.open);
+                return 0;
+              default:
+                std::abort();
+            }
+          }};
+}
 std::string owned(XpAppText text) { return {reinterpret_cast<const char*>(text.data), text.len}; }
 struct Result {
   std::string digest;
@@ -131,7 +204,7 @@ int main() {
   for (size_t i = 0; i < sizeof(resources); i += sizeof(trap))
     memcpy(reinterpret_cast<char*>(&resources) + i, &trap, sizeof(trap));
   runtime.model_lock = []() {
-    assert(locks == 0);
+    assert(locks == 0 && liveCodecs == 0 && liveEventFiles == 0);
     ++locks;
     document_test::event("lock");
   };
@@ -147,7 +220,8 @@ int main() {
     table[0].mask = 1 << 2;  // reader.session in xp_plugin_contract.def.
     return table;
   };
-  leaves.emit_session = emitSession;
+  leaves.event_codec = eventCodec;
+  leaves.event_append = eventAppend;
   const std::string sessionPath = "/session.epub";
   for (bool worthy : {false, true})
     for (bool subscriber : {false, true})
@@ -165,7 +239,10 @@ int main() {
         if (worthy) trace.push_back("subscribed");
         if (worthy && subscriber) {
           trace.insert(trace.end(), expected.trace.begin(), expected.trace.end());
-          if (!failOpen) trace.push_back("emit " + expected.digest);
+          if (!failOpen) {
+            trace.insert(trace.end(),
+                         {"subscribed", "codec.open", "emit " + expected.digest, "append.close", "codec.close"});
+          }
         }
         trace.push_back("lock");
         trace.push_back("unlock");
@@ -190,6 +267,7 @@ int main() {
                                  true);
     assert(book_fixture::opened == before + 1 && book_fixture::closed == book_fixture::opened);
     assert(book_fixture::liveFiles == 0 && book_fixture::cacheLocks == 0);
+    assert(liveCodecs == 0 && liveEventFiles == 0);
     const bool failed = sample >= 0 && sampleOffset(sample) < size;
     assert(emitted == (failed ? "" : healthy.digest));
     // Four lock pairs: attach, snapshot, one reset, and detach; no extra reset.

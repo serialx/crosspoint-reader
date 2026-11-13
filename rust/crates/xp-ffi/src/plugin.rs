@@ -935,8 +935,8 @@ pub unsafe extern "C" fn xp_plugin_manifest(json: *const Json, ops: *const Manif
 }
 #[repr(C)]
 pub struct Var {
-    key: *const c_char,
-    value: *const c_char,
+    pub(crate) key: *const c_char,
+    pub(crate) value: *const c_char,
 }
 #[repr(C)]
 pub struct Sequence {
@@ -944,15 +944,15 @@ pub struct Sequence {
 }
 #[repr(C)]
 pub struct Emit {
-    ctx: *mut c_void,
-    random: unsafe extern "C" fn(*mut c_void) -> u32,
-    time: unsafe extern "C" fn(*mut c_void) -> i64,
-    text: unsafe extern "C" fn(*mut c_void, *const c_char, *const c_char, bool),
-    number: unsafe extern "C" fn(*mut c_void, *const c_char, i64),
-    object: unsafe extern "C" fn(*mut c_void, *const c_char),
-    serialize: unsafe extern "C" fn(*mut c_void) -> usize,
-    append: unsafe extern "C" fn(*mut c_void, *const Subscriber, usize),
-    oversize: unsafe extern "C" fn(*mut c_void, usize),
+    pub(crate) ctx: *mut c_void,
+    pub(crate) random: unsafe extern "C" fn(*mut c_void) -> u32,
+    pub(crate) time: unsafe extern "C" fn(*mut c_void) -> i64,
+    pub(crate) text: unsafe extern "C" fn(*mut c_void, *const c_char, *const c_char, bool),
+    pub(crate) number: unsafe extern "C" fn(*mut c_void, *const c_char, i64),
+    pub(crate) object: unsafe extern "C" fn(*mut c_void, *const c_char),
+    pub(crate) serialize: unsafe extern "C" fn(*mut c_void) -> usize,
+    pub(crate) append: unsafe extern "C" fn(*mut c_void, *const Subscriber, usize),
+    pub(crate) oversize: unsafe extern "C" fn(*mut c_void, usize),
 }
 /// # Safety
 /// Table has eight entries, sequence is exclusively writable, vars has count entries.

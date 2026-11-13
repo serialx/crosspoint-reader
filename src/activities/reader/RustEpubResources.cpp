@@ -367,6 +367,7 @@ const std::string& borrowed(XpAppNativeText value) {
   return result;
 }
 
+#ifdef XP_APP_TEST
 // Event formatting stays off the render call chain.
 [[gnu::noinline]] void emitSession(XpAppText path, XpAppText document, const XpEpubSessionEvent* event) {
   char startTime[24], endTime[24], duration[16], startProgress[8], endProgress[8];
@@ -389,6 +390,7 @@ const std::string& borrowed(XpAppNativeText value) {
   pluginevents::emit(pluginevents::Event::ReaderExit, vars, std::size(vars));
 }
 
+#endif
 MappedInputManager::Button inputButton(uint32_t index) {
   using Button = MappedInputManager::Button;
   constexpr Button buttons[] = {Button::Back, Button::Confirm, Button::Left, Button::Right,
@@ -893,6 +895,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
 #else
       .document_io = readerDocumentIo,
 #endif
+#ifdef XP_APP_TEST
       .emit_open =
           [](XpAppText path) {
             const pluginevents::Var vars[] = {{"book", pathText(path)}};
@@ -900,6 +903,10 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
           },
       .emit_exit = emitExit,
       .emit_session = emitSession,
+#else
+      .event_codec = pluginevents::eventCodec,
+      .event_append = pluginevents::eventAppend,
+#endif
       .log =
           [](uint8_t severity, XpAppText origin, XpAppText message) {
             char tag[16]{};

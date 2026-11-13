@@ -525,10 +525,19 @@ typedef struct XpEpubLeaves {
   // Caller-owned HAL file and SDK MD5 context; synchronous, no retained pointer or callback.
   int64_t (*document_io)(void* storage, uint8_t operation, const uint8_t* input, uint8_t* output, uint32_t value);
 #endif
+  // Fixture-only event forwards (HOST-RETIRE); absent from firmware.
+#ifdef XP_APP_TEST
   void (*emit_open)(XpAppText path);
   // percent is 0-100; on read failure use last known percent for this book session, initially 0.
   void (*emit_exit)(XpAppText path, int32_t percent);
   void (*emit_session)(XpAppText path, XpAppText document, const XpEpubSessionEvent* event);
+#else
+  // Non-null ops constructs pinned caller storage; null ops destroys it after synchronous use.
+  // Native codec/file callbacks cannot call Rust or retain borrowed data after destruction.
+  XpPluginSequence* (*event_codec)(XpPluginEventStorage* storage, XpPluginEmitOps* ops);
+  void (*event_append)(XpPluginAppendStorage* storage, void* event, const XpPluginSubscriber* subscriber,
+                       XpPluginOps* ops);
+#endif
   void (*log)(uint8_t severity, XpAppText origin, XpAppText message);
   // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
@@ -703,8 +712,8 @@ XP_EPUB_ASSERT(offsetof(XpEpubPeer, addr) == 64, "XpEpubPeer.addr");
   ((index) - ((index) >= 60 ? 6 : 0) - ((index) >= 93 ? 1 : 0) - ((index) >= 9 ? 3 : 0) - ((index) >= 23 ? 2 : 0) - \
    ((index) >= 120 ? 1 : 0) - ((index) >= 26 ? 1 : 0) - ((index) >= 133 ? 1 : 0) - ((index) > 98 ? 1 : 0) -         \
    ((index) > 108 ? 1 : 0) - ((index) > 109 ? 1 : 0) - ((index) > 110 ? 1 : 0) - ((index) > 111 ? 1 : 0) -          \
-   ((index) > 120 ? 1 : 0) - ((index) > 116 ? 2 : 0))
-#define XP_EPUB_LEAF_COUNT 142
+   ((index) > 120 ? 1 : 0) - ((index) > 116 ? 2 : 0) - ((index) > 96 ? 1 : 0))
+#define XP_EPUB_LEAF_COUNT 141
 #endif
 #else
 #ifdef XP_APP_TEST
@@ -716,8 +725,8 @@ XP_EPUB_ASSERT(offsetof(XpEpubPeer, addr) == 64, "XpEpubPeer.addr");
 #define XP_EPUB_LEAF_INDEX(index)                                                                                   \
   ((index) - ((index) >= 60 ? 6 : 0) - ((index) >= 93 ? 1 : 0) - ((index) >= 9 ? 3 : 0) - ((index) >= 23 ? 2 : 0) - \
    ((index) >= 120 ? 1 : 0) - ((index) >= 133 ? 1 : 0) - ((index) > 98 ? 1 : 0) - ((index) > 109 ? 1 : 0) -         \
-   ((index) > 111 ? 1 : 0) - ((index) > 120 ? 1 : 0) - ((index) > 116 ? 2 : 0))
-#define XP_EPUB_LEAF_COUNT 145
+   ((index) > 111 ? 1 : 0) - ((index) > 120 ? 1 : 0) - ((index) > 116 ? 2 : 0) - ((index) > 96 ? 1 : 0))
+#define XP_EPUB_LEAF_COUNT 144
 #endif
 #endif
 XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == XP_EPUB_LEAF_COUNT * sizeof(void (*)(void)), "XpEpubLeaves size");
@@ -880,9 +889,14 @@ XP_EPUB_LEAF_OFFSET(document_id, 93);
 #else
 XP_EPUB_LEAF_OFFSET(document_io, 93);
 #endif
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(emit_open, 94);
 XP_EPUB_LEAF_OFFSET(emit_exit, 95);
 XP_EPUB_LEAF_OFFSET(emit_session, 96);
+#else
+XP_EPUB_LEAF_OFFSET(event_codec, 94);
+XP_EPUB_LEAF_OFFSET(event_append, 95);
+#endif
 XP_EPUB_LEAF_OFFSET(log, 97);
 #ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(font_text_advance, 98);

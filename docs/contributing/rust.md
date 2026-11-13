@@ -1374,6 +1374,33 @@ in Rust, then read the remaining raw settings. R1c still owns the snapshot's
 native font resolver; this change does not claim that inherited chain is gone.
 No new allocation, cache or persistent state is introduced.
 
+### Reader plugin events
+
+The shipping reader formats open, session and exit variables in Rust, then calls
+`xp_plugin_emit` and `xp_plugin_append` directly. Native `event_codec` and
+`event_append` only construct and destroy JSON/file resources in pinned caller
+storage and return their synchronous callbacks. The codec keeps the same shared
+sequence and cached boot nonce used by native emitters such as `sleep.enter`.
+There is no new event queue or persistent state. Payload order, decimal strings,
+0–100 exit percent, JSON escaping, newline, size limits and short-write rollback
+remain the [plugin event contract](../plugin-events.md).
+
+The event and append scratch bounds are 24 and 12 pointer words, aligned to eight
+bytes; native compile-time assertions check both contexts fit. Rust pins the
+storage before construction and destroys it after the synchronous owner returns.
+Existing JSON, serialized-line and path allocations retain their lifetimes.
+Only native codec/file callbacks are returned; the Rust append continuation calls
+the Rust policy directly and does not pass through the generic native emitter.
+
+`plugin_reader_events` compares complete native/mixed outboxes and file traces
+for open → session → exit → native sleep, including one shared nonce/counter,
+eight subscribers, oversize lines, failed opens and short writes. The shipping
+branch of `reader_direct_relays` checks dispatch to the Rust event owner.
+Pre-existing injected emit fields and reader adapters remain under
+`app-test`/`XP_APP_TEST` for lifecycle oracles (HOST-RETIRE); neither field nor body
+is part of firmware. The port gate checks references, not arbitrary runtime
+callback stores; linked-image R8b and physical SD failure checks remain separate.
+
 ### App-loop HAL calls
 
 The shipping app loop calls the existing Rust power, tilt and frontlight policy

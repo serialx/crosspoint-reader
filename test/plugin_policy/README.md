@@ -9,7 +9,7 @@ The initial oracle was committed separately in `da4c1b8b`.
 Build the host tests, then run:
 
 ```sh
-ctest --test-dir build/test -R plugin_policy --output-on-failure
+ctest --test-dir build/test -R 'plugin_(policy|reader_events)' --output-on-failure
 ```
 
 `plugin_policy_oracle` runs 48 scenarios. They cover manifest defaults and edits,
@@ -55,3 +55,19 @@ sleep's implied-connect bit, writer bounds at 512/513 and 4096/4097 bytes, and
 64-bit rollback. `xp_plugin_contract.def` is the only event/limit definition:
 C++ expands it directly; Cargo's host-only `xp-ffi/build.rs` emits Rust constants
 in OUT_DIR and rejects noncontiguous IDs or an overflowing event mask.
+
+`plugin_reader_events` runs the actual Rust reader payload/resource implementation
+against the native codec and file primitives. It compares all outbox bytes and
+file-operation traces with native emission for two open/session/exit/sleep cycles.
+Cases include UTF-8/escaping, signed time limits, full-width duration/progress,
+eight subscribers, no subscribers, oversized events, failed opens, cap reset and
+short-write rollback. A random-call counter checks that both paths share one
+cached nonce. Native sleep events between reader cycles also check the shared
+sequence. ASan covers the native pinned contexts and their destruction.
+
+`reader_direct_relays` separately compiles the shipping dispatch branch against
+stub Rust owners and checks the two resource bindings. The event implementation
+itself has no app-test policy branch; its test shim only exposes the same entry
+points. `reader_events.py --baseline-source <tree>` compares against an archived
+native implementation instead of the current generic emitter. These are scripted
+resource checks; they do not establish physical SD timing or power-loss behavior.

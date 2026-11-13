@@ -10,6 +10,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <new>
 #include <string>
 #include <vector>
 
@@ -138,60 +139,72 @@ bool wantsConnectAny() {
 }
 
 namespace {
-void appendEvent(const Subscriber& sub, const std::string& line, size_t lineSize) {
-  const std::string path = outboxPath(sub);
-  struct AppendContext {
-    const Subscriber& sub;
-    const std::string& path;
-    const std::string& line;
-    HalFile file;
-  } context{sub, path, line, {}};
-  const XpPluginOps ops{&context, [](void* p, uint32_t operation, uint64_t argument) -> uint64_t {
-                          auto& c = *static_cast<AppendContext*>(p);
-                          switch (static_cast<XpPluginAppendOp>(operation)) {
-                            case XP_PLUGIN_FILE_OPEN:
-                              c.file = Storage.open(c.path.c_str(), O_WRONLY | O_CREAT | O_APPEND);
-                              return c.file && c.file.isOpen();
-                            case XP_PLUGIN_FILE_CLOSE:
-                              c.file.close();
-                              break;
-                            case XP_PLUGIN_FILE_REMOVE:
-                              Storage.remove(c.path.c_str());
-                              break;
-                            case XP_PLUGIN_FILE_SIZE:
-                              return c.file.fileSize64();
-                            case XP_PLUGIN_FILE_WRITE:
-                              return c.file.write(reinterpret_cast<const uint8_t*>(c.line.data()), c.line.size());
-                            case XP_PLUGIN_FILE_TRUNCATE:
-                              c.file.truncate(argument);
-                              break;
-                            case XP_PLUGIN_FILE_FLUSH:
-                              c.file.flush();
-                              break;
-                            case XP_PLUGIN_FILE_OPEN_ERROR:
-                              LOG_ERR("PEVT", "%s: outbox open failed", c.sub.name);
-                              break;
-                            case XP_PLUGIN_FILE_CAP:
-                              LOG_DBG("PEVT", "%s: outbox over cap, dropped", c.sub.name);
-                              break;
-                            case XP_PLUGIN_FILE_SHORT:
-                              LOG_ERR("PEVT", "%s: short outbox append; event dropped", c.sub.name);
-                              break;
-                          }
-                          return 0;
-                        }};
-  xp_plugin_append(&ops, lineSize);
-}
+struct Context {
+  JsonDocument doc;
+  JsonVariant node;
+  std::string line;
+};
+struct AppendContext {
+  const Subscriber& sub;
+  const std::string path;
+  const std::string& line;
+  HalFile file;
+};
+static_assert(sizeof(Context) <= sizeof(XpPluginEventStorage));
+static_assert(alignof(Context) <= alignof(XpPluginEventStorage));
+static_assert(sizeof(AppendContext) <= sizeof(XpPluginAppendStorage));
+static_assert(alignof(AppendContext) <= alignof(XpPluginAppendStorage));
 }  // namespace
 
-void emit(const Event e, const Var* vars, const size_t varCount) {
-  if (!anySubscriber(e)) return;
+void eventAppend(XpPluginAppendStorage* storage, void* event, const Subscriber* sub, XpPluginOps* ops) {
+  if (!ops) {
+    reinterpret_cast<AppendContext*>(storage)->~AppendContext();
+    return;
+  }
+  auto& context = *new (storage) AppendContext{*sub, outboxPath(*sub), static_cast<Context*>(event)->line, {}};
+  *ops = {&context, [](void* p, uint32_t operation, uint64_t argument) -> uint64_t {
+            auto& c = *static_cast<AppendContext*>(p);
+            switch (static_cast<XpPluginAppendOp>(operation)) {
+              case XP_PLUGIN_FILE_OPEN:
+                c.file = Storage.open(c.path.c_str(), O_WRONLY | O_CREAT | O_APPEND);
+                return c.file && c.file.isOpen();
+              case XP_PLUGIN_FILE_CLOSE:
+                c.file.close();
+                break;
+              case XP_PLUGIN_FILE_REMOVE:
+                Storage.remove(c.path.c_str());
+                break;
+              case XP_PLUGIN_FILE_SIZE:
+                return c.file.fileSize64();
+              case XP_PLUGIN_FILE_WRITE:
+                return c.file.write(reinterpret_cast<const uint8_t*>(c.line.data()), c.line.size());
+              case XP_PLUGIN_FILE_TRUNCATE:
+                c.file.truncate(argument);
+                break;
+              case XP_PLUGIN_FILE_FLUSH:
+                c.file.flush();
+                break;
+              case XP_PLUGIN_FILE_OPEN_ERROR:
+                LOG_ERR("PEVT", "%s: outbox open failed", c.sub.name);
+                break;
+              case XP_PLUGIN_FILE_CAP:
+                LOG_DBG("PEVT", "%s: outbox over cap, dropped", c.sub.name);
+                break;
+              case XP_PLUGIN_FILE_SHORT:
+                LOG_ERR("PEVT", "%s: short outbox append; event dropped", c.sub.name);
+                break;
+            }
+            return 0;
+          }};
+}
+
+XpPluginSequence* eventCodec(XpPluginEventStorage* storage, XpPluginEmitOps* ops) {
+  if (!ops) {
+    reinterpret_cast<Context*>(storage)->~Context();
+    return nullptr;
+  }
   static XpPluginSequence sequence{};
-  struct Context {
-    JsonDocument doc;
-    JsonVariant node;
-    std::string line;
-  } context;
+  auto& context = *new (storage) Context;
   context.node = context.doc.to<JsonObject>();
   static const XpPluginEmitOps opsCallbacks{
       nullptr,
@@ -216,15 +229,31 @@ void emit(const Event e, const Var* vars, const size_t varCount) {
         c.line += '\n';
         return c.line.size();
       },
-      [](void* p, const Subscriber* sub, size_t size) { appendEvent(*sub, static_cast<Context*>(p)->line, size); },
+      nullptr,
       [](void*, size_t size) { LOG_ERR("PEVT", "event line too large (%u); dropped", static_cast<unsigned>(size)); }};
-  auto ops = opsCallbacks;
-  ops.ctx = &context;
+  *ops = opsCallbacks;
+  ops->ctx = &context;
+  return &sequence;
+}
+
+void emit(const Event e, const Var* vars, const size_t varCount) {
+  if (!anySubscriber(e)) return;
+  XpPluginEventStorage storage;
+  XpPluginEmitOps ops;
+  auto* sequence = eventCodec(&storage, &ops);
+  ops.append = [](void* event, const Subscriber* sub, size_t size) {
+    XpPluginAppendStorage file;
+    XpPluginOps fileOps;
+    eventAppend(&file, event, sub, &fileOps);
+    xp_plugin_append(&fileOps, size);
+    eventAppend(&file, nullptr, nullptr, nullptr);
+  };
   static_assert(sizeof(Var) == sizeof(XpPluginVar));
   static_assert(offsetof(Var, key) == offsetof(XpPluginVar, key));
   static_assert(offsetof(Var, value) == offsetof(XpPluginVar, value));
-  xp_plugin_emit(subscribers, &sequence, static_cast<uint32_t>(e), reinterpret_cast<const XpPluginVar*>(vars), varCount,
+  xp_plugin_emit(subscribers, sequence, static_cast<uint32_t>(e), reinterpret_cast<const XpPluginVar*>(vars), varCount,
                  &ops);
+  eventCodec(&storage, nullptr);
 }
 
 namespace {

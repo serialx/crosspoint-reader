@@ -70,6 +70,11 @@ bool anySubscriber(Event e);
 // App-task query only: borrow through return, never across refreshSubscriptions().
 const XpPluginSubscriber* subscriptionView();
 
+// Non-null ops constructs in pinned storage; null ops destroys after synchronous use.
+// eventCodec leaves append null: the calling owner must bind it before xp_plugin_emit.
+XpPluginSequence* eventCodec(XpPluginEventStorage* storage, XpPluginEmitOps* ops);
+void eventAppend(XpPluginAppendStorage* storage, void* event, const XpPluginSubscriber* sub, XpPluginOps* ops);
+
 // Bit per Event the named plugin subscribes to (0 = none), for disclosing
 // what leaves the device. Reflects the last refreshSubscriptions().
 uint8_t subscriptionMask(const char* plugin);

@@ -1,6 +1,8 @@
 mod base;
 mod book_owner;
 mod book_render;
+#[cfg(feature = "chapter-test")]
+mod events;
 pub(super) use book_render::legacy_size;
 static PROGRESS_FAULT: core::sync::atomic::AtomicBool = core::sync::atomic::AtomicBool::new(false);
 #[no_mangle]

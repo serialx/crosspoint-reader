@@ -45,18 +45,39 @@ def main():
          'let Some(access) = self.text_popup_access() else {\n                    return;\n                };\n                self.model(|state| state.popup = PopupIntent::Spacing);',
          'self.model(|state| state.popup = PopupIntent::Spacing);\n                let Some(access) = self.text_popup_access() else {\n                    return;\n                };',
          'index == 0'),
+        ('text-sizes-published-before-rejection', Path('crates/xp-ffi/src/app/epub/settings.rs'),
+         '                {\n                    let Some(access) = self.text_popup_access() else {',
+         '                {\n                    self.set_font_sizes(&unsafe { self.borrowed_resources() }, sizes.clone());\n                    let Some(access) = self.text_popup_access() else {',
+         'retained font-size payload changed'),
+        ('text-choices-under-render-lock', Path('crates/xp-ffi/src/app/epub/settings.rs'),
+         'let Some(sizes) = self.font_choices(settings.font_family) else {',
+         'let Some(sizes) = ({ let _access = self.lock_resources(); self.font_choices(settings.font_family) }) else {',
+         'font choices must be prepared outside render/model locks'),
+        ('text-choices-under-model-lock', Path('crates/xp-ffi/src/app/epub/settings.rs'),
+         'let Some(sizes) = self.font_choices(settings.font_family) else {',
+         'let Some(sizes) = self.model(|_| self.font_choices(settings.font_family)) else {',
+         'font choices must be prepared outside render/model locks'),
     )
     with tempfile.TemporaryDirectory(prefix='reader-popup-concurrency-') as directory:
         work = Path(directory)
         source = work / 'oracle.cpp'
         source.write_text(combined)
+        allocator_source = ROOT / 'test/cmake/xp_ffi_host.cpp'
+        allocator = replace_once(
+            allocator_source.read_text(), 'extern "C" void* heap_caps_malloc(size_t size, uint32_t) {',
+            'extern "C" void popupChoicesAllocation(size_t);\n'
+            'extern "C" void* heap_caps_malloc(size_t size, uint32_t) {\n  popupChoicesAllocation(size);')
+        observed_allocator = work / 'allocator.cpp'
+        observed_allocator.write_text(allocator)
 
         def compile_fixture(name, archive=None):
             binary = work / name
+            flags = [str(observed_allocator) if flag == str(allocator_source) else flag
+                     for flag in rust_link_flags(archive=archive)]
             command = ['c++', '-std=c++20', '-UNDEBUG', '-pthread', '-g',
                        '-fsanitize=thread' if args.tsan else '-fsanitize=address,undefined',
                        '-fno-sanitize-recover=all', '-I', str(HERE), str(source),
-                       *rust_link_flags(archive=archive), '-o', str(binary)]
+                       *flags, '-o', str(binary)]
             subprocess.run(command, check=True)
             return binary
 
@@ -64,6 +85,7 @@ def main():
         print(json.dumps({'check': 'thread-sanitizer' if args.tsan else 'address-undefined-sanitizer',
                           'popup_sha256': hashlib.sha256(popup.encode()).hexdigest(),
                           'fixture_sha256': hashlib.sha256(combined.encode()).hexdigest(),
+                          'allocator_observer_sha256': hashlib.sha256(allocator.encode()).hexdigest(),
                           'policy_hooks': [],
                           'limitation': 'TSan instruments C++ widget/fakes; linked Rust is not TSan-instrumented'}), flush=True)
         if args.tsan:
@@ -85,6 +107,7 @@ def main():
                                     capture_output=True, text=True, timeout=30)
             assert failed.returncode != 0 and failure in failed.stderr, failed.stderr
             print(json.dumps({'mutant': name, 'returncode': failed.returncode, 'source': str(path),
+                              'assertion': failure, 'stderr': failed.stderr,
                               'replacement_count': 1, 'source_sha256': hashlib.sha256(original.encode()).hexdigest(),
                               'mutant_sha256': hashlib.sha256(changed.encode()).hexdigest()}), flush=True)
             (copied_rust / path).write_text(original)

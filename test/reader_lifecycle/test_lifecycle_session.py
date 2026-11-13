@@ -69,8 +69,7 @@ def shared_methods(root, definition):
 
 def transformed_fixture(template, adapter, root, definition):
     # The body, cases, printf expressions, and shared classes remain the original source.
-    source = replace_once(template, '#include "build_wait_fixture.h"', '')
-    source = replace_once(source, '  EpubReaderActivity() { section->renderer = &renderer; }',
+    source = replace_once(template, '  EpubReaderActivity() { section->renderer = &renderer; }',
                           '  EpubReaderActivity() { section->renderer = &renderer; }\n'
                           '  mutable void* lifecycleSession = nullptr;\n'
                           '  ~EpubReaderActivity();')
@@ -138,7 +137,7 @@ def main():
                for name in ('loop_owner.rs', 'projection.rs', 'build.rs', 'lifetime.rs', 'navigation.rs')}
     # Freeze mutation sites before spending time compiling. A stale/missing method is an explicit error.
     mutants = list(rust_mutants(sources, definition))
-    tracked = [here / 'oracle.cpp', here / 'extract.py', here / 'build_wait_fixture.h', golden, header,
+    tracked = [here / 'oracle.cpp', here / 'extract.py', golden, header,
                adapter / 'lifecycle_session_rust.inc', Path(__file__).resolve(),
                root / 'src/activities/reader/ReaderSession.cpp', root / 'src/activities/reader/ReaderSession.h',
                root / 'src/activities/reader/ReaderUtils.h', root / 'src/activities/reader/EpubReaderUtils.h',

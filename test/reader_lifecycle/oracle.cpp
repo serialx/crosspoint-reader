@@ -14,7 +14,6 @@
 #include "EpubReaderUtils.h"
 #include "ReaderSession.h"
 #include "RemoteTurnGate.h"
-#include "build_wait_fixture.h"
 #include "reader_link_note_owner.h"
 #include "reader_value_owner.h"
 
@@ -173,7 +172,6 @@ struct EpubReaderActivity {
 #endif
   bool skipPages(int);
   bool buildTickHeapGate();
-  bool runBuildPolicy(uint8_t operation) const;
   void backgroundBuildTick();
   bool backgroundBuildWanted() const;
   bool skipLoopDelay();

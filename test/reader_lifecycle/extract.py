@@ -65,8 +65,6 @@ def generate(repo, output):
         bridge = bridge.replace("READ", cases(read,"FIELD",fields)).replace("WRITE", cases(write,"FIELD",writes)).replace("COMMAND", cases(command,"COMMAND",commands))
         bridge += projection[projection.index("  const XpUiReaderProjectionServices services"):]
         methods.append(bridge)
-    if "bool EpubReaderActivity::runBuildPolicy(" in reader:
-        methods.append((repo / "test/reader_lifecycle/build_policy_rust.inc").read_text())
     if "bool EpubReaderActivity::runBookLifetime(" in reader:
         methods.append((repo / "test/reader_lifecycle/load_progress_rust.inc").read_text())
     else:

@@ -1287,12 +1287,16 @@ changes, including the zero-brightness case.
 The idle-slice loop runs in Rust with wrapping millisecond arithmetic. Its raw
 native input sample reads the physical power button first and skips ADC reads
 when it is pressed. Sampling does not poll or consume the debounced input frame.
-Runtime keeps the same 34 pointer-sized slots through one-for-one field changes.
+Runtime keeps the same 34 pointer-sized slots: `idle_wait` → `raw_input_sample`,
+`power_saving` → `power_context`, `tilt_update` → `tilt_context`,
+`frontlight_state` → `light_state`, and `frontlight_set` → `light_output`.
 `runtime_direct_hal` compiles the shipping adapter with the actual Rust HAL
-modules and strict physical callbacks. Existing injected host callbacks remain
+modules and recorded physical callbacks with exact call-order assertions. Existing injected host callbacks remain
 under `app-test` as HOST-RETIRE debt; no hardware tilt/frontlight result is inferred
 from these host tests. Input mapping, BLE loop delivery, sleep orchestration and
-settings serialization retain their separate owners.
+settings serialization retain their separate owners. Native
+`HalPowerManager::setPowerSaving` and `HalFrontlight::setOn`/`setBrightness`
+entries still reach the same Rust HAL policy.
 
 ## Reader protected-book boundary
 

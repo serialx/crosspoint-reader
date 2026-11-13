@@ -105,6 +105,8 @@ The reader oracle documentation describes the scope of each kind of test.
 
 ## Loop sampling
 
+The same pass calls the [power, tilt, light and idle HAL policy](rust.md#app-loop-hal-calls) directly.
+
 The native `loop_settings` leaf supplies stored sleep minutes in the existing
 32-bit `XpAppSettings.sleep_minutes` slot. The Rust driver calls the same
 `xp_setting_sleep_ms` policy directly at the timeout check. The native millisecond

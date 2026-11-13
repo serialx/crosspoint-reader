@@ -1,7 +1,7 @@
 # HAL policy oracle
 
-`run.py` compiles the production facades against deterministic SDK/platform leaves
-and compares 60 traces with `golden.json.gz`. The goldens were captured from
+`run.py --archive <host Rust archive>` compiles the current production facades
+against deterministic SDK/platform leaves and compares 60 traces with `golden.json.gz`. The goldens were captured from
 CrossPoint `0b70268b` before the port. They include leaf-call order, failure and
 retry behavior, lock spans, diagnostics, secret/time bytes, and C++ allocation
 counts, requested bytes and frees. `abi.cpp` checks state sizes, null handling,
@@ -20,8 +20,12 @@ Run through CTest, or supply a host Rust archive:
 python3 test/hal_policy/run.py --archive rust/target/aarch64-apple-darwin/release/libxp_ffi.a
 ```
 
-To compare an exported original tree, use `--root /path/to/original`. `--capture`
-regenerates the goldens and must use the original C++ tree, not the port. The
+A current-tree run requires `--archive` or `XP_TEST_RUST_ARCHIVE`; plain invocation
+reports this requirement before compilation. Tilt uses the shipping context and
+Rust policy entry points. The no-archive branch is reserved for the internal
+frozen-source oracle and `--capture --root /path/to/original`, which regenerates
+the goldens from the original C++ tree. Its retired native tilt methods are never
+compiled against the current headers. The
 original export and deliberate one-line mutation results for every subsystem
 are kept in the P9-N-hal evidence directory, outside this repository.
 

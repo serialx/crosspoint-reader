@@ -106,13 +106,14 @@ int main(int argc, char** argv) {
     imuWake = variant != 4;
     HalTiltSensor sensor;
     sensor.begin();
-#ifdef XP_HAL_CONTEXT_TEST
+#ifndef XP_HAL_FROZEN_ORACLE
     auto update = [&](uint8_t mode, uint8_t orientation, bool reader) {
       const auto context = sensor.context();
       xp_hal_tilt_update(context.state, &context.services, mode, orientation, reader);
     };
     auto activity = [&] { return xp_hal_tilt_take(sensor.context().state, 2); };
 #else
+    // Only the frozen pre-port oracle has these native policy methods.
     auto update = [&](uint8_t mode, uint8_t orientation, bool reader) { sensor.update(mode, orientation, reader); };
     auto activity = [&] { return sensor.hadActivity(); };
 #endif

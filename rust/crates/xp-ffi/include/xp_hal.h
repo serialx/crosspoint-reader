@@ -145,6 +145,7 @@ typedef struct {
   bool page_pressed;
 } XpHalInput;
 void xp_hal_input_update(XpHalInput*, uint8_t buttons, bool usb);
+// Raw ADC samples; both are zero and unused when the physical power button is asserted.
 typedef struct {
   uint8_t power;
   int32_t first, second;

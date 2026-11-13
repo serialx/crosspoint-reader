@@ -66,7 +66,9 @@ def run(root, archive):
             command.append(str(source_file))
         command += [str(HERE / 'check.cpp')]
         if archive:
-            command += ['-DXP_HAL_CONTEXT_TEST', str(ROOT / 'test/cmake/xp_ffi_host.cpp'), archive]
+            command += [str(ROOT / 'test/cmake/xp_ffi_host.cpp'), archive]
+        else:
+            command += ['-DXP_HAL_FROZEN_ORACLE']
         subprocess.run(command + ['-o', exe], check=True)
         return {f'{name}/{v}': subprocess.check_output([exe, name, str(v)], text=True)
                 for name, count in CASES.items() for v in range(count)}
@@ -77,6 +79,10 @@ if __name__ == '__main__':
     parser.add_argument('--capture', action='store_true')
     parser.add_argument('--archive', default=os.environ.get('XP_TEST_RUST_ARCHIVE'))
     args = parser.parse_args()
+    if not args.archive and (not args.capture or args.root == ROOT):
+        parser.error('--archive (or XP_TEST_RUST_ARCHIVE) is required; no-archive capture needs --root pointing to the frozen original tree')
+    if args.capture and args.archive:
+        parser.error('--capture requires the frozen original C++ tree without a Rust archive')
     results = run(args.root, args.archive)
     golden = HERE / 'golden.json.gz'
     if args.capture:

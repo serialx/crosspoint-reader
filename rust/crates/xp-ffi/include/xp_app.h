@@ -373,6 +373,7 @@ typedef struct {
   void (*header_back_clear)(void);
   uint32_t (*now_ms)(void);
   void (*delay_ms)(uint32_t ms);
+  // The five XP_APP_TEST alternatives below are fixture-only HOST-RETIRE debt, absent from firmware.
 #ifdef XP_APP_TEST
   void (*idle_wait)(uint32_t max_ms, uint32_t slice_ms);
 #else

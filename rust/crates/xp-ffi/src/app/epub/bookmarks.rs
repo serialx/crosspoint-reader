@@ -31,12 +31,23 @@ impl EpubSession {
         count: i32,
     ) -> Option<ProgressRange> {
         let local = bookmark::range(position.page, count);
-        unsafe {
+        let range = (|| unsafe {
             Some(ProgressRange {
                 start: super::session_book::progress(book.as_ptr(), position.spine, local.start)?,
                 end: super::session_book::progress(book.as_ptr(), position.spine, local.end)?,
             })
+        })();
+        if range.is_none() && unsafe { (self.leaves.log_enabled)(1) } != 0 {
+            // Also used while painting the flag: no formatter or stack buffer here.
+            unsafe {
+                (self.leaves.log)(
+                    1,
+                    super::app_abi::Text::from_bytes(b"EBP"),
+                    super::app_abi::Text::from_bytes(b"Bookmark progress: unreadable size window"),
+                )
+            };
         }
+        range
     }
     pub(super) fn update_bookmark_flag(&self, access: &ResourceAccess<'_>) {
         if self.with_bookmarks(access, |rows| rows.is_empty()) {
@@ -170,7 +181,6 @@ impl EpubSession {
             page,
         };
         let Some(range) = self.bookmark_range(book, position, count) else {
-            self.loop_log_parts(1, &[b"Cannot save bookmarks: unreadable size window"]);
             return false;
         };
         let removed = {
@@ -262,6 +272,15 @@ pub(super) fn test_failed_commit(owner: &EpubSession, book: NonNull<c_void>) {
             visible_offset: Some(123),
         })
     });
+    let section = unsafe {
+        super::section_owner::ReaderSection::open(book, 64, owner.resources, owner.leaves)
+    }
+    .unwrap();
+    owner.set_section(&access, Some(section));
+    owner.model(|state| state.bookmarked = true);
+    owner.update_bookmark_flag(&access);
+    assert!(owner.model(|state| state.bookmarked && state.scene_gate.failed));
+    drop(owner.take_section(&access));
     assert!(!owner.commit_bookmark(
         book,
         1,

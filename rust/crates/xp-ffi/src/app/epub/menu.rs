@@ -56,9 +56,12 @@ impl EpubSession {
         }
         let position = self.chapter_position();
         let percent = self.book_percent_for(position);
-        if percent < 0 {
-            return;
-        }
+        let known_percent = percent >= 0;
+        let percent = if known_percent {
+            percent
+        } else {
+            self.export_percent(None)
+        };
         let footnotes = {
             let access = self.lock_resources();
             if self.model(|state| state.scene_gate.failed) {
@@ -86,7 +89,7 @@ impl EpubSession {
                 self.launch_menu_child(unsafe { (legacy.child_menu)(&args) }, ChildIntent::Menu);
                 return;
             }
-            self.launch_owned_menu(&args);
+            self.launch_owned_menu(&args, known_percent);
         });
     }
 

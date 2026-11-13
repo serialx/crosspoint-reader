@@ -52,7 +52,7 @@ static int unit2(const std::string& mode, const std::string& root, size_t offset
     check(info.progress_percent == (known ? 33 : 0), "native screenshot ABI keeps known percent or initial zero");
     check(exit == (known ? 33 : 0), "reader.exit ABI keeps known percent or initial zero");
     checkBoundaryConsumers(info, exit);
-    check(sizeErrorLogs == 1, "bookmark abort logs unreadable size window at error level");
+    check(sizeErrorLogs == 2, "bookmark flag and commit each log one unreadable size window error");
   } else if (mode == "unit2-size" || mode == "unit2-spine") {
     BookMetadataCache cache(root);
     assert(cache.load());

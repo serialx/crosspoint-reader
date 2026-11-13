@@ -217,6 +217,13 @@ pub unsafe extern "C" fn xp_epub_test_harden_boundary(
     }
     owner.model(|state| state.current.spine = 64);
     unsafe { fault() };
+    assert_eq!(
+        owner.book_percent_for(super::super::super::projection::ChapterPosition {
+            page: 1,
+            count: 2
+        }),
+        -1
+    );
     let info = owner.screenshot_info();
     let exit = unsafe { super::super::super::base::xp_epub_test_exit_percent(&*owner) };
     unsafe { out.write(info) };

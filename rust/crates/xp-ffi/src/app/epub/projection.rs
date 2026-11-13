@@ -49,7 +49,8 @@ fn progress_integer(value: f32) -> i32 {
 }
 
 impl EpubSession {
-    // Native/plugin percentages stay 0..100; retain the last known value for this book session.
+    // Native/plugin percentages stay 0..100; a transient read failure must not reset
+    // a percent already shown to a consumer. Retain it for this book session only.
     pub(super) fn export_percent(&self, value: Option<i32>) -> i32 {
         self.model(|state| {
             if let Some(value) = value {

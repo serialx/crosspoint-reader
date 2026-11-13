@@ -28,7 +28,11 @@ impl EpubSession {
         }));
     }
 
-    pub(in crate::app::epub) fn launch_owned_menu(&self, args: &abi::XpEpubMenuArgs) {
+    pub(in crate::app::epub) fn launch_owned_menu(
+        &self,
+        args: &abi::XpEpubMenuArgs,
+        known_percent: bool,
+    ) {
         let owner = (|| {
             let title = Text::copy(unsafe { args.title.bytes() }?).ok()?;
             let mut current = Fixed::<16>::new();
@@ -36,7 +40,9 @@ impl EpubSession {
             let mut percent = Fixed::<16>::new();
             write!(current, "{}", args.display_page).ok()?;
             write!(total, "{}", args.pages).ok()?;
-            write!(percent, "{}", args.percent).ok()?;
+            if known_percent {
+                write!(percent, "{}", args.percent).ok()?;
+            }
             let translated =
                 |id| unsafe { self.resources.translate(id).bytes().unwrap_or_default() };
             let mut progress = Text::default();
@@ -59,14 +65,18 @@ impl EpubSession {
                     } else {
                         b""
                     },
-                    if chapter {
+                    if chapter && known_percent {
                         translated(ids::STR_PAGES_SEPARATOR)
                     } else {
                         b""
                     },
-                    translated(ids::STR_BOOK_PREFIX),
+                    if known_percent {
+                        translated(ids::STR_BOOK_PREFIX)
+                    } else {
+                        b""
+                    },
                     unsafe { percent.wire().bytes() }?,
-                    b"%",
+                    if known_percent { b"%" } else { b"" },
                 ])
                 .ok()?;
             let mut input = core::mem::MaybeUninit::uninit();

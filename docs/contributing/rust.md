@@ -558,10 +558,12 @@ same Rust book under resource access.
 A failed size-window read returns an unknown result. Bookmark changes and mapped
 sync/percentage navigation stop before mutation; ordinary progress.bin saves keep
 the true spine/page/offset and need no mapped size. The chapter still builds and
-renders when the popup size estimate is unavailable. Missing footer/toolbar progress
-is not painted. Native screenshot/sleep information and reader.exit events retain
+renders when the popup size estimate is unavailable. The classic menu still opens,
+without its book-percentage label; non-percentage actions remain available. Missing
+footer/toolbar progress is not painted and rejects the input scene.
+Native screenshot/sleep information and reader.exit events retain
 the last known percent for this book session, or 0 before the first successful query;
-the reader keeps its internal unknown result. Silent bookmark failures follow the
+the reader keeps its internal unknown result. Silent bookmark save failures follow the
 existing save-error convention and log an error.
 CSS discovery must visit every declared ZIP directory entry; names of 256 bytes or
 more are skipped as before. A failed walk stops book loading before CSS parsing or

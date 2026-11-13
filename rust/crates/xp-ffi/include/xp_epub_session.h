@@ -161,6 +161,7 @@ typedef struct {
   uint8_t consumed;
 } XpEpubPopupInput;
 
+// Synchronous native facts for Rust composition; no font or paint callbacks.
 typedef struct {
   int32_t screen_width, screen_height, margin_left, margin_right, margin_bottom;
   int32_t status_height, progress_height, status_margin, horizontal_margin, corner, offset_y;
@@ -173,6 +174,7 @@ typedef struct {
 } XpEpubStatusFacts;
 
 #ifdef XP_APP_TEST
+// Fixture-only native painter input (HOST-RETIRE).
 typedef struct {
   XpAppText title;
   float book_progress;
@@ -387,8 +389,10 @@ typedef struct XpEpubLeaves {
   void (*paint_dither)(int32_t x, int32_t y, int32_t width, int32_t height);
   void (*paint_pixel)(int32_t x, int32_t y);
 #ifdef XP_APP_TEST
+  // Fixture-only native status painter (HOST-RETIRE).
   void (*paint_status)(const XpEpubStatus* status);
 #else
+  // Fills caller-owned facts; retained HAL continuations provide battery/RTC data.
   void (*status_facts)(XpEpubStatusFacts* out);
 #endif
   // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.

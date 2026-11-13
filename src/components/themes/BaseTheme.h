@@ -291,6 +291,7 @@ class BaseTheme {
   virtual void drawTextField(const GfxRenderer& renderer, Rect rect, const int textWidth, bool cursorMode = false,
                              int contentStartX = 0, int contentWidth = 0) const;
   virtual bool showsFileIcons() const { return false; }
+  // 0: proportional fill; 1: Lyra bars, solid while charging.
   virtual uint8_t batteryFillStyle() const { return 0; }
 
   // Shared constants and helpers for battery drawing (used by all themes)

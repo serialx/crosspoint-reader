@@ -88,10 +88,11 @@ pub fn progress_text(
         } else if abs.is_infinite() {
             let _ = out.write_str("inf");
         } else {
-            let mut rounded = abs as u128;
+            // Reader percentages and u16 battery values fit u32; saturate malformed inputs.
+            let mut rounded = abs as u32;
             let fraction = abs - rounded as f32;
             if fraction > 0.5 || (fraction == 0.5 && rounded & 1 != 0) {
-                rounded += 1;
+                rounded = rounded.saturating_add(1);
             }
             // Integer formatting preserves %.0f ties without the floating formatter's heap work.
             let _ = write!(out, "{rounded}");

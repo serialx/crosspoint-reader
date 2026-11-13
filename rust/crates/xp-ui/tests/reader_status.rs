@@ -38,9 +38,9 @@ fn progress_rounds_and_truncates_like_native() {
         f32::INFINITY,
         f32::NEG_INFINITY,
         f32::NAN,
-        f32::MAX,
-        -f32::MAX,
         16_777_216.0,
+        65_535.0,
+        (u32::MAX as f32).next_down(),
     ];
     for i in -201..=201 {
         let v = i as f32 / 2.0;
@@ -58,6 +58,19 @@ fn progress_rounds_and_truncates_like_native() {
                 }
             }
         }
+    }
+}
+#[test]
+fn malformed_finite_percent_saturates_without_wide_formatting() {
+    for percent in [u32::MAX as f32, f32::MAX] {
+        assert_eq!(
+            progress_text(0, 0, percent, false, true).as_z(),
+            b"4294967295%\0"
+        );
+        assert_eq!(
+            progress_text(0, 0, -percent, false, true).as_z(),
+            b"-4294967295%\0"
+        );
     }
 }
 #[test]

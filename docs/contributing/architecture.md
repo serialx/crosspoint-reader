@@ -111,7 +111,9 @@ Why caching matters:
 Rust-owned UI scenes paint directly in Rust after borrowing the active target
 and clear/text services. Native-origin UI screens enter the same renderer through
 `xp_ui_render`. SDK component/measurement services remain native; this scene path
-is separate from the EPUB page painter and its status-bar calls.
+is separate from the EPUB page path, whose status bar is composed in Rust from
+the one-way `status_facts` leaf. The native status painter remains for XTC and
+the settings preview.
 
 ## Reader internals call graph
 

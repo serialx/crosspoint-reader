@@ -60,6 +60,13 @@ screens within a group share navigation state. The original 66 groups and 168
 named states expand into 430 runs and 1,044 images. Seven fixture-entry groups
 add 28 runs and 88 images; they require the local build described below.
 
+The `reader-status-book`, `reader-status-chapter`, `reader-status-cjk` and
+`reader-status-hidden` groups add clock, progress, bookmark and RTL/CJK title
+cases. See [status comparisons](../text_golden/STATUS.md) for their matrix and
+required font files. Pass `--font-dir PATH` to `capture.py` for those assets;
+the manifest records their hashes in `font_files`, and `assemble.py` rejects
+captures with different font inputs.
+
 Both X3 and X4 run in normal and inverted mode. EPUB reader groups run with all
 four orientation settings: portrait, clockwise landscape, inverted portrait, and
 counterclockwise landscape. Other activities use portrait. This follows

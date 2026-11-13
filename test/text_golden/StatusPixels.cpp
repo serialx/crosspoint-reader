@@ -240,7 +240,7 @@ int main(int argc, char** argv) {
           halClock.available = state != 0;
           halClock.valid = state != 1;
           powerManager.percent = percent;
-          gpio.charging = percent % 2;
+          gpio.charging = state == 1;
           s = {true, true, 1, true, true, 2, true, 1, 4, 0};
           exercise(orientation, "A deliberately long title for edge cases", true, true);
         }

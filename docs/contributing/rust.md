@@ -1036,7 +1036,9 @@ because the shared helper reserves room for an ellipsis. Longer titles reserve
 their byte length plus four once and reuse that buffer for truncation candidates.
 The buffer dies after each paint, replacing native title/candidate copies without
 adding retained session state. Allocation failure omits only the title. Counters use a 32-byte
-stack buffer and integer formatting with half-even percent rounding. Battery
+stack buffer and u32 formatting with half-even percent rounding. Book percentages
+normally span 0–100; battery input is u16. Finite magnitudes beyond u32 saturate
+before formatting, without pulling in a u128 formatter. Battery
 percentage is sampled once and reused for its icon and text; the clock is formatted
 once per paint. Native height helpers still read settings separately, so the facts
 are not an atomic settings snapshot. The native status painter remains for

@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+#[path = "../../rust/crates/xp-ffi/src/hal/mod.rs"]
+mod hal;
 mod epub {
     pub mod abi {
         pub enum XpEpubLeaves {}

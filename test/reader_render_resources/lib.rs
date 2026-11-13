@@ -1,5 +1,8 @@
 #![allow(dead_code)]
 
+#[path = "../../rust/crates/xp-ffi/src/hal/mod.rs"]
+mod hal;
+
 // Use the production allocator adapter and its complete ABI. This unused opaque
 // leaf type only completes Platform's pointer; no reader service is substituted.
 mod epub {

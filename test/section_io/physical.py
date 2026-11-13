@@ -87,7 +87,8 @@ def main():
         baselines[mode] = trace
         schedule.append((mode, None))
         schedule.extend((mode, row) for row in extra)
-    assert len(schedule) == 5260
+    # Includes the checked book.bin load and per-query record boundaries.
+    assert len(schedule) == 5868
     (args.output / 'schedule.json').write_text(json.dumps(schedule, indent=2) + '\n')
     outcomes = Counter()
     start = time.monotonic()

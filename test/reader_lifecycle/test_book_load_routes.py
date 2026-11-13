@@ -5,7 +5,7 @@ from pathlib import Path
 import shutil
 import struct
 import tempfile
-from test_book_load import ROOT, QUERY_CAP, build, capture, load_trace, persisted_files, restore, values
+from test_book_load import ROOT, QUERY_CAP, build, capture, healthy_load_trace, persisted_files, restore, values
 
 
 def main():
@@ -24,7 +24,7 @@ def main():
             queries.append(query)
             files.append(persisted_files(case / 'cache'))
         record = dict(case=case.name, stage=stage, build_missing=build_missing, skip_css=skip, env=env or {},
-                      trace_equal=load_trace(logs[0]) == load_trace(logs[1]),
+                      trace_equal=healthy_load_trace(logs[0]) == healthy_load_trace(logs[1]),
                       values_equal=values(logs[0]) == values(logs[1]), files_equal=files[0] == files[1],
                       queries_equal=queries[0] == queries[1], queries=queries)
         results.append(record)

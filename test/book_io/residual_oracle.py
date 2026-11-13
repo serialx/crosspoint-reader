@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 import re
 import zipfile
-from run import run, synthetic
+from run import check_data_seek_rejection, run, synthetic
 
 
 def package(guide, *, nav=True, cover=False, css='', root='OPS/'):
@@ -88,6 +88,8 @@ def main():
         assert set(expected) == {row[0] for row in inputs}
         for name, data, fault, options in inputs:
             actual = run(binary, data, fault, options)
+            if check_data_seek_rejection(actual, expected[name], data, fault):
+                continue
             if actual != expected[name]:
                 Path('/tmp/book-residual-actual.json').write_text(json.dumps(actual, indent=2))
                 Path('/tmp/book-residual-expected.json').write_text(json.dumps(expected[name], indent=2))

@@ -3,6 +3,7 @@
 import argparse
 import gzip
 import io
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -29,8 +30,29 @@ with tempfile.TemporaryDirectory() as directory:
 assert b'result 1 84' in actual, 'valid memory extraction was not exercised'
 assert b'write 84 84' in actual, 'valid stream output was not exercised'
 golden = Path(__file__).with_name('io-golden.txt.gz')
+
+
+def checked_seek_contract(frozen):
+    # Preserve the native golden; only failed entry-data seeks now stop extraction.
+    with zipfile.ZipFile(io.BytesIO(data)) as source:
+        offsets = {entry.header_offset + 30 + len(entry.filename.encode()) + len(entry.extra)
+                   for entry in source.infolist()}
+    blocks = re.split(rb'(?=^(?:fixture|memory|stream) )', frozen, flags=re.M)
+    for index, block in enumerate(blocks):
+        if not block.startswith(b'memory '):
+            continue
+        lines = block.splitlines(keepends=True)
+        for at, line in enumerate(lines):
+            failed = re.fullmatch(rb'io seek (\d+) 0 0\n', line)
+            if failed and int(failed[1]) in offsets:
+                assert lines[at - 1].startswith(b'io read ') and lines[at - 1].endswith(b' 30 1\n')
+                blocks[index] = b''.join(lines[:at + 1]) + b'io close 0 0 1\nresult 0 777\n'
+                break
+    return b''.join(blocks)
+
+
 if args.capture:
     golden.write_bytes(gzip.compress(bytes(actual), mtime=0))
-elif bytes(actual) != gzip.decompress(golden.read_bytes()):
+elif bytes(actual) != checked_seek_contract(gzip.decompress(golden.read_bytes())):
     raise SystemExit('ZIP bytes, results or I/O order differ from 0b70268b')
 print(f'ZIP oracle: {actual.count(b"result ")} cases, {len(actual)} exact bytes')

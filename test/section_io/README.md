@@ -76,11 +76,14 @@ which the host CMake project enables. Firmware uses Rust's codec directly.
 
 ## Additional physical fault coverage
 
-`SectionExtraPhysicalFaults` individually faults the 5,256 additional physical
-operation occurrences in the accepted mapping: 416 Book-construction operations,
-4,808 metadata-cursor operations, and 32 ZIP-envelope operations. Its four normal
+`SectionExtraPhysicalFaults` individually faults the 5,864 additional physical
+operation occurrences: 624 Book-construction operations,
+5,208 metadata-cursor operations, and 32 ZIP-envelope operations. Its four normal
 runs must match the frozen physical trace hashes and full operation inventory in
-`physical_baselines.json.gz`, captured from the mapping accepted on 2026-11-04.
+`physical_baselines.json.gz`. READER-HARDEN refreshed that inventory for checked
+book-cache validation and row boundaries. Only metadata reads/seeks changed;
+the projected section trace and all section files still match the immutable
+logical golden. The original mapping was accepted on 2026-11-04.
 The metadata-cursor extras are relative to the old synthetic in-memory book; the
 separate real-parent production comparison found only the additional nine-read
 TOC count pass per build.

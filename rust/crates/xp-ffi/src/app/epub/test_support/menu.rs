@@ -295,3 +295,12 @@ pub unsafe extern "C" fn xp_epub_test_menu_confirm_direct(raw: *mut c_void, acti
 pub unsafe extern "C" fn xp_epub_test_text_settings_open(raw: *mut c_void, from_overlay: u8) {
     (&*raw.cast::<EpubSession>()).open_text_settings(from_overlay != 0);
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_menu_preparation_failed(raw: *mut c_void) {
+    let owner = unsafe { &*raw.cast::<EpubSession>() };
+    owner.model(|state| {
+        assert!(state.facts.section.is_none());
+        state.partial_start_failed = true;
+    });
+}

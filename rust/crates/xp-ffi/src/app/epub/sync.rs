@@ -161,25 +161,18 @@ impl EpubSession {
             .estimated_pages()
             .unwrap_or_else(|| self.model(|state| state.cached.pages));
         let position = self.current_position(&access);
-        let Some(toc) = (unsafe {
+        let toc = unsafe {
             (super::session_book::toc_for_spine)(
                 book.as_ptr(),
                 self.model(|state| state.current.spine),
             )
-        }) else {
-            self.request_update();
-            return;
         };
-        let Some(chapter) = self.sync_chapter(book, toc) else {
-            self.request_update();
-            return;
-        };
-        let Some(path) = Text::receive(|sink, context| unsafe {
-            (super::session_book::path)(book.as_ptr(), sink, context)
-        }) else {
-            self.request_update();
-            return;
-        };
+        let chapter = toc.and_then(|toc| self.sync_chapter(book, toc));
+        let path = chapter.as_ref().and_then(|_| {
+            Text::receive(|sink, context| unsafe {
+                (super::session_book::path)(book.as_ptr(), sink, context)
+            })
+        });
         let spine = self.model(|state| state.current.spine);
         if !self.save_progress(&access, spine, page, count) {
             self.loop_log_at(
@@ -191,6 +184,11 @@ impl EpubSession {
             self.request_update();
             return;
         }
+        // Save the true local position even when optional outbound metadata is unreadable.
+        let (Some(chapter), Some(path)) = (chapter, path) else {
+            self.request_update();
+            return;
+        };
         self.sync_heap_log(&access, true);
         self.model(|state| {
             if state.facts.section.is_some() {

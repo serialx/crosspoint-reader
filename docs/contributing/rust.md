@@ -568,10 +568,18 @@ existing save-error convention and log an error.
 
 Reader spine/TOC queries return failure on a short read, failed seek or allocation
 failure instead of sending an empty row. Section preparation propagates this
-failure before saving a section; its existing cleanup allows a later retry.
+failure before saving a section. The reader shows the existing index-failed popup,
+keeps the book open, and restores the last successfully saved position in memory.
+Previous requests that cached page; a readable partial cache is not extended during
+recovery. The menu and leaving the book remain available. There is no automatic
+retry of the failed preparation; no incomplete section is saved.
 TOC page selection rejects a partial result if any required metadata row fails.
-Title/subtitle displays omit unavailable text, and text selection or sync cancels
-before exporting incomplete metadata. Sync flushes ordinary local progress first.
+Toolbar and status titles, Contents labels, and bookmark subtitles omit unavailable
+text while publishing their controls. Lists cache that omission until a user action
+rebuilds the affected window; a row failure is not command-buffer exhaustion.
+Text selection or sync cancels before exporting incomplete metadata. Sync attempts
+the true local progress save before cancelling for missing metadata; healthy
+metadata-read and save ordering is unchanged.
 A failed optional first-open text-reference lookup keeps the restored position
 and continues loading; it does not invent a destination or close the book.
 

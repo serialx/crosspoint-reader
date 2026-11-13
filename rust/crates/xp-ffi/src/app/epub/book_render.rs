@@ -139,7 +139,13 @@ impl EpubSession {
         };
         self.set_section(access, section);
         self.publish_section(access);
-        self.model(|state| state.partial_start_failed = false);
+        let recovering = self.model(|state| {
+            let recovering = state.partial_start_failed
+                && state.current.spine == state.last_saved.0
+                && state.next_page == state.last_saved.1;
+            state.partial_start_failed = recovering;
+            recovering
+        });
         let Some(section) = section else {
             self.book_error(access, false);
             return false;
@@ -219,8 +225,9 @@ impl EpubSession {
                     && if anchor {
                         self.book_anchor(access, true).is_some()
                     } else {
-                        target.wrapping_add(PARTIAL_REBUILD_START_MARGIN)
-                            < self.book_page_count(access)
+                        (recovering && target < self.book_page_count(access))
+                            || target.wrapping_add(PARTIAL_REBUILD_START_MARGIN)
+                                < self.book_page_count(access)
                     };
                 if covered {
                     if unsafe { (self.leaves.log_enabled)(0) } != 0 {
@@ -447,6 +454,24 @@ impl EpubSession {
     }
 
     fn book_error(&self, access: &ResourceAccess<'_>, radio: bool) {
+        if !radio && self.section(access).is_none() {
+            self.model(|state| state.partial_start_failed = true);
+            let (spine, page, count) = self.model(|state| state.last_saved);
+            if spine >= 0 && page >= 0 && page < count {
+                // Only an explicit subsequent input retries this saved, readable position.
+                self.clear_anchor(access);
+                self.model(|state| {
+                    state.deferred = Default::default();
+                    state.current.spine = spine;
+                    state.current.page = page;
+                    state.next_page = page;
+                    state.cached.spine = spine;
+                    state.cached.pages = count;
+                    state.cached.offset = None;
+                    state.partial_start_failed = true;
+                });
+            }
+        }
         self.book_clear(access);
         let empty = app_abi::Text::from_bytes(&[]);
         let hints = [

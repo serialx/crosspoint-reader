@@ -18,6 +18,6 @@ with tempfile.TemporaryDirectory(prefix='reader-harden-menu-') as directory:
                     '-fno-sanitize-recover=all', '-DXP_STRIP_RENDER=0', '-I', str(HERE), '-I', str(i18n),
                     str(cpp), *flags, '-o', str(binary)], check=True)
     trace = subprocess.check_output([str(binary)])
-    assert trace.count(b'start [menu]') == 3
+    assert trace.count(b'start [menu]') == 6
     assert b'home ' in trace
     print(trace.splitlines()[-1].decode())

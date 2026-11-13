@@ -22,7 +22,9 @@ impl EpubSession {
             return;
         }
         self.model(|state| state.manual_turn = 0);
-        if self.uses_toolbar_menu() {
+        if self.uses_toolbar_menu()
+            && !(self.model(|state| state.partial_start_failed && state.facts.section.is_none()))
+        {
             let cursor = self.mapped_query(Query::HasTouch) == 0;
             let toolbar = if let Some(toolbar) = self.loop_toolbar() {
                 toolbar

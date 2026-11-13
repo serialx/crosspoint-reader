@@ -17,8 +17,14 @@ impl ChapterBook for GuardedBook<'_, '_> {
         let Some(book) = self.0.owner.book(self.0) else {
             return false;
         };
+        struct Label<'a> {
+            text: &'a mut Text,
+            called: bool,
+        }
         unsafe extern "C" fn fill(context: *mut c_void, item: *const abi::XpEpubToc) -> u8 {
-            let text = unsafe { &mut *context.cast::<Text>() };
+            let label = unsafe { &mut *context.cast::<Label<'_>>() };
+            label.called = true;
+            let text = &mut label.text;
             let item = unsafe { &*item };
             let Some(title) = (unsafe { item.title.bytes() }) else {
                 return 0;
@@ -28,6 +34,23 @@ impl ChapterBook for GuardedBook<'_, '_> {
                 .saturating_mul(2);
             u8::from(text.assign_indented(spaces, title).is_ok())
         }
-        unsafe { session_book::toc(book.as_ptr(), index, fill, (text as *mut Text).cast()) != 0 }
+        let mut label = Label {
+            text,
+            called: false,
+        };
+        let ok = unsafe {
+            session_book::toc(
+                book.as_ptr(),
+                index,
+                fill,
+                (&mut label as *mut Label<'_>).cast(),
+            ) != 0
+        };
+        if !label.called {
+            // An unavailable label must not reject the list or trigger an idle retry.
+            label.text.clear();
+            return true;
+        }
+        ok
     }
 }

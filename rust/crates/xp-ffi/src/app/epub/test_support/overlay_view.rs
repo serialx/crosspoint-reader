@@ -110,3 +110,9 @@ pub unsafe extern "C" fn xp_epub_test_overlay_view_render(raw: *mut c_void) {
     let access = owner.borrowed_resources();
     owner.render_overlay(&access);
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_overlay_scene_ready(raw: *const c_void) -> u8 {
+    let owner = unsafe { &*raw.cast::<EpubSession>() };
+    u8::from(owner.model(|state| !state.scene_gate.failed))
+}

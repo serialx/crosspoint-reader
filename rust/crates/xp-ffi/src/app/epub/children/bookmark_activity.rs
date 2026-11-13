@@ -18,7 +18,8 @@ impl Toc for GuardedToc<'_, '_> {
         };
         let Some(index) = (unsafe { session_book::toc_for_spine(book.as_ptr(), i32::from(spine)) })
         else {
-            return false;
+            output.clear();
+            return true;
         };
         if index < 0 {
             let title = unsafe { parent.resources.translate(STR_UNNAMED).bytes() };
@@ -27,23 +28,35 @@ impl Toc for GuardedToc<'_, '_> {
         struct Fill<'a> {
             prefix: &'a [u8],
             output: &'a mut Text,
+            called: bool,
         }
         unsafe extern "C" fn fill(context: *mut c_void, item: *const XpEpubToc) -> u8 {
             let target = unsafe { &mut *context.cast::<Fill<'_>>() };
+            target.called = true;
             let Some(title) = (unsafe { (*item).title.bytes() }) else {
                 return 0;
             };
             u8::from(target.output.assign_parts(&[target.prefix, title]).is_ok())
         }
-        let mut target = Fill { prefix, output };
-        unsafe {
+        let mut target = Fill {
+            prefix,
+            output,
+            called: false,
+        };
+        let ok = unsafe {
             session_book::toc(
                 book.as_ptr(),
                 index,
                 fill,
                 (&mut target as *mut Fill<'_>).cast(),
             ) != 0
+        };
+        if !target.called {
+            // Row I/O is not command-capacity failure; cache the omitted subtitle.
+            target.output.clear();
+            return true;
         }
+        ok
     }
 }
 

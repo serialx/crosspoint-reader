@@ -364,9 +364,18 @@ impl EpubSession {
                     }
                     self.paint_status_title(access, &status, title.wire());
                 } else if geometry.title_mode == 1 {
-                    self.with_chapter_title(access, false, |title| {
-                        self.paint_status_title(access, &status, title)
-                    });
+                    if self
+                        .with_chapter_title(access, false, |title| {
+                            self.paint_status_title(access, &status, title)
+                        })
+                        .is_none()
+                    {
+                        self.paint_status_title(
+                            access,
+                            &status,
+                            app_abi::Text::from_terminated(b"\0"),
+                        );
+                    }
                 } else if geometry.title_mode == 0 {
                     if let Some(book) = book {
                         with_book_text(book, super::session_book::title, |title| {

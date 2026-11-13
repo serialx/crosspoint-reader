@@ -70,19 +70,26 @@ impl EpubSession {
         });
     }
 
-    fn overlay_chapter_title<R>(
+    fn overlay_chapter_title(
         &self,
         access: &ResourceAccess<'_>,
-        consume: impl FnOnce(app_abi::Text) -> R,
-    ) -> Option<R> {
+        mut consume: impl FnMut(app_abi::Text),
+    ) {
         #[cfg(feature = "app-test")]
-        if let Some(hook) = self.overlay_view_hooks {
-            return super::book::with_text(
+        let result = if let Some(hook) = self.overlay_view_hooks {
+            super::book::with_text(
                 |sink, context| unsafe { (hook.chapter)(hook.context, sink, context) },
-                consume,
-            );
+                &mut consume,
+            )
+        } else {
+            self.current_chapter_title(access, &mut consume)
+        };
+        #[cfg(not(feature = "app-test"))]
+        let result = self.current_chapter_title(access, &mut consume);
+        if result.is_none() {
+            // Chapter text is cosmetic; keep the toolbar controls and hit geometry.
+            consume(app_abi::Text::from_terminated(b"\0"));
         }
-        self.current_chapter_title(access, consume)
     }
 
     #[cfg(feature = "app-test")]
@@ -278,7 +285,7 @@ impl EpubSession {
         };
         if matches!(mode, Overlay::Toolbar) {
             let mut failed = false;
-            let painted = self.overlay_chapter_title(access, |chapter| {
+            self.overlay_chapter_title(access, |chapter| {
                 let count = unsafe { ReaderSection::estimated_pages(section) };
                 let (page, spine) =
                     self.model(|state| (state.current.page.wrapping_add(1), state.current.spine));
@@ -312,7 +319,7 @@ impl EpubSession {
                 model.progress_permille = (progress * 1000.0 + 0.5) as i32;
                 self.paint_overlay_model(access, mode, &model);
             });
-            if painted.is_none() || failed {
+            if failed {
                 self.reject_reader_scene();
             }
             return;

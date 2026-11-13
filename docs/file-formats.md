@@ -19,7 +19,10 @@ truncated tail. Other TOC lengths are checked on query. Each non-final spine/TOC
 by the next LUT target and must end exactly there; the final row is bounded by
 EOF. Rejection uses the existing
 one-rebuild path; rejection of the rebuilt file fails the open. Wrapped cumulative
-sizes and trailing bytes are accepted. The layout and write order are unchanged.
+sizes and trailing bytes are accepted. A query-time read, seek, allocation, or
+row-boundary failure returns no row. Required chapter metadata failure prevents
+saving that section; cosmetic labels may be omitted by the view. The layout and
+write order are unchanged.
 
 The ImHex LUT-offset warning indicates a firmware rejection. Its trailing-data
 warning does not. `MAX_STRING_LENGTH` is a pattern warning threshold only: the

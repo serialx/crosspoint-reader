@@ -59,6 +59,22 @@ def mutate_function(source, name, before, after):
     return source[:start] + replace_once(body, before, after) + source[end:]
 
 
+def recovery_expectation(trace):
+    # Only failed create/start/build cases now inhibit eager recovery builds.
+    # Keep every healthy event and every other error-state field byte-identical.
+    output = []; case = -1; changed = 0
+    for line in trace.splitlines(keepends=True):
+        if line.startswith(b'case '):
+            case = int(line.split()[1])
+        if case in (8, 9, 10) and line.startswith(b'state '):
+            fields = line.split(b' ')
+            assert fields[2:5] == [b'-999', b'-1', b'0']
+            fields[4] = b'1'; line = b' '.join(fields); changed += 1
+        output.append(line)
+    assert changed == 24
+    return b''.join(output)
+
+
 def candidate():
     assert sys.argv[1:] in ([], ['--release-log']), 'expected only --release-log'
     release = '--release-log' in sys.argv
@@ -70,6 +86,7 @@ def candidate():
     assert digest(compressed) == gzip_sha and digest(expected) == trace_sha
     counts = collections.Counter(line.split(b' ', 1)[0].decode() for line in expected.splitlines())
     assert len(expected.splitlines()) == lines and counts['case'] == counts['state'] == counts['flags'] == 224
+    expected = recovery_expectation(expected)
     source_path = ROOT / 'rust' / PRODUCTION
     production = source_path.read_bytes()
     native_path = ROOT / HISTORICAL_START
@@ -114,7 +131,7 @@ def candidate():
             print(json.dumps({
                 'test_name': name, 'cases': 224, 'trace_lines': lines, 'trace_bytes': len(expected),
                 'original_gzip_sha256': gzip_sha, 'original_trace_sha256': trace_sha,
-                'actual_trace_sha256': digest(baseline.stdout), 'event_counts': counts,
+                'actual_trace_sha256': digest(baseline.stdout), 'approved_failure_flag_changes': 24, 'event_counts': counts,
                 'candidate_source_sha256': digest(production), 'historical_shim_sha256': digest(native), 'fixture_sha256': hashes,
                 'policy_replacements': ['settle overlay', 'build room', 'apply deferred', 'status bar',
                     'bookmark flag', 'render contents', 'save progress', 'toolbar menu', 'render overlay', 'push refresh'],

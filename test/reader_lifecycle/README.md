@@ -280,3 +280,13 @@ failed row, recovery, and failed candidate/hash-verification TOC selection.
 `reader_text_reference_failure` keeps restored and initial positions open after
 an unavailable optional text-reference query; the ordinary lifetime oracle still
 compares all healthy traces with its immutable native reference.
+
+Reader-hardening follow-up tests compose the real consumer paths with strict
+physical fakes: `reader_harden_sync_metadata_failure` preserves the true local save;
+`reader_harden_cosmetic_failure` paints toolbar/status without failed titles;
+`reader_chapter_resource_guard` omits failed list labels without command growth or
+idle metadata reads; and `reader_harden_chapter_recovery` plus
+`reader_harden_recovery_input` cover saved-page recovery and explicit input.
+`reader_harden_menu_failure` also covers menu actions without a prepared section.
+`reader_harden_forced_break` uses the exact CP0 synthetic HTML: its healthy section
+has three pages and 2,132 bytes; failed row reads or allocation publish no section.

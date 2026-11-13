@@ -42,6 +42,7 @@ struct Visit {
     parent: Box<EpubSession>,
     child: Option<Box<Chapters>>,
     toolbar: Option<Box<Toolbar>>,
+    bookmarks: Option<Box<super::bookmark_owned::Bookmarks>>,
     physical: Physical,
 }
 unsafe extern "C" fn unused_layout(_: *mut xp_ui::utility::Layout) -> u8 {
@@ -96,6 +97,7 @@ pub unsafe extern "C" fn xp_epub_test_child_book_open(
     Box::into_raw(Box::new(Visit {
         parent,
         child: Some(child),
+        bookmarks: None,
         toolbar: Some(Toolbar::try_new(runtime).unwrap()),
         physical,
     }))
@@ -117,6 +119,7 @@ pub unsafe extern "C" fn xp_epub_test_child_book_render(raw: *mut c_void, select
 pub unsafe extern "C" fn xp_epub_test_child_book_close(raw: *mut c_void) {
     let mut visit = unsafe { Box::from_raw(raw.cast::<Visit>()) };
     let access = visit.parent.lock_resources();
+    drop(visit.bookmarks.take());
     drop(visit.child.take());
     drop(visit.toolbar.take());
     let book = visit.parent.take_book(&access).unwrap();
@@ -350,4 +353,86 @@ pub unsafe extern "C" fn xp_epub_test_clipping_render(
     .unwrap();
     unsafe { output.write(owner.model.with(|model| model.state)) };
     result
+}
+
+// Exercise list adapters with the real parent book; no replacement row provider.
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_child_bookmarks_open(raw: *mut c_void) {
+    let visit = unsafe { &mut *raw.cast::<Visit>() };
+    let access = visit.parent.lock_resources();
+    visit.parent.mutate_bookmarks(&access, |rows| {
+        for index in 0..3 {
+            rows.push(epub::bookmark_storage::Row {
+                xpath: Text::copy(b"/body/p[1]").unwrap(),
+                summary: Text::copy(b"saved text").unwrap(),
+                name: Default::default(),
+                percentage: 10.0,
+                spine: 0,
+                page: index,
+                page_count: 10,
+                visible_offset: None,
+            });
+        }
+    });
+    let child = super::bookmark_owned::Bookmarks::try_new(visit.parent.runtime).unwrap();
+    assert!(unsafe { child.enter(visit.parent.resources) });
+    visit.bookmarks = Some(child);
+}
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_child_bookmarks_render(
+    raw: *mut c_void,
+    invalidate: u8,
+) -> u8 {
+    let visit = unsafe { &*raw.cast::<Visit>() };
+    let child = visit.bookmarks.as_ref().unwrap();
+    let access = visit.parent.lock_resources();
+    if invalidate != 0 {
+        unsafe { child.invalidate() };
+    }
+    u8::from(unsafe { child.render_bookmarks(&visit.parent, &access, &visit.physical) })
+}
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_child_list_input(
+    raw: *mut c_void,
+    bookmarks: u8,
+    input: &xp_ui::model::Input,
+) -> u8 {
+    let visit = unsafe { &*raw.cast::<Visit>() };
+    let target = if bookmarks != 0 {
+        super::owned::ChildTarget::Bookmarks(core::ptr::NonNull::from(
+            visit.bookmarks.as_ref().unwrap().as_ref(),
+        ))
+    } else {
+        super::owned::ChildTarget::Chapters(core::ptr::NonNull::from(
+            visit.child.as_ref().unwrap().as_ref(),
+        ))
+    };
+    u8::from(unsafe { target.input(&visit.parent, *input, false) })
+}
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_child_list_selected(raw: *mut c_void, bookmarks: u8) -> i32 {
+    let visit = unsafe { &*raw.cast::<Visit>() };
+    if bookmarks != 0 {
+        visit
+            .bookmarks
+            .as_ref()
+            .unwrap()
+            .model
+            .with(|m| m.state.list.selected)
+    } else {
+        visit
+            .child
+            .as_ref()
+            .unwrap()
+            .model
+            .with(|m| m.state.list.selected)
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_child_bookmarks_small_commands(raw: *mut c_void) {
+    let visit = unsafe { &*raw.cast::<Visit>() };
+    let _access = visit.parent.lock_resources();
+    let child = visit.bookmarks.as_ref().unwrap();
+    unsafe { (*child.frame.get()).list.commands = super::commands::Commands::new(1) };
 }

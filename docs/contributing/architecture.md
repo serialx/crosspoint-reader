@@ -152,7 +152,9 @@ Notes:
 
 - CSS files are collected from the OPF manifest and, when needed, discovered by
   streaming ZIP paths under the OPF content base directory; the firmware avoids
-  preloading the full ZIP central directory for large books.
+  preloading the full ZIP central directory for large books. The reader rejects
+  incomplete discovery before parsing or saving CSS; the retained native Epub path
+  for non-reader consumers keeps its inherited failure behavior.
 - "section cache exists" depends on cache-busting parameters such as font,
   viewport size, paragraph alignment, hyphenation, embedded CSS, image rendering,
   and Focus Reading settings

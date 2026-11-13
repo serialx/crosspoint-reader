@@ -10,6 +10,7 @@ use xp_core::{
     epub::cache::sort_legacy_slice,
 };
 
+// Ok(false) is incomplete I/O; Err(()) is allocation failure. Neither permits parse/save.
 pub(in super::super) fn discover(
     items: &Items<'_>,
     base: &[u8],

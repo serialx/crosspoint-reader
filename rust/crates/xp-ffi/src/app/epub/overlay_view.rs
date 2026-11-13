@@ -293,6 +293,7 @@ impl EpubSession {
                     failed = true;
                     return;
                 };
+                self.export_percent(Some((progress * 100.0 + 0.5) as i32));
                 let mut info = [0; 40];
                 let mut used = number(&mut info, page);
                 info[used] = b'/';

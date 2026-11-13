@@ -280,7 +280,7 @@ impl<'a> Context<'a> {
             }
             x if x == O::ParseCss as u32 => {
                 if self.error.is_some() {
-                    return Ok(2);
+                    return Ok(2); // Existing CSS PARSE_ERROR; discovery never produced a complete list.
                 }
                 let items = Items {
                     path: self.path,

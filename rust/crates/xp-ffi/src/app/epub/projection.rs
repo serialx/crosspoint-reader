@@ -49,6 +49,16 @@ fn progress_integer(value: f32) -> i32 {
 }
 
 impl EpubSession {
+    // Native/plugin percentages stay 0..100; retain the last known value for this book session.
+    pub(super) fn export_percent(&self, value: Option<i32>) -> i32 {
+        self.model(|state| {
+            if let Some(value) = value {
+                state.last_percent = value.clamp(0, 100) as u8;
+            }
+            i32::from(state.last_percent)
+        })
+    }
+
     fn section_position(&self) -> Option<(Position, i32)> {
         let position = self.model(|state| {
             state
@@ -104,7 +114,9 @@ impl EpubSession {
         else {
             return -1;
         };
-        progress_integer(progress.clamp(0.0, 1.0) * 100.0 + 0.5)
+        let percent = progress_integer(progress.clamp(0.0, 1.0) * 100.0 + 0.5);
+        self.export_percent(Some(percent));
+        percent
     }
 
     pub(super) fn current_toc_index(&self, access: &ResourceAccess<'_>) -> i32 {
@@ -169,9 +181,9 @@ impl EpubSession {
                             position.page as f32 / count as f32,
                         )
                     };
-                    result.progress_percent = progress.map_or(-1, |value| {
-                        progress_integer(value * 100.0 + 0.5).clamp(0, 100)
-                    });
+                    result.progress_percent = self.export_percent(
+                        progress.map(|value| progress_integer(value * 100.0 + 0.5)),
+                    );
                 }
             }
         }
@@ -192,6 +204,7 @@ impl EpubSession {
 
     pub(super) fn progress_basis_points(&self) -> i32 {
         if self.is_at_end() {
+            self.export_percent(Some(100));
             return 10000;
         }
         if let Some(book) = self.loop_book() {
@@ -209,6 +222,7 @@ impl EpubSession {
                         )
                     };
                     return progress.map_or(-1, |value| {
+                        self.export_percent(Some(progress_integer(value * 100.0 + 0.5)));
                         progress_integer(value * 10000.0 + 0.5).clamp(0, 10000)
                     });
                 }

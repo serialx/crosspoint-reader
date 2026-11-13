@@ -280,3 +280,14 @@ pub unsafe extern "C" fn xp_epub_test_book_destroy(raw: *mut c_void) {
     owner.guarded.get_mut().overlay_popup = None;
     drop(owner);
 }
+
+static SIZE_FAULT: core::sync::atomic::AtomicU8 = core::sync::atomic::AtomicU8::new(0);
+#[no_mangle]
+pub extern "C" fn xp_epub_test_popup_size_fault(mask: u8) {
+    SIZE_FAULT.store(mask, core::sync::atomic::Ordering::Relaxed);
+}
+pub(in crate::app::epub) fn legacy_size(value: u32) -> Option<u32> {
+    let mask = SIZE_FAULT.load(core::sync::atomic::Ordering::Relaxed);
+    SIZE_FAULT.store(mask >> 1, core::sync::atomic::Ordering::Relaxed);
+    (mask & 1 == 0).then_some(value)
+}

@@ -358,7 +358,7 @@ query!(size, book_size, () -> u32);
 query!(spine_count, book_spine_count, () -> i32);
 query!(toc_count, book_toc_count, () -> i32);
 query!(toc_for_spine, book_toc_for_spine, (index: i32) -> i32);
-query!(cumulative_size, book_cumulative_size, (index: i32) -> Option<u32>, Some);
+query!(cumulative_size, book_cumulative_size, (index: i32) -> Option<u32>, super::test_support::legacy_size);
 query!(spine_for_size, book_spine_for_size, (bytes: u32) -> i32);
 query!(text_reference, book_text_reference, () -> i32);
 query!(progress, book_progress, (spine: i32, fraction: f32) -> Option<f32>, Some);

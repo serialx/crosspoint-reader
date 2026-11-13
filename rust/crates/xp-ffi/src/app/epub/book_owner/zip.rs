@@ -203,6 +203,7 @@ impl<'a> Archive<'a> {
         let ok = if let Some(details) = self.details() {
             let mut walker = Walker::new(details.central_offset, details.central_offset);
             let mut bytes = [0; 256];
+            // A short walk is failure; a deliberate visitor stop and the final end probe are valid.
             let mut remaining = details.entries;
             let mut complete = true;
             let mut stopped = false;

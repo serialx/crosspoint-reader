@@ -164,6 +164,7 @@ pub(super) struct State {
     pub(super) page_stored: bool,
     pub(super) refresh_pending: bool,
     pub(super) auto_option: u8,
+    pub(super) last_percent: u8,
     pub(super) link_note_drawn: Option<u8>,
     pub(super) viewport: (u16, u16),
     pub(super) link_margins: (i32, i32),

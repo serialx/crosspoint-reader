@@ -522,6 +522,7 @@ typedef struct XpEpubLeaves {
 #endif
   uint8_t (*document_id)(XpAppText path, XpAppTextSink sink, void* context);
   void (*emit_open)(XpAppText path);
+  // percent is 0-100; on read failure use last known percent for this book session, initially 0.
   void (*emit_exit)(XpAppText path, int32_t percent);
   void (*emit_session)(XpAppText path, XpAppText document, const XpEpubSessionEvent* event);
   void (*log)(uint8_t severity, XpAppText origin, XpAppText message);

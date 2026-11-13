@@ -555,11 +555,17 @@ reader directly. It is detached before the book is dropped; sync can detach
 and rebind it to the same live owner. Load-time CSS must be released before
 this binding. Chapters, Bookmarks, Toolbar and progress/XPath mapping read the
 same Rust book under resource access.
-A failed size-window read returns an unknown result. Progress saving, bookmark
-changes and percentage/XPath navigation stop instead of using a window boundary
-as a size; rendering rejects a scene that requires the missing progress value.
-CSS discovery must read every declared ZIP directory entry. A failed walk
-stops book loading before CSS parsing or cache saving.
+A failed size-window read returns an unknown result. Bookmark changes and mapped
+sync/percentage navigation stop before mutation; ordinary progress.bin saves keep
+the true spine/page/offset and need no mapped size. The chapter still builds and
+renders when the popup size estimate is unavailable. Missing footer/toolbar progress
+is not painted. Native screenshot/sleep information and reader.exit events retain
+the last known percent for this book session, or 0 before the first successful query;
+the reader keeps its internal unknown result. Silent bookmark failures follow the
+existing save-error convention and log an error.
+CSS discovery must visit every declared ZIP directory entry; names of 256 bytes or
+more are skipped as before. A failed walk stops book loading before CSS parsing or
+cache saving.
 
 The shipping reader has no native book facade or book-open/load/getter table.
 Registration of the six queries in `XpEpubBookBorrow` and the native facade

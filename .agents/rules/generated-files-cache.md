@@ -88,7 +88,9 @@ row is bounded by EOF. All query read/seek results are checked. A rejected cache
 that one rebuild fails the open. Cumulative sizes may wrap as the writer permits.
 Later size-window read failures remain unknown to progress and navigation callers.
 Incomplete ZIP directory discovery fails book loading before CSS parsing or saving
-`css_rules.cache`; it is not a complete list of stylesheets.
+`css_rules.cache`; it is not a complete list of stylesheets. These checked size and
+CSS-discovery rules apply to the reader; the retained non-reader BookMetadataCache
+(`book_cache.rs`) and native Epub CSS path (`Epub.cpp`) keep the inherited behavior.
 Trailing bytes remain allowed. The format, version and write order are unchanged.
 
 Back up progress/state first. Prefer clearing only the affected book's

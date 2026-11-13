@@ -1,6 +1,7 @@
 mod base;
 mod book_owner;
 mod book_render;
+pub(super) use book_render::legacy_size;
 pub(super) mod legacy_book;
 pub(super) mod legacy_children;
 pub(super) use book_render::BookRenderHooks;

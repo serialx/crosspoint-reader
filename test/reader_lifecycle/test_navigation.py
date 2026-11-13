@@ -3,6 +3,7 @@ from pathlib import Path
 import gzip
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -33,6 +34,27 @@ def mutate(source, replacements):
     return source
 
 
+def checked_size_contract(golden):
+    # The immutable fixture explicitly injects -1 lookup results in 70 cases.
+    # Keep the prefix through that failure, then preserve the initial position;
+    # all healthy navigation and other trace bytes remain frozen.
+    unchanged = (b'state 2 3 3 10 123 0 0 0 0 [old] 0 0:1 1:2 2:3 cached=1\n'
+                 b'drop-section 0 0 lock=0\n')
+    count = 0
+    def replace(match):
+        nonlocal count
+        body = match[0]
+        failed = re.search(rb'^find-spine [^\n]+ -1 lock=0\n', body, re.M)
+        if failed is None:
+            return body
+        count += 1
+        return body[:failed.end()] + unchanged
+    result = re.sub(rb'^percent [0-9]+\n.*?(?=^percent |^deferred |\Z)', replace, golden,
+                    flags=re.M | re.S)
+    assert count == 70, count
+    return result
+
+
 with tempfile.TemporaryDirectory(prefix='reader-navigation-') as directory:
     work = Path(directory)
     baseline_flags = rust_link_flags()
@@ -47,7 +69,7 @@ with tempfile.TemporaryDirectory(prefix='reader-navigation-') as directory:
         return subprocess.check_output([str(work / name)])
 
     actual = run(fixture, 'navigation')
-    assert actual == gzip.decompress((HERE / 'navigation.golden.gz').read_bytes())
+    assert actual == checked_size_contract(gzip.decompress((HERE / 'navigation.golden.gz').read_bytes()))
     wrong_book = mutate(fixture, [
         ('return static_cast<Epub*>(book)->getBookSize();', 'return 0;'),
     ])

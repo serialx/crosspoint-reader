@@ -60,13 +60,25 @@ writer = writer.replace('return index + 10;', 'return index == 0 ? 0xffffffffu :
 source += ('\n#include <array>\n#include <deque>\n#include <algorithm>\n#include <fstream>\n'
            '#include <xp_book.h>\nnamespace WriterFixture {\n' + writer + '\n}\n')
 source += (HERE / 'writer_boundary.cpp').read_text()
+# Compile the actual native consumers of the screenshot and exit ABI values.
+boundaries = (HERE / 'boundary_consumers.cpp').read_text()
+for marker, path, signature in [
+    ('// ACTUAL_SCREENSHOT_FILENAME', 'src/util/ScreenshotUtil.cpp', 'void ScreenshotUtil::buildFilename'),
+    ('// ACTUAL_SCREENSHOT_INFO', 'src/activities/ActivityManager.cpp', 'ScreenshotInfo ActivityManager::getScreenshotInfo'),
+    ('// ACTUAL_EXIT', 'src/activities/reader/RustEpubResources.cpp', 'void emitExit')]:
+    boundaries = replace_once(boundaries, marker, definition((ROOT / path).read_text(), signature))
+main = (ROOT / 'src/main.cpp').read_text()
+start = main.index('  pluginevents::Var vars[2];', main.index('static void deliverSleepPluginEvents'))
+end = main.index('  if (!allowNetwork)', start)
+boundaries = replace_once(boundaries, '// ACTUAL_SLEEP', main[start:end])
+source += boundaries
 cpp.write_text(source + (HERE / 'unit1.cpp').read_text())
 binary = args.build / 'unit1'
 cmd = ['c++', '-std=c++20', '-O0', '-g', '-UNDEBUG', '-DXP_FFI_HOST_FAULT_INJECTION',
        '-DXP_SD_FONT_CATALOG',
        '-fsanitize=address,undefined', '-fno-sanitize-recover=all',
        *[f'-I{ROOT / x}' for x in ('lib/Memory', 'test/reader_lifecycle',
-         'test/chapter_html_slim_parser/stubs', 'rust/crates/xp-ffi/include', 'test/reader_harden')],
+         'test/chapter_html_slim_parser/stubs', 'rust/crates/xp-ffi/include', 'test/reader_harden', 'src')],
        str(cpp), str(ROOT / 'test/cmake/xp_ffi_host.cpp'), str(archive), '-o', str(binary)]
 build = subprocess.run(cmd, capture_output=True)
 (args.build / 'compile.log').write_bytes(build.stdout + build.stderr)
@@ -131,6 +143,7 @@ unit2 = [('unit2-' + mode, cache_bytes([100 * i for i in range(1, 101)], 0), 0)
          for mode in ['size', 'spine', 'progress', 'mapping', 'progress-valid', 'mapping-valid', 'save', 'save-valid',
                       'walk-name', 'walk-header', 'walk-open', 'walk-oom', 'walk-valid',
                       'css-name', 'css-header', 'css-open', 'css-oom', 'css-alloc', 'css-valid']]
+unit2 += [('unit2-boundary-' + kind, cache_bytes([100 * i for i in range(1, 101)], 0), 0) for kind in ('initial', 'known')]
 cases = unit1 if args.unit == '1' else unit2 if args.unit == '2' else unit1 + unit2
 results = []
 for number, (mode, content, offset) in enumerate(cases):

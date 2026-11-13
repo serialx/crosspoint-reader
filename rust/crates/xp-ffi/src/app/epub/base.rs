@@ -473,3 +473,8 @@ impl EpubSession {
         true
     }
 }
+
+#[cfg(all(feature = "chapter-test", not(feature = "app-test")))]
+pub(super) unsafe fn xp_epub_test_exit_percent(owner: &EpubSession) -> i32 {
+    owner.base_exit_percent()
+}

@@ -235,19 +235,16 @@ impl EpubSession {
                     }
                 } else {
                     let book = self.book(access).unwrap().as_ptr();
-                    let Some(end) =
-                        (unsafe { (super::session_book::cumulative_size)(book, spine) })
-                    else {
-                        return false;
-                    };
-                    let Some(previous) = (if spine > 0 {
+                    let end = unsafe { (super::session_book::cumulative_size)(book, spine) };
+                    let previous = if spine > 0 {
                         unsafe { (super::session_book::cumulative_size)(book, spine - 1) }
                     } else {
                         Some(0)
-                    }) else {
-                        return false;
                     };
-                    let bytes = end.wrapping_sub(previous);
+                    // Size only chooses the popup heuristic; missing it must not stop a build.
+                    let bytes = end
+                        .zip(previous)
+                        .map_or(0, |(end, previous)| end.wrapping_sub(previous));
                     let inflate = unsafe { !ReaderSection::html_cached(section) };
                     let popup = if anchor {
                         self.book_anchor(access, false).is_none()

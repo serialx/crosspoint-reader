@@ -170,6 +170,7 @@ impl EpubSession {
             page,
         };
         let Some(range) = self.bookmark_range(book, position, count) else {
+            self.loop_log_parts(1, &[b"Cannot save bookmarks: unreadable size window"]);
             return false;
         };
         let removed = {
@@ -244,4 +245,40 @@ impl EpubSession {
         unsafe { (self.runtime.notify_render)() };
         true
     }
+}
+
+#[cfg(all(feature = "chapter-test", not(feature = "app-test")))]
+pub(super) fn test_failed_commit(owner: &EpubSession, book: NonNull<c_void>) {
+    let access = unsafe { owner.borrowed_resources() };
+    owner.mutate_bookmarks(&access, |rows| {
+        rows.push(super::bookmark_storage::Row {
+            xpath: super::Text::default(),
+            summary: super::Text::default(),
+            name: Default::default(),
+            percentage: 0.645,
+            spine: 64,
+            page_count: 2,
+            page: 1,
+            visible_offset: Some(123),
+        })
+    });
+    assert!(!owner.commit_bookmark(
+        book,
+        1,
+        2,
+        super::progress_mapping::Saved {
+            xpath: super::Text::default(),
+            percentage: 0.645,
+        }
+    ));
+    owner.with_bookmarks(&access, |rows| {
+        assert_eq!(rows.len(), 1);
+        let row = &rows[0];
+        assert_eq!(
+            (row.spine, row.page_count, row.page, row.visible_offset),
+            (64, 2, 1, Some(123))
+        );
+        assert_eq!(row.percentage, 0.645);
+        assert!(row.xpath.is_empty() && row.summary.is_empty());
+    });
 }

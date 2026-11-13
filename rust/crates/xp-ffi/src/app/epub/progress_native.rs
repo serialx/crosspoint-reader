@@ -143,7 +143,12 @@ impl<'parent, 'lock> Source for Native<'parent, 'lock> {
         result.map_or(-1, i64::from)
     }
     fn progress(&self, spine: i32, fraction: f32) -> Option<f32> {
-        unsafe { queries::progress(self.book.as_ptr(), spine, fraction) }
+        let progress = unsafe { queries::progress(self.book.as_ptr(), spine, fraction) };
+        if progress.is_none() {
+            self.parent
+                .loop_log_parts(1, &[b"Unreadable size window while saving mapped progress"]);
+        }
+        progress
     }
     fn entity(data: &[u8]) -> i32 {
         let Some(entity) = crate::book_policy::entity(data) else {

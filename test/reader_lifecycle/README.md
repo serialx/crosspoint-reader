@@ -52,7 +52,12 @@ and UI fakes. Legacy native-book services trap if called.
 
 `reader_harden` builds with `app-test` disabled and drives the shipping cache,
 ZIP and TXT owners through strict HAL fakes. It rejects truncated metadata,
-failed reads/seeks and stale zero-size TXT caches. Separately, the
+failed reads/seeks and stale zero-size TXT caches. It also checks incomplete CSS
+walks, size-window failure propagation and the native percentage boundaries.
+`reader_harden_build_failure` injects either missing popup-size bound into the real
+render control flow and requires chapter build, rendering and progress saving;
+strict HAL cases separately prove that failed window reads produce that result.
+Separately, the
 `reader_book_cache` oracle in this directory retains the healthy native golden;
 incomplete/reused loads now assert rejection instead
 of preserving the inherited error collapse. Cache version and writer bytes are unchanged.

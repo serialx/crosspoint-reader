@@ -157,3 +157,73 @@ pub unsafe extern "C" fn xp_epub_test_harden_progress(
     )
     .spine
 }
+
+// Real shipping book/cache queries feed the native percentage boundary under a HAL fault.
+#[cfg(not(feature = "app-test"))]
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_harden_boundary(
+    resources: &'static app_abi::Resources,
+    leaves: &'static XpEpubLeaves,
+    runtime: &'static app_abi::Runtime,
+    cache: app_abi::Text,
+    fault: Fault,
+    known: u8,
+    out: *mut app_abi::Screenshot,
+) -> i32 {
+    let cache_path = Text::copy(unsafe { cache.bytes() }.unwrap()).unwrap();
+    let mut path = Text::default();
+    path.assign_parts(&[cache_path.bytes(), b"/book.bin"])
+        .unwrap();
+    let mut cache = BookCache::new(leaves);
+    let mut metadata = Metadata::default();
+    cache.load(&mut metadata, &path).unwrap();
+    let mut book = ReaderBook {
+        #[cfg(feature = "app-test")]
+        facade: None,
+        resources,
+        now,
+        path,
+        cache_path,
+        metadata,
+        cache,
+        css: None,
+        protection: Protection::Plain,
+    };
+    let raw = ptr::addr_of_mut!(book).cast();
+
+    book.metadata.title.extend_from_slice(b"Book");
+    let owner = super::super::super::EpubSession::try_new(
+        b"/book.epub",
+        false,
+        3,
+        leaves,
+        runtime,
+        resources,
+    )
+    .unwrap();
+    let access = owner.borrowed_resources();
+    owner.set_book(&access, core::ptr::NonNull::new(raw));
+    owner.model(|state| {
+        state.current.spine = 32;
+        state.current.page = 1;
+        state.facts.section = Some(super::super::super::state::SectionFacts {
+            pages: 2,
+            estimated_pages: 2,
+            building: false,
+        });
+    });
+    if known != 0 {
+        assert_eq!(owner.screenshot_info().progress_percent, 33);
+    }
+    owner.model(|state| state.current.spine = 64);
+    unsafe { fault() };
+    let info = owner.screenshot_info();
+    let exit = unsafe { super::super::super::base::xp_epub_test_exit_percent(&*owner) };
+    unsafe { out.write(info) };
+    super::super::super::bookmarks::test_failed_commit(
+        &owner,
+        core::ptr::NonNull::new(raw).unwrap(),
+    );
+    owner.set_book(&access, None);
+    exit
+}

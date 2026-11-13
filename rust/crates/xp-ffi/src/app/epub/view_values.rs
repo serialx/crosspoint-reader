@@ -314,6 +314,7 @@ impl EpubSession {
             self.reject_reader_scene();
             return;
         };
+        self.export_percent(Some((progress + 0.5) as i32));
         let mut geometry = MaybeUninit::uninit();
         unsafe { (self.leaves.render_geometry)(geometry.as_mut_ptr()) };
         let geometry: abi::XpEpubGeometry = unsafe { geometry.assume_init() };

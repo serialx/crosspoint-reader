@@ -14,8 +14,6 @@ pub const POWER_FOOTNOTES: u32 = 4;
 pub const POWER_CREATE_CLIPPING: u32 = 6;
 pub const LONG_BUTTON_SKIP: u32 = 1;
 pub const LONG_BUTTON_ORIENTATION: u32 = 2;
-pub const OVERLAY_NONE: u32 = 0;
-pub const OVERLAY_TOOLBAR: u32 = 1;
 pub const END_REDRAW: u32 = 1;
 pub const END_OPEN_BOOK: u32 = 2;
 pub const END_GO_HOME: u32 = 3;
@@ -37,8 +35,6 @@ const _: () = {
     assert!(POWER_CREATE_CLIPPING == 6);
     assert!(LONG_BUTTON_SKIP == 1);
     assert!(LONG_BUTTON_ORIENTATION == 2);
-    assert!(OVERLAY_NONE == 0);
-    assert!(OVERLAY_TOOLBAR == 1);
     assert!(END_REDRAW == 1);
     assert!(END_OPEN_BOOK == 2);
     assert!(END_GO_HOME == 3);

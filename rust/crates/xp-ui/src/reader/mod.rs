@@ -444,32 +444,14 @@ const _: () = {
 pub mod render;
 
 pub mod base;
-pub mod epub_loop;
 pub mod epub_overlay;
-pub mod overlay_view;
 pub mod values;
-
-pub mod epub_navigation;
 
 mod services;
 
-pub mod view_values;
-
-pub mod build_policy;
-
-pub mod settings;
-
 pub mod menu_parent;
 
-pub mod recovery;
-
 pub mod bookmark;
-
-pub mod clipping;
-
-pub mod child;
-
-pub mod projection;
 
 /// Percent dialog input policy, independent of its activity owner.
 pub mod percent;

@@ -438,8 +438,8 @@ handoff.
 `EpubSession` in `rust/crates/xp-ffi/src/app/epub/` owns the EPUB session's scalar
 state, lifecycle, input decisions, page movement, menus, child-result intents and
 render sequencing. Its modules call ordinary Rust methods directly. The shared
-helpers in `rust/crates/xp-ui/src/reader/` remain available to EPUB and XTC where
-needed; the retired EPUB-exclusive service dispatch is not the session boundary.
+`reader::input`, `reader::render` and `reader::values` helpers remain available to
+EPUB and XTC where needed; the retired EPUB-exclusive service dispatch is not the session boundary.
 
 `src/activities/reader/RustEpubResources.cpp` implements the typed physical leaves
 in `rust/crates/xp-ffi/include/xp_epub_session.h`. The session owns its loaded

@@ -122,7 +122,7 @@ pub unsafe extern "C" fn xp_epub_test_cache_query(
             number(4, row.spine_index.into());
             1
         }
-        3 => cache.cumulative(index).into(),
+        3 => cache.cumulative(index).map_or(-1, i64::from),
         4 => cache.spine_for_size(index as u32).into(),
         _ => -1,
     }

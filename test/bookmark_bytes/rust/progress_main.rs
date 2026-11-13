@@ -30,7 +30,7 @@ impl Source for Book {
     fn query(&mut self, _: u32, _: i32, _: usize, _: &[u8]) -> i64 {
         unreachable!()
     }
-    fn progress(&self, _: i32, _: f32) -> f32 {
+    fn progress(&self, _: i32, _: f32) -> Option<f32> {
         unreachable!()
     }
     fn entity(_: &[u8]) -> i32 {

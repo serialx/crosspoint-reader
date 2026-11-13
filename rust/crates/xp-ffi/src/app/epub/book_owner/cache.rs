@@ -391,24 +391,24 @@ impl BookCache {
         true
     }
 
-    pub(super) fn cumulative(&self, index: i32) -> u32 {
+    pub(super) fn cumulative(&self, index: i32) -> Option<u32> {
         if !self.loaded || index < 0 || index as u32 >= u32::from(self.spine_count) {
-            return 0;
+            return Some(0);
         }
         let index = index as u32;
         if index == u32::from(self.spine_count) - 1 {
-            return self.total_size;
+            return Some(self.total_size);
         }
         let window = index / METADATA_WINDOW;
         let first = window * METADATA_WINDOW;
         if index - first == METADATA_WINDOW - 1 {
-            return self.starts[window as usize + 1];
+            return Some(self.starts[window as usize + 1]);
         }
         let _guard = CacheGuard::acquire(self.file.leaves);
         if unsafe { (*self.window.get()).first } != Some(first) && !self.fill_window(first) {
-            return self.starts[window as usize];
+            return None;
         }
-        unsafe { (*self.window.get()).sizes[(index - first) as usize] }
+        Some(unsafe { (*self.window.get()).sizes[(index - first) as usize] })
     }
 
     pub(super) fn spine_for_size(&self, size: u32) -> i32 {
@@ -420,7 +420,7 @@ impl BookCache {
         let last = u32::from(self.spine_count).min(first + METADATA_WINDOW) - 1;
         let _guard = CacheGuard::acquire(self.file.leaves);
         if unsafe { (*self.window.get()).first } != Some(first) && !self.fill_window(first) {
-            return last as i32;
+            return -1;
         }
         for index in first..last {
             if unsafe { (*self.window.get()).sizes[(index - first) as usize] } >= size {

@@ -277,6 +277,7 @@ impl EpubSession {
             dense: 0,
         };
         if matches!(mode, Overlay::Toolbar) {
+            let mut failed = false;
             let painted = self.overlay_chapter_title(access, |chapter| {
                 let count = unsafe { ReaderSection::estimated_pages(section) };
                 let (page, spine) =
@@ -286,8 +287,12 @@ impl EpubSession {
                 } else {
                     0.0
                 };
-                let progress =
-                    unsafe { (super::session_book::progress)(book.as_ptr(), spine, fraction) };
+                let Some(progress) =
+                    (unsafe { (super::session_book::progress)(book.as_ptr(), spine, fraction) })
+                else {
+                    failed = true;
+                    return;
+                };
                 let mut info = [0; 40];
                 let mut used = number(&mut info, page);
                 info[used] = b'/';
@@ -306,7 +311,7 @@ impl EpubSession {
                 model.progress_permille = (progress * 1000.0 + 0.5) as i32;
                 self.paint_overlay_model(access, mode, &model);
             });
-            if painted.is_none() {
+            if painted.is_none() || failed {
                 self.reject_reader_scene();
             }
             return;

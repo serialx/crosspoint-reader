@@ -64,8 +64,8 @@ impl Source for Book {
             _ => -1,
         }
     }
-    fn progress(&self, spine: i32, fraction: f32) -> f32 {
-        (spine as f32 + fraction) / 2.0
+    fn progress(&self, spine: i32, fraction: f32) -> Option<f32> {
+        Some((spine as f32 + fraction) / 2.0)
     }
     fn entity(_: &[u8]) -> i32 {
         -1
@@ -124,7 +124,7 @@ fn progress_adapter_retains_both_passes_and_maps_the_borrowed_saved_path() {
     let saved = progress_mapping::save(&mut book, &input).unwrap();
     assert_eq!(saved.percentage, 0.75);
     assert_eq!(book.reads.get(), 2);
-    let output = progress_mapping::map(&mut book, saved.xpath.bytes(), saved.percentage, 0, 10);
+    let output = progress_mapping::map(&mut book, saved.xpath.bytes(), saved.percentage, 0, 10).unwrap();
     assert_eq!(output.spine, 1);
     assert_eq!(output.page, 1);
     assert_eq!(book.active.get(), 0);

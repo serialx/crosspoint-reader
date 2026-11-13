@@ -159,13 +159,20 @@ impl EpubSession {
             return;
         }
         let found = unsafe { (super::session_book::spine_for_size)(book, target) };
-        let spine = if found < 0 { count - 1 } else { found };
-        let previous = if found > 0 {
+        if found < 0 {
+            return;
+        }
+        let spine = found;
+        let Some(previous) = (if found > 0 {
             unsafe { (super::session_book::cumulative_size)(book, found - 1) }
         } else {
-            0
+            Some(0)
+        }) else {
+            return;
         };
-        let end = unsafe { (super::session_book::cumulative_size)(book, spine) };
+        let Some(end) = (unsafe { (super::session_book::cumulative_size)(book, spine) }) else {
+            return;
+        };
         let span = end.saturating_sub(previous);
         let progress = if span == 0 {
             0.0
@@ -263,8 +270,11 @@ impl EpubSession {
                 if let Some(reader) = NonNull::new(book)
                     .and_then(|book| unsafe { super::session_book::reader_pointer(book) })
                 {
-                    let position =
-                        unsafe { self.mapped_progress(&access, reader, &saved, spine, count) };
+                    let Some(position) =
+                        (unsafe { self.mapped_progress(&access, reader, &saved, spine, count) })
+                    else {
+                        return;
+                    };
                     target_spine = position.spine;
                     target_page = position.page;
                 }

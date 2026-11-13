@@ -56,6 +56,9 @@ impl EpubSession {
         }
         let position = self.chapter_position();
         let percent = self.book_percent_for(position);
+        if percent < 0 {
+            return;
+        }
         let footnotes = {
             let access = self.lock_resources();
             if self.model(|state| state.scene_gate.failed) {
@@ -132,6 +135,9 @@ impl EpubSession {
 
     fn open_percent(&self) {
         let percent = self.book_percent_for(self.chapter_position());
+        if percent < 0 {
+            return;
+        }
         #[cfg(feature = "app-test")]
         if let Some(legacy) = self.legacy_children.get() {
             self.launch_menu_child(

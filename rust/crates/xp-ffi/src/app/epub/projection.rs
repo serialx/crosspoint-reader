@@ -99,7 +99,11 @@ impl EpubSession {
         }
         let spine = self.model(|state| state.current.spine);
         let fraction = position.fraction();
-        let progress = unsafe { (super::session_book::progress)(book.as_ptr(), spine, fraction) };
+        let Some(progress) =
+            (unsafe { (super::session_book::progress)(book.as_ptr(), spine, fraction) })
+        else {
+            return -1;
+        };
         progress_integer(progress.clamp(0.0, 1.0) * 100.0 + 0.5)
     }
 
@@ -165,8 +169,9 @@ impl EpubSession {
                             position.page as f32 / count as f32,
                         )
                     };
-                    result.progress_percent =
-                        progress_integer(progress * 100.0 + 0.5).clamp(0, 100);
+                    result.progress_percent = progress.map_or(-1, |value| {
+                        progress_integer(value * 100.0 + 0.5).clamp(0, 100)
+                    });
                 }
             }
         }
@@ -203,7 +208,9 @@ impl EpubSession {
                             position.page as f32 / count as f32,
                         )
                     };
-                    return progress_integer(progress * 10000.0 + 0.5).clamp(0, 10000);
+                    return progress.map_or(-1, |value| {
+                        progress_integer(value * 10000.0 + 0.5).clamp(0, 10000)
+                    });
                 }
             }
         }

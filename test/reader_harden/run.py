@@ -16,6 +16,7 @@ from test_popup_resource import definition, native_leaf, replace_once
 p = argparse.ArgumentParser()
 p.add_argument('--build', type=Path, required=True)
 p.add_argument('--archive', type=Path)
+p.add_argument('--unit', choices=['1', '2', 'all'], default='all')
 args = p.parse_args()
 args.build.mkdir(parents=True, exist_ok=True)
 archive = args.archive
@@ -49,7 +50,8 @@ source = replace_once(source, '// ACTUAL_MUTEX_METHODS', '\n'.join(definition(pa
     'void BookMetadataCache::lockReadCursor()', 'void BookMetadataCache::unlockReadCursor()')))
 source = replace_once(source, '// ACTUAL_LEAVES', '\n'.join(
     'value.' + x + ' = ' + native_leaf(native, x) + ';' for x in (
-        'file_open_read', 'file_read', 'file_close', 'file_seek', 'file_size', 'cache_lock', 'cache_unlock')))
+        'file_open_read', 'file_read', 'file_close', 'file_seek', 'file_size', 'cache_lock', 'cache_unlock',
+        'file_open_write', 'file_write', 'file_flush', 'path_remove', 'path_rename', 'path_mkdir')))
 cpp = args.build / 'unit1.cpp'
 writer = (ROOT / 'test/package_golden/PackageWriterTest.cpp').read_text()
 writer = writer.split('namespace {', 1)[1].split('XpPkgSpan span(', 1)[0]
@@ -64,7 +66,7 @@ cmd = ['c++', '-std=c++20', '-O0', '-g', '-UNDEBUG', '-DXP_FFI_HOST_FAULT_INJECT
        '-DXP_SD_FONT_CATALOG',
        '-fsanitize=address,undefined', '-fno-sanitize-recover=all',
        *[f'-I{ROOT / x}' for x in ('lib/Memory', 'test/reader_lifecycle',
-         'test/chapter_html_slim_parser/stubs', 'rust/crates/xp-ffi/include')],
+         'test/chapter_html_slim_parser/stubs', 'rust/crates/xp-ffi/include', 'test/reader_harden')],
        str(cpp), str(ROOT / 'test/cmake/xp_ffi_host.cpp'), str(archive), '-o', str(binary)]
 build = subprocess.run(cmd, capture_output=True)
 (args.build / 'compile.log').write_bytes(build.stdout + build.stderr)
@@ -124,6 +126,12 @@ for kind, row in [('toc', field(bytes(15)) + field(b'') + field(b'') + struct.pa
     for index in [0, 1, 2]:
         cases.append(('query-' + kind, body, index))
 
+unit1 = cases
+unit2 = [('unit2-' + mode, cache_bytes([100 * i for i in range(1, 101)], 0), 0)
+         for mode in ['size', 'spine', 'progress', 'mapping', 'progress-valid', 'mapping-valid', 'save', 'save-valid',
+                      'walk-name', 'walk-header', 'walk-open', 'walk-oom', 'walk-valid',
+                      'css-name', 'css-header', 'css-open', 'css-oom', 'css-alloc', 'css-valid']]
+cases = unit1 if args.unit == '1' else unit2 if args.unit == '2' else unit1 + unit2
 results = []
 for number, (mode, content, offset) in enumerate(cases):
     folder = args.build / f'{number:03d}-{mode}'
@@ -133,10 +141,19 @@ for number, (mode, content, offset) in enumerate(cases):
         (folder / 'source.txt').write_text('new source content' if mode == 'text' else '')
         (folder / 'html').mkdir(exist_ok=True)
         (folder / 'html/0.html').write_text('<!-- TXT_CACHE_VERSION: 1 --><html><body></body></html>')
-    if mode == 'seek':
+    if mode == 'seek' or mode.startswith('unit2-'):
         with zipfile.ZipFile(folder / 'source.epub', 'w') as z:
             z.writestr('chapter.xhtml', b'HELLO READERS')
+            if mode.startswith('unit2-'):
+                z.writestr('a.css', b'p { margin-top: 4px; }')
+                z.writestr('b.css', b'p { margin-bottom: 9px; }')
         offset = 30 + len('chapter.xhtml')
+        if mode.startswith('unit2-'):
+            archive_bytes = (folder / 'source.epub').read_bytes()
+            central = archive_bytes.find(b'PK\x01\x02')
+            second = archive_bytes.find(b'PK\x01\x02', central + 4)
+            third = archive_bytes.find(b'PK\x01\x02', second + 4)
+            offset = third if mode.endswith('header') else third + 46
     command = [str(binary), mode, str(folder), str(offset)]
     run = subprocess.run(command, capture_output=True)
     (folder / 'run.log').write_bytes(run.stdout + run.stderr)

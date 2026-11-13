@@ -66,7 +66,7 @@ pub unsafe extern "C" fn xp_epub_test_css_files(
         leaves,
         now,
     };
-    if discover_files != 0 && discover(&items, base, &mut owned_paths).is_err() {
+    if discover_files != 0 && discover(&items, base, &mut owned_paths) != Ok(true) {
         return 2;
     }
     let mut owner = None;

@@ -140,7 +140,7 @@ pub unsafe extern "C" fn xp_epub_test_load(
         }
     }
     for index in -1..=spine_limit {
-        let size = book.cache.cumulative(index);
+        let size = book.cache.cumulative(index).expect("healthy cache size");
         unsafe {
             output(
                 context,

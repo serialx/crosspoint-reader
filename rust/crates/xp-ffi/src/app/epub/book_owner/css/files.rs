@@ -14,7 +14,7 @@ pub(in super::super) fn discover(
     items: &Items<'_>,
     base: &[u8],
     paths: &mut Vec<Text>,
-) -> Result<(), ()> {
+) -> Result<bool, ()> {
     unsafe extern "C" fn path(raw: *mut c_void, index: usize) -> residual::Span {
         let paths = unsafe { &*raw.cast::<Vec<Text>>() };
         residual::Span::new(paths[index].bytes())
@@ -58,7 +58,7 @@ pub(in super::super) fn discover(
     if failed {
         Err(())
     } else {
-        Ok(())
+        Ok(ok)
     }
 }
 

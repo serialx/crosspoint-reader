@@ -154,12 +154,12 @@ int main(int argc, char** argv) {
 
     assert(cache.getCumulativeSize(0) == totals[0]);
     failReads = true;
-    assert(cache.getCumulativeSize(64) == totals[63]);
-    assert(cache.getSpineIndexForSize(totals[70]) == 95);
+    assert(xp_epub_test_cache_query(cache.testHandle(), 3, 64, nullptr, nullptr) == -1);
+    assert(cache.getSpineIndexForSize(totals[70]) == -1);
     failReads = false;
     failSeeks = true;
-    assert(cache.getCumulativeSize(64) == totals[63]);
-    assert(cache.getSpineIndexForSize(totals[70]) == 95);
+    assert(xp_epub_test_cache_query(cache.testHandle(), 3, 64, nullptr, nullptr) == -1);
+    assert(cache.getSpineIndexForSize(totals[70]) == -1);
     failSeeks = false;
     assert(cache.getCumulativeSize(64) == totals[64]);
     assert(Storage.readOpens == opens);

@@ -305,10 +305,15 @@ impl EpubSession {
             0.0
         };
         let book = self.book(access);
-        let progress = book.map_or(0.0, |book| {
+        let progress = book.map_or(Some(0.0), |book| {
             let spine = self.model(|state| state.current.spine);
-            unsafe { (super::session_book::progress)(book.as_ptr(), spine, fraction) * 100.0 }
+            unsafe { (super::session_book::progress)(book.as_ptr(), spine, fraction) }
+                .map(|value| value * 100.0)
         });
+        let Some(progress) = progress else {
+            self.reject_reader_scene();
+            return;
+        };
         let mut geometry = MaybeUninit::uninit();
         unsafe { (self.leaves.render_geometry)(geometry.as_mut_ptr()) };
         let geometry: abi::XpEpubGeometry = unsafe { geometry.assume_init() };

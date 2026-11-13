@@ -338,12 +338,15 @@ pub(super) unsafe fn path_text<'a>(raw: *mut c_void) -> &'a Text {
 
 macro_rules! query {
     ($name:ident, $legacy:ident, ($($arg:ident: $type:ty),*) -> $result:ty) => {
+        query!($name, $legacy, ($($arg: $type),*) -> $result, core::convert::identity);
+    };
+    ($name:ident, $legacy:ident, ($($arg:ident: $type:ty),*) -> $result:ty, $convert:path) => {
         pub(super) unsafe fn $name(raw: *mut c_void, $($arg: $type),*) -> $result {
             #[cfg(feature = "app-test")]
             {
                 match unsafe { &*raw.cast::<Loaded>() } {
                     Loaded::Reader(book) => unsafe { queries::$name(book.as_ptr(), $($arg),*) },
-                    Loaded::Legacy { handle, services, .. } => unsafe { (services.$legacy)(handle.as_ptr(), $($arg),*) },
+                    Loaded::Legacy { handle, services, .. } => $convert(unsafe { (services.$legacy)(handle.as_ptr(), $($arg),*) }),
                 }
             }
             #[cfg(not(feature = "app-test"))]
@@ -355,10 +358,10 @@ query!(size, book_size, () -> u32);
 query!(spine_count, book_spine_count, () -> i32);
 query!(toc_count, book_toc_count, () -> i32);
 query!(toc_for_spine, book_toc_for_spine, (index: i32) -> i32);
-query!(cumulative_size, book_cumulative_size, (index: i32) -> u32);
+query!(cumulative_size, book_cumulative_size, (index: i32) -> Option<u32>, Some);
 query!(spine_for_size, book_spine_for_size, (bytes: u32) -> i32);
 query!(text_reference, book_text_reference, () -> i32);
-query!(progress, book_progress, (spine: i32, fraction: f32) -> f32);
+query!(progress, book_progress, (spine: i32, fraction: f32) -> Option<f32>, Some);
 query!(resolve_href, book_resolve_href, (href: app_abi::Text) -> i32);
 query!(setup_cache, book_setup_cache, () -> ());
 query!(clear_cache, book_clear_cache, () -> ());

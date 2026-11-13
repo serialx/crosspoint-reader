@@ -12,11 +12,16 @@ use core::{ffi::c_void, ptr::NonNull};
 static BORROW: abi::XpEpubBookBorrow = abi::XpEpubBookBorrow {
     spine: queries::spine,
     toc: queries::toc,
-    cumulative: queries::cumulative_size,
+    cumulative: test_cumulative,
     spine_for_size: queries::spine_for_size,
     stream: queries::stream,
     item_size: queries::item_size,
 };
+
+#[cfg(feature = "app-test")]
+unsafe extern "C" fn test_cumulative(raw: *mut c_void, index: i32) -> u32 {
+    unsafe { queries::cumulative_size(raw, index) }.expect("test facade size query failed")
+}
 
 impl ReaderBook {
     pub(in crate::app::epub) fn into_raw(book: Box<Self>) -> NonNull<c_void> {

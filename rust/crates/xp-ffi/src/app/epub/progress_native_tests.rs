@@ -58,7 +58,9 @@ pub unsafe extern "C" fn xp_epub_test_book_progress(
             xpath: saved.xpath.wire(),
             percentage: saved.percentage,
         };
-        let mapped = unsafe { session.mapped_progress(&access, raw, &input, 0, 3) };
+        let Some(mapped) = (unsafe { session.mapped_progress(&access, raw, &input, 0, 3) }) else {
+            return 0;
+        };
         (saved, mapped)
     };
     // The owned XPath remains valid after the guard, book and session are gone.

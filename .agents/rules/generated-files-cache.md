@@ -86,6 +86,9 @@ truncated tail. Other TOC lengths are checked on query. Each non-final spine/TOC
 query is bounded by the next LUT target and must end exactly there; the final
 row is bounded by EOF. All query read/seek results are checked. A rejected cache takes the existing rebuild path; a failed reload after
 that one rebuild fails the open. Cumulative sizes may wrap as the writer permits.
+Later size-window read failures remain unknown to progress and navigation callers.
+Incomplete ZIP directory discovery fails book loading before CSS parsing or saving
+`css_rules.cache`; it is not a complete list of stylesheets.
 Trailing bytes remain allowed. The format, version and write order are unchanged.
 
 Back up progress/state first. Prefer clearing only the affected book's

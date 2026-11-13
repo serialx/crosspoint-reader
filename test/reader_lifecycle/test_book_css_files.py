@@ -122,6 +122,7 @@ def main():
             permutation_path = case / 'permutation.txt'; permutation_path.write_text(' '.join(map(str, permutation)))
             options['CSS_TARGET_PERMUTATION'] = str(permutation_path)
         steps = 0
+        required_discovery_steps = 0
         for fault in range(10000):
             captures = []
             args[2] = str(fault)
@@ -136,15 +137,33 @@ def main():
                 assert ran.returncode == 0, (name, mode, fault, ran.stderr.decode())
                 captured = {str(p.relative_to(cache)): p.read_bytes().hex() for p in sorted(cache.rglob('*')) if p.is_file()}
                 captures.append((ran.stdout, captured))
-            assert captures[0] == captures[1], (name, fault)
-            if fault == 0: steps = int(re.search(rb'steps (\d+)', captures[0][0])[1])
+            if discover and 0 < fault <= required_discovery_steps:
+                # Native discovery used to parse/save an incomplete stylesheet list.
+                before, after = captures[0][0], captures[1][0]
+                marker = b' FAIL\n'
+                assert marker in before and marker in after
+                assert before.split(marker, 1)[0] == after.split(marker, 1)[0]
+                assert b'result 2\n' in after and b'CSS files to parse:' not in after
+                assert int(re.search(rb'steps (\d+)', after)[1]) == fault
+                assert captures[1][1] == {}, (name, fault, captures[1][1])
+            else:
+                assert captures[0] == captures[1], (name, fault)
+            if fault == 0:
+                steps = int(re.search(rb'steps (\d+)', captures[0][0])[1])
+                if discover:
+                    with zipfile.ZipFile(output / 'book.epub') as archive:
+                        end = archive.start_dir + sum(46 + len(row.filename.encode()) + len(row.extra)
+                                                      + len(row.comment) for row in archive.infolist())
+                    # The final end probe is retained; only declared entries are required.
+                    required_discovery_steps = int(re.search(
+                        rb'io (\d+) seek book.epub ' + str(end).encode() + rb' 0\n', captures[0][0])[1]) - 1
             if fault >= steps: break
         if name == 'tied-18':
             trace = (case / 'rust-0.log').read_text()
             assert 'Parsing CSS file: b.css' in trace
             tied_reads = [int(v) for v in re.findall(r'io (\d+) read book.epub .*', trace)]
             assert tied_reads and any('Could not read CSS file: b.css' in (case / f'rust-{fault}.log').read_text() for fault in range(1, steps + 1))
-        results.append(dict(name=name, host_only_target_sort_adaptation=tied_keys, target_checks=checks, physical_faults=steps))
+        results.append(dict(name=name, host_only_target_sort_adaptation=tied_keys, target_checks=checks, physical_faults=steps, rejected_discovery_faults=required_discovery_steps))
     (output / 'results.json').write_text(json.dumps(dict(command=command, cases=results,
         generated_source_sha256=hashlib.sha256(source.encode()).hexdigest()), indent=2) + '\n')
     print(f'{len(results)} composed CSS cases with every reached storage fault pass; tied-key host adaptations are explicit and checked on C3/S3.')

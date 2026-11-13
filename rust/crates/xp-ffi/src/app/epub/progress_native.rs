@@ -93,7 +93,9 @@ impl<'parent, 'lock> Source for Native<'parent, 'lock> {
                 return unsafe { queries::spine_for_size(self.book.as_ptr(), arg as u32).into() }
             }
             x if x == Query::CumulativeSize as u32 => {
-                return unsafe { queries::cumulative_size(self.book.as_ptr(), spine).into() }
+                return unsafe {
+                    queries::cumulative_size(self.book.as_ptr(), spine).map_or(-1, i64::from)
+                }
             }
             x if x == Query::ItemSize as u32 => {
                 let Some(href) = self.href(spine) else {
@@ -140,7 +142,7 @@ impl<'parent, 'lock> Source for Native<'parent, 'lock> {
         };
         result.map_or(-1, i64::from)
     }
-    fn progress(&self, spine: i32, fraction: f32) -> f32 {
+    fn progress(&self, spine: i32, fraction: f32) -> Option<f32> {
         unsafe { queries::progress(self.book.as_ptr(), spine, fraction) }
     }
     fn entity(data: &[u8]) -> i32 {
@@ -225,7 +227,7 @@ impl EpubSession {
         saved: &abi::XpEpubSavedProgress,
         current: i32,
         pages: i32,
-    ) -> Position {
+    ) -> Option<Position> {
         self.check_resources(access);
         progress_mapping::map(
             &mut Native {

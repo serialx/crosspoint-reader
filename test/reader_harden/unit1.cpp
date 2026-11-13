@@ -19,6 +19,8 @@ static void check(bool safe, const char* name) {
   printf("%s: %s\n", name, safe ? "PASS" : "FAIL");
   failures += !safe;
 }
+#include "unit2.cpp"
+
 int main(int argc, char** argv) {
   assert(argc == 4);
   const std::string mode = argv[1], root = argv[2];
@@ -33,6 +35,7 @@ int main(int argc, char** argv) {
     *h = {};
     h->free_bytes = 1000000;
   };
+  if (mode.starts_with("unit2-")) return unit2(mode, root, offset, resources, leaves);
   if (mode == "writer") {
     writerBoundary(root);
   } else if (mode == "policy") {

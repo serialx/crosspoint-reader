@@ -203,20 +203,26 @@ impl<'a> Archive<'a> {
         let ok = if let Some(details) = self.details() {
             let mut walker = Walker::new(details.central_offset, details.central_offset);
             let mut bytes = [0; 256];
+            let mut remaining = details.entries;
+            let mut complete = true;
+            let mut stopped = false;
             while let Some(entry) = self.next(&mut walker) {
+                remaining = remaining.saturating_sub(1);
                 let length = entry.name.length as usize;
                 if length >= bytes.len() {
                     continue;
                 }
                 if !self.file.as_ref().unwrap().read(&mut bytes[..length]) {
                     self.error("Failed to read entry name");
+                    complete = false;
                     break;
                 }
                 if !visit(&bytes[..length], &entry) {
+                    stopped = true;
                     break;
                 }
             }
-            true
+            complete && (remaining == 0 || stopped)
         } else {
             false
         };

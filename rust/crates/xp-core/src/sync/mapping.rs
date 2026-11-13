@@ -84,11 +84,11 @@ impl Services {
     fn q(&self, q: Query, spine: i32, arg: usize, text: &[u8]) -> i64 {
         unsafe { (self.query)(self.ctx, q as u32, spine, arg, Span::new(text)) }
     }
-    fn size(&self, spine: i32) -> usize {
+    fn size(&self, spine: i32) -> Option<usize> {
         if spine < 0 {
-            0
+            Some(0)
         } else {
-            self.q(Query::CumulativeSize, spine, 0, &[]) as usize
+            usize::try_from(self.q(Query::CumulativeSize, spine, 0, &[])).ok()
         }
     }
     #[allow(clippy::too_many_arguments)] // Fixed diagnostic payload; C++ owns formatting.
@@ -212,16 +212,27 @@ pub fn map(
         p.resolved = 1;
     } else {
         let found = s.q(Query::SpineForSize, 0, target_bytes, &[]) as i32;
-        if found >= 0 {
-            p.spine = found;
+        if found < 0 {
+            p.spine = -1;
+            return p;
         }
+        p.spine = found;
     }
-    let previous = s.size(p.spine - 1);
-    let size = s.size(p.spine).wrapping_sub(previous);
+    let (Some(previous), Some(end)) = (s.size(p.spine - 1), s.size(p.spine)) else {
+        p.spine = -1;
+        p.resolved = 0;
+        return p;
+    };
+    let size = end.wrapping_sub(previous);
     if p.spine == current && current_pages > 0 {
         p.pages = current_pages;
     } else if current >= 0 && current < count && current_pages > 0 {
-        let cs = s.size(current).wrapping_sub(s.size(current - 1));
+        let (Some(end), Some(start)) = (s.size(current), s.size(current - 1)) else {
+            p.spine = -1;
+            p.resolved = 0;
+            return p;
+        };
+        let cs = end.wrapping_sub(start);
         if cs > 0 {
             p.pages = (current_pages as f32 * size as f32 / cs as f32) as i32;
             p.pages = p.pages.max(1);

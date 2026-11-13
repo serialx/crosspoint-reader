@@ -185,13 +185,18 @@ impl<'a> Context<'a> {
                 ))
             }
             x if x == O::IsText as u32 => Ok(u32::from(txt::is_text(self.path.bytes()))),
-            x if x == O::ValidateText as u32 => Ok(u32::from(txt::validate(
-                self.path,
-                self.cache_path,
-                self.cache.cumulative(0),
-                self.resources,
-                self.leaves,
-            ))),
+            x if x == O::ValidateText as u32 => {
+                let Some(size) = self.cache.cumulative(0) else {
+                    return Ok(0);
+                };
+                Ok(u32::from(txt::validate(
+                    self.path,
+                    self.cache_path,
+                    size,
+                    self.resources,
+                    self.leaves,
+                )))
+            }
             x if x == O::BuildText as u32 => Ok(u32::from(txt::build(
                 self.path,
                 self.cache_path,
@@ -263,14 +268,20 @@ impl<'a> Context<'a> {
                     leaves: self.leaves,
                     now: self.now,
                 };
-                css::discover(&items, self.paths.base.bytes(), &mut self.paths.css)?;
-                Ok(0)
+                let complete = css::discover(&items, self.paths.base.bytes(), &mut self.paths.css)?;
+                if !complete {
+                    self.error = Some(LoadError::Failed);
+                }
+                Ok(u32::from(complete))
             }
             x if x == O::ReleaseMetadata as u32 => {
                 self.reset_metadata();
                 Ok(0)
             }
             x if x == O::ParseCss as u32 => {
+                if self.error.is_some() {
+                    return Ok(2);
+                }
                 let items = Items {
                     path: self.path,
                     protection: &self.protection,
@@ -430,3 +441,7 @@ unsafe extern "C" fn diagnostic(raw: *mut c_void, event: u32, elapsed: u32) {
         _ => (),
     }
 }
+
+#[cfg(any(feature = "app-test", feature = "chapter-test"))]
+#[path = "../test_support/harden.rs"]
+mod harden_tests;

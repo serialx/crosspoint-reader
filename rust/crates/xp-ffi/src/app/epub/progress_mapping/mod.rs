@@ -45,7 +45,7 @@ pub(super) trait Source {
     fn spine_count(&self) -> i32;
     fn chapter(&self, spine: i32) -> Option<Self::Chapter<'_>>;
     fn query(&mut self, kind: u32, spine: i32, arg: usize, text: &[u8]) -> i64;
-    fn progress(&self, spine: i32, fraction: f32) -> f32;
+    fn progress(&self, spine: i32, fraction: f32) -> Option<f32>;
     fn entity(data: &[u8]) -> i32;
     fn log(&self, diagnostic: Diagnostic<'_>);
     // Resolve the href, then release the temporary section before streaming.
@@ -109,9 +109,14 @@ impl<S: Source> Adapter<'_, S> {
         });
     }
     unsafe extern "C" fn progress(raw: *mut c_void, spine: i32, fraction: f32) -> f32 {
-        unsafe { &*raw.cast::<Self>() }
-            .source
-            .progress(spine, fraction)
+        let this = unsafe { &mut *raw.cast::<Self>() };
+        match this.source.progress(spine, fraction) {
+            Some(value) => value,
+            None => {
+                this.failed = true;
+                0.0
+            }
+        }
     }
     unsafe extern "C" fn xpath(
         raw: *mut c_void,
@@ -176,11 +181,12 @@ pub(super) fn map(
     percentage: f32,
     current: i32,
     pages: i32,
-) -> Position {
+) -> Option<Position> {
     let mut adapter = Adapter {
         source,
         xpath: Text::default(),
         failed: false,
     };
-    mapping::map(&adapter.services(), xpath, percentage, current, pages, 0)
+    let position = mapping::map(&adapter.services(), xpath, percentage, current, pages, 0);
+    (position.spine >= 0).then_some(position)
 }

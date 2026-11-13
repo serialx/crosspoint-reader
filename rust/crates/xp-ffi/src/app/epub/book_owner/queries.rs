@@ -31,31 +31,31 @@ pub(crate) unsafe fn size(raw: *mut c_void) -> u32 {
     if count == 0 {
         0
     } else {
-        unsafe { cumulative_size(raw, count - 1) }
+        unsafe { owner(raw) }.cache.total_size
     }
 }
-pub(crate) unsafe extern "C" fn cumulative_size(raw: *mut c_void, index: i32) -> u32 {
+pub(crate) unsafe fn cumulative_size(raw: *mut c_void, index: i32) -> Option<u32> {
     unsafe { owner(raw) }.cache.cumulative(index)
 }
 pub(crate) unsafe extern "C" fn spine_for_size(raw: *mut c_void, size: u32) -> i32 {
     unsafe { owner(raw) }.cache.spine_for_size(size)
 }
-pub(crate) unsafe fn progress(raw: *mut c_void, index: i32, fraction: f32) -> f32 {
+pub(crate) unsafe fn progress(raw: *mut c_void, index: i32, fraction: f32) -> Option<f32> {
     let size = unsafe { size(raw) };
     if size == 0 {
-        return 0.0;
+        return Some(0.0);
     }
     let previous = if index >= 1 {
-        unsafe { cumulative_size(raw, index - 1) }
+        unsafe { cumulative_size(raw, index - 1) }?
     } else {
         0
     };
-    book::progress(
+    Some(book::progress(
         size as usize,
         previous as usize,
-        unsafe { cumulative_size(raw, index) } as usize,
+        unsafe { cumulative_size(raw, index) }? as usize,
         fraction,
-    )
+    ))
 }
 
 fn spine_row(book: &ReaderBook, index: i32) -> cache::Spine {

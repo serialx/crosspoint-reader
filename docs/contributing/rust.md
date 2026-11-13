@@ -555,6 +555,11 @@ reader directly. It is detached before the book is dropped; sync can detach
 and rebind it to the same live owner. Load-time CSS must be released before
 this binding. Chapters, Bookmarks, Toolbar and progress/XPath mapping read the
 same Rust book under resource access.
+A failed size-window read returns an unknown result. Progress saving, bookmark
+changes and percentage/XPath navigation stop instead of using a window boundary
+as a size; rendering rejects a scene that requires the missing progress value.
+CSS discovery must read every declared ZIP directory entry. A failed walk
+stops book loading before CSS parsing or cache saving.
 
 The shipping reader has no native book facade or book-open/load/getter table.
 Registration of the six queries in `XpEpubBookBorrow` and the native facade

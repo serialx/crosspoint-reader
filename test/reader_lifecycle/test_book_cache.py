@@ -95,7 +95,7 @@ def main():
         raise RuntimeError(ran.stderr.decode())
     (output / 'queries-results.json').write_text(json.dumps(dict(command=query_command,
         compile_returncode=built.returncode, run_returncode=ran.returncode), indent=2) + '\n')
-    print('Retained-cursor rows, window interleaving, sink re-entry, OOM and I/O fallbacks pass.')
+    print('Retained-cursor rows, window interleaving, sink re-entry, OOM and unknown results on I/O failure pass.')
 
 
 if __name__ == '__main__':

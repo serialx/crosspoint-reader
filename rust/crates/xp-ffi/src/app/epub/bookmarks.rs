@@ -29,13 +29,13 @@ impl EpubSession {
         book: NonNull<c_void>,
         position: Position,
         count: i32,
-    ) -> ProgressRange {
+    ) -> Option<ProgressRange> {
         let local = bookmark::range(position.page, count);
         unsafe {
-            ProgressRange {
-                start: super::session_book::progress(book.as_ptr(), position.spine, local.start),
-                end: super::session_book::progress(book.as_ptr(), position.spine, local.end),
-            }
+            Some(ProgressRange {
+                start: super::session_book::progress(book.as_ptr(), position.spine, local.start)?,
+                end: super::session_book::progress(book.as_ptr(), position.spine, local.end)?,
+            })
         }
     }
     pub(super) fn update_bookmark_flag(&self, access: &ResourceAccess<'_>) {
@@ -43,17 +43,21 @@ impl EpubSession {
             self.model(|state| state.bookmarked = false);
             return;
         }
-        let found = self.book(access).is_some_and(|book| {
+        let found = self.book(access).map_or(Some(false), |book| {
             let Some(section) = self.section(access) else {
-                return false;
+                return Some(false);
             };
             let count = unsafe { ReaderSection::estimated_pages(section) };
             let position = self.model(|state| state.current);
-            let range = self.bookmark_range(book, position, count);
-            self.with_bookmarks(access, |rows| {
+            let range = self.bookmark_range(book, position, count)?;
+            Some(self.with_bookmarks(access, |rows| {
                 rows.iter().any(|row| matches(row, position, count, range))
-            })
+            }))
         });
+        let Some(found) = found else {
+            self.reject_reader_scene();
+            return;
+        };
         self.model(|state| state.bookmarked = found);
     }
     #[cfg(feature = "app-test")]
@@ -165,7 +169,9 @@ impl EpubSession {
             spine: self.model(|state| state.current.spine),
             page,
         };
-        let range = self.bookmark_range(book, position, count);
+        let Some(range) = self.bookmark_range(book, position, count) else {
+            return false;
+        };
         let removed = {
             let access = self.lock_resources();
             self.mutate_bookmarks(&access, |rows| {

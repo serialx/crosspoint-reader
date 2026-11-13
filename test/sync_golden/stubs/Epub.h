@@ -25,6 +25,8 @@ class Epub {
     return total;
   }
   int getSpineIndexForSize(size_t n) const {
+    // The real cache returns the final spine at a healthy 100% position.
+    if (n > 0 && n == getBookSize()) return getSpineItemsCount() - 1;
     for (int i = 0; i < getSpineItemsCount(); ++i)
       if (n < getCumulativeSpineItemSize(i)) return i;
     return -1;

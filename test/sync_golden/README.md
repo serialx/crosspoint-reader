@@ -15,7 +15,7 @@ stubs. The JSON library and sync implementation are real. The oracle does not
 qualify the network or SD hardware.
 
 `python3 test/sync_golden/oracle.py build/test/sync_golden/SyncOracle capture`
-regenerates the archive; use only on the original implementation, never to accept
+regenerates `size-boundary-golden.txt.gz`; use only on the original implementation, never to accept
 a port mismatch. The independent XPath suite covers XML mutations and allocation
 failures. A separate negative control changes the first document sample from
 offset 0 to 1 in an external source copy and must fail this golden.
@@ -29,3 +29,13 @@ The anchor-only cache case also checks the resulting page selection.
 Build `SyncReverseOracle` and
 run `SyncReverseGoldens` to compare those cases. Its capture mode is subject to
 the same original-implementation-only rule.
+
+`size-boundary-golden.txt.gz` is the active forward oracle. It uses the same
+original C++ source at `1d95ed1d` with one corrected storage fake: a size exactly
+equal to a nonempty book's total maps to its last spine, as the original
+`BookMetadataCache.cpp:390-403` does. The previous fake returned -1 there.
+Interior boundaries and all other inputs are unchanged. The original capture
+remains in `golden.txt.gz`. Before the corrected capture, the archived C++ source
+with the original fake reproduced that archive byte for byte (874,918 bytes).
+The corrected original C++ trace has 874,628 bytes; it was not captured from the
+Rust implementation. `size-boundary-capture.json` records its source and hashes.

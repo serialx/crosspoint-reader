@@ -210,6 +210,7 @@ pub unsafe extern "C" fn xp_epub_test_harden_boundary(
             pages: 2,
             estimated_pages: 2,
             building: false,
+            partial: false,
         });
     });
     if known != 0 {

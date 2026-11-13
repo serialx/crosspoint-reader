@@ -17,11 +17,11 @@ static uint8_t useTitle(void*, const XpEpubToc* row) {
 static uint8_t invokeText(void*) {
   const auto before = xp_test_live_allocations();
   xp_test_fail_allocation_after(0);
-  assert(borrow->toc(
+  assert(!borrow->toc(
       owner, 0,
-      [](void*, const XpEpubToc* row) -> uint8_t {
-        assert(row->title.len == 0 && std::string(pathText(row->title)).empty());
-        return 1;
+      [](void*, const XpEpubToc*) -> uint8_t {
+        assert(false && "failed TOC allocation must not deliver an empty row");
+        return 0;
       },
       nullptr));
   assert(xp_test_allocation_attempts() == 1 && xp_test_live_allocations() == before);

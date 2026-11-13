@@ -45,7 +45,7 @@ def main():
             sys.executable, str(root / "test/web_server/extract.py"),
             "--build", str(args.build / name), "--arduinojson", str(args.arduinojson),
             "--html-root", str(args.html_root),
-            "--archive", str(target / host / "release/libxp_ffi.a")],
+            "--catalog-off", "--archive", str(target / host / "release/libxp_ffi.a")],
             text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         (args.build / f"{name}.log").write_text(result.stdout)
         if result.returncode != 1 or "web oracle mismatch:" not in result.stdout:

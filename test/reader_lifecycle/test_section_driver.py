@@ -86,7 +86,7 @@ def main():
     commands = [
         ('popup-mutant-build', ['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
           '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-          '--features', 'app-test,chapter-test,chapter-trace,section-test']),
+          '--features', 'app-test,sd-font-catalog,chapter-test,chapter-trace,section-test']),
         ('popup-mutant-link', section_command(ROOT, output, cpp, mutant_binary, str(target / 'release/libxp_ffi.a'))),
         ('popup-mutant-none', [str(mutant_binary), str(book), str(cache), 'complete', 'none', '10']),
         ('popup-mutant-some', [str(mutant_binary), str(book), str(cache), 'complete', 'popup', '10']),

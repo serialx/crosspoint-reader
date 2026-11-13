@@ -84,7 +84,7 @@ def main():
             # A compilation failure does not count as rejecting this mutant.
             subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                             '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                            '--features', 'app-test'], cwd=copied_rust, check=True)
+                            '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
             failed = run('eager-frame-read', target / 'release/libxp_ffi.a')
             assert failed.returncode != 0, 'actual Rust eager-frame mutant survived'
             stderr = failed.stderr.decode(errors='replace')

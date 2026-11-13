@@ -72,7 +72,7 @@ def main():
             target = work / 'target'
             subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                             '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                            '--features', 'app-test'], cwd=copied_rust, check=True)
+                            '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
             rejected = run('metadata-retained-after-result', target / 'release/libxp_ffi.a')
             assert rejected.returncode != 0
             assert b'result releases captured metadata' in rejected.stderr, rejected.stderr.decode(errors='replace')

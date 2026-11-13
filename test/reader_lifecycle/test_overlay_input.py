@@ -339,7 +339,7 @@ def main():
                 # A build error is a test error, never a killed mutant.
                 subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                                 '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                                '--features', 'app-test'], cwd=copied_rust, check=True)
+                                '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
                 result = run(name, target / 'release/libxp_ffi.a')
                 killed = result.returncode != 0 or result.stdout != expected
                 record = {'test_name': 'reader_overlay_input', 'mutant': name, 'kind': 'production-rust',

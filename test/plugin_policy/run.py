@@ -26,7 +26,7 @@ a = p.parse_args()
 if not (a.json_include/'ArduinoJson.h').is_file():
     p.error(f"--json-include {a.json_include} has no ArduinoJson.h")
 a.build.mkdir(parents=True, exist_ok=True)
-cmd = ['c++', '-std=c++20', '-O2', '-I'+str(HERE/'stubs'), '-I'+str(a.source/'src'), '-I'+str(ROOT/'src'), '-I'+str(ROOT/'rust/crates/xp-ffi/include'), '-I'+str(a.json_include), str(HERE/('contract.cpp' if a.contract else 'token_paths.cpp' if a.token_paths else 'oracle.cpp'))]
+cmd = ['c++', '-std=c++20', '-DXP_SD_FONT_CATALOG', '-O2', '-I'+str(HERE/'stubs'), '-I'+str(a.source/'src'), '-I'+str(ROOT/'src'), '-I'+str(ROOT/'rust/crates/xp-ffi/include'), '-I'+str(a.json_include), str(HERE/('contract.cpp' if a.contract else 'token_paths.cpp' if a.token_paths else 'oracle.cpp'))]
 if a.token_paths:
     cmd.append('-finstrument-functions')
 if a.token_lifetime:

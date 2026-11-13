@@ -37,7 +37,7 @@ with tempfile.TemporaryDirectory() as directory:
     cpp = tmp/'effects.cpp'
     cpp.write_text(s)
     includes = repo/'rust/crates/xp-ffi/include'
-    subprocess.run(['c++', '-std=c++20', '-pthread', '-I'+str(includes), str(cpp),
+    subprocess.run(['c++', '-std=c++20', '-DXP_SD_FONT_CATALOG', '-pthread', '-I'+str(includes), str(cpp),
                     str(repo/'test/cmake/xp_ffi_host.cpp'), str(archive), '-o', str(tmp/'effects')], check=True)
     actual = subprocess.check_output([str(tmp/'effects')])
     expected = (repo/'test/ui_network/effects.golden').read_bytes().replace(b'reset-ui\n', b'')

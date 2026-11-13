@@ -6,13 +6,23 @@ against deterministic transport, storage, clock, settings, and dependent-service
 substitutes. It does not open a network connection or
 access a device or real SD card.
 
+The immutable injected-family corpus runs as `web_server_oracle_catalog_off`.
+Its arbitrary sizes, overlong names and eight-family limit cannot represent the
+shipping catalog, so it builds a separate catalog-off archive. The golden is
+unchanged. `web_server_catalog_shipping` instead uses the default catalog-on
+archive and the unchanged native web bridges with an initialized Rust registry.
+It checks directory discovery, dirty refresh, file sizes, upload root selection,
+invalid-magic cleanup and delete results under address/undefined-behavior
+sanitizers. Its directory fake supplies filesystem entries, not catalog results.
+
 Run through the host CMake build. CMake resolves ArduinoJson (pinned in
 `test/cmake/xp_test_arduinojson.cmake`) and generates the web page headers the
 server includes into the build tree, so no PlatformIO install is needed. For a
-standalone run, build the native `xp-ffi` archive and pass the resolved inputs:
+standalone historical run, pass `--catalog-off` and the resolved inputs; the
+runner builds its separate archive unless `--archive` supplies a catalog-off one:
 
 ```sh
-python3 test/web_server/extract.py --build build/web-server \
+python3 test/web_server/extract.py --catalog-off --build build/web-server \
   --arduinojson /path/to/ArduinoJson/src --html-root build/test/generated/web \
   --archive /path/to/native/libxp_ffi.a --mutation-check --sanitize --fault-check --review-check
 ```

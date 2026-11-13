@@ -90,7 +90,7 @@ with tempfile.TemporaryDirectory() as tmp:
     out=Path(tmp)
     subprocess.run([sys.executable,str(root/'test/keyboard_oracle/allocation_instrument.py'),str(root),str(out/'keyboard-allocation.inc')],check=True)
     (out/'routed.cpp').write_text(source)
-    subprocess.run(['c++','-std=c++20','-O1','-DFREEINK_UI_COMPONENT_STYLE=0',
+    subprocess.run(['c++','-std=c++20', '-DXP_SD_FONT_CATALOG','-O1','-DFREEINK_UI_COMPONENT_STYLE=0',
                     '-I'+str(out),'-I'+str(record.SDK/'include'),'-I'+str(generated_i18n_directory(archive)),
                     '-I'+str(root/'rust/crates/xp-ffi/include'),'-I'+str(root/'test/keyboard_oracle'),str(out/'routed.cpp'),
                     str(record.SDK/'src/FreeInkUI.cpp'),str(root/'test/cmake/xp_ffi_host.cpp'),

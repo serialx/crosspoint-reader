@@ -1,4 +1,9 @@
 #pragma once
+#ifdef XP_SD_FONT_CATALOG
+#include <xp_font_registry.h>
+
+#include <atomic>
+#endif
 
 #define PROGMEM
 #define CROSSPOINT_VERSION "oracle"
@@ -105,6 +110,13 @@ struct SdCardFontFamilyInfo {
   }
 };
 struct SdCardFontRegistry {
+#ifdef XP_SD_FONT_CATALOG
+  std::atomic<uint32_t> generation{0};
+  XpLoadedFonts owner;
+  SdCardFontRegistry() { xp_font_registry_init(&owner, &generation, nullptr); }
+  ~SdCardFontRegistry() { xp_font_registry_drop(&owner); }
+  const XpLoadedFonts* raw() const { return &owner; }
+#endif
   static constexpr size_t MAX_SD_FAMILIES = 8;
   std::vector<SdCardFontFamilyInfo> families = {{}};
   const auto& getFamilies() const { return families; }
@@ -135,6 +147,15 @@ struct FontInstaller {
     host::trace.push_back(std::string("font-dir:") + family);
     return !host::fail("font-dir");
   }
+#ifdef XP_SD_FONT_CATALOG
+  static bool ensureFamilyDirAt(const char* root, const char* family) {
+    host::trace.push_back(std::string("font-dir:") + root + "/" + family);
+    if (host::fail("font-dir")) return false;
+    host::add(root, "", true);
+    host::add(std::string(root) + "/" + family, "", true);
+    return true;
+  }
+#endif
   static void buildFontPath(const char* family, const char* name, char* out, size_t n) {
     snprintf(out, n, "/fonts/%s/%s", family, name);
   }
@@ -144,7 +165,12 @@ struct FontInstaller {
   }
 };
 inline bool extendedSettings = false;
-inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry*, const std::vector<DictionaryEntry>*) {
+inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry*, const std::vector<DictionaryEntry>*
+#ifdef XP_SD_FONT_CATALOG
+                                                ,
+                                                const XpSdChoices*
+#endif
+) {
   std::vector<SettingInfo> out;
   SettingInfo s;
   s.key = "toggle";

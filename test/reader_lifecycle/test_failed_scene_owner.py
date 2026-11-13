@@ -221,7 +221,7 @@ def main():
             target = work / 'target'
             result = command('mutant.cargo', ['cargo', 'build', '--manifest-path', str(copied / 'rust/Cargo.toml'),
                               '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                              '--features', 'app-test'], cwd=copied / 'rust')
+                              '--features', 'app-test,sd-font-catalog'], cwd=copied / 'rust')
             assert result.returncode == 0, 'actual final-guard mutant did not build'
             mutant = compile_fixture('mutant', target / 'release/libxp_ffi.a')
             result = command('mutant', [str(mutant), 'open', 'grow', 'dispatch'], timeout=10)

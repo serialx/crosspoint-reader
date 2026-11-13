@@ -87,7 +87,7 @@ with tempfile.TemporaryDirectory(prefix='reader-navigation-') as directory:
                           'replacement_counts': [1] * len(replacements)}), flush=True)
         subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                         '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                        '--features', 'app-test'], cwd=copied_rust, check=True)
+                        '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
         assert run(fixture, name, target / 'release/libxp_ffi.a') != actual
     assert (ROOT / 'rust' / navigation_path).read_text() == production
     print(f'navigation: {len(actual.splitlines())} frozen lines, 1882 cases; '

@@ -282,7 +282,7 @@ def main():
                 (copied_rust / PRODUCTION).write_text(changed)
                 result = command(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                                   '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                                  '--features', 'app-test'], cwd=copied_rust,
+                                  '--features', 'app-test,sd-font-catalog'], cwd=copied_rust,
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 (evidence / (name + '.cargo.stdout')).write_bytes(result.stdout)
                 (evidence / (name + '.cargo.stderr')).write_bytes(result.stderr)

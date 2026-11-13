@@ -85,7 +85,7 @@ def main():
             # Compilation must succeed; a compile failure never counts as a killed mutant.
             subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                             '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                            '--features', 'app-test'], cwd=copied_rust, check=True)
+                            '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
             mutant = run('footnotes-unconditional', target / 'release/libxp_ffi.a')
             assert mutant.returncode != 0, 'actual Rust footnotes mutant survived'
             stderr = mutant.stderr.decode(errors='replace')

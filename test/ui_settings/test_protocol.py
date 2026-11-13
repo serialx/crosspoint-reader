@@ -85,7 +85,7 @@ def run(archive, mutate=False):
     with tempfile.TemporaryDirectory() as directory:
         cpp = Path(directory) / 'protocol.cpp'; cpp.write_text(source)
         exe = Path(directory) / 'protocol'
-        result = subprocess.run(['c++', '-std=c++20', '-I', str(ROOT / 'rust/crates/xp-ffi/include'), str(cpp),
+        result = subprocess.run(['c++', '-std=c++20', '-DXP_SD_FONT_CATALOG', '-I', str(ROOT / 'rust/crates/xp-ffi/include'), str(cpp),
                                  str(ROOT / 'test/cmake/xp_ffi_host.cpp'), archive, '-o', str(exe)], capture_output=True, text=True)
         if mutate:
             assert result.returncode != 0 and 'static assertion failed' in result.stderr, result.stderr

@@ -79,7 +79,7 @@ with tempfile.TemporaryDirectory() as directory:
     cpp = Path(directory) / "learning.cpp"
     executable = Path(directory) / "learning"
     cpp.write_text(harness)
-    subprocess.run(["c++", "-std=c++20", "-I", str(ROOT / "lib/BlePageTurner/include"),
+    subprocess.run(["c++", "-std=c++20", "-DXP_SD_FONT_CATALOG", "-I", str(ROOT / "lib/BlePageTurner/include"),
                     "-I", str(ROOT / "freeink-sdk/libs/network/BleKeyboardHost/include"),
                     "-I", str(ROOT / "rust/crates/xp-ffi/include"),
                     str(cpp), str(ROOT / "test/cmake/xp_ffi_host.cpp"), sys.argv[1],

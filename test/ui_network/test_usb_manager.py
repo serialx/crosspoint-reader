@@ -58,7 +58,7 @@ with tempfile.TemporaryDirectory() as directory:
   void requestUpdateAndWait();''')
     (out / 'Activity.h').write_text(stub)
     (out / 'manager.cpp').write_text(source)
-    subprocess.run(['c++', '-std=c++20', '-DXP_APP_TEST', '-I', str(ROOT / 'test/sdfont_legacy/abi'), '-pthread', '-I' + str(out),
+    subprocess.run(['c++', '-std=c++20', '-DXP_APP_TEST', '-DXP_SD_FONT_CATALOG', '-I', str(ROOT / 'test/sdfont_legacy/abi'), '-pthread', '-I' + str(out),
                     '-I' + str(ROOT / 'test/ui_runtime/stubs'), '-I' + str(ROOT / 'test/ui_runtime'), '-I' + str(ROOT / 'rust/crates/xp-ffi/include'),
                     str(out / 'manager.cpp'), str(out / 'RustActivityAdapter.cpp'),
                     str(ROOT / 'test/cmake/xp_ffi_host.cpp'), sys.argv[1], '-o', str(out / 'manager')], check=True)

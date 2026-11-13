@@ -105,7 +105,7 @@ with tempfile.TemporaryDirectory() as directory:
     (out / 'Activity.h').write_text(stub)
     subprocess.run([sys.executable, str(ROOT/'test/keyboard_oracle/allocation_instrument.py'), str(SOURCE), str(out/'keyboard-allocation.inc')], check=True)
     (out / 'keyboard.cpp').write_text(source)
-    subprocess.run(['c++', '-std=c++20', '-pthread', '-UNDEBUG', '-I'+str(out),
+    subprocess.run(['c++', '-std=c++20', '-DXP_SD_FONT_CATALOG', '-pthread', '-UNDEBUG', '-I'+str(out),
                     '-I'+str(ROOT/'test/ui_runtime/stubs'), '-I'+str(ROOT/'rust/crates/xp-ffi/include'), '-I'+str(ROOT/'test/keyboard_oracle'),
                     '-Wno-inconsistent-missing-override', str(out/'keyboard.cpp'), str(out/'RustActivityAdapter.cpp'),
                     str(ROOT/'test/cmake/xp_ffi_host.cpp'), sys.argv[1], '-o', str(out/'keyboard')], check=True)

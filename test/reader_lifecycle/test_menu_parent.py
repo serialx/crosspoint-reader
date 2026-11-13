@@ -223,7 +223,7 @@ def main():
             target = work / 'target'
 
             def build(strip):
-                features = 'app-test,reader-strips' if strip else 'app-test'
+                features = 'app-test,sd-font-catalog,reader-strips' if strip else 'app-test,sd-font-catalog'
                 subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                                 '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
                                 '--features', features], cwd=copied_rust, check=True)

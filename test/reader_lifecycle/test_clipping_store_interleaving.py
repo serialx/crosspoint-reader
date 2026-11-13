@@ -112,7 +112,7 @@ def main():
                 (copied / 'rust' / PRODUCTION).write_text(changed)
                 save(name + '.rs', changed.encode())
                 command(['cargo', 'build', '--offline', '--manifest-path', copied / 'rust/Cargo.toml',
-                         '--target-dir', target, '-p', 'xp-ffi', '--release', '--locked', '--features', 'app-test'],
+                         '--target-dir', target, '-p', 'xp-ffi', '--release', '--locked', '--features', 'app-test,sd-font-catalog'],
                         name + '-cargo', cwd=copied / 'rust')
                 result = run(name, target / 'release/libxp_ffi.a')
                 assert result.returncode != 0 and b'Assertion failed' in result.stderr, (name, result.returncode, result.stderr)

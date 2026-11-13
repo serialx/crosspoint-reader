@@ -231,7 +231,7 @@ def main():
                     (copied_rust / path).write_text(changed if key == kind else sources[key])
                 result = command(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                                   '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                                  '--features', 'app-test'], cwd=copied_rust)
+                                  '--features', 'app-test,sd-font-catalog'], cwd=copied_rust)
                 log(name + '.cargo', result)
                 assert result.returncode == 0, ('mutant did not compile', name)
                 binary = compile_fixture(kind, name, target / 'release/libxp_ffi.a')

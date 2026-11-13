@@ -104,13 +104,7 @@ static const XpEpubLeaves leaves = [] {
   value.settings_snapshot = [](uint8_t, XpEpubSettings* out) {
     *out = {};
     out->embedded_style = 1;
-    out->font_size = 16;
-  };
-  value.font_sizes = [](XpAppText, XpAppTextSink sink, void* context) -> uint8_t {
-    assert(!renderDepth && !modelDepth);
-    const uint8_t sizes[] = {12, 16, 20};
-    const uint8_t changed[] = {24, 28, 32};
-    return sink(context, {generation == 0 ? sizes : changed, 3});
+    out->font_size = generation == 0 ? 16 : 18;
   };
   value.log = [](uint8_t, XpAppText, XpAppText) { assert(!modelDepth); };
   value.popup_show = [](void* p, XpAppText title, XpAppText message, uint32_t count, int32_t selected,
@@ -227,7 +221,7 @@ int main() {
     assert(xp_epub_test_popup_concurrency_failure(owner));
     render(owner);
     xp_epub_test_popup_concurrency_text(owner, 1);
-    assert(popup.isActive() && popup.selectedIndex == 1);
+    assert(popup.isActive() && popup.selectedIndex == 2);
     const auto title = popup.title;
     const auto labels = popup.ownedStrings;
     const auto beforePaints = paints.load();
@@ -241,7 +235,7 @@ int main() {
     xp_epub_test_overlay_reject(owner);
     unlockRender(token);
     text.get();
-    assert(popup.title == title && popup.ownedStrings == labels && popup.selectedIndex == 1 &&
+    assert(popup.title == title && popup.ownedStrings == labels && popup.selectedIndex == 2 &&
            "late rejection must preserve popup content");
     assert(paints == beforePaints && "rejected popup action must not paint");
     xp_epub_test_entry_gate_observe(owner, &observation);

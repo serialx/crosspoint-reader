@@ -174,7 +174,7 @@ def main():
             target = work / 'target'
             subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                             '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                            '--features', 'app-test'], cwd=copied_rust, check=True)
+                            '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
             rejected = run('sync-extractor-not-restored', native, target / 'release/libxp_ffi.a')
             assert rejected.returncode == 42 and rejected.stderr == b'EXPECTED_ASSERTION: SYNC_EXTRACTOR_RESTORED\n'
             print(json.dumps(dict(test_name='reader_child_native_faults',

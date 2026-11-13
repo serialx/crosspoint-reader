@@ -69,7 +69,7 @@ def main():
     paths.update(here / name for name in ('abi.cpp', 'CMakeLists.txt', 'test_app_owned_epub.py',
                                         'app_owned_epub.cpp', 'physical_defaults.h'))
     source_bytes = {path: path.read_bytes() for path in sorted(paths)}
-    draft_bytes = {path: path.read_bytes() for path in (Path(__file__).resolve(), boundary, here / "legacy_page_fixture.h", here / "legacy_render_wire.h")}
+    draft_bytes = {path: path.read_bytes() for path in (Path(__file__).resolve(), boundary, here / "epub_fixture_abi.h", here / "legacy_page_fixture.h", here / "legacy_render_wire.h")}
     golden_bytes = {path: path.read_bytes() for path in sorted(here.glob('*.golden.gz'))}
     assert len(golden_bytes) == 39, ('expected immutable original golden set', len(golden_bytes))
     binary_hashes = {archive: digest(archive.read_bytes()), original: digest(original.read_bytes())}
@@ -127,11 +127,11 @@ def main():
         run('retained-reader-lifecycle-abi', [original])
         c = evidence / 'current-headers.c'
         c.write_text('#include <xp_app.h>\n#include <xp_ui_reader.h>\n#include <xp_epub_session.h>\n')
-        run('current-c11-boundary', [os.environ.get('CC', 'cc'), '-std=c11', '-Werror',
+        run('current-c11-boundary', [os.environ.get('CC', 'cc'), '-std=c11', '-DXP_SD_FONT_CATALOG', '-Werror',
                                     '-fsyntax-only', '-I', include, c])
         cpp = evidence / 'current-boundary.cpp'
         cpp.write_text('#include "epub_boundary_assertions.h"\n')
-        run('current-cxx200-boundary', [os.environ.get('CXX', 'c++'), '-std=c++17', '-DXP_APP_TEST', '-I', str(root / 'test/sdfont_legacy/abi'), '-UNDEBUG',
+        run('current-cxx200-boundary', [os.environ.get('CXX', 'c++'), '-std=c++17', '-DXP_APP_TEST', '-DXP_SD_FONT_CATALOG', '-I', str(root / 'test/sdfont_legacy/abi'), '-UNDEBUG',
                                        '-Werror', '-fsyntax-only', '-I', evidence / 'sources/draft',
                                        '-I', include, cpp])
         # The existing repository driver records its own compile/run logs in this new child directory.
@@ -147,7 +147,7 @@ def main():
         summary = {
             'declaration': 'reader_lifecycle_abi', 'phase': 'atomic-retirement',
             'original_executable': str(original), 'supported_shared_assertions_retained': True,
-            'current_header_languages': ['C11', 'C++17'], 'physical_leaf_slots': 158,
+            'current_header_languages': ['C11', 'C++17'], 'physical_leaf_slots': 155, 'app_test_leaf_slots': 167,
             'owned_cases': expected[1:], 'policy_hooks': 0,
             'retired_name_removal': True, 'retirement_absence': absence, 'new_epub_null_or_incomplete_table_calls': 0,
             'results': results,

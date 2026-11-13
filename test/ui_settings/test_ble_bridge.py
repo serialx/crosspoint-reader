@@ -53,7 +53,7 @@ def run(archive, baseline=False, mutate=False):
         cpp = Path(directory) / "bridge.cpp"
         binary = Path(directory) / "bridge"
         cpp.write_text(harness)
-        subprocess.run(["c++", "-std=c++20", "-DBASELINE=" + str(int(baseline)),
+        subprocess.run(["c++", "-std=c++20", "-DXP_SD_FONT_CATALOG", "-DBASELINE=" + str(int(baseline)),
                         "-I", str(ROOT / "rust/crates/xp-ffi/include"), str(cpp),
                         str(ROOT / "test/cmake/xp_ffi_host.cpp"), archive, "-o", str(binary)], check=True)
         return subprocess.check_output([str(binary)], text=True)

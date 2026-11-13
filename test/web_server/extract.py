@@ -81,7 +81,15 @@ def main():
     parser.add_argument("--ffi-include", type=pathlib.Path, default=ROOT / "rust/crates/xp-ffi/include")
     parser.add_argument("--fault-check", action="store_true")
     parser.add_argument("--review-check", action="store_true")
+    parser.add_argument("--catalog-off", action="store_true", help="Replay the historical injected font-family table")
     args = parser.parse_args()
+    if not args.catalog_off:
+        parser.error("This immutable oracle needs --catalog-off; catalog_shipping.py tests the shipping composition")
+    if args.archive is None:
+        import sys
+        sys.path.insert(0, str(ROOT / "test"))
+        from rust_host import rust_archive
+        args.archive = pathlib.Path(rust_archive(catalog=False))
     args.build.mkdir(parents=True, exist_ok=True)
     generated = args.build / "server.cpp"
     source = args.source.read_text()

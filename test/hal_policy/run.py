@@ -49,7 +49,7 @@ def run(root, archive):
         for directory in ['hal', 'DeviceSecret', 'TrustedTime']:
             for header in (root / 'lib' / directory).glob('*.h'):
                 (Path(tmp) / header.name).write_text(header.read_text().replace('unsigned long', 'uint32_t'))
-        command = ['c++', '-std=c++20', '-DFREEINK_MCU_C3=1', '-D__riscv=1', '-DCROSSPOINT_VERSION="oracle"', '-DFREEINK_CAP_HAPTIC=1', '-DFREEINK_CAP_USB_MSC=1', '-Wall', '-Wextra', '-Werror', '-Wno-unused-private-field', '-Wno-int-to-pointer-cast', '-Wno-sign-compare',
+        command = ['c++', '-std=c++20', '-DXP_SD_FONT_CATALOG', '-DFREEINK_MCU_C3=1', '-D__riscv=1', '-DCROSSPOINT_VERSION="oracle"', '-DFREEINK_CAP_HAPTIC=1', '-DFREEINK_CAP_USB_MSC=1', '-Wall', '-Wextra', '-Werror', '-Wno-unused-private-field', '-Wno-int-to-pointer-cast', '-Wno-sign-compare',
                    '-I' + str(HERE / 'stubs'), '-I' + tmp, '-I' + str(root / 'rust/crates/xp-ffi/include')]
         command += ['-I' + str(root / 'lib' / d) for d in ['hal', 'DeviceSecret', 'TrustedTime']]
         power = (root / 'lib/hal/HalPowerManager.cpp').read_text()

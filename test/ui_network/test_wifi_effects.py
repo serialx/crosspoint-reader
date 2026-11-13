@@ -6,7 +6,7 @@ ROOT=Path(__file__).resolve().parents[2]
 def run(s,archive=None):
  with tempfile.TemporaryDirectory() as d:
   p=Path(d);(p/'main.cpp').write_text(s)
-  args=['c++','-std=c++20','-pthread','-I'+str(ROOT/'rust/crates/xp-ffi/include'),'-I'+str(ROOT/'test/ui_network'),str(p/'main.cpp')]
+  args=['c++','-std=c++20', '-DXP_SD_FONT_CATALOG','-pthread','-I'+str(ROOT/'rust/crates/xp-ffi/include'),'-I'+str(ROOT/'test/ui_network'),str(p/'main.cpp')]
   if archive:args += [str(ROOT/'test/cmake/xp_ffi_host.cpp'),archive]
   subprocess.run(args+['-o',str(p/'test')],check=True)
   return subprocess.check_output([str(p/'test')]).decode()

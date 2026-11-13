@@ -149,7 +149,7 @@ def main():
                 copied_source.write_bytes(changed)
                 subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                                 '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                                '--features', 'app-test'], cwd=copied_rust, check=True)
+                                '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
                 mutant = compile_fixture(name, target / 'release/libxp_ffi.a')
                 for mode, (trace, _) in expected.items():
                     result = run(mutant, mode)

@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstdlib>
 
+#include "../reader_lifecycle/epub_fixture_abi.h"
 #include "../reader_lifecycle/legacy_book_fixture.h"
 namespace retirement_fixture {
 template <typename Signature>
@@ -111,7 +112,7 @@ inline XpAppRuntime runtimeDefaults() {
 
 inline XpEpubLeaves leavesDefaults() {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 168 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == xpTestEpubLeafCount * sizeof(void (*)()));
   UNUSED_LEAF(render_margins);
   UNUSED_LEAF(render_geometry);
   UNUSED_LEAF(render_restore_bw);
@@ -131,7 +132,9 @@ inline XpEpubLeaves leavesDefaults() {
   UNUSED_LEAF(fonts_prewarm_finish_scan);
   UNUSED_LEAF(fonts_prewarm_drop);
   UNUSED_LEAF(fonts_take_corrupt_notice);
+#ifndef XP_SD_FONT_CATALOG
   UNUSED_LEAF(font_sizes);
+#endif
   UNUSED_LEAF(settings_snapshot);
   UNUSED_LEAF(settings_render_spec);
   UNUSED_LEAF(settings_orientation);

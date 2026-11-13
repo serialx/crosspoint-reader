@@ -41,7 +41,7 @@ std::printf("%lld %lld %d %s\\n",(long long)expiry,(long long)now,result!=nullpt
 with tempfile.TemporaryDirectory() as d:
     cpp=Path(d)/'loan.cpp';cpp.write_text(code)
     exe=Path(d)/'loan'
-    subprocess.run(['c++','-std=c++20','-I'+str(root/'rust/crates/xp-ffi/include'),str(cpp),str(root/'test/cmake/xp_ffi_host.cpp'),a.archive,'-o',str(exe)],check=True)
+    subprocess.run(['c++','-std=c++20', '-DXP_SD_FONT_CATALOG','-I'+str(root/'rust/crates/xp-ffi/include'),str(cpp),str(root/'test/cmake/xp_ffi_host.cpp'),a.archive,'-o',str(exe)],check=True)
     actual=subprocess.check_output([str(exe)])
 golden=Path(__file__).with_name('loan-golden.txt.gz')
 if a.capture: golden.write_bytes(gzip.compress(actual,mtime=0))

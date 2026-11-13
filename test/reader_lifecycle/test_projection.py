@@ -166,7 +166,7 @@ def main():
                 (copied_rust / path).write_bytes(changed)
                 subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                                 '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                                '--features', 'app-test'], cwd=copied_rust, check=True)
+                                '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
                 mutant = compile_fixture(fixture, name, target / 'release/libxp_ffi.a')
                 result = run(mutant)
                 edge_result = run(mutant, True)

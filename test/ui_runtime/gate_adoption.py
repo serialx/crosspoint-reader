@@ -168,7 +168,7 @@ with tempfile.TemporaryDirectory(prefix='gate-adoption-') as tmp:
     stub=stub.replace('XpNativeProvider textProvider()', 'int getScreenWidth()const{return 480;} int getScreenHeight()const{return 800;} XpNativeProvider textProvider()')
     (p/'Activity.h').write_text(stub)
     (p/'check.cpp').write_text(code)
-    subprocess.run(['c++','-std=c++17','-I'+str(p),'-I'+str(ROOT/'test/ui_runtime/stubs'),
+    subprocess.run(['c++','-std=c++17', '-DXP_SD_FONT_CATALOG','-I'+str(p),'-I'+str(ROOT/'test/ui_runtime/stubs'),
                     '-I'+str(ROOT/'rust/crates/xp-ffi/include'),str(p/'check.cpp'),str(p/'RustActivityAdapter.cpp'),
                     str(ROOT/'test/cmake/xp_ffi_host.cpp'),sys.argv[1],'-o',str(p/'check')],check=True)
     subprocess.run([str(p/'check'),*sys.argv[2:]],check=True)

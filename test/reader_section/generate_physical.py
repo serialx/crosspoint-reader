@@ -45,6 +45,8 @@ source = r'''
 #include <Epub/converters/ImageDecoderFactory.h>
 #include <Epub/hyphenation/Hyphenator.h>
 #include <cassert>
+#include <atomic>
+#include <xp_font_registry.h>
 #include <cstring>
 #include <cstdlib>
 #include <functional>
@@ -55,9 +57,19 @@ GfxRenderer* target = nullptr;
 const std::function<bool()>* input = nullptr;
 bool cacheHeld = false;
 size_t liveBuffers = 0;
+// Synthetic metrics still require an initialized catalog owner for scaled fonts.
+struct FixtureFonts {
+  std::atomic<uint32_t> generation{0};
+  XpLoadedFonts owner;
+  const void* slot = &owner;
+  FixtureFonts() { xp_font_registry_init(&owner, &generation, nullptr); }
+  ~FixtureFonts() { xp_font_registry_drop(&owner); }
+} fonts;
+
 ''' + helpers + '\n' + metrics + r'''
 const XpAppResources resources = [] {
  auto value = unexpectedAppResources();
+ value.font_owner = &fonts.slot;
  value.path_exists = [](XpAppText path) -> uint8_t { return Storage.exists(pathText(path)); };
  value.buffer_allocate = [](XpAppMemoryDomain domain, size_t bytes) -> uint8_t* {
    assert(domain == XP_APP_MEMORY_DEFAULT);

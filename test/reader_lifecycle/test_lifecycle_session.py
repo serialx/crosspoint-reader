@@ -217,7 +217,7 @@ def main():
                 (evidence / (name + '.rs')).write_text(changed)
                 logged(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                         '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                        '--features', 'app-test'], name + '-rust-build', cwd=copied_rust)
+                        '--features', 'app-test,sd-font-catalog'], name + '-rust-build', cwd=copied_rust)
                 result = capture(name, compile_fixture(name, fixture, target / 'release/libxp_ffi.a'))
                 if name == 'lower-build-free-threshold':
                     assert result.returncode == 42 and result.stderr == (

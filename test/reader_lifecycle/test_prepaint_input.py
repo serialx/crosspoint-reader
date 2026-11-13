@@ -65,7 +65,7 @@ def main():
             target = work / 'target'
             subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                             '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                            '--features', 'app-test'], cwd=copied_rust, check=True)
+                            '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
             failed = run('delayed', target / 'release/libxp_ffi.a')
             assert failed.returncode != 0, 'actual Rust readiness mutant survived'
             stderr = failed.stderr.decode(errors='replace')

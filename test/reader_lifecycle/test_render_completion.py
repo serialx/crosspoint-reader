@@ -46,7 +46,7 @@ with tempfile.TemporaryDirectory(prefix='reader-completion-') as directory:
     target = out / 'target'
     subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                     '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                    '--features', 'app-test'], cwd=copied_rust, check=True)
+                    '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
     result = subprocess.run([str(compile_fixture('split', str(target/'release/libxp_ffi.a')))],
                             capture_output=True, text=True, timeout=30)
     assert result.returncode != 0 and 'completion must publish before model unlock' in result.stderr, result.stderr

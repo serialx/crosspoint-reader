@@ -342,7 +342,7 @@ class Activity;""")
     stub = stub.replace('void requestUpdate() {}', 'unsigned requested=0; void requestUpdate() {++requested;}')
     (out / 'Activity.h').write_text(stub)
     (out / 'interleaving.cpp').write_text(code)
-    subprocess.run(['c++', '-std=c++20', '-pthread', '-UNDEBUG', '-I'+str(out),
+    subprocess.run(['c++', '-std=c++20', '-DXP_SD_FONT_CATALOG', '-pthread', '-UNDEBUG', '-I'+str(out),
                     '-I'+str(ROOT/'test/ui_runtime/stubs'), '-I'+str(ROOT/'rust/crates/xp-ffi/include'),
                     str(out/'interleaving.cpp'), str(out/'RustActivityAdapter.cpp'),
                     str(ROOT/'test/cmake/xp_ffi_host.cpp'), sys.argv[1], '-o', str(out/'interleaving')], check=True)

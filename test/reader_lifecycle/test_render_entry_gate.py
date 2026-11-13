@@ -61,7 +61,7 @@ def main():
         target = work / 'target'
         subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                         '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                        '--features', 'app-test'], cwd=copied_rust, check=True)
+                        '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
         binary = compile_fixture(mutant, str(target / 'release/libxp_ffi.a'))
         failed = subprocess.run([str(binary), args.mode], capture_output=True,
                                 text=True, timeout=30)

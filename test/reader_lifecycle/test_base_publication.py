@@ -118,7 +118,7 @@ def run_owner_publication():
                               'mutant_sha256': hashlib.sha256(changed.encode()).hexdigest()}), flush=True)
             subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                             '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                            '--features', 'app-test'], cwd=copied_rust, check=True)
+                            '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
             binary = executable(name, target / 'release/libxp_ffi.a')
             failed = subprocess.run([str(binary)], capture_output=True, text=True)
             assert failed.returncode != 0 and expected_assertion in failed.stderr, (

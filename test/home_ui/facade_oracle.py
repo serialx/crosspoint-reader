@@ -22,7 +22,7 @@ def run_cpp(source, reject=False):
     with tempfile.TemporaryDirectory() as directory:
         out = Path(directory)
         (out / 'probe.cpp').write_text(source)
-        subprocess.run(['c++', '-std=c++20', '-pthread', '-UNDEBUG', '-fsanitize=address,undefined',
+        subprocess.run(['c++', '-std=c++20', '-DXP_SD_FONT_CATALOG', '-pthread', '-UNDEBUG', '-fsanitize=address,undefined',
                         '-I' + str(ROOT / 'rust/crates/xp-ffi/include'), str(out / 'probe.cpp'),
                         str(ROOT / 'test/cmake/xp_ffi_host.cpp'), str(archive), '-o', str(out / 'probe')], check=True)
         result = subprocess.run([str(out / 'probe')], capture_output=True, timeout=15)

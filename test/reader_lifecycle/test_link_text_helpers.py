@@ -139,7 +139,7 @@ def main():
         target = work / 'target'
         subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                         '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                        '--features', 'app-test'], cwd=copied_rust, check=True)
+                        '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
         mutant_trace = run(mode['mutant'], target / 'release/libxp_ffi.a')
         assert mutant_trace != actual, (mode['test'], 'production mutant escaped')
         assert (ROOT / 'rust' / production_path).read_bytes() == production

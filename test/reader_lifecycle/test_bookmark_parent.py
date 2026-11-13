@@ -219,7 +219,7 @@ with tempfile.TemporaryDirectory(prefix='reader-bookmarks-') as directory:
             (copied_rust / path).write_bytes(wrong)
             subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                             '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                            '--features', 'app-test'], cwd=copied_rust, check=True)
+                            '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
             result = run(name, target / 'release/libxp_ffi.a')
             assert result.returncode != 0 or result.stdout != actual, f'mutant escaped: {name}'
             print(json.dumps({'test_name': TEST_NAME, 'mutant': name, 'replacement_count': 1,

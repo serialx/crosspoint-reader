@@ -608,7 +608,7 @@ def build(build_dir, arduinojson, archive, rust_owner=False, rust_export=False):
     include = [HERE / 'stubs', frozen, frozen / 'src', build_dir, ROOT, ROOT / 'src', ROOT / 'lib', ROOT / 'lib/hal',
                ROOT / 'lib/Memory', ROOT / 'lib/Serialization', ROOT / 'lib/Utf8', ROOT / 'rust/crates/xp-ffi/include',
                arduinojson]
-    common = ['c++', '-std=c++20', '-O2', '-ffp-contract=off', '-ffunction-sections', '-fdata-sections', *flags,
+    common = ['c++', '-std=c++20', '-DXP_SD_FONT_CATALOG', '-O2', '-ffp-contract=off', '-ffunction-sections', '-fdata-sections', *flags,
               *['-I' + str(path) for path in include]]
     units = [
         (ROOT / 'test/clipping_bytes/Oracle.cpp', []),
@@ -650,7 +650,7 @@ def build(build_dir, arduinojson, archive, rust_owner=False, rust_export=False):
     manifest['commands'] = commands
     manifest['compiler'] = subprocess.check_output(['c++', '--version'], text=True)
     manifest['configuration'] = sorted(line for line in subprocess.check_output(
-        ['c++', '-std=c++20', *flags, *['-I' + str(path) for path in include], '-dM', '-E', '-x', 'c++',
+        ['c++', '-std=c++20', '-DXP_SD_FONT_CATALOG', *flags, *['-I' + str(path) for path in include], '-dM', '-E', '-x', 'c++',
          '-include', 'ArduinoJson.h', '/dev/null'], text=True).splitlines() if line.startswith('#define ARDUINOJSON_'))
     manifest['arduinojson_release'] = '7.4.2'
     manifest['archive_sha256'] = sha(archive.read_bytes())

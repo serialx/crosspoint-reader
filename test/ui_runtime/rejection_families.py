@@ -228,7 +228,7 @@ with tempfile.TemporaryDirectory() as directory:
     (out/'families.cpp').write_text(code)
     for name in ['RustActivityAdapter.h', 'RustActivityAdapter.cpp']:
         (out/name).write_bytes((SOURCE/'src/activities'/name).read_bytes())
-    subprocess.run(['c++','-std=c++20','-pthread','-UNDEBUG',
+    subprocess.run(['c++','-std=c++20', '-DXP_SD_FONT_CATALOG','-pthread','-UNDEBUG',
                     '-I'+str(out),'-I'+str(ROOT/'test/ui_runtime/stubs'),
                     '-I'+str(ROOT/'rust/crates/xp-ffi/include'),str(out/'families.cpp'),
                     str(out/'RustActivityAdapter.cpp'),str(ROOT/'test/cmake/xp_ffi_host.cpp'),

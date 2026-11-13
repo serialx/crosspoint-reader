@@ -28,7 +28,7 @@ def composition(root):
     ui=replace_once(ui,'// ACTUAL_TOOLBAR_LEAF',leaf)
     adapters=(HERE/'book_text_adapters.cpp').read_text()
     bodies='\n'.join(definition(native,s) for s in ['std::string_view view(XpAppText value)','const std::string& borrowed(XpAppNativeText value)','void emitSession(', 'void emitExit('])+'\n'
-    for name in ['path_remove_tree','path_remove','path_mkdir','path_rename','file_open_read','file_open_write','font_sizes','font_text_advance','inflate_oom_log','emit_open','popup_show','clippings_insert']:
+    for name in ['path_remove_tree','path_remove','path_mkdir','path_rename','file_open_read','file_open_write','font_text_advance','inflate_oom_log','emit_open','popup_show','clippings_insert']:
         bodies+='static auto '+name+' = '+native_leaf(native,name)+';\n'
     app=(root/'src/activities/RustAppResources.cpp').read_text()
     bodies+=definition(app,'std::string owned(XpAppText value)').replace('std::string owned(', 'std::string app_owned(')+'\n'

@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstdlib>
 
+#include "epub_fixture_abi.h"
 #include "legacy_book_fixture.h"
 
 struct XpEpubTestOverlaySeed {
@@ -157,7 +158,7 @@ inline XpAppRuntime overlayUnexpectedRuntime() {
 
 inline XpEpubLeaves overlayUnexpectedLeaves() {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 168 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == xpTestEpubLeafCount * sizeof(void (*)()));
   table.render_margins = &OverlayUnexpected<decltype(table.render_margins)>::call;
   table.render_geometry = &OverlayUnexpected<decltype(table.render_geometry)>::call;
   table.render_restore_bw = &OverlayUnexpected<decltype(table.render_restore_bw)>::call;
@@ -176,7 +177,9 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.fonts_prewarm_finish_scan = &OverlayUnexpected<decltype(table.fonts_prewarm_finish_scan)>::call;
   table.fonts_prewarm_drop = &OverlayUnexpected<decltype(table.fonts_prewarm_drop)>::call;
   table.fonts_take_corrupt_notice = &OverlayUnexpected<decltype(table.fonts_take_corrupt_notice)>::call;
+#ifndef XP_SD_FONT_CATALOG
   table.font_sizes = &OverlayUnexpected<decltype(table.font_sizes)>::call;
+#endif
   table.settings_snapshot = &OverlayUnexpected<decltype(table.settings_snapshot)>::call;
   table.settings_render_spec = &OverlayUnexpected<decltype(table.settings_render_spec)>::call;
   table.settings_orientation = &OverlayUnexpected<decltype(table.settings_orientation)>::call;

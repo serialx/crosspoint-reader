@@ -1,3 +1,4 @@
+#include "epub_fixture_abi.h"
 #include "lifecycle_session_fixture.h"
 #include <xp_ui.h>
 #include <cstdlib>
@@ -169,7 +170,7 @@ static XpAppRuntime runtimeDefaults() {
 
 static LegacyEpubLeaves leavesDefaults() {
   LegacyEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 168 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == xpTestEpubLeafCount * sizeof(void (*)()));
   UNUSED_LEAF(physical.render_margins);
   UNUSED_LEAF(physical.render_geometry);
   UNUSED_LEAF(physical.render_restore_bw);
@@ -221,7 +222,9 @@ static LegacyEpubLeaves leavesDefaults() {
   UNUSED_LEAF(physical.fonts_prewarm_finish_scan);
   UNUSED_LEAF(physical.fonts_prewarm_drop);
   UNUSED_LEAF(physical.fonts_take_corrupt_notice);
+#ifndef XP_SD_FONT_CATALOG
   UNUSED_LEAF(physical.font_sizes);
+#endif
   UNUSED_LEAF(physical.settings_snapshot);
   UNUSED_LEAF(physical.settings_render_spec);
   UNUSED_LEAF(physical.settings_orientation);

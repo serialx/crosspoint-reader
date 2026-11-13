@@ -312,6 +312,9 @@ struct SettingsStub {
   bool showHiddenFiles = false, pluginsEnabled = true;
   uint8_t toggle = 0, enumeration = 0, value = 2;
   char text[16] = "original", password[16] = "secret";
+#ifdef XP_SD_FONT_CATALOG
+  char sdFontFamilyName[32] = "";
+#endif
   void saveToFile() const { host::trace.emplace_back("settings-save"); }
 };
 inline SettingsStub SETTINGS;

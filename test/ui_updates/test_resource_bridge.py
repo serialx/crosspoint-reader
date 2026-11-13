@@ -26,5 +26,5 @@ s=(HERE/'resource_bridge.cpp').read_text().replace('// DECLARATIONS','\n'.join(d
 if args.revision:s=s[:s.index('  pauseRows = false;')]+' puts("baseline race not reproduced");\n}\n'
 with tempfile.TemporaryDirectory()as directory:
  cpp=Path(directory)/'bridge.cpp';exe=Path(directory)/'bridge';cpp.write_text(s)
- subprocess.run(['c++','-std=c++20','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer','-pthread','-I'+str(ROOT/'rust/crates/xp-ffi/include'),str(cpp),str(ROOT/'test/cmake/xp_ffi_host.cpp'),args.library,'-o',str(exe)],check=True)
+ subprocess.run(['c++','-std=c++20', '-DXP_SD_FONT_CATALOG','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer','-pthread','-I'+str(ROOT/'rust/crates/xp-ffi/include'),str(cpp),str(ROOT/'test/cmake/xp_ffi_host.cpp'),args.library,'-o',str(exe)],check=True)
  subprocess.run([str(exe)],check=True,timeout=15)

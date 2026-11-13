@@ -68,7 +68,7 @@ int main() {
 with tempfile.TemporaryDirectory() as directory:
     path = Path(directory)
     (path / 'commands.cpp').write_text(fixture + owner + methods + checks)
-    subprocess.run(['c++', '-std=c++20', '-UNDEBUG', '-I' + str(ROOT / 'rust/crates/xp-ffi/include'),
+    subprocess.run(['c++', '-std=c++20', '-DXP_SD_FONT_CATALOG', '-UNDEBUG', '-I' + str(ROOT / 'rust/crates/xp-ffi/include'),
                     str(path / 'commands.cpp'), str(ROOT / 'test/cmake/xp_ffi_host.cpp'),
                     sys.argv[1], '-o', str(path / 'commands')], check=True)
     subprocess.run([str(path / 'commands')], check=True)

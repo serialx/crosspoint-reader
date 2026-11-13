@@ -252,7 +252,7 @@ with tempfile.TemporaryDirectory() as directory:
   SwipeDir swipe''')
     (out / 'Activity.h').write_text(stub)
     (out / 'composite.cpp').write_text(code)
-    subprocess.run(['c++', '-std=c++20', '-pthread', '-UNDEBUG', '-I'+str(out),
+    subprocess.run(['c++', '-std=c++20', '-DXP_SD_FONT_CATALOG', '-pthread', '-UNDEBUG', '-I'+str(out),
                     '-I'+str(ROOT/'test/ui_runtime/stubs'), '-I'+str(ROOT/'rust/crates/xp-ffi/include'),
                     str(out/'composite.cpp'), str(out/'RustActivityAdapter.cpp'),
                     str(ROOT/'test/cmake/xp_ffi_host.cpp'), sys.argv[1], '-o', str(out/'composite')], check=True)

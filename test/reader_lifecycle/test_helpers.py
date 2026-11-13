@@ -132,7 +132,7 @@ def main():
                                   'source_sha256': digest(changed.encode())}), flush=True)
                 subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                                 '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                                '--features', 'app-test'], cwd=copied_rust, check=True)
+                                '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
                 mutant = compile_fixture(name, target / 'release/libxp_ffi.a')
                 result = subprocess.run([str(mutant), mode], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 assert result.returncode != 0 or result.stdout != expected[mode], f'mutant survived: {name}'

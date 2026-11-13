@@ -33,13 +33,13 @@ def main():
                 os.environ["XP_I18N_STRIP_UNUSED"] = "1" if name == "stripped" else "0"
                 target = ROOT / "build/i18n-oracle" / name
                 subprocess.run(["cargo", "build", "--manifest-path", str(ROOT / "rust/Cargo.toml"),
-                                "--target-dir", str(target), "-p", "xp-ffi", "--release", "--locked"],
+                                "--target-dir", str(target), "-p", "xp-ffi", "--features", "sd-font-catalog", "--release", "--locked"],
                                check=True)
                 flags = ["-I", str(ROOT / "rust/crates/xp-ffi/include"),
                          str(ROOT / "test/cmake/xp_ffi_host.cpp"),
                          str(target / "release/libxp_ffi.a")]
             executable = out / "dump"
-            subprocess.run(["c++", "-std=c++20", "-O2", "-I", str(out),
+            subprocess.run(["c++", "-std=c++20", "-DXP_SD_FONT_CATALOG", "-O2", "-I", str(out),
                             str(HERE / "dump.cpp"), str(out / "I18n.cpp"),
                             str(out / "I18nStrings.cpp"), *flags, "-o", str(executable)], check=True)
             actual = subprocess.check_output([str(executable)])

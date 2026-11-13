@@ -187,7 +187,7 @@ def main():
                 copied_source.write_text(changed)
                 command = ['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                            '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                           '--features', 'app-test']
+                           '--features', 'app-test,sd-font-catalog']
                 if check_lifetime:
                     assert mutant == 'page-before-finish'
                     rejected = subprocess.run(command + ['--message-format=json'], cwd=copied_rust,

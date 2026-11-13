@@ -22,7 +22,7 @@ for name in ('OtaUpdater', 'OtaBootSwitch', 'FirmwareBoardTag'):
     dest = a.build/(name+'.cpp')
     shutil.copyfile(a.source/'src/network'/(name+'.cpp'), dest)
     sources.append(dest)
-cmd = ['c++', '-std=c++20', '-O2', '-DCROSSPOINT_VERSION=oracle::currentVersion.c_str()']
+cmd = ['c++', '-std=c++20', '-DXP_SD_FONT_CATALOG', '-O2', '-DCROSSPOINT_VERSION=oracle::currentVersion.c_str()']
 for path in (HERE/'stubs', a.source/'src/network', a.source/'rust/crates/xp-ffi/include', ROOT/'lib/JsonParser', ROOT/'freeink-sdk/libs/network/JsonSax/include', ROOT/'rust/crates/xp-ffi/include'):
     cmd.append('-I'+str(path))
 if a.usb:

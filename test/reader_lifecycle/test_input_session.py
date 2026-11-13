@@ -168,7 +168,7 @@ def main():
                     (copied_rust / source_path).write_bytes(changed)
                     subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                                     '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                                    '--features', 'app-test'], cwd=copied_rust, check=True)
+                                    '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
                     result = run(compile_fixture(name, mode, target / 'release/libxp_ffi.a'))
                     # Compilation or crashes do not count: policy must run and change the trace.
                     assert result.returncode == 0, (name, result.returncode, result.stderr.decode(errors='replace'))

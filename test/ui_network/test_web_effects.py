@@ -30,7 +30,7 @@ s=s.replace('static void record(const std::string& s) {','static int modelDepth=
 s='#include "xp_ui_network.h"\n'+s
 with tempfile.TemporaryDirectory() as directory:
  out=Path(directory);(out/'effects.cpp').write_text(s)
- subprocess.run(['c++','-std=c++20','-pthread','-Werror=switch','-I'+str(out),'-I'+str(repo/'rust/crates/xp-ffi/include'),str(out/'effects.cpp'),str(repo/'test/cmake/xp_ffi_host.cpp'),sys.argv[1],'-o',str(out/'effects')],check=True)
+ subprocess.run(['c++','-std=c++20', '-DXP_SD_FONT_CATALOG','-pthread','-Werror=switch','-I'+str(out),'-I'+str(repo/'rust/crates/xp-ffi/include'),str(out/'effects.cpp'),str(repo/'test/cmake/xp_ffi_host.cpp'),sys.argv[1],'-o',str(out/'effects')],check=True)
  actual=subprocess.check_output([str(out/'effects')]);expected=(repo/'test/ui_network/effects.golden').read_bytes()
  if actual!=expected:
   import difflib

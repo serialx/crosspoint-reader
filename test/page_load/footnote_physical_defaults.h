@@ -6,6 +6,7 @@
 #include <cstdlib>
 
 #include "../reader_lifecycle/legacy_page_fixture.h"
+#include "epub_fixture_abi.h"
 extern "C" {
 void* xp_app_test_current_legacy();
 uint8_t xp_app_test_is_home();
@@ -25,7 +26,7 @@ struct AppFixtureUnexpected<R (*)(A...), Slot> {
 
 inline XpEpubLeaves unexpectedEpubLeaves() {
   XpEpubLeaves value{};
-  static_assert(sizeof(XpEpubLeaves) == 168 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == xpTestEpubLeafCount * sizeof(void (*)()));
   value.render_margins = &AppFixtureUnexpected<decltype(value.render_margins), 5>::call;
   value.render_geometry = &AppFixtureUnexpected<decltype(value.render_geometry), 6>::call;
   value.render_restore_bw = &AppFixtureUnexpected<decltype(value.render_restore_bw), 7>::call;
@@ -55,7 +56,9 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.fonts_prewarm_finish_scan = &AppFixtureUnexpected<decltype(value.fonts_prewarm_finish_scan), 70>::call;
   value.fonts_prewarm_drop = &AppFixtureUnexpected<decltype(value.fonts_prewarm_drop), 71>::call;
   value.fonts_take_corrupt_notice = &AppFixtureUnexpected<decltype(value.fonts_take_corrupt_notice), 72>::call;
+#ifndef XP_SD_FONT_CATALOG
   value.font_sizes = &AppFixtureUnexpected<decltype(value.font_sizes), 73>::call;
+#endif
   value.settings_snapshot = &AppFixtureUnexpected<decltype(value.settings_snapshot), 74>::call;
   value.settings_render_spec = &AppFixtureUnexpected<decltype(value.settings_render_spec), 75>::call;
   value.settings_orientation = &AppFixtureUnexpected<decltype(value.settings_orientation), 76>::call;

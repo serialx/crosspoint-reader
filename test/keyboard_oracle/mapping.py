@@ -70,7 +70,7 @@ with tempfile.TemporaryDirectory() as tmp:
     assert len(names) == 10, names
     vendor = (sdk / 'src/FreeInkUI.cpp').read_text().replace('builtinKeyboardLayout(', 'sourceBuiltinKeyboardLayout(')
     (work/'vendor.cpp').write_text(vendor)
-    subprocess.run(['c++','-std=c++20','-O1','-I'+str(sdk/'include'),'-c',str(work/'vendor.cpp'),'-o',str(work/'vendor.o')],check=True)
+    subprocess.run(['c++','-std=c++20', '-DXP_SD_FONT_CATALOG','-O1','-I'+str(sdk/'include'),'-c',str(work/'vendor.cpp'),'-o',str(work/'vendor.o')],check=True)
     shim = '''
 namespace freeink::ui {
 const KeyboardLayout& sourceBuiltinKeyboardLayout(KeyboardLayoutId,bool,bool,bool,bool);
@@ -88,7 +88,7 @@ const KeyboardLayout& builtinKeyboardLayout(KeyboardLayoutId id,bool sh,bool sy,
     for label, text in [('pinned', original), ('permuted', original.replace(body, '\n'+changed+'\n'))]:
         enum.write_text(text)
         (work / 'mapping.cpp').write_text(source + shim)
-        subprocess.run(['c++','-std=c++20','-O1','-DFREEINK_UI_COMPONENT_STYLE=0',
+        subprocess.run(['c++','-std=c++20', '-DXP_SD_FONT_CATALOG','-O1','-DFREEINK_UI_COMPONENT_STYLE=0',
                         '-I'+str(work/'include'),'-I'+str(generated_i18n_directory(archive)),
                         '-I'+str(root/'rust/crates/xp-ffi/include'),str(work/'mapping.cpp'),
                         str(work/'vendor.o'),str(root/'test/cmake/xp_ffi_host.cpp'),str(archive),'-o',str(work/'mapping')],check=True)

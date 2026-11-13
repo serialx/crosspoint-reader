@@ -119,5 +119,5 @@ with tempfile.TemporaryDirectory(prefix='custom-gates-')as tmp:
  for n in ['RustActivityAdapter.h','RustActivityAdapter.cpp']:(p/n).write_text((SOURCE/'src/activities'/n).read_text())
  stub=(ROOT/'test/ui_runtime/stubs/Activity.h').read_text().replace('bool wasPressed(Button b)','bool wasScreenLongPress(int&,int&)const{return false;} bool wasPressed(Button b)')
  (p/'Activity.h').write_text(stub);(p/'check.cpp').write_text(code)
- subprocess.run(['c++','-std=c++17','-I'+str(p),'-I'+str(ROOT/'test/ui_runtime/stubs'),'-I'+str(ROOT/'rust/crates/xp-ffi/include'),str(p/'check.cpp'),str(p/'RustActivityAdapter.cpp'),str(ROOT/'test/cmake/xp_ffi_host.cpp'),sys.argv[1],'-o',str(p/'check')],check=True)
+ subprocess.run(['c++','-std=c++17', '-DXP_SD_FONT_CATALOG','-I'+str(p),'-I'+str(ROOT/'test/ui_runtime/stubs'),'-I'+str(ROOT/'rust/crates/xp-ffi/include'),str(p/'check.cpp'),str(p/'RustActivityAdapter.cpp'),str(ROOT/'test/cmake/xp_ffi_host.cpp'),sys.argv[1],'-o',str(p/'check')],check=True)
  subprocess.run([str(p/'check')],check=True)

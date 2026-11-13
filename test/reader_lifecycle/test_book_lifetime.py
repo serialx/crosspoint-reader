@@ -89,7 +89,7 @@ with tempfile.TemporaryDirectory(prefix='reader-book-lifetime-') as directory:
                               'original_sha256': digest(production), 'source_sha256': digest(changed)}), flush=True)
             subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                             '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                            '--features', 'app-test'], cwd=copied_rust, check=True)
+                            '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
             wrong = run(name, target / 'release/libxp_ffi.a')
             assert wrong.returncode != 0 or wrong.stdout != expected, f'mutant survived: {name}'
     finally:

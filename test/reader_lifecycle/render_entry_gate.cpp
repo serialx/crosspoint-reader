@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "epub_fixture_abi.h"
 #include "render_entry_gate_fixture.h"
 
 using namespace std::chrono_literals;
@@ -239,7 +240,7 @@ static const XpUiReaderRenderServices renderServices = {
 static const XpEpubLeaves& physicalLeaves() {
   static const XpEpubLeaves value = [] {
     XpEpubLeaves table{};
-    static_assert(sizeof(XpEpubLeaves) == 168 * sizeof(void (*)()));
+    static_assert(sizeof(XpEpubLeaves) == xpTestEpubLeafCount * sizeof(void (*)()));
     UNUSED_LEAF(render_margins);
     UNUSED_LEAF(render_geometry);
     UNUSED_LEAF(render_restore_bw);
@@ -259,7 +260,9 @@ static const XpEpubLeaves& physicalLeaves() {
     UNUSED_LEAF(fonts_prewarm_finish_scan);
     UNUSED_LEAF(fonts_prewarm_drop);
     UNUSED_LEAF(fonts_take_corrupt_notice);
+#ifndef XP_SD_FONT_CATALOG
     UNUSED_LEAF(font_sizes);
+#endif
     UNUSED_LEAF(settings_snapshot);
     UNUSED_LEAF(settings_render_spec);
     UNUSED_LEAF(settings_orientation);

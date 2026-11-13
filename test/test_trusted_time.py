@@ -154,10 +154,10 @@ if __name__ == "__main__":
         if not archive:
             host = subprocess.check_output(["rustc", "-vV"], text=True).split("host: ")[1].splitlines()[0]
             subprocess.run(["cargo", "build", "--manifest-path", str(ROOT / "rust/Cargo.toml"),
-                            "-p", "xp-ffi", "--release", "--target", host], check=True)
+                            "-p", "xp-ffi", "--features", "app-test,sd-font-catalog", "--release", "--target", host], check=True)
             archive = str(ROOT / "rust/target" / host / "release/libxp_ffi.a")
         subprocess.run([
-            "c++", "-std=c++17", "-Wall", "-Wextra", "-Werror",
+            "c++", "-std=c++17", "-DXP_SD_FONT_CATALOG", "-Wall", "-Wextra", "-Werror",
             f"-I{work}", f"-I{ROOT / 'lib/TrustedTime'}",
             f"-I{ROOT / 'rust/crates/xp-ffi/include'}",
             str(ROOT / "lib/TrustedTime/TrustedTime.cpp"), str(work / "check.cpp"),

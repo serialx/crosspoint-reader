@@ -162,7 +162,7 @@ with tempfile.TemporaryDirectory(prefix='stale-publication-') as tmp:
     for name in ['RustActivityAdapter.h', 'RustActivityAdapter.cpp']:
         (p / name).write_text((SOURCE / 'src/activities' / name).read_text())
     (p / 'check.cpp').write_text(code)
-    subprocess.run(['c++', '-std=c++17', '-I' + str(p), '-I' + str(ROOT / 'test/ui_runtime/stubs'),
+    subprocess.run(['c++', '-std=c++17', '-DXP_SD_FONT_CATALOG', '-I' + str(p), '-I' + str(ROOT / 'test/ui_runtime/stubs'),
                     '-I' + str(ROOT / 'rust/crates/xp-ffi/include'), str(p / 'check.cpp'),
                     str(p / 'RustActivityAdapter.cpp'), str(ROOT / 'test/cmake/xp_ffi_host.cpp'),
                     sys.argv[1], '-o', str(p / 'check')], check=True)

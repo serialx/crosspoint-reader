@@ -136,7 +136,7 @@ with tempfile.TemporaryDirectory(prefix="network-gate-") as directory:
         "void displayBuffer(HalDisplay::RefreshMode = HalDisplay::FAST_REFRESH)")
     (out / "Activity.h").write_text(stub)
     (out / "check.cpp").write_text(code)
-    subprocess.run(["c++", "-std=c++20", "-pthread", "-I" + str(out),
+    subprocess.run(["c++", "-std=c++20", "-DXP_SD_FONT_CATALOG", "-pthread", "-I" + str(out),
                     "-I" + str(ROOT / "test/ui_runtime/stubs"),
                     "-I" + str(ROOT / "rust/crates/xp-ffi/include"),
                     "-I" + str(ROOT / "test/ui_network"),

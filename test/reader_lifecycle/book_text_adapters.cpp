@@ -159,7 +159,6 @@ static void verify(XpAppText value, const std::string& bytes) {
   check([&] { path_rename(value, value); }, 2);
   check([&] { delete static_cast<HalFile*>(file_open_read(value, value)); }, 2);
   check([&] { delete static_cast<HalFile*>(file_open_write(value, value)); }, 2);
-  check([&] { font_sizes(value, [](void*, XpAppText) -> uint8_t { return 1; }, nullptr); }, 1);
   check([&] { font_text_advance(value, 0, 0, 0); }, 1);
   check([&] { inflate_oom_log(value, 1); }, 1);
   check([&] { emit_open(value); }, 1);

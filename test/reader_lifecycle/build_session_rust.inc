@@ -1,3 +1,4 @@
+#include "epub_fixture_abi.h"
 // Every slot is a valid typed function, even when the fixture cannot call it.
 template <typename Signature> struct Unexpected;
 template <typename Result, typename... Args> struct Unexpected<Result (*)(Args...)> {
@@ -159,7 +160,7 @@ static const XpAppRuntime runtime = [] {
 static auto legacySection = unexpectedLegacySectionServices();
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 168 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == xpTestEpubLeafCount * sizeof(void (*)()));
   UNUSED_LEAF(render_margins);
   UNUSED_LEAF(render_geometry);
   UNUSED_LEAF(render_restore_bw);
@@ -179,7 +180,9 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(fonts_prewarm_finish_scan);
   UNUSED_LEAF(fonts_prewarm_drop);
   UNUSED_LEAF(fonts_take_corrupt_notice);
+#ifndef XP_SD_FONT_CATALOG
   UNUSED_LEAF(font_sizes);
+#endif
   UNUSED_LEAF(settings_snapshot);
   UNUSED_LEAF(settings_render_spec);
   UNUSED_LEAF(settings_orientation);

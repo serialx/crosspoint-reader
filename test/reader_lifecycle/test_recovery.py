@@ -182,7 +182,7 @@ def main():
                 copied_source.write_bytes(changed)
                 subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                                 '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                                '--features', 'app-test'], cwd=copied_rust, check=True)
+                                '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
                 result = run(name, target / 'release/libxp_ffi.a')
                 assert result.returncode != 0 or result.stdout != expected, (name, 'actual Rust mutant survived')
                 print(json.dumps({

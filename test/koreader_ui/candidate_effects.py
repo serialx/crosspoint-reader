@@ -97,7 +97,7 @@ int phase(const KOReaderAuthActivity& a){return a.model.phase==XP_KO_AUTHENTICAT
     source+=main
     with tempfile.TemporaryDirectory() as directory:
         cpp=Path(directory)/'candidate.cpp';exe=Path(directory)/'candidate';cpp.write_text(source)
-        subprocess.run(['c++','-std=c++20','-DCONFIG_IDF_TARGET_ESP32C3=1','-I'+str(ROOT/'lib/KOReaderSync'),'-I'+str(ROOT/'rust/crates/xp-ffi/include'),str(cpp),str(ROOT/'test/cmake/xp_ffi_host.cpp'),archive,'-o',str(exe)],check=True)
+        subprocess.run(['c++','-std=c++20', '-DXP_SD_FONT_CATALOG','-DCONFIG_IDF_TARGET_ESP32C3=1','-I'+str(ROOT/'lib/KOReaderSync'),'-I'+str(ROOT/'rust/crates/xp-ffi/include'),str(cpp),str(ROOT/'test/cmake/xp_ffi_host.cpp'),archive,'-o',str(exe)],check=True)
         return subprocess.check_output([str(exe)])
 
 if __name__=='__main__':

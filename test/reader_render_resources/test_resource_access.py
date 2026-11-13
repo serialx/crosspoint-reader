@@ -19,8 +19,10 @@ def check(output):
         for name in ('scripts', 'lib', 'src'):
             (work / name).symlink_to(ROOT / name, target_is_directory=True)
         results = []
-        for mode, features in [('shipping-off', ''), ('shipping-on', 'reader-strips'),
-                               ('app-off', 'app-test'), ('app-on', 'app-test,reader-strips')]:
+        for mode, features in [('shipping-strips-off', 'sd-font-catalog'),
+                               ('shipping-strips-on', 'sd-font-catalog,reader-strips'),
+                               ('app-strips-off', 'app-test,sd-font-catalog'),
+                               ('app-strips-on', 'app-test,sd-font-catalog,reader-strips')]:
             for case in ('scoped', 'after-unlock'):
                 operations = ['core::hint::black_box(resources);', 'drop(access);']
                 if case == 'after-unlock':

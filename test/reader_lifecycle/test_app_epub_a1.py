@@ -241,7 +241,7 @@ def main():
             target = work / 'target'
             def build(mode, name, content):
                 (copied / 'rust' / PRODUCTION).write_text(content)
-                features = 'app-test' + (',reader-strips' if mode == 'on' else '')
+                features = 'app-test,sd-font-catalog' + (',reader-strips' if mode == 'on' else '')
                 built = command(name + '.cargo', ['cargo', 'build', '--manifest-path', str(copied / 'rust/Cargo.toml'),
                     '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked', '--features', features], cwd=copied / 'rust')
                 assert built.returncode == 0, (name, 'Cargo failure is not a mutant kill')

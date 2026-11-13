@@ -4,7 +4,11 @@ if(TARGET xp_ffi_host)
 endif()
 find_program(XP_FFI_CARGO cargo REQUIRED)
 find_program(XP_FFI_RUSTC rustc REQUIRED)
-set(XP_FFI_HOST_FEATURES "chapter-test,chapter-trace,package-trace,app-test,section-test" CACHE STRING "Cargo features for the host xp-ffi archive")
+set(XP_FFI_HOST_FEATURES "chapter-test,chapter-trace,package-trace,app-test,section-test,sd-font-catalog" CACHE STRING "Cargo features for the host xp-ffi archive")
+# Firmware always enables the catalog; upgrade existing host feature caches too.
+if(NOT XP_FFI_HOST_FEATURES MATCHES "(^|,)sd-font-catalog(,|$)")
+  set(XP_FFI_HOST_FEATURES "${XP_FFI_HOST_FEATURES},sd-font-catalog" CACHE STRING "Cargo features for the host xp-ffi archive" FORCE)
+endif()
 set(XP_FFI_HOST_CARGO_ARGS "" CACHE STRING "Additional host cargo build arguments (CMake list)")
 execute_process(COMMAND ${XP_FFI_RUSTC} -vV OUTPUT_VARIABLE XP_FFI_RUSTC_VERSION
   RESULT_VARIABLE XP_FFI_RUSTC_STATUS)
@@ -49,7 +53,7 @@ add_custom_target(xp_ffi_host_i18n
   VERBATIM
 )
 add_library(xp_ffi_host INTERFACE)
-target_compile_definitions(xp_ffi_host INTERFACE XP_APP_TEST)
+target_compile_definitions(xp_ffi_host INTERFACE XP_APP_TEST XP_SD_FONT_CATALOG)
 add_dependencies(xp_ffi_host xp_ffi_host_build xp_ffi_host_i18n)
 target_sources(xp_ffi_host INTERFACE ${CMAKE_CURRENT_LIST_DIR}/xp_ffi_host.cpp)
 target_include_directories(xp_ffi_host INTERFACE ${XP_FFI_HOST_I18N_DIR}

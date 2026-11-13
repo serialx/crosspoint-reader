@@ -101,7 +101,7 @@ def main():
                 (copied_rust / PRODUCTION).write_bytes(changed)
                 subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                                 '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                                '--features', 'app-test'], cwd=copied_rust, check=True)
+                                '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
                 rejected = run(name, target / 'release/libxp_ffi.a')
                 assert rejected.returncode != 0
                 assert b'rejected selection must not publish a child' in rejected.stderr, rejected.stderr.decode(errors='replace')

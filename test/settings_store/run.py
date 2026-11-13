@@ -84,7 +84,7 @@ def main():
     settings_source = args.build/'CrossPointSettings.cpp'
     settings_source.write_text(settings)
     sources += [settings_source, ROOT/'test/cmake/xp_ffi_host.cpp', args.archive]
-    subprocess.run(['c++', '-std=c++20', '-O2', '-include', str(counter), '-DARDUINOJSON_ENABLE_ARDUINO_STRING=0', '-DARDUINOJSON_ENABLE_ARDUINO_STREAM=0', '-DARDUINOJSON_ENABLE_ARDUINO_PRINT=0', *flags, *map(str, sources), str(args.build/'base64.o'), '-o', str(args.build/'oracle')], check=True)
+    subprocess.run(['c++', '-std=c++20', '-DXP_SD_FONT_CATALOG', '-O2', '-include', str(counter), '-DARDUINOJSON_ENABLE_ARDUINO_STRING=0', '-DARDUINOJSON_ENABLE_ARDUINO_STREAM=0', '-DARDUINOJSON_ENABLE_ARDUINO_PRINT=0', *flags, *map(str, sources), str(args.build/'base64.o'), '-o', str(args.build/'oracle')], check=True)
     actual = {}
     for kind, inputs in corpus().items():
         run = subprocess.run([str(args.build/'oracle'), kind], input='\n'.join(inputs)+'\n', text=True, capture_output=True, check=True)

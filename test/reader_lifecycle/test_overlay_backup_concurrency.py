@@ -52,7 +52,7 @@ def main():
         target = work / 'target'
         subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                         '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                        '--features', 'app-test'], cwd=copied_rust, check=True)
+                        '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
         failed = subprocess.run([str(compile_fixture('unlocked-disposal', str(target / 'release/libxp_ffi.a')))],
                                 capture_output=True, text=True, timeout=30)
         assert failed.returncode != 0 and 'renderDepth == 1 && modelDepth == 0' in failed.stderr, failed.stderr

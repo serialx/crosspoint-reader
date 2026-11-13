@@ -96,7 +96,7 @@ def main():
         target = work / 'target'
         subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                         '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                        '--features', 'app-test'], cwd=copied_rust, check=True)
+                        '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
         mutant_trace = run('suffix-limit', target / 'release/libxp_ffi.a')
         assert mutant_trace != actual, 'real Rust suffix-limit mutant escaped the native capture'
         assert (ROOT / 'rust' / PRODUCTION_PATH).read_bytes() == production

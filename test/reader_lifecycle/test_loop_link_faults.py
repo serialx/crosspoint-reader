@@ -239,7 +239,7 @@ def main():
             target = work / 'target'
             subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                             '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                            '--features', 'app-test'], cwd=copied_rust, check=True)
+                            '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
             rejected = run('link-copy-failure-falls-through', target / 'release/libxp_ffi.a')
             killed = rejected.returncode != 0 and FAILURE in rejected.stderr
             record = {'test_name': 'reader_loop_link_faults', 'mutant': 'link-copy-failure-falls-through',

@@ -153,7 +153,7 @@ XpFontFiles sdFontFileView(const std::vector<SdCardFontFileInfo>& files) {
             return {file.name.get(), file.pointSize, file.style};
           }};
 }
-extern "C" uint8_t* xp_native_sd_allocate(size_t bytes, bool) {
+extern "C" uint8_t* xp_native_sd_allocate(size_t bytes, uint8_t) {
   if (++allocations == failAllocation) return nullptr;
   auto* p = static_cast<uint8_t*>(std::malloc(bytes));
   assert(p && live.emplace(p, bytes).second);
@@ -216,7 +216,8 @@ extern "C" void xp_native_sd_file_close(XpSdFileSlot* slot) {
   fixed(slot);
   requireImpl(slot, "close");
 }
-extern "C" void xp_native_sd_diagnostic(const char*, uint32_t, const uint32_t*, uint32_t, uint32_t, bool) {}
+extern "C" void xp_native_sd_diagnostic(const char*, uint32_t, const uint32_t*, uint32_t, uint32_t, bool, const char*) {
+}
 extern "C" void xp_native_font_cache_diagnostic(const void*, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t) {}
 extern "C" void xp_native_font_diagnostic(void*, uint32_t, uint32_t) {}
 extern "C" const XpLoadedFonts* xp_native_chapter_font_owner(void* context) {

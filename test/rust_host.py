@@ -6,22 +6,23 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def rust_archive():
-    """Host xp-ffi archive selected by the test build."""
-    archive = os.environ.get('XP_TEST_RUST_ARCHIVE')
+def rust_archive(*, catalog=True):
+    """Use the shipping host archive, or an explicit historical catalog-off variant."""
+    archive = os.environ.get('XP_TEST_RUST_ARCHIVE') if catalog else None
     if archive is None:
-        target = ROOT / 'build/rust-host'
+        target = ROOT / ('build/rust-host' if catalog else 'build/rust-host-catalog-off')
+        features = 'app-test,sd-font-catalog' if catalog else 'app-test'
         subprocess.run(['cargo', 'build', '--manifest-path', str(ROOT / 'rust/Cargo.toml'),
-                        '--target-dir', str(target), '-p', 'xp-ffi', '--features', 'app-test',
+                        '--target-dir', str(target), '-p', 'xp-ffi', '--features', features,
                         '--release', '--locked'], check=True)
         archive = str(target / 'release/libxp_ffi.a')
     return archive
 
 
-def rust_link_flags(archive=None):
-    archive = rust_archive() if archive is None else archive
-    # This helper links app-test archives; select the matching native fixture ABI.
-    return ['-DXP_APP_TEST', '-I', str(ROOT / 'test/sdfont_legacy/abi'), '-I', str(ROOT / 'test/font_cache/legacy'),
+def rust_link_flags(archive=None, *, catalog=True):
+    archive = rust_archive(catalog=catalog) if archive is None else archive
+    # Match the selected archive's native fixture ABI.
+    return ['-DXP_APP_TEST', *(['-DXP_SD_FONT_CATALOG'] if catalog else []), '-I', str(ROOT / 'test/sdfont_legacy/abi'), '-I', str(ROOT / 'test/font_cache/legacy'),
             '-I', str(ROOT / 'rust/crates/xp-ffi/include'),
             '-I', str(ROOT / 'test/reader_lifecycle'),
             str(ROOT / 'test/cmake/xp_ffi_host.cpp'), archive]

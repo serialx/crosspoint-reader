@@ -55,7 +55,7 @@ def main():
             return result
         def build(name,strip):
             command=['cargo','build','--manifest-path',str(copied/'rust/Cargo.toml'),'--target-dir',str(target),
-                     '-p','xp-ffi','--release','--locked','--features','app-test'+(',reader-strips' if strip else '')]
+                     '-p','xp-ffi','--release','--locked','--features','app-test,sd-font-catalog'+(',reader-strips' if strip else '')]
             built=run(name+'.cargo',command,cwd=copied/'rust');assert built.returncode==0,(name,'Rust build failed')
             return target/'release/libxp_ffi.a'
         def compile_fixture(name,archive,strip):

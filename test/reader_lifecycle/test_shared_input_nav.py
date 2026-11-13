@@ -206,7 +206,7 @@ def main():
                 target = work / 'target'
                 run('nav-mutant.cargo', ['cargo', 'build', '--manifest-path', str(copied / 'rust/Cargo.toml'),
                                         '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                                        '--features', 'app-test'], cwd=copied / 'rust')
+                                        '--features', 'app-test,sd-font-catalog'], cwd=copied / 'rust')
                 actual = run('nav-mutant', [str(compile_fixture('nav', 'nav-mutant', target / 'release/libxp_ffi.a'))], timeout=120)
                 assert actual != nav_expected, 'real owner cursor-publication mutant survived'
                 records.append({'mutant': 'page-overlay-rows-ignore-cursor', 'source': str(NAV_SOURCE),

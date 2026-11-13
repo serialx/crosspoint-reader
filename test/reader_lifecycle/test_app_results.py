@@ -156,7 +156,7 @@ def main():
                         (evidence / (name + '.rs')).write_text(content)
                         run(['cargo', 'build', '--manifest-path', str(copied / 'rust/Cargo.toml'),
                              '--target-dir', str(work / 'mutant-target'), '-p', 'xp-ffi', '--release',
-                             '--locked', '--features', 'app-test'], name + '.cargo')
+                             '--locked', '--features', 'app-test,sd-font-catalog'], name + '.cargo')
                         archive = work / 'mutant-target/release/libxp_ffi.a'
                         run([*compile_args, *rust_link_flags(archive=str(archive)), '-o', str(executable)], name + '.compile')
                         run([str(executable), case, '0'], name, 42, marker)

@@ -239,7 +239,7 @@ def main():
                 # A compile failure is never counted as a killed mutant.
                 subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                                 '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                                '--features', 'app-test'], cwd=copied_rust, check=True)
+                                '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
                 result, projection = run(name, candidate_loop, adapter, target / 'release/libxp_ffi.a')
                 killed = result.returncode != 0 or projection != expected
                 record = {'test_name': 'reader_idle_projection', 'mutant': name, 'kind': 'production-rust',

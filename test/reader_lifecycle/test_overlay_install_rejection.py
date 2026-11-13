@@ -45,7 +45,7 @@ def main():
         target = work / 'target'
         subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                         '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                        '--features', 'app-test'], cwd=copied_rust, check=True)
+                        '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
         failed = subprocess.run([str(compile_fixture('missing-recheck', str(target / 'release/libxp_ffi.a')))],
                                 capture_output=True, text=True, timeout=30)
         assert failed.returncode != 0 and 'late rejection must not open the panel' in failed.stderr, failed.stderr
@@ -59,7 +59,7 @@ def main():
         (copied_rust / path).write_text(changed)
         subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                         '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                        '--features', 'app-test'], cwd=copied_rust, check=True)
+                        '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
         failed = subprocess.run([str(compile_fixture('cancel-blocked-by-failure',
                                 str(target / 'release/libxp_ffi.a'), 'overlay_cancel_rejection.cpp'))],
                                 capture_output=True, text=True, timeout=30)

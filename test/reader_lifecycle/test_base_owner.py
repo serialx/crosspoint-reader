@@ -76,6 +76,27 @@ def compare_trace(actual, expected):
     return reference, reference_allocations, candidate_allocations
 
 
+def shared_catalog_trace(trace):
+    """The catalog build omits the legacy native ensureLoaded callback."""
+    projected = []
+    removed = 0
+    skipped = 0
+    for line in trace.splitlines(keepends=True):
+        if line.startswith(b'CASE '):
+            skipped = 0
+        event = re.fullmatch(rb'(\d+) (.*)\n', line)
+        if event:
+            number, body = event.groups()
+            if body == b'fonts-load 0 0':
+                skipped += 1
+                removed += 1
+                continue
+            line = str(int(number) - skipped).encode() + b' ' + body + b'\n'
+        projected.append(line)
+    assert removed == 552, ('historical font callback count changed', removed)
+    return b''.join(projected)
+
+
 def main():
     if len(sys.argv) != 3:
         raise SystemExit('usage: test_base_owner.py <ReaderBaseOracle executable> <generated include directory>')
@@ -88,8 +109,10 @@ def main():
     assert len(expected) == 931402 and len(expected.splitlines()) == 53786
     assert sum(line.startswith(b'CASE ') for line in expected.splitlines()) == 576
     assert (generated / 'base_action.inc').is_file()
-    # Keep the original shared/XTC-facing facade comparison unchanged and first.
-    subprocess.run([sys.executable, str(HERE / 'compare.py'), str(shared_executable), str(golden)], check=True)
+    # Only the historical native font callback is absent in the catalog build.
+    shared_expected = shared_catalog_trace(expected)
+    shared_actual = subprocess.check_output([str(shared_executable)])
+    assert shared_actual == shared_expected, 'shared catalog trace differs beyond the retired font callback'
     production_file = ROOT / 'rust' / PRODUCTION
     production = production_file.read_bytes()
     fixture_hashes = {path.name: digest(path.read_bytes()) for path in (
@@ -120,7 +143,9 @@ def main():
             assert callbacks.returncode == 0, callbacks.stderr.decode(errors='replace')
             assert callbacks.stdout.endswith(b'base owner callbacks: five 4096-byte paths stayed live through synchronous results\n')
             print(json.dumps({
-                'test_name': TEST_NAME, 'original_shared_comparison': 'passed',
+                'test_name': TEST_NAME, 'shared_catalog_comparison': 'passed',
+                'shared_projection': 'omit 552 legacy fonts-load callbacks and renumber later event IDs; all other bytes exact',
+                'shared_trace_sha256': digest(shared_actual),
                 'cases': 576, 'trace_lines': 53786, 'original_trace_bytes': 931402,
                 'original_gzip_sha256': GZIP_SHA, 'original_trace_sha256': TRACE_SHA,
                 'actual_trace_sha256': digest(baseline.stdout), 'normalized_trace_sha256': digest(normalized),
@@ -147,7 +172,7 @@ def main():
                 copied_source.write_bytes(changed)
                 subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                                 '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                                '--features', 'app-test'], cwd=copied_rust, check=True)
+                                '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
                 mutant_executable = compile_candidate(name, target / 'release/libxp_ffi.a')
                 result = run(mutant_executable)
                 actual_projection, _ = allocation_projection(result.stdout)

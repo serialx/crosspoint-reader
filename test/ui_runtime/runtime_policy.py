@@ -23,7 +23,7 @@ with tempfile.TemporaryDirectory() as directory:
     out = Path(directory)
     def build_run(name, sources):
         executable = out / name
-        subprocess.run(['c++', '-std=c++20', '-pthread', '-UNDEBUG', '-I'+str(out),
+        subprocess.run(['c++', '-std=c++20', '-DXP_SD_FONT_CATALOG', '-pthread', '-UNDEBUG', '-I'+str(out),
                         '-I'+str(ROOT/'test/ui_runtime/stubs'), '-I'+str(ROOT/'rust/crates/xp-ffi/include'),
                         *map(str, sources), str(ROOT/'test/cmake/xp_ffi_host.cpp'), sys.argv[1],
                         '-o', str(executable)], check=True)

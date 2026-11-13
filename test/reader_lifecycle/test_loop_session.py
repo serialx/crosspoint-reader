@@ -209,7 +209,7 @@ def main():
                 # Only a successful compile followed by divergence counts as a killed mutant.
                 subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                                 '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                                '--features', 'app-test'], cwd=copied_rust, check=True)
+                                '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
                 result = capture(name, compile_fixture(name, fixture, target / 'release/libxp_ffi.a'))
                 killed = result.returncode != 0 or result.stdout != expected
                 record = {'test_name': test_name, 'mutant': name, 'kind': 'production-rust', 'source': str(path),

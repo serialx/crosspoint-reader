@@ -29,7 +29,7 @@ with tempfile.TemporaryDirectory() as directory:
     stub=stub.replace('void displayBuffer(HalDisplay::RefreshMode)', 'void displayBuffer(HalDisplay::RefreshMode = HalDisplay::FAST_REFRESH)')
     (out/'Activity.h').write_text(stub)
     (out/'input.cpp').write_text(source)
-    subprocess.run(['c++','-std=c++20','-pthread','-fsanitize=address','-fno-omit-frame-pointer',
+    subprocess.run(['c++','-std=c++20', '-DXP_SD_FONT_CATALOG','-pthread','-fsanitize=address','-fno-omit-frame-pointer',
         '-I'+str(out),'-I'+str(ROOT/'test/ui_runtime/stubs'),'-I'+str(ROOT/'rust/crates/xp-ffi/include'),
         str(out/'input.cpp'),str(out/'RustActivityAdapter.cpp'),str(ROOT/'test/cmake/xp_ffi_host.cpp'),sys.argv[1],'-o',str(out/'input')],check=True)
     subprocess.run([str(out/'input')],check=True)

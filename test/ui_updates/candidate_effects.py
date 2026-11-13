@@ -52,7 +52,7 @@ def run(source, library, extra_cases=None, expected=None, host=None):
     with tempfile.TemporaryDirectory() as directory:
         cpp,exe=Path(directory)/'candidate.cpp',Path(directory)/'candidate'
         cpp.write_text(text)
-        subprocess.run(['c++','-std=c++20','-Wall','-Wextra','-Wno-unused-parameter','-I'+str(ROOT/'rust/crates/xp-ffi/include'),str(cpp),str(ROOT/'test/cmake/xp_ffi_host.cpp'),str(library),'-o',str(exe)],check=True)
+        subprocess.run(['c++','-std=c++20', '-DXP_SD_FONT_CATALOG','-Wall','-Wextra','-Wno-unused-parameter','-I'+str(ROOT/'rust/crates/xp-ffi/include'),str(cpp),str(ROOT/'test/cmake/xp_ffi_host.cpp'),str(library),'-o',str(exe)],check=True)
         actual=filtered(subprocess.check_output([str(exe)],text=True))
     expected=filtered((HERE/'effects.golden').read_text()) if expected is None else expected
     if expected is False:

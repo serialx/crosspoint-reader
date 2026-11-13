@@ -199,7 +199,7 @@ def main():
                 copied_source.write_bytes(changed)
                 subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                                 '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                                '--features', 'app-test'], cwd=copied_rust, check=True)
+                                '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
                 mode = True if name == 'release-end-clock' else release
                 mutant_executable = compile_candidate(name, mode, target / 'release/libxp_ffi.a')
                 result = run(mutant_executable)

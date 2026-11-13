@@ -22,6 +22,6 @@ def main(library):
     source=(HERE/'failure_bridge.cpp').read_text().replace('// METHODS','\n'.join(methods))
     with tempfile.TemporaryDirectory()as directory:
         cpp=Path(directory)/'bridge.cpp';exe=Path(directory)/'bridge';cpp.write_text(source)
-        subprocess.run(['c++','-std=c++20','-Wall','-Wextra','-I'+str(ROOT/'rust/crates/xp-ffi/include'),str(cpp),str(ROOT/'test/cmake/xp_ffi_host.cpp'),library,'-o',str(exe)],check=True)
+        subprocess.run(['c++','-std=c++20', '-DXP_SD_FONT_CATALOG','-Wall','-Wextra','-I'+str(ROOT/'rust/crates/xp-ffi/include'),str(cpp),str(ROOT/'test/cmake/xp_ffi_host.cpp'),library,'-o',str(exe)],check=True)
         subprocess.run([str(exe)],check=True)
 if __name__=='__main__':main(sys.argv[1])

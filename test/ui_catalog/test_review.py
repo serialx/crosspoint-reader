@@ -30,7 +30,7 @@ class Review(unittest.TestCase):
             path = pathlib.Path(directory) / 'fixture.cpp'
             path.write_text(code)
             binary = path.with_suffix('')
-            subprocess.run(['c++', '-std=c++20', '-pthread', '-fsanitize=address,undefined',
+            subprocess.run(['c++', '-std=c++20', '-DXP_SD_FONT_CATALOG', '-pthread', '-fsanitize=address,undefined',
                             '-fno-omit-frame-pointer', '-I' + str(ROOT / 'rust/crates/xp-ffi/include'),
                             '-I' + str(ROOT / 'freeink-sdk/libs/ui/FreeInkUI/include'),
                             '-I' + str(ROOT / 'test/ui_catalog'),

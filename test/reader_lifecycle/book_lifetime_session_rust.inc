@@ -1,3 +1,4 @@
+#include "epub_fixture_abi.h"
 static unsigned modelDepth = 0, resourceDepth = 0;
 static EpubReaderActivity* activeFixture = nullptr;
 struct BookHandle {
@@ -162,7 +163,7 @@ static const XpAppRuntime runtime = [] {
 
 static const LegacyEpubLeaves leaves = [] {
   LegacyEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 168 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == xpTestEpubLeafCount * sizeof(void (*)()));
   UNUSED_LEAF(physical.render_margins);
   UNUSED_LEAF(physical.render_geometry);
   UNUSED_LEAF(physical.render_restore_bw);
@@ -238,7 +239,9 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(physical.fonts_prewarm_finish_scan);
   UNUSED_LEAF(physical.fonts_prewarm_drop);
   UNUSED_LEAF(physical.fonts_take_corrupt_notice);
+#ifndef XP_SD_FONT_CATALOG
   UNUSED_LEAF(physical.font_sizes);
+#endif
   UNUSED_LEAF(physical.settings_snapshot);
   UNUSED_LEAF(physical.settings_render_spec);
   UNUSED_LEAF(physical.settings_orientation);

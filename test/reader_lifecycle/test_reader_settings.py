@@ -1,4 +1,4 @@
-"""Compare real owner settings and retained popup choices with the immutable trace."""
+"""Historical catalog-off settings trace, including duplicate and empty size callbacks."""
 import collections
 import gzip
 import hashlib
@@ -14,7 +14,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / 'test'))
 from rust_host import rust_link_flags
 
-TEST_NAME = 'reader_settings_parent'
+TEST_NAME = 'reader_settings_parent_catalog_off'
 PRODUCTION = Path('crates/xp-ffi/src/app/epub/settings.rs')
 GZIP_SHA = '5a6f959b5f4cd4b1f4b54a489718c1c5f106d5371b5c937a6b0b882c9cd10b53'
 TRACE_SHA = '71d7af971607c028fd419b213407b234234a3f5a91c351896039ec84a1237c7b'
@@ -114,12 +114,12 @@ def main():
     try:
         with tempfile.TemporaryDirectory(prefix='reader-settings-session-') as directory:
             work = Path(directory)
-            baseline_flags = rust_link_flags()
+            baseline_flags = rust_link_flags(catalog=False)
 
             def run(source, name, archive=None):
                 source_path = work / (name + '.cpp')
                 source_path.write_bytes(source)
-                flags = baseline_flags if archive is None else rust_link_flags(archive=str(archive))
+                flags = baseline_flags if archive is None else rust_link_flags(archive=str(archive), catalog=False)
                 i18n_directory = generated_i18n_directory(baseline_flags[-1] if archive is None else archive)
                 executable = work / name
                 subprocess.run(['c++', '-std=c++17', '-UNDEBUG', '-O0', '-fsanitize=address,undefined',

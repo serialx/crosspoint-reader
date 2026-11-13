@@ -6,8 +6,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# The root host archive enables app-test; native oracle tables use the same ABI.
-add_compile_definitions(XP_APP_TEST)
+# Native fixtures use the same app-test and SD catalog ABI as the host archive.
+add_compile_definitions(XP_APP_TEST XP_SD_FONT_CATALOG)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/font_cache/legacy
   ${CMAKE_CURRENT_SOURCE_DIR}/sdfont_legacy/abi)
 
@@ -36,7 +36,7 @@ FetchContent_MakeAvailable(googletest)
 
 set(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
-set(XP_FFI_HOST_FEATURES "chapter-test,chapter-trace,package-trace,display-panel,app-test,section-test" CACHE STRING "Cargo features for host tests")
+set(XP_FFI_HOST_FEATURES "chapter-test,chapter-trace,package-trace,display-panel,app-test,section-test,sd-font-catalog" CACHE STRING "Cargo features for host tests")
 if(NOT XP_FFI_HOST_FEATURES MATCHES "(^|,)display-panel(,|$)")
   set(XP_FFI_HOST_FEATURES "${XP_FFI_HOST_FEATURES},display-panel" CACHE STRING "Cargo features for host tests" FORCE)
 endif()

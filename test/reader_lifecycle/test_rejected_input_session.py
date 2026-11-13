@@ -56,7 +56,7 @@ with tempfile.TemporaryDirectory(prefix='reader-rejected-input-') as directory:
         (copied_rust / path).write_text(changed)
         subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
                         '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                        '--features', 'app-test'], cwd=copied_rust, check=True)
+                        '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
         failed = subprocess.run([str(compile_fixture(name, 'rejected_input_session.cpp',
                                                     str(target / 'release/libxp_ffi.a')))],
                                 capture_output=True, text=True, timeout=30)

@@ -200,7 +200,7 @@ def main():
         flags.append('-DBOOKMARK_RUST_ORACLE=1')
     include = [HERE/'stubs', frozen, args.build, ROOT, ROOT/'src', ROOT/'src/util', ROOT/'lib/Serialization',
                ROOT/'rust/crates/xp-ffi/include', args.arduinojson]
-    cmd = ['c++', '-std=c++20', '-O2', '-ffp-contract=off', '-ffunction-sections', '-fdata-sections', *flags,
+    cmd = ['c++', '-std=c++20', '-DXP_SD_FONT_CATALOG', '-O2', '-ffp-contract=off', '-ffunction-sections', '-fdata-sections', *flags,
            *['-I'+str(p) for p in include], str(HERE/'Oracle.cpp'),
            str(HERE/'RustRecords.cpp' if args.rust_owner else frozen/'BookmarkOracleFixture.cpp'), str(ROOT/'src/util/BookmarkUtil.cpp'),
            str(ROOT/'lib/Serialization/PersistableStore.cpp'), str(args.build/'SdkStorage.cpp'), str(args.build/'HalAtomic.cpp'),
@@ -223,7 +223,7 @@ def main():
                                        [args.arduinojson.parent/'library.json', args.arduinojson.parent/'.piopm']
                                        if p.is_file()}
     subprocess.run(cmd, check=True)
-    macros = subprocess.check_output(['c++', '-std=c++20', *flags, *['-I'+str(p) for p in include],
+    macros = subprocess.check_output(['c++', '-std=c++20', '-DXP_SD_FONT_CATALOG', *flags, *['-I'+str(p) for p in include],
                                       '-dM', '-E', '-x', 'c++', '-include', 'ArduinoJson.h', '/dev/null'], text=True)
     manifest['configuration'] = sorted(line for line in macros.splitlines() if line.startswith('#define ARDUINOJSON_'))
     manifest['configuration_sha256'] = sha('\n'.join(manifest['configuration']).encode())

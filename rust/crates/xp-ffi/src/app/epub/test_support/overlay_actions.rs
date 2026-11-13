@@ -50,6 +50,7 @@ pub struct Observation {
     stored: u8,
     toolbar: u8,
     failed: u8,
+    dense: u8,
 }
 fn mode(value: u8) -> Overlay {
     match value {
@@ -166,6 +167,7 @@ pub unsafe extern "C" fn xp_epub_test_overlay_observe(raw: *mut c_void, out: *mu
         stored: u8::from(state.page_stored),
         toolbar: u8::from(toolbar),
         failed: u8::from(state.scene_gate.failed),
+        dense: u8::from(state.panel_dense),
     });
 }
 

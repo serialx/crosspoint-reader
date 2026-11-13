@@ -160,6 +160,8 @@ pub(super) struct State {
     pub(super) panel_index: i32,
     pub(super) panel_hold_jumped: bool,
     pub(super) panel_cursor: bool,
+    // Published with the panel mode; render never queries live input for layout.
+    pub(super) panel_dense: bool,
     pub(super) page_stored: bool,
     pub(super) refresh_pending: bool,
     pub(super) auto_option: u8,

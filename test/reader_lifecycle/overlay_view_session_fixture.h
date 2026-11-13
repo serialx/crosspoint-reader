@@ -15,6 +15,7 @@ struct XpEpubTestOverlayViewSeed {
   int32_t index;
   uint8_t overlay;
   uint8_t cursor;
+  uint8_t dense;
   uint8_t more_count;
   uint8_t real_values;
   uint8_t more_actions[19];

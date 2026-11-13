@@ -293,3 +293,10 @@ drives the real Back input and App transition to Home after failed preparation.
 `reader_harden_menu_failure` also covers menu actions without a prepared section.
 `reader_harden_forced_break` uses the exact CP0 synthetic HTML: its healthy section
 has three pages and 2,132 bytes; failed row reads or allocation publish no section.
+
+The overlay-view fixture supplies density as a published model value and fails
+if rendering calls the live input-facts leaf. Its 960 historical cases still
+compare all rendered models and rows; only the obsolete `touch` query trace is
+removed from the expected trace. Cursor and touch capability vary independently.
+The live-query and inverted-density mutants must fail. The overlay-open fixture
+checks that the production loop path publishes density from touch capability.

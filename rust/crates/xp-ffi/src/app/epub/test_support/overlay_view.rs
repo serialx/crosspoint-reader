@@ -22,6 +22,7 @@ pub struct OverlayViewSeed {
     pub index: i32,
     pub overlay: u8,
     pub cursor: u8,
+    pub dense: u8,
     pub more_count: u8,
     pub real_values: u8,
     pub more_actions: [u8; 19],
@@ -64,6 +65,7 @@ pub unsafe extern "C" fn xp_epub_test_overlay_view_create_legacy_book(
         _ => panic!("fixture overlay"),
     };
     state.panel_cursor = seed.cursor != 0;
+    state.panel_dense = seed.dense != 0;
     state.focused_tool = seed.focus;
     state.panel_index = seed.index;
     state.facts.book = !seed.book.is_null();

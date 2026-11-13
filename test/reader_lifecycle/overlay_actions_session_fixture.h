@@ -44,6 +44,7 @@ struct XpEpubTestOverlayObservation {
   uint8_t stored;
   uint8_t toolbar;
   uint8_t failed;
+  uint8_t dense;
 };
 extern "C" {
 void* xp_epub_test_overlay_create_legacy_book(const XpEpubTestOverlaySeed*, const XpEpubLeaves*, const XpAppRuntime*,

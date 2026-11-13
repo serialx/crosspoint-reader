@@ -272,6 +272,7 @@ impl EpubSession {
             state.focused_tool = focus;
             state.panel_index = index;
             state.panel_cursor = cursor;
+            state.panel_dense = cursor;
             state.panel_hold_jumped = false;
         });
         if self.model(|state| state.facts.section.is_some() && !state.facts.frame_stale) {

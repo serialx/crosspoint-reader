@@ -2,7 +2,6 @@ use super::session_section::Section as ReaderSection;
 use super::{abi, app_abi, state::Overlay, EpubSession, ResourceAccess};
 #[cfg(feature = "app-test")]
 use core::ffi::c_void;
-use core::mem::MaybeUninit;
 use xp_core::i18n::ids;
 
 #[cfg(feature = "app-test")]
@@ -262,8 +261,14 @@ impl EpubSession {
         if self.toolbar(access).is_none() {
             return;
         }
-        let (mode, cursor, focus) =
-            self.model(|state| (state.overlay, state.panel_cursor, state.focused_tool));
+        let (mode, cursor, focus, dense) = self.model(|state| {
+            (
+                state.overlay,
+                state.panel_cursor,
+                state.focused_tool,
+                state.panel_dense,
+            )
+        });
         let empty = app_abi::Text {
             data: core::ptr::null(),
             len: 0,
@@ -324,9 +329,7 @@ impl EpubSession {
             }
             return;
         }
-        let mut input = MaybeUninit::<abi::XpEpubInputFacts>::uninit();
-        unsafe { self.leaves.input_facts(input.as_mut_ptr()) };
-        model.dense = u8::from(unsafe { input.assume_init() }.touch == 0);
+        model.dense = u8::from(dense);
         model.selected = if cursor {
             self.model(|state| state.panel_index)
         } else {

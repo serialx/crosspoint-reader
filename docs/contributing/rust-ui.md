@@ -122,6 +122,13 @@ and the retained native-screen path. Idle admission
 reuses its input facts and settings for the confirm threshold, before any input
 consumer runs. The ordinary page path reads facts again after touch handling.
 
+Rendering must not query the live input frame: the loop polls before acquiring
+the render lock. Opening Contents/Text/More publishes its density choice alongside
+the panel mode under the existing model critical section. Render copies that
+value under the same critical section; later cursor changes do not change density.
+The overlay fixture aborts on any live input-facts query from its render entry.
+This does not resolve the separate frontlight state race.
+
 The page-dispatch method keeps a stack-local settings snapshot for `orientation`,
 `remove_read_recents`, `move_finished`, `touch_controls`, `long_menu` and
 `short_power`. Settings-changing orientation and overlay branches return;

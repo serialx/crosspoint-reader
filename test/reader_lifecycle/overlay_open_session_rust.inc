@@ -107,6 +107,11 @@ void EpubReaderActivity::openOverlay(Overlay target) {
   initialize();
   xp_epub_test_overlay_open(owner, static_cast<uint8_t>(target));
   observe();
+  if (overlay == target && toolbarUi) {
+    XpEpubTestOverlayObservation result{};
+    xp_epub_test_overlay_observe(owner, &result);
+    assert(bool(result.dense) == !mappedInput.touch);
+  }
   overlay_open_adapter::unlocked();
 }
 EpubReaderActivity::~EpubReaderActivity() {

@@ -401,9 +401,9 @@ static const LegacyEpubLeaves leaves = [] {
     --tocDepth; borrowedToc = nullptr; borrowedTocSize = 0;
     return result;
   };
-  table.physical.input_facts = [](XpEpubInputFacts* out) {
-    leaf(); assert(!publishing && out); *out = {};
-    out->touch = active->mappedInput.hasTouch();
+  table.physical.input_facts = [](XpEpubInputFacts*) {
+    assert(false && "render must not query live input");
+    std::abort();
   };
   table.physical.settings_snapshot = [](uint8_t resolveFont, XpEpubSettings* out) {
     leaf(); assert(!publishing && !resolveFont && out); *out = {};
@@ -483,6 +483,7 @@ struct Entry {
       seed.focus = fixture.focusedTool; seed.index = fixture.panelIndex;
       seed.overlay = static_cast<uint8_t>(fixture.overlay); seed.cursor = fixture.panelCursorShown;
       seed.real_values = fixture.realValues;
+      seed.dense = !fixture.mappedInput.touch;
       assert(fixture.moreItems.size() <= std::size(seed.more_actions));
       seed.more_count = static_cast<uint8_t>(fixture.moreItems.size());
       for (size_t i = 0; i < fixture.moreItems.size(); ++i)

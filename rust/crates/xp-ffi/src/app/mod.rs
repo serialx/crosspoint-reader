@@ -206,7 +206,7 @@ struct App {
 struct Storage(UnsafeCell<Option<App>>);
 // Init precedes task creation. Render uses the lifetime-locked target and widths;
 // signals use the model critical section. Loop input polling precedes the render
-// lock: readers of live input need separate synchronization (INPUT-RENDER-FIX).
+// lock: paint must use synchronized publications instead of live input queries.
 unsafe impl Sync for Storage {}
 static APP: Storage = Storage(UnsafeCell::new(None));
 

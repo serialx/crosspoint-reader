@@ -22,6 +22,9 @@ GOLDENS = {
     'overlay-view-bound.golden.gz': 'c3ffd407d94dafa4ecb1573cac59e74532197e02ed572a7b8913c0c50fce36f0',
 }
 RUST_MUTANTS = (
+    ('live-input-on-render', b'model.dense = u8::from(dense);',
+     b'let mut input = core::mem::MaybeUninit::uninit(); unsafe { self.leaves.input_facts(input.as_mut_ptr()) }; model.dense = u8::from(dense);'),
+    ('density-inverted', b'model.dense = u8::from(dense);', b'model.dense = u8::from(!dense);'),
     ('selected-index', b'self.model(|state| state.panel_index)', b'0'),
     ('contents-indentation', b'(item.level - 1) as u32 * 2', b'(item.level - 1) as u32 * 1'),
     ('focus-checkbox-row', b'Overlay::Text if index == 4', b'Overlay::Text if index == 3'),
@@ -51,8 +54,13 @@ def main():
     originals = {name: (HERE / name).read_bytes() for name in GOLDENS}
     for name, value in originals.items():
         assert digest(value) == GOLDENS[name], ('original golden changed', name)
-    expected = gzip.decompress(originals['overlay-view.golden.gz'])
-    expected_bounds = gzip.decompress(originals['overlay-view-bound.golden.gz'])
+    # Capability is now published on the loop task. Drop only the old query trace;
+    # every rendered model/row (including density) still matches the immutable golden.
+    def rendered_trace(data):
+        return b''.join(line for line in data.splitlines(keepends=True) if not line.startswith(b'touch '))
+
+    expected = rendered_trace(gzip.decompress(originals['overlay-view.golden.gz']))
+    expected_bounds = rendered_trace(gzip.decompress(originals['overlay-view-bound.golden.gz']))
     counts = collections.Counter(line.split(b' ', 1)[0].decode() for line in expected.splitlines())
     assert counts['case'] == 960 and counts['missing'] == 3
     assert sum(line.startswith(b'model ') for line in expected_bounds.splitlines()) == 5

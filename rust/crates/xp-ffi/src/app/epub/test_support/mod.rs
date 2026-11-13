@@ -2,6 +2,9 @@ mod base;
 mod book_owner;
 mod book_render;
 pub(super) use book_render::legacy_size;
+pub(super) fn legacy_progress(value: f32) -> Option<f32> {
+    (value >= 0.0).then_some(value)
+}
 pub(super) mod legacy_book;
 pub(super) mod legacy_children;
 pub(super) use book_render::BookRenderHooks;

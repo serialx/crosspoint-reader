@@ -361,7 +361,7 @@ query!(toc_for_spine, book_toc_for_spine, (index: i32) -> Option<i32>, super::te
 query!(cumulative_size, book_cumulative_size, (index: i32) -> Option<u32>, super::test_support::legacy_size);
 query!(spine_for_size, book_spine_for_size, (bytes: u32) -> i32);
 query!(text_reference, book_text_reference, () -> Option<i32>, super::test_support::lifetime::legacy_reference);
-query!(progress, book_progress, (spine: i32, fraction: f32) -> Option<f32>, Some);
+query!(progress, book_progress, (spine: i32, fraction: f32) -> Option<f32>, super::test_support::legacy_progress);
 query!(resolve_href, book_resolve_href, (href: app_abi::Text) -> i32);
 query!(setup_cache, book_setup_cache, () -> ());
 query!(clear_cache, book_clear_cache, () -> ());

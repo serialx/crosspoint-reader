@@ -111,11 +111,13 @@ fn bar_uses_unsigned_order_and_float_chapter_fraction() {
         ..Facts::default()
     };
     assert_eq!(bar(&f, 1, 3, 33.9), Some((0, 783, 174, 9)));
+    assert_eq!(bar(&f, 1, 3, -1.0), None);
     f.screen_width = i32::MAX;
     assert_eq!(bar(&f, 1, 3, 100.0), Some((0, 783, 42_949_671, 9)));
     f.screen_width = 528;
     f.bar_mode = 1;
     assert_eq!(bar(&f, 2, 3, 0.0), Some((0, 783, 348, 9)));
+    assert_eq!(bar(&f, 2, 3, -1.0), Some((0, 783, 348, 9)));
     assert_eq!(bar(&f, 1, 0, 0.0), Some((0, 783, 0, 9)));
     f.bar_mode = 2;
     assert_eq!(bar(&f, 1, 3, 33.9), None);

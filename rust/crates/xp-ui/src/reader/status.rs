@@ -158,7 +158,7 @@ impl Layout {
     }
 }
 pub fn bar(f: &Facts, page: i32, pages: i32, percent: f32) -> Option<(i32, i32, i32, i32)> {
-    if f.bar_mode == 2 {
+    if f.bar_mode == 2 || (f.bar_mode == 0 && percent < 0.0) {
         return None;
     }
     let progress = if f.bar_mode == 0 {

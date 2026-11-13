@@ -239,7 +239,7 @@ const _: () = {
 #[derive(Clone, Copy)]
 pub struct XpEpubStatus {
     pub title: XpAppText,
-    pub book_progress: f32,
+    pub book_progress: f32, // Negative means the whole-book size query failed.
     pub page: i32,
     pub pages: i32,
     pub y_offset: i32,

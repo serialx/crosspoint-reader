@@ -1029,6 +1029,9 @@ battery/RTC HAL values. It does not measure or draw text. The physical target lo
 is shared with page painting; the composer reads the font owner's scan flag after
 that loan because the page snapshot deliberately omits it. Scan passes still
 write the battery tip and bookmark pixels, matching the retained native painter.
+A failed whole-book size query omits the percentage and whole-book progress bar;
+chapter counts and chapter progress remain available. An unreadable chapter title
+omits only the title. Neither failure rejects the page or prevents progress saving.
 
 A title uses local fallible `SmallZ` storage. Up to 15 bytes fit inline before
 truncation; truncating a 13–15-byte title can allocate 17–19 bytes including NUL

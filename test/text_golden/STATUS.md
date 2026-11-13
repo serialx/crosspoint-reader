@@ -45,3 +45,15 @@ a native-rendering control.
 without `app-test`. Controlled state and a paint sink check the single facts read,
 direct composer call, title and bookmark/building values. The pixel differential
 above covers the actual composer behind that call.
+# HARDEN integration
+
+Unknown whole-book progress uses a negative internal value. The composer omits
+the percentage text and whole-book bar while retaining chapter counts, chapter
+progress and other status elements. The extra pixel cases compare that omission
+with native painting configured without percentage text and with zero book-bar
+width. Failed chapter-title rows use an empty title and still paint the status.
+
+`reader_harden` verifies the real size-window read failure; the
+`reader_status_unknown_progress` owner composition injects its checked result and
+verifies status painting, page rendering, progress saving and a usable scene.
+`reader_harden_cosmetic_failure` checks missing-title recovery.

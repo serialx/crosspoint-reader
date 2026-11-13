@@ -69,7 +69,7 @@ struct XpEpubLegacyBookServices {
   uint32_t (*book_cumulative_size)(void* book, int32_t spine);
   int32_t (*book_spine_for_size)(void* book, uint32_t bytes);
   int32_t (*book_text_reference)(void* book);
-  float (*book_progress)(void* book, int32_t spine, float fraction);
+  float (*book_progress)(void* book, int32_t spine, float fraction);  // Negative injects an unknown result.
   int32_t (*book_resolve_href)(void* book, XpAppText href);
   void (*book_setup_cache)(void* book);
   void (*book_clear_cache)(void* book);

@@ -177,7 +177,7 @@ typedef struct {
 // Fixture-only native painter input (HOST-RETIRE).
 typedef struct {
   XpAppText title;
-  float book_progress;
+  float book_progress;  // Negative means the whole-book size query failed.
   int32_t page;
   int32_t pages;
   int32_t y_offset;

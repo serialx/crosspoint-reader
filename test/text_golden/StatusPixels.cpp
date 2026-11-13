@@ -127,20 +127,24 @@ int main(int argc, char** argv) {
   Side native(argc > 1 ? argv[1] : nullptr, argc > 2), rust(argc > 1 ? argv[1] : nullptr, argc > 2);
   if (argc == 2) assert(rust.renderer.resolveTextFontId(SMALL_FONT_ID, "한글", EpdFontFamily::REGULAR) == -99);
   size_t test = 0;
+  bool unknownProgress = false;
   auto exercise = [&](int orientation, const std::string& title, bool strips, bool scan) {
     native.orient(orientation);
     rust.orient(orientation);
     XpEpubStatus value{};
     value.page = 17;
     value.pages = 41;
-    value.book_progress = 42.5f;
+    value.book_progress = unknownProgress ? -1.0f : 42.5f;
     value.building = test % 2;
     value.bookmarked = (test / 2) % 2;
     value.y_offset = (test / 4) % 2 ? 5 : 0;
     value.title = {reinterpret_cast<const uint8_t*>(title.data()), static_cast<uint32_t>(title.size())};
     auto drawNative = [&] {
-      BaseTheme::drawStatusBar(native.renderer, value.book_progress, value.page, value.pages, title, 0, value.y_offset,
-                               true, value.bookmarked, value.building);
+      const bool showPercent = SETTINGS.value.showBookProgressPercent;
+      SETTINGS.value.showBookProgressPercent = showPercent && !unknownProgress;
+      BaseTheme::drawStatusBar(native.renderer, unknownProgress ? 0.0f : value.book_progress, value.page, value.pages,
+                               title, 0, value.y_offset, true, value.bookmarked, value.building);
+      SETTINGS.value.showBookProgressPercent = showPercent;
     };
     auto drawRust = [&] {
       target = &rust.renderer;
@@ -260,6 +264,17 @@ int main(int argc, char** argv) {
       exercise(orientation, "No positive title width", true, true);
     }
   BoardConfig::ACTIVE.viewableInsets = {};
+  // Unknown whole-book progress omits only its text/bar; chapter progress remains usable.
+  unknownProgress = true;
+  for (int orientation = 0; orientation < 4; ++orientation)
+    for (int style = 0; style < 2; ++style)
+      for (bool count : {false, true})
+        for (uint8_t bar = 0; bar < 3; ++bar) {
+          active = style ? static_cast<BaseTheme*>(&lyra) : &classic;
+          UITheme::getInstance().metrics.batteryWidth = style ? 16 : 15;
+          s = {count, true, 1, true, true, 2, false, bar, 4, 0};
+          exercise(orientation, "", true, true);
+        }
   // Fail the actual Rust title allocation before font work, then verify recovery.
   target = &rust.renderer;
   s = {false, false, 1, false, false, 0, false, 2, 0, 0};

@@ -42,13 +42,14 @@ pub(crate) unsafe fn paint_target(
     };
     let run = Run::new(target, has_cache);
     let mut layout = Layout::new(f);
-    if f.show_count != 0 || f.show_percent != 0 {
+    let show_percent = f.show_percent != 0 && v.book_progress >= 0.0;
+    if f.show_count != 0 || show_percent {
         let progress = status::progress_text(
             v.page,
             v.pages,
             v.book_progress,
             f.show_count != 0,
-            f.show_percent != 0,
+            show_percent,
         );
         let width = run.width(f.font, progress.as_z());
         let estimate = v.building != 0 && f.show_count != 0;

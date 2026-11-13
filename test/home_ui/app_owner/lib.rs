@@ -115,7 +115,7 @@ mod page_render {
     }
 }
 
-// This owner fixture injects status callbacks; pixel tests use the real painter.
+// This owner fixture injects status/popup callbacks; pixel tests use the real painter.
 mod text_run {
     use crate::page_render::direct::Target;
     pub(crate) struct Run<'a> {
@@ -128,6 +128,9 @@ mod text_run {
         pub(crate) fn width(&self, _: i32, _: &[u8]) -> i32 {
             panic!("owner fixture must use its status callback");
         }
+        pub(crate) fn width_styled(&self, _: i32, _: &[u8], _: u8) -> i32 {
+            panic!("owner fixture must use its popup callback");
+        }
         pub(crate) unsafe fn height(&self, _: i32) -> i32 {
             panic!("owner fixture must use its status callback");
         }
@@ -136,6 +139,9 @@ mod text_run {
         }
         pub(crate) unsafe fn draw(&self, _: i32, _: i32, _: i32, _: &[u8]) {
             panic!("owner fixture must use its status callback");
+        }
+        pub(crate) unsafe fn draw_styled(&self, _: i32, _: i32, _: i32, _: &[u8], _: u8, _: bool) {
+            panic!("owner fixture must use its popup callback");
         }
     }
 }

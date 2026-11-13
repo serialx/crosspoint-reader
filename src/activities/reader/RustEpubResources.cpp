@@ -368,7 +368,7 @@ const std::string& borrowed(XpAppNativeText value) {
 }
 
 #ifdef XP_APP_TEST
-// Event formatting stays off the render call chain.
+// Retained native event formatting for injected host fixtures (HOST-RETIRE).
 [[gnu::noinline]] void emitSession(XpAppText path, XpAppText document, const XpEpubSessionEvent* event) {
   char startTime[24], endTime[24], duration[16], startProgress[8], endProgress[8];
   snprintf(startTime, sizeof(startTime), "%lld", static_cast<long long>(event->start_time));

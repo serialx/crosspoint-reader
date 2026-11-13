@@ -28,7 +28,7 @@ class GfxRenderer;
 // a "download" (response streamed to `dest` on SD, e.g. a sleep image).
 //
 // Execution is deferred: plugin handlers need the network, and events mostly
-// fire with WiFi down (leaving the reader, entering sleep). emit() appends one
+// fire with WiFi down (leaving the reader, entering sleep). Event emission appends one
 // JSON line to the plugin's SD outbox (<plugin dir>/events.jsonl) and costs
 // nothing beyond that; drain() later replays queued events through the
 // declared requests whenever the device is already online. Substitution in

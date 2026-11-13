@@ -18,7 +18,7 @@ the firmware. They compose with the other plugin surfaces documented in
 ## Why delivery is deferred
 
 Plugin event handlers need the network, and most events fire with WiFi down
-(leaving a book, entering sleep). So `emit` only appends one JSON line to the
+(leaving a book, entering sleep). Recording an event only appends one JSON line to the
 plugin's outbox (`<plugin dir>/events.jsonl`) — an SD append, nothing more —
 and the queue is drained through the declared requests whenever the device is
 already online: on any WiFi connection (the selection/auto-connect completion

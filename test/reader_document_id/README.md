@@ -34,8 +34,8 @@ checked in.
 
 The actual Rust event formatter and emit/append owners exercise C-string
 variables through physical codec/file fakes. The fakes check all eight keys and
-values, the trailing NUL beyond the 32-byte wire view, file destruction before
-publication, and codec/file destruction before reset. The second subscription
+values, the trailing NUL beyond the 32-byte wire view, document-ID file destruction
+before publication, and event codec/file destruction before reset. The second subscription
 view read occurs only after successful document calculation. Actual JSON and
 outbox bytes are compared separately by `plugin_reader_events`. Other native
 leaves are poisoned unless explicitly needed by the book fixture.

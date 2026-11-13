@@ -263,5 +263,5 @@ physical xp_native_page_jpeg xp_page_image_jpeg_row # JPEGDEC block callback onl
 import xp_native_page_jpeg_log # One-way synchronous diagnostic formatting from borrowed JPEG facts; no retained pointers or Rust calls.
 # EPUB.document_io is a one-way HAL file/SDK MD5 primitive in caller storage; no sampling, string sink or Rust callback.
 
-callback EPUB.event_codec # Constructs pinned caller-owned JSON storage and returns native-only codec callbacks plus the shared sequence; no Rust callback is accepted or retained.
-callback EPUB.event_append # Constructs pinned caller-owned outbox storage and returns native-only file callbacks; destruction ends all borrowed event/subscriber references.
+callback EPUB.event_codec # Rust events::emit borrows native ArduinoJson/line storage and the sequence/nonce shared with pluginevents::emit; native-only callbacks, no Rust pointer accepted or retained.
+callback EPUB.event_append # Rust events::append obtains native HalFile operations over the codec-owned line; Rust calls its append owner directly; destruction ends all event/subscriber borrows.

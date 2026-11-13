@@ -14,6 +14,12 @@ pub struct Storage<const WORDS: usize> {
     bytes: [MaybeUninit<usize>; WORDS],
     pinned: PhantomPinned,
 }
+const _: () = {
+    assert!(core::mem::size_of::<Storage<24>>() == 24 * core::mem::size_of::<usize>());
+    assert!(core::mem::size_of::<Storage<12>>() == 12 * core::mem::size_of::<usize>());
+    assert!(core::mem::align_of::<Storage<24>>() == 8);
+    assert!(core::mem::align_of::<Storage<12>>() == 8);
+};
 impl<const WORDS: usize> Storage<WORDS> {
     fn new() -> Self {
         Self {

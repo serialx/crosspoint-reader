@@ -21,8 +21,6 @@ pub unsafe extern "C" fn xp_epub_test_harden_rows(
     let mut metadata = Metadata::default();
     cache.load(&mut metadata, &path).unwrap();
     let mut book = ReaderBook {
-        #[cfg(feature = "app-test")]
-        facade: None,
         resources,
         now,
         path,

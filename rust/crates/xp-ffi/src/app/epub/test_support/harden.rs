@@ -108,8 +108,6 @@ pub unsafe extern "C" fn xp_epub_test_harden_progress(
     let mut metadata = Metadata::default();
     cache.load(&mut metadata, &path).unwrap();
     let mut book = ReaderBook {
-        #[cfg(feature = "app-test")]
-        facade: None,
         resources,
         now,
         path,
@@ -178,8 +176,6 @@ pub unsafe extern "C" fn xp_epub_test_harden_boundary(
     let mut metadata = Metadata::default();
     cache.load(&mut metadata, &path).unwrap();
     let mut book = ReaderBook {
-        #[cfg(feature = "app-test")]
-        facade: None,
         resources,
         now,
         path,

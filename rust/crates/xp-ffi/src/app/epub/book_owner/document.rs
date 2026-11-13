@@ -47,10 +47,15 @@ impl Drop for Physical<'_> {
 struct Sample<'a, 'b> {
     io: &'a mut Physical<'b>,
     bytes: [u8; 1024],
+    failed: bool,
 }
 unsafe extern "C" fn read(raw: *mut c_void, offset: usize, count: usize) -> usize {
     let sample = unsafe { &mut *raw.cast::<Sample<'_, '_>>() };
+    if sample.failed {
+        return 0;
+    }
     if sample.io.step(Operation::Seek, offset as u32) == 0 {
+        sample.failed = true;
         log::message(
             sample.io.leaves,
             0,
@@ -65,11 +70,11 @@ unsafe extern "C" fn read(raw: *mut c_void, offset: usize, count: usize) -> usiz
         sample.bytes.as_mut_ptr(),
         count as u32,
     );
-    // The native size_t conversion is undefined for negative reads (upstream bug 7).
-    if read <= 0 {
+    // The plan bounds count by the size captured at open, including the final sample.
+    if read != count as i64 {
+        sample.failed = true;
         return 0;
     }
-    debug_assert!(read as usize <= count);
     sample.io.call(
         Operation::DigestAdd,
         sample.bytes.as_ptr(),
@@ -113,10 +118,14 @@ pub(in crate::app::epub) fn calculate(leaves: &XpEpubLeaves, path: &Text) -> Opt
     let mut sample = Sample {
         io: &mut io,
         bytes: [0; 1024],
+        failed: false,
     };
     let total = unsafe {
         xp_core::sync::document::samples((&mut sample as *mut Sample<'_, '_>).cast(), size, read)
     };
+    if sample.failed {
+        return None;
+    }
     let mut digest = [0; 16];
     io.call(Operation::DigestFinish, ptr::null(), digest.as_mut_ptr(), 0);
     let mut text = [0; 33];

@@ -518,6 +518,7 @@ typedef struct XpEpubLeaves {
   // Borrowed until the synchronous query returns; subscription refresh stays on the app task.
   const XpPluginSubscriber* (*subscribers)(void);
 #endif
+// Fixture-only field/signature (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   uint8_t (*document_id)(XpAppText path, XpAppTextSink sink, void* context);
 #else

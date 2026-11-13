@@ -9,6 +9,7 @@
 #include <new>
 #include <utility>
 
+#include "BookFixture.h"
 #include "RustReaderDocument.h"
 extern "C" bool xp_app_test_document_id(const XpEpubLeaves*, XpAppText, uint8_t*);
 [[noreturn]] void unused() { std::abort(); }
@@ -16,7 +17,7 @@ XpEpubLeaves leaves;
 XpAppRuntime runtime;
 XpAppResources resources;
 extern "C" void xp_app_test_document_session(const XpEpubLeaves*, const XpAppRuntime*, const XpAppResources*, XpAppText,
-                                             bool);
+                                             bool, bool);
 bool subscribed = true;
 std::string emitted;
 int locks = 0;
@@ -74,48 +75,52 @@ int main() {
     memcpy(reinterpret_cast<char*>(&leaves) + i, &trap, sizeof(trap));
   leaves.document_io = readerDocumentIo;
   leaves.log_enabled = [](uint8_t severity) -> uint8_t {
-    assert(severity == 0);
+    assert(severity <= 2);
     return document_test::logs;
   };
   leaves.log = [](uint8_t severity, XpAppText origin, XpAppText message) {
     assert(severity == 0);
     document_test::log(owned(origin).c_str(), "%.*s", int(message.len), message.data);
   };
-  size_t cases = 0;
+  size_t cases = 0, healthyCases = 0, rejectedCases = 0;
+  std::vector<uint32_t> sizes{0, 1, 1023, 1024, 1025, 2048, 0x7fffffff, 0x80000000, 0x80000001, UINT32_MAX};
+  auto sampleOffset = [](int sample) -> uint32_t { return sample == 0 ? 0 : 1024u << (2 * (sample - 1)); };
+  for (int sample = 1; sample < 12; ++sample) {
+    const auto offset = sampleOffset(sample);
+    for (uint32_t size : {offset - 1, offset, offset + 1, offset + 1023, offset + 1024, offset + 1025})
+      sizes.push_back(size);
+  }
+  std::sort(sizes.begin(), sizes.end());
+  sizes.erase(std::unique(sizes.begin(), sizes.end()), sizes.end());
   for (bool logging : {false, true}) {
     document_test::logs = logging;
     for (const std::string& path : {std::string("/book.epub"), std::string("/책/읽기 📖.epub"),
                                     std::string("/\xff.epub"), "/" + std::string(400, 'a') + ".epub"})
-      for (uint32_t size : {0u, 1u, 1023u, 1024u, 1025u, 2048u, 4097u, 16385u, 1073741825u, UINT32_MAX}) {
-        auto compare = [&](int seek, int shortRead, bool failOpen) {
-          auto native = run(false, path, size, seek, shortRead, failOpen);
-          auto rust = run(true, path, size, seek, shortRead, failOpen);
-          if (!(native == rust)) {
-            std::cerr << "case size=" << size << " seek=" << seek << " short=" << shortRead << " open=" << failOpen
-                      << '\n';
-            for (auto& x : native.trace) std::cerr << "native " << x << '\n';
-            for (auto& x : rust.trace) std::cerr << "rust " << x << '\n';
-            std::abort();
+      for (uint32_t size : sizes) {
+        const auto native = run(false, path, size, -1, -1);
+        assert(native == run(true, path, size, -1, -1));
+        assert(run(false, path, size, -1, -1, true) == run(true, path, size, -1, -1, true));
+        cases += 2;
+        ++healthyCases;
+        // Native negative reads access out of bounds (bug 7); never execute that oracle branch.
+        for (int sample = 0; sample < 12; ++sample)
+          for (int fault = 0; fault < 4; ++fault) {
+            const auto result = run(true, path, size, fault == 0 ? sample : -1, fault == 1 ? sample : -1, false,
+                                    fault == 2 ? sample : -1, fault == 3 ? sample : -1);
+            if (sampleOffset(sample) < size) {
+              assert(result.digest.empty());
+              assert(std::count(result.trace.begin(), result.trace.end(), "size") == 1);
+              assert(std::count(result.trace.begin(), result.trace.end(), "digest.finish") == 0);
+              assert(result.trace[result.trace.size() - 2] == "close" && result.trace.back() == "destroy");
+              assert(std::count_if(result.trace.begin(), result.trace.end(),
+                                   [](const auto& step) { return step.starts_with("seek "); }) == sample + 1);
+              ++rejectedCases;
+            } else {
+              assert(result == native);  // An offset at/beyond EOF is not a failed sample.
+            }
+            assert(run(true, path, size, -1, -1) == native);  // No failed ID is retained.
+            cases += 2;
           }
-          ++cases;
-        };
-        compare(-1, -1, false);
-        compare(-1, -1, true);
-        for (int sample = 0; sample < 12; ++sample) {
-          compare(sample, -1, false);
-          compare(-1, sample, false);
-        }
-        for (int sample = 0; sample < 12; ++sample) {
-          assert(run(false, path, size, -1, -1, false, -1, sample) == run(true, path, size, -1, -1, false, -1, sample));
-          ++cases;
-        }
-        // Negative native reads are UB (upstream bug 7), so check only the Rust-defined result.
-        for (int sample = 0; sample < 12; ++sample) {
-          auto failed = run(true, path, size, -1, -1, false, sample);
-          auto skipped = run(false, path, size, sample, -1);
-          assert(failed.digest == skipped.digest);
-          ++cases;
-        }
       }
   }
   assert(run(true, "/empty", 0, -1, -1).digest == "d41d8cd98f00b204e9800998ecf8427e");
@@ -155,7 +160,7 @@ int main() {
         emitted.clear();
         xp_app_test_document_session(&leaves, &runtime, &resources,
                                      {reinterpret_cast<const uint8_t*>(sessionPath.c_str()), sessionPath.size()},
-                                     worthy);
+                                     worthy, false);
         std::vector<std::string> trace{"lock", "unlock"};
         if (worthy) trace.push_back("subscribed");
         if (worthy && subscriber) {
@@ -167,5 +172,39 @@ int main() {
         assert(document_test::trace == trace);
         assert(emitted == ((worthy && subscriber && !failOpen) ? expected.digest : ""));
       }
-  std::cout << cases << " document-ID differential/failure cases plus 8 shipping session cases PASS\n";
+  book_fixture::install(leaves, resources);
+  size_t sessionCases = 8;
+  auto sessionCase = [&](uint32_t size, int sample, int fault) {
+    document_test::logs = false;
+    const auto healthy = run(false, sessionPath, size, -1, -1);
+    run(true, sessionPath, size, fault == 0 ? sample : -1, fault == 1 ? sample : -1, false, fault == 2 ? sample : -1,
+        fault == 3 ? sample : -1);
+    document_test::trace.clear();
+    document_test::sample = -1;
+    document_test::offset = 0;
+    subscribed = true;
+    emitted.clear();
+    const auto before = book_fixture::opened;
+    xp_app_test_document_session(&leaves, &runtime, &resources,
+                                 {reinterpret_cast<const uint8_t*>(sessionPath.c_str()), sessionPath.size()}, true,
+                                 true);
+    assert(book_fixture::opened == before + 1 && book_fixture::closed == book_fixture::opened);
+    assert(book_fixture::liveFiles == 0 && book_fixture::cacheLocks == 0);
+    const bool failed = sample >= 0 && sampleOffset(sample) < size;
+    assert(emitted == (failed ? "" : healthy.digest));
+    // Four lock pairs: attach, snapshot, one reset, and detach; no extra reset.
+    assert(std::count(document_test::trace.begin(), document_test::trace.end(), "lock") == 4);
+    assert(std::count(document_test::trace.begin(), document_test::trace.end(), "unlock") == 4);
+    assert(document_test::trace[document_test::trace.size() - 2] == "lock");
+    assert(document_test::trace.back() == "unlock");
+    ++sessionCases;
+  };
+  for (int sample = 0; sample < 12; ++sample)
+    for (int fault = 0; fault < 4; ++fault) {
+      sessionCase(UINT32_MAX, sample, fault);
+      sessionCase(UINT32_MAX, -1, -1);  // A fresh open retries after the fault clears.
+    }
+  for (uint32_t size : {0u, 1u, 1023u, 1024u, 1025u, 16385u}) sessionCase(size, -1, -1);
+  std::cout << cases << " differential/failure/recovery cases (" << healthyCases << " healthy boundaries, "
+            << rejectedCases << " active read/seek faults) plus " << sessionCases << " shipping sessions PASS\n";
 }

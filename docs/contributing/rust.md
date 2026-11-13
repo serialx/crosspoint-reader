@@ -1501,14 +1501,23 @@ The Rust reader calls the shared twelve-sample KOReader plan directly and owns
 its sample buffer, terminated lowercase MD5 text, and session-event lifetime. The
 `document_io` boundary holds a HAL file and SDK MD5 context in bounded caller
 storage. It performs one physical operation per call and never calls Rust.
-The HAL file closes after the hash diagnostic and before the session event;
+On success the HAL file closes after the hash diagnostic and before the session event;
 reset still follows emission. If there is no subscriber or the session is too
 short, the reader skips file I/O.
 
-The remaining native `KOReaderDocumentId::calculate` serves non-reader sync
-callers and the differential oracle. Valid reads, short reads and seek failures
-produce identical IDs and operation order. A negative read contributes no
-bytes on the Rust reader path; the native helper's unsigned conversion has
-undefined behavior and remains a separate upstream defect. The
-[document-ID test](../../test/reader_document_id/README.md) covers that distinction,
-large virtual files, path bytes, and the shipping session emitter.
+The remaining native `KOReaderDocumentId::calculate` serves the XTC/XTCH reader
+(R7, deferred), non-reader callers and the differential oracle. The `xp_sync_samples`
+export remains for that helper; the EPUB/TXT/Markdown reader calls Rust directly.
+The app-test `document_id` adapter remains HOST-RETIRE fixture debt.
+
+Healthy reads produce identical IDs and operation order, including empty files
+and a final sample shorter than 1 KiB. The plan uses the file size captured once
+at open and skips offsets at or beyond that size. A failed seek, negative read,
+or incomplete requested sample now produces no ID: the existing
+no-ID session path emits nothing and resets accounting. Book loading and reading
+continue; no ID is cached, and the next worthy subscribed flush tries again.
+This deliberately rejects the native helper's partial digests on short/zero
+reads or failed seeks. A negative native read causes an oversized MD5 access
+(upstream bug 7); the integer conversion itself is defined.
+The [document-ID test](../../test/reader_document_id/README.md) covers healthy
+boundary parity, failure cancellation, recovery and an open book's lifetime.

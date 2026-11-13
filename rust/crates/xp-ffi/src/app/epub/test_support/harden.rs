@@ -222,7 +222,7 @@ pub unsafe extern "C" fn xp_epub_test_harden_boundary(
         -1
     );
     let info = owner.screenshot_info();
-    let exit = unsafe { super::super::super::base::xp_epub_test_exit_percent(&*owner) };
+    let exit = unsafe { super::super::super::base::xp_epub_test_exit_percent(&owner) };
     unsafe { out.write(info) };
     super::super::super::bookmarks::test_failed_commit(
         &owner,

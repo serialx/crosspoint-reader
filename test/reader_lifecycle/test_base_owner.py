@@ -30,7 +30,7 @@ RUST_MUTANTS = (
     ('previous-wins-simultaneous-end-turn', ((b'if next {\n            self.go_home();',
                                             b'if next && !previous {\n            self.go_home();'),)),
     ('reset-after-document-release', (
-        (b'// The native document remains borrowed until after reset.\n                self.reset_session();',
+        (b'// Keep the document bytes alive through emission and reset.\n            self.reset_session();',
          b'// Deliberate mutant: reset after the native sink returns.'),
         (b'if consumed.is_none() {', b'if true {'),
     )),

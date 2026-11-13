@@ -398,10 +398,6 @@ pub struct XpEpubLeaves {
     pub paint_status: unsafe extern "C" fn(status: *const XpEpubStatus),
     #[cfg(not(feature = "app-test"))]
     pub status_facts: unsafe extern "C" fn(out: *mut xp_ui::reader::status::Facts),
-    #[cfg(feature = "app-test")]
-    pub image_clear_failures: unsafe extern "C" fn(),
-    #[cfg(feature = "app-test")]
-    pub image_release_cache: unsafe extern "C" fn(),
     #[cfg(any(not(feature = "sd-font-catalog"), feature = "app-test"))]
     pub fonts_ensure_loaded: unsafe extern "C" fn(),
     #[cfg(all(feature = "sd-font-catalog", not(feature = "app-test")))]
@@ -622,14 +618,8 @@ pub struct XpEpubLeaves {
     pub hyphen_language: unsafe extern "C" fn(i32),
     pub file_position: unsafe extern "C" fn(*mut core::ffi::c_void) -> u32,
     pub file_flush: unsafe extern "C" fn(*mut core::ffi::c_void),
-    #[cfg(feature = "app-test")]
-    pub image_supported: unsafe extern "C" fn(XpAppText) -> u8,
-    #[cfg(feature = "app-test")]
-    pub image_dimensions: unsafe extern "C" fn(XpAppText, *mut u16, *mut u16) -> u8,
     pub framebuffer_lend: unsafe extern "C" fn() -> u8,
     pub framebuffer_restore: unsafe extern "C" fn(u8),
-    #[cfg(feature = "app-test")]
-    pub image_needs_decode: unsafe extern "C" fn(XpAppText, XpAppText, i16, i16) -> u8,
     #[cfg(feature = "app-test")]
     pub font_ascent: unsafe extern "C" fn(i32) -> i32,
     pub render_physical_query: unsafe extern "C" fn(u8) -> u32,
@@ -886,10 +876,6 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, paint_status) == leaf_index(20) * pointer);
     #[cfg(not(feature = "app-test"))]
     assert!(core::mem::offset_of!(XpEpubLeaves, status_facts) == leaf_index(20) * pointer);
-    #[cfg(feature = "app-test")]
-    assert!(core::mem::offset_of!(XpEpubLeaves, image_clear_failures) == leaf_index(21) * pointer);
-    #[cfg(feature = "app-test")]
-    assert!(core::mem::offset_of!(XpEpubLeaves, image_release_cache) == leaf_index(22) * pointer);
     #[cfg(any(not(feature = "sd-font-catalog"), feature = "app-test"))]
     assert!(core::mem::offset_of!(XpEpubLeaves, fonts_ensure_loaded) == leaf_index(23) * pointer);
     #[cfg(all(feature = "sd-font-catalog", not(feature = "app-test")))]
@@ -1039,14 +1025,8 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, hyphen_language) == leaf_index(116) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, file_position) == leaf_index(117) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, file_flush) == leaf_index(118) * pointer);
-    #[cfg(feature = "app-test")]
-    assert!(core::mem::offset_of!(XpEpubLeaves, image_supported) == leaf_index(119) * pointer);
-    #[cfg(feature = "app-test")]
-    assert!(core::mem::offset_of!(XpEpubLeaves, image_dimensions) == leaf_index(120) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, framebuffer_lend) == leaf_index(121) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, framebuffer_restore) == leaf_index(122) * pointer);
-    #[cfg(feature = "app-test")]
-    assert!(core::mem::offset_of!(XpEpubLeaves, image_needs_decode) == leaf_index(123) * pointer);
     #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, font_ascent) == leaf_index(124) * pointer);
     assert!(
@@ -1082,6 +1062,9 @@ const _: () = assert!(
 const fn leaf_index(index: usize) -> usize {
     if cfg!(feature = "app-test") {
         index
+            - if index >= 23 { 2 } else { 0 }
+            - if index > 120 { 2 } else { 0 }
+            - if index > 123 { 1 } else { 0 }
             - if cfg!(feature = "sd-font-catalog") && index >= 30 {
                 1
             } else {

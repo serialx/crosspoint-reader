@@ -1,3 +1,4 @@
+#include "image_observer.h"
 #include "child_session_fixture.h"
 #include "../clipping_store/reader_fixture.h"
 #include "../clipping_store/reader_storage.h"
@@ -256,7 +257,7 @@ static void configureChildLeaves() {
     activeChild->owner.stripBuffers.releaseIdle();
     return 1;
   };
-  childLeaves.physical.image_release_cache = [] { ImageBlock::releaseRenderCache(); };
+  imageFixture::onRelease([] { ImageBlock::releaseRenderCache(); });
   childLeaves.book.book_clear_extractor = [] { ImageBlock::setExtractor(nullptr, nullptr); };
   childLeaves.physical.fonts_release_caches = [] {
     if (auto* cache = activeChild->owner.renderer.getFontCacheManager()) cache->releaseSdFontCaches();

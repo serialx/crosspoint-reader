@@ -1,3 +1,4 @@
+#include "image_observer.h"
 // Frozen App ownership oracle with explicit synthetic book inputs.
 #include <array>
 #include <cassert>
@@ -343,10 +344,10 @@ void bind() {
     f().physical("book-load", book.generation, book.id);
     return 1;
   };
-  leaves.image_clear_failures = [] {
+  imageFixture::onClear([] {
     assert(!f().renderDepth);
     f().physical("image-clear", f().entersGeneration);
-  };
+  });
   legacyBook.book_install_extractor = [](void* raw) {
     auto& book = f().handle(raw, Kind::Book);
     assert(!f().extractor && !f().renderDepth);

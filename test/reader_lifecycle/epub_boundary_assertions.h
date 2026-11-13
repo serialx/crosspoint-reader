@@ -1,10 +1,10 @@
+#include "epub_fixture_abi.h"
 #pragma once
 #include <xp_epub_session.h>
 
 #include <cstddef>
 #include <type_traits>
 
-#include "epub_fixture_abi.h"
 #include "legacy_page_fixture.h"
 // Explicit slots in the reader boundary.
 
@@ -102,249 +102,243 @@ static_assert(std::is_pointer_v<decltype(XpEpubLeaves::paint_pixel)> &&
 static_assert(offsetof(XpEpubLeaves, paint_status) == 20 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::paint_status)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::paint_status)>>);
-static_assert(offsetof(XpEpubLeaves, image_clear_failures) == 21 * sizeof(void (*)()));
-static_assert(std::is_pointer_v<decltype(XpEpubLeaves::image_clear_failures)> &&
-              std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::image_clear_failures)>>);
-static_assert(offsetof(XpEpubLeaves, image_release_cache) == 22 * sizeof(void (*)()));
-static_assert(std::is_pointer_v<decltype(XpEpubLeaves::image_release_cache)> &&
-              std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::image_release_cache)>>);
-static_assert(offsetof(XpEpubLeaves, fonts_ensure_loaded) == 23 * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, fonts_ensure_loaded) == 21 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::fonts_ensure_loaded)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::fonts_ensure_loaded)>>);
-static_assert(offsetof(XpEpubLeaves, fonts_release_caches) == 24 * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, fonts_release_caches) == 22 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::fonts_release_caches)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::fonts_release_caches)>>);
-static_assert(offsetof(XpEpubLeaves, fonts_prewarm_begin) == 25 * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, fonts_prewarm_begin) == 23 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::fonts_prewarm_begin)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::fonts_prewarm_begin)>>);
-static_assert(offsetof(XpEpubLeaves, fonts_prewarm_finish_scan) == 26 * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, fonts_prewarm_finish_scan) == 24 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::fonts_prewarm_finish_scan)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::fonts_prewarm_finish_scan)>>);
-static_assert(offsetof(XpEpubLeaves, fonts_prewarm_drop) == 27 * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, fonts_prewarm_drop) == 25 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::fonts_prewarm_drop)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::fonts_prewarm_drop)>>);
-static_assert(offsetof(XpEpubLeaves, fonts_take_corrupt_notice) == 28 * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, fonts_take_corrupt_notice) == 26 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::fonts_take_corrupt_notice)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::fonts_take_corrupt_notice)>>);
 #ifndef XP_SD_FONT_CATALOG
-static_assert(offsetof(XpEpubLeaves, font_sizes) == 29 * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, font_sizes) == 27 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::font_sizes)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::font_sizes)>>);
 #endif
-static_assert(offsetof(XpEpubLeaves, settings_snapshot) == xpTestEpubLeafSlot(30) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, settings_snapshot) == xpTestEpubLeafSlot(28) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::settings_snapshot)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::settings_snapshot)>>);
-static_assert(offsetof(XpEpubLeaves, settings_render_spec) == xpTestEpubLeafSlot(31) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, settings_render_spec) == xpTestEpubLeafSlot(29) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::settings_render_spec)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::settings_render_spec)>>);
-static_assert(offsetof(XpEpubLeaves, settings_orientation) == xpTestEpubLeafSlot(32) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, settings_orientation) == xpTestEpubLeafSlot(30) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::settings_orientation)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::settings_orientation)>>);
-static_assert(offsetof(XpEpubLeaves, settings_font_size) == xpTestEpubLeafSlot(33) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, settings_font_size) == xpTestEpubLeafSlot(31) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::settings_font_size)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::settings_font_size)>>);
-static_assert(offsetof(XpEpubLeaves, settings_line_spacing) == xpTestEpubLeafSlot(34) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, settings_line_spacing) == xpTestEpubLeafSlot(32) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::settings_line_spacing)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::settings_line_spacing)>>);
-static_assert(offsetof(XpEpubLeaves, settings_alignment) == xpTestEpubLeafSlot(35) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, settings_alignment) == xpTestEpubLeafSlot(33) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::settings_alignment)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::settings_alignment)>>);
-static_assert(offsetof(XpEpubLeaves, settings_focus_reading) == xpTestEpubLeafSlot(36) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, settings_focus_reading) == xpTestEpubLeafSlot(34) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::settings_focus_reading)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::settings_focus_reading)>>);
-static_assert(offsetof(XpEpubLeaves, settings_inversion) == xpTestEpubLeafSlot(37) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, settings_inversion) == xpTestEpubLeafSlot(35) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::settings_inversion)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::settings_inversion)>>);
-static_assert(offsetof(XpEpubLeaves, settings_ble_enabled) == xpTestEpubLeafSlot(38) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, settings_ble_enabled) == xpTestEpubLeafSlot(36) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::settings_ble_enabled)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::settings_ble_enabled)>>);
-static_assert(offsetof(XpEpubLeaves, settings_save) == xpTestEpubLeafSlot(39) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, settings_save) == xpTestEpubLeafSlot(37) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::settings_save)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::settings_save)>>);
-static_assert(offsetof(XpEpubLeaves, input_services) == xpTestEpubLeafSlot(40) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, input_services) == xpTestEpubLeafSlot(38) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::input_services)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::input_services)>>);
-static_assert(offsetof(XpEpubLeaves, input_facts) == xpTestEpubLeafSlot(41) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, input_facts) == xpTestEpubLeafSlot(39) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::input_facts)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::input_facts)>>);
-static_assert(offsetof(XpEpubLeaves, input_pressed) == xpTestEpubLeafSlot(42) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, input_pressed) == xpTestEpubLeafSlot(40) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::input_pressed)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::input_pressed)>>);
-static_assert(offsetof(XpEpubLeaves, input_screen_point) == xpTestEpubLeafSlot(43) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, input_screen_point) == xpTestEpubLeafSlot(41) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::input_screen_point)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::input_screen_point)>>);
-static_assert(offsetof(XpEpubLeaves, input_screen_tap) == xpTestEpubLeafSlot(44) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, input_screen_tap) == xpTestEpubLeafSlot(42) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::input_screen_tap)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::input_screen_tap)>>);
-static_assert(offsetof(XpEpubLeaves, input_raw_contact) == xpTestEpubLeafSlot(45) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, input_raw_contact) == xpTestEpubLeafSlot(43) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::input_raw_contact)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::input_raw_contact)>>);
-static_assert(offsetof(XpEpubLeaves, render_busy) == xpTestEpubLeafSlot(46) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, render_busy) == xpTestEpubLeafSlot(44) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::render_busy)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::render_busy)>>);
-static_assert(offsetof(XpEpubLeaves, file_open_read) == xpTestEpubLeafSlot(47) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, file_open_read) == xpTestEpubLeafSlot(45) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::file_open_read)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::file_open_read)>>);
-static_assert(offsetof(XpEpubLeaves, file_open_write) == xpTestEpubLeafSlot(48) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, file_open_write) == xpTestEpubLeafSlot(46) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::file_open_write)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::file_open_write)>>);
-static_assert(offsetof(XpEpubLeaves, file_read) == xpTestEpubLeafSlot(49) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, file_read) == xpTestEpubLeafSlot(47) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::file_read)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::file_read)>>);
-static_assert(offsetof(XpEpubLeaves, file_write) == xpTestEpubLeafSlot(50) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, file_write) == xpTestEpubLeafSlot(48) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::file_write)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::file_write)>>);
-static_assert(offsetof(XpEpubLeaves, file_close) == xpTestEpubLeafSlot(51) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, file_close) == xpTestEpubLeafSlot(49) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::file_close)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::file_close)>>);
-static_assert(offsetof(XpEpubLeaves, path_remove) == xpTestEpubLeafSlot(52) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, path_remove) == xpTestEpubLeafSlot(50) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::path_remove)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::path_remove)>>);
-static_assert(offsetof(XpEpubLeaves, path_rename) == xpTestEpubLeafSlot(53) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, path_rename) == xpTestEpubLeafSlot(51) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::path_rename)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::path_rename)>>);
-static_assert(offsetof(XpEpubLeaves, path_mkdir) == xpTestEpubLeafSlot(54) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, path_mkdir) == xpTestEpubLeafSlot(52) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::path_mkdir)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::path_mkdir)>>);
-static_assert(offsetof(XpEpubLeaves, native_path_hash) == xpTestEpubLeafSlot(55) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, native_path_hash) == xpTestEpubLeafSlot(53) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::native_path_hash)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::native_path_hash)>>);
-static_assert(offsetof(XpEpubLeaves, heap_snapshot) == xpTestEpubLeafSlot(56) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, heap_snapshot) == xpTestEpubLeafSlot(54) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::heap_snapshot)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::heap_snapshot)>>);
-static_assert(offsetof(XpEpubLeaves, radio_status) == xpTestEpubLeafSlot(57) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, radio_status) == xpTestEpubLeafSlot(55) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::radio_status)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::radio_status)>>);
-static_assert(offsetof(XpEpubLeaves, radio_before_build) == xpTestEpubLeafSlot(58) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, radio_before_build) == xpTestEpubLeafSlot(56) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::radio_before_build)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::radio_before_build)>>);
-static_assert(offsetof(XpEpubLeaves, radio_settle_start) == xpTestEpubLeafSlot(59) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, radio_settle_start) == xpTestEpubLeafSlot(57) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::radio_settle_start)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::radio_settle_start)>>);
-static_assert(offsetof(XpEpubLeaves, radio_holds_heap) == xpTestEpubLeafSlot(60) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, radio_holds_heap) == xpTestEpubLeafSlot(58) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::radio_holds_heap)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::radio_holds_heap)>>);
-static_assert(offsetof(XpEpubLeaves, radio_after_paint) == xpTestEpubLeafSlot(61) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, radio_after_paint) == xpTestEpubLeafSlot(59) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::radio_after_paint)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::radio_after_paint)>>);
-static_assert(offsetof(XpEpubLeaves, radio_switch_off) == xpTestEpubLeafSlot(62) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, radio_switch_off) == xpTestEpubLeafSlot(60) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::radio_switch_off)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::radio_switch_off)>>);
-static_assert(offsetof(XpEpubLeaves, radio_request_connect) == xpTestEpubLeafSlot(63) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, radio_request_connect) == xpTestEpubLeafSlot(61) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::radio_request_connect)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::radio_request_connect)>>);
-static_assert(offsetof(XpEpubLeaves, trusted_now) == xpTestEpubLeafSlot(64) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, trusted_now) == xpTestEpubLeafSlot(62) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::trusted_now)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::trusted_now)>>);
-static_assert(offsetof(XpEpubLeaves, trusted_sync) == xpTestEpubLeafSlot(65) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, trusted_sync) == xpTestEpubLeafSlot(63) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::trusted_sync)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::trusted_sync)>>);
-static_assert(offsetof(XpEpubLeaves, wifi_connected) == xpTestEpubLeafSlot(66) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, wifi_connected) == xpTestEpubLeafSlot(64) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::wifi_connected)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::wifi_connected)>>);
-static_assert(offsetof(XpEpubLeaves, wifi_disconnect) == xpTestEpubLeafSlot(67) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, wifi_disconnect) == xpTestEpubLeafSlot(65) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::wifi_disconnect)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::wifi_disconnect)>>);
-static_assert(offsetof(XpEpubLeaves, restart_reader) == xpTestEpubLeafSlot(68) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, restart_reader) == xpTestEpubLeafSlot(66) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::restart_reader)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::restart_reader)>>);
-static_assert(offsetof(XpEpubLeaves, child_text_settings) == xpTestEpubLeafSlot(69) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, child_text_settings) == xpTestEpubLeafSlot(67) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::child_text_settings)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::child_text_settings)>>);
-static_assert(offsetof(XpEpubLeaves, child_selection) == xpTestEpubLeafSlot(70) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, child_selection) == xpTestEpubLeafSlot(68) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::child_selection)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::child_selection)>>);
-static_assert(offsetof(XpEpubLeaves, child_wifi) == xpTestEpubLeafSlot(71) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, child_wifi) == xpTestEpubLeafSlot(69) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::child_wifi)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::child_wifi)>>);
-static_assert(offsetof(XpEpubLeaves, child_sync) == xpTestEpubLeafSlot(72) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, child_sync) == xpTestEpubLeafSlot(70) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::child_sync)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::child_sync)>>);
-static_assert(offsetof(XpEpubLeaves, popup_open) == xpTestEpubLeafSlot(73) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, popup_open) == xpTestEpubLeafSlot(71) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::popup_open)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::popup_open)>>);
-static_assert(offsetof(XpEpubLeaves, popup_close) == xpTestEpubLeafSlot(74) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, popup_close) == xpTestEpubLeafSlot(72) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::popup_close)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::popup_close)>>);
-static_assert(offsetof(XpEpubLeaves, popup_active) == xpTestEpubLeafSlot(75) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, popup_active) == xpTestEpubLeafSlot(73) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::popup_active)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::popup_active)>>);
-static_assert(offsetof(XpEpubLeaves, popup_show) == xpTestEpubLeafSlot(76) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, popup_show) == xpTestEpubLeafSlot(74) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::popup_show)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::popup_show)>>);
-static_assert(offsetof(XpEpubLeaves, popup_dismiss) == xpTestEpubLeafSlot(77) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, popup_dismiss) == xpTestEpubLeafSlot(75) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::popup_dismiss)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::popup_dismiss)>>);
-static_assert(offsetof(XpEpubLeaves, popup_input) == xpTestEpubLeafSlot(78) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, popup_input) == xpTestEpubLeafSlot(76) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::popup_input)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::popup_input)>>);
-static_assert(offsetof(XpEpubLeaves, popup_paint) == xpTestEpubLeafSlot(79) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, popup_paint) == xpTestEpubLeafSlot(77) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::popup_paint)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::popup_paint)>>);
-static_assert(offsetof(XpEpubLeaves, popup_process_render) == xpTestEpubLeafSlot(80) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, popup_process_render) == xpTestEpubLeafSlot(78) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::popup_process_render)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::popup_process_render)>>);
-static_assert(offsetof(XpEpubLeaves, end_open) == xpTestEpubLeafSlot(81) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, end_open) == xpTestEpubLeafSlot(79) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::end_open)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::end_open)>>);
-static_assert(offsetof(XpEpubLeaves, end_close) == xpTestEpubLeafSlot(82) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, end_close) == xpTestEpubLeafSlot(80) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::end_close)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::end_close)>>);
-static_assert(offsetof(XpEpubLeaves, end_load) == xpTestEpubLeafSlot(83) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, end_load) == xpTestEpubLeafSlot(81) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::end_load)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::end_load)>>);
-static_assert(offsetof(XpEpubLeaves, end_menu_active) == xpTestEpubLeafSlot(84) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, end_menu_active) == xpTestEpubLeafSlot(82) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::end_menu_active)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::end_menu_active)>>);
-static_assert(offsetof(XpEpubLeaves, end_input) == xpTestEpubLeafSlot(85) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, end_input) == xpTestEpubLeafSlot(83) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::end_input)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::end_input)>>);
-static_assert(offsetof(XpEpubLeaves, end_paint) == xpTestEpubLeafSlot(86) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, end_paint) == xpTestEpubLeafSlot(84) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::end_paint)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::end_paint)>>);
-static_assert(offsetof(XpEpubLeaves, recents_remove) == xpTestEpubLeafSlot(87) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, recents_remove) == xpTestEpubLeafSlot(85) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::recents_remove)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::recents_remove)>>);
-static_assert(offsetof(XpEpubLeaves, recents_add) == xpTestEpubLeafSlot(88) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, recents_add) == xpTestEpubLeafSlot(86) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::recents_add)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::recents_add)>>);
-static_assert(offsetof(XpEpubLeaves, recents_update_path) == xpTestEpubLeafSlot(89) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, recents_update_path) == xpTestEpubLeafSlot(87) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::recents_update_path)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::recents_update_path)>>);
-static_assert(offsetof(XpEpubLeaves, state_open_path) == xpTestEpubLeafSlot(90) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, state_open_path) == xpTestEpubLeafSlot(88) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::state_open_path)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::state_open_path)>>);
-static_assert(offsetof(XpEpubLeaves, state_set_open_path) == xpTestEpubLeafSlot(91) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, state_set_open_path) == xpTestEpubLeafSlot(89) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::state_set_open_path)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::state_set_open_path)>>);
-static_assert(offsetof(XpEpubLeaves, state_reset_reader_count) == xpTestEpubLeafSlot(92) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, state_reset_reader_count) == xpTestEpubLeafSlot(90) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::state_reset_reader_count)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::state_reset_reader_count)>>);
-static_assert(offsetof(XpEpubLeaves, state_save) == xpTestEpubLeafSlot(93) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, state_save) == xpTestEpubLeafSlot(91) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::state_save)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::state_save)>>);
-static_assert(offsetof(XpEpubLeaves, has_sync_credentials) == xpTestEpubLeafSlot(94) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, has_sync_credentials) == xpTestEpubLeafSlot(92) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::has_sync_credentials)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::has_sync_credentials)>>);
-static_assert(offsetof(XpEpubLeaves, has_exit_subscriber) == xpTestEpubLeafSlot(95) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, has_exit_subscriber) == xpTestEpubLeafSlot(93) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::has_exit_subscriber)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::has_exit_subscriber)>>);
-static_assert(offsetof(XpEpubLeaves, has_session_subscriber) == xpTestEpubLeafSlot(96) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, has_session_subscriber) == xpTestEpubLeafSlot(94) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::has_session_subscriber)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::has_session_subscriber)>>);
-static_assert(offsetof(XpEpubLeaves, document_id) == xpTestEpubLeafSlot(97) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, document_id) == xpTestEpubLeafSlot(95) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::document_id)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::document_id)>>);
-static_assert(offsetof(XpEpubLeaves, emit_open) == xpTestEpubLeafSlot(98) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, emit_open) == xpTestEpubLeafSlot(96) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::emit_open)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::emit_open)>>);
-static_assert(offsetof(XpEpubLeaves, emit_exit) == xpTestEpubLeafSlot(99) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, emit_exit) == xpTestEpubLeafSlot(97) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::emit_exit)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::emit_exit)>>);
-static_assert(offsetof(XpEpubLeaves, emit_session) == xpTestEpubLeafSlot(100) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, emit_session) == xpTestEpubLeafSlot(98) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::emit_session)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::emit_session)>>);
-static_assert(offsetof(XpEpubLeaves, log) == xpTestEpubLeafSlot(101) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, log) == xpTestEpubLeafSlot(99) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::log)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::log)>>);
 static_assert(offsetof(XpEpubLegacyPageServices, page_word_font) == 10 * sizeof(void (*)()));
@@ -359,31 +353,31 @@ static_assert(std::is_pointer_v<decltype(XpEpubLegacyPageServices::page_word_y_o
 static_assert(offsetof(XpEpubLegacyPageServices, page_line_ruby_shift) == 13 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLegacyPageServices::page_line_ruby_shift)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLegacyPageServices::page_line_ruby_shift)>>);
-static_assert(offsetof(XpEpubLeaves, font_text_advance) == xpTestEpubLeafSlot(102) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, font_text_advance) == xpTestEpubLeafSlot(100) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::font_text_advance)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::font_text_advance)>>);
-static_assert(offsetof(XpEpubLeaves, log_enabled) == xpTestEpubLeafSlot(103) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, log_enabled) == xpTestEpubLeafSlot(101) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::log_enabled)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::log_enabled)>>);
-static_assert(offsetof(XpEpubLeaves, input_snapshot) == xpTestEpubLeafSlot(104) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, input_snapshot) == xpTestEpubLeafSlot(102) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::input_snapshot)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::input_snapshot)>>);
 static_assert(offsetof(XpEpubLegacyPageServices, page_render) == 14 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLegacyPageServices::page_render)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLegacyPageServices::page_render)>>);
-static_assert(offsetof(XpEpubLeaves, cache_lock) == xpTestEpubLeafSlot(105) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, cache_lock) == xpTestEpubLeafSlot(103) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::cache_lock)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::cache_lock)>>);
-static_assert(offsetof(XpEpubLeaves, cache_unlock) == xpTestEpubLeafSlot(106) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, cache_unlock) == xpTestEpubLeafSlot(104) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::cache_unlock)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::cache_unlock)>>);
-static_assert(offsetof(XpEpubLeaves, scratch_claim) == xpTestEpubLeafSlot(107) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, scratch_claim) == xpTestEpubLeafSlot(105) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::scratch_claim)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::scratch_claim)>>);
-static_assert(offsetof(XpEpubLeaves, scratch_release) == xpTestEpubLeafSlot(108) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, scratch_release) == xpTestEpubLeafSlot(106) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::scratch_release)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::scratch_release)>>);
-static_assert(offsetof(XpEpubLeaves, inflate_oom_log) == xpTestEpubLeafSlot(109) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, inflate_oom_log) == xpTestEpubLeafSlot(107) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::inflate_oom_log)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::inflate_oom_log)>>);
 static_assert(sizeof(XpEpubLeaves) == xpTestEpubLeafCount * sizeof(void (*)()));
@@ -402,26 +396,20 @@ static_assert(std::is_same_v<decltype(XpUiReaderRenderServices::read), uint32_t 
 static_assert(
     std::is_same_v<decltype(XpUiReaderRenderServices::execute), uint32_t (*)(void*, const XpUiReaderRenderOp*)>);
 
-static_assert(offsetof(XpEpubLeaves, build_metrics) == xpTestEpubLeafSlot(110) * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, build_allocator) == xpTestEpubLeafSlot(111) * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, font_variant) == xpTestEpubLeafSlot(112) * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, font_line_height) == xpTestEpubLeafSlot(113) * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, font_ready) == xpTestEpubLeafSlot(114) * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, font_codepoint) == xpTestEpubLeafSlot(115) * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, hyphen_language) == xpTestEpubLeafSlot(116) * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, file_position) == xpTestEpubLeafSlot(117) * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, file_flush) == xpTestEpubLeafSlot(118) * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, image_supported) == xpTestEpubLeafSlot(119) * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, image_dimensions) == xpTestEpubLeafSlot(120) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, build_metrics) == xpTestEpubLeafSlot(108) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, build_allocator) == xpTestEpubLeafSlot(109) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, font_variant) == xpTestEpubLeafSlot(110) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, font_line_height) == xpTestEpubLeafSlot(111) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, font_ready) == xpTestEpubLeafSlot(112) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, font_codepoint) == xpTestEpubLeafSlot(113) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, hyphen_language) == xpTestEpubLeafSlot(114) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, file_position) == xpTestEpubLeafSlot(115) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, file_flush) == xpTestEpubLeafSlot(116) * sizeof(void (*)()));
 static_assert(offsetof(XpEpubLegacyPageServices, page_load) == 15 * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, framebuffer_lend) == xpTestEpubLeafSlot(121) * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, framebuffer_restore) == xpTestEpubLeafSlot(122) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, framebuffer_lend) == xpTestEpubLeafSlot(117) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, framebuffer_restore) == xpTestEpubLeafSlot(118) * sizeof(void (*)()));
 
-static_assert(offsetof(XpEpubLeaves, image_needs_decode) == xpTestEpubLeafSlot(123) * sizeof(void (*)()));
-static_assert(std::is_pointer_v<decltype(XpEpubLeaves::image_needs_decode)> &&
-              std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::image_needs_decode)>>);
-
-static_assert(offsetof(XpEpubLeaves, font_ascent) == xpTestEpubLeafSlot(124) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, font_ascent) == xpTestEpubLeafSlot(119) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::font_ascent)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::font_ascent)>>);
 template <class T, class = void>
@@ -505,8 +493,8 @@ template <class T>
 struct Has_page_load<T, std::void_t<decltype(&T::page_load)>> : std::true_type {};
 static_assert(!Has_page_load<XpEpubLeaves>::value);
 
-static_assert(offsetof(XpEpubLeaves, render_physical_query) == xpTestEpubLeafSlot(125) * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, render_physical_operation) == xpTestEpubLeafSlot(126) * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, image_read_window) == xpTestEpubLeafSlot(127) * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, display_source) == xpTestEpubLeafSlot(128) * sizeof(void (*)()));
-static_assert(offsetof(XpEpubLeaves, framebuffer_view) == xpTestEpubLeafSlot(129) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, render_physical_query) == xpTestEpubLeafSlot(120) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, render_physical_operation) == xpTestEpubLeafSlot(121) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, image_read_window) == xpTestEpubLeafSlot(122) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, display_source) == xpTestEpubLeafSlot(123) * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, framebuffer_view) == xpTestEpubLeafSlot(124) * sizeof(void (*)()));

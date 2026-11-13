@@ -1,4 +1,5 @@
 #include "epub_fixture_abi.h"
+#include "image_observer.h"
 static unsigned modelDepth = 0, resourceDepth = 0;
 static EpubReaderActivity* activeFixture = nullptr;
 struct BookHandle {
@@ -231,8 +232,6 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(physical.paint_dither);
   UNUSED_LEAF(physical.paint_pixel);
   UNUSED_LEAF(physical.paint_status);
-  UNUSED_LEAF(physical.image_clear_failures);
-  UNUSED_LEAF(physical.image_release_cache);
   UNUSED_LEAF(physical.fonts_ensure_loaded);
   UNUSED_LEAF(physical.fonts_release_caches);
   UNUSED_LEAF(physical.fonts_prewarm_begin);
@@ -366,12 +365,9 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(physical.hyphen_language);
   UNUSED_LEAF(physical.file_position);
   UNUSED_LEAF(physical.file_flush);
-  UNUSED_LEAF(physical.image_supported);
-  UNUSED_LEAF(physical.image_dimensions);
   UNUSED_LEAF(book.section.page.page_load);
   UNUSED_LEAF(physical.framebuffer_lend);
   UNUSED_LEAF(physical.framebuffer_restore);
-  UNUSED_LEAF(physical.image_needs_decode);
   UNUSED_LEAF(physical.font_ascent);
   UNUSED_LEAF(physical.render_physical_query);
   UNUSED_LEAF(physical.render_physical_operation);
@@ -457,7 +453,7 @@ static const LegacyEpubLeaves leaves = [] {
     });
   };
   table.book.book_clear_extractor = [] { leaf(); ImageBlock::setExtractor(nullptr, nullptr); };
-  table.physical.image_clear_failures = [] { leaf(); ImageBlock::clearRenderFailures(); };
+  imageFixture::onClear([] { leaf(); ImageBlock::clearRenderFailures(); });
   table.physical.settings_snapshot = [](uint8_t resolveFont, XpEpubSettings* out) {
     leaf();
     assert(resolveFont == 0);

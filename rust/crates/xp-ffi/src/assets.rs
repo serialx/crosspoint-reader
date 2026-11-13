@@ -313,6 +313,21 @@ pub(crate) unsafe fn render_image(
 ) -> u32 {
     (&mut *IMAGE_STATE.0.get()).render(path, config, services)
 }
+#[cfg(feature = "app-test")]
+struct ImageObserver(UnsafeCell<Option<unsafe extern "C" fn(bool)>>);
+#[cfg(feature = "app-test")]
+// SAFETY: tests register and invoke the observer under the serialized image owner.
+unsafe impl Sync for ImageObserver {}
+#[cfg(feature = "app-test")]
+static IMAGE_OBSERVER: ImageObserver = ImageObserver(UnsafeCell::new(None));
+#[cfg(feature = "app-test")]
+#[no_mangle]
+pub unsafe extern "C" fn xp_assets_image_test_observer(
+    callback: Option<unsafe extern "C" fn(bool)>,
+) {
+    *IMAGE_OBSERVER.0.get() = callback;
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn xp_assets_image_reset(release: bool) {
     let state = unsafe { &mut *IMAGE_STATE.0.get() };
@@ -320,6 +335,10 @@ pub unsafe extern "C" fn xp_assets_image_reset(release: bool) {
         state.release();
     } else {
         state.clear_failures();
+    }
+    #[cfg(feature = "app-test")]
+    if let Some(observe) = unsafe { *IMAGE_OBSERVER.0.get() } {
+        unsafe { observe(release) };
     }
 }
 #[no_mangle]

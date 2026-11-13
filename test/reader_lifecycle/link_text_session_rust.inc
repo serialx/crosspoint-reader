@@ -135,8 +135,6 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(paint_dither);
   UNUSED_LEAF(paint_pixel);
   UNUSED_LEAF(paint_status);
-  UNUSED_LEAF(image_clear_failures);
-  UNUSED_LEAF(image_release_cache);
   UNUSED_LEAF(fonts_ensure_loaded);
   UNUSED_LEAF(fonts_release_caches);
   UNUSED_LEAF(fonts_prewarm_begin);
@@ -248,12 +246,9 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(hyphen_language);
   UNUSED_LEAF(file_position);
   UNUSED_LEAF(file_flush);
-  UNUSED_LEAF(image_supported);
-  UNUSED_LEAF(image_dimensions);
 
   UNUSED_LEAF(framebuffer_lend);
   UNUSED_LEAF(framebuffer_restore);
-  UNUSED_LEAF(image_needs_decode);
   UNUSED_LEAF(font_ascent);
   UNUSED_LEAF(render_physical_query);
   UNUSED_LEAF(render_physical_operation);

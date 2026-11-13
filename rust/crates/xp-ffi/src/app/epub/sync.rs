@@ -197,9 +197,6 @@ impl EpubSession {
         });
         self.discard_overlay_page(&access);
         unsafe {
-            #[cfg(feature = "app-test")]
-            (self.leaves.image_release_cache)();
-            #[cfg(not(feature = "app-test"))]
             crate::assets::xp_assets_image_reset(true);
             self.set_book_extractor(&access, None);
         }

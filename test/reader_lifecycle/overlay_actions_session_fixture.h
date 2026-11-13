@@ -170,8 +170,6 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.paint_dither = &OverlayUnexpected<decltype(table.paint_dither)>::call;
   table.paint_pixel = &OverlayUnexpected<decltype(table.paint_pixel)>::call;
   table.paint_status = &OverlayUnexpected<decltype(table.paint_status)>::call;
-  table.image_clear_failures = &OverlayUnexpected<decltype(table.image_clear_failures)>::call;
-  table.image_release_cache = &OverlayUnexpected<decltype(table.image_release_cache)>::call;
   table.fonts_ensure_loaded = &OverlayUnexpected<decltype(table.fonts_ensure_loaded)>::call;
   table.fonts_release_caches = &OverlayUnexpected<decltype(table.fonts_release_caches)>::call;
   table.fonts_prewarm_begin = &OverlayUnexpected<decltype(table.fonts_prewarm_begin)>::call;
@@ -278,8 +276,6 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.hyphen_language = &OverlayUnexpected<decltype(table.hyphen_language)>::call;
   table.file_position = &OverlayUnexpected<decltype(table.file_position)>::call;
   table.file_flush = &OverlayUnexpected<decltype(table.file_flush)>::call;
-  table.image_supported = &OverlayUnexpected<decltype(table.image_supported)>::call;
-  table.image_dimensions = &OverlayUnexpected<decltype(table.image_dimensions)>::call;
   table.framebuffer_lend = &OverlayUnexpected<decltype(table.framebuffer_lend)>::call;
   table.framebuffer_restore = &OverlayUnexpected<decltype(table.framebuffer_restore)>::call;
   table.book_facade_open = &OverlayUnexpected<decltype(table.book_facade_open)>::call;

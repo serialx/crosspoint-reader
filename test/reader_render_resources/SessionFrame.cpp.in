@@ -1,3 +1,4 @@
+#include "image_observer.h"
 // Real session/RenderContext composition, using the physical adapters above.
 #include "owner_tables.h"
 #include <xp_page_paint.h>
@@ -106,8 +107,12 @@ void testRealSession(const XpEpubLeaves& pageLeaves, XpAppText wire, GfxRenderer
   };
   leaves.fonts_prewarm_finish_scan = physicalPrewarmFinish;
   leaves.fonts_prewarm_drop = physicalPrewarmDrop;
-  leaves.image_clear_failures = FrameImageBlock::clearRenderFailures;
-  leaves.image_release_cache = FrameImageBlock::releaseRenderCache;
+  imageFixture::onClear(nullptr);
+  imageFixture::onRelease([] {
+    assert(!frameChecks::loan && !frameChecks::window);
+    ++frameChecks::cacheReleases;
+    frameChecks::cacheReleaseAt = ++frameChecks::sequence;
+  });
   leaves.paint_status = [](const XpEpubStatus* status) {
     assert(!retirement_fixture::modelDepth && status && status->page == 1 && status->pages == 1);
     ++sessionChecks.statuses;
@@ -150,4 +155,5 @@ void testRealSession(const XpEpubLeaves& pageLeaves, XpAppText wire, GfxRenderer
   renderer.frameStride = 60;
   renderer.onDisplay = nullptr;
   display.reject = false;
+  imageFixture::onRelease(nullptr);
 }

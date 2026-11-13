@@ -38,8 +38,6 @@ unused_leaves! {
     paint_dither(_a0: i32, _a1: i32, _a2: i32, _a3: i32) ;
     paint_pixel(_a0: i32, _a1: i32) ;
     paint_status(_a0: *const XpEpubStatus) ;
-    image_clear_failures() ;
-    image_release_cache() ;
     fonts_ensure_loaded() ;
     fonts_release_caches() ;
     fonts_prewarm_begin(_a0: *mut crate::app::epub::render_resources::FontScan) -> u8;
@@ -136,11 +134,8 @@ unused_leaves! {
     hyphen_language(_a0: XpAppText) -> i32;
     file_position(_a0: *mut core::ffi::c_void) -> u32;
     file_flush(_a0: *mut core::ffi::c_void) ;
-    image_supported(_a0: XpAppText) -> u8;
-    image_dimensions(_a0: XpAppText, _a1: *mut u16, _a2: *mut u16) -> u8;
     framebuffer_lend() -> u8;
     framebuffer_restore(_a0: u8) ;
-    image_needs_decode(_a0: XpAppText, _a1: XpAppText, _a2: i16, _a3: i16) -> u8;
     font_ascent(_a0: i32) -> i32;
     render_physical_query(_a0: u8) -> u32;
     render_physical_operation(_a0: *const crate::app::epub::render_resources::physical::Op) -> u32;

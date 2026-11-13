@@ -289,7 +289,10 @@ pub(super) unsafe fn take_path(raw: NonNull<c_void>) -> Text {
     }
 }
 
-pub(super) unsafe fn open_facade(raw: NonNull<c_void>, leaves: &'static abi::XpEpubLeaves) -> bool {
+pub(super) unsafe fn open_facade(
+    raw: NonNull<c_void>,
+    _leaves: &'static abi::XpEpubLeaves,
+) -> bool {
     #[cfg(feature = "app-test")]
     {
         match unsafe { &*raw.cast::<Loaded>().as_ptr() } {
@@ -298,7 +301,7 @@ pub(super) unsafe fn open_facade(raw: NonNull<c_void>, leaves: &'static abi::XpE
                 handle, services, ..
             } => {
                 unsafe {
-                    (leaves.image_clear_failures)();
+                    crate::assets::xp_assets_image_reset(false);
                     (services.book_install_extractor)(handle.as_ptr())
                 };
                 true
@@ -307,7 +310,6 @@ pub(super) unsafe fn open_facade(raw: NonNull<c_void>, leaves: &'static abi::XpE
     }
     #[cfg(not(feature = "app-test"))]
     {
-        let _ = leaves;
         unsafe { set_extractor(Some(raw)) };
         unsafe { crate::assets::xp_assets_image_reset(false) };
         true

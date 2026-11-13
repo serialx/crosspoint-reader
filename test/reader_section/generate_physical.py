@@ -22,8 +22,8 @@ if trace:
     metrics = metrics.replace(anchor,
         '[](void*, XpParaSpan record) { LayoutTrace::stream.write(reinterpret_cast<const char*>(record.data), record.len); },')
 fields = ('build_metrics', 'build_allocator', 'font_variant', 'font_line_height', 'font_ready',
-          'font_codepoint', 'hyphen_language', 'file_position', 'file_flush', 'image_supported',
-          'image_dimensions', 'framebuffer_lend', 'framebuffer_restore', 'fonts_release_caches', 'file_open_read',
+          'font_codepoint', 'hyphen_language', 'file_position', 'file_flush',
+          'framebuffer_lend', 'framebuffer_restore', 'fonts_release_caches', 'file_open_read',
           'file_open_write', 'file_read', 'file_write', 'file_seek', 'file_size', 'file_close',
           'path_remove', 'path_rename', 'path_mkdir', 'heap_snapshot', 'log', 'log_enabled',
           'native_path_hash')

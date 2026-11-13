@@ -395,14 +395,6 @@ typedef struct XpEpubLeaves {
   // Fills caller-owned facts; retained HAL continuations provide battery/RTC data.
   void (*status_facts)(XpEpubStatusFacts* out);
 #endif
-  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
-#ifdef XP_APP_TEST
-  void (*image_clear_failures)(void);
-#endif
-  // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
-#ifdef XP_APP_TEST
-  void (*image_release_cache)(void);
-#endif
   // Catalog builds request native effects; no font policy runs in this callback.
   void (*fonts_ensure_loaded)(
 #if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
@@ -586,19 +578,12 @@ typedef struct XpEpubLeaves {
   XpEpubHyphenLanguage hyphen_language;
   uint32_t (*file_position)(void* file);
   void (*file_flush)(void* file);
-#ifdef XP_APP_TEST
-  // HOST-RETIRE R4d2: historical probe hooks; shipping section builds call Rust directly.
-  uint8_t (*image_supported)(XpAppText path);
-  // 0: no decoder, 1: dimensions failed, 2: success. Path borrows terminated storage.
-  uint8_t (*image_dimensions)(XpAppText path, uint16_t* width, uint16_t* height);
-#endif
   // Lend returns whether this scope owns restoration; nested scopes return zero.
   uint8_t (*framebuffer_lend)(void);
   void (*framebuffer_restore)(uint8_t owned);
   // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   // Host-only decoded-cache query; shipping checks eligibility directly in Rust.
-  uint8_t (*image_needs_decode)(XpAppText path, XpAppText source, int16_t width, int16_t height);
   int32_t (*font_ascent)(int32_t font);
 #endif
   uint32_t (*render_physical_query)(uint8_t query);
@@ -719,9 +704,10 @@ XP_EPUB_ASSERT(offsetof(XpEpubPeer, name) == 0, "XpEpubPeer.name");
 XP_EPUB_ASSERT(offsetof(XpEpubPeer, addr) == 64, "XpEpubPeer.addr");
 #ifdef XP_SD_FONT_CATALOG  // Offsets below use original native-table indices.
 #ifdef XP_APP_TEST
-#define XP_EPUB_LEAF_INDEX(index) \
-  ((index) + ((index) >= 24 ? 4 : 0) + ((index) >= 132 ? 1 : 0) - ((index) >= 26 ? 1 : 0))
-#define XP_EPUB_LEAF_COUNT 167
+#define XP_EPUB_LEAF_INDEX(index)                                                                                     \
+  ((index) - ((index) >= 23 ? 2 : 0) + ((index) >= 24 ? 4 : 0) + ((index) >= 132 ? 1 : 0) - ((index) > 116 ? 2 : 0) - \
+   ((index) > 119 ? 1 : 0) - ((index) >= 26 ? 1 : 0))
+#define XP_EPUB_LEAF_COUNT 162
 #else
 #define XP_EPUB_LEAF_INDEX(index)                                                                                   \
   ((index) - ((index) >= 60 ? 6 : 0) - ((index) >= 93 ? 1 : 0) - ((index) >= 9 ? 3 : 0) - ((index) >= 23 ? 2 : 0) - \
@@ -732,8 +718,10 @@ XP_EPUB_ASSERT(offsetof(XpEpubPeer, addr) == 64, "XpEpubPeer.addr");
 #endif
 #else
 #ifdef XP_APP_TEST
-#define XP_EPUB_LEAF_INDEX(index) ((index) + ((index) >= 24 ? 4 : 0) + ((index) >= 132 ? 1 : 0))
-#define XP_EPUB_LEAF_COUNT 168
+#define XP_EPUB_LEAF_INDEX(index)                                                                                     \
+  ((index) - ((index) >= 23 ? 2 : 0) + ((index) >= 24 ? 4 : 0) + ((index) >= 132 ? 1 : 0) - ((index) > 116 ? 2 : 0) - \
+   ((index) > 119 ? 1 : 0))
+#define XP_EPUB_LEAF_COUNT 163
 #else
 #define XP_EPUB_LEAF_INDEX(index)                                                                                   \
   ((index) - ((index) >= 60 ? 6 : 0) - ((index) >= 93 ? 1 : 0) - ((index) >= 9 ? 3 : 0) - ((index) >= 23 ? 2 : 0) - \
@@ -783,25 +771,19 @@ XP_EPUB_LEAF_OFFSET(paint_status, 20);
 #else
 XP_EPUB_LEAF_OFFSET(status_facts, 20);
 #endif
-#ifdef XP_APP_TEST
-XP_EPUB_LEAF_OFFSET(image_clear_failures, 21);
-#endif
-#ifdef XP_APP_TEST
-XP_EPUB_LEAF_OFFSET(image_release_cache, 22);
-#endif
 XP_EPUB_LEAF_OFFSET(fonts_ensure_loaded, 23);
 #ifdef XP_APP_TEST
-XP_EPUB_ASSERT(offsetof(XpEpubLeaves, fonts_release_caches) == 24 * sizeof(void (*)(void)), "host font fixture offset");
+XP_EPUB_ASSERT(offsetof(XpEpubLeaves, fonts_release_caches) == 22 * sizeof(void (*)(void)), "host font fixture offset");
 #endif
 #ifdef XP_APP_TEST
-XP_EPUB_ASSERT(offsetof(XpEpubLeaves, fonts_prewarm_begin) == 25 * sizeof(void (*)(void)), "host font fixture offset");
+XP_EPUB_ASSERT(offsetof(XpEpubLeaves, fonts_prewarm_begin) == 23 * sizeof(void (*)(void)), "host font fixture offset");
 #endif
 #ifdef XP_APP_TEST
-XP_EPUB_ASSERT(offsetof(XpEpubLeaves, fonts_prewarm_finish_scan) == 26 * sizeof(void (*)(void)),
+XP_EPUB_ASSERT(offsetof(XpEpubLeaves, fonts_prewarm_finish_scan) == 24 * sizeof(void (*)(void)),
                "host font fixture offset");
 #endif
 #ifdef XP_APP_TEST
-XP_EPUB_ASSERT(offsetof(XpEpubLeaves, fonts_prewarm_drop) == 27 * sizeof(void (*)(void)), "host font fixture offset");
+XP_EPUB_ASSERT(offsetof(XpEpubLeaves, fonts_prewarm_drop) == 25 * sizeof(void (*)(void)), "host font fixture offset");
 #endif
 XP_EPUB_LEAF_OFFSET(fonts_take_corrupt_notice, 24);
 #ifndef XP_SD_FONT_CATALOG
@@ -944,14 +926,9 @@ XP_EPUB_LEAF_OFFSET(font_codepoint, 111);
 XP_EPUB_LEAF_OFFSET(hyphen_language, 112);
 XP_EPUB_LEAF_OFFSET(file_position, 113);
 XP_EPUB_LEAF_OFFSET(file_flush, 114);
-#ifdef XP_APP_TEST
-XP_EPUB_LEAF_OFFSET(image_supported, 115);
-XP_EPUB_LEAF_OFFSET(image_dimensions, 116);
-#endif
 XP_EPUB_LEAF_OFFSET(framebuffer_lend, 117);
 XP_EPUB_LEAF_OFFSET(framebuffer_restore, 118);
 #ifdef XP_APP_TEST
-XP_EPUB_LEAF_OFFSET(image_needs_decode, 119);
 XP_EPUB_LEAF_OFFSET(font_ascent, 120);
 #endif
 XP_EPUB_LEAF_OFFSET(render_physical_query, 121);
@@ -967,9 +944,9 @@ XP_EPUB_LEAF_OFFSET(child_qr_draw, 130);
 XP_EPUB_LEAF_OFFSET(child_toolbar_icon, 131);
 #ifdef XP_APP_TEST
 #ifdef XP_SD_FONT_CATALOG
-XP_EPUB_ASSERT(offsetof(XpEpubLeaves, child_clear_fonts) == 135 * sizeof(void (*)(void)), "host font fixture offset");
+XP_EPUB_ASSERT(offsetof(XpEpubLeaves, child_clear_fonts) == 130 * sizeof(void (*)(void)), "host font fixture offset");
 #else
-XP_EPUB_ASSERT(offsetof(XpEpubLeaves, child_clear_fonts) == 136 * sizeof(void (*)(void)), "host font fixture offset");
+XP_EPUB_ASSERT(offsetof(XpEpubLeaves, child_clear_fonts) == 131 * sizeof(void (*)(void)), "host font fixture offset");
 #endif
 #endif
 #ifdef XP_APP_TEST

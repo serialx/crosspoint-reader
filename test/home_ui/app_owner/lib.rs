@@ -51,6 +51,9 @@ mod page_render {
         pub(crate) unsafe fn dimensions(_: &[u8], _: &mut u16, _: &mut u16) -> u8 {
             panic!("owner fixture must not probe images");
         }
+        pub(crate) unsafe fn needs_decode(_: &[u8], _: i32, _: i32) -> bool {
+            panic!("owner fixture cannot query page images")
+        }
         pub(crate) unsafe fn set_extractor(_: *mut c_void, _: Option<Stream>) {
             panic!("owner fixture must use its book observer");
         }
@@ -64,10 +67,7 @@ mod page_render {
             pub native: *mut c_void,
             pub inverted: u8,
         }
-        pub(crate) unsafe fn xp_native_render_target(
-            _: *mut Target,
-            _: *mut xp_ui::ffi::Paint,
-        ) -> u8 {
+        pub(crate) unsafe fn xp_native_render_target(_: *mut Target, _: *mut xp_ui::ffi::Paint) -> u8 {
             panic!("owner fixture must use its scene observer");
         }
         // Only the ownership contract is observed in this fixture.
@@ -137,5 +137,11 @@ mod text_run {
         pub(crate) unsafe fn draw(&self, _: i32, _: i32, _: i32, _: &[u8]) {
             panic!("owner fixture must use its status callback");
         }
+    }
+}
+
+mod assets {
+    pub(crate) unsafe fn xp_assets_image_reset(_: bool) {
+        // This UI owner fixture has no image resources.
     }
 }

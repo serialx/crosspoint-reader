@@ -1,3 +1,5 @@
+#include <xp_page_paint.h>
+
 #include <array>
 #include <cassert>
 #include <cstdarg>
@@ -12,6 +14,7 @@
 #include "FrozenSelectionTransfer.h"
 #include "PageViews.h"
 #include "activities/reader/RustEpubPage.h"
+extern "C" bool xp_page_image_test_cache(const XpPageImage*, bool);
 
 extern "C" void* xp_epub_test_page_transfer(const XpAppResources*, const XpEpubLeaves*, XpAppText, uint8_t,
                                             void* (*)(XpEpubOwnedPage*, uint8_t, void*), void*);
@@ -179,8 +182,9 @@ void* factory(XpEpubOwnedPage* pages, uint8_t count, void* raw) {
       assert(!xp_page_element(pages[i].view.arena, pages[i].view.size, element, &image));
       assert(image.first.data[image.first.len] == 0 && image.second.data[image.second.len] == 0);
       auto block = native->element(element).imageBlock();
-      assert(epubPage::imageNeedsDecode({image.first.data, image.first.len}, {image.second.data, image.second.len},
-                                        image.width, image.height) == block.needsDecode());
+      const XpPageImage query{image.first.data, image.second.data, image.first.len, image.second.len, 0, 0,
+                              image.width,      image.height};
+      assert(xp_page_image_test_cache(&query, true) == block.needsDecode());
     }
   }
   factoryActive = true;
@@ -321,7 +325,6 @@ int main(int argc, char** argv) {
     return TextBlock::renderFontId(renderer, font, fallback);
   };
   leaves.font_ascent = [](int32_t font) -> int32_t { return epubPage::fontAscent(renderer, font); };
-  leaves.image_needs_decode = epubPage::imageNeedsDecode;
   resources.buffer_allocate = allocate;
   resources.buffer_release = release;
   leaves.log_enabled = [](uint8_t) -> uint8_t { return 1; };

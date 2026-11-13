@@ -42,12 +42,6 @@ inline void* selection(GfxRenderer& renderer, MappedInputManager& input, XpEpubO
   return child.release();
 }
 
-inline uint8_t imageNeedsDecode(XpAppText path, XpAppText source, int16_t width, int16_t height) {
-  const std::string_view imagePath{reinterpret_cast<const char*>(path.data), path.len};
-  const std::string_view sourcePath{reinterpret_cast<const char*>(source.data), source.len};
-  return ImageBlock(ImageBlock::View{}, imagePath, sourcePath, width, height).needsDecode();
-}
-
 inline int32_t fontAscent(GfxRenderer& renderer, int32_t font) { return renderer.getFontAscenderSize(font); }
 
 }  // namespace epubPage

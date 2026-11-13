@@ -48,8 +48,6 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.paint_dither = &AppFixtureUnexpected<decltype(value.paint_dither), 62>::call;
   value.paint_pixel = &AppFixtureUnexpected<decltype(value.paint_pixel), 63>::call;
   value.paint_status = &AppFixtureUnexpected<decltype(value.paint_status), 64>::call;
-  value.image_clear_failures = &AppFixtureUnexpected<decltype(value.image_clear_failures), 65>::call;
-  value.image_release_cache = &AppFixtureUnexpected<decltype(value.image_release_cache), 66>::call;
   value.fonts_ensure_loaded = &AppFixtureUnexpected<decltype(value.fonts_ensure_loaded), 67>::call;
   value.fonts_release_caches = &AppFixtureUnexpected<decltype(value.fonts_release_caches), 68>::call;
   value.fonts_prewarm_begin = &AppFixtureUnexpected<decltype(value.fonts_prewarm_begin), 69>::call;
@@ -148,11 +146,8 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.hyphen_language = &AppFixtureUnexpected<decltype(value.hyphen_language), 172>::call;
   value.file_position = &AppFixtureUnexpected<decltype(value.file_position), 173>::call;
   value.file_flush = &AppFixtureUnexpected<decltype(value.file_flush), 174>::call;
-  value.image_supported = &AppFixtureUnexpected<decltype(value.image_supported), 175>::call;
-  value.image_dimensions = &AppFixtureUnexpected<decltype(value.image_dimensions), 176>::call;
   value.framebuffer_lend = &AppFixtureUnexpected<decltype(value.framebuffer_lend), 178>::call;
   value.framebuffer_restore = &AppFixtureUnexpected<decltype(value.framebuffer_restore), 179>::call;
-  value.image_needs_decode = &AppFixtureUnexpected<decltype(value.image_needs_decode), 165>::call;
   value.font_ascent = &AppFixtureUnexpected<decltype(value.font_ascent), 166>::call;
   value.render_physical_query = &AppFixtureUnexpected<decltype(value.render_physical_query), 166>::call;
   value.render_physical_operation = &AppFixtureUnexpected<decltype(value.render_physical_operation), 166>::call;

@@ -9,7 +9,6 @@
 #include <Epub.h>
 #include <Epub/Page.h>
 #include <Epub/blocks/ImageBlock.h>
-#include <Epub/converters/ImageDecoderFactory.h>
 #include <Epub/converters/ImageToFramebufferDecoder.h>
 #include <Epub/hyphenation/Hyphenator.h>
 #include <FontCacheManager.h>
@@ -592,10 +591,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
             out->battery_style = GUI.batteryFillStyle();
           },
 #endif
-#ifdef XP_APP_TEST
-      .image_clear_failures = [] { ImageBlock::clearRenderFailures(); },
-      .image_release_cache = [] { ImageBlock::releaseRenderCache(); },
-#endif
 #if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
       .fonts_ensure_loaded =
           [](uint32_t action, XpSdSettings* settings, XpSdContinuation* token) {
@@ -1041,20 +1036,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
 #endif
       .file_position = [](void* file) -> uint32_t { return static_cast<HalFile*>(file)->position(); },
       .file_flush = [](void* file) { static_cast<HalFile*>(file)->flush(); },
-#ifdef XP_APP_TEST
-      .image_supported = [](XpAppText path) -> uint8_t {
-        return ImageDecoderFactory::isFormatSupported(pathText(path));
-      },
-      .image_dimensions = [](XpAppText path, uint16_t* width, uint16_t* height) -> uint8_t {
-        auto* decoder = ImageDecoderFactory::getDecoder(pathText(path));
-        if (!decoder) return 0;
-        ImageDimensions dimensions{static_cast<int16_t>(*width), static_cast<int16_t>(*height)};
-        const bool found = decoder->getDimensions(pathText(path), dimensions);
-        *width = dimensions.width;
-        *height = dimensions.height;
-        return found ? 2 : 1;
-      },
-#endif
       .framebuffer_lend = []() -> uint8_t {
         if (!target->hasFrameBuffer()) return 0;
         target->releaseFrameBufferForBuild();
@@ -1068,7 +1049,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
             }
           },
 #ifdef XP_APP_TEST
-      .image_needs_decode = epubPage::imageNeedsDecode,
       .font_ascent = [](int32_t font) -> int32_t { return epubPage::fontAscent(*target, font); },
 #endif
       .render_physical_query = [](uint8_t query) -> uint32_t { return physicalRenderQuery(*target, query); },

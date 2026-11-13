@@ -605,8 +605,8 @@ pinned HAL file through a storage-only native sink, then flushes and closes it.
 A failed stream removes the partial file. The `.px2` format and cache validation
 rules are unchanged. Image decode selects formats in Rust and calls the shared
 Rust pipeline operations directly; JPEGDEC remains the native physical decoder for JPEG.
-The native extraction adapter and image lifecycle table slots remain only for
-host oracles.
+The host fixtures use the same Rust reset, release and cache queries. The native
+extraction adapter remains only for explicit host comparisons.
 
 `ResourceAccess` precedes the cache lock, then storage. A cache row read releases
 its guard before invoking a sink; the decoded row owns its bytes for the

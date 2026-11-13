@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import zlib
 
 ROOT = Path(__file__).resolve().parent
 
@@ -45,6 +46,43 @@ def main():
                 if pair[1][0] == 0:
                     assert pair[1][1:] == (0x1234, 0x4321), pair
                 results.append(dict(image=name, fault=fault, index=index, result=pair[1]))
+        # Preserve outputs and diagnostics for malformed or oversized headers.
+        for name in ['RGBA-37x29.png', 'gif-37x29-0-0.gif', 'gray-37x29.jpg']:
+            source = (directory / name).read_bytes()
+            suffix = Path(name).suffix
+            malformed = []
+            for width, height in [(0, 1), (1, 0), (32768, 1), (1, 32768), (32767, 257), (4096, 4096)]:
+                data = bytearray(source)
+                if suffix == '.png':
+                    data[16:24] = struct.pack('>II', width, height)
+                    data[29:33] = struct.pack('>I', zlib.crc32(data[12:29]))
+                elif suffix == '.gif':
+                    data[6:10] = struct.pack('<HH', width, height)
+                else:
+                    marker = next(i for i in range(len(data) - 9)
+                                  if data[i:i + 2] in [b'\xff\xc0', b'\xff\xc1', b'\xff\xc2'])
+                    data[marker + 5:marker + 9] = struct.pack('>HH', height, width)
+                malformed.append((f'{width}x{height}', data))
+            malformed.extend((f'truncated-{length}', source[:length]) for length in [0, 1, 4, 8])
+            for label, data in malformed:
+                path = directory / ('malformed' + suffix)
+                path.write_bytes(data)
+                pair, diagnostics = [], []
+                for legacy in [True, False]:
+                    env = dict(os.environ, READER_IMAGE_PROBE_ONLY='1', IMAGE_DIAGNOSTIC_LOGS='1')
+                    env.pop('READER_IMAGE_FAULT', None)
+                    if legacy:
+                        env['READER_IMAGE_LEGACY'] = '1'
+                    else:
+                        env.pop('READER_IMAGE_LEGACY', None)
+                    result = subprocess.run([str(binary), str(path), str(directory / 'probe.px2'), '2', '0'],
+                                            env=env, capture_output=True)
+                    assert result.returncode == 0, (name, label, legacy, result.stderr)
+                    pair.append(struct.unpack('<III', result.stdout))
+                    diagnostics.append(result.stderr.decode())
+                assert pair[0] == pair[1] == (0, 0x1234, 0x4321), (name, label, pair)
+                assert diagnostics[0] == diagnostics[1], (name, label, diagnostics)
+                results.append(dict(image=name, malformed=label, result=pair[1]))
     binary.parent.joinpath('reader-probe-failure-results.json').write_text(json.dumps(results, indent=2) + '\n')
     print(len(results), 'strict dimension-probe comparisons passed')
 

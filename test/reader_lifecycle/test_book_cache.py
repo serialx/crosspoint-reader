@@ -1,4 +1,4 @@
-"""Run the Rust cache owner through the unchanged frozen native read oracle."""
+"""Preserve healthy native cache reads and reject incomplete metadata."""
 import gzip
 import hashlib
 import json
@@ -34,6 +34,15 @@ def main():
     oracle = (ROOT / 'test/package_golden/PackageReadOracle.cpp').read_text()
     oracle = replace_once(oracle, '#include <HalStorage.h>', '')
     oracle = replace_once(oracle, '#include "Epub/BookMetadataCache.h"', '')
+    oracle = replace_once(oracle, "std::cout << length << ' ' << cache.load() << ' ';", '''
+    const bool loaded = cache.load();
+    if (length != bytes.size()) {
+      assert(!loaded && !cache.isLoaded());
+      continue;
+    }
+    std::cout << length << ' ' << loaded << ' ';''')
+    oracle = replace_once(oracle, '''std::cout << "reuse " << length << ' ' << reused.load() << ' ';
+    snapshot(reused);''', 'assert(!reused.load() && !reused.isLoaded());')
     source += '\n' + oracle
     configured = os.environ.get('XP_BOOK_CACHE_EVIDENCE_DIR')
     output = Path(configured) if configured else Path(tempfile.mkdtemp(prefix='book-cache-owner-'))
@@ -57,7 +66,9 @@ def main():
     if ran.returncode:
         raise RuntimeError(ran.stderr.decode())
     golden = ROOT / 'test/package_golden/read-golden.txt.gz'
-    expected = gzip.decompress(golden.read_bytes())
+    # Keep the original golden immutable; only its complete-cache row is healthy.
+    expected = [line for line in gzip.decompress(golden.read_bytes()).splitlines()
+                if not line.startswith(b'reuse ')][-1] + b'\n'
     (output / 'results.json').write_text(json.dumps(dict(command=command,
         compile_returncode=built.returncode, run_returncode=ran.returncode,
         golden_sha256=hashlib.sha256(golden.read_bytes()).hexdigest(),
@@ -69,7 +80,7 @@ def main():
             if actual != frozen:
                 raise RuntimeError(f'Frozen read oracle differs on line {index + 1}: {actual[:120]!r} vs {frozen[:120]!r}')
         raise RuntimeError('Frozen read oracle output length differs')
-    print('Rust cache owner matches every frozen truncated and reused-object read outcome exactly.')
+    print('Healthy cache bytes match the frozen native oracle; truncated loads and reloads are rejected.')
     query = output / 'queries.cpp'
     query.write_text(fixture + '\n' + (HERE / 'book_cache_queries.cpp').read_text())
     query_binary = output / 'queries'

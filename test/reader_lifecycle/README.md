@@ -50,6 +50,12 @@ and UI fakes. Legacy native-book services trap if called.
 
 ## Actual book and borrower compositions
 
+`reader_harden` builds with `app-test` disabled and drives the shipping cache,
+ZIP and TXT owners through strict HAL fakes. It rejects truncated metadata,
+failed reads/seeks and stale zero-size TXT caches. The cache read oracle retains
+the healthy native golden; incomplete/reused loads now assert rejection instead
+of preserving the inherited error collapse. Cache version and writer bytes are unchanged.
+
 `reader_book_*` resource, cache, ZIP, package, CSS, load and TXT cases call the
 actual Rust book modules. The owner is active in firmware; component-only
 helpers remain behind `app-test`. Book lifetime/render traces compare current

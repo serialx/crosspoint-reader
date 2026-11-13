@@ -9,7 +9,7 @@ use xp_core::{
 mod build;
 pub(super) use build::{build, cleanup};
 
-#[cfg(feature = "app-test")]
+#[cfg(any(feature = "app-test", feature = "chapter-test"))]
 #[path = "../test_support/book_txt.rs"]
 mod tests;
 

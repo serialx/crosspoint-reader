@@ -300,7 +300,8 @@ unsafe impl ImageServices for ImageCallbacks {
     }
 }
 struct ImageState(UnsafeCell<image::State>);
-// SAFETY: all image entry points require the existing serialized render/cache owner.
+// SAFETY: reader entry resets before publishing state.ready through the model lock;
+// render skips images until ready. Other access uses the serialized render/cache owner.
 unsafe impl Sync for ImageState {}
 static IMAGE_STATE: ImageState = ImageState(UnsafeCell::new(image::State::new()));
 

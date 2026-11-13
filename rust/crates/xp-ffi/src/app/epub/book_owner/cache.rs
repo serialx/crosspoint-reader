@@ -30,15 +30,23 @@ pub(super) struct Toc {
 struct Cursor<'a> {
     file: &'a File,
     position: u32,
+    limit: u32,
+    failed: bool,
 }
 
 impl<'a> Cursor<'a> {
     fn new(file: &'a File) -> Self {
-        Self { file, position: 0 }
+        Self {
+            file,
+            position: 0,
+            limit: file.size(),
+            failed: false,
+        }
     }
 
     fn seek(&mut self, position: u32) -> bool {
-        if !self.file.seek(position) {
+        if self.failed || position > self.limit || !self.file.seek(position) {
+            self.failed = true;
             return false;
         }
         self.position = position;
@@ -46,12 +54,17 @@ impl<'a> Cursor<'a> {
     }
 
     fn read(&mut self, bytes: &mut [u8]) -> bool {
+        if self.failed || bytes.len() > self.limit.saturating_sub(self.position) as usize {
+            self.failed = true;
+            return false;
+        }
         let count = self.file.read_count(bytes);
-        self.position = self.position.wrapping_add(count as u32);
-        count == bytes.len()
+        self.position += count as u32;
+        self.failed = count != bytes.len();
+        !self.failed
     }
 
-    // Legacy short reads retain initialized destination bytes, including reuse.
+    // A failed cursor stays failed; partially read values must never be published.
     fn u32(&mut self, value: &mut u32) -> bool {
         let mut bytes = value.to_le_bytes();
         let ok = self.read(&mut bytes);
@@ -73,23 +86,35 @@ impl<'a> Cursor<'a> {
 
     fn string(&mut self, bytes: &mut Vec<u8>) -> Result<(), Error> {
         let mut length = 0;
-        self.u32(&mut length);
+        if !self.u32(&mut length) || length > self.limit.saturating_sub(self.position) {
+            return Err(Error::Invalid);
+        }
         let length = length as usize;
         bytes
             .try_reserve_exact(length.saturating_sub(bytes.len()))
             .map_err(|_| Error::OutOfMemory)?;
         bytes.resize(length, 0);
-        self.read(bytes);
-        Ok(())
+        if self.read(bytes) {
+            Ok(())
+        } else {
+            Err(Error::Io)
+        }
     }
 
     fn text(&mut self) -> Result<Text, Error> {
         let mut length = 0;
-        self.u32(&mut length);
-        Text::read(length as usize, |bytes| {
+        if !self.u32(&mut length) || length > self.limit.saturating_sub(self.position) {
+            return Err(Error::Invalid);
+        }
+        let text = Text::read(length as usize, |bytes| {
             self.read(bytes);
         })
-        .map_err(|_| Error::OutOfMemory)
+        .map_err(|_| Error::OutOfMemory)?;
+        if self.failed {
+            Err(Error::Io)
+        } else {
+            Ok(text)
+        }
     }
 
     fn spine(&mut self) -> Result<Spine, Error> {
@@ -101,15 +126,34 @@ impl<'a> Cursor<'a> {
         self.string(&mut row.href)?;
         self.u32(&mut row.cumulative);
         self.i16(&mut row.toc_index);
-        Ok(row)
+        if self.failed {
+            Err(Error::Io)
+        } else {
+            Ok(row)
+        }
     }
 
     fn row(&mut self, lut: u32, index: u32) -> bool {
-        let seek = self.seek(lut.wrapping_add(index.wrapping_mul(4)));
+        let Some(position) = index
+            .checked_mul(4)
+            .and_then(|index| lut.checked_add(index))
+        else {
+            self.failed = true;
+            return false;
+        };
+        let seek = self.seek(position);
         let mut offset = 0;
         let read = self.u32(&mut offset);
         let record = self.seek(offset);
         seek && read && record
+    }
+
+    // Validate strings without allocating storage for TOC rows during book open.
+    fn skip_string(&mut self) -> bool {
+        let mut length = 0;
+        self.u32(&mut length)
+            && length <= self.limit.saturating_sub(self.position)
+            && self.seek(self.position + length)
     }
 }
 
@@ -135,6 +179,7 @@ impl BookCache {
 
     // The unpublished transaction exclusively owns these fields throughout load.
     pub(super) fn load(&mut self, metadata: &mut Metadata, path: &Text) -> Result<(), Error> {
+        self.loaded = false;
         self.file.close();
         self.file = File::open(self.file.leaves, path, c"BMC").ok_or(Error::Io)?;
         let mut cursor = Cursor::new(&self.file);
@@ -169,12 +214,35 @@ impl BookCache {
             .try_reserve_exact(u32::from(self.spine_count).div_ceil(METADATA_WINDOW) as usize)
             .map_err(|_| Error::OutOfMemory)?;
         let count = u32::from(self.spine_count) + u32::from(self.toc_count);
-        cursor.seek(self.lut_offset.wrapping_add(count * 4));
-        for index in 0..u32::from(self.spine_count) {
-            if index % METADATA_WINDOW == 0 {
-                self.starts.push(self.total_size);
+        let records = self
+            .lut_offset
+            .checked_add(count * 4)
+            .ok_or(Error::Invalid)?;
+        if cursor.failed || self.lut_offset != cursor.position || records > cursor.limit {
+            return Err(Error::Invalid);
+        }
+        let mut next = records;
+        for index in 0..count {
+            if !cursor.row(self.lut_offset, index) || cursor.position != next {
+                return Err(Error::Invalid);
             }
-            self.total_size = cursor.spine()?.cumulative;
+            if index < u32::from(self.spine_count) {
+                if index % METADATA_WINDOW == 0 {
+                    self.starts.push(self.total_size);
+                }
+                let size = cursor.spine()?.cumulative;
+                if size < self.total_size {
+                    return Err(Error::Invalid);
+                }
+                self.total_size = size;
+            } else if !cursor.skip_string()
+                || !cursor.skip_string()
+                || !cursor.skip_string()
+                || !cursor.read(&mut [0; 3])
+            {
+                return Err(Error::Invalid);
+            }
+            next = cursor.position;
         }
         self.loaded = true;
         log::message(
@@ -250,7 +318,11 @@ impl BookCache {
         cursor.read(&mut level);
         row.level = level[0];
         cursor.i16(&mut row.spine_index);
-        Ok(row)
+        if cursor.failed {
+            Err(Error::Io)
+        } else {
+            Ok(row)
+        }
     }
 
     // The caller holds CacheGuard. No mutable window borrow crosses file callbacks.
@@ -320,6 +392,6 @@ impl BookCache {
     }
 }
 
-#[cfg(feature = "app-test")]
+#[cfg(any(feature = "app-test", feature = "chapter-test"))]
 #[path = "../test_support/book_cache.rs"]
 mod tests;

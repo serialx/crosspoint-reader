@@ -279,14 +279,14 @@ impl FileServices {
 }
 /// # Safety
 /// Services borrow their context and file buffers only for each call.
-/// Control/read are required; size is required when cached is nonzero.
+/// Control/read/size are required, including for an empty cached source.
 /// Write is unused and a missing diagnostic callback is silent.
 pub unsafe fn validate(io: &FileServices, cached: usize, tag: &[u8]) -> bool {
     use ValidateAction::*;
     let (Some(control), Some(read)) = (io.control, io.read) else {
         return false;
     };
-    if cached > 0 && io.size.is_none() {
+    if io.size.is_none() {
         return false;
     }
     let mut valid = true;
@@ -308,7 +308,7 @@ pub unsafe fn validate(io: &FileServices, cached: usize, tag: &[u8]) -> bool {
         }
         control(io.context, CloseHtml as u32, 0, 0);
     }
-    if valid && cached > 0 {
+    if valid {
         if control(io.context, OpenRaw as u32, 0, 0) {
             if let Some(size) = io.size {
                 if size(io.context) != cached {

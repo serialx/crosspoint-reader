@@ -13,7 +13,8 @@ use xp_core::{
 pub(crate) type Stream =
     unsafe fn(*mut c_void, &[u8], xp_core::book::io::Sink, *mut c_void) -> bool;
 struct Extractor(UnsafeCell<(*mut c_void, Option<Stream>)>);
-// SAFETY: the reader resource guard serializes binding, painting and teardown.
+// SAFETY: entry binds before publishing state.ready through the model lock;
+// render returns before image access until ready. Later access holds the render lock.
 unsafe impl Sync for Extractor {}
 static EXTRACTOR: Extractor = Extractor(UnsafeCell::new((ptr::null_mut(), None)));
 

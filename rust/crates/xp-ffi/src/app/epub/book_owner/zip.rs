@@ -242,7 +242,9 @@ impl<'a> Archive<'a> {
         if offset > i32::MAX as u64 {
             return None;
         }
-        file.seek(offset as u32);
+        if !file.seek(offset as u32) {
+            return None;
+        }
         Some(entry)
     }
 
@@ -413,6 +415,6 @@ impl Extract<'_> {
     }
 }
 
-#[cfg(feature = "app-test")]
+#[cfg(any(feature = "app-test", feature = "chapter-test"))]
 #[path = "../test_support/book_zip.rs"]
 mod tests;

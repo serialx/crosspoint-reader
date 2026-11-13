@@ -223,6 +223,14 @@ def load_trace(data):
                       if not line.startswith((b'nonio closed-seek ', b'query-summary ')))
 
 
+def healthy_load_trace(data):
+    # H2 validates LUT targets and TOC rows on load. Keep every write, close,
+    # allocation and policy event; only metadata validation reads/seeks differ.
+    lines = load_trace(data).splitlines()
+    return b'\n'.join(re.sub(rb'^io \d+ ', b'io ', line) for line in lines
+                      if not re.match(rb'^io \d+ (read|seek) cache/book\.bin ', line))
+
+
 def restore(cache, seed):
     shutil.rmtree(cache, ignore_errors=True)
     for filename, data in seed.items():
@@ -279,7 +287,8 @@ def main():
                               values_equal=values(captures[0]) == values(captures[1]),
                               queries=queries, query_equal=queries[0] == queries[1],
                               files_equal=persisted[0] == persisted[1],
-                              load_trace_equal=load_trace(captures[0]) == load_trace(captures[1]),
+                              load_trace_equal=healthy_load_trace(captures[0]) == healthy_load_trace(captures[1]),
+                              metadata_validation_reads_excluded=True,
                               raw_trace_equal=captures[0] == captures[1], faults_reached=0,
                               physical_faults=0, capped_fault_points=0)
                 results.append(record)

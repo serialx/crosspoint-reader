@@ -69,12 +69,12 @@ TEST(BookTxtCallbacks, ValidationAllowsSilentInvalidation) {
   }
 }
 
-TEST(BookTxtCallbacks, ValidationWithoutCachedSizeAllowsNullSize) {
+TEST(BookTxtCallbacks, EmptyCachedSourceStillRequiresSize) {
   Context context;
   auto io = services(context);
   io.size = nullptr;
-  EXPECT_TRUE(validate(io, 0));
-  EXPECT_EQ(context.actions, (std::vector<uint32_t>{0, 1, 2}));
+  EXPECT_FALSE(validate(io, 0));
+  EXPECT_TRUE(context.actions.empty());
 }
 
 TEST(BookTxtCallbacks, ValidationRejectsMissingRequiredCallbacksBeforeIo) {

@@ -494,6 +494,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
               ImageBlock::setExtractor(nullptr, nullptr);
           },
 #endif
+// app-test keeps the legacy open/stream facade; shipping uses split reader primitives.
 #ifdef XP_APP_TEST
       .protection_open = [](XpAppText path, XpAppTextSink error, void* context) -> void* {
         std::string message;

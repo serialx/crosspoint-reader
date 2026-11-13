@@ -345,10 +345,11 @@ typedef struct XpEpubLeaves {
   // Host-only extractor: null detaches; non-null is this fixture's live facade.
   void (*book_set_extractor)(void* facade);
 #endif
-  // Null without error is a plain book. Error text is borrowed only during the sink.
 #ifdef XP_APP_TEST
+  // Null without error is a plain book. Error text is borrowed only during the sink.
   void* (*protection_open)(XpAppText path, XpAppTextSink error, void* context);
 #else
+  // ReaderProtection.h stages: inline probe file or SDK index; Scan returns its status code.
   uint8_t (*protection_index)(void* storage, uint8_t stage, XpAppText path);
 #endif
   void (*protection_close)(void* protection);
@@ -357,6 +358,7 @@ typedef struct XpEpubLeaves {
 #ifdef XP_APP_TEST
   uint8_t (*protection_stream)(void* protection, XpAppText path, XpBookSink sink, void* context);
 #else
+  // Prepare/Read from ReaderProtection.h; zero means failure, nonzero means success.
   uint8_t (*protection_stream)(void* protection, void* storage, uint8_t stage, XpAppText path, XpBookSink sink,
                                void* context);
 #endif

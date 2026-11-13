@@ -3,8 +3,8 @@
 //
 // The ContentProtection SDK lib is storage-agnostic (it works against a
 // ByteSource). This file is the firmware-side glue that backs that seam with
-// the device's SD storage: a HalStorage-backed ByteSource and the
-// reader primitives and the native openProtectedBook() gate. The content key
+// the device's SD storage through a HalStorage-backed ByteSource, reader
+// primitives and the native openProtectedBook() gate. The content key
 // comes from its device-wrapped "<book>.key" (BookKey.h), written when the
 // book was fulfilled; the reader carries no rights or account scheme.
 
@@ -79,8 +79,7 @@ class ProtectedBookDecryptor : public ContentDecryptor {
   size_t decryptedSize(const std::string& itemPath) const override { return book_->decryptedSize(itemPath); }
 
   bool decryptToSink(const std::string& itemPath, ContentChunkSink sink, void* context) override {
-    // Reuse one open SD handle for the whole reader session rather than
-    // reconstructing and reopening it per encrypted entry.
+    // Retained native EPUB callers reuse one SD handle across encrypted entries.
     if (!source_.ensureOpen()) return false;
     reclaimContentCaches();
     return readPrepared(itemPath, sink, context);
@@ -106,6 +105,8 @@ struct ReaderIndex {
   ZipScan scan;
   std::unique_ptr<ProtectedBook> book;
 };
+static_assert(sizeof(HalFile) <= (sizeof(uintptr_t) == 4 ? 3 : 8) * sizeof(uintptr_t));
+static_assert(alignof(HalFile) <= alignof(uintptr_t));
 static_assert(sizeof(ReaderIndex) <= 24 * sizeof(uintptr_t));
 static_assert(alignof(ReaderIndex) <= alignof(uintptr_t));
 static_assert(sizeof(std::string) <= 6 * sizeof(uintptr_t));
@@ -117,6 +118,13 @@ uint8_t readerProtectionIndex(void* storage, uint8_t stage, XpAppText path) {
   switch (static_cast<IndexStage>(stage)) {
     case IndexStage::Construct:
       new (storage) ReaderIndex{SdByteSource(std::string(reinterpret_cast<const char*>(path.data), path.len)), {}, {}};
+      return 0;
+    case IndexStage::ProbeOpen: {
+      auto* file = new (storage) HalFile();
+      return Storage.openFileForRead("ZIP", reinterpret_cast<const char*>(path.data), *file);
+    }
+    case IndexStage::ProbeClose:
+      static_cast<HalFile*>(storage)->~HalFile();
       return 0;
     case IndexStage::Scan:
       break;

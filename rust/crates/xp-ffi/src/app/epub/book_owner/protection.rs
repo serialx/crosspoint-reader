@@ -17,6 +17,8 @@ use xp_core::{
 enum IndexStage {
     Construct,
     Scan,
+    ProbeOpen,
+    ProbeClose,
 }
 #[repr(u8)]
 enum FinishStage {
@@ -94,10 +96,21 @@ fn probe(
     path: &Text,
 ) -> Result<bool, ()> {
     const MANIFEST: &[u8] = b"META-INF/encryption.xml";
-    if Archive::new(path, resources, leaves)
-        .lookup(MANIFEST)
-        .is_none()
-    {
+    // Keep the native inline-file lifetime; lookup needs no remembered name.
+    let mut storage = [0usize; if size_of::<usize>() == 4 { 3 } else { 8 }];
+    let handle = NonNull::from(&mut storage).cast();
+    let opened = unsafe {
+        (leaves.protection_index)(handle.as_ptr(), IndexStage::ProbeOpen as u8, path.wire())
+    } != 0;
+    let file = core::mem::ManuallyDrop::new(super::File {
+        handle: Some(handle),
+        leaves,
+    });
+    let found = opened && Archive::contains_in_file(path, resources, leaves, &file, MANIFEST);
+    unsafe {
+        (leaves.protection_index)(handle.as_ptr(), IndexStage::ProbeClose as u8, path.wire());
+    }
+    if !found {
         return Ok(false);
     }
     let mut document =

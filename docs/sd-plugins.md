@@ -506,8 +506,10 @@ browser-side.
 
 ## Protected content and loan expiry
 
-Books whose entries are content-protected open through the read path in
-`lib/Epub/ContentProtection.cpp`. The core (SDK `ContentProtection`) only
+The reader opens protected books through the Rust protection gate in
+`rust/crates/xp-ffi/src/app/epub/book_owner/protection.rs`.
+`lib/Epub/ContentProtection.cpp` supplies the SDK index and stream primitives
+and retains the open gate for non-reader EPUB consumers. The SDK only
 understands the standard OCF `encryption.xml` and decrypts entries on demand,
 streamed in small chunks; nothing decrypted is ever written to SD.
 

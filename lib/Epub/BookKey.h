@@ -33,5 +33,7 @@ struct ReaderSecret {
   XpHalSecret* state;
   XpHalSecretServices services;
 };
+// Storage is 24 pointer-aligned words, stable from Begin to End.
+// Pair BorrowSecret/ReleaseSecret within that lifetime; values match Rust KeyOperation.
 void readerPlatform(void* storage, uint8_t operation, XpAppText path, void* out);
 }  // namespace bookkey

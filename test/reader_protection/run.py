@@ -22,7 +22,7 @@ sdk=ROOT/'freeink-sdk/libs/book/ContentProtection'
 includes=[HERE/'stubs',ROOT/'lib/Epub',ROOT/'lib/DeviceSecret',ROOT/'lib/ZipFile',ROOT/'lib/Memory',ROOT/'lib/miniz/src',sdk/'include',ROOT/'test/book_io/epub-stubs',ROOT/'test/chapter_html_slim_parser/stubs',ROOT/'rust/crates/xp-ffi/include',ROOT/'test/font_cache/legacy',ROOT/'test/sdfont_legacy/abi',ROOT/'test/sdfont_legacy',ROOT/'test/vector_font/legacy',ROOT/'test/reader_lifecycle']
 sources=[args.build/'Oracle.cpp',args.build/'ContentProtection.cpp',ROOT/'lib/Epub/BookKey.cpp',ROOT/'lib/DeviceSecret/DeviceSecret.cpp',ROOT/'lib/ZipFile/ZipPlatform.cpp',ROOT/'lib/miniz/src/InflateStream.cpp',ROOT/'lib/miniz/src/MinizCompat.cpp',ROOT/'lib/Memory/BuildScratch.cpp',sdk/'src/ProtectedBook.cpp',sdk/'src/Zip.cpp',ROOT/'test/cmake/xp_ffi_host.cpp']
 crypto=shlex.split(subprocess.check_output(['pkg-config','--cflags','--libs','openssl'],text=True))
-flags=['-O1','-g','-UNDEBUG','-DCONTENT_EXTERNAL_MINIZ=1','-fsanitize=address,undefined','-fno-sanitize-recover=all',*[f'-I{x}' for x in includes]]
+flags=['-O1','-g','-UNDEBUG','-DCONTENT_EXTERNAL_MINIZ=1','-DXP_FFI_HOST_CSS_FAULT_INJECTION=1','-fsanitize=address,undefined','-fno-sanitize-recover=all',*[f'-I{x}' for x in includes]]
 subprocess.run(['cc',*flags,'-c',str(ROOT/'lib/miniz/src/miniz_impl.c'),'-o',str(args.build/'miniz.o')],check=True)
 subprocess.run(['c++','-std=c++20',*flags,*[str(x) for x in sources],str(args.build/'miniz.o'),str(archive),*crypto,'-o',str(args.build/'oracle')],check=True)
 identities={str(path):hashlib.sha256(path.read_bytes()).hexdigest() for path in [*sources,archive,ROOT/'rust/crates/xp-ffi/src/app/epub/book_owner/protection.rs']}

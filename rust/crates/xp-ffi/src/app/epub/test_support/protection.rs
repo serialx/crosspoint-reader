@@ -1,3 +1,4 @@
+use super::super::{LoadError, ReaderBook};
 use super::*;
 
 // Test-only entry into the shipping gate; the regular app-test archive keeps its
@@ -53,4 +54,35 @@ pub unsafe extern "C" fn xp_app_test_protection_key_wiped() -> bool {
     let address = storage.as_mut_ptr();
     unsafe { ptr::drop_in_place(address) };
     (0..32).all(|index| unsafe { ptr::read_volatile(address.cast::<u8>().add(index)) == 0 })
+}
+
+// Full reader load proves that a usable cache cannot bypass the protection gate.
+#[no_mangle]
+pub unsafe extern "C" fn xp_app_test_protection_load(
+    resources: &'static app_abi::Resources,
+    leaves: &'static XpEpubLeaves,
+    path: app_abi::Text,
+    cache: app_abi::Text,
+    error_sink: app_abi::TextSink,
+    context: *mut c_void,
+) -> bool {
+    let mut path = Text::copy(unsafe { path.bytes().unwrap() }).unwrap();
+    let cache = Text::copy(unsafe { cache.bytes().unwrap() }).unwrap();
+    unsafe extern "C" fn now() -> u32 {
+        0
+    }
+    match ReaderBook::load(&mut path, cache, resources, leaves, now, false, true) {
+        Ok(_) => true,
+        Err(LoadError::Protection(error)) => {
+            let message = match &error {
+                OpenError::OutOfMemory => b"out of memory".as_slice(),
+                OpenError::Message(text) => text.bytes(),
+            };
+            unsafe {
+                error_sink(context, app_abi::Text::from_bytes(message));
+            }
+            false
+        }
+        Err(_) => false,
+    }
 }

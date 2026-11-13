@@ -26,6 +26,20 @@ reader dispatch. Adding a native sink requires updating the shared Rust path.
 
 Run through CTest, or run `run.py --build /tmp/protection-check` and
 `reclaim_order.py --build /tmp/protection-pressure`. Host generation requires
-Python's standard library and the existing OpenSSL installation. Emulator qualification
+Python's standard library, OpenSSL with `pkg-config`, a C++20 compiler, and an
+offline Cargo build (or a matching `--archive`). Emulator qualification
 uses the same generated public-key book and provisions its key through the existing
 `POST /api/book-key` endpoint; it does not alter the device secret or key format.
+
+Allocation recovery checks fail each Rust allocation once after entry to the gate,
+then restore allocation. Missing and expired keys must fail both the gate and the
+actual reader load, including a book with a plain spine and protected auxiliary
+entry. A generated v10 cache is verified usable on a successful load, then must
+remain unopened during each refusal. The inline probe file and uncached name
+lookup remove the two new allocations identified in review; wrapper failure in
+the later manifest stream remains an error.
+
+A 120-byte segmented fake models a near-4-GiB ZIP and pins rejection of a local
+header sum that native 32-bit arithmetic wraps. No large binary is generated.
+The paired EOCD-buffer failure test explicitly records the inherited fail-open
+exception; the SD failure matrix likewise preserves native scan-error behavior.

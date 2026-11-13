@@ -542,7 +542,8 @@ The ordinary EPUB/TXT/Markdown reader owns one `ReaderBook` in
 `xp-ffi::app::epub::book_owner`. It owns the path, metadata bytes, cache file,
 spine/TOC and size-window state, load-time CSS, package writer, ZIP/TXT resources
 and protection loan. It calls the existing Rust parsing and cache algorithms
-through native file, scratch, clock and decryptor leaves. Paths and metadata are
+through native physical leaves; see [protected books](#reader-protected-book-boundary).
+Paths and metadata are
 byte strings; do not require UTF-8 or cap their lengths to fit an adapter.
 
 The reader publishes a Rust-owned image extractor only after load succeeds.
@@ -612,8 +613,8 @@ error messages, including the inherited remove-before-rename power-loss window.
 Recents/state containers and ArduinoJson document operations stay C++-owned;
 the record codec and save orchestration are Rust-owned. Native access uses
 one-way primitives. Moving the containers is not required for the reader-path
-goal; owner: none planned (SET-OWN family). Settings-save still runs synchronously through its existing
-boundary under ruling 45. Recents UI and Library use their existing facades.
+goal; owner: none planned (SET-OWN family). Settings-save still runs synchronously
+through its existing boundary under ruling 45. Recents UI and Library use their existing facades.
 
 Reader time decisions call the Rust time service directly. Native callbacks
 supply the clock, floor storage, SNTP setup and wait operations. State-path
@@ -1279,16 +1280,25 @@ The Rust reader probes every book for an encryption manifest before checking its
 file type. It calls the Rust ZIP, package, wrapped-key and trusted-time code
 directly, and owns the loan decision and error mapping. Missing ZIP end records
 and manifests without a supported AES method retain their existing plain-book
-classification.
+classification. The manifest existence check uses an inline HAL file and does
+not retain its name, so neither wrapper allocation nor name reservation can
+misclassify a protected book as plain. Once a manifest is found, failure to read
+or parse it returns `cannot read encryption manifest`. The inherited native ZIP
+scan failures (SD open/seek/read, missing or invalid directory, and EOCD buffer
+allocation failure) still classify as plain; they remain a separate hardening
+item, not evidence that the book is unprotected.
 
 Native primitives hold the SDK container index, protected stream, AES transaction,
 and existing device-secret mutex/cache. Caller-owned temporary storage keeps the
 index SD handle open through key reading and the loan check. AES cleanup still
 happens when key reading returns. Rust clears its temporary content-key copy on
-every exit. The SDK keeps the session key for the existing decryptor lifetime.
+every normal return (aborting panics reset the device without running Drop).
+The SDK keeps the session key for the existing decryptor lifetime.
 
-Cache reclaim calls the shared Rust pressure sequence in native registration
-order: render glyphs, SD mini-cache, then vector glyph arenas when compiled in.
+Cache reclaim calls the shared Rust pressure sequence in native sink-priority
+order: 50 render glyphs, 60 SD mini-cache, then 70 vector glyph arenas when
+compiled in. `CROSSPOINT_VECTOR_FONTS` and Rust `vector-fonts` both follow
+`BOARD_HAS_PSRAM`.
 The stream opens its SD handle before reclaim. Persistent SD advances are retained.
 The named physical continuation is the SDK protected byte stream, including
 `lib/miniz/src/MinizCompat.cpp` calls to `xp_inflate_*` and its synchronous byte sink.

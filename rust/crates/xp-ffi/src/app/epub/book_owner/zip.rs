@@ -111,7 +111,7 @@ impl<'a> Archive<'a> {
         None
     }
 
-    fn lookup_open(&mut self, name: &[u8]) -> Option<Entry> {
+    fn lookup_open(&mut self, name: &[u8], remember: bool) -> Option<Entry> {
         let name = name.split(|&byte| byte == 0).next().unwrap_or_default();
         if self.last.is_some() && self.last_name.bytes() == name {
             return self.last;
@@ -139,6 +139,9 @@ impl<'a> Archive<'a> {
                 break;
             }
             if &bytes[..length] == name {
+                if !remember {
+                    return Some(entry);
+                }
                 self.last_name.assign(name).ok()?;
                 self.last = Some(entry);
                 self.cursor = Some(entry.next_offset);
@@ -148,12 +151,37 @@ impl<'a> Archive<'a> {
         None
     }
 
+    // The caller retains and destroys the inline native file after this lookup.
+    #[cfg(not(feature = "app-test"))]
+    pub(super) fn contains_in_file(
+        path: &'a Text,
+        resources: &'static abi::Resources,
+        leaves: &'static XpEpubLeaves,
+        file: &File,
+        name: &[u8],
+    ) -> bool {
+        struct Borrowed<'a>(Archive<'a>);
+        impl Drop for Borrowed<'_> {
+            fn drop(&mut self) {
+                if let Some(file) = &mut self.0.file {
+                    file.handle = None;
+                }
+            }
+        }
+        let mut archive = Borrowed(Self::new(path, resources, leaves));
+        archive.0.file = Some(File {
+            handle: file.handle,
+            leaves,
+        });
+        archive.0.lookup_open(name, false).is_some()
+    }
+
     pub(super) fn lookup(&mut self, name: &[u8]) -> Option<Entry> {
         let opened = self.file.is_none();
         if !self.open() {
             return None;
         }
-        let entry = self.lookup_open(name);
+        let entry = self.lookup_open(name, true);
         if opened {
             self.close();
         }
@@ -199,7 +227,7 @@ impl<'a> Archive<'a> {
     }
 
     fn prepare(&mut self, name: &[u8]) -> Option<Entry> {
-        let entry = self.lookup_open(name)?;
+        let entry = self.lookup_open(name, true)?;
         let file = self.file.as_ref()?;
         let mut header = [0; 30];
         if !file.seek(entry.local_offset) || !file.read(&mut header) {
@@ -210,7 +238,7 @@ impl<'a> Archive<'a> {
             self.error("Not a valid zip file header");
             return None;
         };
-        // Preserve the target's signed-long offset check, then unchecked seek.
+        // Reject out-of-range offsets, including malformed 32-bit wrapping sums.
         if offset > i32::MAX as u64 {
             return None;
         }

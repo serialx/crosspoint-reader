@@ -1315,7 +1315,8 @@ such as `xp_native_*` do not determine language.
 - `rustfill`: the native callers of each field in a Rust-filled table. Stable
   `Struct.field` targets represent Rust-private functions without compiler hashes.
 - `physical`, `inherited`, and `deferred`: exact root/target permissions and task
-  owners. NONREADER is a deferred owner; R5/R6/R7 remain deferred too.
+  owners. NONREADER, R5/R6/R7, RUNTIME-SHOT, RUNTIME-SLEEP and SET-OWN
+  are explicit deferred owners; their pairs still cannot grow without review.
 
 `ports.lock` records sorted root/target pairs. `dynamic.lock` records each named
 native table/vtable slot that reaches Rust, including slots outside the root
@@ -1325,7 +1326,9 @@ retiring a field does not rename survivors. Other tables, including vtables,
 use indices relative to their own symbol; virtual-method reordering still needs
 a reviewed mapping. File-local symbols include their object path; addresses and
 internal lambda names are absent. A new root/target pair cannot reuse a physical exception;
-a different Rust caller using the same root remains invisible. The summary
+a different Rust caller using the same root remains invisible. A table entry
+that points directly to a Rust function also appears as a reference; it is not
+by itself a Rust/native/Rust execution chain. The summary
 counts pairs by class and owner. “Common path clean” means no inherited/unowned
 pairs remain, not proof of execution reachability. The initial baseline was `5aee6afa`,
 after R1 and R3a; later units retire entries through reviewed lock diffs. Follow the [update and review rules](../../scripts/rust_ports/README.md).
@@ -1386,8 +1389,8 @@ Runtime keeps the same 34 pointer-sized slots: `idle_wait` → `raw_input_sample
 `runtime_direct_hal` compiles the shipping adapter with the actual Rust HAL
 modules and recorded physical callbacks with exact call-order assertions. Existing injected host callbacks remain
 under `app-test` as HOST-RETIRE debt; no hardware tilt/frontlight result is inferred
-from these host tests. Input mapping, BLE loop delivery, sleep orchestration and
-settings serialization retain their separate owners. Native
+from these host tests. Input mapping and BLE delivery are described below; sleep
+orchestration and settings serialization remain separate owners. Native
 `HalPowerManager::setPowerSaving` and `HalFrontlight::setOn`/`setBrightness`
 entries still reach the same Rust HAL policy.
 
@@ -1419,7 +1422,39 @@ The native feedback step still calls Rust haptic policy when `FREEINK_CAP_HAPTIC
 is enabled (`lib/hal/HalHaptics.h`); this unit does not establish a clean input
 boundary for profiles with that capability. SDK internals, stored hooks and ROM still need
 the final R8b audit. This change does not resolve the inherited concurrent
-frontlight read/write problem or move BLE delivery, sleep or screenshot policy.
+frontlight read/write problem. Sleep and screenshot orchestration remain deferred.
+
+### App-loop BLE calls
+
+The shipping loop calls the Rust BLE state machine directly after one live native
+Wi-Fi observation. Screen changes call its stop/admission entry directly. Native
+radio, clock, logging and existing task primitives remain physical services.
+The BLE state machine still reads enablement every pass; disabled cancellation,
+retry/rearm and same-next-tick enable behavior are unchanged.
+
+BLE delivery constructs the existing application events in Rust. Startup cache
+release tries the existing render lock and calls the shared Rust font owner;
+it never waits for a renderer that may itself be awaiting BLE startup. The
+native speed callback publishes the existing atomic hold flag before Rust applies
+the shared HAL power policy. Startup only reads immutable app bindings and uses
+the existing render/power synchronization; it does not borrow loop input state.
+
+A cold restart helper checks sleep precedence before reading the live light
+state, arms the existing reader RTC target, draws the translated loading popup,
+waits 50 ms and requests reset. Native primitives own the RTC fields and reset;
+Rust owns this sequence. Native non-BLE maintenance restart callers retain their
+existing adapter. The popup itself remains the separate R2b owner.
+
+Runtime replaces `ble_tick` / `ble_before_screen_change` with `wifi_active` /
+`ble_restart`, preserving its 34 slots. The shipping BLE Host and Services tables
+lose their release/delivery/restart callbacks. Injected app and BLE oracle
+callbacks remain explicitly under `app-test` / `XP_APP_TEST` as HOST-RETIRE debt;
+there is no retained native application delivery/restart/cache relay body.
+`runtime_direct_ble` compiles the actual shipping adapters, and
+`runtime_ble_native_phases` checks the native RTC/reset primitives. The existing
+C3/S3 BLE oracles still cover the shared state machine. Physical pairing, radio
+IRQ timing, restart display retention and frontlight restoration require device
+checks; host fixtures and the port-reference gate do not prove them.
 
 ## Reader protected-book boundary
 

@@ -36,7 +36,7 @@ class HomeStartTest : public ::testing::Test {
     return s;
   }
   bool pass(const Scene& s) {
-    const bool acted = bleturner::tick(s);
+    const bool acted = fake::tick(s);
     if (radio().startQueued) radio().runStart();
     return acted;
   }
@@ -74,15 +74,15 @@ TEST_F(HomeStartTest, ARefusalAtHomeNeverAsksForARestartIntoTheBook) {
 TEST_F(HomeStartTest, IsKeptWhenTheNextScreenIsTheBookAndStoppedForAnyOther) {
   pass(home());
   ASSERT_TRUE(radio().running);
-  EXPECT_TRUE(bleturner::beforeScreenChange(0, /*nextIsReader=*/true));
+  EXPECT_TRUE(fake::beforeScreenChange(0, /*nextIsReader=*/true));
   EXPECT_TRUE(radio().running);
-  EXPECT_TRUE(bleturner::beforeScreenChange(0, /*nextIsReader=*/false));
+  EXPECT_TRUE(fake::beforeScreenChange(0, /*nextIsReader=*/false));
   EXPECT_FALSE(radio().running);
 }
 
 TEST_F(HomeStartTest, TheBookFindsTheRadioUpAndDoesNotStartItAgain) {
   pass(home());
-  ASSERT_TRUE(bleturner::beforeScreenChange(0, true));
+  ASSERT_TRUE(fake::beforeScreenChange(0, true));
   const unsigned before = radio().creates;
   pass(fake::reading(2));
   EXPECT_EQ(radio().creates, before);
@@ -113,7 +113,7 @@ TEST_F(HomeStartTest, PressQueuedBetweenHomeAndReaderCannotTurnTheBook) {
   pass(home());
   radio().connected = true;
   radio().name = "Generic Remote";
-  ASSERT_TRUE(bleturner::beforeScreenChange(0, true));
+  ASSERT_TRUE(fake::beforeScreenChange(0, true));
   bleturner::port::KeyPress key;
   key.keycode = bleturner::kUsageRight;
   key.pressed = true;
@@ -169,7 +169,7 @@ TEST_F(HomeStartTest, TheIdleLimitStartsOverWhenTheBookOpens) {
     pass(home());
   }
   ASSERT_TRUE(radio().running);
-  ASSERT_TRUE(bleturner::beforeScreenChange(0, /*nextIsReader=*/true));
+  ASSERT_TRUE(fake::beforeScreenChange(0, /*nextIsReader=*/true));
   int stoppedAfter = -1;
   for (int s = 1; s <= 40 && stoppedAfter < 0; ++s) {
     radio().now += 1000;

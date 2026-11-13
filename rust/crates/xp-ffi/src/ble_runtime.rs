@@ -82,10 +82,13 @@ pub struct Status {
 #[repr(C)]
 pub struct Services {
     pub heap: unsafe extern "C" fn() -> Heap,
+    #[cfg(feature = "app-test")]
     pub release: unsafe extern "C" fn() -> bool,
+    #[cfg(feature = "app-test")]
     pub deliver: unsafe extern "C" fn(u8) -> bool,
     pub yield_radio: unsafe extern "C" fn() -> bool,
     pub transfer: unsafe extern "C" fn() -> bool,
+    #[cfg(feature = "app-test")]
     pub restart: unsafe extern "C" fn(),
     pub hold: unsafe extern "C" fn(bool),
     pub diagnostic: Option<unsafe extern "C" fn(u32, u32, u32, u32, u32)>,
@@ -115,6 +118,12 @@ pub struct Services {
     pub default_table: DefaultTable,
     pub profile: *const Profile,
 }
+const _: () = {
+    let pointers = if cfg!(feature = "app-test") { 33 } else { 30 };
+    let begin = if cfg!(feature = "app-test") { 10 } else { 7 };
+    assert!(core::mem::size_of::<Services>() == pointers * core::mem::size_of::<usize>());
+    assert!(core::mem::offset_of!(Services, begin) == begin * core::mem::size_of::<usize>());
+};
 struct Bindings {
     services: *const Services,
     config: *mut Config,
@@ -279,6 +288,37 @@ unsafe fn skipped(storage: bool, heap: Heap) {
     );
     (svc().heap_map)();
 }
+unsafe fn release() -> bool {
+    #[cfg(feature = "app-test")]
+    {
+        (svc().release)()
+    }
+    #[cfg(not(feature = "app-test"))]
+    {
+        crate::app::ble_ports::release()
+    }
+}
+unsafe fn deliver(action: u8) -> bool {
+    #[cfg(feature = "app-test")]
+    {
+        (svc().deliver)(action)
+    }
+    #[cfg(not(feature = "app-test"))]
+    {
+        crate::app::ble_ports::deliver(action)
+    }
+}
+unsafe fn restart() {
+    #[cfg(feature = "app-test")]
+    (svc().restart)();
+    #[cfg(not(feature = "app-test"))]
+    crate::app::ble_ports::restart();
+}
+unsafe fn hold(held: bool) {
+    (svc().hold)(held);
+    #[cfg(not(feature = "app-test"))]
+    crate::app::ble_ports::hold(held);
+}
 unsafe fn begin_owned() -> bool {
     if CANCELLED.load(Acquire) || stopping() {
         return false;
@@ -291,7 +331,7 @@ unsafe fn begin_owned() -> bool {
         skipped(true, before);
         return false;
     }
-    while !(svc().release)() {
+    while !release() {
         if CANCELLED.load(Acquire) || BUILD_WAITING.load(Acquire) {
             return false;
         }
@@ -337,7 +377,7 @@ unsafe fn finish(started: bool, report: bool) {
         DEFERRED.store(!started && !CANCELLED.load(Acquire), Relaxed);
     }
     if !running() && !stopping() {
-        (svc().hold)(false);
+        hold(false);
     }
     IN_FLIGHT.store(false, Release);
 }
@@ -352,7 +392,7 @@ unsafe fn start_sync() -> bool {
         return false;
     }
     CANCELLED.store(false, Release);
-    (svc().hold)(true);
+    hold(true);
     let started = begin_owned();
     finish(started, false);
     started
@@ -363,19 +403,19 @@ unsafe fn suspend(timeout: u32) -> bool {
         return false;
     }
     if running() || stopping() {
-        (svc().hold)(true);
+        hold(true);
         if !(svc().end)(timeout) {
             return false;
         }
     }
-    (svc().hold)(false);
+    hold(false);
     true
 }
 unsafe fn act(action: u8) -> bool {
     if action == 0 {
         return false;
     }
-    let taken = (svc().deliver)(action);
+    let taken = deliver(action);
     taken || action == 5 || action == 6
 }
 unsafe fn drain() {
@@ -461,7 +501,7 @@ unsafe fn serve_reader() -> bool {
             u32::from(key.pressed),
             action.into(),
         );
-        if (action == 1 || action == 2) && key.pressed && (svc().deliver)(action) {
+        if (action == 1 || action == 2) && key.pressed && deliver(action) {
             acted = true;
         }
     }
@@ -525,7 +565,7 @@ pub unsafe extern "C" fn xp_ble_start_async() -> bool {
         return r;
     }
     CANCELLED.store(false, Release);
-    (svc().hold)(true);
+    hold(true);
     if !(svc().spawn)() {
         finish(false, true);
         return false;
@@ -743,7 +783,7 @@ pub unsafe extern "C" fn xp_ble_tick(scene: *const Scene) -> bool {
         let heap = (svc().heap)();
         emit(14, heap.free_bytes as u32, heap.largest_block as u32, 0, 0);
         restart_event(RestartEvent::Restarting, Why::Ok);
-        (svc().restart)();
+        restart();
     }
     acted
 }

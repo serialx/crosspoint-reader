@@ -213,48 +213,11 @@ bleturner::Heap heap() {
   return {h.freeBytes, h.largestBlockBytes};
 }
 
-// Runs on the radio's start task. Only TRIES the render lock: the render task can hold it through a
-// chapter build that is waiting for this very radio.
-bool releaseCaches() {
-  RenderLock lock(RenderLock::Mode::Try);
-  if (!lock.ownsLock()) return false;
-  fontCacheManager.releaseSdFontCaches();
-  return true;
-}
-
-bool deliver(const bleturner::Action action) {
-  switch (action) {
-    case bleturner::Action::NextPage:
-      return activityManager.remoteTurn(true, false);
-    case bleturner::Action::PrevPage:
-      return activityManager.remoteTurn(false, false);
-    case bleturner::Action::NextChapter:
-      return activityManager.remoteTurn(true, true);
-    case bleturner::Action::PrevChapter:
-      return activityManager.remoteTurn(false, true);
-    case bleturner::Action::Confirm:
-      return activityManager.remoteClick(RemoteButton::Confirm);
-    case bleturner::Action::Back:
-      return activityManager.remoteClick(RemoteButton::Back);
-    case bleturner::Action::ReaderMenu:
-      return activityManager.remoteShortcut(true);
-    case bleturner::Action::SaveQuote:
-      return activityManager.remoteShortcut(false);
-    case bleturner::Action::None:
-      return false;
-  }
-  return false;
-}
-
 bool yieldForRadio() { return true; }        // the reader keeps no parser alive between pages
 bool fileTransferActive() { return false; }  // file transfer is a screen of its own: the radio is off there
-void restartIntoBook() { silentRestartToReader(); }
 
-// The radio needs a steady clock while it is up or changing state.
-void holdFullSpeed(const bool hold) {
-  holdsCpu.store(hold);
-  if (hold) powerManager.setPowerSaving(false);
-}
+// Publish the shared CPU hold; Rust then applies the existing HAL clock policy.
+void holdFullSpeed(const bool hold) { holdsCpu.store(hold); }
 
 void log(const bool error, const char* format, va_list args) {
 #ifdef ENABLE_SERIAL_LOG
@@ -269,8 +232,7 @@ void log(const bool error, const char* format, va_list args) {
 #endif
 }
 
-const bleturner::Host host{heap,          releaseCaches, deliver, yieldForRadio, fileTransferActive, restartIntoBook,
-                           holdFullSpeed, log,           nullptr};
+const bleturner::Host host{heap, yieldForRadio, fileTransferActive, holdFullSpeed, log, nullptr};
 }  // namespace pageturner
 
 constexpr char SLEEP_FRAME_FILE[] = "/.crosspoint/sleep_frame.bin";
@@ -631,17 +593,22 @@ const XpAppRuntime& appRuntime() {
             SETTINGS.touchReaderControls = settings->touch_reader;
             SETTINGS.saveToFile();
           },
-      .ble_tick = [](const XpAppBleScene* view) -> uint8_t {
-        bleturner::Scene scene{};
-        scene.where = static_cast<bleturner::Where>(view->where);
-        scene.visit = view->visit;
-        scene.pageShown = view->page_shown != 0;
-        scene.storageBusy = view->storage_busy != 0;
-        scene.wifiOn = WiFi.getMode() != WIFI_MODE_NULL;
-        return bleturner::tick(scene);
-      },
-      .ble_before_screen_change = [](uint8_t reader) -> uint8_t {
-        return bleturner::beforeScreenChange(0, reader != 0);
+      .wifi_active = []() -> uint8_t { return WiFi.getMode() != WIFI_MODE_NULL; },
+      .ble_restart = [](uint8_t phase, uint8_t lightOn) -> uint8_t {
+        switch (static_cast<XpAppBleRestartPhase>(phase)) {
+          case XP_APP_BLE_RESTART_ALLOWED:
+            return !deepSleepInProgress;
+          case XP_APP_BLE_RESTART_ARM:
+            silentRebootTarget = SILENT_REBOOT_TARGET_READER;
+            silentRebootPayload = lightOn ? SILENT_REBOOT_LIGHT_ON : 0;
+            silentRebootMagic = SILENT_REBOOT_MAGIC;
+            LOG_DBG("MAIN", "Silent restart (target=reader)");
+            return 1;
+          case XP_APP_BLE_RESTART_EXECUTE:
+            ESP.restart();
+            return 1;
+        }
+        return 0;
       },
       .sleep_enter = [](uint8_t timeout) { enterDeepSleep(timeout != 0); },
       .diagnostic =

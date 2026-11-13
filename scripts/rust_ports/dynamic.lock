@@ -22,10 +22,6 @@ XpEpubBookBorrow spine
 XpEpubBookBorrow spine_for_size
 XpEpubBookBorrow stream
 XpEpubBookBorrow toc
-_ZN10pageturnerL4hostE@src/main.cpp.o 1
-_ZN10pageturnerL4hostE@src/main.cpp.o 2
-_ZN10pageturnerL4hostE@src/main.cpp.o 5
-_ZN10pageturnerL4hostE@src/main.cpp.o 6
 _ZN12_GLOBAL__N_114sectionMetricsE@src/activities/reader/RustEpubResources.cpp.o 11
 _ZN12_GLOBAL__N_114sectionMetricsE@src/activities/reader/RustEpubResources.cpp.o 8
 _ZN12_GLOBAL__N_1L9ALLOCATORE@Epub/Epub/Paragraph.cpp.o 3
@@ -65,8 +61,8 @@ _ZN20ChapterPageAssembler5sink_E 9
 _ZN20ChapterPageAssembler8metrics_E 11
 _ZN20ChapterPageAssembler8metrics_E 8
 _ZN3xtc13RustXtcParser6leavesE 8
-_ZN9bleturner12_GLOBAL__N_1L8servicesE@BlePageTurner/Runtime.cpp.o 10
-_ZN9bleturner12_GLOBAL__N_1L8servicesE@BlePageTurner/Runtime.cpp.o 27
+_ZN9bleturner12_GLOBAL__N_1L8servicesE@BlePageTurner/Runtime.cpp.o 24
+_ZN9bleturner12_GLOBAL__N_1L8servicesE@BlePageTurner/Runtime.cpp.o 7
 _ZTV10OpdsParser 2
 _ZTV10OpdsParser 3
 _ZTV10OpdsParser 4
@@ -1005,8 +1001,6 @@ _ZZ17rustEpubResourcesR11GfxRendererR18MappedInputManagerE6leaves@src/activities
 _ZZ17rustEpubResourcesR11GfxRendererR18MappedInputManagerE6leaves@src/activities/reader/RustEpubResources.cpp.o restart_reader
 _ZZ17rustEpubResourcesR11GfxRendererR18MappedInputManagerE6leaves@src/activities/reader/RustEpubResources.cpp.o settings_save
 _ZZ17rustEpubResourcesR11GfxRendererR18MappedInputManagerE6leaves@src/activities/reader/RustEpubResources.cpp.o status_facts
-_ZZN12_GLOBAL__N_110appRuntimeEvE7runtime@src/main.cpp.o ble_before_screen_change
-_ZZN12_GLOBAL__N_110appRuntimeEvE7runtime@src/main.cpp.o ble_tick
 _ZZN12_GLOBAL__N_110appRuntimeEvE7runtime@src/main.cpp.o screenshot
 _ZZN12_GLOBAL__N_110appRuntimeEvE7runtime@src/main.cpp.o settings_save
 _ZZN12_GLOBAL__N_110appRuntimeEvE7runtime@src/main.cpp.o sleep_enter

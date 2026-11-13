@@ -9,11 +9,15 @@ namespace bleturner::rust {
 // Diagnostics are synchronous, retain no pointers, and must not reenter Rust.
 struct Services {
   Heap (*heap)();
+#ifdef XP_APP_TEST
   bool (*release)();
   bool (*deliver)(uint8_t);
+#endif
   bool (*yieldRadio)();
   bool (*transfer)();
+#ifdef XP_APP_TEST
   void (*restart)();
+#endif
   void (*hold)(bool);
   void (*diagnostic)(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
   void (*heapMap)();
@@ -42,6 +46,14 @@ struct Services {
   const RemoteTable* (*defaultTable)(const char*);
   const Profile* profile;
 };
+
+#ifdef XP_APP_TEST
+static_assert(sizeof(Services) == 33 * sizeof(void*));
+static_assert(offsetof(Services, begin) == 10 * sizeof(void*));
+#else
+static_assert(sizeof(Services) == 30 * sizeof(void*));
+static_assert(offsetof(Services, begin) == 7 * sizeof(void*));
+#endif
 
 // Payload: heap events use a=free, b=largest; Raw uses a=code, b=pressed,
 // c=action; Key uses a=usage, b=mods, c=pressed, d=action. Others use a=count/ms/action.

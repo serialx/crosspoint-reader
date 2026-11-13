@@ -7,14 +7,26 @@
 namespace bleturner {
 namespace {
 Heap noHeap() { return {0, 0}; }
+#ifdef XP_APP_TEST
 bool noRelease() { return true; }
 bool noDeliver(Action) { return false; }
+#endif
 bool noYield() { return true; }
 bool noTransfer() { return false; }
+#ifdef XP_APP_TEST
 void noRestart() {}
+#endif
 void noHold(bool) {}
 void noLog(bool, const char*, va_list) {}
-constexpr Host kNoHost{noHeap, noRelease, noDeliver, noYield, noTransfer, noRestart, noHold, noLog, nullptr};
+constexpr Host kNoHost{noHeap,
+#ifdef XP_APP_TEST
+                       noRelease, noDeliver,
+#endif
+                       noYield,   noTransfer,
+#ifdef XP_APP_TEST
+                       noRestart,
+#endif
+                       noHold,    noLog,      nullptr};
 Config noConfig;
 const Host* host = &kNoHost;
 
@@ -99,11 +111,15 @@ void heapMap() {
 }
 
 const rust::Services services{[] { return host->heap(); },
+#ifdef XP_APP_TEST
                               [] { return host->releaseCaches(); },
                               [](uint8_t action) { return host->deliver(static_cast<Action>(action)); },
+#endif
                               [] { return host->yieldForRadio(); },
                               [] { return host->fileTransferActive(); },
+#ifdef XP_APP_TEST
                               [] { host->restartIntoBook(); },
+#endif
                               [](bool hold) { host->holdFullSpeed(hold); },
                               diagnostic,
                               heapMap,
@@ -157,10 +173,6 @@ void begin(const Host& h, Config& c) {
   rust::xp_ble_init(&services, &c);
 }
 void requestConnect() { rust::xp_ble_request_connect(); }
-bool tick(const Scene& scene) { return rust::xp_ble_tick(&scene); }
-bool beforeScreenChange(uint32_t timeout, bool nextIsReader) {
-  return rust::xp_ble_before_screen(timeout, nextIsReader);
-}
 bool stopNow(uint32_t timeout) { return rust::xp_ble_stop_now(timeout); }
 bool beforeSleep(uint32_t timeout) { return rust::xp_ble_stop_now(timeout); }
 void settleStart() { rust::xp_ble_settle_start(); }

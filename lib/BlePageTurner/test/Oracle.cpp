@@ -152,10 +152,10 @@ int main() {
         disconnect();
       }
       if (step == 15) {
-        std::printf("screen %d\n", beforeScreenChange(0, true));
+        std::printf("screen %d\n", fake::beforeScreenChange(0, true));
       }
       if (step == 17) config.enabled = 0;
-      std::printf("tick %d\n", tick(scene));
+      std::printf("tick %d\n", fake::tick(scene));
       if (fake::radio().startQueued) fake::radio().runStart();
       snapshot();
     }

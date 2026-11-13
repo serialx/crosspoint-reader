@@ -366,7 +366,9 @@ typedef struct {
 
 // Ordered phases: POLL, FEEDBACK, FINISH. Only POLL returns a sample; the others return zero.
 typedef enum { XP_APP_INPUT_POLL, XP_APP_INPUT_FEEDBACK, XP_APP_INPUT_FINISH } XpAppInputPhase;
-// The seven guarded Runtime field alternatives are fixture-only HOST-RETIRE debt.
+// Restart phases retain the existing reader RTC target and live-light bit.
+typedef enum { XP_APP_BLE_RESTART_ALLOWED, XP_APP_BLE_RESTART_ARM, XP_APP_BLE_RESTART_EXECUTE } XpAppBleRestartPhase;
+// The nine guarded Runtime field alternatives are fixture-only HOST-RETIRE debt.
 typedef struct {
 // Fixture-only alternative (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
@@ -424,8 +426,15 @@ typedef struct {
   void (*light_output)(uint8_t brightness);
 #endif
   void (*settings_save)(const XpAppSettings* settings);
+// Fixture-only alternatives (HOST-RETIRE); absent from firmware.
+#ifdef XP_APP_TEST
   uint8_t (*ble_tick)(const XpAppBleScene* scene);
   uint8_t (*ble_before_screen_change)(uint8_t reader);
+#else
+  uint8_t (*wifi_active)(void);
+  // ALLOWED is read-only; ARM uses light_on; EXECUTE requests the physical reset.
+  uint8_t (*ble_restart)(uint8_t phase, uint8_t light_on);
+#endif
   void (*sleep_enter)(uint8_t from_timeout);
   void (*diagnostic)(uint8_t event, uint32_t first, uint32_t second);
   void* (*render_lock)(void);

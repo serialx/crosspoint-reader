@@ -1756,8 +1756,6 @@ Modes.paint xp_sd_font_prewarm
 Modes.resources xp_font_registry_provider
 Modes.resources xp_font_registry_query
 Modes.resources xp_native_width
-Runtime.ble_before_screen_change xp_ble_before_screen
-Runtime.ble_tick xp_ble_tick
 Runtime.screenshot XpAppCompatibility.screenshot_info
 Runtime.screenshot xp_assets_screenshot
 Runtime.screenshot xp_display_abort

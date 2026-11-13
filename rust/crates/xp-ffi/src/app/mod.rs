@@ -4,6 +4,7 @@ mod abi;
 #[allow(dead_code, unused_imports)]
 mod bookmarks;
 // App-owned clipping storage shared by reader and retiring native callers.
+pub(crate) mod ble_ports;
 #[allow(dead_code)]
 mod clippings;
 #[path = "clippings/facade.rs"]
@@ -743,7 +744,7 @@ impl Services<Owner> for App {
         }
     }
     fn before_screen_change(&self, reader: bool) -> bool {
-        unsafe { (self.runtime.ble_before_screen_change)(u8::from(reader)) != 0 }
+        unsafe { self.runtime.ble_before_screen_change(u8::from(reader)) != 0 }
     }
     fn publish(&self, target: Option<Target>, visit: u32) {
         self.signals.with(|signals| {

@@ -25,7 +25,9 @@ OWNERS = {
         "R-RELAY",
         "R-RUNTIME",
     },
-    "deferred": {"R5", "R6", "R7", "NONREADER"},
+    "deferred": {
+        "R5", "R6", "R7", "NONREADER", "RUNTIME-SHOT", "RUNTIME-SLEEP", "SET-OWN"
+    },
 }
 
 

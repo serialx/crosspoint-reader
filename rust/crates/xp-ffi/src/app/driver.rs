@@ -126,7 +126,7 @@ fn iteration(app: &App, state: &mut State) {
         storage_busy: current.exclusive_storage,
         wifi_on: 0,
     };
-    let remote_acted = unsafe { (app.runtime.ble_tick)(&scene) } != 0;
+    let remote_acted = unsafe { app.runtime.ble_tick(&scene) } != 0;
     if current.exclusive_storage != 0 {
         app.activity_loop();
         let prevent_sleep = unsafe { facts() }.prevent_sleep != 0;

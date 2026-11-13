@@ -669,8 +669,14 @@ pub struct Runtime {
     #[cfg(not(feature = "app-test"))]
     pub light_output: unsafe extern "C" fn(u8),
     pub settings_save: unsafe extern "C" fn(*const Settings),
+    #[cfg(feature = "app-test")]
     pub ble_tick: unsafe extern "C" fn(*const BleScene) -> u8,
+    #[cfg(not(feature = "app-test"))]
+    pub wifi_active: unsafe extern "C" fn() -> u8,
+    #[cfg(feature = "app-test")]
     pub ble_before_screen_change: unsafe extern "C" fn(u8) -> u8,
+    #[cfg(not(feature = "app-test"))]
+    pub ble_restart: unsafe extern "C" fn(u8, u8) -> u8,
     pub sleep_enter: unsafe extern "C" fn(u8),
     pub diagnostic: unsafe extern "C" fn(u8, u32, u32),
     pub render_lock: unsafe extern "C" fn() -> *mut core::ffi::c_void,
@@ -772,4 +778,12 @@ mod launch_tests {
             assert!(FontOwner::NONE.get().is_null());
         }
     }
+}
+
+#[cfg(not(feature = "app-test"))]
+#[repr(u8)]
+pub enum BleRestartPhase {
+    Allowed,
+    Arm,
+    Execute,
 }

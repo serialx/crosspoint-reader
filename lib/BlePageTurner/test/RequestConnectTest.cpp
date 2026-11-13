@@ -18,7 +18,7 @@ class RequestConnectTest : public ::testing::Test {
     fake::radio().queueStarts = true;
   }
   void pass() {
-    bleturner::tick(fake::reading());
+    fake::tick(fake::reading());
     if (fake::radio().startQueued) fake::radio().runStart();
   }
 };
@@ -32,11 +32,11 @@ TEST_F(RequestConnectTest, T2IdleStopRearmsOnceIncludingRepeatedHoldsDuringStart
   const unsigned starts = fake::radio().creates;
   bleturner::requestConnect();
   EXPECT_TRUE(bleturner::status().idleStopped);
-  bleturner::tick(fake::reading());
+  fake::tick(fake::reading());
   EXPECT_FALSE(bleturner::status().idleStopped);
   EXPECT_EQ(fake::radio().creates, starts + 1);
   bleturner::requestConnect();
-  bleturner::tick(fake::reading());
+  fake::tick(fake::reading());
   EXPECT_EQ(fake::radio().creates, starts + 1);
   fake::radio().runStart();
   pass();

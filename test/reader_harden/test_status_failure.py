@@ -20,6 +20,7 @@ source = (HERE / 'book_render_oracle.cpp').read_text().split('int main() {', 1)[
 source = b'''static bool unknownProgress;
 static unsigned statusPaints;
 extern "C" void xp_epub_test_view_status(void*);
+extern "C" void xp_epub_test_progress_fault(unsigned char);
 extern "C" unsigned char xp_epub_test_overlay_scene_ready(void*);
 ''' + source.encode()
 source = replace_once(source, b'#include "book_render_session_rust.inc"',
@@ -32,7 +33,8 @@ source = replace_once(source, b'    contentsCalled = true;',
 source = replace_once(source, b'  UNUSED_LEAF(book.book_progress);', b'''
   table.book.book_progress = [](void* book, int32_t, float) -> float {
     stable(); assert(book == active->epub.get());
-    return unknownProgress ? -1.0f : 0.425f;
+    xp_epub_test_progress_fault(unknownProgress);
+    return 0.425f;
   };''')
 source = replace_once(source, b'  UNUSED_LEAF(physical.radio_status);', b'''
   table.physical.radio_status = [](XpEpubRadio* out, XpEpubPeer* peer) {

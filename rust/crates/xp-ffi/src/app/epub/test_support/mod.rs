@@ -2,8 +2,13 @@ mod base;
 mod book_owner;
 mod book_render;
 pub(super) use book_render::legacy_size;
+static PROGRESS_FAULT: core::sync::atomic::AtomicBool = core::sync::atomic::AtomicBool::new(false);
+#[no_mangle]
+pub extern "C" fn xp_epub_test_progress_fault(failed: u8) {
+    PROGRESS_FAULT.store(failed != 0, core::sync::atomic::Ordering::Relaxed);
+}
 pub(super) fn legacy_progress(value: f32) -> Option<f32> {
-    (value >= 0.0).then_some(value)
+    (!PROGRESS_FAULT.swap(false, core::sync::atomic::Ordering::Relaxed)).then_some(value)
 }
 pub(super) mod legacy_book;
 pub(super) mod legacy_children;

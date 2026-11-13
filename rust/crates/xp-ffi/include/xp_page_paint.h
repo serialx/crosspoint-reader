@@ -82,6 +82,7 @@ typedef struct {
 void xp_native_page_image_codec_log(const XpPageImageCodecLog*, uint32_t event, uint32_t a, uint32_t b, uint32_t c,
                                     uint32_t d);
 // JPEGDEC facts and synchronous row loan. Rust owns close/pipeline-drop/free order.
+// Set rows before OPEN; DECODE argument is the scale denominator (2/4/8, otherwise 1).
 typedef struct {
   void* decoder;
   const uint8_t* path;
@@ -99,6 +100,9 @@ typedef enum {
   XP_PAGE_JPEG_FREE
 } XpPageJpegOp;
 uint32_t xp_native_page_jpeg(XpPageJpeg*, XpPageJpegOp, uint32_t argument);
+// XpBookJpegEvent: heap events carry free bytes, TIME elapsed ms; other events ignore argument.
+// Event 12 shares ImageDiagnostic::DecodeFailed's value; argument is xp_book_image_dimensions status.
+enum { XP_PAGE_JPEG_BAD_DIMENSIONS = 12 };
 void xp_native_page_jpeg_log(const XpPageJpeg*, uint32_t event, uint32_t argument);
 #ifdef XP_APP_TEST
 // Historical native extraction path for host oracles.

@@ -90,9 +90,14 @@ counts are omitted because the reader lends the existing target snapshot.
 
 `ReaderImageFailures` compares that binding with the native shell under the strict
 HalFile fake: source/cache open, seek, read, write, close and Rust allocation
-failures, including strip targets. PNG continues if cache creation fails; GIF
+failures, including strip targets. PNG and JPEG continue if cache creation fails; GIF
 returns failure. The test asserts that Rust allocations are released. Native
 leaf bodies are extracted from ImageBlock.cpp at build time, so the test exercises
 the shipping storage and log adapters. JPEG uses the production native JPEGDEC leaf with Rust row/pipeline callbacks;
 its heap threshold, decoder/file-handle allocations and cache failures are compared
 with the retained native shell.
+
+`JpegDiagnosticArguments` compiles the native JPEG shell with pattern initialization
+and observes its diagnostic arguments. Valid rendering and failed dimension probes
+(open, low heap and allocation) must pass zero dimensions except for the dimensions
+event. The observer is inserted into a generated host copy; firmware has no test hook.

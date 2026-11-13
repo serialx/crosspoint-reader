@@ -69,7 +69,11 @@ impl Jpeg<'_, '_> {
                     this.native.height as i64,
                 );
                 if status != 0 {
-                    xp_native_page_jpeg_log(&this.native, 12, status as u32);
+                    xp_native_page_jpeg_log(
+                        &this.native,
+                        XP_PAGE_JPEG_BAD_DIMENSIONS,
+                        status as u32,
+                    );
                 }
                 u32::from(status == 0)
             }
@@ -215,3 +219,4 @@ pub(super) fn render(decode: &mut Decode<'_, '_>, config: ImageConfig) -> bool {
     };
     unsafe { crate::book_parser::xp_book_jpeg(&services, 1) != 0 }
 }
+const XP_PAGE_JPEG_BAD_DIMENSIONS: u32 = 12;

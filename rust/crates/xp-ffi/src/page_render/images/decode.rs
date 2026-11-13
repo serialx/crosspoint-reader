@@ -185,7 +185,7 @@ impl Decode<'_, '_> {
 }
 impl Drop for Decode<'_, '_> {
     fn drop(&mut self) {
-        // The decoder has aborted/finished its pipeline before these handles close.
+        // The pipeline is done; JPEGDEC already closed its input through Jpeg::drop.
         self.cache_op(FileOp::Drop);
         if self.log.format != Format::Jpeg {
             self.physical.scalar(FileOp::Close, 0);

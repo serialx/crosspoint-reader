@@ -566,7 +566,7 @@ directly in Rust. Lazy extraction streams 8,192-byte chunks into an inline,
 pinned HAL file through a storage-only native sink, then flushes and closes it.
 A failed stream removes the partial file. The `.px2` format and cache validation
 rules are unchanged. Image decode selects formats in Rust and calls the shared
-Rust decoder operations directly.
+Rust pipeline operations directly; JPEGDEC remains the native physical decoder for JPEG.
 The native extraction adapter and image lifecycle table slots remain only for
 host oracles.
 
@@ -1135,7 +1135,7 @@ PNG uses synchronous `xp_png_dimensions`, `xp_png_render`, `xp_png_bmp` and
 input reads and output writes retain no byte spans. Target callbacks lend
 exclusive framebuffer memory, and I/O callbacks preserve that loan. Decoder
 rows stay within Rust. On the reader path, PNG/GIF callbacks also stay in Rust;
-only storage, clock, yield, heap and logging operations call native leaves. Other
+storage, clock, yield, heap, logging and the JPEGDEC operations below call native leaves. Other
 consumers retain their native callback tables. PNG BMP conversion can borrow exclusive aligned scratch through the
 C++ BuildScratch facade; Rust neither frees nor retains that loan.
 

@@ -151,3 +151,20 @@ add_test(NAME ReaderImageGoldens COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/reader_run.py $<TARGET_FILE:image_reader_oracle>)
 add_test(NAME ReaderImageFailures COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/reader_failures.py $<TARGET_FILE:image_reader_oracle>)
+
+# Pattern initialization makes accidental reads of unset native dimensions observable.
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/JpegDiagnosticSource.cpp
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/jpeg_diagnostic_source.py
+    ${REPO_ROOT}/lib/Epub/Epub/converters/JpegToFramebufferConverter.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/JpegDiagnosticSource.cpp
+  DEPENDS jpeg_diagnostic_source.py ${REPO_ROOT}/lib/Epub/Epub/converters/JpegToFramebufferConverter.cpp VERBATIM)
+add_executable(jpeg_diagnostic_arguments JpegDiagnosticArguments.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/JpegDiagnosticSource.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/converters/ImageToFramebufferDecoder.cpp
+  ${DECODER_SOURCE_DIR}/JPEGDEC/src/JPEGDEC.cpp)
+target_include_directories(jpeg_diagnostic_arguments PRIVATE ${PNG_BENCH_INCLUDES})
+target_compile_definitions(jpeg_diagnostic_arguments PRIVATE __LINUX__)
+target_compile_options(jpeg_diagnostic_arguments PRIVATE -ftrivial-auto-var-init=pattern -UNDEBUG)
+target_link_libraries(jpeg_diagnostic_arguments PRIVATE xp_ffi_host)
+add_test(NAME JpegDiagnosticArguments COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/jpeg_diagnostic_arguments.py $<TARGET_FILE:jpeg_diagnostic_arguments>)

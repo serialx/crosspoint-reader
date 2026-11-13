@@ -196,8 +196,9 @@ struct JpegDimensionsContext {
   }
   static void diagnostic(void* raw, uint32_t event, uint32_t argument) {
     auto& c = *static_cast<JpegDimensionsContext*>(raw);
-    logJpegDiagnostic(c.path.c_str(), c.dimensions.width, c.dimensions.height, c.jpeg ? c.jpeg->getLastError() : 0,
-                      c.result, event, argument);
+    logJpegDiagnostic(c.path.c_str(), event == XP_BOOK_JPEG_EVENT_DIMENSIONS ? c.dimensions.width : 0,
+                      event == XP_BOOK_JPEG_EVENT_DIMENSIONS ? c.dimensions.height : 0,
+                      c.jpeg ? c.jpeg->getLastError() : 0, c.result, event, argument);
   }
 };
 struct JpegRenderContext : JpegDimensionsContext {
@@ -353,7 +354,8 @@ extern "C" uint32_t xp_native_page_jpeg(XpPageJpeg* state, XpPageJpegOp operatio
 extern "C" void xp_native_page_jpeg_log(const XpPageJpeg* state, uint32_t event, uint32_t argument) {
   if (event == XP_BOOK_JPEG_EVENT_TIME) {
     LOG_DBG("JPG", "JPEG decoding complete - render time: %lu ms", static_cast<unsigned long>(argument));
-  } else if (event == 12) {
+  } else if (event == XP_PAGE_JPEG_BAD_DIMENSIONS) {
+    // Keep messages and limits aligned with ImageToFramebufferDecoder::validateAndStoreDimensions.
     const auto width = static_cast<long long>(state->width), height = static_cast<long long>(state->height);
     if (argument == 1) {
       LOG_ERR("IMG", "Invalid %s dimensions: %lldx%lld", "JPEG", width, height);

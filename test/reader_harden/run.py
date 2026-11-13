@@ -42,6 +42,9 @@ template<class T> T poisoned() {
 }
 static XpEpubLeaves unexpectedEpubLeaves() { return poisoned<XpEpubLeaves>(); }
 static XpAppResources unexpectedAppResources() { return poisoned<XpAppResources>(); }
+// The shared archive includes document-test exports; this fixture must never call them.
+extern "C" void cssTestFailAllocation(size_t) { unexpected(); }
+extern "C" size_t cssTestAllocationAttempts() { unexpected(); }
 ''')
 source = replace_once(source, '// ACTUAL_TEXT_HELPERS', '\n'.join(definition(native, x) for x in (
     'XpAppText text(const std::string& value)', 'const char* pathText(XpAppText value)',

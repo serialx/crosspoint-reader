@@ -55,6 +55,28 @@ int main(int argc, char** argv) {
                             [](void*) -> uint32_t { return 0; }, nullptr};
     check(!xp_book_load(&services, 1, 1), "H2 fresh-cache rejection fails open");
     check(state.loads == 2 && state.builds == 1, "H2 at most one rebuild per open");
+  } else if (mode.starts_with("row-") || mode.starts_with("query-")) {
+    BookMetadataCache cache(root);
+    check(cache.load(), "row fixture reaches lazy query");
+    HalFileTest::readLimit = [](const char*, size_t, size_t count) {
+      ++reads;
+      bytesRead += count;
+      return count;
+    };
+    HalFileTest::allowSeek = [](const char*, size_t) {
+      ++seeks;
+      return true;
+    };
+    size_t delivered = 0;
+    const auto result = xp_epub_test_cache_query(
+        cache.testHandle(), mode.ends_with("toc") ? 2 : 1, offset,
+        [](void* raw, uint32_t, const uint8_t*, size_t, int64_t) { ++*static_cast<size_t*>(raw); }, &delivered);
+    if (mode.starts_with("row-")) {
+      check(result == 0 && delivered == 0, "corrupted row cannot cross or stop short of its LUT boundary");
+    } else {
+      check(result == 1 && delivered != 0, "healthy bounded row query");
+      printf("QUERY_IO %s index=%zu reads=%zu seeks=%zu bytes=%zu\n", mode.c_str(), offset, reads, seeks, bytesRead);
+    }
   } else if (mode == "seek") {
     const auto path = root + "/source.epub";
     check(xp_epub_test_zip(&resources, &leaves, text(path), text("chapter.xhtml"), 1, receive, nullptr) == 1,

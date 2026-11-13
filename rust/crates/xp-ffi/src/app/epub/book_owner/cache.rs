@@ -133,7 +133,7 @@ impl<'a> Cursor<'a> {
         }
     }
 
-    fn row(&mut self, lut: u32, index: u32) -> bool {
+    fn row(&mut self, lut: u32, index: u32, count: u32) -> bool {
         let Some(position) = index
             .checked_mul(4)
             .and_then(|index| lut.checked_add(index))
@@ -141,11 +141,30 @@ impl<'a> Cursor<'a> {
             self.failed = true;
             return false;
         };
-        let seek = self.seek(position);
         let mut offset = 0;
-        let read = self.u32(&mut offset);
-        let record = self.seek(offset);
-        seek && read && record
+        let mut end = self.limit;
+        if !self.seek(position)
+            || !self.u32(&mut offset)
+            || (index + 1 < count && !self.u32(&mut end))
+            || offset >= end
+            || end > self.limit
+        {
+            self.failed = true;
+            return false;
+        }
+        self.limit = end;
+        self.seek(offset)
+    }
+
+    // Writer records are contiguous; only the final row may have trailing bytes.
+    fn finish_row(&self, final_row: bool) -> Result<(), Error> {
+        if self.failed {
+            Err(Error::Io)
+        } else if !final_row && self.position != self.limit {
+            Err(Error::Invalid)
+        } else {
+            Ok(())
+        }
     }
 
     // Check the final TOC record's extent without reading its string bodies.
@@ -296,8 +315,11 @@ impl BookCache {
         }
         let _guard = CacheGuard::acquire(self.file.leaves);
         let mut cursor = Cursor::new(&self.file);
-        cursor.row(self.lut_offset, index as u32);
-        cursor.spine()
+        let count = u32::from(self.spine_count) + u32::from(self.toc_count);
+        cursor.row(self.lut_offset, index as u32, count);
+        let row = cursor.spine()?;
+        cursor.finish_row(index as u32 + 1 == count)?;
+        Ok(row)
     }
 
     pub(super) fn toc(&self, index: i32) -> Result<Toc, Error> {
@@ -321,7 +343,9 @@ impl BookCache {
         }
         let _guard = CacheGuard::acquire(self.file.leaves);
         let mut cursor = Cursor::new(&self.file);
-        cursor.row(self.lut_offset, u32::from(self.spine_count) + index as u32);
+        let count = u32::from(self.spine_count) + u32::from(self.toc_count);
+        let index = u32::from(self.spine_count) + index as u32;
+        cursor.row(self.lut_offset, index, count);
         let mut row = Toc {
             title: Text::default(),
             href: Vec::new(),
@@ -336,11 +360,8 @@ impl BookCache {
         cursor.read(&mut level);
         row.level = level[0];
         cursor.i16(&mut row.spine_index);
-        if cursor.failed {
-            Err(Error::Io)
-        } else {
-            Ok(row)
-        }
+        cursor.finish_row(index + 1 == count)?;
+        Ok(row)
     }
 
     // The caller holds CacheGuard. No mutable window borrow crosses file callbacks.

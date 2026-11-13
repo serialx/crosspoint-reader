@@ -108,6 +108,22 @@ cases += [('boundary', cache_bytes(sizes, toc_count, empty=True), sizes[-1] if s
 cases += [('boundary', data + b'trailing', 12), ('policy', data, 0),
           ('cost', cache_bytes(list(range(1, 61)), 60), 0),
           ('cost', cache_bytes(list(range(1, 1001)), 1000), 0), ('writer', data, 0)]
+# Zero-filled string bodies make an in-file grow/shrink look like valid fields
+# unless the query is bounded by its next LUT target.
+for kind, row in [('toc', field(bytes(15)) + field(b'') + field(b'') + struct.pack('<Bh', 0, 0)),
+                  ('spine', field(bytes(15)) + struct.pack('<Ih', 0, 0))]:
+    body = (struct.pack('<BIHH', 10, 29, 3 if kind == 'spine' else 0, 3 if kind == 'toc' else 0)
+            + metadata + struct.pack('<III', 41, 41 + len(row), 41 + 2 * len(row)) + row * 3)
+    if kind == 'spine':
+        body += bytes(100)  # tolerated trailing bytes keep sequential open independent of row queries
+    for index in [0, 1]:
+        for length in [0, 15 + len(row)]:
+            damaged = bytearray(body)
+            struct.pack_into('<I', damaged, 41 + index * len(row), length)
+            cases.append(('row-' + kind, damaged, index))
+    for index in [0, 1, 2]:
+        cases.append(('query-' + kind, body, index))
+
 results = []
 for number, (mode, content, offset) in enumerate(cases):
     folder = args.build / f'{number:03d}-{mode}'

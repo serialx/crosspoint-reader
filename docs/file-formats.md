@@ -15,7 +15,9 @@ The reader rejects `book.bin` when its version or reads fail, a metadata string
 exceeds the file, the LUT is misplaced/truncated, or its ordered targets cannot
 fit their minimum record sizes. Open scans the LUT and spine records, bounds all
 TOC targets, and checks the last TOC record's lengths and final fields to catch a
-truncated tail. Other TOC lengths are checked on query. Rejection uses the existing
+truncated tail. Other TOC lengths are checked on query. Each non-final spine/TOC query is bounded
+by the next LUT target and must end exactly there; the final row is bounded by
+EOF. Rejection uses the existing
 one-rebuild path; rejection of the rebuilt file fails the open. Wrapped cumulative
 sizes and trailing bytes are accepted. The layout and write order are unchanged.
 

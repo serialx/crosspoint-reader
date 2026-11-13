@@ -82,8 +82,9 @@ appropriate freshness check and an affected-cache reset during testing.
 version, metadata lengths, LUT location/span and ordered targets must be valid.
 The loader scans the LUT and spine records forward, bounds every TOC target, and
 checks only the last TOC record's lengths and final fields at open to catch a
-truncated tail. Other TOC lengths are checked on query, along with read/seek
-results. A rejected cache takes the existing rebuild path; a failed reload after
+truncated tail. Other TOC lengths are checked on query. Each non-final spine/TOC
+query is bounded by the next LUT target and must end exactly there; the final
+row is bounded by EOF. All query read/seek results are checked. A rejected cache takes the existing rebuild path; a failed reload after
 that one rebuild fails the open. Cumulative sizes may wrap as the writer permits.
 Trailing bytes remain allowed. The format, version and write order are unchanged.
 

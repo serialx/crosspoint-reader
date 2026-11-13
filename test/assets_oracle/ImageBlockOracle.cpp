@@ -1,11 +1,10 @@
-#include <Epub/converters/ImageDecoderFactory.h>
 #include <GfxRenderer.h>
-#include <blocks/ImageBlock.h>
 
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
-ImageToFramebufferDecoder* ImageDecoderFactory::getDecoder(const std::string&) { return nullptr; }
+
+#include "ReaderImage.h"
 #ifdef XP_ASSET_ALLOC_CHECK
 extern "C" size_t asset_allocation_attempts();
 size_t assetAllocationAttempts() { return asset_allocation_attempts(); }
@@ -41,7 +40,7 @@ int main(int argc, char** argv) {
   renderer.mode = static_cast<GfxRenderer::RenderMode>(mode % 3);
   renderer.absolute = mode >= 3;
   if (variant == 8) renderer.fonts.scanning = true;
-  ImageBlock image(path, "", w, h);
+  ReaderImage image(path, "", w, h);
   std::putchar(image.hasValidCache());
   std::putchar(image.needsDecode());
   for (int i = 0; i < 3; ++i) {
@@ -54,8 +53,8 @@ int main(int argc, char** argv) {
 #endif
   }
   std::putchar(image.needsDecode());
-  ImageBlock::clearRenderFailures();
-  ImageBlock::releaseRenderCache();
+  ReaderImage::clearRenderFailures();
+  ReaderImage::releaseRenderCache();
   std::fwrite(renderer.buffer.data(), 1, renderer.buffer.size(), stdout);
   for (int n : renderer.rectangles) std::printf("%d,", n);
 }

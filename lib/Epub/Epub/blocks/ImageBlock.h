@@ -29,7 +29,6 @@ class ImageBlock final : public Block {
 
   bool hasValidCache() const;
   bool needsDecode() const;
-  void renderPlaceholder(GfxRenderer& renderer, int x, int y) const;
   static void clearRenderFailures();
 
   // Host oracle wrapper for the shared Rust image cache. The first draw retains
@@ -53,7 +52,6 @@ class ImageBlock final : public Block {
   BlockType getType() override { return IMAGE_BLOCK; }
   bool isEmpty() override { return false; }
 
-  void render(GfxRenderer& renderer, const int x, const int y);
 #ifdef XP_PAGE_CODEC_TEST
   bool serialize(HalFile& file);
 #endif

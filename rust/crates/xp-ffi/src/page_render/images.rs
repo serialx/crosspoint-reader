@@ -157,9 +157,11 @@ impl Physical<'_> {
 
 #[cfg_attr(feature = "app-test", allow(dead_code))]
 pub(crate) unsafe fn needs_decode(path: &[u8], width: i32, height: i32) -> bool {
-    if crate::assets::xp_assets_image_failed(path.as_ptr(), path.len()) {
-        return false;
-    }
+    !crate::assets::xp_assets_image_failed(path.as_ptr(), path.len())
+        && !cache_valid(path, width, height)
+}
+
+unsafe fn cache_valid(path: &[u8], width: i32, height: i32) -> bool {
     let mut file = core::pin::pin!(File {
         storage: FileStorage {
             words: [MaybeUninit::uninit(); if size_of::<usize>() == 4 { 3 } else { 8 }]
@@ -184,7 +186,7 @@ pub(crate) unsafe fn needs_decode(path: &[u8], width: i32, height: i32) -> bool 
     };
     physical.scalar(FileOp::Init, 0);
     physical.initialized = true;
-    !xp_core::assets::image::State::valid(path, width, height, &mut physical)
+    xp_core::assets::image::State::valid(path, width, height, &mut physical)
 }
 
 impl Drop for Physical<'_> {
@@ -510,4 +512,81 @@ unsafe extern "C" fn xp_page_image_test_paint(target: &Target, image: &Image) {
         image.height,
         false,
     );
+}
+
+fn probe_image(path: &[u8]) -> Image {
+    Image {
+        path: path.as_ptr(),
+        path_len: path.len(),
+        source: b"".as_ptr(),
+        source_len: 0,
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+    }
+}
+/// The path has a trailing NUL outside the slice; its storage stays borrowed.
+pub(crate) unsafe fn supported(path: &[u8]) -> bool {
+    if decode::format(path).is_some() {
+        return true;
+    }
+    xp_native_page_image_log(
+        ptr::null_mut(),
+        &probe_image(path),
+        c"".as_ptr().cast(),
+        16,
+        0,
+        0,
+    );
+    false
+}
+/// The path has a trailing NUL outside the slice; outputs change only on success.
+pub(crate) unsafe fn dimensions(path: &[u8], width: &mut u16, height: &mut u16) -> u8 {
+    if !supported(path) {
+        return 0;
+    }
+    let format = decode::format(path).unwrap();
+    let mut file = core::pin::pin!(File {
+        storage: FileStorage {
+            words: [MaybeUninit::uninit(); if size_of::<usize>() == 4 { 3 } else { 8 }]
+        },
+        pinned: PhantomPinned
+    });
+    let mut physical = Physical {
+        target: None,
+        image: probe_image(path),
+        file: file.as_mut(),
+        cache: c"".as_ptr().cast(),
+        initialized: false,
+    };
+    physical.scalar(FileOp::Init, 0);
+    physical.initialized = true;
+    if decode::probe(&mut physical, format, width, height) {
+        2
+    } else {
+        1
+    }
+}
+
+#[cfg(feature = "app-test")]
+#[no_mangle]
+unsafe extern "C" fn xp_page_image_test_dimensions(
+    path: *const u8,
+    length: usize,
+    width: &mut u16,
+    height: &mut u16,
+) -> u8 {
+    dimensions(slice::from_raw_parts(path, length), width, height)
+}
+
+#[cfg(feature = "app-test")]
+#[no_mangle]
+unsafe extern "C" fn xp_page_image_test_cache(image: &Image, needs: bool) -> bool {
+    let path = slice::from_raw_parts(image.path, image.path_len);
+    if needs {
+        needs_decode(path, image.width, image.height)
+    } else {
+        cache_valid(path, image.width, image.height)
+    }
 }

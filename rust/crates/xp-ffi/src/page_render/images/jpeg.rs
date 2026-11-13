@@ -220,3 +220,79 @@ pub(super) fn render(decode: &mut Decode<'_, '_>, config: ImageConfig) -> bool {
     unsafe { crate::book_parser::xp_book_jpeg(&services, 1) != 0 }
 }
 const XP_PAGE_JPEG_BAD_DIMENSIONS: u32 = 12;
+
+struct Probe<'a, 'b> {
+    decode: *mut Decode<'a, 'b>,
+    native: Native,
+    opened: bool,
+}
+impl Probe<'_, '_> {
+    unsafe extern "C" fn operation(raw: *mut c_void, op: u32, _: u32) -> u32 {
+        let this = &mut *raw.cast::<Self>();
+        match op {
+            0 => (*this.decode).physical.scalar(FileOp::FreeHeap, 0) as u32,
+            1 => xp_native_page_jpeg(&mut this.native, Operation::Allocate, 0),
+            2 => {
+                this.opened = true;
+                xp_native_page_jpeg(&mut this.native, Operation::Open, 0)
+            }
+            3 => {
+                xp_native_page_jpeg(&mut this.native, Operation::Facts, 0);
+                let status = crate::book_policy::xp_book_image_dimensions(
+                    this.native.width as i64,
+                    this.native.height as i64,
+                );
+                if status != 0 {
+                    xp_native_page_jpeg_log(
+                        &this.native,
+                        XP_PAGE_JPEG_BAD_DIMENSIONS,
+                        u32::from(status),
+                    );
+                }
+                u32::from(status == 0)
+            }
+            _ => 0,
+        }
+    }
+    unsafe extern "C" fn diagnostic(raw: *mut c_void, event: u32, argument: u32) {
+        xp_native_page_jpeg_log(&(*raw.cast::<Self>()).native, event, argument);
+    }
+}
+impl Drop for Probe<'_, '_> {
+    fn drop(&mut self) {
+        unsafe {
+            if self.opened {
+                xp_native_page_jpeg(&mut self.native, Operation::Close, 0);
+            }
+            xp_native_page_jpeg(&mut self.native, Operation::Free, 0);
+        }
+    }
+}
+pub(super) fn probe(decode: &mut Decode<'_, '_>, width: &mut u16, height: &mut u16) -> bool {
+    let mut context = Probe {
+        native: Native {
+            decoder: ptr::null_mut(),
+            path: decode.physical.image.path,
+            rows: ptr::null_mut(),
+            width: 0,
+            height: 0,
+            result: 0,
+            error: 0,
+            progressive: 0,
+        },
+        decode: ptr::from_mut(decode),
+        opened: false,
+    };
+    let services = crate::book_parser::Services {
+        ctx: ptr::from_mut(&mut context).cast(),
+        operation: Some(Probe::operation),
+        millis: None,
+        diagnostic: Some(Probe::diagnostic),
+    };
+    let found = unsafe { crate::book_parser::xp_book_jpeg(&services, 0) != 0 };
+    if found {
+        *width = context.native.width as u16;
+        *height = context.native.height as u16;
+    }
+    found
+}

@@ -152,6 +152,9 @@ add_test(NAME ReaderImageGoldens COMMAND ${Python3_EXECUTABLE}
 add_test(NAME ReaderImageFailures COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/reader_failures.py $<TARGET_FILE:image_reader_oracle>)
 
+add_test(NAME ReaderImageProbeFailures COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/reader_probe_failures.py $<TARGET_FILE:image_reader_oracle>)
+
 # Pattern initialization makes accidental reads of unset native dimensions observable.
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/JpegDiagnosticSource.cpp
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/jpeg_diagnostic_source.py

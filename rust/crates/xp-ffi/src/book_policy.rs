@@ -408,30 +408,6 @@ pub unsafe extern "C" fn xp_book_image_decoder(services: *const ExtensionService
         _ => 0,
     }
 }
-/// # Safety
-/// Rectangle callback borrows its context for the call and never retains pointers.
-#[no_mangle]
-pub unsafe extern "C" fn xp_book_image_placeholder(
-    x: i32,
-    y: i32,
-    width: i32,
-    height: i32,
-    ctx: *mut core::ffi::c_void,
-    rectangle: unsafe extern "C" fn(*mut core::ffi::c_void, i32, i32, i32, i32, u8),
-) {
-    rectangle(ctx, x, y, width, height, 1);
-    if width > 2 && height > 2 {
-        rectangle(
-            ctx,
-            x.wrapping_add(1),
-            y.wrapping_add(1),
-            width - 2,
-            height - 2,
-            0,
-        );
-    }
-}
-
 #[no_mangle]
 pub extern "C" fn xp_book_page_allocation(
     header: usize,

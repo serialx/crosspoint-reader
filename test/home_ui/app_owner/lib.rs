@@ -45,6 +45,12 @@ mod page_render {
     pub mod images {
         use core::ffi::c_void;
         type Stream = unsafe fn(*mut c_void, &[u8], xp_core::book::io::Sink, *mut c_void) -> bool;
+        pub(crate) unsafe fn supported(_: &[u8]) -> bool {
+            panic!("owner fixture must not probe images");
+        }
+        pub(crate) unsafe fn dimensions(_: &[u8], _: &mut u16, _: &mut u16) -> u8 {
+            panic!("owner fixture must not probe images");
+        }
         pub(crate) unsafe fn set_extractor(_: *mut c_void, _: Option<Stream>) {
             panic!("owner fixture must use its book observer");
         }
@@ -58,7 +64,10 @@ mod page_render {
             pub native: *mut c_void,
             pub inverted: u8,
         }
-        pub(crate) unsafe fn xp_native_render_target(_: *mut Target, _: *mut xp_ui::ffi::Paint) -> u8 {
+        pub(crate) unsafe fn xp_native_render_target(
+            _: *mut Target,
+            _: *mut xp_ui::ffi::Paint,
+        ) -> u8 {
             panic!("owner fixture must use its scene observer");
         }
         // Only the ownership contract is observed in this fixture.

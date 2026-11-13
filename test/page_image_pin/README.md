@@ -24,3 +24,7 @@ synchronous native-record fake. It keeps that record borrowed across two row
 callbacks, checks strict-provenance aliasing, and injects decode failure to verify
 that input close precedes cache abort and JPEGDEC release. The sequence itself is
 extracted verbatim from book_parser.rs; image and dimension policies are shared.
+
+Dimension probes exercise the same pinned file cells for PNG, GIF and JPEG.
+The probe test also checks uppercase extensions, unsupported paths and unchanged
+output dimensions after an open failure.

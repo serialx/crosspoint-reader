@@ -27,32 +27,10 @@ source = (root / 'lib/Epub/Epub/blocks/TextBlock.cpp').read_text()
 (out / 'TextBlock.cpp').write_text(source)
 
 source = (root / 'lib/Epub/Epub/blocks/ImageBlock.cpp').read_text()
-source = '#ifdef XP_STRIP_SPIKE\n#include "StripTrace.h"\n#endif\n' + source
-# Select the independent strip writer at the new Rust cache-owner boundary.
-anchor = '*output = imageWriteTarget(*static_cast<Context*>(raw)->renderer);'
-if source.count(anchor) != 1:
-    raise SystemExit('Image target observer anchor changed')
-source = source.replace(anchor, """
-#ifdef XP_STRIP_SPIKE
-  xp_assets_image_strip_spike(stripPhase == 2);
-#endif
-""" + anchor + "\n")
-source = source.replace('#include "StripTrace.h"', '#include "StripTrace.h"\nextern "C" void xp_assets_image_strip_spike(bool);')
-# Image allocations existed in C++ before this port; account for that owner separately.
-# The asset oracle enforces zero allocations on repeated successful cache passes.
-render = 'void ImageBlock::render(GfxRenderer& renderer, const int x, const int y) {'
-if source.count(render) != 1:
-    raise SystemExit('Image allocation observer anchor changed')
-source = source.replace(render, render + """
-  extern size_t pageGoldenImageAllocations;
-  struct AllocationScope {
-    size_t start = xp_test_allocation_attempts();
-    ~AllocationScope() { pageGoldenImageAllocations += xp_test_allocation_attempts() - start; }
-  } allocationScope;
-""")
+source = '#ifdef XP_STRIP_SPIKE\n#include "StripTrace.h"\nextern "C" void xp_assets_image_strip_spike(bool);\n#endif\n' + source
 source = '#include <cstddef>\nextern "C" size_t xp_test_allocation_attempts();\n' + source
 # The HalFile init/drop interval excludes image allocations from the text allocation
-# count, matching the ImageBlock::render scope above without a firmware test hook.
+# count without a firmware test hook.
 # Reader decoders nest a cache handle within the source handle's lifetime.
 source = '#include <cstddef>\nnamespace { size_t imageFileDepth = 0, imageAllocationStart = 0; }\n' + source
 init = re.compile(r'case XP_IMAGE_FILE_INIT:\s*new \(storage\) HalFile\(\);\s*return 0;')
@@ -61,6 +39,9 @@ if len(init.findall(source)) != 1 or len(drop.findall(source)) != 1:
     raise SystemExit('Direct image allocation window changed')
 source = init.sub('''case XP_IMAGE_FILE_INIT: {
       extern size_t pageGoldenImageAllocations;
+#ifdef XP_STRIP_SPIKE
+      xp_assets_image_strip_spike(stripPhase == 2);
+#endif
       new (storage) HalFile();
       if (imageFileDepth++ == 0) imageAllocationStart = xp_test_allocation_attempts();
       return 0;

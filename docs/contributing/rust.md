@@ -1224,7 +1224,9 @@ render failures permits retry on the next page render without releasing that
 window. Reader PNG and JPEG continue without caching when cache creation fails; GIF
 fails as before. The reader no longer allocates a GIF converter object at decode
 dispatch, so that allocation can no longer report an unsupported format. The
-remaining native build-time probe still uses its factory until that probe moves.
+build-time probe also selects formats and calls the shared dimension decoders in Rust.
+Its fallback still retries extraction three times with the same chunk sizes and delay.
+Native converters and their factory remain for non-reader callers.
 QR bitmap callers own the output storage and must supply a non-null
 pointer with the capacity returned by the plan call.
 

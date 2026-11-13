@@ -491,8 +491,6 @@ typedef struct XpBookExtensionServices {
   void (*suffix)(void* ctx, size_t offset);
 } XpBookExtensionServices;
 uint8_t xp_book_image_decoder(const XpBookExtensionServices* services);
-void xp_book_image_placeholder(int32_t x, int32_t y, int32_t width, int32_t height, void* ctx,
-                               void (*rectangle)(void*, int32_t, int32_t, int32_t, int32_t, uint8_t));
 
 typedef enum XpBookProbeOperation {
   XP_BOOK_PROBE_RESOLVE = 0,

@@ -28,6 +28,9 @@ enum Event {
     Open = 51,
     Seek = 52,
     Read = 53,
+    ProbeOpen = 54,
+    ProbeRead = 55,
+    ProbeValidation = 56,
 }
 #[repr(C)]
 pub(super) struct Log {
@@ -51,6 +54,32 @@ pub(super) struct Decode<'a, 'b> {
     pub(super) last_yield: u32,
     decode_start: u32,
     decoding: bool,
+}
+impl<'a, 'b> Decode<'a, 'b> {
+    fn new(physical: &'a mut Physical<'b>, cache: Pin<&'a mut File>, format: Format) -> Self {
+        let input = physical.file.as_mut().pointer();
+        let log = Log {
+            image: &physical.image,
+            cache: physical.cache,
+            input,
+            free_heap: 0,
+            elapsed: 0,
+            color: -1,
+            depth: 0,
+            format,
+            seek_failed: 0,
+        };
+        let mut context = Decode {
+            physical,
+            cache,
+            log,
+            last_yield: 0,
+            decode_start: 0,
+            decoding: false,
+        };
+        context.cache_op(FileOp::Init);
+        context
+    }
 }
 impl Decode<'_, '_> {
     pub(super) fn callbacks(raw: *mut Self) -> crate::image::Callbacks {
@@ -200,27 +229,8 @@ pub(super) fn render(physical: &mut Physical<'_>, format: Format) -> bool {
         },
         pinned: PhantomPinned,
     });
-    let input = physical.file.as_mut().pointer();
-    let log = Log {
-        image: &physical.image,
-        cache: physical.cache,
-        input,
-        free_heap: 0,
-        elapsed: 0,
-        color: -1,
-        depth: 0,
-        format,
-        seek_failed: 0,
-    };
-    let mut context = Decode {
-        physical,
-        cache: cache.as_mut(),
-        log,
-        last_yield: 0,
-        decode_start: 0,
-        decoding: false,
-    };
-    context.cache_op(FileOp::Init);
+    let mut context = Decode::new(physical, cache.as_mut(), format);
+    let input = context.log.input;
     context.emit(Event::Begin as u32, 0, 0, 0, 0);
     if format == Format::Jpeg {
         let config = context.config();
@@ -280,4 +290,74 @@ pub(super) fn render(physical: &mut Physical<'_>, format: Format) -> bool {
             crate::gif::xp_gif_frame(&input, &config, &output, cache)
         }
     }
+}
+
+pub(super) fn probe(
+    physical: &mut Physical<'_>,
+    format: Format,
+    width: &mut u16,
+    height: &mut u16,
+) -> bool {
+    let mut cache = core::pin::pin!(File {
+        storage: FileStorage {
+            words: [MaybeUninit::uninit(); if size_of::<usize>() == 4 { 3 } else { 8 }]
+        },
+        pinned: PhantomPinned,
+    });
+    let mut context = Decode::new(physical, cache.as_mut(), format);
+    if format == Format::Jpeg {
+        return super::jpeg::probe(&mut context, width, height);
+    }
+    let op = if format == Format::Png {
+        FileOp::OpenPng
+    } else {
+        FileOp::OpenGif
+    };
+    if unsafe {
+        xp_native_page_image_file(
+            context.log.input,
+            op,
+            context.physical.image.path,
+            ptr::null_mut(),
+            0,
+        )
+    } == 0
+    {
+        context.emit(Event::ProbeOpen as u32, 0, 0, 0, 0);
+        return false;
+    }
+    let raw = ptr::from_mut(&mut context).cast();
+    let (mut w, mut h) = (0u32, 0u32);
+    let found = if format == Format::Png {
+        let size = context.physical.scalar(FileOp::Size, 0);
+        size <= u32::MAX as usize
+            && unsafe {
+                crate::png::xp_png_dimensions(raw, Decode::read, size as u32, &mut w, &mut h)
+            }
+    } else {
+        let input = crate::gif::Input {
+            context: raw,
+            read: Decode::read,
+            poll: Decode::progress,
+            diagnostic: Some(Decode::diagnostic),
+        };
+        let mut info = xp_core::gif::Info::default();
+        let found = unsafe { crate::gif::xp_gif_inspect(&input, &mut info) };
+        let rewound = context.physical.scalar(FileOp::Seek, 0) != 0;
+        w = u32::from(info.width);
+        h = u32::from(info.height);
+        rewound && found
+    };
+    if !found {
+        context.emit(Event::ProbeRead as u32, 0, 0, 0, 0);
+        return false;
+    }
+    let status = crate::book_policy::xp_book_image_dimensions(w as i32 as i64, h as i32 as i64);
+    if status != 0 {
+        context.emit(Event::ProbeValidation as u32, w, h, u32::from(status), 0);
+        return false;
+    }
+    *width = w as u16;
+    *height = h as u16;
+    true
 }

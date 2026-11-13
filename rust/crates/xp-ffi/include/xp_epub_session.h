@@ -565,9 +565,12 @@ typedef struct XpEpubLeaves {
   XpEpubHyphenLanguage hyphen_language;
   uint32_t (*file_position)(void* file);
   void (*file_flush)(void* file);
+#ifdef XP_APP_TEST
+  // Historical probe hooks; shipping section builds call Rust directly.
   uint8_t (*image_supported)(XpAppText path);
   // 0: no decoder, 1: dimensions failed, 2: success. Path borrows terminated storage.
   uint8_t (*image_dimensions)(XpAppText path, uint16_t* width, uint16_t* height);
+#endif
   // Lend returns whether this scope owns restoration; nested scopes return zero.
   uint8_t (*framebuffer_lend)(void);
   void (*framebuffer_restore)(uint8_t owned);
@@ -700,8 +703,8 @@ XP_EPUB_ASSERT(offsetof(XpEpubPeer, addr) == 64, "XpEpubPeer.addr");
   ((index) - ((index) >= 60 ? 6 : 0) - ((index) >= 93 ? 1 : 0) - ((index) >= 9 ? 3 : 0) - ((index) >= 23 ? 2 : 0) - \
    ((index) >= 120 ? 1 : 0) - ((index) >= 26 ? 1 : 0) - ((index) >= 133 ? 1 : 0) - ((index) > 98 ? 1 : 0) -         \
    ((index) > 108 ? 1 : 0) - ((index) > 109 ? 1 : 0) - ((index) > 110 ? 1 : 0) - ((index) > 111 ? 1 : 0) -          \
-   ((index) > 120 ? 1 : 0))
-#define XP_EPUB_LEAF_COUNT 144
+   ((index) > 120 ? 1 : 0) - ((index) > 116 ? 2 : 0))
+#define XP_EPUB_LEAF_COUNT 142
 #endif
 #else
 #ifdef XP_APP_TEST
@@ -711,8 +714,8 @@ XP_EPUB_ASSERT(offsetof(XpEpubPeer, addr) == 64, "XpEpubPeer.addr");
 #define XP_EPUB_LEAF_INDEX(index)                                                                                   \
   ((index) - ((index) >= 60 ? 6 : 0) - ((index) >= 93 ? 1 : 0) - ((index) >= 9 ? 3 : 0) - ((index) >= 23 ? 2 : 0) - \
    ((index) >= 120 ? 1 : 0) - ((index) >= 133 ? 1 : 0) - ((index) > 98 ? 1 : 0) - ((index) > 109 ? 1 : 0) -         \
-   ((index) > 111 ? 1 : 0) - ((index) > 120 ? 1 : 0))
-#define XP_EPUB_LEAF_COUNT 147
+   ((index) > 111 ? 1 : 0) - ((index) > 120 ? 1 : 0) - ((index) > 116 ? 2 : 0))
+#define XP_EPUB_LEAF_COUNT 145
 #endif
 #endif
 XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == XP_EPUB_LEAF_COUNT * sizeof(void (*)(void)), "XpEpubLeaves size");
@@ -913,8 +916,10 @@ XP_EPUB_LEAF_OFFSET(font_codepoint, 111);
 XP_EPUB_LEAF_OFFSET(hyphen_language, 112);
 XP_EPUB_LEAF_OFFSET(file_position, 113);
 XP_EPUB_LEAF_OFFSET(file_flush, 114);
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(image_supported, 115);
 XP_EPUB_LEAF_OFFSET(image_dimensions, 116);
+#endif
 XP_EPUB_LEAF_OFFSET(framebuffer_lend, 117);
 XP_EPUB_LEAF_OFFSET(framebuffer_restore, 118);
 #ifdef XP_APP_TEST

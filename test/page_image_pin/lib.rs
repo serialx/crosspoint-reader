@@ -106,6 +106,9 @@ unsafe fn mock_file(
             count
         }
         15..=17 => {
+            if FAULT.with(Cell::get) == operation {
+                return 0;
+            }
             file.cast::<usize>().add(1).write(0);
             file.cast::<usize>().add(2).write(1);
             1
@@ -274,6 +277,50 @@ mod tests {
             assert!(close_input < abort_cache && abort_cache < free_decoder);
         });
         FAULT.with(|value| value.set(0));
+    }
+
+    #[test]
+    fn direct_dimensions_keep_files_pinned_and_failed_outputs_unchanged() {
+        let _guard = TEST_GUARD.lock().unwrap();
+        for (kind, path, size, open) in [
+            (1, c"probe.PNG", 1, 15),
+            (2, c"probe.GIF", 1, 16),
+            (0, c"probe.JPEG", 256, 0),
+        ] {
+            DECODE_KIND.with(|value| value.set(kind));
+            let (mut width, mut height) = (0x1234, 0x4321);
+            assert_eq!(
+                unsafe { images::dimensions(path.to_bytes(), &mut width, &mut height) },
+                2
+            );
+            assert_eq!((width, height), (size, size));
+            assert!(FILES.with(|files| files.borrow().is_empty()));
+            if open != 0 {
+                FAULT.with(|value| value.set(open));
+                width = 0x1234;
+                height = 0x4321;
+                assert_eq!(
+                    unsafe { images::dimensions(path.to_bytes(), &mut width, &mut height) },
+                    1
+                );
+                assert_eq!((width, height), (0x1234, 0x4321));
+                assert!(FILES.with(|files| files.borrow().is_empty()));
+                FAULT.with(|value| value.set(0));
+            }
+        }
+        DECODE_KIND.with(|value| value.set(0));
+        let (mut width, mut height) = (0x1234, 0x4321);
+        assert_eq!(
+            unsafe {
+                images::dimensions(
+                    c"directory.png/image.svg".to_bytes(),
+                    &mut width,
+                    &mut height,
+                )
+            },
+            0
+        );
+        assert_eq!((width, height), (0x1234, 0x4321));
     }
 
     #[test]

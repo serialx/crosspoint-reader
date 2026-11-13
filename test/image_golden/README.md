@@ -97,6 +97,11 @@ the shipping storage and log adapters. JPEG uses the production native JPEGDEC l
 its heap threshold, decoder/file-handle allocations and cache failures are compared
 with the retained native shell.
 
+`ReaderImageGoldens` also probes dimensions through the production reader binding.
+`ReaderImageProbeFailures` compares 73 PNG/GIF/JPEG probe fault cases against the
+retained native shells, including file operations, allocation failures and the
+JPEG heap threshold. Failed probes must preserve both caller output values.
+
 `JpegDiagnosticArguments` compiles the native JPEG shell with pattern initialization
 and observes its diagnostic arguments. Valid rendering and failed dimension probes
 (open, low heap and allocation) must pass zero dimensions except for the dimensions

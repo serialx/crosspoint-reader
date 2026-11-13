@@ -1,6 +1,5 @@
 #include <GfxRenderer.h>
 #include <HalStorage.h>
-#include <blocks/ImageBlock.h>
 
 #include <algorithm>
 #include <array>
@@ -9,6 +8,8 @@
 #include <filesystem>
 #include <string>
 #include <vector>
+
+#include "ReaderImage.h"
 
 extern "C" void asset_fail_platform_growth(size_t skip, size_t count);
 extern "C" size_t asset_failed_platform_growths();
@@ -44,8 +45,8 @@ size_t writeLimit(const char* path, size_t offset, size_t count) {
   return count;
 }
 void reset() {
-  ImageBlock::clearRenderFailures();
-  ImageBlock::releaseRenderCache();
+  ReaderImage::clearRenderFailures();
+  ReaderImage::releaseRenderCache();
   assert(asset_platform_live() == 0);
   fault = Fault::None;
   faultHits = 0;
@@ -79,9 +80,9 @@ void mixedPage(const std::string& root) {
   std::array<std::string, 3> stems{root + "/a", root + "/" + std::string(60, 'b'), root + "/" + std::string(130, 'c')};
   constexpr std::array<int, 3> widths{1, 401, 173}, heights{1, 17, 23}, ys{5, 20, 50};
   for (int i = 0; i < 3; ++i) cacheFile(stems[i] + ".px2", widths[i], heights[i]);
-  std::array<ImageBlock, 3> images{ImageBlock(stems[0] + ".jpg", "", widths[0], heights[0]),
-                                   ImageBlock(stems[1] + ".jpg", "", widths[1], heights[1]),
-                                   ImageBlock(stems[2] + ".jpg", "", widths[2], heights[2])};
+  std::array<ReaderImage, 3> images{ReaderImage(stems[0] + ".jpg", "", widths[0], heights[0]),
+                                    ReaderImage(stems[1] + ".jpg", "", widths[1], heights[1]),
+                                    ReaderImage(stems[2] + ".jpg", "", widths[2], heights[2])};
   ESP.maxAllocHeap = 0;  // Reject the RAM slot, retain enough heap for real decoder fallback.
   for (int orientation = 0; orientation < 4; ++orientation) {
     std::array<std::vector<uint8_t>, 6> expected;
@@ -133,7 +134,7 @@ void decoderFaults(const std::string& path) {
   const auto cache = std::filesystem::path(path).replace_extension(".px2");
   const auto backup = path + ".saved";
   std::filesystem::copy_file(path, backup, std::filesystem::copy_options::overwrite_existing);
-  ImageBlock image(path, "", 37, 29);
+  ReaderImage image(path, "", 37, 29);
   ESP.maxAllocHeap = 0;
   for (int orientation = 0; orientation < 4; ++orientation) {
     for (int mode = 0; mode < 6; ++mode) {
@@ -179,7 +180,7 @@ void decoderFaults(const std::string& path) {
       std::filesystem::copy_file(backup, path, std::filesystem::copy_options::overwrite_existing);
       std::filesystem::remove(cache);
       fault = Fault::None;
-      ImageBlock::clearRenderFailures();
+      ReaderImage::clearRenderFailures();
       plane(renderer, orientation, mode);
       image.render(renderer, 11, 17);
       assert(sourceOpens > opens && renderer.rectangles.empty() && renderer.buffer == expected);

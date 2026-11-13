@@ -298,10 +298,6 @@ bool JpegToFramebufferConverter::decodeToFramebuffer(const std::string& imagePat
   return xp_book_jpeg(&services, true);
 }
 
-bool JpegToFramebufferConverter::supportsFormat(const std::string& extension) {
-  return FsHelpers::hasJpgExtension(extension);
-}
-
 extern "C" uint32_t xp_native_page_jpeg(XpPageJpeg* state, XpPageJpegOp operation, uint32_t argument) {
   auto* jpeg = static_cast<JPEGDEC*>(state->decoder);
   switch (operation) {

@@ -307,8 +307,6 @@ impl ReaderSection {
                 allocator: unsafe { super::allocator::table(leaves) },
             },
             image: Physical {
-                supported: leaves.image_supported,
-                dimensions: leaves.image_dimensions,
                 flush: leaves.file_flush,
                 lend: leaves.framebuffer_lend,
                 restore: leaves.framebuffer_restore,

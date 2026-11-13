@@ -993,6 +993,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
 #endif
       .file_position = [](void* file) -> uint32_t { return static_cast<HalFile*>(file)->position(); },
       .file_flush = [](void* file) { static_cast<HalFile*>(file)->flush(); },
+#ifdef XP_APP_TEST
       .image_supported = [](XpAppText path) -> uint8_t {
         return ImageDecoderFactory::isFormatSupported(pathText(path));
       },
@@ -1005,6 +1006,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         *height = dimensions.height;
         return found ? 2 : 1;
       },
+#endif
       .framebuffer_lend = []() -> uint8_t {
         if (!target->hasFrameBuffer()) return 0;
         target->releaseFrameBufferForBuild();

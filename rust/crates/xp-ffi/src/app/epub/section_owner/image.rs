@@ -5,7 +5,6 @@ use super::super::{
     book_owner::{log, queries, FileSlot},
     Text,
 };
-use crate::app::abi;
 use alloc::vec::Vec;
 use core::{cell::Cell, ffi::c_void, ptr::NonNull};
 use xp_core::{
@@ -17,8 +16,6 @@ use xp_core::{
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub(super) struct Physical {
-    pub supported: unsafe extern "C" fn(abi::Text) -> u8,
-    pub dimensions: unsafe extern "C" fn(abi::Text, *mut u16, *mut u16) -> u8,
     pub flush: unsafe extern "C" fn(*mut c_void),
     pub lend: unsafe extern "C" fn() -> u8,
     pub restore: unsafe extern "C" fn(u8),
@@ -124,7 +121,7 @@ pub(super) unsafe fn probe(
         format_args!(""),
     );
     let resolved = resolve(base, source)?;
-    if unsafe { (physical.supported)(resolved.wire()) } == 0 {
+    if !unsafe { crate::page_render::images::supported(resolved.bytes()) } {
         return Ok((ImageProbe::Unsupported, None));
     }
     let extension = resolved
@@ -178,14 +175,20 @@ pub(super) unsafe fn probe(
             false
         };
         if extracted {
-            let decoder = unsafe { (physical.supported)(cached.wire()) != 0 };
+            let decoder = unsafe { crate::page_render::images::supported(cached.bytes()) };
             let (mut width, mut height) = (0, 0);
             for attempt in 0..3 {
                 if attempt > 0 {
                     unsafe { (physical.delay)(50) };
                 }
                 if decoder
-                    && unsafe { (physical.dimensions)(cached.wire(), &mut width, &mut height) == 2 }
+                    && unsafe {
+                        crate::page_render::images::dimensions(
+                            cached.bytes(),
+                            &mut width,
+                            &mut height,
+                        ) == 2
+                    }
                 {
                     size = Some((width, height));
                     break;

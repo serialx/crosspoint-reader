@@ -121,7 +121,3 @@ bool PngToFramebufferConverter::decodeToFramebuffer(const std::string& imagePath
   }
   return true;
 }
-
-bool PngToFramebufferConverter::supportsFormat(const std::string& extension) {
-  return FsHelpers::hasPngExtension(extension);
-}

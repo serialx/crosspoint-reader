@@ -8,6 +8,7 @@
 
 #ifdef READER_IMAGE_ORACLE
 #include <xp_page_paint.h>
+extern "C" uint8_t xp_page_image_test_dimensions(const uint8_t*, size_t, uint16_t*, uint16_t*);
 extern "C" uint8_t xp_page_image_test_decode(const XpPageTarget*, const XpPageImage*, const uint8_t*);
 #include <HalStorage.h>
 
@@ -77,8 +78,6 @@ int main(int argc, char** argv) {
   config.maxWidth = 137;
   config.maxHeight = 173;
   config.useDithering = variant % 2 == 0;
-  config.useGrayscale = variant % 3 == 0;
-  config.performanceMode = variant % 4 == 0;
   config.useExactDimensions = variant >= 2;
   config.preserveAlpha = variant >= 6;
   config.sourceCropX = variant >= 4 ? 0.31f : 0.f;
@@ -116,9 +115,35 @@ int main(int argc, char** argv) {
                                                                 : static_cast<ImageToFramebufferDecoder*>(&jpeg);
 #endif
   ImageDimensions dims{};
+#ifdef READER_IMAGE_ORACLE
+  const bool probeOnly = std::getenv("READER_IMAGE_PROBE_ONLY");
+  if (probeOnly) {
+    dims.width = 0x1234;
+    dims.height = 0x4321;
+    injectFault(path, cache);
+  }
+  uint16_t width = dims.width, height = dims.height;
+  const bool found = std::getenv("READER_IMAGE_LEGACY")
+                         ? decoder->getDimensions(path, dims)
+                         : xp_page_image_test_dimensions(reinterpret_cast<const uint8_t*>(path.c_str()), path.size(),
+                                                         &width, &height) == 2;
+  if (!std::getenv("READER_IMAGE_LEGACY")) {
+    dims.width = width;
+    dims.height = height;
+  }
+  u32(found);
+#else
   u32(decoder->getDimensions(path, dims));
+#endif
   u32(dims.width);
   u32(dims.height);
+#ifdef READER_IMAGE_ORACLE
+  if (probeOnly) {
+    if (xp_test_live_allocations()) return 4;
+    if (failNativeAllocation && nativeAllocationIndex <= faultIndex) return 5;
+    return 0;
+  }
+#endif
   std::ifstream input(path, std::ios::binary);
   std::vector<uint8_t> bytes{std::istreambuf_iterator<char>(input), {}};
   for (size_t chunk : {size_t(1), size_t(7), size_t(4096)}) {

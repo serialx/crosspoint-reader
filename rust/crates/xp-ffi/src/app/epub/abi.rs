@@ -619,7 +619,9 @@ pub struct XpEpubLeaves {
     pub hyphen_language: unsafe extern "C" fn(i32),
     pub file_position: unsafe extern "C" fn(*mut core::ffi::c_void) -> u32,
     pub file_flush: unsafe extern "C" fn(*mut core::ffi::c_void),
+    #[cfg(feature = "app-test")]
     pub image_supported: unsafe extern "C" fn(XpAppText) -> u8,
+    #[cfg(feature = "app-test")]
     pub image_dimensions: unsafe extern "C" fn(XpAppText, *mut u16, *mut u16) -> u8,
     pub framebuffer_lend: unsafe extern "C" fn() -> u8,
     pub framebuffer_restore: unsafe extern "C" fn(u8),
@@ -1031,7 +1033,9 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, hyphen_language) == leaf_index(116) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, file_position) == leaf_index(117) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, file_flush) == leaf_index(118) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, image_supported) == leaf_index(119) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, image_dimensions) == leaf_index(120) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, framebuffer_lend) == leaf_index(121) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, framebuffer_restore) == leaf_index(122) * pointer);
@@ -1081,6 +1085,7 @@ const fn leaf_index(index: usize) -> usize {
         index
             - if index >= 9 { 3 } else { 0 }
             - if index >= 23 { 2 } else { 0 }
+            - if index > 120 { 2 } else { 0 }
             - if index >= 124 { 1 } else { 0 }
             - if index >= 28 { 4 } else { 0 }
             - if index > 102 { 1 } else { 0 }

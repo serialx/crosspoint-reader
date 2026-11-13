@@ -62,7 +62,6 @@ enum class ImageIo : uint32_t {
   HasExtractor,
   SourceExists
 };
-enum class ImageResult : uint32_t { NoPixels, Preserve, Placeholder };
 struct Context {
   GfxRenderer* renderer;
   std::string_view path, source;
@@ -252,7 +251,28 @@ extern "C" void xp_native_page_image_codec_log(const XpPageImageCodecLog* state,
   const auto& image = *state->image;
   const auto* path = reinterpret_cast<const char*>(image.path);
   const auto* cache = reinterpret_cast<const char*>(state->cache);
-  if (event >= XP_IMAGE_DIAG_CacheBand && event <= XP_IMAGE_DIAG_JpegSummary) {
+  if (event == XP_IMAGE_CODEC_PROBE_OPEN || event == XP_IMAGE_CODEC_PROBE_READ) {
+    if (static_cast<Format>(state->format) == Format::Png) {
+      LOG_ERR("PNG", "Failed to open PNG for dimensions");
+    } else if (event == XP_IMAGE_CODEC_PROBE_OPEN) {
+      LOG_ERR("GIF", "Failed to open source for header inspection: %s", path);
+    } else {
+      LOG_ERR("GIF", "Failed to read GIF dimensions: %s", path);
+    }
+  } else if (event == XP_IMAGE_CODEC_PROBE_VALIDATION) {
+    const char* format = static_cast<Format>(state->format) == Format::Png ? "PNG" : "GIF";
+    const auto width = static_cast<long long>(static_cast<int32_t>(a));
+    const auto height = static_cast<long long>(static_cast<int32_t>(b));
+    if (c == 1) {
+      LOG_ERR("IMG", "Invalid %s dimensions: %lldx%lld", format, width, height);
+    } else if (c == 2) {
+      LOG_ERR("IMG", "%s dimensions exceed supported limit: %lldx%lld (max %lld per dimension)", format, width, height,
+              32767LL);
+    } else if (c == 3) {
+      LOG_ERR("IMG", "%s too large (%lldx%lld = %lld pixels), max supported: %lld pixels", format, width, height,
+              width * height, 8388608LL);
+    }
+  } else if (event >= XP_IMAGE_DIAG_CacheBand && event <= XP_IMAGE_DIAG_JpegSummary) {
     logImageDiagnostic(event, a, b, c, d, cache, path, state->color, state->depth);
   } else if (static_cast<Format>(state->format) == Format::Jpeg) {
     if (event == XP_IMAGE_CODEC_BEGIN) LOG_DBG("IMG", "Using %s decoder", "JPEG");
@@ -338,36 +358,6 @@ bool ImageBlock::needsDecode() const {
 }
 void ImageBlock::clearRenderFailures() { xp_assets_image_reset(false); }
 void ImageBlock::releaseRenderCache() { xp_assets_image_reset(true); }
-void ImageBlock::renderPlaceholder(GfxRenderer& renderer, const int x, const int y) const {
-  xp_book_image_placeholder(x, y, width, height, &renderer,
-                            [](void* raw, int32_t x, int32_t y, int32_t width, int32_t height, uint8_t black) {
-                              static_cast<GfxRenderer*>(raw)->fillRect(x, y, width, height, black);
-                            });
-}
-void ImageBlock::render(GfxRenderer& renderer, const int x, const int y) {
-  auto* fonts = renderer.getFontCacheManager();
-  const XpAssetImageConfig config{x,
-                                  y,
-                                  width,
-                                  height,
-                                  renderer.getScreenWidth(),
-                                  renderer.getScreenHeight(),
-                                  fonts && fonts->isScanning(),
-                                  renderer.glyphIntersectsStrip(x, y, x + width - 1, y + height - 1)};
-  Context context{&renderer, imagePath, srcPath, x, y, width, height, extractCtx, extractFn};
-  const XpAssetImageCallbacks services{&context, io, target, diagnostic};
-  switch (static_cast<ImageResult>(xp_assets_image_render(reinterpret_cast<const uint8_t*>(imagePath.data()),
-                                                          imagePath.size(), &config, &services))) {
-    case ImageResult::Preserve:
-      renderer.preserveImagePolarity(x, y, width, height);
-      break;
-    case ImageResult::Placeholder:
-      renderPlaceholder(renderer, x, y);
-      break;
-    case ImageResult::NoPixels:
-      break;
-  }
-}
 
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
 void ImageBlock::setRenderReadWindow(uint8_t* data, size_t size) { xp_assets_image_read_window(data, size); }

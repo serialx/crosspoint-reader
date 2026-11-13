@@ -26,7 +26,16 @@ target_link_libraries(assets_oracle PRIVATE xp_ffi_host)
 enable_testing()
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(NAME AssetsGoldens COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py $<TARGET_FILE:assets_oracle>)
-add_executable(image_block_oracle ImageBlockOracle.cpp ${REPO_ROOT}/lib/Epub/Epub/blocks/ImageBlock.cpp)
+set(READER_IMAGE_SOURCES
+  ${REPO_ROOT}/lib/Epub/Epub/blocks/ImageBlock.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/converters/ImageDecoderFactory.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/converters/PngToFramebufferConverter.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/converters/JpegToFramebufferConverter.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/converters/GifToFramebufferConverter.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/converters/ImageToFramebufferDecoder.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/converters/ImageDimsProbe.cpp
+  ${DECODER_SOURCE_DIR}/JPEGDEC/src/JPEGDEC.cpp)
+add_executable(image_block_oracle ImageBlockOracle.cpp ${READER_IMAGE_SOURCES})
 get_target_property(ASSET_INCLUDES assets_oracle INCLUDE_DIRECTORIES)
 target_include_directories(image_block_oracle PRIVATE ${ASSET_INCLUDES} ${REPO_ROOT}/lib/Epub ${REPO_ROOT}/lib/Epub/Epub)
 target_link_libraries(image_block_oracle PRIVATE xp_ffi_host)
@@ -39,8 +48,11 @@ target_include_directories(asset_allocations PRIVATE ${ASSET_INCLUDES} ${REPO_RO
 add_dependencies(asset_allocations xp_ffi_host_build)
 target_link_libraries(asset_allocations PRIVATE ${XP_FFI_HOST_ARCHIVE})
 add_test(NAME AssetAllocationFailures COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/allocations.py $<TARGET_FILE:asset_allocations>)
-add_executable(image_block_allocations ImageBlockOracle.cpp Allocation.cpp ${REPO_ROOT}/lib/Epub/Epub/blocks/ImageBlock.cpp)
-target_compile_definitions(image_block_allocations PRIVATE XP_ASSET_ALLOC_CHECK)
+add_executable(image_block_allocations ImageBlockOracle.cpp Allocation.cpp ${READER_IMAGE_SOURCES})
+target_compile_definitions(image_block_allocations PRIVATE XP_ASSET_ALLOC_CHECK XP_APP_TEST __LINUX__)
+target_compile_definitions(image_block_oracle PRIVATE __LINUX__)
+target_compile_options(image_block_oracle PRIVATE -UNDEBUG)
+target_compile_options(image_block_allocations PRIVATE -UNDEBUG)
 target_include_directories(image_block_allocations PRIVATE ${ASSET_INCLUDES} ${REPO_ROOT}/lib/Epub ${REPO_ROOT}/lib/Epub/Epub ${REPO_ROOT}/rust/crates/xp-ffi/include)
 add_dependencies(image_block_allocations xp_ffi_host_build)
 target_link_libraries(image_block_allocations PRIVATE ${XP_FFI_HOST_ARCHIVE})
@@ -76,7 +88,7 @@ add_executable(image_asset_failures ImageFailures.cpp Allocation.cpp
   ${REPO_ROOT}/lib/Epub/Epub/converters/ImageToFramebufferDecoder.cpp
   ${REPO_ROOT}/lib/Epub/Epub/converters/ImageDimsProbe.cpp
   ${DECODER_SOURCE_DIR}/JPEGDEC/src/JPEGDEC.cpp)
-target_compile_definitions(image_asset_failures PRIVATE __LINUX__)
+target_compile_definitions(image_asset_failures PRIVATE XP_APP_TEST __LINUX__)
 target_compile_options(image_asset_failures PRIVATE -UNDEBUG)
 target_include_directories(image_asset_failures PRIVATE ${ASSET_INCLUDES}
   ${REPO_ROOT}/lib/Epub ${REPO_ROOT}/lib/Epub/Epub ${REPO_ROOT}/lib/PngDiagnostics
@@ -93,3 +105,7 @@ target_compile_options(qr_bitmap PRIVATE -UNDEBUG)
 target_link_libraries(qr_bitmap PRIVATE xp_ffi_host)
 add_test(NAME QrModuleGoldens COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/qr/check.py $<TARGET_FILE:qr_bitmap>)
+
+get_target_property(READER_HOST_INCLUDES xp_ffi_host INTERFACE_INCLUDE_DIRECTORIES)
+target_include_directories(image_block_allocations PRIVATE ${READER_HOST_INCLUDES})
+target_include_directories(image_asset_failures PRIVATE ${READER_HOST_INCLUDES})

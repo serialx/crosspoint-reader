@@ -106,6 +106,7 @@ cases += [('boundary', cache_bytes(sizes, toc_count, empty=True), sizes[-1] if s
           for sizes, toc_count in [([], 0), ([], 1), ([0], 0), ([0xffffffff, 0, 32], 1),
                                    ([0] * 65535, 65535)]]
 cases += [('boundary', data + b'trailing', 12), ('policy', data, 0),
+          ('cost', cache_bytes(list(range(1, 61)), 60), 0),
           ('cost', cache_bytes(list(range(1, 1001)), 1000), 0), ('writer', data, 0)]
 results = []
 for number, (mode, content, offset) in enumerate(cases):

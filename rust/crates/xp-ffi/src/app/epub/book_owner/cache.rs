@@ -148,21 +148,12 @@ impl<'a> Cursor<'a> {
         seek && read && record
     }
 
-    // Validate strings without allocating storage for TOC rows during book open.
+    // Check the final TOC record's extent without reading its string bodies.
     fn skip_string(&mut self) -> bool {
         let mut length = 0;
-        if !self.u32(&mut length) || length > self.limit.saturating_sub(self.position) {
-            return false;
-        }
-        let mut buffer = [0; 128];
-        while length != 0 {
-            let count = length.min(buffer.len() as u32) as usize;
-            if !self.read(&mut buffer[..count]) {
-                return false;
-            }
-            length -= count as u32;
-        }
-        true
+        self.u32(&mut length)
+            && length <= self.limit.saturating_sub(self.position)
+            && self.seek(self.position + length)
     }
 }
 
@@ -230,8 +221,10 @@ impl BookCache {
         if cursor.failed || self.lut_offset != cursor.position || records > cursor.limit {
             return Err(Error::Invalid);
         }
-        // Read the LUT and records forward once, without alternating SD sectors.
+        // Bound the LUT in one pass, then load spine records in order.
         let mut minimum = records;
+        let mut first_toc = 0;
+        let mut last_record = records;
         for index in 0..count {
             let mut offset = 0;
             let row_minimum = if index < u32::from(self.spine_count) {
@@ -242,24 +235,32 @@ impl BookCache {
             if !cursor.u32(&mut offset) || offset < minimum || (index == 0 && offset != records) {
                 return Err(Error::Invalid);
             }
+            if index == u32::from(self.spine_count) {
+                first_toc = offset;
+            }
+            last_record = offset;
             minimum = offset.checked_add(row_minimum).ok_or(Error::Invalid)?;
             if minimum > cursor.limit {
                 return Err(Error::Invalid);
             }
         }
-        for index in 0..count {
-            if index < u32::from(self.spine_count) {
-                if index % METADATA_WINDOW == 0 {
-                    self.starts.push(self.total_size);
-                }
-                self.total_size = cursor.spine()?.cumulative;
-            } else if !cursor.skip_string()
-                || !cursor.skip_string()
-                || !cursor.skip_string()
-                || !cursor.read(&mut [0; 3])
-            {
-                return Err(Error::Invalid);
+        for index in 0..u32::from(self.spine_count) {
+            if index % METADATA_WINDOW == 0 {
+                self.starts.push(self.total_size);
             }
+            self.total_size = cursor.spine()?.cumulative;
+        }
+        // Earlier TOC extents are bounded by later LUT targets. Inspect the last
+        // record so a truncated tail is rejected now; other lengths are checked on query.
+        if self.toc_count != 0
+            && (first_toc != cursor.position
+                || !cursor.seek(last_record)
+                || !cursor.skip_string()
+                || !cursor.skip_string()
+                || !cursor.skip_string()
+                || !cursor.read(&mut [0; 3]))
+        {
+            return Err(Error::Invalid);
         }
         self.loaded = true;
         log::message(

@@ -78,13 +78,14 @@ Format/version mismatches also invalidate saved data.
 Path changes select another cache; same-path content replacement needs the
 appropriate freshness check and an affected-cache reset during testing.
 
-`book.bin` is checked before the reader publishes its metadata. The version,
-metadata lengths, LUT location and span, ordered in-range LUT targets, and all
-record lengths and reads must be valid. Validation reads forward once; individual
-row queries also check their seeks and reads. A rejected cache takes the existing
-rebuild path; a failed reload after that one rebuild fails the open. Cumulative
-sizes may wrap as the writer permits. Trailing bytes remain allowed. The format,
-version and write order are unchanged.
+`book.bin` is checked before its metadata becomes available to the reader. The
+version, metadata lengths, LUT location/span and ordered targets must be valid.
+The loader scans the LUT and spine records forward, bounds every TOC target, and
+checks only the last TOC record's lengths and final fields at open to catch a
+truncated tail. Other TOC lengths are checked on query, along with read/seek
+results. A rejected cache takes the existing rebuild path; a failed reload after
+that one rebuild fails the open. Cumulative sizes may wrap as the writer permits.
+Trailing bytes remain allowed. The format, version and write order are unchanged.
 
 Back up progress/state first. Prefer clearing only the affected book's
 `sections/` when checking layout regeneration. Removing all of `.crosspoint/`

@@ -13,7 +13,7 @@ static uint8_t receive(void*, const uint8_t* bytes, size_t count) {
   output.insert(output.end(), bytes, bytes + count);
   return 1;
 }
-static size_t faultOffset, faultHits, reads, seeks, bytesRead;
+static size_t faultOffset, faultHits, reads, seeks, bytesRead, nextReadOffset;
 static int failures;
 static void check(bool safe, const char* name) {
   printf("%s: %s\n", name, safe ? "PASS" : "FAIL");
@@ -118,7 +118,9 @@ int main(int argc, char** argv) {
       };
     }
     if (mode == "cost") {
-      HalFileTest::readLimit = [](const char*, size_t, size_t count) {
+      HalFileTest::readLimit = [](const char*, size_t at, size_t count) {
+        assert(at >= nextReadOffset);
+        nextReadOffset = at + count;
         ++reads;
         bytesRead += count;
         return count;
@@ -129,7 +131,10 @@ int main(int argc, char** argv) {
       };
     }
     const bool accepted = cache.load();
-    if (mode == "cost") printf("OPEN_IO reads=%zu seeks=%zu bytes=%zu\n", reads, seeks, bytesRead);
+    if (mode == "cost") {
+      assert(seeks <= 4);
+      printf("OPEN_IO reads=%zu seeks=%zu bytes=%zu\n", reads, seeks, bytesRead);
+    }
     check(accepted == (mode == "valid" || mode == "boundary" || mode == "cost" || mode == "cache-seek"),
           "H2 load rejects damaged or unread cache");
     check(cache.isLoaded() == accepted, "H2 loaded flag matches result");

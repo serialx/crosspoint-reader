@@ -11,15 +11,18 @@ All POD fields are written in the ESP32 little-endian representation used by
 `book.bin` stores EPUB metadata plus lookup tables for spine and TOC entries.
 The current firmware writes this version from `BookMetadataCache`.
 
-The reader rejects `book.bin` when its version or reads fail, a string exceeds
-remaining file bytes, the LUT does not begin immediately after metadata, its span
-exceeds the file, or its ordered targets cannot fit their minimum record sizes.
-It scans every record forward to check string bodies and fixed fields, including
-the final TOC tail. Queries separately check row seeks and reads. Rejection uses
-the existing one-rebuild path; rejection of the rebuilt file fails the open.
-Wrapped cumulative sizes and trailing bytes are accepted. The ImHex LUT-offset
-warning below therefore indicates a firmware rejection, while its trailing-data
-warning does not. The layout and write order are unchanged.
+The reader rejects `book.bin` when its version or reads fail, a metadata string
+exceeds the file, the LUT is misplaced/truncated, or its ordered targets cannot
+fit their minimum record sizes. Open scans the LUT and spine records, bounds all
+TOC targets, and checks the last TOC record's lengths and final fields to catch a
+truncated tail. Other TOC lengths are checked on query. Rejection uses the existing
+one-rebuild path; rejection of the rebuilt file fails the open. Wrapped cumulative
+sizes and trailing bytes are accepted. The layout and write order are unchanged.
+
+The ImHex LUT-offset warning indicates a firmware rejection. Its trailing-data
+warning does not. `MAX_STRING_LENGTH` is a pattern warning threshold only: the
+firmware has no matching 65,535-byte cap; strings must fit the file and available
+allocation capacity when materialized.
 
 ImHex pattern:
 

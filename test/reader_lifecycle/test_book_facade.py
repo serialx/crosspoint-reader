@@ -1,4 +1,4 @@
-"""Load the actual Rust book and call it through the shipping native facade."""
+"""Compare the actual Rust book through an explicitly registered native reference."""
 from pathlib import Path
 import hashlib
 import json

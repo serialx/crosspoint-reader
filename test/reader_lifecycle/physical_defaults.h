@@ -27,9 +27,7 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.render_discard_bw = &AppFixtureUnexpected<decltype(value.render_discard_bw), 8>::call;
   value.render_orientation = &AppFixtureUnexpected<decltype(value.render_orientation), 9>::call;
   value.loan_count = &AppFixtureUnexpected<decltype(value.loan_count), 13>::call;
-  value.book_facade_open = &AppFixtureUnexpected<decltype(value.book_facade_open), 15>::call;
-  value.book_facade_close = &AppFixtureUnexpected<decltype(value.book_facade_close), 16>::call;
-  value.book_set_extractor = &AppFixtureUnexpected<decltype(value.book_set_extractor), 17>::call;
+
   value.protection_open = &AppFixtureUnexpected<decltype(value.protection_open), 18>::call;
   value.protection_close = &AppFixtureUnexpected<decltype(value.protection_close), 19>::call;
   value.protection_encrypted = &AppFixtureUnexpected<decltype(value.protection_encrypted), 20>::call;

@@ -504,12 +504,7 @@ static const LegacyEpubLeaves leaves = [] {
 #endif
     std::printf("%s %.*s\n", severity == 0 ? "debug" : "error", int(text.len), reinterpret_cast<const char*>(text.data));
   };
-  UNUSED_LEAF(physical.book_facade_open);
-  UNUSED_LEAF(physical.book_facade_close);
-  table.physical.book_set_extractor = [](void* handle) {
-    if (handle) leaves.book.book_install_extractor(handle);
-    else leaves.book.book_clear_extractor();
-  };
+
   return table;
 }();
 #undef UNUSED_LEAF

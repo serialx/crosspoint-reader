@@ -105,10 +105,7 @@ static EpubReaderActivity& menuOwner(void* raw) {
 
 static void configureMenuLeaves() {
   menuLeaves = overlayLegacyLeaves();
-  menuLeaves.physical.book_set_extractor = [](void* handle) {
-    if (handle) menuLeaves.book.book_install_extractor(handle);
-    else menuLeaves.book.book_clear_extractor();
-  };
+
   menuRuntime = overlayUnexpectedRuntime();
   menuResources = overlayUnexpectedResources();
   menuRuntime.model_lock = [] { assert(!menuModelDepth); ++menuModelDepth; };

@@ -96,10 +96,7 @@ struct ChildSessionBridge {
 
 static void configureChildLeaves() {
   childLeaves = overlayLegacyLeaves();
-  childLeaves.physical.book_set_extractor = [](void* handle) {
-    if (handle) childLeaves.book.book_install_extractor(handle);
-    else childLeaves.book.book_clear_extractor();
-  };
+
   childRuntime = overlayUnexpectedRuntime();
   childResources = overlayUnexpectedResources();
   childRuntime.model_lock = [] { assert(!modelDepth); ++modelDepth; };

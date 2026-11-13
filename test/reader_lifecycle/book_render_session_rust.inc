@@ -574,12 +574,7 @@ static const LegacyEpubLeaves leaves = [] {
     if (text.find("Rendered page in") == 0) assert(!livePage && contentsCalled);
     std::printf("%s %s\n", tag.c_str(), text.c_str());
   };
-  UNUSED_LEAF(physical.book_facade_open);
-  UNUSED_LEAF(physical.book_facade_close);
-  table.physical.book_set_extractor = [](void* handle) {
-    if (handle) leaves.book.book_install_extractor(handle);
-    else leaves.book.book_clear_extractor();
-  };
+
   return table;
 }();
 #undef UNUSED_LEAF

@@ -180,8 +180,8 @@ pub unsafe extern "C" fn xp_epub_test_facade(
     };
     assert!(path.is_empty());
     let raw = ReaderBook::into_raw(book);
-    let result = if unsafe { ReaderBook::open_facade(raw) } {
-        unsafe { invoke(queries::facade(raw.as_ptr())) }
+    let result = if let Some(reference) = unsafe { super::NativeReference::open(raw) } {
+        unsafe { invoke(reference.as_ptr()) }
     } else {
         0
     };

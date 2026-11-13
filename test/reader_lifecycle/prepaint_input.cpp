@@ -159,12 +159,7 @@ static const LegacyEpubLeaves leaves = [] {
     assert(value == active->endOfBookOptions.get());
     active->endOfBookOptions.reset();
   };
-  table.physical.book_set_extractor = [](void* handle) {
-    if (handle)
-      leaves.book.book_install_extractor(handle);
-    else
-      leaves.book.book_clear_extractor();
-  };
+
   return table;
 }();
 void ReaderFixture::initialize() {

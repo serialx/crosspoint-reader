@@ -156,10 +156,7 @@ static XpAppPlatform platform;
 void bind() {
   leaves = unexpectedEpubLeaves();
   legacyBook = unexpectedLegacyBookServices();
-  leaves.book_set_extractor = [](void* book) {
-    if (book) legacyBook.book_install_extractor(book);
-    else legacyBook.book_clear_extractor();
-  };
+
   legacy = unexpectedAppLegacy();
   resources = unexpectedAppResources();
   runtime = unexpectedAppRuntime();

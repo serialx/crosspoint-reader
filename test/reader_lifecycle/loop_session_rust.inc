@@ -84,10 +84,7 @@ static MappedInputManager::Button button(uint32_t mask) {
 }
 static void configure() {
   leaves = overlayLegacyLeaves();
-  leaves.physical.book_set_extractor = [](void* handle) {
-    if (handle) leaves.book.book_install_extractor(handle);
-    else leaves.book.book_clear_extractor();
-  }; runtime = overlayUnexpectedRuntime(); resources = overlayUnexpectedResources();
+ runtime = overlayUnexpectedRuntime(); resources = overlayUnexpectedResources();
   runtime.model_lock = [] { assert(active && !modelDepth); ++modelDepth; };
   runtime.model_unlock = [] { assert(active && modelDepth == 1); --modelDepth; };
   runtime.render_lock = []() -> void* { unlocked(); return new RenderLock; };

@@ -60,8 +60,8 @@ owns its incremental Chapter build. Chapters, Bookmarks and Toolbar read TOC
 rows directly from the Rust book under resource access. Bookmark and progress
 mapping also use that owner. The Rust-owned image extractor borrows the stable
 ReaderBook allocation. Exit detaches the extractor, drops Section and destroys
-the ReaderBook. Native facade registration and its close assertion remain only
-in host fixtures; shipping code has no facade loan. Native Home, Library, Sleep
+the ReaderBook. Normal host sessions use the same ownership path. Only explicit
+native comparison fixtures register a facade and check its close lifetime. Native Home, Library, Sleep
 and sync objects retain their ordinary Epub ownership. See
 [Reader book ownership](contributing/rust.md#reader-book-ownership).
 

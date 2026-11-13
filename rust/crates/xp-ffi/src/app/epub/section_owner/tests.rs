@@ -94,7 +94,7 @@ pub unsafe extern "C" fn xp_epub_test_section_storage(
     cache: abi::Text,
     native: unsafe extern "C" fn(*mut core::ffi::c_void, u8, *mut [u32; 20], *mut [u32; 4]),
 ) -> u8 {
-    use super::super::book_owner::{queries, ReaderBook};
+    use super::super::book_owner::{NativeReference, ReaderBook};
     use super::{file::CacheFile, owner::ReaderSection};
     use crate::section_cache::{self, Query, Reader, Writer};
     use xp_core::section::{Kind, VERSION};
@@ -161,8 +161,8 @@ pub unsafe extern "C" fn xp_epub_test_section_storage(
         return 0;
     };
     let book = ReaderBook::into_raw(book);
-    assert!(unsafe { ReaderBook::open_facade(book) });
-    let facade = unsafe { queries::facade(book.as_ptr()) };
+    let reference = unsafe { NativeReference::open(book) }.unwrap();
+    let facade = reference.as_ptr();
     let section = unsafe { ReaderSection::open(book, 0, resources, leaves) }.unwrap();
     assert!(unsafe { ReaderSection::create(section, spec, None, runtime) });
     assert!(unsafe { ReaderSection::complete(section) });
@@ -191,6 +191,7 @@ pub unsafe extern "C" fn xp_epub_test_section_storage(
     assert!(unsafe { ReaderSection::query(section, Query::PageCount) }.is_none());
     unsafe {
         ReaderSection::close(section);
+        drop(reference);
         ReaderBook::close(book);
     }
     1

@@ -408,9 +408,6 @@ static const LegacyEpubLeaves leaves = [] {
     unlocked(); assert(!resolve && out); *out = {}; out->long_menu = SETTINGS.longPressMenuFunction;
   };
   table.physical.has_sync_credentials = []() -> uint8_t { unlocked(); return KOREADER_STORE.hasCredentials(); };
-  UNUSED_LEAF(physical.book_facade_open);
-  UNUSED_LEAF(physical.book_facade_close);
-  UNUSED_LEAF(physical.book_set_extractor);
   return table;
 }();
 #undef UNUSED_LEAF

@@ -389,9 +389,6 @@ static const XpEpubLeaves leaves = [] {
       activeFixture->overlayPopup.show(titleId, ids.data(), ids.size(), selected, std::move(callback));
     }
   };
-    UNUSED_LEAF(book_facade_open);
-    UNUSED_LEAF(book_facade_close);
-    UNUSED_LEAF(book_set_extractor);
   return table;
 }();
 #undef UNUSED_LEAF

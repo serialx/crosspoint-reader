@@ -23,9 +23,6 @@ unused_leaves! {
     render_discard_bw() ;
     render_orientation(_a0: u8) ;
     loan_count() -> u32;
-    book_facade_open(_a0: *mut core::ffi::c_void, _a1: *const XpEpubBookView, _a2: *const XpEpubBookBorrow) -> *mut core::ffi::c_void;
-    book_facade_close(_a0: *mut core::ffi::c_void) ;
-    book_set_extractor(_a0: *mut core::ffi::c_void) ;
     protection_open(_a0: XpAppText, _a1: XpAppTextSink, _a2: *mut core::ffi::c_void) -> *mut core::ffi::c_void;
     protection_close(_a0: *mut core::ffi::c_void) ;
     protection_encrypted(_a0: *mut core::ffi::c_void, _a1: XpAppText) -> u8;

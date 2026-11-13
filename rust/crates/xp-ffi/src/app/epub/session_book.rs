@@ -289,14 +289,20 @@ pub(super) unsafe fn take_path(raw: NonNull<c_void>) -> Text {
     }
 }
 
-pub(super) unsafe fn open_facade(
+pub(super) unsafe fn bind_images(
     raw: NonNull<c_void>,
     _leaves: &'static abi::XpEpubLeaves,
 ) -> bool {
     #[cfg(feature = "app-test")]
     {
         match unsafe { &*raw.cast::<Loaded>().as_ptr() } {
-            Loaded::Reader(book) => unsafe { ReaderBook::open_facade(*book) },
+            Loaded::Reader(book) => {
+                unsafe {
+                    queries::bind_images(book.as_ptr());
+                    crate::assets::xp_assets_image_reset(false);
+                }
+                true
+            }
             Loaded::Legacy {
                 handle, services, ..
             } => {
@@ -317,9 +323,9 @@ pub(super) unsafe fn open_facade(
 }
 
 #[cfg(feature = "app-test")]
-pub(super) unsafe fn facade(raw: *mut c_void) -> *mut c_void {
+pub(super) unsafe fn fixture_child_book(raw: *mut c_void) -> *mut c_void {
     match unsafe { &*raw.cast::<Loaded>() } {
-        Loaded::Reader(book) => unsafe { queries::facade(book.as_ptr()) },
+        Loaded::Reader(book) => book.as_ptr(),
         Loaded::Legacy { handle, .. } => handle.as_ptr(),
     }
 }
@@ -447,7 +453,8 @@ pub(super) unsafe fn assert_real(raw: NonNull<c_void>) {
     ));
 }
 
-#[cfg(not(feature = "app-test"))]
 pub(super) unsafe fn set_extractor(book: Option<NonNull<c_void>>) {
-    queries::bind_images(book.map_or(core::ptr::null_mut(), NonNull::as_ptr));
+    let raw = book.and_then(|book| reader_pointer(book));
+    assert!(book.is_none() || raw.is_some());
+    queries::bind_images(raw.map_or(core::ptr::null_mut(), NonNull::as_ptr));
 }

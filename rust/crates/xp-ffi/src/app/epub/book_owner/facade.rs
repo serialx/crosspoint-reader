@@ -1,57 +1,13 @@
 extern crate alloc;
 
-#[cfg(feature = "app-test")]
-use super::queries;
 use super::{ReaderBook, Text};
-#[cfg(feature = "app-test")]
-use crate::app::epub::abi;
 use alloc::boxed::Box;
 use core::{ffi::c_void, ptr::NonNull};
-
-#[cfg(feature = "app-test")]
-static BORROW: abi::XpEpubBookBorrow = abi::XpEpubBookBorrow {
-    spine: queries::spine,
-    toc: queries::toc,
-    cumulative: test_cumulative,
-    spine_for_size: queries::spine_for_size,
-    stream: queries::stream,
-    item_size: queries::item_size,
-};
-
-#[cfg(feature = "app-test")]
-unsafe extern "C" fn test_cumulative(raw: *mut c_void, index: i32) -> u32 {
-    unsafe { queries::cumulative_size(raw, index) }.expect("test facade size query failed")
-}
 
 impl ReaderBook {
     pub(in crate::app::epub) fn into_raw(book: Box<Self>) -> NonNull<c_void> {
         // Do not reborrow a Box after publishing its allocation to native code.
         NonNull::new(Box::into_raw(book).cast()).unwrap()
-    }
-
-    #[cfg(feature = "app-test")]
-    pub(in crate::app::epub) unsafe fn open_facade(raw: NonNull<c_void>) -> bool {
-        let book = raw.cast::<Self>().as_ptr();
-        let (view, leaves) = unsafe {
-            assert!((*book).facade.is_none());
-            assert!(
-                (*book).css.is_none(),
-                "load releases CSS before Section borrows the book"
-            );
-            (
-                abi::XpEpubBookView {
-                    cache_path: (*book).cache_path.wire(),
-                    language: super::app_abi::Text::from_bytes(&(*book).metadata.language),
-                    spine_count: i32::from((*book).cache.spine_count),
-                    toc_count: i32::from((*book).cache.toc_count),
-                },
-                (*book).cache.file.leaves,
-            )
-        };
-        let facade =
-            NonNull::new(unsafe { (leaves.book_facade_open)(raw.as_ptr(), &view, &BORROW) });
-        unsafe { (*book).facade = facade };
-        facade.is_some()
     }
 
     pub(in crate::app::epub) unsafe fn take_path(raw: NonNull<c_void>) -> Text {
@@ -61,12 +17,9 @@ impl ReaderBook {
     pub(in crate::app::epub) unsafe fn close(raw: NonNull<c_void>) {
         let book = raw.cast::<Self>().as_ptr();
         #[cfg(feature = "app-test")]
-        let (facade, leaves) = unsafe { ((*book).facade.take(), (*book).cache.file.leaves) };
-        #[cfg(feature = "app-test")]
-        if let Some(facade) = facade {
-            // The handle is retired before native close; it cannot be rebound.
-            unsafe { (leaves.book_facade_close)(facade.as_ptr()) };
-        }
+        unsafe {
+            super::observer::observe(raw.as_ptr(), 1)
+        };
         unsafe { drop(Box::from_raw(book)) };
     }
 }

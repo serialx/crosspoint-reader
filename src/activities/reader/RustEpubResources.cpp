@@ -385,24 +385,6 @@ const std::string& borrowed(XpAppNativeText value) {
   pluginevents::emit(pluginevents::Event::ReaderExit, vars, std::size(vars));
 }
 
-#ifdef XP_APP_TEST
-struct BookHandle {
-  std::shared_ptr<Epub> book;
-
-  bool closing = false;
-  Epub& value() const {
-    assert(!closing);
-    return *book;
-  }
-  void bindExtractor() {
-    assert(!closing);
-    ImageBlock::setExtractor(book.get(), [](void* raw, const char* source, const char* destination) {
-      return static_cast<Epub*>(raw)->extractItemToFile(source, destination);
-    });
-  }
-};
-BookHandle& book(void* handle) { return *static_cast<BookHandle*>(handle); }
-#endif
 MappedInputManager::Button inputButton(uint32_t index) {
   using Button = MappedInputManager::Button;
   constexpr Button buttons[] = {Button::Back, Button::Confirm, Button::Left, Button::Right,
@@ -470,32 +452,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .render_discard_bw = [] { target->discardStoredBwBuffer(); },
       .render_orientation = [](uint8_t orientation) { ReaderUtils::applyOrientation(*target, orientation); },
       .loan_count = [] { return target->frameBufferLoanCount(); },
-#ifdef XP_APP_TEST
-      .book_facade_open = [](void* owner, const XpEpubBookView* view, const XpEpubBookBorrow* borrow) -> void* {
-        auto handle = makeUniqueNoThrow<BookHandle>();
-        if (!handle) return nullptr;
-        auto facade = makeUniqueNoThrow<Epub>(owner, *view, *borrow);
-        if (!facade) return nullptr;
-        handle->book = std::move(facade);
-        ImageBlock::clearRenderFailures();
-        handle->bindExtractor();
-        return handle.release();
-      },
-      .book_facade_close =
-          [](void* handle) {
-            auto& facade = book(handle);
-            assert(!facade.closing && facade.book.use_count() == 1);
-            facade.closing = true;
-            delete &facade;
-          },
-      .book_set_extractor =
-          [](void* handle) {
-            if (handle)
-              book(handle).bindExtractor();
-            else
-              ImageBlock::setExtractor(nullptr, nullptr);
-          },
-#endif
 // app-test keeps the legacy open/stream facade; shipping uses split reader primitives.
 #ifdef XP_APP_TEST
       .protection_open = [](XpAppText path, XpAppTextSink error, void* context) -> void* {

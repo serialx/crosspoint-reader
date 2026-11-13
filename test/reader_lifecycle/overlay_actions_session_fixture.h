@@ -278,9 +278,7 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.file_flush = &OverlayUnexpected<decltype(table.file_flush)>::call;
   table.framebuffer_lend = &OverlayUnexpected<decltype(table.framebuffer_lend)>::call;
   table.framebuffer_restore = &OverlayUnexpected<decltype(table.framebuffer_restore)>::call;
-  table.book_facade_open = &OverlayUnexpected<decltype(table.book_facade_open)>::call;
-  table.book_facade_close = &OverlayUnexpected<decltype(table.book_facade_close)>::call;
-  table.book_set_extractor = &OverlayUnexpected<decltype(table.book_set_extractor)>::call;
+
   return table;
 }
 

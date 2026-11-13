@@ -373,9 +373,6 @@ static LegacyEpubLeaves leavesDefaults() {
   UNUSED_LEAF(physical.child_directional_hints);
   UNUSED_LEAF(physical.child_dictionary_popup_layout);
   UNUSED_LEAF(physical.child_wait_paint);
-    UNUSED_LEAF(physical.book_facade_open);
-    UNUSED_LEAF(physical.book_facade_close);
-    UNUSED_LEAF(physical.book_set_extractor);
   UNUSED_LEAF(book.book_author);
   UNUSED_LEAF(book.book_cache_path);
   UNUSED_LEAF(book.book_clear_cache);
@@ -585,10 +582,7 @@ static const LegacyEpubLeaves leaves = [] {
                 reinterpret_cast<const char*>(origin.data), int(message.len),
                 reinterpret_cast<const char*>(message.data));
   };
-  table.physical.book_set_extractor = [](void* handle) {
-    if (handle) leaves.book.book_install_extractor(handle);
-    else leaves.book.book_clear_extractor();
-  };
+
   return table;
 }();
 

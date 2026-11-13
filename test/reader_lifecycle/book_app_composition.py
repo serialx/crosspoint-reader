@@ -1,4 +1,4 @@
-"""Adapt App composition fixtures to real ReaderBook storage and native facade."""
+"""Adapt App composition fixtures to real ReaderBook storage and explicit native child references."""
 from pathlib import Path
 from test_popup_resource import replace_once
 from test_app_results import block
@@ -24,7 +24,7 @@ def actual_child_source(root, source):
     here = root / 'test/reader_lifecycle'
     helper = (here / 'reader_book_app_fixture.inc').read_text()
     marker = '// The driver extracts the native borrowed-result producer into this App fixture.'
-    source = replace_once(source, marker, helper + '\nnamespace { bool hasReaderSection(); void readerSectionBalanced(); }\nclass Epub;\nstd::shared_ptr<Epub> testNativeBook(void*);\n' + marker)
+    source = replace_once(source, marker, helper + '\nnamespace { bool hasReaderSection(); void readerSectionBalanced(); }\nclass Epub;\nstd::shared_ptr<Epub> testNativeBookReference(void*);\n' + marker)
     source = source.replace('bindResultsPhysical(); bindProductionChildren();',
                             'bindResultsPhysical(); bindProductionChildren(); bindReaderBook(); bindReaderResults(); BookStoreAdapters::bind();')
     source = source.replace('assertEntered();', 'assertReaderEntered();')
@@ -44,13 +44,13 @@ def actual_child_source(root, source):
     probe = r'''
 void checkChildBookLoan(const std::string& kind, bool held) {
   if (kind != "chapter" && kind != "bookmarks") return;
-  assert(readerFacades.size() == 1);
-  const auto count = testNativeBook(readerFacades.begin()->first).use_count();
-  assert(held ? count >= 3 : count == 2);
+  assert(readerBooks.size() == 1);
+  const auto count = readerBooks.begin()->second.nativeReference.lock().use_count();
+  assert(held ? count >= 2 : count == 0);
 }
 '''
-    source = replace_once(source, 'std::shared_ptr<Epub> testNativeBook(void*);',
-                          'std::shared_ptr<Epub> testNativeBook(void*);\n' + probe)
+    source = replace_once(source, 'std::shared_ptr<Epub> testNativeBookReference(void*);',
+                          'std::shared_ptr<Epub> testNativeBookReference(void*);\n' + probe)
     for method in ('onEnter()', 'loop()', 'render(RenderLock&&)', 'onExit()'):
         signature = 'void Activity::' + method + ' {'
         source = replace_once(source, signature, signature + ' checkChildBookLoan(kind, true);')
@@ -59,7 +59,7 @@ void checkChildBookLoan(const std::string& kind, bool held) {
     old = ('struct PhysicalBook { std::shared_ptr<int> book = std::make_shared<int>(0); };\n'
            'PhysicalBook& book(void* raw) { assert(raw == f().extractor); static PhysicalBook value; return value; }')
     new = ('struct PhysicalBook { std::shared_ptr<Epub> book; };\n'
-           'PhysicalBook book(void* raw) { assert(readerFacades.at(raw).marker == f().extractor); return {testNativeBook(raw)}; }')
+           'PhysicalBook book(void* raw) { auto& observed = readerBooks.at(raw); assert(observed.marker == f().extractor); auto reference = observed.nativeReference.lock(); if (!reference) { reference = testNativeBookReference(raw); assert(reference); observed.nativeReference = reference; } return {reference}; }')
     source = replace_once(source, old, new)
     addition = r'''
 void bindReaderResults() {

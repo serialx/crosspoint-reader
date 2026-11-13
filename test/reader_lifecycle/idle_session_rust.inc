@@ -104,10 +104,7 @@ static const LegacyEpubLeaves idleLeaves = [] {
     };
     return &input;
   };
-  table.physical.book_set_extractor = [](void* handle) {
-    if (handle) idleLeaves.book.book_install_extractor(handle);
-    else idleLeaves.book.book_clear_extractor();
-  };
+
   return table;
 }();
 

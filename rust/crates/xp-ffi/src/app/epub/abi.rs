@@ -349,16 +349,6 @@ pub struct XpEpubLeaves {
     pub render_orientation: unsafe extern "C" fn(orientation: u8),
     pub loan_count: unsafe extern "C" fn() -> u32,
     #[cfg(feature = "app-test")]
-    pub book_facade_open: unsafe extern "C" fn(
-        book: *mut core::ffi::c_void,
-        view: *const XpEpubBookView,
-        borrow: *const XpEpubBookBorrow,
-    ) -> *mut core::ffi::c_void,
-    #[cfg(feature = "app-test")]
-    pub book_facade_close: unsafe extern "C" fn(facade: *mut core::ffi::c_void),
-    #[cfg(feature = "app-test")]
-    pub book_set_extractor: unsafe extern "C" fn(facade: *mut core::ffi::c_void),
-    #[cfg(feature = "app-test")]
     pub protection_open: unsafe extern "C" fn(
         path: XpAppText,
         error: XpAppTextSink,
@@ -847,12 +837,6 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, render_orientation) == leaf_index(4) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, loan_count) == leaf_index(5) * pointer);
     #[cfg(feature = "app-test")]
-    assert!(core::mem::offset_of!(XpEpubLeaves, book_facade_open) == leaf_index(6) * pointer);
-    #[cfg(feature = "app-test")]
-    assert!(core::mem::offset_of!(XpEpubLeaves, book_facade_close) == leaf_index(7) * pointer);
-    #[cfg(feature = "app-test")]
-    assert!(core::mem::offset_of!(XpEpubLeaves, book_set_extractor) == leaf_index(8) * pointer);
-    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, protection_open) == leaf_index(9) * pointer);
     #[cfg(not(feature = "app-test"))]
     {
@@ -1062,6 +1046,7 @@ const _: () = assert!(
 const fn leaf_index(index: usize) -> usize {
     if cfg!(feature = "app-test") {
         index
+            - if index >= 9 { 3 } else { 0 }
             - if index >= 23 { 2 } else { 0 }
             - if index > 120 { 2 } else { 0 }
             - if index > 123 { 1 } else { 0 }

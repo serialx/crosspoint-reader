@@ -592,9 +592,9 @@ more are skipped as before. A failed walk stops book loading before CSS parsing 
 cache saving.
 
 The shipping reader has no native book facade or book-open/load/getter table.
-Registration of the six queries in `XpEpubBookBorrow` and the native facade
-lifecycle remain only in host oracle fixtures; shipping Rust callers still use
-the query functions directly. Those fixtures test the native reference-return
+Normal host sessions use that same Rust ownership path. Explicit native comparison
+fixtures construct a separate borrowed `Epub` with six `XpEpubBookBorrow` queries
+and destroy it before its Rust book. These fixtures test native reference-return
 APIs and reject unsupported native load/metadata access. Ordinary `Epub` objects
 used by Home, Library, Sleep and sync retain their existing native interfaces.
 Book-owner logs use the leaf described under [Diagnostics](#diagnostics).
@@ -684,7 +684,8 @@ must be destroyed first. `PackagePlatform.cpp` implements the shared native
 facades and resource adapter, retaining HalFile ownership, buffered I/O, ZIP
 access, string/deque storage and the size-window lock for those native owners.
 The [reader book owner](#reader-book-ownership) has its own scoped native file and
-cache-lock leaves; the reader book owner's facade exists only for host fixtures.
+cache-lock leaves. Only explicit native comparison fixtures construct a borrowed
+facade; it is not part of ReaderBook or session ownership.
 See the [package oracle](../../test/package_golden/README.md) for parity checks
 and their limits.
 

@@ -109,12 +109,7 @@ static const LegacyEpubLeaves leaves = [] {
     *out = {};
     out->dictionary_available = (flags & 64) != 0;
   };
-  table.physical.book_set_extractor = [](void* handle) {
-    if (handle)
-      leaves.book.book_install_extractor(handle);
-    else
-      leaves.book.book_clear_extractor();
-  };
+
   return table;
 }();
 static void create() {

@@ -447,12 +447,7 @@ static const LegacyEpubLeaves leaves = [] {
     }
     return 1;
   };
-  UNUSED_LEAF(physical.book_facade_open);
-  UNUSED_LEAF(physical.book_facade_close);
-  table.physical.book_set_extractor = [](void* handle) {
-    if (handle) leaves.book.book_install_extractor(handle);
-    else leaves.book.book_clear_extractor();
-  };
+
   return table;
 }();
 #undef UNUSED_LEAF

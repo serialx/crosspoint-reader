@@ -78,10 +78,7 @@ static const LegacyEpubLeaves ownerLeaves = [] {
     assert(message.len == 27 && std::memcmp(message.data, "Cannot build reader toolbar", 27) == 0);
     ++ownerLogs;
   };
-  table.physical.book_set_extractor = [](void* handle) {
-    if (handle) ownerLeaves.book.book_install_extractor(handle);
-    else ownerLeaves.book.book_clear_extractor();
-  };
+
   return table;
 }();
 static XpEpubTestOverlayViewSeed ownerSeed(int missing) {

@@ -448,14 +448,7 @@ static const LegacyEpubLeaves& physicalLeaves() {
       ++active->progressCalls;
       return active->progress.load();
     };
-    UNUSED_LEAF(physical.book_facade_open);
-    UNUSED_LEAF(physical.book_facade_close);
-    table.physical.book_set_extractor = [](void* handle) {
-      if (handle)
-        value.book.book_install_extractor(handle);
-      else
-        value.book.book_clear_extractor();
-    };
+
     return table;
   }();
   return value;

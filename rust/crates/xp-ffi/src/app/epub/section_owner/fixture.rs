@@ -2,7 +2,7 @@
 extern crate alloc;
 use super::super::{
     abi::{XpEpubLeaves, XpEpubRenderSpec},
-    book_owner::ReaderBook,
+    book_owner::{NativeReference, ReaderBook},
     Text,
 };
 use super::{Popup, ReaderSection};
@@ -12,6 +12,7 @@ use core::{alloc::Layout, ffi::c_void, ptr::NonNull};
 
 struct Fixture {
     book: NonNull<c_void>,
+    reference: Option<NativeReference>,
     section: NonNull<ReaderSection>,
     runtime: &'static abi::Runtime,
 }
@@ -61,6 +62,7 @@ pub unsafe extern "C" fn xp_epub_test_section_fixture_open(
     unsafe {
         raw.write(Fixture {
             book,
+            reference: None,
             section,
             runtime,
         });
@@ -69,9 +71,10 @@ pub unsafe extern "C" fn xp_epub_test_section_fixture_open(
 }
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_section_fixture_close(raw: *mut c_void) {
-    let context = unsafe { Box::from_raw(raw.cast::<Fixture>()) };
+    let mut context = unsafe { Box::from_raw(raw.cast::<Fixture>()) };
     unsafe {
         ReaderSection::close(context.section);
+        drop(context.reference.take());
         ReaderBook::close(context.book)
     };
 }
@@ -245,11 +248,13 @@ pub unsafe extern "C" fn xp_epub_test_section_fixture_html(raw: *mut c_void) -> 
 
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_section_fixture_facade(raw: *mut c_void) -> *mut c_void {
-    let book = unsafe { (*raw.cast::<Fixture>()).book };
-    if !unsafe { ReaderBook::open_facade(book) } {
-        return core::ptr::null_mut();
-    }
-    unsafe { super::super::book_owner::queries::facade(book.as_ptr()) }
+    let fixture = &mut *raw.cast::<Fixture>();
+    assert!(fixture.reference.is_none());
+    fixture.reference = NativeReference::open(fixture.book);
+    fixture
+        .reference
+        .as_ref()
+        .map_or(core::ptr::null_mut(), NativeReference::as_ptr)
 }
 
 #[no_mangle]

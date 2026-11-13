@@ -305,9 +305,6 @@ static const XpEpubLeaves leaves = [] {
     activePage = nullptr;
     ++closeCount;
   };
-    UNUSED_LEAF(book_facade_open);
-    UNUSED_LEAF(book_facade_close);
-    UNUSED_LEAF(book_set_extractor);
   return table;
 }();
 #undef UNUSED_LEAF

@@ -78,7 +78,7 @@ void run(bool deleting, bool failure) {
   runtime.render_lock = lock;
   runtime.render_unlock = unlock;
   leaves.log_enabled = [](uint8_t) -> uint8_t { return 0; };
-  leaves.book_set_extractor = [](void* raw) { assert(!raw && renderDepth == 1 && !modelDepth); };
+
   clipping_fixture::StorageAdapter storage(leaves, resources);
   storage.quietLog = true;
   storage.io = io;

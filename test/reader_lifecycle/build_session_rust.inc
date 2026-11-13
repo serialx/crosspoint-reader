@@ -406,9 +406,6 @@ static const XpEpubLeaves leaves = [] {
     std::printf("%.*s %.*s\n", int(origin.len), reinterpret_cast<const char*>(origin.data),
                 int(message.len), reinterpret_cast<const char*>(message.data));
   };
-    UNUSED_LEAF(book_facade_open);
-    UNUSED_LEAF(book_facade_close);
-    UNUSED_LEAF(book_set_extractor);
   return table;
 }();
 

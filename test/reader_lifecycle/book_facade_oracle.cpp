@@ -17,12 +17,14 @@ void* operator new(size_t size, const std::nothrow_t&) noexcept {
 }
 static XpEpubLeaves checkedLeaves = [] {
   auto value = leaves;
-  value.book_facade_open = [](void* owner, const XpEpubBookView* view, const XpEpubBookBorrow* callbacks) -> void* {
-    allocatingFacade = true;
-    auto* result = leaves.book_facade_open(owner, view, callbacks);
-    allocatingFacade = false;
-    return result;
-  };
+  xp_epub_test_native_reference_bind(
+      +[](void* owner, const XpEpubBookView* view, const XpEpubBookBorrow* callbacks) -> void* {
+        allocatingFacade = true;
+        auto* result = referenceOpen(owner, view, callbacks);
+        allocatingFacade = false;
+        return result;
+      },
+      referenceClose, referenceExtractor);
   return value;
 }();
 struct NestedOutput : Print {
@@ -62,11 +64,11 @@ static uint8_t invoke(void* raw) {
   }
   assert(h.book.use_count() == 1);
   assert(ImageBlock::extractFn(ImageBlock::extractCtx, "b.xhtml", destination.c_str()));
-  leaves.book_set_extractor(nullptr);
+  referenceExtractor(nullptr);
   assert(!ImageBlock::extractCtx && !ImageBlock::extractFn);
-  leaves.book_set_extractor(raw);
+  referenceExtractor(raw);
   assert(ImageBlock::extractCtx == h.book.get());
-  leaves.book_set_extractor(nullptr);
+  referenceExtractor(nullptr);
   return 1;
 }
 int main(int argc, char** argv) {

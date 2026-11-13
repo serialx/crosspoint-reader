@@ -411,9 +411,6 @@ static const XpEpubLeaves& physicalLeaves() {
       assert(popup == &active->popup && active->popupActive);
       active->record("popup-process-render");
     };
-    UNUSED_LEAF(book_facade_open);
-    UNUSED_LEAF(book_facade_close);
-    UNUSED_LEAF(book_set_extractor);
     return table;
   }();
   return value;

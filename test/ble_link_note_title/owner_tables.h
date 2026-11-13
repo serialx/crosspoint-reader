@@ -260,9 +260,6 @@ inline XpEpubLeaves leavesDefaults() {
   UNUSED_LEAF(child_directional_hints);
   UNUSED_LEAF(child_dictionary_popup_layout);
   UNUSED_LEAF(child_wait_paint);
-  UNUSED_LEAF(book_facade_open);
-  UNUSED_LEAF(book_facade_close);
-  UNUSED_LEAF(book_set_extractor);
   return table;
 }
 

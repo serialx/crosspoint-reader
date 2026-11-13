@@ -306,9 +306,6 @@ static const XpEpubLeaves leaves = [] {
     assert(severity == 1 || severity == 2);
     fixture::log(severity == 2 ? "info" : "error", nativeText(origin).c_str(), "%s", nativeText(message).c_str());
   };
-    UNUSED_LEAF(book_facade_open);
-    UNUSED_LEAF(book_facade_close);
-    UNUSED_LEAF(book_set_extractor);
   return table;
 }();
 

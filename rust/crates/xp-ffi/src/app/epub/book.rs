@@ -73,24 +73,22 @@ impl EpubSession {
         access: &super::ResourceAccess<'_>,
         book: Option<NonNull<c_void>>,
     ) {
+        assert!(book.is_none() || self.book(access) == book);
         #[cfg(feature = "app-test")]
-        let facade = book.map_or(core::ptr::null_mut(), |book| {
-            assert_eq!(
-                self.book(access),
-                Some(book),
-                "extractor must borrow this session's book"
-            );
-            unsafe { super::session_book::facade(book.as_ptr()) }
-        });
-        #[cfg(feature = "app-test")]
-        unsafe {
-            (self.leaves.book_set_extractor)(facade)
-        };
-        #[cfg(not(feature = "app-test"))]
-        {
-            assert!(book.is_none() || self.book(access) == book);
-            unsafe { super::session_book::set_extractor(book) };
+        if let Some(services) = self.legacy_book_fixture() {
+            let handle = book.map_or(core::ptr::null_mut(), |book| unsafe {
+                super::session_book::fixture_child_book(book.as_ptr())
+            });
+            unsafe {
+                if handle.is_null() {
+                    (services.book_clear_extractor)()
+                } else {
+                    (services.book_install_extractor)(handle)
+                }
+            };
+            return;
         }
+        unsafe { super::session_book::set_extractor(book) };
     }
 
     pub(super) fn add_recent(&self, book: NonNull<c_void>) {

@@ -1,14 +1,13 @@
-// Actual Rust book ownership with a native facade; only storage/UI are physical fakes.
-extern "C" void* testNativeFacadeOpen(void*, const XpEpubBookView*, const XpEpubBookBorrow*);
-extern "C" void testNativeFacadeClose(void*);
-extern "C" void testNativeExtractor(void*);
+// Observe actual Rust book binding and close; native references belong only to comparison children.
+class Epub;
+extern "C" void xp_epub_test_book_observer(void (*)(void*, uint8_t, const XpEpubBookView*));
 namespace {
 struct ReaderFile { std::vector<uint8_t> bytes; size_t cursor = 0; std::string path; };
-struct ReaderFacade { Handle* marker; void* owner; const XpEpubBookBorrow* callbacks; };
+struct ReaderBookObservation { Handle* marker; std::weak_ptr<Epub> nativeReference; };
 std::map<void*, ReaderFile> readerFiles;
 std::map<std::string, std::vector<uint8_t>> readerSectionFiles;
 unsigned readerSectionOpens = 0, readerSectionCloses = 0;
-std::map<void*, ReaderFacade> readerFacades;
+std::map<void*, ReaderBookObservation> readerBooks;
 std::map<void*, size_t> readerBuffers;
 bool readerCacheLocked = false;
 const std::string readerCache = "/.crosspoint/epub_42";
@@ -49,7 +48,7 @@ void assertReaderEntered() {
   f().count(Kind::File, 1, 1); f().count(Kind::Book, 1, 0);
   f().ordered(1, {"entry", "fonts-load", "cache-read", "open:book", "extractor-install",
                   "open:file", "progress-read", "bookmarks-load", "clippings-load", "close:file"});
-  assert(readerFacades.size() == 1 && readerFiles.size() == 1 && readerBuffers.empty() && !readerCacheLocked);
+  assert(readerBooks.size() == 1 && readerFiles.size() == 1 && readerBuffers.empty() && !readerCacheLocked);
 }
 void bindReaderBook() {
   const auto pageFixture = legacyBook.section.page;
@@ -151,23 +150,29 @@ void bindReaderBook() {
     if (value == readerCache || value == readerCache + "/sections") return 1;
     return mkdir(path);
   };
-  leaves.book_facade_open = [](void* owner, const XpEpubBookView* view, const XpEpubBookBorrow* callbacks) -> void* {
-    assert(view->spine_count == 7 && view->toc_count == 5 && text(view->cache_path) == readerCache);
-    void* raw = testNativeFacadeOpen(owner, view, callbacks); assert(raw);
-    auto* marker = f().acquire(Kind::Book, f().entersGeneration); marker->path = f().path;
-    readerFacades.emplace(raw, ReaderFacade{marker, owner, callbacks});
-    assert(!f().extractor); f().extractor = marker;
-    f().physical("extractor-install", marker->generation, marker->id); return raw;
-  };
-  leaves.book_set_extractor = [](void* raw) {
-    testNativeExtractor(raw);
-    if (raw) { auto* marker = readerFacades.at(raw).marker; assert(!f().extractor); f().extractor = marker; }
-    else { assert(f().extractor); ++f().clearedExtractor; f().physical("extractor-clear", f().extractor->generation); f().extractor = nullptr; }
-  };
-  leaves.book_facade_close = [](void* raw) {
-    assert(f().renderDepth == 1 && !f().extractor && !f().clippings);
-    auto* marker = readerFacades.at(raw).marker; testNativeFacadeClose(raw); readerFacades.erase(raw); f().release(marker, Kind::Book);
-  };
+  xp_epub_test_book_observer([](void* raw, uint8_t event, const XpEpubBookView* view) {
+    if (event == 1) {
+      auto found = readerBooks.find(raw);
+      if (found == readerBooks.end()) return;
+      assert(f().renderDepth == 1 && !f().extractor && !f().clippings);
+      assert(found->second.nativeReference.expired());
+      auto* marker = found->second.marker;
+      readerBooks.erase(found); f().release(marker, Kind::Book); return;
+    }
+    assert(event == 0);
+    if (!raw) {
+      assert(f().extractor); ++f().clearedExtractor;
+      f().physical("extractor-clear", f().extractor->generation); f().extractor = nullptr; return;
+    }
+    assert(view && view->spine_count == 7 && view->toc_count == 5 && text(view->cache_path) == readerCache);
+    auto found = readerBooks.find(raw);
+    if (found == readerBooks.end()) {
+      auto* marker = f().acquire(Kind::Book, f().entersGeneration); marker->path = f().path;
+      found = readerBooks.emplace(raw, ReaderBookObservation{marker, {}}).first;
+      f().physical("extractor-install", marker->generation, marker->id);
+    }
+    assert(!f().extractor); f().extractor = found->second.marker;
+  });
   clipping_fixture::appStoreRequested = true;
   clipping_fixture::preserveBookHash = true;
   clipping_fixture::unloaded = [](void) {

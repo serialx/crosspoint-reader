@@ -19,8 +19,9 @@
 #endif
 
 #ifdef XP_APP_TEST
-#define FONT_LEAF_INDEX(index) \
-  (CATALOG_LEAF_INDEX(index) - ((index) >= 23 ? 2 : 0) - ((index) > 120 ? 2 : 0) - ((index) > 123 ? 1 : 0))
+#define FONT_LEAF_INDEX(index)                                                                              \
+  (CATALOG_LEAF_INDEX(index) - ((index) >= 9 ? 3 : 0) - ((index) >= 23 ? 2 : 0) - ((index) > 120 ? 2 : 0) - \
+   ((index) > 123 ? 1 : 0))
 #else
 #define FONT_LEAF_INDEX(index)                                                                                     \
   (CATALOG_NATIVE_LEAF_INDEX(index) - ((index) >= 64 ? 6 : 0) - ((index) >= 97 ? 1 : 0) - ((index) >= 9 ? 3 : 0) - \

@@ -354,9 +354,6 @@ static const XpEpubLeaves leaves = [] {
     unlocked(); assert(severity == 1 && nativeText(origin) == "ERS");
     LOG_ERR(nativeText(origin).c_str(), nativeText(message).c_str());
   };
-    UNUSED_LEAF(book_facade_open);
-    UNUSED_LEAF(book_facade_close);
-    UNUSED_LEAF(book_set_extractor);
   return table;
 }();
 #undef UNUSED_LEAF

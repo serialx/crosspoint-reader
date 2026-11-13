@@ -380,9 +380,6 @@ static const XpEpubLeaves leaves = [] {
     leaf(); assert(severity == 0 && origin.len == 4 && std::memcmp(origin.data, "CLIP", 4) == 0);
     LOG_DBG("CLIP", "%.*s", int(message.len), reinterpret_cast<const char*>(message.data));
   };
-    UNUSED_LEAF(book_facade_open);
-    UNUSED_LEAF(book_facade_close);
-    UNUSED_LEAF(book_set_extractor);
   return table;
 }();
 #undef UNUSED_LEAF

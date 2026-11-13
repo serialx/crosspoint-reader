@@ -10,10 +10,16 @@ pub(super) use load::LoadError;
 mod cache;
 pub(super) mod css;
 mod facade;
+#[cfg(feature = "app-test")]
+mod reference;
+#[cfg(feature = "app-test")]
+pub(super) use reference::NativeReference;
 mod inflate;
 mod items;
 mod load;
 pub(in crate::app) mod log;
+#[cfg(feature = "app-test")]
+mod observer;
 mod package;
 pub(super) use package::diagnostics::xml_error;
 mod txt;
@@ -32,8 +38,6 @@ mod open_tests;
 mod load_tests;
 
 pub(super) struct ReaderBook {
-    #[cfg(feature = "app-test")]
-    facade: Option<NonNull<c_void>>,
     resources: &'static app_abi::Resources,
     now: unsafe extern "C" fn() -> u32,
     path: Text,

@@ -45,10 +45,7 @@ static const LegacyEpubLeaves leaves = [] {
   table.physical.render_restore_bw = [](uint8_t resync) {
     locked(); sync(); assert(resync == 0); active->renderer.restoreBwBuffer(resync != 0);
   };
-  table.physical.book_set_extractor = [](void* handle) {
-    if (handle) leaves.book.book_install_extractor(handle);
-    else leaves.book.book_clear_extractor();
-  };
+
   return table;
 }();
 }  // namespace close_overlay_adapter

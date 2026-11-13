@@ -100,8 +100,6 @@ impl ReaderBook {
         }
         unsafe {
             raw.write(Self {
-                #[cfg(feature = "app-test")]
-                facade: None,
                 resources,
                 now,
                 path: core::mem::take(path),

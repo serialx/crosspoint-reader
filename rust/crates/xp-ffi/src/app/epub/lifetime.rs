@@ -135,7 +135,7 @@ impl EpubSession {
             }
         };
         let mut loaded = LoadedBook { handle: Some(book) };
-        if !unsafe { super::session_book::open_facade(book, self.leaves) } {
+        if !unsafe { super::session_book::bind_images(book, self.leaves) } {
             unsafe { *self.path.get() = super::session_book::take_path(book) };
             self.loop_log_parts(1, &[b"Failed to allocate EPUB object"]);
             return false;

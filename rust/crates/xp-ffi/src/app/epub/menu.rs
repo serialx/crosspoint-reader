@@ -121,7 +121,10 @@ impl EpubSession {
             if let Some(legacy) = self.legacy_children.get() {
                 self.launch_menu_child(
                     unsafe {
-                        (legacy.child_chapter)(super::session_book::facade(_book.as_ptr()), toc)
+                        (legacy.child_chapter)(
+                            super::session_book::fixture_child_book(_book.as_ptr()),
+                            toc,
+                        )
                     },
                     ChildIntent::Chapter,
                 );

@@ -74,7 +74,8 @@ The [reader policy boundary](rust-ui.md#reader-policy-boundary) describes Rust p
 The reader owns one Rust `ReaderBook` for metadata, cache setup and resource
 lifetimes, and one Rust `ReaderSection` for cache/build/Chapter lifetime. Child
 and sync queries read that Rust book directly; the shipping reader has no native
-`Epub` facade.
+`Epub` facade. Normal host sessions use the same ownership path; explicit native
+comparison fixtures construct their own borrowed facade.
 Rust's `page_owner` owns reader Pages and Page metadata. Native `Page` remains
 for dictionary/preview Pages and as borrowed/transferred facades for the retained
 ClipSelection child. Rust footnote and lookup owners hold their single reader

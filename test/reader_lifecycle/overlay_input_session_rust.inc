@@ -80,10 +80,7 @@ static MappedInputManager::Button overlayInputButton(uint32_t mask) {
 
 static void configureOverlayInputLeaves() {
   overlayInputLeaves = overlayLegacyLeaves();
-  overlayInputLeaves.physical.book_set_extractor = [](void* handle) {
-    if (handle) overlayInputLeaves.book.book_install_extractor(handle);
-    else overlayInputLeaves.book.book_clear_extractor();
-  };
+
   overlayInputRuntime = overlayUnexpectedRuntime();
   overlayInputResources = overlayUnexpectedResources();
   overlayInputRuntime.model_lock = [] { assert(activeOverlayInput && !overlayInputModelDepth); ++overlayInputModelDepth; };

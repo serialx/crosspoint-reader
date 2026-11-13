@@ -5,10 +5,9 @@ inner implementations have separate helper, read-folder and bookmark oracles.
 The fixture's error string is an observation of the production failure tag for
 the two historical cases (None/Expired), never a copy of the input error.
 
-Native BookHandle promotion remains inside book_load under the coordinator's
-ruling: it moves before loan_drop, while the old shared_ptr assignment followed
-loan_drop. There is no promotion trace event, and loan teardown has no heap call.
-The separate campaign allocation-stream gate still owns that ordering evidence.
+The native BookHandle exists only in the unchanged comparison fixture. Normal
+host session loading now uses the same Rust book owner as shipping; observers
+record binding and teardown after the real operations.
 """
 from pathlib import Path
 import gzip

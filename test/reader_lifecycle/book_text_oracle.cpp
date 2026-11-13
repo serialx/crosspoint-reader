@@ -45,11 +45,13 @@ int main(int argc, char** argv) {
   for (int c; (c = std::fgetc(input)) != EOF;) expected.push_back(char(c));
   std::fclose(input);
   auto actual = leaves;
-  actual.book_facade_open = [](void* raw, const XpEpubBookView* view, const XpEpubBookBorrow* callbacks) -> void* {
-    owner = raw;
-    borrow = callbacks;
-    return leaves.book_facade_open(raw, view, callbacks);
-  };
+  xp_epub_test_native_reference_bind(
+      +[](void* raw, const XpEpubBookView* view, const XpEpubBookBorrow* callbacks) -> void* {
+        owner = raw;
+        borrow = callbacks;
+        return referenceOpen(raw, view, callbacks);
+      },
+      referenceClose, referenceExtractor);
   assert(xp_epub_test_facade(&resources, &actual, text(source), text(cache), invokeText));
   assert(xp_test_live_allocations() == 0 && nativeBuffers.empty());
   std::puts("actual cache title -> native toolbar -> SDK: exact C-string prefix passed");

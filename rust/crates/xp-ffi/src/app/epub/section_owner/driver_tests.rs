@@ -1,7 +1,7 @@
 //! Hook-free construction and transitions of the production reader Section.
 use super::super::{
     abi::{XpEpubLeaves, XpEpubRenderSpec},
-    book_owner::{queries, ReaderBook},
+    book_owner::{NativeReference, ReaderBook},
     Text,
 };
 use super::{owner::ReaderSection, services::Popup};
@@ -39,8 +39,8 @@ pub unsafe extern "C" fn xp_epub_test_section_driver(
     .ok()
     .unwrap();
     let book = ReaderBook::into_raw(book);
-    assert!(unsafe { ReaderBook::open_facade(book) });
-    let facade = unsafe { queries::facade(book.as_ptr()) };
+    let reference = unsafe { NativeReference::open(book) }.unwrap();
+    let facade = reference.as_ptr();
     let section = unsafe { ReaderSection::open(book, 0, resources, leaves) }.unwrap();
     let spec = XpEpubRenderSpec {
         font: 16,
@@ -99,6 +99,7 @@ pub unsafe extern "C" fn xp_epub_test_section_driver(
         native(facade, &page.borrow().wire(), pages, partial, popups);
         drop(page);
         ReaderSection::close(section);
+        drop(reference);
         ReaderBook::close(book);
     }
     1

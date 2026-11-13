@@ -60,7 +60,7 @@ typedef enum {
   XP_IMAGE_FILE_YIELD,
   XP_IMAGE_FILE_FREE_INTERNAL_HEAP
 } XpPageImageFileOp;
-// Physical SDK file/memory operations; paths are terminated, bytes borrowed.
+// Physical SDK file, memory, clock and yield operations; paths are terminated, bytes borrowed.
 size_t xp_native_page_image_file(XpPageImageFile*, XpPageImageFileOp, const uint8_t* path, uint8_t*, size_t);
 // Writes borrowed bytes to the caller-owned HalFile; never calls Rust, including for protected streams.
 uint8_t xp_native_page_image_write(void* file, const uint8_t* bytes, size_t length);
@@ -81,7 +81,7 @@ typedef struct {
 // Borrows diagnostic state and paths; formatting does not retain or call Rust.
 void xp_native_page_image_codec_log(const XpPageImageCodecLog*, uint32_t event, uint32_t a, uint32_t b, uint32_t c,
                                     uint32_t d);
-// One decode/raster leaf. 0 no decoder, 1 decode failed, 2 success.
+// Remaining reader JPEG decode adapter. 0 no decoder, 1 decode failed, 2 success.
 uint8_t xp_native_page_image_decode(void* native, const XpPageImage*, const uint8_t* cache);
 #ifdef XP_APP_TEST
 // Historical native extraction path for host oracles.

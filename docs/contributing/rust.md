@@ -564,10 +564,10 @@ Image failure reset, RAM-cache release and decoded-cache eligibility run
 directly in Rust. Lazy extraction streams 8,192-byte chunks into an inline,
 pinned HAL file through a storage-only native sink, then flushes and closes it.
 A failed stream removes the partial file. The `.px2` format and cache validation
-rules are unchanged. Image decode
-still enters the native PNG/GIF/JPEG shells; this is an intermediate migration
-state until the reader binds those Rust decoders directly. The native extraction
-adapter and image lifecycle table slots are retained only for host oracles.
+rules are unchanged. Image decode selects formats in Rust and calls the shared
+Rust decoder operations directly. JPEG still enters the native adapter.
+The native extraction adapter and image lifecycle table slots remain only for
+host oracles.
 
 `ResourceAccess` precedes the cache lock, then storage. A cache row read releases
 its guard before invoking a sink; the decoded row owns its bytes for the

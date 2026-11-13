@@ -84,7 +84,7 @@ consumers, malformed streams, allocation failures, and large-fixture timing.
 `ReaderImageGoldens` calls the production Rust page-image decode binding through
 an app-test-only entry. It compares success, framebuffer bytes and complete cache
 bytes/existence/length against all 4,608 existing variant-2 records. The immutable
-corpus and golden hashes are checked; no records are recaptured. The existing
+corpus hashes are checked and golden-file digests recorded; no records are recaptured. The existing
 pipeline diagnostic milestones are also checked for all 96 corpus images. Renderer-query
 counts are omitted because the reader lends the existing target snapshot.
 

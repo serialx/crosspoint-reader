@@ -21,6 +21,7 @@ pub(super) fn format(path: &[u8]) -> Option<Format> {
         None
     }
 }
+// Values match XpPageImageCodecEvent in xp_page_paint.h.
 #[repr(u32)]
 enum Event {
     Begin = 50,

@@ -1,4 +1,4 @@
-//! Page image/cache policy stays in Rust; native leaves own only file/decoder work.
+//! Rust owns image/cache policy; native leaves provide storage, JPEGDEC and SDK operations.
 use super::{direct::Target, *};
 #[path = "images/decode.rs"]
 mod decode;
@@ -303,6 +303,7 @@ unsafe impl Services for Physical<'_> {
             }
             Some(decode::Format::Jpeg) => {}
             None => {
+                // ImageDiagnostic::Unsupported in the native log formatter.
                 self.diagnostic(16, 0, 0);
                 return None;
             }

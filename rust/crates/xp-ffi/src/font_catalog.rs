@@ -179,6 +179,17 @@ pub struct View {
     vector: bool,
     loose: bool,
 }
+pub(crate) unsafe fn loaded_id(owner: *const Owner, name: &[u8]) -> i32 {
+    #[cfg(feature = "vector-fonts")]
+    {
+        let id = crate::font_vector::loaded_id(owner, name);
+        if id != 0 {
+            return id;
+        }
+    }
+    control(owner).get_bytes(name, 0)
+}
+
 /// # Safety
 /// Query/output are borrowed for this serialized call. Names/files remain borrowed
 /// until rediscovery/drop; no catalog mutation is allowed across a borrowed view.
@@ -190,14 +201,7 @@ pub unsafe extern "C" fn xp_sd_catalog_query(
 ) -> usize {
     let q = &*request;
     if q.operation == 6 {
-        #[cfg(feature = "vector-fonts")]
-        {
-            let id = crate::font_vector::loaded_id(owner, bytes(q.name, q.length));
-            if id != 0 {
-                return id as u32 as usize;
-            }
-        }
-        return control(owner).get_bytes(bytes(q.name, q.length), 0) as u32 as usize;
+        return loaded_id(owner, bytes(q.name, q.length)) as u32 as usize;
     }
     if q.operation == 4 || q.operation == 5 {
         return xp_core::font::registry::root(

@@ -98,10 +98,9 @@ impl EpubSession {
     }
 
     pub(super) fn settings(&self, resolve_font: bool) -> abi::XpEpubSettings {
-        let mut settings = core::mem::MaybeUninit::uninit();
         unsafe {
-            (self.leaves.settings_snapshot)(u8::from(resolve_font), settings.as_mut_ptr());
-            settings.assume_init()
+            self.leaves
+                .settings(self.resources.font_owner, resolve_font)
         }
     }
 }

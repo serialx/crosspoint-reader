@@ -90,7 +90,7 @@ Legitimate update reasons and reviewer checks:
 
 - A plan task removed a relay: identify the source change, remove its pairs and
   obsolete bindings/owners, and check for replacement paths. Ownership changes
-  alone do not authorize growth. R-RELAY, R1c, R2b and R-RUNTIME are plan tasks;
+  alone do not authorize growth. R-RELAY, R2b and R-RUNTIME are plan tasks;
   NONREADER and R5/R6/R7 are explicit deferred buckets.
 - A port, function or field was renamed/reordered: map every old/new identity
   and compare behavior. Moving data or inserting an unrelated symbol must not

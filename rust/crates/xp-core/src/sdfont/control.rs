@@ -411,3 +411,16 @@ pub fn builtin_variant(ids: &[i32; 4], font: i32, scale: f32) -> i32 {
     }
     ids[pick]
 }
+
+/// Select the loaded SD family or the nearest builtin size, keeping the lower tie.
+pub fn reader_font(ids: &[i32; 4], points: u8, loaded: i32) -> i32 {
+    if loaded != 0 {
+        return loaded;
+    }
+    match snap(&[12, 14, 16, 18], points) {
+        12 => ids[0],
+        16 => ids[2],
+        18 => ids[3],
+        _ => ids[1],
+    }
+}

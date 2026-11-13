@@ -21,7 +21,7 @@ void* allocateParagraphBytes(size_t bytes, uint8_t) {
   return makeUniqueNoThrow<uint8_t[]>(bytes).release();
 }
 void releaseParagraphBytes(void* data) { delete[] static_cast<uint8_t*>(data); }
-const XpParaAllocator ALLOCATOR = {
+constexpr XpParaAllocator PHYSICAL_ALLOCATOR = {
     allocateParagraphBytes, releaseParagraphBytes,
     [](void*, uint32_t event, uint32_t bytes, uint32_t, uint32_t, uint32_t) {
       switch (static_cast<XpParaDiagnostic>(event)) {
@@ -42,10 +42,14 @@ const XpParaAllocator ALLOCATOR = {
           break;
       }
     },
-    [](size_t bytes) { freeink::MemoryManager::instance().ensureFree(bytes); }};
+    nullptr};
+const XpParaAllocator ALLOCATOR = {PHYSICAL_ALLOCATOR.allocate, PHYSICAL_ALLOCATOR.release,
+                                   PHYSICAL_ALLOCATOR.diagnostic,
+                                   [](size_t bytes) { freeink::MemoryManager::instance().ensureFree(bytes); }};
 }  // namespace
 
 const XpParaAllocator* paragraphAllocator() { return &ALLOCATOR; }
+const XpParaAllocator* paragraphPhysicalAllocator() { return &PHYSICAL_ALLOCATOR; }
 
 namespace {
 XpParaBlock paraBlock(const BlockStyle& value) {

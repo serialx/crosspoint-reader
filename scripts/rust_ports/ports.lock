@@ -361,7 +361,6 @@ App.text_truncate xp_font_registry_provider
 App.text_truncate xp_native_width
 App.text_wrap xp_font_registry_provider
 App.text_wrap xp_native_width
-EPUB.build_allocator xp_font_cache_release
 EPUB.build_metrics xp_font_registry_provider
 EPUB.build_metrics xp_sd_font_prepare_spans
 EPUB.child_definition_draw_body xp_font_glyph_miss
@@ -1314,7 +1313,6 @@ EPUB.settings_save xp_sync_base_url
 EPUB.settings_save xp_sync_behavior
 EPUB.settings_save xp_sync_server_type
 EPUB.settings_save xp_sync_store_save
-EPUB.settings_snapshot xp_sd_catalog_query
 Legacy.create LANGUAGE_CODES
 Legacy.create XpAppCompatibility.home_action
 Legacy.create XpEpubBookBorrow.item_size

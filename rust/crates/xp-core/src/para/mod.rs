@@ -26,6 +26,29 @@ pub struct Allocator {
     pub reclaim: Option<unsafe extern "C" fn(usize)>,
 }
 
+/// Preserve the SDK font sinks' priority and reported-byte stopping rule.
+pub fn reclaim_caches(
+    bytes: usize,
+    have: usize,
+    render: bool,
+    vector: bool,
+    mut release: impl FnMut(u8) -> usize,
+) {
+    if have >= bytes {
+        return;
+    }
+    let target = bytes - have;
+    let mut freed = 0usize;
+    for (index, enabled) in [render, true, vector].into_iter().enumerate() {
+        if freed >= target {
+            break;
+        }
+        if enabled {
+            freed = freed.wrapping_add(release(index as u8 + 2));
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 #[repr(u32)]
 pub enum Diagnostic {

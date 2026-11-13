@@ -1,12 +1,9 @@
 use super::{definition_owned::DefinitionSession, selection_scene};
 use crate::app::{
     abi,
-    epub::{
-        abi::{XpEpubLeaves, XpEpubSettings},
-        render_resources::FontScan,
-    },
+    epub::{abi::XpEpubLeaves, render_resources::FontScan},
 };
-use core::{cell::Cell, ffi::c_void, mem::MaybeUninit, ptr};
+use core::{cell::Cell, ffi::c_void, ptr};
 use xp_core::{glyph::GlyphTarget, i18n::ids::*};
 use xp_ui::{
     dictionary::{definition, popup, view},
@@ -79,11 +76,7 @@ impl Drawing<'_> {
                 let body = || unsafe {
                     (this.owner.physical.draw_body)(
                         this.owner.payload.get(),
-                        {
-                            let mut settings = MaybeUninit::<XpEpubSettings>::uninit();
-                            (this.leaves.settings_snapshot)(1, settings.as_mut_ptr());
-                            settings.assume_init().font
-                        },
+                        this.leaves.settings(this.services.font_owner, true).font,
                         i32::from(command.rect.x),
                         i32::from(command.rect.y),
                         state.page,

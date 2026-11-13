@@ -5,6 +5,11 @@ edition = "2021"
 publish = false
 [workspace]
 [features]
+default = ["sd-font-catalog"]
+sd-font-catalog = []
 app-test = []
 [lib]
 path = "lib.rs"
+
+[dependencies]
+xp-core = { path = "../../rust/crates/xp-core" }

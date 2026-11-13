@@ -79,6 +79,7 @@
 #include "util/SlideSwitch.h"
 
 const XpParaAllocator* paragraphAllocator();
+const XpParaAllocator* paragraphPhysicalAllocator();
 
 namespace {
 uint32_t physicalRenderQuery(GfxRenderer& renderer, uint8_t query) {
@@ -579,7 +580,12 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .settings_snapshot =
           [](uint8_t resolveFont, XpEpubSettings* out) {
             const auto& settings = SETTINGS;
-            *out = {.font = resolveFont ? settings.getReaderFontId() : 0,
+#if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)
+            const int font = 0;
+#else
+            const int font = resolveFont ? settings.getReaderFontId() : 0;
+#endif
+            *out = {.font = font,
                     .orientation = settings.orientation,
                     .font_size = settings.fontPointSize,
                     .line_spacing = settings.lineSpacing,
@@ -937,7 +943,11 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .inflate_oom_log = [](XpAppText allocation,
                             uint32_t bytes) { InflateStream::logAllocationFailure(pathText(allocation), bytes); },
       .build_metrics = []() -> const XpParaMetrics* { return &sectionMetrics; },
+#ifdef XP_APP_TEST
       .build_allocator = paragraphAllocator,
+#else
+      .build_allocator = paragraphPhysicalAllocator,
+#endif
 #if defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
       .font_variant = [](int32_t font, float scale) -> int32_t {
 #if defined(XP_SD_FONT_CATALOG) && !defined(XP_APP_TEST)

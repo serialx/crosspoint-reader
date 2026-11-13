@@ -1,9 +1,35 @@
-use super::{abi::XpEpubLeaves, app_abi::FontOwner, app_abi::Text};
+use super::{
+    abi::{XpEpubLeaves, XpEpubSettings},
+    app_abi::FontOwner,
+    app_abi::Text,
+};
 
 #[cfg(all(not(feature = "app-test"), feature = "sd-font-catalog"))]
 include!(concat!(env!("OUT_DIR"), "/builtin_font_ids.rs"));
 
 impl XpEpubLeaves {
+    pub(super) unsafe fn settings(&self, _owner: FontOwner, resolve: bool) -> XpEpubSettings {
+        let mut out = core::mem::MaybeUninit::uninit();
+        (self.settings_snapshot)(u8::from(resolve), out.as_mut_ptr());
+        #[allow(unused_mut)]
+        let mut settings = out.assume_init();
+        #[cfg(all(not(feature = "app-test"), feature = "sd-font-catalog"))]
+        if resolve {
+            let family = settings.font_family.bytes().unwrap_or_default();
+            let loaded = if family.is_empty() {
+                0
+            } else {
+                crate::font_sd::catalog::loaded_id(_owner.get().cast(), family)
+            };
+            settings.font = xp_core::sdfont::control::reader_font(
+                &BUILTIN_FONT_IDS,
+                settings.font_size,
+                loaded,
+            );
+        }
+        settings
+    }
+
     pub(super) unsafe fn font_variant(&self, _owner: FontOwner, font: i32, scale: f32) -> i32 {
         #[cfg(any(feature = "app-test", not(feature = "sd-font-catalog")))]
         {

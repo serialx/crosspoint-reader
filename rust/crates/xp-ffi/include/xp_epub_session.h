@@ -393,7 +393,8 @@ typedef struct XpEpubLeaves {
 #ifndef XP_SD_FONT_CATALOG
   uint8_t (*font_sizes)(XpAppText family, XpAppTextSink sink, void* context);
 #endif
-  // Font is meaningful only when requested; otherwise font is zero and resolution is skipped.
+  // Catalog firmware leaves font zero; Rust resolves it after this raw settings read.
+  // Host/non-catalog builds resolve font only when resolve_font is nonzero.
   void (*settings_snapshot)(uint8_t resolve_font, XpEpubSettings* out);
   // Shipping copies raw fields; Rust fills font/compression from settings_snapshot.
   void (*settings_render_spec)(uint16_t width, uint16_t height, XpEpubRenderSpec* out);
@@ -513,6 +514,7 @@ typedef struct XpEpubLeaves {
   void (*inflate_oom_log)(XpAppText allocation, uint32_t bytes);
   // Physical layout tables have process lifetime and never borrow a chapter owner.
   const XpParaMetrics* (*build_metrics)(void);
+  // Firmware supplies allocation/free/logging only; Rust owns the reclaim callback.
   const XpParaAllocator* (*build_allocator)(void);
 #if defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
   int32_t (*font_variant)(int32_t font, float scale);

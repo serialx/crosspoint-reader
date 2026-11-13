@@ -66,7 +66,7 @@ mod plugin {
 mod settings {
     pub fn xp_setting_line_compression(sd: bool, spacing: u8) -> f32 {
         super::record("compression");
-        assert!(sd);
+        assert_eq!(sd, super::FAMILY.with(|f| !f.get().is_empty()));
         assert_eq!(spacing, 3);
         0.875
     }
@@ -87,11 +87,18 @@ mod abi {
     }
     pub struct Text {
         pub len: usize,
+        pub data: &'static [u8],
+    }
+    impl Text {
+        pub unsafe fn bytes(&self) -> Option<&[u8]> {
+            Some(self.data)
+        }
     }
     pub struct XpEpubSettings {
         pub font: i32,
         pub font_family: Text,
         pub line_spacing: u8,
+        pub font_size: u8,
     }
     pub struct XpEpubRenderSpec {
         pub font: i32,
@@ -124,8 +131,12 @@ unsafe extern "C" fn snapshot(resolve: u8, out: *mut abi::XpEpubSettings) {
     record("snapshot");
     assert_eq!(resolve, 1);
     out.write(abi::XpEpubSettings {
-        font: 123,
-        font_family: abi::Text { len: 2 },
+        font: 0,
+        font_family: FAMILY.with(|f| abi::Text {
+            len: f.get().len(),
+            data: f.get(),
+        }),
+        font_size: 15,
         line_spacing: 3,
     });
 }
@@ -206,14 +217,70 @@ fn subscriptions_borrow_the_current_table_without_caching() {
 }
 #[test]
 fn render_spec_resolves_font_once_before_compression_and_raw_fields() {
-    let mut out = core::mem::MaybeUninit::uninit();
-    unsafe {
-        leaves().settings_render_spec(456, 789, out.as_mut_ptr());
+    for (family, loaded, expected, calls) in [
+        (
+            b"".as_slice(),
+            0,
+            fonts::BUILTIN_FONT_IDS[1],
+            vec!["snapshot", "compression", "spec"],
+        ),
+        (
+            b"SD".as_slice(),
+            -77,
+            -77,
+            vec!["snapshot", "loaded", "compression", "spec"],
+        ),
+        (
+            b"SD".as_slice(),
+            0,
+            fonts::BUILTIN_FONT_IDS[1],
+            vec!["snapshot", "loaded", "compression", "spec"],
+        ),
+    ] {
+        FAMILY.with(|f| f.set(family));
+        LOADED.with(|f| f.set(loaded));
+        let mut out = core::mem::MaybeUninit::uninit();
+        unsafe {
+            leaves().settings_render_spec(app_abi::FontOwner(7), 456, 789, out.as_mut_ptr());
+        }
+        let out = unsafe { out.assume_init() };
+        assert_eq!(take(), calls);
+        assert_ne!(out.font, 0);
+        assert_eq!(
+            (out.font, out.compression, out.width, out.height),
+            (expected, 0.875, 456, 789)
+        );
     }
-    let out = unsafe { out.assume_init() };
-    assert_eq!(take(), ["snapshot", "compression", "spec"]);
-    assert_eq!(
-        (out.font, out.compression, out.width, out.height),
-        (123, 0.875, 456, 789)
-    );
+}
+
+thread_local! {
+    static FAMILY: std::cell::Cell<&'static [u8]> = const {std::cell::Cell::new(b"")};
+    static LOADED: std::cell::Cell<i32> = const {std::cell::Cell::new(0)};
+}
+mod app_abi {
+    #[derive(Clone, Copy)]
+    pub struct FontOwner(pub usize);
+    impl FontOwner {
+        pub fn get(self) -> *mut core::ffi::c_void {
+            self.0 as *mut _
+        }
+    }
+}
+mod font_sd {
+    pub mod catalog {
+        pub unsafe fn loaded_id(owner: *mut core::ffi::c_void, family: &[u8]) -> i32 {
+            assert_eq!(owner as usize, 7);
+            assert_eq!(family, b"SD");
+            crate::record("loaded");
+            crate::LOADED.with(|f| f.get())
+        }
+    }
+}
+mod fonts {
+    use super::{
+        abi::{XpEpubLeaves, XpEpubSettings},
+        app_abi::FontOwner,
+    };
+    include!(concat!(env!("OUT_DIR"), "/builtin_font_ids.rs"));
+    include!(concat!(env!("OUT_DIR"), "/settings_method.rs"));
 }

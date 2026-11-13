@@ -136,6 +136,8 @@ void GfxRenderer::begin() {
   // or flash on the next glyph access. The SD-font persistent advance table is
   // deliberately NOT a sink: evicting it mid-paragraph would make later
   // measurements in the same layout pass return 0-width advances.
+  // Keep this order in sync with Rust reader reclaim in
+  // rust/crates/xp-ffi/src/app/epub/section_owner/allocator.rs (reclaim_caches).
   auto& memoryManager = freeink::MemoryManager::instance();
   memoryManager.registerSink({"gfx.renderGlyphCache", 50, [this](size_t) -> size_t {
                                 return fontCacheManager_ ? xp_font_cache_release(fontMap.raw(), XP_FONT_EVICT_RENDER)

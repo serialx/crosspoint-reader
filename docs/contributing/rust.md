@@ -451,9 +451,12 @@ checks every call against the original C++ trace as well.
 `xp-core::para::paragraph::Paragraph` owns the word arena and token storage.
 The C++ `Paragraph` adapter embeds 64 pointer-sized, pointer-aligned words, with
 compile-time Rust size/alignment checks and no separate handle allocation.
-Arena/token buffers use the existing C++ nothrow allocator callback, which retries
-once after `MemoryManager::ensureFree(request + 8192)`. Rust returns those buffers
-to the matching release callback. Link targets and temporary Rust vectors use
+Arena/token buffers use the existing C++ nothrow allocation callback and retry
+once after reclaiming for the failed request plus 8 KiB. The reader's
+`section_owner/allocator.rs` calls `reclaim_caches` and `font_runtime::release`
+directly; only legacy `Paragraph.cpp` / `ChapterPlatform.cpp` callers use
+`MemoryManager::ensureFree`. Rust returns buffers to the matching release
+callback. Link targets and temporary Rust vectors use
 fallible `try_reserve` with the firmware's ESP-IDF global allocator.
 
 Text chunks remain 2,048 bytes, with exact-fit chunks for larger words and a
@@ -898,6 +901,24 @@ test guards. Rust selects the publication hyphenation language and mirrors only
 the resulting ID into the existing native cache for chapter/Definition clients
 (R6); this one-way write neither allocates nor calls back into Rust.
 
+Catalog firmware reads raw reader settings from native state, then selects the
+loaded SD/vector family or nearest builtin size in Rust (lower size on a tie).
+A snapshot requested without font resolution leaves its font ID zero. The shipping
+render-spec path uses the same Rust resolver before reading compression and the
+remaining raw native fields. Settings serialization stays native.
+Native font-ID consumers remain in `CrossPointSettings::readerRenderSpec`,
+`DefinitionPayload`, `ClipSelectionActivity`, `DictHtmlPages`, `DetailsActivity`
+and `TextSettingsPreview`; their retained paths still use `getReaderFontId`.
+
+Reader paragraph allocation uses a static Rust allocator table. It borrows the
+existing native table for zeroed, null-on-failure allocation, paired deletion
+and diagnostics. Rust retries after evicting render, SD mini and (on vector
+boards) vector caches, in SDK sink order, stopping at the same reported-byte
+target. Persistent
+advance tables remain live. Legacy native paragraph callers retain the SDK
+allocator. Adding or changing a renderer memory sink requires updating both
+paths until the legacy native allocator is retired.
+
 The production paragraph metric table points directly to the Rust font provider.
 The legacy chapter/definition table in `ChapterPlatform.cpp` still uses a native
 provider adapter; its removal belongs to R6.
@@ -1040,8 +1061,9 @@ owns loading and shared-interval reference counts. `sdfont::{parser,owner,io}`
 own stable faces, per-style storage and scoped physical handles; `control` owns
 the loaded list and family name. The renderer's explicit font owner holds one
 shared-interval registry and invalidates generation before table mutations.
-`sdfont::catalog` owns discovery records; `control::update` and
-`control::variant` own reader selection and variants. Reader/chapter callbacks
+`sdfont::catalog` owns discovery records; `control::reader_font`,
+`control::update` and `control::variant` own reader font IDs, selection and
+variants. Reader/chapter callbacks
 use the explicit Rust font owner. Web font and settings routes derive ordered
 family/size choices in Rust; native consumers copy and label borrowed results.
 The native chapter owner-address leaf remains with P18-D2 until that context moves.

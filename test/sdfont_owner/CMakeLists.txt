@@ -85,3 +85,8 @@ add_test(NAME HalContract.sd_switch_slots COMMAND sdfont_owner_switch --hal-cont
 add_test(NAME HalContract.sd_system_slots COMMAND sdfont_system_candidate --hal-contract)
 add_test(NAME HalContract.sd_rust_slots COMMAND ${XP_FFI_CARGO} test
   --manifest-path ${CMAKE_CURRENT_SOURCE_DIR}/Cargo.toml --offline --locked --bin sdfont-owner)
+
+add_test(NAME ReaderFontReclaim
+  COMMAND ${XP_FFI_CARGO} test --manifest-path ${REPO_ROOT}/rust/Cargo.toml -p xp-core
+    --test reader_font_reclaim --offline --locked)
+set_tests_properties(ReaderFontReclaim PROPERTIES WORKING_DIRECTORY ${REPO_ROOT}/rust)

@@ -1,5 +1,6 @@
 // Shipping calls go straight to the Rust owners; host oracles retain their fakes.
 use super::abi::{XpEpubLeaves, XpEpubPeer, XpEpubRadio, XpEpubRenderSpec};
+use super::app_abi::FontOwner;
 
 impl XpEpubLeaves {
     pub(super) unsafe fn radio_status(&self, out: *mut XpEpubRadio, peer: *mut XpEpubPeer) {
@@ -119,15 +120,14 @@ impl XpEpubLeaves {
 
     pub(super) unsafe fn settings_render_spec(
         &self,
+        _owner: FontOwner,
         width: u16,
         height: u16,
         out: *mut XpEpubRenderSpec,
     ) {
         #[cfg(not(feature = "app-test"))]
         let (font, compression) = {
-            let mut settings = core::mem::MaybeUninit::uninit();
-            (self.settings_snapshot)(1, settings.as_mut_ptr());
-            let settings = settings.assume_init();
+            let settings = self.settings(_owner, true);
             (
                 settings.font,
                 crate::settings::xp_setting_line_compression(

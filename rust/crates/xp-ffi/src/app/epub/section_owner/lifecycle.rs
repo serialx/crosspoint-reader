@@ -304,7 +304,7 @@ impl ReaderSection {
             pages,
             fonts: Fonts {
                 metrics: unsafe { &*(leaves.build_metrics)() },
-                allocator: unsafe { &*(leaves.build_allocator)() },
+                allocator: unsafe { super::allocator::table(leaves) },
             },
             image: Physical {
                 supported: leaves.image_supported,

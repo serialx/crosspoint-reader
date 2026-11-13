@@ -5,6 +5,7 @@ use super::Text;
 use crate::{app::abi, section_cache};
 pub(super) use cached::CachedSection;
 
+mod allocator;
 mod book;
 mod diagnostics;
 mod driver;

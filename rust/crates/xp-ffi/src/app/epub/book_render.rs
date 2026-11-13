@@ -421,8 +421,12 @@ impl EpubSession {
         unsafe {
             let ptr = out.as_mut_ptr();
             core::ptr::addr_of_mut!((*ptr).margins).write(margins);
-            self.leaves
-                .settings_render_spec(width, height, core::ptr::addr_of_mut!((*ptr).spec));
+            self.leaves.settings_render_spec(
+                self.resources.font_owner,
+                width,
+                height,
+                core::ptr::addr_of_mut!((*ptr).spec),
+            );
         }
     }
 

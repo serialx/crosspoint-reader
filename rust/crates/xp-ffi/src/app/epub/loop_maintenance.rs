@@ -140,8 +140,12 @@ impl EpubSession {
         let (width, height) = self.model(|state| state.viewport);
         let mut spec = MaybeUninit::<abi::XpEpubRenderSpec>::uninit();
         unsafe {
-            self.leaves
-                .settings_render_spec(width, height, spec.as_mut_ptr())
+            self.leaves.settings_render_spec(
+                self.resources.font_owner,
+                width,
+                height,
+                spec.as_mut_ptr(),
+            )
         };
         let started =
             unsafe { ReaderSection::start(section, &spec.assume_init(), None, self.runtime) };

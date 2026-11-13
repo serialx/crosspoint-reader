@@ -230,8 +230,6 @@ import xp_native_sd_path_exists # Existing direct native ABI at 5ff7aa05; review
 import xp_settings_shell_paint # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 import xp_settings_shell_snapshot # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 import xp_settings_shell_theme_reload # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
-inherited EPUB.settings_snapshot R1c # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
-inherited EPUB.build_allocator R1c # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 inherited App.popup_draw R2b # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 inherited App.popup_progress R2b # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 inherited EPUB.input_facts R-RELAY # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
@@ -260,7 +258,7 @@ callback xp_keyboard_deliver # Borrows XpAppLegacy to deliver a keyboard result 
 callback xp_native_render_target # Fills XpPageTarget and XpUiPaint output tables with native callbacks; incoming output fields are not invoked.
 callback EPUB.input_services # Returns native input service callbacks for a synchronous reader borrow.
 callback EPUB.build_metrics # Returns native layout metric callbacks for the section build.
-callback EPUB.build_allocator # Returns native allocation callbacks including the SDK eviction callback path.
+callback EPUB.build_allocator # Returns process-lifetime physical allocation/free/log callbacks; no reclaim or Rust callback on firmware.
 callback EPUB.display_source # Receives a Rust display source table; lifetime covers the configured display source.
 callback Modes.resources # Returns native settings resources including label/draw function pointers.
 inherited EPUB.input_services R-RELAY # Returned home_action service calls the Rust-filled compatibility table; tilt remains physical.

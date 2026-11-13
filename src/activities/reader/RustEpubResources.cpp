@@ -14,6 +14,8 @@
 #include <FontCacheManager.h>
 #include <GfxRenderer.h>
 
+#include "RustReaderDocument.h"
+
 // GfxRenderer.h selects the direct provider for firmware.
 // Scalar metric callbacks below remain for XP_APP_TEST fixtures.
 // Their stub renderer does not define XP_NATIVE_TEXT_MEASUREMENT.
@@ -24,7 +26,9 @@
 #include <HalPowerManager.h>
 #include <HalStorage.h>
 #include <InflateStream.h>
+#ifdef XP_APP_TEST
 #include <KOReaderDocumentId.h>
+#endif
 #include <Logging.h>
 #include <Memory.h>
 #include <ReaderProtection.h>
@@ -881,10 +885,14 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
 #else
       .subscribers = pluginevents::subscriptionView,
 #endif
+#ifdef XP_APP_TEST
       .document_id = [](XpAppText path, XpAppTextSink sink, void* context) -> uint8_t {
         const auto document = KOReaderDocumentId::calculate(owned(path));
         return sink(context, text(document));
       },
+#else
+      .document_io = readerDocumentIo,
+#endif
       .emit_open =
           [](XpAppText path) {
             const pluginevents::Var vars[] = {{"book", pathText(path)}};

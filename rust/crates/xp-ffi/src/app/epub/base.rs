@@ -1,4 +1,6 @@
-use super::{abi, app_abi, book::with_text, EpubSession, ResourceAccess};
+#[cfg(feature = "app-test")]
+use super::book::with_text;
+use super::{abi, app_abi, EpubSession, ResourceAccess};
 use core::{ffi::c_void, mem::MaybeUninit, ptr::NonNull};
 #[cfg(feature = "app-test")]
 use xp_ui::reader::SKIP_HOLD_MS;
@@ -123,30 +125,35 @@ impl EpubSession {
             self.reset_session();
             return;
         }
+        let emit = |document: app_abi::Text| {
+            let bytes = unsafe { document.bytes() }.unwrap_or_default();
+            if bytes.len() == 32
+                && bytes
+                    .iter()
+                    .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+            {
+                let event = abi::XpEpubSessionEvent {
+                    start_time: session.start_epoch,
+                    end_time: session
+                        .start_epoch
+                        .wrapping_add(i64::from(session.duration)),
+                    duration_seconds: session.duration,
+                    start_progress: session.start_progress,
+                    end_progress: session.end_progress,
+                };
+                unsafe { (self.leaves.emit_session)(self.path().wire(), document, &event) };
+            }
+            // Keep the document bytes alive through emission and reset.
+            self.reset_session();
+        };
+        #[cfg(feature = "app-test")]
         let consumed = with_text(
             |sink, context| unsafe { (self.leaves.document_id)(self.path().wire(), sink, context) },
-            |document| {
-                let bytes = unsafe { document.bytes() }.unwrap_or_default();
-                if bytes.len() == 32
-                    && bytes
-                        .iter()
-                        .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
-                {
-                    let event = abi::XpEpubSessionEvent {
-                        start_time: session.start_epoch,
-                        end_time: session
-                            .start_epoch
-                            .wrapping_add(i64::from(session.duration)),
-                        duration_seconds: session.duration,
-                        start_progress: session.start_progress,
-                        end_progress: session.end_progress,
-                    };
-                    unsafe { (self.leaves.emit_session)(self.path().wire(), document, &event) };
-                }
-                // The native document remains borrowed until after reset.
-                self.reset_session();
-            },
+            emit,
         );
+        #[cfg(not(feature = "app-test"))]
+        let consumed = super::book_owner::document::calculate(self.leaves, self.path())
+            .map(|document| emit(document.wire()));
         if consumed.is_none() {
             self.reset_session();
         }

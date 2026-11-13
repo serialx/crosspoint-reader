@@ -944,7 +944,6 @@ EPUB.child_wifi xp_native_draw_pixels
 EPUB.child_wifi xp_native_resolve
 EPUB.child_wifi xp_native_width
 EPUB.child_wifi xp_sd_font_prewarm
-EPUB.document_id xp_sync_samples
 EPUB.emit_exit XpEpubBookBorrow.item_size
 EPUB.emit_exit XpEpubBookBorrow.stream
 EPUB.emit_exit xp_book_document

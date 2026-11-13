@@ -566,11 +566,15 @@ pub struct XpEpubLeaves {
     pub has_exit_subscriber: unsafe extern "C" fn() -> u8,
     #[cfg(feature = "app-test")]
     pub has_session_subscriber: unsafe extern "C" fn() -> u8,
+    #[cfg(feature = "app-test")]
     pub document_id: unsafe extern "C" fn(
         path: XpAppText,
         sink: XpAppTextSink,
         context: *mut core::ffi::c_void,
     ) -> u8,
+    #[cfg(not(feature = "app-test"))]
+    pub document_io:
+        unsafe extern "C" fn(*mut core::ffi::c_void, u8, *const u8, *mut u8, u32) -> i64,
     pub emit_open: unsafe extern "C" fn(path: XpAppText),
     pub emit_exit: unsafe extern "C" fn(path: XpAppText, percent: i32),
     pub emit_session: unsafe extern "C" fn(
@@ -982,7 +986,10 @@ const _: () = {
     assert!(
         core::mem::offset_of!(XpEpubLeaves, has_session_subscriber) == leaf_index(96) * pointer
     );
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, document_id) == leaf_index(97) * pointer);
+    #[cfg(not(feature = "app-test"))]
+    assert!(core::mem::offset_of!(XpEpubLeaves, document_io) == leaf_index(97) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, emit_open) == leaf_index(98) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, emit_exit) == leaf_index(99) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, emit_session) == leaf_index(100) * pointer);

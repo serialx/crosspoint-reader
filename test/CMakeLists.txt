@@ -252,3 +252,4 @@ add_subdirectory(runtime_input)
 add_subdirectory(runtime_ble)
 
 add_subdirectory(image_probe)
+add_subdirectory(reader_document_id)

@@ -656,8 +656,8 @@ through its existing boundary under ruling 45. Recents UI and Library use their 
 
 Reader time decisions call the Rust time service directly. Native callbacks
 supply the clock, floor storage, SNTP setup and wait operations. State-path
-reads return borrowed strings without a Rust sink. Document-ID sampling and its
-result sink remain pending in the unit after R3b.
+reads return borrowed strings without a Rust sink. Document-ID sampling and
+result storage stay in Rust; native primitives perform file and digest operations.
 
 The [persistence checks](../../test/reader_persistence/README.md) compare actual
 Rust orchestration with the existing native facades, including every serialized
@@ -1494,3 +1494,21 @@ The named physical continuation is the SDK protected byte stream, including
 home progress and thumbnails. The [protection tests](../../test/reader_protection/README.md)
 compare this gate with the shipping Rust gate until native EPUB ownership moves.
 No key format, protected-book error text or persisted book data changes here.
+
+## Reader document identity
+
+The Rust reader calls the shared twelve-sample KOReader plan directly and owns
+its sample buffer, terminated lowercase MD5 text, and session-event lifetime. The
+`document_io` boundary holds a HAL file and SDK MD5 context in bounded caller
+storage. It performs one physical operation per call and never calls Rust.
+The HAL file closes after the hash diagnostic and before the session event;
+reset still follows emission. If there is no subscriber or the session is too
+short, the reader skips file I/O.
+
+The remaining native `KOReaderDocumentId::calculate` serves non-reader sync
+callers and the differential oracle. Valid reads, short reads and seek failures
+produce identical IDs and operation order. A negative read contributes no
+bytes on the Rust reader path; the native helper's unsigned conversion has
+undefined behavior and remains a separate upstream defect. The
+[document-ID test](../../test/reader_document_id/README.md) covers that distinction,
+large virtual files, path bytes, and the shipping session emitter.

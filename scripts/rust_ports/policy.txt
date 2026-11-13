@@ -18,7 +18,6 @@ callback EPUB.protection_stream # Prepare opens caller-owned SD scratch; Read sy
 callback EPUB.popup_show # Retains label/choice callbacks until the popup is dismissed; review both lifetimes.
 callback EPUB.end_input # Delivers the selected end-menu action synchronously.
 callback EPUB.state_open_path # Copies the stored open path through the supplied text sink.
-callback EPUB.document_id # Returns document identity through the supplied text sink.
 callback EPUB.child_definition_payload_lookup # Supplies a query callback during native definition payload construction.
 callback EPUB.child_definition_payload_plain # Supplies text callbacks during native payload construction.
 callback EPUB.storage_read_file # Delivers file bytes to the bookmark/text sink.
@@ -66,7 +65,6 @@ deferred EPUB.child_text_settings R5 # Deferred preview/popup/end-of-book path.
 deferred EPUB.child_toolbar_icon R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_utility_layout R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_wifi R6 # Deferred dictionary/selection/chapter child bridge.
-inherited EPUB.document_id R3b # Protection/document identity relay.
 inherited EPUB.emit_exit R3a # Native persistence/state/store or shared app relay.
 inherited EPUB.emit_open R3a # Native persistence/state/store or shared app relay.
 inherited EPUB.emit_session R3a # Native persistence/state/store or shared app relay.
@@ -266,3 +264,4 @@ import xp_native_page_jpeg # Physical JPEGDEC operations only; Rust owns decode 
 callback xp_native_page_jpeg # rows borrows the stable Rust JPEG context; JPEGDEC retains it only between configure and close and its block callback synchronously calls xp_page_image_jpeg_row, the accepted physical stream up-call.
 physical xp_native_page_jpeg xp_page_image_jpeg_row # JPEGDEC block callback only; file callbacks stay native and pipeline/clock/yield orchestration stays Rust-owned.
 import xp_native_page_jpeg_log # One-way synchronous diagnostic formatting from borrowed JPEG facts; no retained pointers or Rust calls.
+# EPUB.document_io is a one-way HAL file/SDK MD5 primitive in caller storage; no sampling, string sink or Rust callback.

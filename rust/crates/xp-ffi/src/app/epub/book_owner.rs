@@ -9,6 +9,8 @@ pub(super) mod queries;
 pub(super) use load::LoadError;
 mod cache;
 pub(super) mod css;
+#[cfg(not(feature = "app-test"))]
+pub(super) mod document;
 mod facade;
 #[cfg(feature = "app-test")]
 mod reference;

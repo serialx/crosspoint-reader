@@ -518,7 +518,12 @@ typedef struct XpEpubLeaves {
   // Borrowed until the synchronous query returns; subscription refresh stays on the app task.
   const XpPluginSubscriber* (*subscribers)(void);
 #endif
+#ifdef XP_APP_TEST
   uint8_t (*document_id)(XpAppText path, XpAppTextSink sink, void* context);
+#else
+  // Caller-owned HAL file and SDK MD5 context; synchronous, no retained pointer or callback.
+  int64_t (*document_io)(void* storage, uint8_t operation, const uint8_t* input, uint8_t* output, uint32_t value);
+#endif
   void (*emit_open)(XpAppText path);
   // percent is 0-100; on read failure use last known percent for this book session, initially 0.
   void (*emit_exit)(XpAppText path, int32_t percent);
@@ -869,7 +874,11 @@ XP_EPUB_LEAF_OFFSET(has_session_subscriber, 92);
 #else
 XP_EPUB_LEAF_OFFSET(subscribers, 91);
 #endif
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(document_id, 93);
+#else
+XP_EPUB_LEAF_OFFSET(document_io, 93);
+#endif
 XP_EPUB_LEAF_OFFSET(emit_open, 94);
 XP_EPUB_LEAF_OFFSET(emit_exit, 95);
 XP_EPUB_LEAF_OFFSET(emit_session, 96);

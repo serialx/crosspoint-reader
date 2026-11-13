@@ -51,6 +51,13 @@ source = replace_once(source, '// ACTUAL_LEAVES', '\n'.join(
     'value.' + x + ' = ' + native_leaf(native, x) + ';' for x in (
         'file_open_read', 'file_read', 'file_close', 'file_seek', 'file_size', 'cache_lock', 'cache_unlock')))
 cpp = args.build / 'unit1.cpp'
+writer = (ROOT / 'test/package_golden/PackageWriterTest.cpp').read_text()
+writer = writer.split('namespace {', 1)[1].split('XpPkgSpan span(', 1)[0]
+writer = writer.replace('Storage', 'WriterStorage')
+writer = writer.replace('return index + 10;', 'return index == 0 ? 0xffffffffu : 1;')
+source += ('\n#include <array>\n#include <deque>\n#include <algorithm>\n#include <fstream>\n'
+           '#include <xp_book.h>\nnamespace WriterFixture {\n' + writer + '\n}\n')
+source += (HERE / 'writer_boundary.cpp').read_text()
 cpp.write_text(source + (HERE / 'unit1.cpp').read_text())
 binary = args.build / 'unit1'
 cmd = ['c++', '-std=c++20', '-O0', '-g', '-UNDEBUG', '-DXP_FFI_HOST_FAULT_INJECTION',
@@ -83,6 +90,23 @@ for at in (1, lut, lut + 4, spine, toc):
     cases.append(('damaged', damaged, at))
 cases += [('read', data, n) for n in (0, 1, 5, 7, 9, lut, lut + 4, spine, spine + 4, toc)]
 cases += [('cache-seek', data, 0), ('open', data, 0), ('text', data, 0), ('text-empty', data, 0), ('seek', data, 0)]
+def cache_bytes(sizes, toc_count, empty=False):
+    records = [field(b'' if empty else b'x' * 40) + struct.pack('<Ih', size, -1) for size in sizes]
+    records += [(field(b'' if empty else b'T' * 40) + field(b'' if empty else b'x' * 40)
+                 + field(b'') + struct.pack('<Bh', 0, -1))] * toc_count
+    position = 29 + 4 * len(records)
+    offsets = []
+    for record in records:
+        offsets.append(position)
+        position += len(record)
+    return (struct.pack('<BIHH', 10, 29, len(sizes), toc_count) + metadata
+            + b''.join(struct.pack('<I', offset) for offset in offsets) + b''.join(records))
+
+cases += [('boundary', cache_bytes(sizes, toc_count, empty=True), sizes[-1] if sizes else 0)
+          for sizes, toc_count in [([], 0), ([], 1), ([0], 0), ([0xffffffff, 0, 32], 1),
+                                   ([0] * 65535, 65535)]]
+cases += [('boundary', data + b'trailing', 12), ('policy', data, 0),
+          ('cost', cache_bytes(list(range(1, 1001)), 1000), 0), ('writer', data, 0)]
 results = []
 for number, (mode, content, offset) in enumerate(cases):
     folder = args.build / f'{number:03d}-{mode}'

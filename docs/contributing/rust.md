@@ -328,8 +328,8 @@ on reaching its original starting offset.
 Extraction is Rust-owned as well. `xp_book_zip_memory` and
 `xp_book_zip_stream` (`rust/crates/xp-ffi/src/book_io.rs:273,302`) dispatch to
 `xp-core::book_io::zip_read` (`rust/crates/xp-core/src/book_io/zip_read.rs:74-276`),
-which sequences the lookup, the seek to the entry's data offset whose result it
-ignores, the stored copy, the method-8 deflate read, output allocation and
+which sequences lookup, rejects a failed seek to the entry's data offset, and drives
+the stored copy, the method-8 deflate read, output allocation and
 release, and the streaming early stop. The memory path reads deflate input
 through a 1,024-byte buffer. Allocation and release, inflate, and the write sink
 are still C++ callbacks that `extractServices` builds into `XpBookZipServices`

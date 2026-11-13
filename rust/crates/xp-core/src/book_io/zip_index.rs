@@ -64,7 +64,7 @@ impl Services {
             entry.name.length as usize,
         ))
     }
-    /// Preserve the native signed-long offset check before the unchecked data seek.
+    /// Preserve the native signed-long offset check before the checked data seek.
     pub(super) unsafe fn data_offset(&self, entry: &Entry) -> Option<usize> {
         let request = zip::local_request(entry.local_offset);
         let mut header = [0; 30];

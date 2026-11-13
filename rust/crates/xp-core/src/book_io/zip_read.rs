@@ -81,8 +81,9 @@ pub unsafe fn prepare(
     }
     let entry = zip_index::lookup(index, target, last)?;
     let offset = index.data_offset(&entry)?;
-    // The existing facade ignores this seek's result; preserve its read/error path.
-    (index.seek)(index.ctx, offset);
+    if !(index.seek)(index.ctx, offset) {
+        return None;
+    }
     Some(entry)
 }
 

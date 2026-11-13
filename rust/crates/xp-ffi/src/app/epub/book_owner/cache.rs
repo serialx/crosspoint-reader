@@ -151,9 +151,18 @@ impl<'a> Cursor<'a> {
     // Validate strings without allocating storage for TOC rows during book open.
     fn skip_string(&mut self) -> bool {
         let mut length = 0;
-        self.u32(&mut length)
-            && length <= self.limit.saturating_sub(self.position)
-            && self.seek(self.position + length)
+        if !self.u32(&mut length) || length > self.limit.saturating_sub(self.position) {
+            return false;
+        }
+        let mut buffer = [0; 128];
+        while length != 0 {
+            let count = length.min(buffer.len() as u32) as usize;
+            if !self.read(&mut buffer[..count]) {
+                return false;
+            }
+            length -= count as u32;
+        }
+        true
     }
 }
 
@@ -221,20 +230,29 @@ impl BookCache {
         if cursor.failed || self.lut_offset != cursor.position || records > cursor.limit {
             return Err(Error::Invalid);
         }
-        let mut next = records;
+        // Read the LUT and records forward once, without alternating SD sectors.
+        let mut minimum = records;
         for index in 0..count {
-            if !cursor.row(self.lut_offset, index) || cursor.position != next {
+            let mut offset = 0;
+            let row_minimum = if index < u32::from(self.spine_count) {
+                10
+            } else {
+                15
+            };
+            if !cursor.u32(&mut offset) || offset < minimum || (index == 0 && offset != records) {
                 return Err(Error::Invalid);
             }
+            minimum = offset.checked_add(row_minimum).ok_or(Error::Invalid)?;
+            if minimum > cursor.limit {
+                return Err(Error::Invalid);
+            }
+        }
+        for index in 0..count {
             if index < u32::from(self.spine_count) {
                 if index % METADATA_WINDOW == 0 {
                     self.starts.push(self.total_size);
                 }
-                let size = cursor.spine()?.cumulative;
-                if size < self.total_size {
-                    return Err(Error::Invalid);
-                }
-                self.total_size = size;
+                self.total_size = cursor.spine()?.cumulative;
             } else if !cursor.skip_string()
                 || !cursor.skip_string()
                 || !cursor.skip_string()
@@ -242,7 +260,6 @@ impl BookCache {
             {
                 return Err(Error::Invalid);
             }
-            next = cursor.position;
         }
         self.loaded = true;
         log::message(

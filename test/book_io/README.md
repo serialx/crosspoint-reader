@@ -39,3 +39,9 @@ existing real decoder goldens remain the pixel contract. The 2,493 cases include
 are each smaller than 1 MB. The final allocation and directory extensions were
 captured from exported `0b70268b` Epub source and header after implementation
 started, never from the candidate.
+
+Failed ZIP data seeks now use a rejection assertion instead of the inherited
+ignored-seek golden: the trace through the fault must match, and no archive read
+or decompressed output may occur before a new seek/open. Healthy cases and other
+faults retain their full golden comparisons. `reader_harden` additionally traps
+any extraction callback after that failure in both native extraction APIs.

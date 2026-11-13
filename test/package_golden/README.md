@@ -179,9 +179,10 @@ without reviewing the differences.
 including embedded NUL and invalid UTF-8 metadata, empty fields, partial PODs and
 reloads into existing destination fields. Its expected output was captured from
 `382c12ae` with `-ftrivial-auto-var-init=zero`, before the reader moved to Rust.
-The Rust reader initializes only previously undefined scratch bytes; partial reads
-into existing fields retain their unread bytes. This does not add error returns
-or retries. The fixture does not claim parity for uninitialized C++ memory.
+The retained `xp-ffi::book_cache` facade initializes only previously undefined
+scratch bytes; partial reads into existing fields retain their unread bytes.
+That facade adds no error returns or retries. The shipping reader's cache owner
+instead rejects incomplete loads; `reader_harden` covers that behaviour. The fixture does not claim parity for uninitialized C++ memory.
 
 `PackageSizeBoundaries` covers empty spines, the 399/400-item batch threshold,
 2,048/2,049-item batches, duplicate and normalized hrefs, missing ZIP members,

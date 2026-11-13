@@ -2306,8 +2306,8 @@ enum class XpBookTxtFileDiagnostic : uint32_t { VersionMismatch = 0, SizeChanged
 #endif
 
 // All callbacks are nullable in the ABI. Missing required callbacks return false
-// before I/O. Validate requires control/read, plus size when cached > 0; write is
-// unused and diagnostic may be null for silence. Convert requires control, plus
+// before I/O. Validate requires control/read/size, including when cached is zero;
+// write is unused and diagnostic may be null for silence. Convert requires control, plus
 // read/write for BMP; size/diagnostic and non-BMP read/write are unused.
 typedef struct {
   void* context;

@@ -51,6 +51,31 @@ def run(binary, data, fail_at=0, options=None):
         return {'status': result.returncode, 'trace': result.stdout.decode(errors='replace'), 'files': files}
 
 
+def check_data_seek_rejection(actual, expected, data, fault):
+    if not fault:
+        return False
+    # These failures deliberately replace the old ignored-seek behaviour.
+    with zipfile.ZipFile(io.BytesIO(data)) as archive:
+        offsets = {entry.header_offset + 30 + len(entry.filename.encode()) + len(entry.extra)
+                   for entry in archive.infolist()}
+    before = expected['trace'].splitlines()
+    marker = re.compile(rf'io {fault} seek book.epub (\d+) 0 FAIL$')
+    failed = next(((i, marker.fullmatch(line)) for i, line in enumerate(before)
+                   if marker.fullmatch(line)), None)
+    if failed is None or int(failed[1][1]) not in offsets:
+        return False
+    after = actual['trace'].splitlines()
+    boundary = failed[0] + 1
+    assert actual['status'] == 0
+    assert after[:boundary] == before[:boundary], 'execution changed before the injected data-seek failure'
+    for line in after[boundary:]:
+        if re.match(r'io \d+ (seek|rb) book.epub ', line):
+            break
+        assert not re.match(r'io \d+ read book.epub ', line), 'read after failed data seek'
+        assert not line.startswith('log DBG ZIP Decompressed'), 'delivered data after failed seek'
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--oracle', type=Path, required=True)
@@ -102,6 +127,8 @@ def main():
     assert set(expected) == {key for key, _, _ in cases}, 'case inventory differs'
     for key, value, fault in cases:
         actual = run(binary, value, fault, options.get(key))
+        if check_data_seek_rejection(actual, expected[key], value, fault):
+            continue
         if actual != expected[key]:
             Path('/tmp/book-io-actual.json').write_text(json.dumps(actual, indent=2))
             Path('/tmp/book-io-expected.json').write_text(json.dumps(expected[key], indent=2))

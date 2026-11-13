@@ -48,7 +48,7 @@ unsafe extern "C" fn height(_: abi::Text, _: abi::TextLayout) -> i32 {
     24
 }
 unsafe extern "C" fn line(_: i32) -> i32 {
-    24
+    RECORD.with(|r| if r.borrow().invalid_theme { -1 } else { 24 })
 }
 unsafe extern "C" fn text(_: *const xp_ui::scene::Command, _: Rect, value: abi::Text) {
     RECORD.with(|r| r.borrow_mut().texts.push(value.bytes().unwrap().to_vec()));
@@ -105,7 +105,7 @@ unsafe extern "C" fn theme(
     toolbar: u8,
 ) {
     *facts = xp_ui::reader_chrome::runtime::ThemeFacts {
-        body_line_height: RECORD.with(|r| if r.borrow().invalid_theme { -1 } else { 24 }),
+        body_line_height: 0,
         help_font: 0,
         bookmark_help_font: 0,
     };

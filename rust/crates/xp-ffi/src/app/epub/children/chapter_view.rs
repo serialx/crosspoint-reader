@@ -140,7 +140,8 @@ impl Chapters {
             return Err(Error::Invalid);
         };
         let snapshot = self.model.with(|model| model.state);
-        let sampled = unsafe { physical.sample_theme(&mut frame.list.theme, ThemeMode::List) };
+        let sampled =
+            unsafe { physical.sample_theme(services, &mut frame.list.theme, ThemeMode::List) };
         let mut rows = ChapterRows {
             services,
             #[cfg(feature = "app-test")]

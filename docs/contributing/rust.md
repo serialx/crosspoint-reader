@@ -1483,9 +1483,12 @@ text run; native code supplies only theme facts and physical refresh.
 The reader paints page-load, empty-chapter and out-of-bounds messages through
 the same styled Rust text run, intersecting the screen clip with the existing
 target clip. Message selection, bold font, centering and y position are unchanged.
-The error-screen Back footer remains a named `THEME-FOOTER` exception: its three
-native theme layouts are shared with other screens and await an all-screens
-footer migration. Saved clipping highlights also remain with R6 and can run on
+Reader-menu and error-screen chrome remains a provisional `THEME-CHROME`
+exception: UI text and measurement, headers and footers still run Rust → native
+chrome → Rust fonts. Its three theme layouts remain shared with home, settings,
+keyboard and dialogs; UI-SCENE CP3 owns their all-screens migration. The reader
+theme sampler itself returns native constants only; Rust reads body line height
+from its font owner before composing the sampled theme. Saved clipping highlights also remain with R6 and can run on
 page turns; they are not an unreachable path.
 
 Runtime replaces `ble_tick` / `ble_before_screen_change` with `wifi_active` /

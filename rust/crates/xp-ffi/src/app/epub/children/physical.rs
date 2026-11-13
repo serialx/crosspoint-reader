@@ -43,11 +43,13 @@ impl Physical {
     #[inline(never)]
     pub(super) unsafe fn sample_theme(
         &self,
+        services: &abi::Resources,
         theme: &mut list::Theme,
         mode: ThemeMode,
     ) -> Result<(), Error> {
         let mut facts = ThemeFacts::default();
         unsafe { (self.list_theme)(theme, &mut facts, u8::from(mode == ThemeMode::Toolbar)) };
+        facts.body_line_height = unsafe { services.line_height(theme.body_font) };
         facts.compose(theme, mode)
     }
 }

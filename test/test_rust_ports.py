@@ -163,7 +163,7 @@ class PortTests(unittest.TestCase):
 
     def test_deferred_owners(self):
         for owner in [
-            "R5", "R6", "R7", "NONREADER", "RUNTIME-SHOT", "RUNTIME-SLEEP", "SET-OWN"
+            "R5", "R6", "R7", "NONREADER", "RUNTIME-SHOT", "RUNTIME-SLEEP", "SET-OWN", "THEME-CHROME"
         ]:
             config = copy.deepcopy(self.config)
             config["deferred"] = {r: [owner] for r in config["inherited"]}

@@ -43,8 +43,6 @@ inherited App.library_rebuild R3a # Native persistence/state/store or shared app
 inherited App.library_row R3a # Native persistence/state/store or shared app relay.
 inherited App.placeholder_draw R1b # Shared app font relay.
 inherited App.recent_update R3a # Native persistence/state/store or shared app relay.
-inherited App.text_box_height R1b # Shared app font relay.
-inherited App.text_draw R1b # Shared app font relay.
 inherited App.text_truncate R1b # Shared app font relay.
 inherited App.text_wrap R1b # Shared app font relay.
 deferred EPUB.build_metrics R6 # Shared metric table and retained chapter/definition provider adapter; also reachable during reader builds.
@@ -55,7 +53,7 @@ deferred EPUB.child_definition_selection_build R6 # Deferred dictionary/selectio
 deferred EPUB.child_definition_selection_child R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_list_help R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_list_icon R6 # Deferred dictionary/selection/chapter child bridge.
-deferred EPUB.child_list_theme R6 # Deferred dictionary/selection/chapter child bridge.
+# EPUB.child_list_theme returns native theme constants only; Rust fills line height from its font owner.
 deferred EPUB.child_lookup_find R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_lookup_index R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_lookup_open R6 # Deferred dictionary/selection/chapter child bridge.
@@ -223,11 +221,9 @@ import xp_settings_shell_snapshot # Existing direct native ABI at 5ff7aa05; revi
 import xp_settings_shell_theme_reload # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 deferred EPUB.protection_close NONREADER # One-way destruction; vtable references reach decryptToSink -> reclaimContentCaches, but the deleting destructor never calls decryptToSink.
 deferred EPUB.protection_finish NONREADER # One-way key install/transfer/destruction; Take writes the native vptr, but no finish stage calls decryptToSink -> reclaimContentCaches; reader streaming calls readPrepared after direct Rust eviction.
-deferred EPUB.child_header R6 # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 deferred EPUB.child_utility_footer R6 # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 deferred EPUB.child_directional_hints R6 # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 deferred App.header_draw NONREADER # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
-deferred App.footer_draw THEME-FOOTER # Reader reaches this only on error screens; three theme layouts remain shared with other screens, owned by the future all-screens footer migration.
 deferred EPUB.popup_input R5 # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 deferred Runtime.screenshot RUNTIME-SHOT # Explicit R-RUNTIME decision: rare screenshot storage/feedback orchestration, not a page-turn path.
 deferred Runtime.settings_save SET-OWN # Explicit R-RUNTIME decision and ruling 45: synchronous settings serialization, not a page-turn path.
@@ -262,3 +258,10 @@ import xp_native_page_jpeg_log # One-way synchronous diagnostic formatting from 
 
 callback EPUB.event_codec # Rust events::emit borrows native ArduinoJson/line storage and the sequence/nonce shared with pluginevents::emit; native-only callbacks, no Rust pointer accepted or retained.
 callback EPUB.event_append # Rust events::append obtains native HalFile operations over the codec-owned line; Rust calls its append owner directly; destruction ends all event/subscriber borrows.
+
+# THEME-CHROME: provisional R8b exception, owner UI-SCENE CP3 (all-screens theme migration).
+# Three themes remain native for home/settings/keyboard/dialogs; a reader-only port would duplicate their composition.
+deferred App.text_draw THEME-CHROME # Reader toolbar_view.rs:140 and children/list.rs:63 still draw UI text through shared native chrome.
+deferred App.text_box_height THEME-CHROME # Reader children/list.rs:188 measures wrapped menu text through the same shared native chrome.
+deferred EPUB.child_header THEME-CHROME # Reader children/list.rs:53 -> RustReaderDrawing.cpp drawReaderHeader uses the shared native theme header.
+deferred App.footer_draw THEME-CHROME # Reader children/list.rs:59 and book_render.rs book_error draw shared native hints on menu and error screens.

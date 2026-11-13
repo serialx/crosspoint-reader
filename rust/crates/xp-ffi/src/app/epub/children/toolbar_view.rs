@@ -201,7 +201,13 @@ impl Toolbar {
             next,
             next_hits,
         } = frame;
-        unsafe { physical.sample_theme(theme, xp_ui::reader_chrome::runtime::ThemeMode::Toolbar) }?;
+        unsafe {
+            physical.sample_theme(
+                services,
+                theme,
+                xp_ui::reader_chrome::runtime::ThemeMode::Toolbar,
+            )
+        }?;
         if !commands.recover(services) {
             return Err(Error::Capacity);
         }

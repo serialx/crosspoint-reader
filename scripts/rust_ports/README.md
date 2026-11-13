@@ -91,12 +91,13 @@ Legitimate update reasons and reviewer checks:
 - A plan task removed a relay: identify the source change, remove its pairs and
   obsolete bindings/owners, and check for replacement paths. Ownership changes
   alone do not authorize growth. R-RELAY, R2b and R-RUNTIME are plan tasks;
-  NONREADER, R5/R6/R7, RUNTIME-SHOT, RUNTIME-SLEEP, THEME-FOOTER and SET-OWN are explicit
+  NONREADER, R5/R6/R7, RUNTIME-SHOT, RUNTIME-SLEEP, THEME-CHROME and SET-OWN are explicit
   deferred buckets. RUNTIME-SHOT and RUNTIME-SLEEP cover rare orchestration;
   SET-OWN covers settings persistence that re-enters Rust codecs, not a physical
   exception. Changing an owner does not permit a new pair.
-  THEME-FOOTER retains the shared native theme footer: the common reader calls
-  it only on error screens, pending one all-screens footer migration.
+  THEME-CHROME provisionally retains reader-menu and error-screen drawing through
+  shared native text, text measurement, headers and footers. These still re-enter
+  Rust fonts; UI-SCENE CP3 owns one all-screens migration of the three themes.
 - A port, function or field was renamed/reordered: map every old/new identity
   and compare behavior. Moving data or inserting an unrelated symbol must not
   change either lock. Do not normalize distinct symbols together.

@@ -85,7 +85,7 @@ void sampleReaderChildTheme(const GfxRenderer& renderer, XpUiReaderTheme& theme,
   theme.spacing = m.verticalSpacing;
   theme.tab_height = m.tabBarHeight;
   theme.header_padding = m.headerSidePadding;
-  facts.body_line_height = renderer.getLineHeight(fonts.bodyFontId);
+  facts.body_line_height = 0;  // The caller fills font metrics from its font owner.
   theme.control_radius = m.controlRadius;
   theme.sheet_radius = m.sheetRadius;
   theme.row_radius = m.listRowRadius;
@@ -95,9 +95,11 @@ void sampleReaderChildTheme(const GfxRenderer& renderer, XpUiReaderTheme& theme,
   theme.touch = BoardConfig::hasTouch();
   theme.orientation = renderer.getOrientation();
   if (toolbar) {
-    auto target = makeUiTarget(renderer);
-    const auto safe = target.deviceContext().safeRect();
-    theme.safe = {safe.x, safe.y, safe.width, safe.height};
+    int top = 0, right = 0, bottom = 0, left = 0;
+    renderer.getOrientedViewableTRBL(&top, &right, &bottom, &left);
+    theme.safe = {static_cast<int16_t>(left), static_cast<int16_t>(top),
+                  static_cast<int16_t>(theme.screen.w - left - right),
+                  static_cast<int16_t>(theme.screen.h - top - bottom)};
   }
 }
 

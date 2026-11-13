@@ -166,7 +166,8 @@ impl Clippings {
     ) -> Result<u16, Error> {
         let frame = unsafe { &mut *self.frame.get() };
         let snapshot = self.model.with(|model| model.state);
-        if let Err(error) = unsafe { physical.sample_theme(&mut frame.list.theme, ThemeMode::List) }
+        if let Err(error) =
+            unsafe { physical.sample_theme(services, &mut frame.list.theme, ThemeMode::List) }
         {
             self.model.with(|model| model.painted(&frame.list, false));
             return Err(error);

@@ -534,17 +534,6 @@ EPUB.child_list_icon xp_native_draw_pixels
 EPUB.child_list_icon xp_native_resolve
 EPUB.child_list_icon xp_native_width
 EPUB.child_list_icon xp_sd_font_prewarm
-EPUB.child_list_theme xp_font_glyph_miss
-EPUB.child_list_theme xp_font_lookup
-EPUB.child_list_theme xp_font_record_text
-EPUB.child_list_theme xp_font_registry_provider
-EPUB.child_list_theme xp_font_registry_query
-EPUB.child_list_theme xp_font_registry_source
-EPUB.child_list_theme xp_font_scanning
-EPUB.child_list_theme xp_native_draw_pixels
-EPUB.child_list_theme xp_native_resolve
-EPUB.child_list_theme xp_native_width
-EPUB.child_list_theme xp_sd_font_prewarm
 EPUB.child_lookup_find xp_dictionary_append
 EPUB.child_lookup_find xp_dictionary_clean_bounds
 EPUB.child_lookup_find xp_dictionary_definition

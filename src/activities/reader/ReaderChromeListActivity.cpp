@@ -33,5 +33,6 @@ bool ReaderChromeCommands::grow() {
 void sampleReaderChromeTheme(const GfxRenderer& renderer, XpUiReaderTheme& theme, bool bookmarks) {
   XpUiReaderThemeFacts facts{};
   sampleReaderChildTheme(renderer, theme, facts, false);
+  facts.body_line_height = renderer.getLineHeight(theme.body_font);
   xp_ui_reader_theme_compose(&theme, &facts, bookmarks ? XP_UI_READER_THEME_BOOKMARKS : XP_UI_READER_THEME_LIST);
 }

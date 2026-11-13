@@ -353,6 +353,8 @@ int main() {
               for (bool toolbar : {false, true}) {
                 nativeReaderChildTheme(renderer, originalTheme, toolbar);
                 sampleReaderChildTheme(renderer, childTheme, facts, toolbar);
+                assert(facts.body_line_height == 0);
+                facts.body_line_height = renderer.getLineHeight(childTheme.body_font);
                 assert(xp_ui_reader_theme_compose(&childTheme, &facts,
                     toolbar ? XP_UI_READER_THEME_TOOLBAR : XP_UI_READER_THEME_LIST));
                 assert(std::memcmp(&originalTheme, &childTheme, sizeof(childTheme)) == 0);

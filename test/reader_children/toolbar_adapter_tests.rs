@@ -208,3 +208,25 @@ fn toolbar_rejects_partial_rows_and_failed_paint_without_refresh() {
         assert_eq!(m.contact.active, -1);
     });
 }
+
+#[test]
+fn theme_metric_comes_from_the_rust_resources_owner() {
+    unsafe extern "C" fn metric(font: i32) -> i32 {
+        assert_eq!(font, 0); // The sampled body_font, not a separate UI font id.
+        42
+    }
+    let services = abi::Resources {
+        line_height: metric,
+        ..test_resources::resources()
+    };
+    let mut sampled = list::Theme::default();
+    unsafe {
+        physical().sample_theme(
+            &services,
+            &mut sampled,
+            xp_ui::reader_chrome::runtime::ThemeMode::Toolbar,
+        )
+    }
+    .unwrap();
+    assert_eq!(sampled.space_sm, 7); // Native fake supplies 24; Rust supplies 42.
+}

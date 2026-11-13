@@ -126,7 +126,8 @@ impl Menu {
         let (snapshot, menu) = self.model.with(|model| (model.list.state, model.menu));
         let frame = unsafe { &mut *self.frame.get() };
         frame.menu = menu;
-        let sampled = unsafe { physical.sample_theme(&mut frame.list.theme, ThemeMode::List) };
+        let sampled =
+            unsafe { physical.sample_theme(services, &mut frame.list.theme, ThemeMode::List) };
         let mut rows = MenuRows {
             services,
             items: &self.items,

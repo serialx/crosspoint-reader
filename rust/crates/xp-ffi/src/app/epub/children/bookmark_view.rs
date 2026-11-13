@@ -178,7 +178,8 @@ impl Bookmarks {
             return Err(Error::Invalid);
         };
         let snapshot = self.model.with(|model| model.state);
-        let sampled = unsafe { physical.sample_theme(&mut frame.list.theme, ThemeMode::Bookmarks) };
+        let sampled =
+            unsafe { physical.sample_theme(services, &mut frame.list.theme, ThemeMode::Bookmarks) };
         let mut rows = BookmarkRows {
             services,
             details,

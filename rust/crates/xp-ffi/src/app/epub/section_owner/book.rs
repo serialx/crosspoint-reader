@@ -52,7 +52,7 @@ pub(super) unsafe fn toc(book: NonNull<c_void>, spine: i32) -> Result<Vec<Text>,
         out.nonempty = row.anchor.len != 0;
         1
     }
-    let first = unsafe { queries::toc_for_spine(book.as_ptr(), spine) };
+    let first = unsafe { queries::toc_for_spine(book.as_ptr(), spine) }.ok_or(())?;
     let mut result = Vec::new();
     if first < 0 {
         return Ok(result);

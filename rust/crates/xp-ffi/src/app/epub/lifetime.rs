@@ -147,18 +147,24 @@ impl EpubSession {
         // Keep this file alive through all three restoration calls.
         let _progress_file = self.load_progress(access);
         if self.model(|state| state.current.spine == 0) {
-            let reference = unsafe { (super::session_book::text_reference)(book.as_ptr()) };
-            if reference != 0 {
-                self.model(|state| {
-                    state.current.spine = reference;
-                    state.cached.offset = None;
-                });
-                self.loop_log(
-                    format_args!(
-                        "Opened for first time, navigating to text reference at index {reference}"
-                    ),
-                    &[],
-                );
+            match unsafe { (super::session_book::text_reference)(book.as_ptr()) } {
+                Some(reference) if reference != 0 => {
+                    self.model(|state| {
+                        state.current.spine = reference;
+                        state.cached.offset = None;
+                    });
+                    self.loop_log(
+                        format_args!(
+                            "Opened for first time, navigating to text reference at index {reference}"
+                        ),
+                        &[],
+                    );
+                }
+                None => {
+                    // This optional navigation must not prevent opening the restored position.
+                    self.loop_log_parts(1, &[b"Failed to read EPUB text-reference row"]);
+                }
+                Some(_) => {}
             }
         }
         self.load_links(access);

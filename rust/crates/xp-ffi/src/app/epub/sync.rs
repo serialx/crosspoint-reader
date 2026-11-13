@@ -161,11 +161,14 @@ impl EpubSession {
             .estimated_pages()
             .unwrap_or_else(|| self.model(|state| state.cached.pages));
         let position = self.current_position(&access);
-        let toc = unsafe {
+        let Some(toc) = (unsafe {
             (super::session_book::toc_for_spine)(
                 book.as_ptr(),
                 self.model(|state| state.current.spine),
             )
+        }) else {
+            self.request_update();
+            return;
         };
         let Some(chapter) = self.sync_chapter(book, toc) else {
             self.request_update();

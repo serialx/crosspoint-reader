@@ -272,3 +272,11 @@ The book/Section fixture also binds the production Rust image extractor and pain
 a stored PNG through the shipping image state. A ZIP read failure and an extracted
 source short write must remove the partial source, suppress retries within that
 render, and recover after the failure set is cleared for the next render.
+
+Unit 3 adds 20 shipping row-query cases (five query types with healthy, short-read,
+seek-failure and allocation-failure inputs). `SectionMetadataReadFailure` checks
+both spine uses and both TOC preparation passes, no published section after a
+failed row, recovery, and failed candidate/hash-verification TOC selection.
+`reader_text_reference_failure` keeps restored and initial positions open after
+an unavailable optional text-reference query; the ordinary lifetime oracle still
+compares all healthy traces with its immutable native reference.

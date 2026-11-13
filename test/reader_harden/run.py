@@ -16,7 +16,7 @@ from test_popup_resource import definition, native_leaf, replace_once
 p = argparse.ArgumentParser()
 p.add_argument('--build', type=Path, required=True)
 p.add_argument('--archive', type=Path)
-p.add_argument('--unit', choices=['1', '2', 'all'], default='all')
+p.add_argument('--unit', choices=['1', '2', '3', 'all'], default='all')
 args = p.parse_args()
 args.build.mkdir(parents=True, exist_ok=True)
 archive = args.archive
@@ -144,7 +144,13 @@ unit2 = [('unit2-' + mode, cache_bytes([100 * i for i in range(1, 101)], 0), 0)
                       'walk-name', 'walk-header', 'walk-open', 'walk-oom', 'walk-valid',
                       'css-name', 'css-header', 'css-open', 'css-oom', 'css-alloc', 'css-valid']]
 unit2 += [('unit2-boundary-' + kind, cache_bytes([100 * i for i in range(1, 101)], 0), 0) for kind in ('initial', 'known')]
-cases = unit1 if args.unit == '1' else unit2 if args.unit == '2' else unit1 + unit2
+rows_data = bytearray(cache_bytes([100, 200, 300], 2))
+first_row = struct.unpack_from('<I', rows_data, lut)[0]
+struct.pack_into('<h', rows_data, first_row + 4 + 40 + 4, 0)
+unit3 = [('unit3-' + kind + '-' + fault, bytes(rows_data), 0)
+         for kind in ['spine', 'toc', 'index', 'href', 'reference']
+         for fault in ['valid', 'short', 'seek', 'alloc']]
+cases = unit1 if args.unit == '1' else unit2 if args.unit == '2' else unit3 if args.unit == '3' else unit1 + unit2 + unit3
 results = []
 for number, (mode, content, offset) in enumerate(cases):
     folder = args.build / f'{number:03d}-{mode}'

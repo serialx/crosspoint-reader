@@ -20,6 +20,7 @@ static void check(bool safe, const char* name) {
   failures += !safe;
 }
 #include "unit2.cpp"
+#include "unit3.cpp"
 
 int main(int argc, char** argv) {
   assert(argc == 4);
@@ -35,6 +36,7 @@ int main(int argc, char** argv) {
     *h = {};
     h->free_bytes = 1000000;
   };
+  if (mode.starts_with("unit3-")) return unit3(mode, root, resources, leaves);
   if (mode.starts_with("unit2-")) return unit2(mode, root, offset, resources, leaves);
   if (mode == "writer") {
     writerBoundary(root);

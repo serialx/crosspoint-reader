@@ -27,8 +27,26 @@ from rust_host import generated_i18n_directory, rust_archive, rust_link_flags
 if '--freeze-original' in sys.argv:
     raise SystemExit('Book lifetime goldens are frozen; regeneration is not supported.')
 release = '--release-log' in sys.argv
+reference_failure = '--text-reference-failure' in sys.argv
 fixture = (HERE / 'book_lifetime_oracle.cpp').read_text().replace(
     '#include "book_lifetime_session_rust.inc"', (HERE / 'book_lifetime_session_rust.inc').read_text())
+if reference_failure:
+    fixture = fixture[:fixture.index('int main() {')] + r"""
+int main() {
+  for (bool file : {false, true}) {
+    config = {};
+    config.file = file;
+    config.textSpine = -2;
+    EpubReaderActivity a;
+    assert(a.loadBook());
+    a.observe();
+    assert(a.observedBook && a.currentSpineIndex == 0);
+    assert(a.nextPageNumber == (file ? 2 : 7));
+    assert(a.cachedVisibleTextOffset == (file ? 0x78563412u : 99u));
+    assert(a.renderer.framebuffer && ImageBlock::extractor);
+  }
+}
+"""
 production_path = Path('crates/xp-ffi/src/app/epub/lifetime.rs')
 production_file = ROOT / 'rust' / production_path
 production = production_file.read_text()
@@ -65,6 +83,11 @@ with tempfile.TemporaryDirectory(prefix='reader-book-lifetime-') as directory:
 
     result = run('book')
     assert result.returncode == 0, result.stderr.decode(errors='replace')
+    if reference_failure:
+        assert result.stdout.count(b'Failed to read EPUB text-reference row') == 2
+        assert result.stdout.count(b'load-links') == 2 and result.stdout.count(b'load-bookmarks') == 2
+        print('failed text-reference lookup: both restored and initial positions remain open')
+        raise SystemExit(0)
     assert result.stdout == expected, 'production lifetime trace differs from frozen reference'
     copied_repo = work / 'source'
     copied_rust = copied_repo / 'rust'
@@ -76,7 +99,7 @@ with tempfile.TemporaryDirectory(prefix='reader-book-lifetime-') as directory:
     target = work / 'target'
     mutants = [
         ('framebuffer-loan', 'let _loan = if uncached {', 'let _loan = if false {'),
-        ('text-reference', '(super::session_book::text_reference)(book.as_ptr())', '0i32'),
+        ('text-reference', '(super::session_book::text_reference)(book.as_ptr())', 'Some(0i32)'),
         ('save-links', 'self.save_links(access);', '/* deliberate mutant: omit link-stack save */'),
         ('progress-file-lifetime', 'let _progress_file = self.load_progress(access);',
          'drop(self.load_progress(access));'),

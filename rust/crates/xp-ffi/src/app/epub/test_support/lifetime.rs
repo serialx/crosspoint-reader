@@ -138,3 +138,8 @@ pub unsafe extern "C" fn xp_epub_test_lifetime_observe(
         },
     });
 }
+
+// Legacy fixtures use -2 only to inject a checked metadata read failure.
+pub(in crate::app::epub) fn legacy_reference(value: i32) -> Option<i32> {
+    (value != -2).then_some(value)
+}

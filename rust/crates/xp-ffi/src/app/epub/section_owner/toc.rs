@@ -21,6 +21,7 @@ struct Selection {
     page: i32,
     selected: i32,
     latest: i32,
+    failed: bool,
 }
 struct Disk {
     file: FileSlot,
@@ -128,14 +129,18 @@ unsafe fn consider(
             text,
             matches: false,
         };
-        unsafe {
+        if unsafe {
             queries::toc(
                 query.book.as_ptr(),
                 target.index,
                 matches,
                 (&mut check as *mut Match<'_>).cast(),
             )
-        };
+        } == 0
+        {
+            selection.failed = true;
+            return;
+        }
         if !check.matches {
             continue;
         }
@@ -197,7 +202,9 @@ unsafe fn resolve(
 impl TocQuery<'_> {
     unsafe fn select(&self, page: i32) -> i32 {
         let (book, spine, leaves, resources) = (self.book, self.spine, self.leaves, self.resources);
-        let first = unsafe { queries::toc_for_spine(book.as_ptr(), spine) };
+        let Some(first) = (unsafe { queries::toc_for_spine(book.as_ptr(), spine) }) else {
+            return -1;
+        };
         let mut targets = Vec::new();
         if targets.try_reserve_exact(64).is_err() {
             log::message(leaves, 1, b"SCT", format_args!("OOM: TOC anchor lookup"));
@@ -223,6 +230,7 @@ impl TocQuery<'_> {
             page,
             selected: first,
             latest: -1,
+            failed: false,
         };
         for index in first.max(0)..unsafe { queries::toc_count(book.as_ptr()) } {
             let mut item = Row {
@@ -231,7 +239,11 @@ impl TocQuery<'_> {
                 empty: true,
                 leaves,
             };
-            unsafe { queries::toc(book.as_ptr(), index, row, (&mut item as *mut Row).cast()) };
+            if unsafe { queries::toc(book.as_ptr(), index, row, (&mut item as *mut Row).cast()) }
+                == 0
+            {
+                return -1;
+            }
             if item.spine != spine {
                 continue;
             }
@@ -247,6 +259,9 @@ impl TocQuery<'_> {
                 });
                 if targets.len() == 64 {
                     unsafe { resolve(self, &targets, &mut selection, &mut disk) };
+                    if selection.failed {
+                        return -1;
+                    }
                     targets.clear();
                 }
             }
@@ -254,7 +269,11 @@ impl TocQuery<'_> {
         if !targets.is_empty() {
             unsafe { resolve(self, &targets, &mut selection, &mut disk) };
         }
-        selection.selected
+        if selection.failed {
+            -1
+        } else {
+            selection.selected
+        }
     }
 }
 
@@ -295,7 +314,7 @@ impl ReaderSection {
         leaves: &'static XpEpubLeaves,
     ) -> i32 {
         let Some(path) = (unsafe { Self::cache_path(book, spine) }) else {
-            return unsafe { queries::toc_for_spine(book.as_ptr(), spine) };
+            return unsafe { queries::toc_for_spine(book.as_ptr(), spine) }.unwrap_or(-1);
         };
         unsafe {
             TocQuery {

@@ -445,3 +445,7 @@ unsafe extern "C" fn diagnostic(raw: *mut c_void, event: u32, elapsed: u32) {
 #[cfg(any(feature = "app-test", feature = "chapter-test"))]
 #[path = "../test_support/harden.rs"]
 mod harden_tests;
+
+#[cfg(any(feature = "app-test", feature = "chapter-test"))]
+#[path = "../test_support/harden_rows.rs"]
+mod harden_row_tests;

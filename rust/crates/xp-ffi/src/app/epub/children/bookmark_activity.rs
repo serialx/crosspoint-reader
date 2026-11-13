@@ -16,7 +16,10 @@ impl Toc for GuardedToc<'_, '_> {
         let Some(book) = parent.book(self.0) else {
             return false;
         };
-        let index = unsafe { session_book::toc_for_spine(book.as_ptr(), i32::from(spine)) };
+        let Some(index) = (unsafe { session_book::toc_for_spine(book.as_ptr(), i32::from(spine)) })
+        else {
+            return false;
+        };
         if index < 0 {
             let title = unsafe { parent.resources.translate(STR_UNNAMED).bytes() };
             return title.is_some_and(|title| output.assign_parts(&[prefix, title]).is_ok());

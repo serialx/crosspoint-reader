@@ -274,6 +274,64 @@ void nativeHash(const std::shared_ptr<ReaderSectionInput>& epub, GfxRenderer& re
     check(disk, "disk-complete");
   }
 }
+size_t rowFaultOffset, rowFaultSkip, rowFaultHits, rowFaultVisits;
+void metadataFailure(const std::shared_ptr<ReaderSectionInput>& epub, GfxRenderer& renderer) {
+  // Fail both initial spine uses and both passes over a middle TOC row.
+  for (size_t row : {size_t(0), size_t(2)})
+    for (size_t skip : {size_t(0), size_t(1)}) {
+      reset();
+      html(100);
+      auto section = Section::tryOpen(*epub, 0, renderer);
+      require(bool(section), "healthy book loads before metadata fault");
+      const auto book = contents("cache/book.bin");
+      const auto u32 = [&](size_t at) {
+        require(at + 4 <= book.size(), "fixture metadata offset");
+        return uint32_t(book[at]) | uint32_t(book[at + 1]) << 8 | uint32_t(book[at + 2]) << 16 |
+               uint32_t(book[at + 3]) << 24;
+      };
+      rowFaultOffset = u32(u32(1) + row * 4);
+      rowFaultSkip = skip;
+      rowFaultHits = rowFaultVisits = 0;
+      std::filesystem::create_directories("cache/html");
+      std::filesystem::copy_file("book/chapter.xhtml", "cache/html/0.html",
+                                 std::filesystem::copy_options::overwrite_existing);
+      HalFileTest::readLimit = [](const char* path, size_t at, size_t count) -> size_t {
+        if (std::string(path) == "cache/book.bin" && at == rowFaultOffset && rowFaultVisits++ == rowFaultSkip) {
+          ++rowFaultHits;
+          return count ? count - 1 : 0;
+        }
+        return count;
+      };
+      const bool saved = section->createSectionFile(spec());
+      HalFileTest::readLimit = nullptr;
+      require(rowFaultHits == 1, "fault reached requested metadata query pass");
+      require(!saved, "failed row cannot publish a complete section");
+      require(!section->isBuilding() && !section->isBuildComplete(), "failed row leaves no active or complete build");
+      require(!std::filesystem::exists("cache/sections/0.bin"), "no section file from failed row");
+      require(!std::filesystem::exists("cache/sections/0.bin.part"), "failed-row temporary section removed");
+      require(std::filesystem::exists("cache/html/0.html"), "healthy reused HTML retained");
+      require(section->createSectionFile(spec()), "section can retry after metadata read recovers");
+      require(section->getPageForAnchor("p10").has_value(), "retry retains TOC anchors");
+      printf("metadata failure row=%zu pass=%zu rejected and recovered\n", row, skip);
+      // The first read collects candidates; later reads verify anchor hashes.
+      rowFaultOffset = u32(u32(1) + 3 * 4);
+      for (size_t queryPass : {size_t(0), size_t(1)}) {
+        rowFaultSkip = queryPass;
+        rowFaultHits = rowFaultVisits = 0;
+        HalFileTest::readLimit = [](const char* path, size_t at, size_t count) -> size_t {
+          if (std::string(path) == "cache/book.bin" && at == rowFaultOffset && rowFaultVisits++ == rowFaultSkip) {
+            ++rowFaultHits;
+            return count ? count - 1 : 0;
+          }
+          return count;
+        };
+        const int selected = section->getTocIndexForPage(section->pageCount - 1);
+        HalFileTest::readLimit = nullptr;
+        require(rowFaultHits == 1, "TOC selection fault reached");
+        require(selected == -1, "failed TOC query cannot return a partial selection");
+      }
+    }
+}
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -293,6 +351,8 @@ int main(int argc, char** argv) {
     lifecycle(epub, renderer, mode == "interleaving");
   else if (mode == "short")
     shortWrites(epub, renderer, argc == 3 ? std::strtoull(argv[2], nullptr, 10) : 0);
+  else if (mode == "metadata-failure")
+    metadataFailure(epub, renderer);
   else if (mode == "native-hash")
     nativeHash(epub, renderer);
   else

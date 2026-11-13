@@ -190,7 +190,7 @@ impl EpubSession {
             return Some(use_text(fallback));
         };
         let spine = self.model(|state| state.current.spine);
-        let index = unsafe { (super::session_book::toc_for_spine)(book.as_ptr(), spine) };
+        let index = unsafe { (super::session_book::toc_for_spine)(book.as_ptr(), spine) }?;
         if index == -1 {
             return Some(use_text(if empty_without_book {
                 self.value_label(ids::STR_UNNAMED)

@@ -18,6 +18,7 @@ target_link_libraries(SectionBehavior PRIVATE crosspoint_test_common xp_ffi_host
 reader_section_fixture(SectionBehavior)
 add_test(NAME SectionLutBoundaries COMMAND SectionBehavior lut)
 add_test(NAME SectionBuildLifecycle COMMAND SectionBehavior lifecycle)
+add_test(NAME SectionMetadataReadFailure COMMAND SectionBehavior metadata-failure)
 add_test(NAME SectionReadBuildInterleaving COMMAND SectionBehavior interleaving)
 add_test(NAME SectionNativeHash COMMAND SectionBehavior native-hash)
 add_test(NAME SectionEveryShortWrite COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/behavior.py --binary $<TARGET_FILE:SectionBehavior>)

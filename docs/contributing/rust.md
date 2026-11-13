@@ -565,6 +565,16 @@ Native screenshot/sleep information and reader.exit events retain
 the last known percent for this book session, or 0 before the first successful query;
 the reader keeps its internal unknown result. Silent bookmark save failures follow the
 existing save-error convention and log an error.
+
+Reader spine/TOC queries return failure on a short read, failed seek or allocation
+failure instead of sending an empty row. Section preparation propagates this
+failure before saving a section; its existing cleanup allows a later retry.
+TOC page selection rejects a partial result if any required metadata row fails.
+Title/subtitle displays omit unavailable text, and text selection or sync cancels
+before exporting incomplete metadata. Sync flushes ordinary local progress first.
+A failed optional first-open text-reference lookup keeps the restored position
+and continues loading; it does not invent a destination or close the book.
+
 CSS discovery must visit every declared ZIP directory entry; names of 256 bytes or
 more are skipped as before. A failed walk stops book loading before CSS parsing or
 cache saving.

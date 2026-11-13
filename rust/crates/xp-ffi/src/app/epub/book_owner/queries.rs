@@ -58,7 +58,7 @@ pub(crate) unsafe fn progress(raw: *mut c_void, index: i32, fraction: f32) -> Op
     ))
 }
 
-fn spine_row(book: &ReaderBook, index: i32) -> cache::Spine {
+fn spine_row(book: &ReaderBook, index: i32) -> Option<cache::Spine> {
     let plan = residual::lookup(
         book.cache.loaded,
         index,
@@ -81,15 +81,13 @@ fn spine_row(book: &ReaderBook, index: i32) -> cache::Spine {
         _ => (),
     }
     if plan.index >= 0 {
-        if let Ok(row) = book.cache.spine(plan.index) {
-            return row;
-        }
+        return book.cache.spine(plan.index).ok();
     }
-    cache::Spine {
+    Some(cache::Spine {
         href: alloc::vec::Vec::new(),
         cumulative: 0,
         toc_index: -1,
-    }
+    })
 }
 
 pub(crate) unsafe extern "C" fn spine(
@@ -99,7 +97,9 @@ pub(crate) unsafe extern "C" fn spine(
     context: *mut c_void,
 ) -> u8 {
     // The row owns its text and the cache guard is gone before the sink can reenter.
-    let row = spine_row(unsafe { owner(raw) }, index);
+    let Some(row) = spine_row(unsafe { owner(raw) }, index) else {
+        return 0;
+    };
     let value = abi::XpEpubSpine {
         href: app_abi::Text::from_bytes(&row.href),
         bytes: row.cumulative,
@@ -137,7 +137,10 @@ pub(crate) unsafe extern "C" fn toc(
         _ => (),
     }
     let row = if plan.index >= 0 {
-        book.cache.toc(plan.index).ok()
+        let Ok(row) = book.cache.toc(plan.index) else {
+            return 0;
+        };
+        Some(row)
     } else {
         None
     };
@@ -157,8 +160,10 @@ pub(crate) unsafe extern "C" fn toc(
     };
     unsafe { sink(context, &value) }
 }
-pub(crate) unsafe fn toc_for_spine(raw: *mut c_void, index: i32) -> i32 {
-    i32::from(spine_row(unsafe { owner(raw) }, index).toc_index)
+pub(crate) unsafe fn toc_for_spine(raw: *mut c_void, index: i32) -> Option<i32> {
+    Some(i32::from(
+        spine_row(unsafe { owner(raw) }, index)?.toc_index,
+    ))
 }
 
 pub(crate) unsafe fn path_text<'a>(raw: *mut c_void) -> &'a super::Text {
@@ -233,18 +238,29 @@ pub(crate) unsafe extern "C" fn item_size(
     1
 }
 
-fn find_spine(book: &ReaderBook, target: &[u8], filename: bool) -> i32 {
+fn find_spine(book: &ReaderBook, target: &[u8], filename: bool) -> Option<i32> {
     struct Context<'a> {
         book: &'a ReaderBook,
         row: Option<cache::Spine>,
+        failed: bool,
     }
     unsafe extern "C" fn get(raw: *mut c_void, index: usize) -> residual::Span {
         let context = unsafe { &mut *raw.cast::<Context<'_>>() };
-        context.row = Some(spine_row(context.book, index as i32));
-        residual::Span::new(&context.row.as_ref().unwrap().href)
+        if !context.failed {
+            context.row = spine_row(context.book, index as i32);
+        }
+        let Some(row) = context.row.as_ref() else {
+            context.failed = true;
+            return residual::Span::new(&[]);
+        };
+        residual::Span::new(&row.href)
     }
-    let mut context = Context { book, row: None };
-    unsafe {
+    let mut context = Context {
+        book,
+        row: None,
+        failed: false,
+    };
+    let found = unsafe {
         residual::find_spine(
             target,
             usize::from(book.cache.spine_count),
@@ -252,6 +268,11 @@ fn find_spine(book: &ReaderBook, target: &[u8], filename: bool) -> i32 {
             (&mut context as *mut Context<'_>).cast(),
             get,
         )
+    };
+    if context.failed {
+        None
+    } else {
+        Some(found)
     }
 }
 pub(crate) unsafe fn resolve_href(raw: *mut c_void, href: app_abi::Text) -> i32 {
@@ -271,9 +292,9 @@ pub(crate) unsafe fn resolve_href(raw: *mut c_void, href: app_abi::Text) -> i32 
     if xp_core::epub::normalize_href(&mut target, &decoded).is_err() {
         return -1;
     }
-    find_spine(book, &target, true)
+    find_spine(book, &target, true).unwrap_or(-1)
 }
-pub(crate) unsafe fn text_reference(raw: *mut c_void) -> i32 {
+pub(crate) unsafe fn text_reference(raw: *mut c_void) -> Option<i32> {
     let book = unsafe { owner(raw) };
     let leaves = book.cache.file.leaves;
     if !book.cache.loaded {
@@ -283,7 +304,7 @@ pub(crate) unsafe fn text_reference(raw: *mut c_void) -> i32 {
             b"EBP",
             format_args!("getSpineIndexForTextReference called but cache not loaded"),
         );
-        return 0;
+        return Some(0);
     }
     let mut number = [0; 20];
     let digits = decimal(book.metadata.text_reference.len() as u64, &mut number);
@@ -306,7 +327,7 @@ pub(crate) unsafe fn text_reference(raw: *mut c_void) -> i32 {
         format_args!("Core Metadata: cover({})=", book.metadata.cover.len()),
         &[cover, b", textReference(", digits, b")=", reference],
     );
-    let index = find_spine(book, &book.metadata.text_reference, false);
+    let index = find_spine(book, &book.metadata.text_reference, false)?;
     if index >= 0 {
         log::with_bytes(
             leaves,
@@ -315,7 +336,7 @@ pub(crate) unsafe fn text_reference(raw: *mut c_void) -> i32 {
             &[b"Text reference ", &book.metadata.text_reference],
             format_args!(" found at index {}", index),
         );
-        index
+        Some(index)
     } else {
         if index == -1 {
             log::message(
@@ -325,7 +346,7 @@ pub(crate) unsafe fn text_reference(raw: *mut c_void) -> i32 {
                 format_args!("Section not found for text reference"),
             );
         }
-        0
+        Some(0)
     }
 }
 

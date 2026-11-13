@@ -163,15 +163,15 @@ The public archive is capped at 1.5 MB. PBM files for the first page of the firs
 chapter retain physical BW/LSB/MSB planes; overlay plane pictures visualize bits,
 not composite gray luminance.
 
-`instrument.py` makes build-directory copies of GfxRenderer, Page and TextBlock.
+`instrument.py` makes build-directory copies of GfxRenderer, Page, TextBlock and ImageBlock.
 Only the renderer receives observers: text_golden's host-only Rust placement
 observer and native draw entry counters. Rust Page placements are counted by
 `xp_native_page_test_glyph`; the retired C++ bitmap-miss callback has no counter.
 Counts are recorded for inspection and excluded from pixel/semantic parity. Page/TextBlock copies are unchanged and
 exist for mutation testing.
 The page harness also asserts that Rust makes no allocation request during each
-scan or draw. This does not count allocations made by existing C++ font/image
-owners. Scan batches preserve codepoint order within each line/font/style and
+scan or draw. This does not count allocations made by existing C++ font owners or by
+image decoding outside the page scan/draw interval. Scan batches preserve codepoint order within each line/font/style and
 use a bounded buffer. Cached and rich pages use the Rust page entry; plain
 in-memory dictionary pages and standalone settings previews keep TextBlock's
 existing render path.
@@ -260,7 +260,8 @@ all planes and can be reused for the X3 old-frame copy.
 To exercise real image pixels, add `-DSTRIP_IMAGES=ON` and
 `-DDECODER_SOURCE_DIR=/absolute/path/to/.pio/libdeps/default` when configuring a
 separate build directory. Run with `--strips --decoded-images`. This installs a
-host file extractor and the production PNG/GIF/JPEG converters, decodes once,
+host source-stream provider. Rust writes the extracted file and the production
+PNG/GIF/JPEG converters decode it once. The harness
 and compares every strip to the current full-frame cache playback. The ordinary
 page archive contains placeholders, so decoded-image mode checks schedule/page
 coverage and exact strip/full equality rather than comparing image pixels with

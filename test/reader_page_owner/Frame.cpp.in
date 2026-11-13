@@ -50,7 +50,7 @@ struct {
     return true;
   }
 } display;
-// Transparent physical-service observers; the real image-cache methods still run.
+// Transparent physical-service observers over the shipping Rust image state.
 struct FrameImageBlock {
   static void clearRenderFailures() { xp_assets_image_reset(false); }
   static void releaseRenderCache() {

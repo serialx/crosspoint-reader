@@ -1,5 +1,5 @@
 #pragma once
-extern "C" void xp_assets_image_test_observer(void (*)(bool));
+extern "C" void xp_epub_test_image_observer(void (*)(bool));
 namespace imageFixture {
 inline void (*clear)() = nullptr;
 inline void (*release)() = nullptr;
@@ -8,10 +8,10 @@ inline void observe(bool releasing) {
 }
 inline void onClear(void (*callback)()) {
   clear = callback;
-  xp_assets_image_test_observer(observe);
+  xp_epub_test_image_observer(observe);
 }
 inline void onRelease(void (*callback)()) {
   release = callback;
-  xp_assets_image_test_observer(observe);
+  xp_epub_test_image_observer(observe);
 }
 }  // namespace imageFixture

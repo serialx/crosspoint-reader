@@ -30,7 +30,7 @@ The map has two independently exercised sides:
 
 The parent reference was produced at `7f5e1cb5184d03957f1787ed06d872fab773b6db`
 with SDK `6a573acd0562e45e4ce96837e0c2aebada219760`: native Section, native
-ChapterPlatform, real FsHelpers, actual ReaderBook and its forwarding native Epub,
+ChapterPlatform, real FsHelpers, actual ReaderBook and its then-active forwarding native Epub,
 real native Page, and the existing PageGolden font/render environment. Parent and
 candidate consumed the same stored ZIP and Book metadata. Every resulting Page,
 render record and persisted cache file matched. The reference retains Page and

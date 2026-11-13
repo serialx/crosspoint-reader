@@ -98,14 +98,18 @@ its heap threshold, decoder/file-handle allocations and cache failures are compa
 with the retained native shell.
 
 `ReaderImageGoldens` executes the dimension probe but its pixel/cache records do not compare probe results.
-`ReaderImageProbeFailures` compares 73 PNG/GIF/JPEG probe fault cases against the
-retained native shells, including file operations, allocation failures and the
-JPEG heap threshold. Failed probes must preserve both caller output values.
+`ReaderImageProbeFailures` compares PNG/GIF/JPEG probes against the retained native
+shells under file and allocation faults, JPEG heap thresholds, and malformed,
+oversized, zero-dimension and truncated inputs. Failed probes preserve both caller
+output values and diagnostic text. The test output and JSON report count actual
+fault hits separately from deliberately unreachable indices and threshold controls.
 
 `JpegDiagnosticArguments` compiles the native JPEG shell with pattern initialization
 and observes its diagnostic arguments. Valid rendering and failed dimension probes
 (open, low heap and allocation) must pass zero dimensions except for the dimensions
-event. The observer is inserted into a generated host copy; firmware has no test hook.
+event. Separate decode and probe processes each reject the old unguarded code and
+pass with the current guard. The observer is inserted into a generated host copy;
+firmware has no test hook.
 
 `ReaderImageProbeCorpus` compares the selected format, validity, width and height
 from the native factory/converters with the production Rust probe. It runs every

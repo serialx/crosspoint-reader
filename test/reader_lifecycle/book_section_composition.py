@@ -1,6 +1,7 @@
 """Compose actual Section/parser/ProgressMapper borrowers with the Rust book."""
 from pathlib import Path
 import struct
+import random
 import zipfile
 from book_facade_composition import facade_source, compile_command
 from test_popup_resource import definition, replace_once, native_leaf
@@ -72,7 +73,13 @@ def section_fixture(work, images=False):
         archive.writestr('a.xhtml', html)
         archive.writestr('b.xhtml', b'image!')
         if images:
-            archive.writestr('image.png', (Path(__file__).resolve().parents[1] / 'page_image_pin/fixtures/tiny.png').read_bytes())
+            png = (Path(__file__).resolve().parents[1] / 'page_image_pin/fixtures/tiny.png').read_bytes()
+            archive.writestr('image.png', png)
+            # PNG permits trailing bytes; incompressible padding spans several ZIP input chunks.
+            large = png + random.Random(173).randbytes(32768)
+            archive.writestr('large-stored.png', large, compress_type=zipfile.ZIP_STORED)
+            archive.writestr('large-deflated.png', large, compress_type=zipfile.ZIP_DEFLATED)
+            archive.writestr('empty.png', b'')
     return work / 'source.epub', cache
 
 

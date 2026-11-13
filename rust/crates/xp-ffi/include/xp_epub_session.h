@@ -568,7 +568,6 @@ typedef struct XpEpubLeaves {
   void (*framebuffer_restore)(uint8_t owned);
   // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
-  // Host-only decoded-cache query; shipping checks eligibility directly in Rust.
   int32_t (*font_ascent)(int32_t font);
 #endif
   uint32_t (*render_physical_query)(uint8_t query);

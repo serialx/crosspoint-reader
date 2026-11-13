@@ -15,6 +15,7 @@ uint32_t xp_epub_test_clipping_snapshot(void*, uint32_t, XpClippingRecord*, uint
 uint8_t xp_epub_test_clipping_try_text(void*, uint32_t);
 uint8_t xp_epub_test_clipping_try_unload(void*);
 void xp_epub_test_clipping_teardown(void*);
+void xp_epub_test_book_observer(void (*)(void*, uint8_t, const XpEpubBookView*));
 }
 
 namespace {
@@ -23,7 +24,12 @@ std::condition_variable paused;
 thread_local int renderDepth = 0, modelDepth = 0;
 thread_local bool track = false;
 bool waiting = false, resume = false, failWrite = false, sawWrite = false;
-unsigned readerIo = 0;
+unsigned readerIo = 0, detachHits = 0;
+void observeBook(void* raw, uint8_t event, const XpEpubBookView* view) {
+  assert(event == 0 && !raw && !view);
+  assert(renderDepth == 1 && !modelDepth);
+  ++detachHits;
+}
 std::vector<char> order;
 
 XpAppText wire(const std::string& value) { return {reinterpret_cast<const uint8_t*>(value.data()), value.size()}; }
@@ -157,7 +163,11 @@ void run(bool deleting, bool failure) {
   order.clear();
   readerIo = 0;
   track = true;
+  detachHits = 0;
+  xp_epub_test_book_observer(observeBook);
   xp_epub_test_clipping_teardown(owner);
+  xp_epub_test_book_observer(nullptr);
+  assert(detachHits == 1);
   track = false;
   assert((order == std::vector<char>{'L', 'U'}));
   assert(!xp_epub_test_clipping_snapshot(owner, 0, &during, &valid) && !valid);

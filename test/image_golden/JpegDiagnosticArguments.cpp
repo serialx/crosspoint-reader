@@ -19,30 +19,33 @@ void jpegDiagnosticArguments(uint32_t event, int width, int height) {
   }
 }
 int main(int argc, char** argv) {
-  assert(argc == 2);
-  const std::string path = argv[1];
+  assert(argc == 3);
+  const std::string path = argv[1], mode = argv[2];
+  assert(mode == "decode" || mode == "probe");
+  const bool probe = mode == "probe";
   JpegToFramebufferConverter jpeg;
   GfxRenderer renderer;
   RenderConfig config{};
   config.maxWidth = 137;
   config.maxHeight = 173;
-  assert(jpeg.decodeToFramebuffer(path, renderer, config));
   ImageDimensions output;
-  assert(!jpeg.getDimensions(path + ".missing", output));
-  assert(!jpeg.decodeToFramebuffer(path + ".missing", renderer, config));
+  auto run = [&](const std::string& source) {
+    return probe ? jpeg.getDimensions(source, output) : jpeg.decodeToFramebuffer(source, renderer, config);
+  };
+  // Probe mode starts with unset output and a failed open, independently of decode.
+  if (!probe) assert(run(path));
+  assert(!run(path + ".missing"));
   ESP.freeHeap = 0;
-  assert(!jpeg.getDimensions(path, output));
-  assert(!jpeg.decodeToFramebuffer(path, renderer, config));
+  assert(!run(path));
   ESP.freeHeap = UINT32_MAX;
   failAllocation = true;
-  assert(!jpeg.getDimensions(path, output));
-  assert(!jpeg.decodeToFramebuffer(path, renderer, config));
+  assert(!run(path));
   failAllocation = false;
-  assert(jpeg.getDimensions(path, output));
-  for (auto event :
-       {XP_BOOK_JPEG_EVENT_RENDER, XP_BOOK_JPEG_EVENT_DIMENSIONS, XP_BOOK_JPEG_EVENT_HEAP,
-        XP_BOOK_JPEG_EVENT_DIMENSION_HEAP, XP_BOOK_JPEG_EVENT_ALLOCATION, XP_BOOK_JPEG_EVENT_DIMENSION_ALLOCATION,
-        XP_BOOK_JPEG_EVENT_OPEN, XP_BOOK_JPEG_EVENT_DIMENSION_OPEN}) {
+  assert(run(path));
+  for (auto event : {probe ? XP_BOOK_JPEG_EVENT_DIMENSIONS : XP_BOOK_JPEG_EVENT_RENDER,
+                     probe ? XP_BOOK_JPEG_EVENT_DIMENSION_HEAP : XP_BOOK_JPEG_EVENT_HEAP,
+                     probe ? XP_BOOK_JPEG_EVENT_DIMENSION_ALLOCATION : XP_BOOK_JPEG_EVENT_ALLOCATION,
+                     probe ? XP_BOOK_JPEG_EVENT_DIMENSION_OPEN : XP_BOOK_JPEG_EVENT_OPEN}) {
     assert(events[event] > 0);
   }
 }

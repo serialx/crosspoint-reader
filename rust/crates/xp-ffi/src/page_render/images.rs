@@ -35,7 +35,7 @@ unsafe impl Sync for TestSource {}
 static TEST_SOURCE: TestSource = TestSource(UnsafeCell::new(None));
 #[cfg(feature = "app-test")]
 #[no_mangle]
-pub unsafe extern "C" fn xp_page_image_test_stream(owner: *mut c_void, stream: Option<TestStream>) {
+pub unsafe extern "C" fn xp_epub_test_image_stream(owner: *mut c_void, stream: Option<TestStream>) {
     unsafe fn forward(
         owner: *mut c_void,
         source: &[u8],

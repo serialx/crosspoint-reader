@@ -45,8 +45,9 @@ XTC/XTCH, EPUB, TXT, Markdown and fallback paths, with case variants and a long
 path. It checks native factory and resource counts, constructor refresh frequency,
 Rust/native acquisition failures preserving the active owner, invalid path spans,
 and rejection of a missing EPUB service table. These 57 cases use the actual
-Rust ReaderBook and native facade with valid v10 cache bytes, physical storage
-and UI fakes. Legacy native-book services trap if called.
+Rust ReaderBook with valid v10 cache bytes, physical storage and UI fakes.
+Observers check real bind/close events; native allocation failures are injected.
+Legacy native-book services trap if called.
 
 ## Actual book and borrower compositions
 
@@ -68,8 +69,10 @@ helpers remain behind `app-test`. Book lifetime/render traces compare current
 EpubSession methods with frozen bytes, without retaining a second dispatch
 engine as their reference implementation.
 
-`reader_book_facade` loads ReaderBook and uses the retained host-only Epub
-facade/CssParser and native extractor. It checks the six historical reverse
+`reader_book_facade` loads ReaderBook and explicitly registers the native comparison
+adapter in `native_book_reference_fixture.inc` through
+`xp_epub_test_native_reference_bind`. Rust owns the book lifetime; the adapter
+supplies the native Epub/CssParser reference and extractor. It checks the six historical reverse
 callbacks, nested stream queries,
 CSS load/clear, native outer allocation failures and forbidden metadata getters.
 The two simulated loan ticks in this test are not a real Section build.
@@ -82,7 +85,7 @@ font/render and scheduler inputs remain physical fakes; it does not qualify
 panel timing or concurrent hardware execution.
 
 `reader_child_handle_composition` retains 77 original cases: 76 use actual
-ReaderBook/native facade and one keeps the historical single-attempt selection
+ReaderBook with the registered native reference adapter, and one keeps the historical single-attempt selection
 metadata fault through the explicitly named legacy fixture. The real-owner
 allocation matrix separately fails cache-query and packed-metadata allocations
 without moving its fault arm. Original parent outcome checks and 22 mutants
@@ -140,8 +143,9 @@ does not establish target stack, allocation budgets or device qualification.
 
 The shipping reader now binds extraction directly to the Rust book and retires
 the native facade and image reset/release/eligibility table slots. Historical
-composition fixtures keep those fields under `XP_APP_TEST` so their original
-ordering and failure checks remain meaningful. The source-including
+composition fixtures observe real bind/drop events with `xp_epub_test_book_observer`
+and real reset/release events with `xp_epub_test_image_observer`; the retired fields
+are gone. The source-including
 [page image file tests](../page_image_pin/README.md) exercise the new extraction
 sink, pinned file lifetime and cache probe independently of those adapters.
 

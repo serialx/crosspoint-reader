@@ -18,35 +18,68 @@ extern "C" uint8_t xp_page_image_test_decode(const XpPageTarget*, const XpPageIm
 #include <new>
 extern "C" void xp_test_fail_allocation_after(size_t);
 extern "C" size_t xp_test_live_allocations();
+extern "C" size_t xp_test_allocation_attempts();
 // This oracle observes the unsupported-format probe event; other painter events stay strict.
 extern "C" void xp_native_page_image_log(void*, const XpPageImage*, const uint8_t*, uint32_t event, int32_t, int32_t) {
   if (event != 16) std::abort();
 }
 static std::string faultSource, faultCache, fault;
-static size_t faultIndex = 0, faultCalls = 0;
+static size_t faultIndex = 0, faultCalls = 0, faultHits = 0;
+static bool hitFault() {
+  ++faultHits;
+  return true;
+}
 static bool failNativeAllocation = false;
 static size_t nativeAllocationIndex = 0;
 void* operator new(size_t size, const std::nothrow_t&) noexcept {
-  if (failNativeAllocation && nativeAllocationIndex++ == faultIndex) return nullptr;
+  if (failNativeAllocation && nativeAllocationIndex++ == faultIndex && hitFault()) return nullptr;
   return std::malloc(size);
 }
 
+// A separate file keeps fault evidence out of the byte and diagnostic oracles.
+static void reportFault() {
+  const auto* path = std::getenv("READER_IMAGE_FAULT_REPORT");
+  if (!path) return;
+  size_t calls = faultCalls, hits = faultHits;
+  if (fault == "allocation") {
+    calls = xp_test_allocation_attempts();
+    hits = calls > faultIndex ? calls - faultIndex : 0;
+  } else if (fault == "native-allocation") {
+    calls = nativeAllocationIndex;
+  } else if (fault == "close") {
+    calls = hits = !HalFileTest::failNextClose;
+  } else if (fault == "heap") {
+    calls = ESP.freeHeapQueries;
+    hits = 0;  // A threshold setting, not an injected failed operation.
+  }
+  auto* file = std::fopen(path, "w");
+  if (!file) std::abort();
+  std::fprintf(file, "{\"calls\":%zu,\"hits\":%zu}\n", calls, hits);
+  if (std::fclose(file)) std::abort();
+}
 static void injectFault(const std::string& source, const std::string& cache) {
+  ESP.freeHeapQueries = 0;
   faultSource = source;
   faultCache = cache;
   if (const auto* value = std::getenv("READER_IMAGE_FAULT")) fault = value;
   if (const auto* value = std::getenv("READER_IMAGE_FAULT_INDEX")) faultIndex = std::strtoul(value, nullptr, 10);
   HalFileTest::allowOpen = [](const char* path, const char*) {
-    return !((fault == "source-open" && path == faultSource) || (fault == "cache-open" && path == faultCache));
+    const bool blocked =
+        (fault == "source-open" && path == faultSource) || (fault == "cache-open" && path == faultCache);
+    if (blocked) {
+      ++faultCalls;
+      ++faultHits;
+    }
+    return !blocked;
   };
   HalFileTest::allowSeek = [](const char* path, size_t) {
-    return !(fault == "seek" && path == faultSource && faultCalls++ == faultIndex);
+    return !(fault == "seek" && path == faultSource && faultCalls++ == faultIndex && hitFault());
   };
   HalFileTest::readLimit = [](const char* path, size_t, size_t length) {
-    return fault == "read" && path == faultSource && faultCalls++ == faultIndex ? size_t(0) : length;
+    return fault == "read" && path == faultSource && faultCalls++ == faultIndex && hitFault() ? size_t(0) : length;
   };
   HalFileTest::writeLimit = [](const char* path, size_t, size_t length) {
-    return fault == "write" && path == faultCache && faultCalls++ == faultIndex ? size_t(0) : length;
+    return fault == "write" && path == faultCache && faultCalls++ == faultIndex && hitFault() ? size_t(0) : length;
   };
   HalFileTest::failNextClose = fault == "close";
   failNativeAllocation = fault == "native-allocation";
@@ -173,6 +206,7 @@ int main(int argc, char** argv) {
   u32(dims.height);
 #ifdef READER_IMAGE_ORACLE
   if (probeOnly) {
+    reportFault();
     if (xp_test_live_allocations()) return 4;
     if (failNativeAllocation && nativeAllocationIndex <= faultIndex) return 5;
     return 0;
@@ -224,6 +258,7 @@ int main(int argc, char** argv) {
           : xp_page_image_test_decode(&targetView, &image, reinterpret_cast<const uint8_t*>(cache.c_str())) == 2;
   if (xp_test_live_allocations()) return 4;
   if (failNativeAllocation && nativeAllocationIndex <= faultIndex) return 5;
+  reportFault();
   failNativeAllocation = false;
   xp_test_fail_allocation_after(SIZE_MAX);
   u32(success);

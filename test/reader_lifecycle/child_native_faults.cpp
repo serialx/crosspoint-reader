@@ -11,7 +11,7 @@ static CrossPointPosition position(const XpEpubPosition& value) { return {value.
 
 #include "../hal_contract/Contract.h"
 #include "../hal_fake_strict.h"
-extern "C" void xp_page_image_test_stream(void*, uint8_t (*)(void*, const uint8_t*, size_t, XpBookSink, void*));
+extern "C" void xp_epub_test_image_stream(void*, uint8_t (*)(void*, const uint8_t*, size_t, XpBookSink, void*));
 extern "C" void xp_page_image_test_paint(const XpPageTarget*, const XpPageImage*);
 static const uint8_t recoveryPng[] = {
     137, 80,  78,  71,  13,  10,  26,  10,  0,   0,  0,   13, 73, 72,  68, 82,  0,  0,   0,   16, 0,   0,   0,   16,
@@ -127,7 +127,7 @@ extern "C" void xp_native_page_image_log(void*, const XpPageImage*, const uint8_
 }
 static void renderRecoveredImage() {
   RenderLock lock;
-  xp_page_image_test_stream(
+  xp_epub_test_image_stream(
       ImageBlock::extractCtx,
       [](void* owner, const uint8_t* path, size_t length, XpBookSink sink, void* context) -> uint8_t {
         assert(ImageBlock::extractFn && std::string(reinterpret_cast<const char*>(path), length) == "OPS/unseen.png");
@@ -147,7 +147,7 @@ static void renderRecoveredImage() {
                           16};
   xp_page_image_test_paint(&target, &image);
   assert(imageSourceExists && imageExtractions == 1 && imageDecodes == 1);
-  xp_page_image_test_stream(nullptr, nullptr);
+  xp_epub_test_image_stream(nullptr, nullptr);
   xp_assets_image_reset(true);
 }
 

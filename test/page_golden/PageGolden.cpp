@@ -1,7 +1,7 @@
 #include <xp_book.h>
 
 #include <array>
-extern "C" void xp_page_image_test_stream(void*, uint8_t (*)(void*, const uint8_t*, size_t, XpBookSink, void*));
+extern "C" void xp_epub_test_image_stream(void*, uint8_t (*)(void*, const uint8_t*, size_t, XpBookSink, void*));
 #include <Epub.h>
 #include <Epub/Page.h>
 
@@ -553,7 +553,7 @@ int main(int argc, char** argv) {
   }
   if (!css.saveToCache(complete)) return 8;
 #ifdef XP_STRIP_IMAGES
-  xp_page_image_test_stream(
+  xp_epub_test_image_stream(
       nullptr, [](void*, const uint8_t* path, size_t length, XpBookSink sink, void* context) -> uint8_t {
         const auto source = std::filesystem::path("book") / std::string(reinterpret_cast<const char*>(path), length);
         std::ifstream input(source, std::ios::binary);

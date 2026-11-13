@@ -345,7 +345,7 @@ def main():
         (out/'scope.json').write_text(json.dumps(dict(cases=len(records),mutants_rejected=len(rejected),
             source_unchanged=True,production=['child factory bodies','wrapper and allocation helper','legacy callback bodies',
                 'Activity native push and result delivery','Rust App lifecycle and EPUB session',
-                'ReaderBook, ReaderSection and native Epub facade','retained chapter/bookmark constructors and book fields'],
+                'ReaderBook, ReaderSection and registered native reference adapter','retained chapter/bookmark constructors and book fields'],
             physical_fakes=['child UI implementations','tracked physical Page and its word observations','storage and renderer','Sleep terminal owner'],
             allocation_matrix='every Rust allocation on real selection capture path; exact historical one-attempt case retained separately',
             limitations=['physical Page stands in for native deserialization, separately covered by native compositions',

@@ -42,8 +42,8 @@ borrowed selection constructor must leave its native Pages alive. Existing
 vector and string allocations are not covered by nothrow fault injection.
 
 Physical drawing comparisons cover the existing renderer fixture's rectangle
-trace in all three Page modes. Image admission uses the real ImageBlock code
-with host storage; image paths and sources retain their NUL terminators. Font
+trace in all three Page modes. Image admission is compared with the independent
+`imageReference::needsDecode` over host storage; image paths and sources retain their NUL terminators. Font
 ascent uses deterministic fixture metrics. These checks do not establish target
 pixels, input behavior, child timing, heap fragmentation, or runtime stack use.
 Only the ClipSelection facade/transfer path remains active in firmware. The
@@ -64,8 +64,8 @@ Rust Page cannot be freed while a source or image window remains installed.
 Display upload, font prewarm, session status/counter handling and drawing metrics
 are physical host substitutes. Plan recording is a deterministic host substitute;
 this test does not prove pixels, actual plan commands, DMA, panel timing or font
-cache behaviour. Image cache/window observers forward to the real ImageBlock
-services. These native owners exist only under test/ and are not firmware owners.
+cache behaviour. Image cache observers call the shipping Rust reset/release;
+the strip read-window setter forwards to `ImageBlock::setRenderReadWindow`. These native owners exist only under test/ and are not firmware owners.
 The [render-resource compositions](../reader_render_resources/README.md) cover
 the production Rust frame and session, including the same failure and detach
 properties. The separate strip replay/pixel oracles retain their own coverage.

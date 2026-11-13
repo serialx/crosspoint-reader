@@ -97,30 +97,35 @@ static void exercise(void* section, void* raw) {
 }
 static std::string imageOutput, sourceBook;
 static unsigned faultHits;
+static size_t extractedBytes;
 static void extractionFailures(void* owner, const std::string& source, const std::string& cache) {
   sourceBook = source;
   imageOutput = cache + "/extract.png";
   const std::string pixelCache = cache + "/extract.px2";
-  const std::string href = "image.png";
+  std::string href = "image.png";
   uint8_t pixels[8]{};
   XpPageTarget target{
       {pixels, sizeof(pixels), 8, 8, 1, 0, 8, {0, 0, 8, 8}, 3, 0, 0, 0, 0}, nullptr, &driverRenderer, 0};
-  const XpPageImage image{reinterpret_cast<const uint8_t*>(imageOutput.c_str()),
-                          reinterpret_cast<const uint8_t*>(href.c_str()),
-                          imageOutput.size(),
-                          href.size(),
-                          0,
-                          0,
-                          4,
-                          4};
+  XpPageImage image{reinterpret_cast<const uint8_t*>(imageOutput.c_str()),
+                    reinterpret_cast<const uint8_t*>(href.c_str()),
+                    imageOutput.size(),
+                    href.size(),
+                    0,
+                    0,
+                    4,
+                    4};
   // This paint uses the shipping Rust stream extractor.
   xp_epub_test_section_fixture_bind_images(owner);
-  for (int fault = 0; fault < 2; ++fault) {
+  for (int fault = 0; fault < 4; ++fault) {
+    href = fault < 2 ? "image.png" : fault == 2 ? "large-stored.png" : "large-deflated.png";
+    image.source = reinterpret_cast<const uint8_t*>(href.c_str());
+    image.source_len = href.size();
     std::filesystem::remove(imageOutput);
     std::filesystem::remove(pixelCache);
     xp_assets_image_reset(true);
     xp_assets_image_reset(false);
     faultHits = 0;
+    extractedBytes = 0;
     if (fault == 0) {
       HalFileTest::readLimit = [](const char* path, size_t, size_t count) -> size_t {
         if (path == sourceBook) {
@@ -129,7 +134,7 @@ static void extractionFailures(void* owner, const std::string& source, const std
         }
         return count;
       };
-    } else {
+    } else if (fault == 1) {
       HalFileTest::writeLimit = [](const char* path, size_t, size_t count) -> size_t {
         if (path == imageOutput && count) {
           ++faultHits;
@@ -138,8 +143,22 @@ static void extractionFailures(void* owner, const std::string& source, const std
         return count;
       };
     }
+    if (fault >= 2) {
+      HalFileTest::writeLimit = [](const char* path, size_t, size_t count) -> size_t {
+        if (path == imageOutput) extractedBytes += count;
+        return count;
+      };
+      HalFileTest::readLimit = [](const char* path, size_t, size_t count) -> size_t {
+        if (path == sourceBook && extractedBytes >= 8192) {
+          ++faultHits;
+          return 0;
+        }
+        return count;
+      };
+    }
     xp_page_image_test_paint(&target, &image);
     assert(faultHits > 0);
+    if (fault >= 2) assert(extractedBytes >= 8192);
     assert(!std::filesystem::exists(imageOutput) && !std::filesystem::exists(pixelCache));
     assert(xp_assets_image_failed(image.path, image.path_len));
     const auto firstHits = faultHits;
@@ -152,10 +171,24 @@ static void extractionFailures(void* owner, const std::string& source, const std
     assert(std::filesystem::file_size(imageOutput) > 0 && std::filesystem::file_size(pixelCache) == 8);
     assert(!xp_assets_image_failed(image.path, image.path_len));
   }
+  // Empty extraction succeeds: the Rust extractor retains the zero-byte output;
+  // the subsequent format probe fails and creates no decoded cache.
+  std::filesystem::remove(imageOutput);
+  std::filesystem::remove(pixelCache);
+  xp_assets_image_reset(true);
+  xp_assets_image_reset(false);
+  href = "empty.png";
+  image.source = reinterpret_cast<const uint8_t*>(href.c_str());
+  image.source_len = href.size();
+  xp_page_image_test_paint(&target, &image);
+  assert(std::filesystem::exists(imageOutput) && std::filesystem::file_size(imageOutput) == 0);
+  assert(!std::filesystem::exists(pixelCache));
   xp_epub_test_section_fixture_bind_images(nullptr);
   xp_assets_image_reset(true);
   xp_assets_image_reset(false);
-  std::puts("shipping image extraction: read failure and short write remove partial sources; next render retries");
+  std::puts(
+      "shipping image extraction: first/later stored/deflated read failures and short write clean up and retry; empty "
+      "entry retained");
 }
 int main(int argc, char** argv) {
   assert(argc == 3);

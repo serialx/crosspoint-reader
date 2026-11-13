@@ -219,9 +219,7 @@ unsafe impl Sync for ImageObserver {}
 static IMAGE_OBSERVER: ImageObserver = ImageObserver(UnsafeCell::new(None));
 #[cfg(feature = "app-test")]
 #[no_mangle]
-pub unsafe extern "C" fn xp_assets_image_test_observer(
-    callback: Option<unsafe extern "C" fn(bool)>,
-) {
+pub unsafe extern "C" fn xp_epub_test_image_observer(callback: Option<unsafe extern "C" fn(bool)>) {
     *IMAGE_OBSERVER.0.get() = callback;
 }
 

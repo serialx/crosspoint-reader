@@ -1,5 +1,6 @@
 """Compare direct reader dimension probes against retained native shells."""
 import json
+from fault_accounting import read_report, summarize
 import os
 from pathlib import Path
 import struct
@@ -27,10 +28,13 @@ def main():
                            ('native-allocation', 0), ('native-allocation', 1)]
             for fault, index in faults:
                 pair = []
+                faults_hit = {}
                 diagnostics = []
                 for legacy in [True, False]:
                     env = dict(os.environ, READER_IMAGE_PROBE_ONLY='1', IMAGE_DIAGNOSTIC_LOGS='1', READER_IMAGE_FAULT=fault,
                                READER_IMAGE_FAULT_INDEX=str(index))
+                    report_path = directory / 'fault-report.json'
+                    env['READER_IMAGE_FAULT_REPORT'] = str(report_path)
                     if legacy:
                         env['READER_IMAGE_LEGACY'] = '1'
                     else:
@@ -38,6 +42,7 @@ def main():
                     result = subprocess.run([str(binary), str(directory / name), str(directory / 'probe.px2'), '2', '0'],
                                             env=env, capture_output=True)
                     assert result.returncode == 0, (name, fault, index, legacy, result.returncode, result.stderr.decode())
+                    faults_hit['native' if legacy else 'reader'] = read_report(report_path, fault, index)
                     assert len(result.stdout) == 12, result.stdout
                     pair.append(struct.unpack('<III', result.stdout))
                     diagnostics.append(result.stderr.decode())
@@ -45,7 +50,7 @@ def main():
                 assert pair[0] == pair[1], (name, fault, index, pair)
                 if pair[1][0] == 0:
                     assert pair[1][1:] == (0x1234, 0x4321), pair
-                results.append(dict(image=name, fault=fault, index=index, result=pair[1]))
+                results.append(dict(image=name, fault=fault, index=index, faults=faults_hit, result=pair[1]))
         # Preserve outputs and diagnostics for malformed or oversized headers.
         for name in ['RGBA-37x29.png', 'gif-37x29-0-0.gif', 'gray-37x29.jpg']:
             source = (directory / name).read_bytes()
@@ -84,6 +89,10 @@ def main():
                 assert diagnostics[0] == diagnostics[1], (name, label, diagnostics)
                 results.append(dict(image=name, malformed=label, result=pair[1]))
     binary.parent.joinpath('reader-probe-failure-results.json').write_text(json.dumps(results, indent=2) + '\n')
+    # Pin coverage as well as outcomes: losing a reachable injection must fail.
+    assert summarize(results) == {side: dict(injected_settings=16, fault_hits=16, unreachable_settings=52)
+                                  for side in ('native', 'reader')}, summarize(results)
+    print('actual fault accounting:', json.dumps(summarize(results), sort_keys=True))
     print(len(results), 'strict dimension-probe comparisons passed')
 
 if __name__ == '__main__':

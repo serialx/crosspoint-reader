@@ -53,6 +53,10 @@ def main():
     }
     for before, _ in mutations.values():
         assert production.count(before) == 1
+    lifetime_path = Path('crates/xp-ffi/src/app/epub/lifetime.rs')
+    lifetime = (root / 'rust' / lifetime_path).read_text()
+    detach = '        self.set_book_extractor(access, None);'
+    assert lifetime.count(detach) == 1
     paths = list((root / 'rust/crates/xp-ffi/src/app/clippings').glob('*.rs'))
     paths += [root / 'rust' / PRODUCTION, Path(__file__).resolve()]
     paths += [root / name for name in (
@@ -121,6 +125,19 @@ def main():
                 assert b'AddressSanitizer' not in result.stderr and b'runtime error:' not in result.stderr
                 report['mutants'].append(dict(name=name, source_sha256=digest(changed.encode()),
                                              returncode=result.returncode, stderr_sha256=digest(result.stderr)))
+            (copied / 'rust' / PRODUCTION).write_text(production)
+            changed = lifetime.replace(detach, '        self.model(|_| self.set_book_extractor(access, None));')
+            (copied / 'rust' / lifetime_path).write_text(changed)
+            name = 'detach-under-model-lock'
+            save(name + '.rs', changed.encode())
+            command(['cargo', 'build', '--offline', '--manifest-path', copied / 'rust/Cargo.toml',
+                     '--target-dir', target, '-p', 'xp-ffi', '--release', '--locked', '--features', 'app-test,sd-font-catalog'],
+                    name + '-cargo', cwd=copied / 'rust')
+            result = run(name, target / 'release/libxp_ffi.a')
+            assert result.returncode != 0 and b'renderDepth == 1 && !modelDepth' in result.stderr, result.stderr
+            assert b'AddressSanitizer' not in result.stderr and b'runtime error:' not in result.stderr
+            report['mutants'].append(dict(name=name, source_sha256=digest(changed.encode()),
+                                         returncode=result.returncode, stderr_sha256=digest(result.stderr)))
             report['status'] = 'passed'
     except BaseException as error:
         report.update(status='failed', error=repr(error))

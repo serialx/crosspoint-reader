@@ -31,3 +31,11 @@ target_include_directories(reader_probe_oracle PRIVATE ${PROBE_GOLDEN}/stubs
 target_link_libraries(reader_probe_oracle PRIVATE xp_ffi_host)
 add_test(NAME ReaderImageProbeCorpus COMMAND ${Python3_EXECUTABLE}
   ${PROBE_GOLDEN}/reader_probe_corpus.py $<TARGET_FILE:reader_probe_oracle>)
+
+add_test(NAME ReaderImageFailures COMMAND ${Python3_EXECUTABLE}
+  ${PROBE_GOLDEN}/reader_failures.py $<TARGET_FILE:reader_probe_oracle>)
+add_test(NAME ReaderImageProbeFailures COMMAND ${Python3_EXECUTABLE}
+  ${PROBE_GOLDEN}/reader_probe_failures.py $<TARGET_FILE:reader_probe_oracle>)
+get_target_property(PNG_BENCH_INCLUDES reader_probe_oracle INCLUDE_DIRECTORIES)
+set(JPEG_DIAGNOSTIC_DECODER ${reader_probe_jpegdec_SOURCE_DIR}/src/JPEGDEC.cpp)
+include(${PROBE_GOLDEN}/jpeg_diagnostic.cmake)

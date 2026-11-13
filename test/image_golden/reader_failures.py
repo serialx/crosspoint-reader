@@ -1,6 +1,7 @@
 """Compare reader/native decode cleanup under strict file and allocation faults."""
 import importlib.util
 import json
+from fault_accounting import read_report, summarize
 import os
 from pathlib import Path
 import subprocess
@@ -30,8 +31,11 @@ def main():
                                ('native-allocation', 0), ('native-allocation', 1)] if name.endswith('.jpg') else []
                 for fault, index in cases + jpeg_faults:
                     pair = []
+                    faults_hit = {}
                     for legacy in [True, False]:
                         env = dict(os.environ, READER_IMAGE_FAULT=fault, READER_IMAGE_FAULT_INDEX=str(index))
+                        report_path = directory / 'fault-report.json'
+                        env['READER_IMAGE_FAULT_REPORT'] = str(report_path)
                         if legacy:
                             env['READER_IMAGE_LEGACY'] = '1'
                         else:
@@ -41,15 +45,20 @@ def main():
                             env=env, capture_output=True)
                         assert result.returncode == 0, (name, target, fault, index, legacy,
                                                         result.returncode, result.stderr.decode())
+                        faults_hit['native' if legacy else 'reader'] = read_report(report_path, fault, index)
                         actual = oracle.unpack(result.stdout)
                         pair.append({**{key: actual[key] for key in ['frame', 'cache', 'cache_bytes', 'cache_exists']},
                                      'success': actual['status'][15]})
                     assert pair[0] == pair[1], (name, target, fault, index, pair)
                     if fault == 'cache-open':
                         assert pair[1]['success'] == int(not name.endswith('.gif')) and not pair[1]['cache_exists'], pair
-                    results.append(dict(image=name, target=target, fault=fault, index=index, **pair[1]))
+                    results.append(dict(image=name, target=target, fault=fault, index=index, faults=faults_hit, **pair[1]))
     binary.parent.joinpath('reader-failure-results.json').write_text(
-        json.dumps(dict(cases=len(results), results=results), indent=2) + '\n')
+        json.dumps(dict(cases=len(results), fault_summary=summarize(results), results=results), indent=2) + '\n')
+    # Pin coverage as well as outcomes: losing a reachable injection must fail.
+    assert summarize(results) == {side: dict(injected_settings=110, fault_hits=110, unreachable_settings=98)
+                                  for side in ('native', 'reader')}, summarize(results)
+    print('actual fault accounting:', json.dumps(summarize(results), sort_keys=True))
     print(len(results), 'strict-file/allocation differential cases passed')
 
 

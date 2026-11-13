@@ -16,6 +16,7 @@ mod clipping;
 mod fonts;
 mod guarded;
 mod idle;
+mod input_ports;
 mod lifetime;
 mod links;
 mod loop_input;

@@ -254,7 +254,7 @@ impl EpubSession {
             return unsafe { (hooks.threshold)(hooks.context) };
         }
         let mut input = core::mem::MaybeUninit::uninit();
-        unsafe { (self.leaves.input_facts)(input.as_mut_ptr()) };
+        unsafe { self.leaves.input_facts(input.as_mut_ptr()) };
         let board_touch = unsafe { input.assume_init() }.board_touch;
         if board_touch != 0 {
             return 0;

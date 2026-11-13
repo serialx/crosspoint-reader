@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from extract import definition
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from input_sources import reader_services
 
 LOGGER = r'''
 #include <cassert>
@@ -146,7 +148,7 @@ def main():
              ROOT / 'rust/crates/xp-ffi/include/xp_ui_reader.h', Path(__file__).resolve()]
     original = {path: path.read_bytes() for path in paths}
     goldens = {path: path.read_bytes() for path in HERE.glob('*.golden.gz')}
-    method = definition(original[paths[0]].decode(), 'inline XpUiReaderInputServices inputServices(')
+    method = reader_services(original[paths[0]].decode())
     template = original[paths[1]].decode().split('static void buttons() {', 1)[0]
     assert template.count('#include "reader_value_owner.h"') == 1
     template = template.replace('#include "reader_value_owner.h"', '#include <xp_ui_reader.h>')
@@ -154,9 +156,9 @@ def main():
     assert template.count('#include "input_methods.inc"') == 1
     variants = [('baseline', method, None)]
     for mask, button in [('CONFIRM', 'Confirm'), ('UP', 'Up'), ('DOWN', 'Down')]:
-        block = (f'              case XP_UI_{mask}:\n'
-                 f'                button = MappedInputManager::Button::{button};\n'
-                 '                break;\n')
+        block = (f'          case XP_UI_{mask}:\n'
+                 f'            button = MappedInputManager::Button::{button};\n'
+                 '            break;\n')
         assert method.count(block) == 1
         variants.append((mask.lower() + '-removed', method.replace(block, ''), 'BRIDGE_MASK_' + button))
     with tempfile.TemporaryDirectory(prefix='reader-input-bridge-') as directory:

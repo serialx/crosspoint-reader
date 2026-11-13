@@ -80,7 +80,7 @@ unsafe impl Host for NativeHost {
         let long = with_long_press
             && unsafe { (self.app.epub.input_screen_point)(0, &mut x, &mut y) } != 0;
         let mut input = Input::default();
-        unsafe { (self.app.epub.input_snapshot)(&mut input) };
+        unsafe { self.app.epub.input_snapshot(&mut input) };
         if long {
             input.touch_flags = TOUCH_RELEASED;
             input.touch_x = x as i16;

@@ -52,7 +52,7 @@ impl DefinitionSession {
         }
         if self.model.with(|model| model.gate.needs_input()) {
             let mut input = Input::default();
-            unsafe { (leaves.input_snapshot)(&mut input) };
+            unsafe { leaves.input_snapshot(&mut input) };
             let (admission, state) = self
                 .model
                 .with(|model| (model.gate.input(&input), model.state));
@@ -104,7 +104,7 @@ impl DefinitionSession {
         } != 0;
         let header_long = long_press && header_back_hit;
         let mut input = Input::default();
-        unsafe { (leaves.input_snapshot)(&mut input) };
+        unsafe { leaves.input_snapshot(&mut input) };
         let (mut tx, mut ty) = (0, 0);
         let tap = !failed && unsafe { (leaves.input_screen_tap)(&mut tx, &mut ty) } != 0;
         input.touch_x = if tap { tx } else { x } as i16;

@@ -46,6 +46,10 @@ class MappedInputManager {
   // Home-key actions so the next main-loop pass can dispatch them, while the
   // current action remains available for immediate Home cancellation.
   void update(bool deferHomeButtonAction = false) const;
+  // App-loop phases surround direct Rust edge/Home policy; native update uses the same order.
+  XpHalInputPoll pollRaw() const;
+  void pollFeedback() const;
+  void pollFinish() const;
 #if FREEINK_CAP_TOUCH
   // X4 Pro delays a single power click until its frontlight double-click window
   // expires. The main loop supplies that one-frame event here.
@@ -54,9 +58,12 @@ class MappedInputManager {
   bool injectRemoteClick(RemoteButton button);
   bool hasRemoteClick() const { return remoteInput.button != RemoteButton::None; }
   bool wasPressed(Button button) const;
+  bool wasPressed(Button button, HomeButtonAction home) const;
   bool wasReleased(Button button) const;
+  bool wasReleased(Button button, HomeButtonAction home) const;
   // One-shot threshold event while the button is down; consumes its release.
   bool wasLongPressed(Button button, unsigned long thresholdMs) const;
+  bool wasLongPressed(Button button, unsigned long thresholdMs, HomeButtonAction home) const;
   bool consumeSuppressedRelease() const;
   bool isPressed(Button button) const;
   bool hasTouch() const;
@@ -95,6 +102,7 @@ class MappedInputManager {
   // is intentionally unused. Other boards retain the bottom-edge Home gesture.
   // The reader menu remains on its existing top-edge gesture and middle tap.
   bool wasHomeGesture() const;
+  bool wasHomeGesture(HomeButtonAction home) const;
   // Configured one-frame action, independent of the gesture that triggered it.
   HomeButtonAction homeButtonAction() const;
   void resetHomeButtonInput() const;
@@ -108,6 +116,7 @@ class MappedInputManager {
   // has a frontlight. ActivityManager consumes it before activity input.
   bool wasLightPanelGesture() const;
   unsigned long getHeldTime() const;
+  unsigned long getHeldTime(HomeButtonAction home) const;
   Labels mapLabels(const char* back, const char* confirm, const char* previous, const char* next) const;
   // Maps four screen-direction labels onto the two physical front-button roles
   // using the same live-orientation transform as ScreenLeft/Right/Up/Down.
@@ -144,6 +153,8 @@ class MappedInputManager {
 #endif
   void rememberTouchHeldTime() const;
   void suppressNextRelease(Button button) const;
+  bool longPressReady(Button button) const;
+  bool finishLongPress(Button button, unsigned long heldMs, unsigned long thresholdMs) const;
 
   mutable RemoteButtonInput remoteInput;
   mutable bool touchHeldOverrideValid = false;

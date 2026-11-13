@@ -48,6 +48,13 @@ pub struct Input {
     page_buttons: u8,
     page_pressed: bool,
 }
+#[cfg(not(feature = "app-test"))]
+#[repr(C)]
+pub struct Poll {
+    pub state: *mut Input,
+    pub buttons: u8,
+    pub usb: bool,
+}
 #[no_mangle]
 pub unsafe extern "C" fn xp_hal_input_update(state: *mut Input, buttons: u8, usb: bool) {
     let Some(s) = state.as_mut() else { return };

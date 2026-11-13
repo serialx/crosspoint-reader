@@ -27,7 +27,7 @@ impl EpubSession {
             popup.is_some_and(|popup| unsafe { (self.leaves.popup_active)(popup.as_ptr()) != 0 });
         let mut input = MaybeUninit::<abi::XpEpubInputFacts>::uninit();
         unsafe {
-            (self.leaves.input_facts)(input.as_mut_ptr());
+            self.leaves.input_facts(input.as_mut_ptr());
         }
         let input = unsafe { input.assume_init() };
         let settings = self.settings(false);

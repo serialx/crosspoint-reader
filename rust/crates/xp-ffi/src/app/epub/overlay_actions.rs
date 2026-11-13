@@ -187,7 +187,7 @@ impl EpubSession {
         add(Action::Night);
         if unsafe { (self.runtime.frontlight_present)() } != 0 {
             let mut input = MaybeUninit::<abi::XpEpubInputFacts>::uninit();
-            unsafe { (self.leaves.input_facts)(input.as_mut_ptr()) };
+            unsafe { self.leaves.input_facts(input.as_mut_ptr()) };
             if unsafe { input.assume_init() }.slide_owns_light == 0 {
                 add(Action::Frontlight);
             }

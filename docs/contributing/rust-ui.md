@@ -113,9 +113,12 @@ The native `loop_settings` leaf supplies stored sleep minutes in the existing
 accessor is retired. Input's Home-action sampling still calls `loop_settings`
 independently; it needs the current Home binding, not a sleep duration.
 
-Each EPUB session lazily borrows the boot-lifetime input-services table once.
-Only its address is retained: button, hold, repeat and gesture callbacks still
-read current input, including consumption by earlier callbacks. Idle admission
+Each EPUB session lazily borrows the boot-lifetime native input-source table once.
+Only its address is retained. Rust supplies the current Home action to each query
+and consumes tilt events directly; button, hold, repeat and gesture queries still
+read current input, including consumption by earlier callbacks. The
+[input composition contract](rust.md#app-loop-input-calls) describes poll ordering
+and the retained native-screen path. Idle admission
 reuses its input facts and settings for the confirm threshold, before any input
 consumer runs. The ordinary page path reads facts again after touch handling.
 

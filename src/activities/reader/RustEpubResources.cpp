@@ -654,14 +654,14 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .settings_inversion = [](uint8_t value) { SETTINGS.screenInverted = value; },
       .settings_ble_enabled = [](uint8_t value) { SETTINGS.ble.enabled = value; },
       .settings_save = [] { SETTINGS.saveToFile(); },
-      .input_services = []() -> const XpUiReaderInputServices* {
-        static const auto services = ReaderUtils::inputServices(*mapped);
+      .input_sources = []() -> const XpUiReaderInputServices* {
+        static const auto services = ReaderUtils::inputSources(*mapped);
         return &services;
       },
       .input_facts =
-          [](XpEpubInputFacts* out) {
+          [](uint8_t home, XpEpubInputFacts* out) {
             *out = {};
-            out->held_ms = mapped->getHeldTime();
+            out->held_ms = mapped->getHeldTime(static_cast<HomeButtonAction>(home));
             for (uint8_t button = HalGPIO::BTN_BACK; button <= HalGPIO::BTN_POWER; ++button) {
               if (gpio.isPressed(button)) out->raw_held |= 1u << button;
             }
@@ -669,7 +669,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
             out->remote_click = mapped->hasRemoteClick();
             out->touch = mapped->hasTouch();
             out->board_touch = BoardConfig::hasTouch();
-            out->home_action = static_cast<uint8_t>(mapped->homeButtonAction());
+            out->home_action = home;
             out->slide_owns_light = slideSwitchOwnsLight();
           },
       .input_pressed = [](uint32_t button) -> uint8_t { return mapped->isPressed(inputButton(button)); },
@@ -935,7 +935,8 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         return 0;
 #endif
       },
-      .input_snapshot = [](XpUiInput* out) { *out = rustInputSnapshot(*mapped); },
+      .input_snapshot = [](uint8_t home,
+                           XpUiInput* out) { *out = rustInputSnapshot(*mapped, static_cast<HomeButtonAction>(home)); },
       .cache_lock = [] { BookMetadataCache::lockReadCursor(); },
       .cache_unlock = [] { BookMetadataCache::unlockReadCursor(); },
       .scratch_claim = [](uint32_t min_len) { return buildscratch::claim(min_len); },

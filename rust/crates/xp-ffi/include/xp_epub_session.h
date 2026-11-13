@@ -406,8 +406,17 @@ typedef struct XpEpubLeaves {
   void (*settings_inversion)(uint8_t value);
   void (*settings_ble_enabled)(uint8_t value);
   void (*settings_save)(void);
+#ifdef XP_APP_TEST
   const XpUiReaderInputServices* (*input_services)(void);
+#else
+  // Callback context must be XpEpubInputQuery, initialized with the returned table's mapped pointer.
+  const XpUiReaderInputServices* (*input_sources)(void);
+#endif
+#ifdef XP_APP_TEST
   void (*input_facts)(XpEpubInputFacts* out);
+#else
+  void (*input_facts)(uint8_t home, XpEpubInputFacts* out);
+#endif
   uint8_t (*input_pressed)(uint32_t button);
   uint8_t (*input_screen_point)(uint8_t kind, int32_t* x, int32_t* y);
   uint8_t (*input_screen_tap)(int32_t* x, int32_t* y);
@@ -505,7 +514,11 @@ typedef struct XpEpubLeaves {
   int32_t (*font_text_advance)(XpAppText text, int32_t font, uint8_t style, int8_t character_spacing);
 #endif
   uint8_t (*log_enabled)(uint8_t severity);
+#ifdef XP_APP_TEST
   void (*input_snapshot)(XpUiInput* out);
+#else
+  void (*input_snapshot)(uint8_t home, XpUiInput* out);
+#endif
   // Lock order: ResourceAccess, cache, Storage.
   void (*cache_lock)(void);
   void (*cache_unlock)(void);
@@ -751,7 +764,11 @@ XP_EPUB_LEAF_OFFSET(settings_focus_reading, 32);
 XP_EPUB_LEAF_OFFSET(settings_inversion, 33);
 XP_EPUB_LEAF_OFFSET(settings_ble_enabled, 34);
 XP_EPUB_LEAF_OFFSET(settings_save, 35);
+#ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(input_services, 36);
+#else
+XP_EPUB_LEAF_OFFSET(input_sources, 36);
+#endif
 XP_EPUB_LEAF_OFFSET(input_facts, 37);
 XP_EPUB_LEAF_OFFSET(input_pressed, 38);
 XP_EPUB_LEAF_OFFSET(input_screen_point, 39);
@@ -973,8 +990,13 @@ _Static_assert(_Generic(((XpEpubLeaves*)0)->log_enabled, uint8_t (*)(uint8_t): 1
 #endif
 
 #ifndef __cplusplus
+#ifdef XP_APP_TEST
 _Static_assert(_Generic(((XpEpubLeaves*)0)->input_snapshot, void (*)(XpUiInput*): 1, default: 0),
                "XpEpubLeaves.input_snapshot signature");
+#else
+_Static_assert(_Generic(((XpEpubLeaves*)0)->input_snapshot, void (*)(uint8_t, XpUiInput*): 1, default: 0),
+               "XpEpubLeaves.input_snapshot signature");
+#endif
 _Static_assert(_Generic(((XpEpubGeometry*)0)->has_font_cache, uint8_t: 1, default: 0),
                "XpEpubGeometry.has_font_cache type");
 _Static_assert(_Alignof(XpEpubGeometry) == 4, "XpEpubGeometry alignment");

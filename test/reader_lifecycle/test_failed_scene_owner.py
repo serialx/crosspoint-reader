@@ -7,10 +7,13 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from input_sources import snapshot as snapshot_sources, reader_services
+
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 
 HERE = Path(__file__).resolve().parent
@@ -104,11 +107,12 @@ def fixture_source(root, definition, native_leaf):
         bridge = once(bridge, '/* ACTUAL_' + marker + '_LEAF */', native_leaf(native, field))
     snapshot = (root / 'src/components/RustInputSnapshot.h').read_text()
     helpers = (root / 'src/activities/reader/ReaderUtils.h').read_text()
-    input_methods = '''struct { uint32_t lastTouchHeldMs() const {return 0;} } gpio;
-struct { bool wasTiltedForward() const {return false;} bool wasTiltedBack() const {return false;} } halTiltSensor;
+    input_methods = '''enum class HomeButtonAction : uint8_t;
+struct { uint32_t lastTouchHeldMs() const {return 0;} } gpio;
+struct { XpHalTiltContext context() const {std::abort();} bool wasTiltedForward() const {return false;} bool wasTiltedBack() const {return false;} } halTiltSensor;
 namespace ReaderUtils {
-''' + definition(helpers, 'inline XpUiReaderInputServices inputServices(') + '\n}\n'
-    bridge = once(bridge, '// ACTUAL_INPUT_SNAPSHOT', definition(snapshot, 'inline XpUiInput rustInputSnapshot(') + '\n' + input_methods)
+''' + reader_services(helpers) + '\n}\n'
+    bridge = once(bridge, '// ACTUAL_INPUT_SNAPSHOT', snapshot_sources(snapshot) + '\n' + input_methods)
     main = original[original.index('int main(int argc, char** argv) {'):]
     main = once(main, 'int main(int argc, char** argv) {', 'static int failedSceneScenario(int argc, char** argv) {')
     # Keep the original observation values after retiring the facade enum names.

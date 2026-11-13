@@ -363,9 +363,17 @@ typedef struct {
   const void* const* font_owner;
 } XpAppResources;
 
+typedef enum { XP_APP_INPUT_POLL, XP_APP_INPUT_FEEDBACK, XP_APP_INPUT_FINISH } XpAppInputPhase;
 typedef struct {
+#ifdef XP_APP_TEST
   void (*input_mapped_snapshot)(uint8_t poll, uint8_t full, uint8_t consume_release, XpAppMappedSnapshot* frame);
   void (*input_shared_power_mode)(uint8_t enabled);
+#else
+  // Queries the current frame only; Home action belongs to the calling Rust owner.
+  void (*input_mapped_query)(uint8_t physical, uint8_t full, uint8_t consume_release, uint8_t home,
+                             XpAppMappedSnapshot* frame);
+  XpHalInputPoll (*input_poll)(uint8_t phase, uint8_t shared_power);
+#endif
   void (*input_power_confirm)(uint8_t enabled);
   uint8_t (*input_remote_click)(uint8_t button);
   void (*loop_settings)(XpAppSettings* settings);

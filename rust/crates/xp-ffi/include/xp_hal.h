@@ -144,6 +144,12 @@ typedef struct {
   uint8_t page_buttons;
   bool page_pressed;
 } XpHalInput;
+// Borrowed only between the native SDK poll and the synchronous Rust edge update.
+typedef struct {
+  XpHalInput* state;
+  uint8_t buttons;
+  bool usb;
+} XpHalInputPoll;
 void xp_hal_input_update(XpHalInput*, uint8_t buttons, bool usb);
 // Raw ADC samples; both are zero and unused when the physical power button is asserted.
 typedef struct {

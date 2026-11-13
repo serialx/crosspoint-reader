@@ -1,0 +1,12 @@
+[package]
+name = "runtime-input-tests"
+version = "0.0.0"
+edition = "2021"
+publish = false
+[workspace]
+[features]
+app-test = []
+[lib]
+path = "lib.rs"
+[dependencies]
+xp-ui = { path = "../../rust/crates/xp-ui" }

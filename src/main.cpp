@@ -451,8 +451,9 @@ void enterDeepSleep(bool fromTimeout = false) {
 }
 
 namespace {
-void mappedSnapshot(uint8_t poll, uint8_t fullButtons, uint8_t consumeRelease, XpAppMappedSnapshot* snapshot) {
-  if (poll) mappedInputManager.update(false);
+void mappedSnapshot(uint8_t physical, uint8_t fullButtons, uint8_t consumeRelease, uint8_t homeAction,
+                    XpAppMappedSnapshot* snapshot) {
+  const auto home = static_cast<HomeButtonAction>(homeAction);
   *snapshot = {};
   auto& input = snapshot->input;
   if (fullButtons) {
@@ -466,19 +467,19 @@ void mappedSnapshot(uint8_t poll, uint8_t fullButtons, uint8_t consumeRelease, X
         MappedInputManager::Button::ScreenRight, MappedInputManager::Button::ScreenUp,
         MappedInputManager::Button::ScreenDown};
     for (unsigned i = 0; i < sizeof(buttons) / sizeof(buttons[0]); ++i) {
-      if (mappedInputManager.wasPressed(buttons[i])) input.pressed |= 1u << i;
-      if (mappedInputManager.wasReleased(buttons[i])) input.released |= 1u << i;
+      if (mappedInputManager.wasPressed(buttons[i], home)) input.pressed |= 1u << i;
+      if (mappedInputManager.wasReleased(buttons[i], home)) input.released |= 1u << i;
       if (mappedInputManager.isPressed(buttons[i])) input.held |= 1u << i;
     }
     input.now_ms = millis();
-    input.held_ms = mappedInputManager.getHeldTime();
+    input.held_ms = mappedInputManager.getHeldTime(home);
     const auto touch = touchSnapshotFrom(mappedInputManager);
     input.touch_x = touch.touchX;
     input.touch_y = touch.touchY;
     input.touch_flags = (touch.touchPressed ? XP_UI_TOUCH_PRESSED : 0) |
                         (touch.touchReleased ? XP_UI_TOUCH_RELEASED : 0) | (touch.touchHeld ? XP_UI_TOUCH_HELD : 0);
   }
-  const bool homeKeys = !poll && !consumeRelease;
+  const bool homeKeys = !physical && !consumeRelease;
   if (fullButtons || homeKeys) {
     switch (mappedInputManager.wasSwipe()) {
       case MappedInputManager::SwipeDir::Up:
@@ -504,9 +505,9 @@ void mappedSnapshot(uint8_t poll, uint8_t fullButtons, uint8_t consumeRelease, X
     snapshot->home_key_long_pressed = gpio.wasHomeKeyLongPressed();
     snapshot->has_home_key = gpio.hasHomeKey();
   }
-  if (poll || homeKeys) snapshot->power_released = gpio.wasReleased(HalGPIO::BTN_POWER);
-  if (poll) {
-    if (!fullButtons && mappedInputManager.wasReleased(MappedInputManager::Button::Power))
+  if (physical || homeKeys) snapshot->power_released = gpio.wasReleased(HalGPIO::BTN_POWER);
+  if (physical) {
+    if (!fullButtons && mappedInputManager.wasReleased(MappedInputManager::Button::Power, home))
       input.released |= XP_UI_POWER;
     snapshot->power_held_ms = gpio.getPowerButtonHeldTime();
     snapshot->power_held = gpio.isPressed(HalGPIO::BTN_POWER);
@@ -520,7 +521,7 @@ void mappedSnapshot(uint8_t poll, uint8_t fullButtons, uint8_t consumeRelease, X
   }
   if (consumeRelease) {
     snapshot->suppressed_release = mappedInputManager.consumeSuppressedRelease();
-    snapshot->home_gesture = mappedInputManager.wasHomeGesture();
+    snapshot->home_gesture = mappedInputManager.wasHomeGesture(home);
     snapshot->light_panel_gesture = mappedInputManager.wasLightPanelGesture();
     int tx = 0, ty = 0;
     snapshot->status_bar_tap = mappedInputManager.hasTouch() && mappedInputManager.wasScreenTapped(tx, ty) && ty < 44 &&
@@ -531,8 +532,21 @@ void mappedSnapshot(uint8_t poll, uint8_t fullButtons, uint8_t consumeRelease, X
 
 const XpAppRuntime& appRuntime() {
   static const XpAppRuntime runtime{
-      .input_mapped_snapshot = mappedSnapshot,
-      .input_shared_power_mode = [](uint8_t enabled) { gpio.setSharedConfirmPowerShortPressEmitsPower(enabled != 0); },
+      .input_mapped_query = mappedSnapshot,
+      .input_poll = [](uint8_t phase, uint8_t sharedPower) -> XpHalInputPoll {
+        switch (static_cast<XpAppInputPhase>(phase)) {
+          case XP_APP_INPUT_POLL:
+            gpio.setSharedConfirmPowerShortPressEmitsPower(sharedPower != 0);
+            return mappedInputManager.pollRaw();
+          case XP_APP_INPUT_FEEDBACK:
+            mappedInputManager.pollFeedback();
+            break;
+          case XP_APP_INPUT_FINISH:
+            mappedInputManager.pollFinish();
+            break;
+        }
+        return {};
+      },
       .input_power_confirm =
           [](uint8_t clicked) {
 #if FREEINK_CAP_TOUCH

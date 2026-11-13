@@ -18,7 +18,7 @@ helper_path = ROOT / 'src/components/RustInputSnapshot.h'
 helper = helper_path.read_text()
 assert 'XpUiInput RustActivityAdapter::sampleRustInput() const { return rustInputSnapshot(mappedInput); }' in (
     ROOT / 'src/activities/RustActivityAdapter.cpp').read_text()
-assert '.input_snapshot = [](XpUiInput* out) { *out = rustInputSnapshot(*mapped); }' in (
+assert 'rustInputSnapshot(*mapped, static_cast<HomeButtonAction>(home))' in (
     ROOT / 'src/activities/reader/RustEpubResources.cpp').read_text()
 with tempfile.TemporaryDirectory(prefix='reader-rejected-input-') as directory:
     work = Path(directory)

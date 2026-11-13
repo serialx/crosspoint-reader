@@ -1,9 +1,11 @@
+#include <xp_hal.h>
 
 #include <algorithm>
 #include <bit>
 #include <cctype>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <string_view>
 
 #include "reader_value_owner.h"
@@ -20,6 +22,7 @@ struct CrossPointSettings {
 } SETTINGS;
 struct {
   bool next = false, prev = false;
+  XpHalTiltContext context() const { std::abort(); }
   bool wasTiltedForward() const {
     std::printf("tilt-next %d\n", next);
     return next;

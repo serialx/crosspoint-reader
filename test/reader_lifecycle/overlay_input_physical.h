@@ -47,7 +47,9 @@ struct MappedInputManager {
   bool isNavDirectionSwapped() const;
   bool isPressed(Button) const;
   bool wasPressed(Button) const;
+  bool wasPressed(Button, HomeButtonAction) const;
   bool wasReleased(Button) const;
+  bool wasReleased(Button, HomeButtonAction) const;
   bool wasLongPressed(Button, unsigned) const { std::abort(); }
   unsigned getHeldTime() const { return gpio.held; }
   bool decodeSwipe(int&, int&, int&, int&) const;

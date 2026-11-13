@@ -5,8 +5,11 @@ both production snapshot/reader bridge methods so the test includes non-tap
 release classification, published hit lookup, and the Rust C ABI.
 """
 from pathlib import Path
-import subprocess
 import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from input_sources import snapshot as snapshot_sources
+
+import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -42,7 +45,7 @@ baseline = '\n'.join(method('src/activities/UiListActivity.cpp', signature, revi
     'void UiListActivity::loop()',
 ])
 snapshot = method('src/components/UiAppHelpers.h', 'inline freeink::ui::InputSnapshot touchSnapshotFrom(')
-snapshot += '\n' + method('src/components/RustInputSnapshot.h', 'inline XpUiInput rustInputSnapshot(')
+snapshot += '\n' + snapshot_sources((ROOT / 'src/components/RustInputSnapshot.h').read_text())
 adapter = method('src/activities/RustActivityAdapter.cpp', 'XpUiInput RustActivityAdapter::sampleRustInput() const')
 adapter = adapter[adapter.index('{') + 1:adapter.rindex('}')]
 bridge = method('src/activities/reader/ReaderChromeListActivity.cpp', 'XpUiEffect ReaderChromeListActivity::updateRust(')

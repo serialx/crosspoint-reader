@@ -19,10 +19,12 @@ for signature, following in (
 stub = r"""
 #pragma once
 #include <cstdint>
+#include <xp_hal.h>
 struct HalGPIO {
   bool pressed = false, released = false, held = false;
   uint8_t button = 0;
-  void update() {}
+  XpHalInput state{};
+  XpHalInputPoll pollRaw() { return {&state, 0, false}; }
   bool wasAnyPressed() const { return pressed; }
   bool wasAnyReleased() const { return released; }
   bool wasPressed(uint8_t b) const { return b == button && pressed; }

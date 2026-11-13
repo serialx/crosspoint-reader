@@ -72,6 +72,8 @@ class HalGPIO {
 
   // Button input methods
   void update();
+  // Poll the SDK once; the caller applies Rust edge policy before reading HAL edges.
+  XpHalInputPoll pollRaw();
   bool isPressed(uint8_t buttonIndex) const;
   bool wasPressed(uint8_t buttonIndex) const;
   bool wasAnyPressed() const;

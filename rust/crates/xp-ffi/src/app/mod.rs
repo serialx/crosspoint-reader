@@ -21,6 +21,7 @@ mod epub;
 mod home;
 mod home_books;
 mod home_text;
+mod input_ports;
 mod keyboard;
 mod network_modes;
 mod resources;
@@ -488,67 +489,12 @@ impl App {
         true
     }
 
-    fn snapshot(
-        &self,
-        poll: bool,
-        full_buttons: bool,
-        consume_release: bool,
-    ) -> abi::MappedSnapshot {
-        let mut frame = core::mem::MaybeUninit::uninit();
-        unsafe {
-            (self.runtime.input_mapped_snapshot)(
-                u8::from(poll),
-                u8::from(full_buttons),
-                u8::from(consume_release),
-                frame.as_mut_ptr(),
-            );
-            frame.assume_init()
-        }
-    }
-
     fn settings(&self) -> abi::Settings {
         let mut settings = core::mem::MaybeUninit::uninit();
         unsafe {
             (self.runtime.loop_settings)(settings.as_mut_ptr());
             settings.assume_init()
         }
-    }
-
-    fn input_polled(&self, defer: bool) {
-        let frame = self.snapshot(false, false, false);
-        let settings = self.settings();
-        let action = |value| HomeAction::try_from(value).unwrap_or(HomeAction::Ignore);
-        let bindings = HomeBindings {
-            tap: action(settings.home_tap),
-            double_tap: action(settings.home_double),
-            long_press: action(settings.home_long),
-        };
-        let contact = (frame.has_home_key != 0).then_some(HomeContact {
-            tapped: frame.home_key_tapped != 0,
-            long_pressed: frame.home_key_long_pressed != 0,
-            swiped: frame.input.swipe != 0,
-            pressed: frame.home_key_pressed != 0,
-        });
-        let feedback =
-            self.input
-                .borrow_mut()
-                .sample_contact(frame.input.now_ms, contact, bindings);
-        match feedback {
-            Feedback::None => {}
-            Feedback::Tap => unsafe { (self.runtime.touch_feedback)(0) },
-            Feedback::LongPress => unsafe { (self.runtime.touch_feedback)(1) },
-        }
-        let power = if frame.power_released != 0 {
-            match settings.short_power {
-                7 => HomeAction::Bookmark,
-                8 => HomeAction::Sync,
-                9 => HomeAction::ReaderMenu,
-                _ => HomeAction::Ignore,
-            }
-        } else {
-            HomeAction::Ignore
-        };
-        self.input.borrow_mut().finish_frame(power, defer);
     }
 
     fn activity_loop(&self) {

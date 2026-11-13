@@ -435,8 +435,14 @@ pub struct XpEpubLeaves {
     pub settings_inversion: unsafe extern "C" fn(value: u8),
     pub settings_ble_enabled: unsafe extern "C" fn(value: u8),
     pub settings_save: unsafe extern "C" fn(),
+    #[cfg(feature = "app-test")]
     pub input_services: unsafe extern "C" fn() -> *const XpUiReaderInputServices,
+    #[cfg(not(feature = "app-test"))]
+    pub input_sources: unsafe extern "C" fn() -> *const XpUiReaderInputServices,
+    #[cfg(feature = "app-test")]
     pub input_facts: unsafe extern "C" fn(out: *mut XpEpubInputFacts),
+    #[cfg(not(feature = "app-test"))]
+    pub input_facts: unsafe extern "C" fn(home: u8, out: *mut XpEpubInputFacts),
     pub input_pressed: unsafe extern "C" fn(button: u32) -> u8,
     pub input_screen_point: unsafe extern "C" fn(kind: u8, x: *mut i32, y: *mut i32) -> u8,
     pub input_screen_tap: unsafe extern "C" fn(x: *mut i32, y: *mut i32) -> u8,
@@ -588,7 +594,10 @@ pub struct XpEpubLeaves {
     pub font_text_advance:
         unsafe extern "C" fn(text: XpAppText, font: i32, style: u8, character_spacing: i8) -> i32,
     pub log_enabled: unsafe extern "C" fn(severity: u8) -> u8,
+    #[cfg(feature = "app-test")]
     pub input_snapshot: unsafe extern "C" fn(out: *mut xp_ui::model::Input),
+    #[cfg(not(feature = "app-test"))]
+    pub input_snapshot: unsafe extern "C" fn(home: u8, out: *mut xp_ui::model::Input),
     pub cache_lock: unsafe extern "C" fn(),
     pub cache_unlock: unsafe extern "C" fn(),
     pub scratch_claim: unsafe extern "C" fn(min_len: u32) -> *mut u8,
@@ -763,7 +772,10 @@ const _: () = {
     );
 };
 const _: fn(&XpEpubLeaves) = |leaves| {
+    #[cfg(feature = "app-test")]
     let _: unsafe extern "C" fn(*mut xp_ui::model::Input) = leaves.input_snapshot;
+    #[cfg(not(feature = "app-test"))]
+    let _: unsafe extern "C" fn(u8, *mut xp_ui::model::Input) = leaves.input_snapshot;
 };
 
 const _: () = {
@@ -899,7 +911,10 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, settings_inversion) == leaf_index(37) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, settings_ble_enabled) == leaf_index(38) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, settings_save) == leaf_index(39) * pointer);
+    #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, input_services) == leaf_index(40) * pointer);
+    #[cfg(not(feature = "app-test"))]
+    assert!(core::mem::offset_of!(XpEpubLeaves, input_sources) == leaf_index(40) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, input_facts) == leaf_index(41) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, input_pressed) == leaf_index(42) * pointer);
     assert!(core::mem::offset_of!(XpEpubLeaves, input_screen_point) == leaf_index(43) * pointer);

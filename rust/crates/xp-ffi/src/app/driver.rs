@@ -111,8 +111,7 @@ fn slide_switch(
 fn iteration(app: &App, state: &mut State) {
     let started = now(app);
     let mut settings = app.settings();
-    unsafe { (app.runtime.input_shared_power_mode)(u8::from(settings.short_power == 1)) };
-    let frame = app.snapshot(true, false, false);
+    let frame = app.poll_input(settings.short_power == 1);
     let current = unsafe { facts() };
     let scene = abi::BleScene {
         visit: current.visit,

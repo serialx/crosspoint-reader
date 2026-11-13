@@ -1216,11 +1216,7 @@ EPUB.image_supported xp_image_prepare
 EPUB.image_supported xp_image_row
 EPUB.image_supported xp_png_dimensions
 EPUB.image_supported xp_png_render
-EPUB.input_facts XpAppCompatibility.home_action
 EPUB.input_raw_contact xp_hal_input_adc
-EPUB.input_services XpAppCompatibility.home_action
-EPUB.input_services xp_hal_tilt_take
-EPUB.input_snapshot XpAppCompatibility.home_action
 EPUB.local_calendar xp_hal_clock_read
 EPUB.paint_dither xp_font_scanning
 EPUB.paint_status xp_font_glyph_miss
@@ -1801,9 +1797,6 @@ Modes.resources xp_font_registry_query
 Modes.resources xp_native_width
 Runtime.ble_before_screen_change xp_ble_before_screen
 Runtime.ble_tick xp_ble_tick
-Runtime.input_mapped_snapshot XpAppCompatibility.home_action
-Runtime.input_mapped_snapshot xp_app_event
-Runtime.input_mapped_snapshot xp_hal_input_update
 Runtime.screenshot XpAppCompatibility.screenshot_info
 Runtime.screenshot xp_assets_screenshot
 Runtime.screenshot xp_display_abort

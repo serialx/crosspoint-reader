@@ -17,14 +17,27 @@
 namespace fui = freeink::ui;
 
 void MappedInputManager::update(const bool deferHomeButtonAction) const {
-  remoteInput.reset();
-  gpio.update();
-  const bool pagePressed =
-      SETTINGS.vibration == CrossPointSettings::VIBRATION_TOUCH_PAGE && gpio.wasCapacitivePagePressed();
-  HalHaptics::feedback(SETTINGS.vibration != CrossPointSettings::VIBRATION_OFF, pagePressed, SETTINGS.hapticIntensity);
+  const auto sample = pollRaw();
+  xp_hal_input_update(sample.state, sample.buttons, sample.usb);
+  pollFeedback();
   XpAppEvent event{.kind = XP_APP_INPUT_POLLED};
   event.value.defer_home = deferHomeButtonAction;
   xp_app_event(&event);
+  pollFinish();
+}
+
+XpHalInputPoll MappedInputManager::pollRaw() const {
+  remoteInput.reset();
+  return gpio.pollRaw();
+}
+
+void MappedInputManager::pollFeedback() const {
+  const bool pagePressed =
+      SETTINGS.vibration == CrossPointSettings::VIBRATION_TOUCH_PAGE && gpio.wasCapacitivePagePressed();
+  HalHaptics::feedback(SETTINGS.vibration != CrossPointSettings::VIBRATION_OFF, pagePressed, SETTINGS.hapticIntensity);
+}
+
+void MappedInputManager::pollFinish() const {
   for (uint8_t value = 0; value <= static_cast<uint8_t>(Button::ScreenDown); ++value) {
     if (!isPressed(static_cast<Button>(value))) longPressFiredButtons &= ~(1u << value);
   }
@@ -314,7 +327,11 @@ bool MappedInputManager::wasMenuGesture() const { return wasTopEdgeDownSwipe(); 
 bool MappedInputManager::wasReaderMenuSwipeUp() const { return gpio.hasHomeKey() && wasBottomEdgeUpSwipe(); }
 
 bool MappedInputManager::wasHomeGesture() const {
-  return gpio.hasHomeKey() ? homeButtonAction() == HomeButtonAction::Home : wasBottomEdgeUpSwipe();
+  return wasHomeGesture(gpio.hasHomeKey() ? homeButtonAction() : HomeButtonAction::Ignore);
+}
+
+bool MappedInputManager::wasHomeGesture(const HomeButtonAction home) const {
+  return gpio.hasHomeKey() ? home == HomeButtonAction::Home : wasBottomEdgeUpSwipe();
 }
 
 bool MappedInputManager::wasLightPanelGesture() const {
@@ -340,12 +357,18 @@ bool MappedInputManager::injectRemoteClick(const RemoteButton button) {
 }
 
 bool MappedInputManager::wasPressed(const Button button) const {
+  const auto home = button == Button::Confirm && remoteInput.button != RemoteButton::Confirm ? homeButtonAction()
+                                                                                             : HomeButtonAction::Ignore;
+  return wasPressed(button, home);
+}
+
+bool MappedInputManager::wasPressed(const Button button, const HomeButtonAction home) const {
   if (button == Button::Confirm && remoteInput.button == RemoteButton::Confirm) return true;
   if (button == Button::Back && remoteInput.button == RemoteButton::Back) return true;
   if ((button == Button::NavNext || button == Button::Right) && remoteInput.button == RemoteButton::Next) return true;
   if ((button == Button::NavPrevious || button == Button::Left) && remoteInput.button == RemoteButton::Previous)
     return true;
-  if (button == Button::Confirm && homeButtonAction() == HomeButtonAction::Confirm) return true;
+  if (button == Button::Confirm && home == HomeButtonAction::Confirm) return true;
   if (button == Button::Back && wasBackGesture()) return true;
 #if FREEINK_CAP_TOUCH
   if (button == Button::Confirm && wasPowerConfirmClick()) return true;
@@ -354,12 +377,18 @@ bool MappedInputManager::wasPressed(const Button button) const {
 }
 
 bool MappedInputManager::wasReleased(const Button button) const {
+  const auto home = button == Button::Confirm && remoteInput.button != RemoteButton::Confirm ? homeButtonAction()
+                                                                                             : HomeButtonAction::Ignore;
+  return wasReleased(button, home);
+}
+
+bool MappedInputManager::wasReleased(const Button button, const HomeButtonAction home) const {
   if (button == Button::Confirm && remoteInput.button == RemoteButton::Confirm) return true;
   if (button == Button::Back && remoteInput.button == RemoteButton::Back) return true;
   if ((button == Button::NavNext || button == Button::Right) && remoteInput.button == RemoteButton::Next) return true;
   if ((button == Button::NavPrevious || button == Button::Left) && remoteInput.button == RemoteButton::Previous)
     return true;
-  if (button == Button::Confirm && homeButtonAction() == HomeButtonAction::Confirm) return true;
+  if (button == Button::Confirm && home == HomeButtonAction::Confirm) return true;
   if (button == Button::Back && wasBackGesture()) return true;
 #if FREEINK_CAP_TOUCH
   if (button == Button::Confirm && wasPowerConfirmClick()) return true;
@@ -368,10 +397,22 @@ bool MappedInputManager::wasReleased(const Button button) const {
 }
 
 bool MappedInputManager::wasLongPressed(const Button button, const unsigned long thresholdMs) const {
-  if (!isPressed(button)) return false;
-  const uint16_t bit = 1u << static_cast<uint8_t>(button);
-  if ((longPressFiredButtons & bit) != 0 || getHeldTime() < thresholdMs) return false;
-  longPressFiredButtons |= bit;
+  return longPressReady(button) && finishLongPress(button, getHeldTime(), thresholdMs);
+}
+
+bool MappedInputManager::wasLongPressed(const Button button, const unsigned long thresholdMs,
+                                        const HomeButtonAction home) const {
+  return longPressReady(button) && finishLongPress(button, getHeldTime(home), thresholdMs);
+}
+
+bool MappedInputManager::longPressReady(const Button button) const {
+  return isPressed(button) && (longPressFiredButtons & (1u << static_cast<uint8_t>(button))) == 0;
+}
+
+bool MappedInputManager::finishLongPress(const Button button, const unsigned long heldMs,
+                                         const unsigned long thresholdMs) const {
+  if (heldMs < thresholdMs) return false;
+  longPressFiredButtons |= 1u << static_cast<uint8_t>(button);
   suppressNextRelease(button);
   if (mapButton(button, &HalGPIO::isCapacitivePagePressed)) {
     HalHaptics::longPress(SETTINGS.vibration == CrossPointSettings::VIBRATION_TOUCH_PAGE, SETTINGS.hapticIntensity);
@@ -398,8 +439,12 @@ bool MappedInputManager::consumeSuppressedRelease() const {
 bool MappedInputManager::isPressed(const Button button) const { return mapButton(button, &HalGPIO::isPressed); }
 
 unsigned long MappedInputManager::getHeldTime() const {
+  return getHeldTime(hasRemoteClick() ? HomeButtonAction::Ignore : homeButtonAction());
+}
+
+unsigned long MappedInputManager::getHeldTime(const HomeButtonAction home) const {
   // A mapped action has its own meaning, independent of the contact duration.
-  if (hasRemoteClick() || homeButtonAction() != HomeButtonAction::Ignore) return 0;
+  if (hasRemoteClick() || home != HomeButtonAction::Ignore) return 0;
   if (!gpio.wasAnyPressed() && !gpio.wasAnyReleased() && touchHeldOverrideValid &&
       millis() - touchHeldOverrideAt <= TOUCH_HELD_OVERRIDE_WINDOW_MS) {
     return touchHeldOverrideMs;

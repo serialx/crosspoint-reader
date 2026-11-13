@@ -11,7 +11,7 @@ impl EpubSession {
             return false;
         }
         let mut input = MaybeUninit::<Input>::uninit();
-        unsafe { (self.leaves.input_snapshot)(input.as_mut_ptr()) };
+        unsafe { self.leaves.input_snapshot(input.as_mut_ptr()) };
         let input = unsafe { input.assume_init() };
         let (failed, consume) = self.model(|state| {
             let gate = &mut state.scene_gate;

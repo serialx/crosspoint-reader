@@ -4,6 +4,10 @@ The frozen baseline methods come from bcdfb338. Hardware edges and radio side
  effects are test doubles; long-press consumption uses MappedInputManager code.
 """
 from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from input_sources import snapshot as snapshot_sources, reader_services
+
 import subprocess
 import sys
 import tempfile
@@ -31,6 +35,8 @@ def run(archive, baseline=False, mutate=False):
     mapped = source("src/MappedInputManager.cpp")
     code = "\n".join(method(mapped, s) for s in [
         "bool MappedInputManager::wasLongPressed(",
+        "bool MappedInputManager::longPressReady(",
+        "bool MappedInputManager::finishLongPress(",
         "void MappedInputManager::suppressNextRelease(",
         "bool MappedInputManager::consumeSuppressedRelease("])
     if baseline:
@@ -41,7 +47,7 @@ def run(archive, baseline=False, mutate=False):
                           "void SettingsUiActivity::applyRustEffect(", "XpUiInterest SettingsUiActivity::rustInterest("]:
             code += method(settings, signature) + "\n"
         adapter = source("src/activities/RustActivityAdapter.cpp")
-        code += method(source("src/components/RustInputSnapshot.h"), "inline XpUiInput rustInputSnapshot(") + "\n"
+        code += snapshot_sources(source("src/components/RustInputSnapshot.h")) + "\n"
         code += method(adapter, "XpUiInput RustActivityAdapter::sampleRustInput() const") + "\n"
         code += method(adapter, "void RustActivityAdapter::loop()") + "\n"
         ble = method(source("src/activities/settings/BleSettingsActivity.cpp"), "void BleSettingsActivity::loop()")

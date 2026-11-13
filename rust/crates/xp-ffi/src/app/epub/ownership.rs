@@ -130,7 +130,7 @@ impl EpubSession {
 
     pub(in crate::app) fn app_remote_turn(&self, forward: bool, chapter: bool) -> bool {
         let mut input = core::mem::MaybeUninit::<abi::XpEpubInputFacts>::uninit();
-        unsafe { (self.leaves.input_facts)(input.as_mut_ptr()) };
+        unsafe { self.leaves.input_facts(input.as_mut_ptr()) };
         if unsafe { input.assume_init() }.remote_click != 0 {
             return false;
         }

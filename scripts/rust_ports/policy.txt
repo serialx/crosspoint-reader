@@ -6,7 +6,6 @@ table WiFi XP_WIFI_PHYSICAL XpWifiPhysical rust/crates/xp-ffi/include/xp_network
 table Modes XP_NETWORK_MODES_PHYSICAL XpNetworkModesPhysical rust/crates/xp-ffi/include/xp_network_owner.h # Network mode ports.
 # Physical permission is an exact root/export pair and still requires a lock line.
 physical EPUB.input_raw_contact xp_hal_input_adc # ADC HAL sample.
-physical EPUB.input_services xp_hal_tilt_take # Tilt HAL sample.
 physical EPUB.local_calendar xp_hal_clock_read # Clock HAL calendar.
 physical EPUB.render_physical_operation xp_display_abort xp_display_capabilities xp_display_drop xp_display_execute xp_display_init_v2 xp_hal_display_refresh xp_hal_wake_reason # Panel/bus HAL continuation.
 physical App.refresh xp_display_abort xp_display_capabilities xp_display_drop xp_display_execute xp_display_init_v2 xp_hal_display_refresh xp_hal_wake_reason # Panel/bus HAL continuation.
@@ -232,8 +231,6 @@ import xp_settings_shell_snapshot # Existing direct native ABI at 5ff7aa05; revi
 import xp_settings_shell_theme_reload # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 inherited App.popup_draw R2b # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 inherited App.popup_progress R2b # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
-inherited EPUB.input_facts R-RELAY # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
-inherited EPUB.input_snapshot R-RELAY # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 deferred EPUB.protection_close NONREADER # One-way destruction; vtable references reach decryptToSink -> reclaimContentCaches, but the deleting destructor never calls decryptToSink.
 deferred EPUB.protection_finish NONREADER # One-way key install/transfer/destruction; Take writes the native vptr, but no finish stage calls decryptToSink -> reclaimContentCaches; reader streaming calls readPrepared after direct Rust eviction.
 deferred EPUB.child_header R6 # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
@@ -245,7 +242,6 @@ deferred EPUB.popup_input R5 # Runtime-pointer study retirement assignment in RE
 inherited Runtime.ble_before_screen_change R-RELAY # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 inherited Runtime.ble_tick R-RELAY # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 inherited Runtime.screenshot R-RELAY # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
-inherited Runtime.input_mapped_snapshot R-RUNTIME # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 inherited Runtime.settings_save R-RUNTIME # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 inherited Runtime.sleep_enter R-RUNTIME # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 physical EPUB.render_geometry xp_display_capabilities # Stored RustPanelDriver virtual method; panel capability/operation continuation.
@@ -256,12 +252,11 @@ physical EPUB.protection_stream xp_inflate_init xp_inflate_state_align xp_inflat
 callback xp_dialog_deliver # Borrows XpAppLegacy to deliver a dialog result synchronously; retained parent stays owned by the app.
 callback xp_keyboard_deliver # Borrows XpAppLegacy to deliver a keyboard result synchronously; no callback retention.
 callback xp_native_render_target # Fills XpPageTarget and XpUiPaint output tables with native callbacks; incoming output fields are not invoked.
-callback EPUB.input_services # Returns native input service callbacks for a synchronous reader borrow.
+callback EPUB.input_sources # Returns native-only mapped input probes; Rust supplies a synchronous XpEpubInputQuery with its current Home action and consumes any returned tilt state directly; no pointer is retained.
 callback EPUB.build_metrics # Returns native layout metric callbacks for the section build.
 callback EPUB.build_allocator # Returns process-lifetime physical allocation/free/log callbacks; no reclaim or Rust callback on firmware.
 callback EPUB.display_source # Receives a Rust display source table; lifetime covers the configured display source.
 callback Modes.resources # Returns native settings resources including label/draw function pointers.
-inherited EPUB.input_services R-RELAY # Returned home_action service calls the Rust-filled compatibility table; tilt remains physical.
 callback EPUB.time_services # Returns native time service callbacks; no Rust callback parameter is retained.
 callback EPUB.time_start_sync # Registers a Rust time notification callback for asynchronous SNTP completion; review context lifetime.
 callback EPUB.store_rows # Visits serialized native store rows through the borrowed Rust row sink.

@@ -70,7 +70,7 @@ impl EpubSession {
                 ])
                 .ok()?;
             let mut input = core::mem::MaybeUninit::uninit();
-            unsafe { (self.leaves.input_facts)(input.as_mut_ptr()) };
+            unsafe { self.leaves.input_facts(input.as_mut_ptr()) };
             let input = unsafe { input.assume_init() };
             let items = Items::new(Flags {
                 footnotes: args.footnotes != 0,

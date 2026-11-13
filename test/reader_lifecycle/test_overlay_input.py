@@ -158,9 +158,12 @@ def transformed_fixture():
     assert bridge.count(begin) == bridge.count(end) == 1
     swipe_query = bridge.split(begin, 1)[1].split(end, 1)[0].strip()
     fixture = replace_once(fixture, '// NATIVE_SWIPE_QUERY', swipe_query)
-    begin, end = 'switch (static_cast<XpUiReaderButtonQuery>(query)) {', '          },'
-    button_query = begin + bridge.split(begin, 1)[1].split(end, 1)[0]
-    button_query = button_query.replace('(button)', '(nativeButton)').replace('(button, threshold)', '(nativeButton, threshold)')
+    button_query = definition(bridge, 'switch (static_cast<XpUiReaderButtonQuery>(query))')
+    # Compile the unchanged compatibility branch with its real discriminant.
+    button_query = ('enum class HomeButtonAction : uint8_t;\n'
+                    'return []<bool Raw = false>(auto& frame, void* context, uint8_t query, '
+                    'MappedInputManager::Button button, uint32_t threshold) -> uint8_t {\n' +
+                    button_query + '\nreturn false;\n}(frame, nullptr, query, nativeButton, threshold);')
     fixture = replace_once(fixture, '// NATIVE_BUTTON_QUERY', button_query)
     fixture = replace_once(fixture, '        r.handleOverlayInput();\n        r.dump();',
                           '        OverlayInputSessionBridge overlaySession(r);\n'
@@ -201,7 +204,10 @@ def physical_fixture(fixture):
     assert len(indices) == 7
     support = replace_once(support, '// PHYSICAL_BUTTON_INDICES', '\n'.join(indices))
     signatures = ('bool MappedInputManager::mapButton(', 'bool MappedInputManager::isPressed(',
-                  'bool MappedInputManager::wasPressed(', 'bool MappedInputManager::wasReleased(',
+                  'bool MappedInputManager::wasPressed(const Button button) const',
+                  'bool MappedInputManager::wasPressed(const Button button,',
+                  'bool MappedInputManager::wasReleased(const Button button) const',
+                  'bool MappedInputManager::wasReleased(const Button button,',
                   'bool MappedInputManager::isNavDirectionSwapped(',
                   'MappedInputManager::Button MappedInputManager::mapScreenDirection(',
                   'bool MappedInputManager::decodeSwipe(', 'MappedInputManager::SwipeDir MappedInputManager::wasSwipe(')

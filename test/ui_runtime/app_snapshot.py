@@ -20,7 +20,8 @@ harness = r'''
 #include <memory>
 #include <vector>
 #include <xp_app.h>
-void mappedSnapshot(uint8_t, uint8_t, uint8_t, XpAppMappedSnapshot*);
+enum class HomeButtonAction : uint8_t { Ignore = 1 };
+void mappedSnapshot(uint8_t, uint8_t, uint8_t, uint8_t, XpAppMappedSnapshot*);
 XpAppMappedSnapshot eventFrame{};
 unsigned updates = 0, mappedReads = 0, touchReads = 0, keyReads = 0, releases = 0;
 uint32_t millis() { return 100; }
@@ -49,15 +50,15 @@ struct MappedInputManager {
   void update(bool defer) {
     assert(!defer);
     ++updates;
-    mappedSnapshot(0, 0, 0, &eventFrame);
+    mappedSnapshot(0, 0, 0, 1, &eventFrame);
   }
-  bool wasPressed(Button) { ++mappedReads; return injected; }
-  bool wasReleased(Button b) { ++mappedReads; return injected || b == Button::Power; }
+  bool wasPressed(Button, HomeButtonAction) { ++mappedReads; return injected; }
+  bool wasReleased(Button b, HomeButtonAction) { ++mappedReads; return injected || b == Button::Power; }
   bool isPressed(Button) { ++mappedReads; return injected; }
-  uint32_t getHeldTime() { return 800; }
+  uint32_t getHeldTime(HomeButtonAction) { return 800; }
   SwipeDir wasSwipe() { return SwipeDir::Down; }
   bool consumeSuppressedRelease() { ++releases; return false; }
-  bool wasHomeGesture() { return true; }
+  bool wasHomeGesture(HomeButtonAction) { return true; }
   bool wasLightPanelGesture() { return true; }
   bool hasTouch() { return true; }
   bool wasScreenTapped(int& x, int& y) { x = 30; y = 20; return true; }
@@ -176,7 +177,8 @@ int main() {
 
   XpAppMappedSnapshot driver;
   std::memset(&driver, 0xa5, sizeof(driver));
-  mappedSnapshot(1, 0, 0, &driver);
+  mappedInputManager.update(false);
+  mappedSnapshot(1, 0, 0, 1, &driver);
   assert(updates == 1 && mappedReads == 1 && touchReads == 0 && keyReads == 4 && releases == 0);
   assert(eventFrame.input.now_ms == 100 && eventFrame.input.swipe == XP_UI_SWIPE_DOWN);
   assert(eventFrame.home_key_pressed && eventFrame.home_key_tapped && eventFrame.home_key_long_pressed);
@@ -191,7 +193,7 @@ int main() {
   assert(!driver.home_gesture && !driver.light_panel_gesture && !driver.status_bar_tap);
   XpAppMappedSnapshot legacy;
   std::memset(&legacy, 0xa5, sizeof(legacy));
-  mappedSnapshot(0, 0, 1, &legacy);
+  mappedSnapshot(0, 0, 1, 1, &legacy);
   assert(updates == 1 && mappedReads == 1 && touchReads == 0 && keyReads == 4 && releases == 1);
   assert(legacy.home_gesture && legacy.light_panel_gesture && legacy.status_bar_tap && legacy.cpu_hold);
   assert(!legacy.input.pressed && !legacy.input.released && !legacy.input.held && !legacy.input.touch_flags);
@@ -199,7 +201,7 @@ int main() {
   // Activity input must see an injection that arrives after the hardware poll.
   mappedInputManager.injected = true;
   XpAppMappedSnapshot home;
-  mappedSnapshot(0, 1, 1, &home);
+  mappedSnapshot(0, 1, 1, 1, &home);
   assert(updates == 1 && mappedReads == 46 && touchReads == 1 && keyReads == 4 && releases == 2);
   assert(home.input.pressed == 0x7fff && home.input.released == 0x7fff && home.input.held == 0x7fff);
   assert(home.input.now_ms == 100 && home.input.held_ms == 800 && home.input.swipe == XP_UI_SWIPE_DOWN);

@@ -265,7 +265,7 @@ impl EpubSession {
         let geometry = unsafe { geometry.assume_init() };
         unsafe {
             input::touch(
-                *self.input_services(),
+                self.input_services(),
                 self.input_config(),
                 geometry.width,
                 geometry.height,
@@ -279,7 +279,7 @@ impl EpubSession {
         if let Some(hook) = self.base_hooks {
             return unsafe { (hook.buttons)(hook.context) };
         }
-        unsafe { input::buttons(*self.input_services(), self.input_config()) }
+        unsafe { input::buttons(self.input_services(), self.input_config()) }
     }
 
     pub(super) fn handle_back(&self) -> bool {
@@ -289,7 +289,7 @@ impl EpubSession {
         }
         match unsafe {
             input::back(
-                *self.input_services(),
+                self.input_services(),
                 self.settings(false).back_to_browser != 0,
             )
         } {

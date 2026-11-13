@@ -2,6 +2,9 @@
 import pathlib
 import sys
 from extract import definition
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from input_sources import reader_services
 
 repo, output = map(pathlib.Path, sys.argv[1:])
 source = (repo / "src/activities/reader/ReaderUtils.h").read_text()
@@ -12,4 +15,4 @@ names = ["inline bool gestureAllowsSwipe(", "inline bool gestureAllowsTap(",
 if "inline XpUiReaderInputServices inputServices(" in source:
     names = ["inline XpUiReaderInputConfig inputConfig(", "inline XpUiReaderInputServices inputServices("] + names
 names = [name for name in names if name in source]
-output.write_text("namespace ReaderUtils {\n" + "\n".join(definition(source, name) for name in names) + "\n}\n")
+output.write_text("namespace ReaderUtils {\n" + "\n".join(reader_services(source) if name == "inline XpUiReaderInputServices inputServices(" else definition(source, name) for name in names) + "\n}\n")

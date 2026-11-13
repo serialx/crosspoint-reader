@@ -312,7 +312,7 @@ impl EpubSession {
             return;
         }
         let mut input = MaybeUninit::<abi::XpEpubInputFacts>::uninit();
-        unsafe { (self.leaves.input_facts)(input.as_mut_ptr()) };
+        unsafe { self.leaves.input_facts(input.as_mut_ptr()) };
         model.dense = u8::from(unsafe { input.assume_init() }.touch == 0);
         model.selected = if cursor {
             self.model(|state| state.panel_index)

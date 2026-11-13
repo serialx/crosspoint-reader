@@ -83,10 +83,15 @@ void HalGPIO::begin() {
 }
 
 void HalGPIO::update() {
+  const auto sample = pollRaw();
+  xp_hal_input_update(sample.state, sample.buttons, sample.usb);
+}
+
+XpHalInputPoll HalGPIO::pollRaw() {
   inputMgr.update();
   const uint8_t pageButtons = inputMgr.capacitivePageButtonMask();
   const bool connected = isUsbConnected();
-  xp_hal_input_update(&state, pageButtons, connected);
+  return {&state, pageButtons, connected};
 }
 
 bool HalGPIO::wasUsbStateChanged() const { return state.usb_changed; }

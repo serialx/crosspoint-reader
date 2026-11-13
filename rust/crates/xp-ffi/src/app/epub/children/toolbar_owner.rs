@@ -131,7 +131,7 @@ impl ToolbarTarget {
             Self::Owned(p) => unsafe { p.as_ref() }.route(parent.runtime, || {
                 let mut input = MaybeUninit::<Input>::uninit();
                 unsafe {
-                    (parent.leaves.input_snapshot)(input.as_mut_ptr());
+                    parent.leaves.input_snapshot(input.as_mut_ptr());
                     input.assume_init()
                 }
             }),

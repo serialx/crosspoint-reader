@@ -53,6 +53,8 @@ struct MappedInputManager {
     return fn == &HalGPIO::wasReleased && wasReleased(b);
   }
   bool wasLongPressed(Button, unsigned long) const;
+  bool longPressReady(Button) const;
+  bool finishLongPress(Button, unsigned long, unsigned long) const;
   void suppressNextRelease(Button) const;
   bool consumeSuppressedRelease() const;
   bool wasScreenLongPress(int& x, int& y) {

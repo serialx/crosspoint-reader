@@ -34,100 +34,142 @@ inline XpUiReaderInputConfig inputConfig() {
           SETTINGS.showReaderMenu,          SETTINGS.backShortToFileBrowser};
 }
 
-inline XpUiReaderInputServices inputServices(const MappedInputManager& input) {
-  return {const_cast<MappedInputManager*>(&input),
-          [](void* context, uint32_t mask, uint8_t query, uint32_t threshold) -> uint8_t {
-            const auto& frame = *static_cast<const MappedInputManager*>(context);
-            MappedInputManager::Button button;
-            switch (mask) {
-              case XP_UI_BACK:
-                button = MappedInputManager::Button::Back;
-                break;
-              case XP_UI_CONFIRM:
-                button = MappedInputManager::Button::Confirm;
-                break;
-              case XP_UI_UP:
-                button = MappedInputManager::Button::Up;
-                break;
-              case XP_UI_DOWN:
-                button = MappedInputManager::Button::Down;
-                break;
-              case XP_UI_LEFT:
-                button = MappedInputManager::Button::Left;
-                break;
-              case XP_UI_RIGHT:
-                button = MappedInputManager::Button::Right;
-                break;
-              case XP_UI_POWER:
-                button = MappedInputManager::Button::Power;
-                break;
-              case XP_UI_PAGE_BACK:
-                button = MappedInputManager::Button::PageBack;
-                break;
-              case XP_UI_PAGE_FORWARD:
-                button = MappedInputManager::Button::PageForward;
-                break;
-              default:
-                return false;
-            }
-            switch (static_cast<XpUiReaderButtonQuery>(query)) {
-              case XP_UI_READER_BUTTON_PRESS:
-                return frame.wasPressed(button);
-              case XP_UI_READER_BUTTON_RELEASE:
-                return frame.wasReleased(button);
-              case XP_UI_READER_BUTTON_LONG:
-                return frame.wasLongPressed(button, threshold);
-            }
-            return false;
-          },
-          [](void* context, uint8_t query) -> uint32_t {
-            const auto& frame = *static_cast<const MappedInputManager*>(context);
-            switch (static_cast<XpUiReaderInputQuery>(query)) {
-              case XP_UI_READER_INPUT_HAS_TOUCH:
-                return frame.hasTouch();
-              case XP_UI_READER_INPUT_SWIPE:
-                switch (frame.wasSwipe()) {
-                  case MappedInputManager::SwipeDir::None:
-                    return XP_UI_SWIPE_NONE;
-                  case MappedInputManager::SwipeDir::Left:
-                    return XP_UI_SWIPE_LEFT;
-                  case MappedInputManager::SwipeDir::Right:
-                    return XP_UI_SWIPE_RIGHT;
-                  case MappedInputManager::SwipeDir::Up:
-                    return XP_UI_SWIPE_UP;
-                  case MappedInputManager::SwipeDir::Down:
-                    return XP_UI_SWIPE_DOWN;
-                }
-                return XP_UI_SWIPE_NONE;
-              case XP_UI_READER_INPUT_HELD_MS:
-                return frame.getHeldTime();
-              case XP_UI_READER_INPUT_TOUCH_HELD_MS:
-                return gpio.lastTouchHeldMs();
-              case XP_UI_READER_INPUT_TILT_NEXT:
-                return halTiltSensor.wasTiltedForward();
-              case XP_UI_READER_INPUT_TILT_PREV:
-                return halTiltSensor.wasTiltedBack();
-              case XP_UI_READER_INPUT_NAV_SWAPPED:
-                return frame.isNavDirectionSwapped();
-              case XP_UI_READER_INPUT_HOME_ACTION:
-                return static_cast<uint32_t>(frame.homeButtonAction());
-              case XP_UI_READER_INPUT_BACK_GESTURE:
-                return frame.wasBackGesture();
-              case XP_UI_READER_INPUT_MENU_GESTURE:
-                return frame.wasMenuGesture();
-              case XP_UI_READER_INPUT_MENU_SWIPE_UP:
-                return frame.wasReaderMenuSwipeUp();
-            }
-            return 0;
-          },
-          [](void* context, int32_t* x, int32_t* y) -> uint8_t {
-            int tapX = 0, tapY = 0;
-            if (!static_cast<const MappedInputManager*>(context)->wasScreenTapped(tapX, tapY)) return false;
-            *x = tapX;
-            *y = tapY;
-            return true;
-          }};
+template <bool Raw>
+inline const MappedInputManager& inputFrame(void* context) {
+  if constexpr (Raw)
+    return *static_cast<const MappedInputManager*>(static_cast<XpEpubInputQuery*>(context)->mapped);
+  else
+    return *static_cast<const MappedInputManager*>(context);
 }
+
+template <bool Raw>
+inline XpUiReaderInputServices makeInputServices(const MappedInputManager& input) {
+  return {
+      const_cast<MappedInputManager*>(&input),
+      [](void* context, uint32_t mask, uint8_t query, uint32_t threshold) -> uint8_t {
+        const auto& frame = inputFrame<Raw>(context);
+        MappedInputManager::Button button;
+        switch (mask) {
+          case XP_UI_BACK:
+            button = MappedInputManager::Button::Back;
+            break;
+          case XP_UI_CONFIRM:
+            button = MappedInputManager::Button::Confirm;
+            break;
+          case XP_UI_UP:
+            button = MappedInputManager::Button::Up;
+            break;
+          case XP_UI_DOWN:
+            button = MappedInputManager::Button::Down;
+            break;
+          case XP_UI_LEFT:
+            button = MappedInputManager::Button::Left;
+            break;
+          case XP_UI_RIGHT:
+            button = MappedInputManager::Button::Right;
+            break;
+          case XP_UI_POWER:
+            button = MappedInputManager::Button::Power;
+            break;
+          case XP_UI_PAGE_BACK:
+            button = MappedInputManager::Button::PageBack;
+            break;
+          case XP_UI_PAGE_FORWARD:
+            button = MappedInputManager::Button::PageForward;
+            break;
+          default:
+            return false;
+        }
+        switch (static_cast<XpUiReaderButtonQuery>(query)) {
+          case XP_UI_READER_BUTTON_PRESS:
+            if constexpr (Raw)
+              return frame.wasPressed(button,
+                                      static_cast<HomeButtonAction>(static_cast<XpEpubInputQuery*>(context)->home));
+            else
+              return frame.wasPressed(button);
+          case XP_UI_READER_BUTTON_RELEASE:
+            if constexpr (Raw)
+              return frame.wasReleased(button,
+                                       static_cast<HomeButtonAction>(static_cast<XpEpubInputQuery*>(context)->home));
+            else
+              return frame.wasReleased(button);
+          case XP_UI_READER_BUTTON_LONG:
+            if constexpr (Raw)
+              return frame.wasLongPressed(button, threshold,
+                                          static_cast<HomeButtonAction>(static_cast<XpEpubInputQuery*>(context)->home));
+            else
+              return frame.wasLongPressed(button, threshold);
+        }
+        return false;
+      },
+      [](void* context, uint8_t query) -> uint32_t {
+        const auto& frame = inputFrame<Raw>(context);
+        switch (static_cast<XpUiReaderInputQuery>(query)) {
+          case XP_UI_READER_INPUT_HAS_TOUCH:
+            return frame.hasTouch();
+          case XP_UI_READER_INPUT_SWIPE:
+            switch (frame.wasSwipe()) {
+              case MappedInputManager::SwipeDir::None:
+                return XP_UI_SWIPE_NONE;
+              case MappedInputManager::SwipeDir::Left:
+                return XP_UI_SWIPE_LEFT;
+              case MappedInputManager::SwipeDir::Right:
+                return XP_UI_SWIPE_RIGHT;
+              case MappedInputManager::SwipeDir::Up:
+                return XP_UI_SWIPE_UP;
+              case MappedInputManager::SwipeDir::Down:
+                return XP_UI_SWIPE_DOWN;
+            }
+            return XP_UI_SWIPE_NONE;
+          case XP_UI_READER_INPUT_HELD_MS:
+            if constexpr (Raw)
+              return frame.getHeldTime(static_cast<HomeButtonAction>(static_cast<XpEpubInputQuery*>(context)->home));
+            else
+              return frame.getHeldTime();
+          case XP_UI_READER_INPUT_TOUCH_HELD_MS:
+            return gpio.lastTouchHeldMs();
+          case XP_UI_READER_INPUT_TILT_NEXT:
+            if constexpr (Raw) {
+              static_cast<XpEpubInputQuery*>(context)->tilt = halTiltSensor.context().state;
+              return 0;
+            } else
+              return halTiltSensor.wasTiltedForward();
+          case XP_UI_READER_INPUT_TILT_PREV:
+            if constexpr (Raw) {
+              static_cast<XpEpubInputQuery*>(context)->tilt = halTiltSensor.context().state;
+              return 0;
+            } else
+              return halTiltSensor.wasTiltedBack();
+          case XP_UI_READER_INPUT_NAV_SWAPPED:
+            return frame.isNavDirectionSwapped();
+          case XP_UI_READER_INPUT_HOME_ACTION:
+            if constexpr (Raw)
+              return static_cast<XpEpubInputQuery*>(context)->home;
+            else
+              return static_cast<uint32_t>(frame.homeButtonAction());
+          case XP_UI_READER_INPUT_BACK_GESTURE:
+            return frame.wasBackGesture();
+          case XP_UI_READER_INPUT_MENU_GESTURE:
+            return frame.wasMenuGesture();
+          case XP_UI_READER_INPUT_MENU_SWIPE_UP:
+            return frame.wasReaderMenuSwipeUp();
+        }
+        return 0;
+      },
+      [](void* context, int32_t* x, int32_t* y) -> uint8_t {
+        int tapX = 0, tapY = 0;
+        if (!inputFrame<Raw>(context).wasScreenTapped(tapX, tapY)) return false;
+        *x = tapX;
+        *y = tapY;
+        return true;
+      }};
+}
+
+inline XpUiReaderInputServices inputServices(const MappedInputManager& input) {
+  return makeInputServices<false>(input);
+}
+
+inline XpUiReaderInputServices inputSources(const MappedInputManager& input) { return makeInputServices<true>(input); }
 
 inline bool gestureAllowsSwipe(const uint8_t gesture) { return xp_ui_reader_gesture(gesture) & 2; }
 

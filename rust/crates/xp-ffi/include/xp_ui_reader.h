@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 
+#include "xp_hal.h"
 #include "xp_ui.h"
 #ifdef XP_SD_FONT_CATALOG
 #include "xp_font_registry.h"
@@ -115,6 +116,15 @@ typedef struct {
   uint32_t (*read)(void*, uint8_t query);
   uint8_t (*tap)(void*, int32_t* x, int32_t* y);
 } XpUiReaderInputServices;
+
+// Raw reader callbacks borrow this stack context synchronously. Tilt reads return
+// the existing HAL state for Rust to consume; no callback retains this pointer.
+typedef struct {
+  const void* mapped;
+  XpHalTilt* tilt;
+  uint8_t home;
+} XpEpubInputQuery;
+
 /* Persisted setting values, with C++ static_asserts against CrossPointSettings. */
 typedef struct {
   uint8_t long_press, short_power, tilt, touch_controls;

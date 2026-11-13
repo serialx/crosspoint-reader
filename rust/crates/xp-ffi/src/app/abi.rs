@@ -625,8 +625,14 @@ const _: () = {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Runtime {
+    #[cfg(feature = "app-test")]
     pub input_mapped_snapshot: unsafe extern "C" fn(u8, u8, u8, *mut MappedSnapshot),
+    #[cfg(not(feature = "app-test"))]
+    pub input_mapped_query: unsafe extern "C" fn(u8, u8, u8, u8, *mut MappedSnapshot),
+    #[cfg(feature = "app-test")]
     pub input_shared_power_mode: unsafe extern "C" fn(u8),
+    #[cfg(not(feature = "app-test"))]
+    pub input_poll: unsafe extern "C" fn(u8, u8) -> crate::hal::gpio::Poll,
     pub input_power_confirm: unsafe extern "C" fn(u8),
     pub input_remote_click: unsafe extern "C" fn(u8) -> u8,
     pub loop_settings: unsafe extern "C" fn(*mut Settings),

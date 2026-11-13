@@ -1326,6 +1326,36 @@ settings serialization retain their separate owners. Native
 `HalPowerManager::setPowerSaving` and `HalFrontlight::setOn`/`setBrightness`
 entries still reach the same Rust HAL policy.
 
+### App-loop input calls
+
+The shipping Rust driver polls input in five ordered steps: native SDK poll,
+direct Rust HAL edge update, native haptic feedback, direct Rust `input_polled`,
+and native long-press reset. The mapped snapshot reads the resulting frame
+without polling again. Native transfer loops keep `MappedInputManager::update`
+with the same order and deferred Home-action delivery.
+
+Mapped queries receive the current Rust Home action explicitly. The reader
+caches only the native input-source table address. Its Rust service adapters
+create a short-lived query context, call the native mapping/gesture primitives,
+and consume pending tilt events directly in Rust, only when reader policy asks
+for them. No frame, Home result, or tilt result is cached. The native query must
+not retain that context or drain navigation. Existing native screens retain
+their compatibility queries; they still call the shared Rust Home/tilt policy.
+
+Runtime replaces `input_mapped_snapshot` with `input_mapped_query` and
+`input_shared_power_mode` with `input_poll`, without changing its slot count.
+EPUB replaces `input_services` with `input_sources`; facts and snapshot queries
+take an explicit Home argument in their existing slots. The raw source table
+reuses `XpUiReaderInputServices` with `XpEpubInputQuery` as the synchronous callback
+context. `runtime_input_native` and `runtime_input_shipping` test those boundaries.
+The old injected host signatures remain HOST-RETIRE debt, not shipping policy.
+
+The qualified X3 and x4pro profiles disable haptics. Metalio retains the existing
+native-to-Rust haptic policy continuation; this unit does not establish a clean
+input boundary for that profile. SDK internals, stored hooks and ROM still need
+the final R8b audit. This change does not resolve the inherited concurrent
+frontlight read/write problem or move BLE delivery, sleep or screenshot policy.
+
 ## Reader protected-book boundary
 
 The Rust reader probes every book for an encryption manifest before checking its

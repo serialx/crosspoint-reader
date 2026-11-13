@@ -9,7 +9,7 @@ struct BookHandle {
   }
   void bindExtractor() {
     assert(!closing);
-    ImageBlock::setExtractor(book.get(), [](void* raw, const char* source, const char* destination) {
+    ReferenceImage::setExtractor(book.get(), [](void* raw, const char* source, const char* destination) {
       return static_cast<Epub*>(raw)->extractItemToFile(source, destination);
     });
   }
@@ -21,7 +21,7 @@ static const auto referenceOpen = [](void* owner, const XpEpubBookView* view, co
   auto facade = makeUniqueNoThrow<Epub>(owner, *view, *borrow);
   if (!facade) return nullptr;
   handle->book = std::move(facade);
-  ImageBlock::clearRenderFailures();
+  ReferenceImage::clearRenderFailures();
   handle->bindExtractor();
   return handle.release();
 };
@@ -35,7 +35,7 @@ static const auto referenceExtractor = [](void* handle) {
   if (handle)
     book(handle).bindExtractor();
   else
-    ImageBlock::setExtractor(nullptr, nullptr);
+    ReferenceImage::setExtractor(nullptr, nullptr);
 };
 extern "C" void xp_epub_test_native_reference_bind(void* (*)(void*, const XpEpubBookView*, const XpEpubBookBorrow*),
                                                    void (*)(void*), void (*)(void*));

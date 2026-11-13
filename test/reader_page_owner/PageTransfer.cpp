@@ -12,6 +12,7 @@
 #include "../reader_lifecycle/physical_defaults.h"
 #include "FrameChecks.h"
 #include "FrozenSelectionTransfer.h"
+#include "ImageReference.h"
 #include "PageViews.h"
 #include "activities/reader/RustEpubPage.h"
 extern "C" bool xp_page_image_test_cache(const XpPageImage*, bool);
@@ -60,7 +61,7 @@ static void compareRustQueries(const Page& native, const XpEpubPageView& view, c
   xp_epub_test_page_query(&view, &leaves, 0, 0, 24, &info, nullptr, nullptr, nullptr);
   assert(info.visible_offset == native.visibleTextOffset && info.elements == native.elementCount());
   assert(info.footnotes == native.footnoteCount() && info.links == native.linkCount());
-  assert(info.images == native.hasImages() && info.images_need_decode == native.hasImagesNeedingDecode());
+  assert(info.images == native.hasImages() && info.images_need_decode == imageReference::needsDecode(native));
   for (uint16_t i = 0; i < native.elementCount(); ++i) {
     XpEpubElement element{};
     xp_epub_test_page_query(&view, &leaves, i, 0, 24, nullptr, &element, nullptr, nullptr);
@@ -184,7 +185,7 @@ void* factory(XpEpubOwnedPage* pages, uint8_t count, void* raw) {
       auto block = native->element(element).imageBlock();
       const XpPageImage query{image.first.data, image.second.data, image.first.len, image.second.len, 0, 0,
                               image.width,      image.height};
-      assert(xp_page_image_test_cache(&query, true) == block.needsDecode());
+      assert(xp_page_image_test_cache(&query, true) == imageReference::needsDecode(block));
     }
   }
   factoryActive = true;

@@ -1,6 +1,11 @@
+#include <xp_book.h>
+
+#include <array>
+extern "C" void xp_page_image_test_stream(void*, uint8_t (*)(void*, const uint8_t*, size_t, XpBookSink, void*));
 #include <Epub.h>
 #include <Epub/Page.h>
 
+#include "../reader_page_owner/ImageReference.h"
 #include "../reader_section/ReaderSectionFixture.h"
 using Section = ReaderSectionFixture;
 #include <Epub/css/CssParser.h>
@@ -197,8 +202,8 @@ static bool records(Page& page, GfxRenderer& renderer, const Setting& config) {
   int16_t x = 0, y = 0, w = 0, h = 0;
   const bool box = page.getImageBoundingBox(x, y, w, h);
   std::cout << "page\t" << page.visibleTextOffset << '\t' << page.elementCount() << ',' << page.footnoteCount() << ','
-            << page.linkCount() << ',' << page.hasImages() << ',' << page.hasImagesNeedingDecode() << ',' << box << ','
-            << x << ',' << y << ',' << w << ',' << h << '\n';
+            << page.linkCount() << ',' << page.hasImages() << ',' << imageReference::needsDecode(page) << ',' << box
+            << ',' << x << ',' << y << ',' << w << ',' << h << '\n';
   for (uint16_t index = 0; index < page.elementCount(); ++index) {
     const auto element = page.element(index);
     HalFile wire("element.bin");
@@ -548,14 +553,18 @@ int main(int argc, char** argv) {
   }
   if (!css.saveToCache(complete)) return 8;
 #ifdef XP_STRIP_IMAGES
-  ImageBlock::setExtractor(nullptr, [](void*, const char* src, const char* dest) {
-    std::error_code error;
-    const auto source = std::filesystem::path("book") / src;
-    if (!std::filesystem::is_regular_file(source)) return false;
-    std::filesystem::create_directories(std::filesystem::path(dest).parent_path(), error);
-    std::filesystem::copy_file(source, dest, std::filesystem::copy_options::overwrite_existing, error);
-    return !error;
-  });
+  xp_page_image_test_stream(
+      nullptr, [](void*, const uint8_t* path, size_t length, XpBookSink sink, void* context) -> uint8_t {
+        const auto source = std::filesystem::path("book") / std::string(reinterpret_cast<const char*>(path), length);
+        std::ifstream input(source, std::ios::binary);
+        if (!input) return 0;
+        std::array<uint8_t, 512> bytes{};
+        while (input) {
+          input.read(reinterpret_cast<char*>(bytes.data()), bytes.size());
+          if (input.gcount() && !sink(context, bytes.data(), size_t(input.gcount()))) return 0;
+        }
+        return input.eof();
+      });
 #endif
   for (size_t spine = 0; spine < epub->spine.size(); ++spine) {
     Section section(epub, int(spine), renderer);
@@ -572,8 +581,8 @@ int main(int argc, char** argv) {
     positions.back() = header.values[15];
     std::cout << "section\t" << spine << '\t' << section.pageCount << '\n';
     for (int index = 0; index < section.pageCount; ++index) {
-      ImageBlock::clearRenderFailures();
-      ImageBlock::releaseRenderCache();
+      xp_assets_image_reset(false);
+      xp_assets_image_reset(true);
       auto page = section.loadPage(index);
       if (!page || positions[index + 1] < positions[index]) return 14;
       std::string raw(positions[index + 1] - positions[index], '\0');
@@ -606,7 +615,7 @@ int main(int argc, char** argv) {
       std::cout << "end\n";
     }
   }
-  ImageBlock::releaseRenderCache();
+  xp_assets_image_reset(true);
   return std::cout.good() ? 0 : 19;
 }
 

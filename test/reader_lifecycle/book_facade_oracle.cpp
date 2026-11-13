@@ -45,7 +45,7 @@ static uint8_t invoke(void* raw) {
   ++facadeInvocations;
   auto& h = book(raw);
   assert(h.book.use_count() == 1);
-  assert(ImageBlock::extractCtx == h.book.get());
+  assert(ReferenceImage::extractCtx == h.book.get());
   if (forbiddenGetter == "path") (void)h.value().getPath();
   if (forbiddenGetter == "title") (void)h.value().getTitle();
   if (forbiddenGetter == "author") (void)h.value().getAuthor();
@@ -63,11 +63,11 @@ static uint8_t invoke(void* raw) {
     assert(output.bytes == "first!");
   }
   assert(h.book.use_count() == 1);
-  assert(ImageBlock::extractFn(ImageBlock::extractCtx, "b.xhtml", destination.c_str()));
+  assert(ReferenceImage::extractFn(ReferenceImage::extractCtx, "b.xhtml", destination.c_str()));
   referenceExtractor(nullptr);
-  assert(!ImageBlock::extractCtx && !ImageBlock::extractFn);
+  assert(!ReferenceImage::extractCtx && !ReferenceImage::extractFn);
   referenceExtractor(raw);
-  assert(ImageBlock::extractCtx == h.book.get());
+  assert(ReferenceImage::extractCtx == h.book.get());
   referenceExtractor(nullptr);
   return 1;
 }
@@ -88,14 +88,14 @@ int main(int argc, char** argv) {
     facadeAttempt = 0;
     assert(xp_epub_test_facade(&resources, &checkedLeaves, text(source), text(cache), invoke) == 0);
     assert(facadeAttempt == fail && facadeInvocations == 0);
-    assert(!ImageBlock::extractCtx && !ImageBlock::extractFn);
+    assert(!ReferenceImage::extractCtx && !ReferenceImage::extractFn);
     assert(xp_test_live_allocations() == 0 && nativeBuffers.empty());
   }
   facadeFailure = 0;
   facadeAttempt = 0;
   assert(xp_epub_test_facade(&resources, &checkedLeaves, text(source), text(cache), invoke) == 1);
   assert(facadeAttempt == 2 && facadeInvocations == 1);
-  assert(!ImageBlock::extractCtx && !ImageBlock::extractFn);
+  assert(!ReferenceImage::extractCtx && !ReferenceImage::extractFn);
   assert(xp_test_live_allocations() == 0);
   assert(nativeBuffers.empty());
   puts(

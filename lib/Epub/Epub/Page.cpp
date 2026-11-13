@@ -363,21 +363,6 @@ bool Page::hasImages() const {
   return xp_book_page_images(arena, arenaSize, nullptr, nullptr);
 }
 
-bool Page::hasImagesNeedingDecode() const {
-#ifdef XP_PAGE_CODEC_TEST
-  if (!arena) {
-    for (uint16_t i = 0; i < elementCount(); ++i) {
-      const auto e = element(i);
-      if (e.getTag() == TAG_PageImage && e.imageBlock().needsDecode()) return true;
-    }
-    return false;
-  }
-#endif
-  return xp_book_page_images(arena, arenaSize, const_cast<Page*>(this), [](void* raw, uint16_t index) -> uint8_t {
-    return static_cast<Page*>(raw)->element(index).imageBlock().needsDecode();
-  });
-}
-
 bool Page::getImageBoundingBox(int16_t& x, int16_t& y, int16_t& w, int16_t& h) const {
 #ifdef XP_PAGE_CODEC_TEST
   if (!arena) {

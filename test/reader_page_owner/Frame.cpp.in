@@ -1,3 +1,4 @@
+#include "ImageReference.h"
 #include <GfxRenderer.h>
 #include <Memory.h>
 #include <Page.h>
@@ -51,12 +52,12 @@ struct {
 } display;
 // Transparent physical-service observers; the real image-cache methods still run.
 struct FrameImageBlock {
-  static void clearRenderFailures() { ImageBlock::clearRenderFailures(); }
+  static void clearRenderFailures() { xp_assets_image_reset(false); }
   static void releaseRenderCache() {
     assert(!frameChecks::loan && !frameChecks::window);
     ++frameChecks::cacheReleases;
     frameChecks::cacheReleaseAt = ++frameChecks::sequence;
-    ImageBlock::releaseRenderCache();
+    xp_assets_image_reset(true);
   }
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
   static void setRenderReadWindow(uint8_t* data, size_t size) {

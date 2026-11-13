@@ -109,10 +109,6 @@ uint32_t xp_native_page_jpeg(XpPageJpeg*, XpPageJpegOp, uint32_t argument);
 // Event 12 shares ImageDiagnostic::DecodeFailed's value; argument is xp_book_image_dimensions status.
 enum { XP_PAGE_JPEG_BAD_DIMENSIONS = 12 };
 void xp_native_page_jpeg_log(const XpPageJpeg*, uint32_t event, uint32_t argument);
-#ifdef XP_APP_TEST
-// Historical native extraction path for host oracles.
-uint8_t xp_native_page_image_extract(const XpPageImage*, uint8_t query_only);
-#endif
 // Formats an image event through the native logger without retaining borrowed paths.
 void xp_native_page_image_log(void* native, const XpPageImage*, const uint8_t* cache, uint32_t event, int32_t a,
                               int32_t b);

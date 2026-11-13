@@ -23,6 +23,34 @@ pub(crate) unsafe fn set_extractor(owner: *mut c_void, stream: Option<Stream>) {
     *EXTRACTOR.0.get() = (owner, stream);
 }
 
+#[cfg(feature = "app-test")]
+type TestStream =
+    unsafe extern "C" fn(*mut c_void, *const u8, usize, xp_core::book::io::Sink, *mut c_void) -> u8;
+#[cfg(feature = "app-test")]
+struct TestSource(UnsafeCell<Option<TestStream>>);
+#[cfg(feature = "app-test")]
+// Host fixtures serialize registration, streaming and teardown.
+unsafe impl Sync for TestSource {}
+#[cfg(feature = "app-test")]
+static TEST_SOURCE: TestSource = TestSource(UnsafeCell::new(None));
+#[cfg(feature = "app-test")]
+#[no_mangle]
+pub unsafe extern "C" fn xp_page_image_test_stream(owner: *mut c_void, stream: Option<TestStream>) {
+    unsafe fn forward(
+        owner: *mut c_void,
+        source: &[u8],
+        sink: xp_core::book::io::Sink,
+        context: *mut c_void,
+    ) -> bool {
+        unsafe {
+            (*TEST_SOURCE.0.get()).unwrap()(owner, source.as_ptr(), source.len(), sink, context)
+                != 0
+        }
+    }
+    *TEST_SOURCE.0.get() = stream;
+    set_extractor(owner, stream.map(|_| forward as Stream));
+}
+
 #[repr(C)]
 struct Image {
     path: *const u8,
@@ -83,8 +111,6 @@ extern "C" {
         value: usize,
     ) -> usize;
     fn xp_native_page_image_write(file: *mut c_void, bytes: *const u8, length: usize) -> u8;
-    #[cfg(feature = "app-test")]
-    fn xp_native_page_image_extract(image: *const Image, query: u8) -> u8;
     fn xp_native_page_image_log(
         native: *mut c_void,
         image: *const Image,
@@ -250,11 +276,10 @@ unsafe impl Services for Physical<'_> {
     }
     fn extract(&mut self) {
         let (owner, stream) = unsafe { *EXTRACTOR.0.get() };
-        #[cfg(feature = "app-test")]
-        let native = unsafe { xp_native_page_image_extract(&self.image, 1) } != 0;
-        #[cfg(not(feature = "app-test"))]
-        let native = false;
-        if self.image.source_len == 0 || (stream.is_none() && !native) {
+        let Some(stream) = stream else {
+            return;
+        };
+        if self.image.source_len == 0 {
             return;
         }
         if unsafe {
@@ -270,18 +295,7 @@ unsafe impl Services for Physical<'_> {
             return;
         }
         self.diagnostic(14, 0, 0);
-        let ok = if let Some(stream) = stream {
-            unsafe { self.extract_stream(owner, stream) }
-        } else {
-            #[cfg(feature = "app-test")]
-            {
-                unsafe { xp_native_page_image_extract(&self.image, 0) != 0 }
-            }
-            #[cfg(not(feature = "app-test"))]
-            {
-                false
-            }
-        };
+        let ok = unsafe { self.extract_stream(owner, stream) };
         if !ok {
             self.diagnostic(15, 0, 0);
         }

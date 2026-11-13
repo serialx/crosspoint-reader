@@ -66,13 +66,13 @@ def fixture(native):
     };
     void* ImageBlock::extractCtx = nullptr;
     ImageBlock::ExtractFn ImageBlock::extractFn = nullptr;
-''' + definition(image, 'void ImageBlock::setExtractor(') + '''
+''' + 'void ImageBlock::setExtractor(void* owner, ExtractFn fn) { extractCtx=owner; extractFn=fn; }' + '''
     static void requireExtractor() {
       if (checkExtractor && (ImageBlock::extractCtx != expectedExtractor || !ImageBlock::extractFn)) {
         std::fprintf(stderr, "EXPECTED_ASSERTION: SYNC_EXTRACTOR_RESTORED\\n"); std::exit(42);
       }
     }
-''' + definition((HERE/'native_book_reference_fixture.inc').read_text(), 'struct BookHandle') + ';\n' + '''
+''' + definition((HERE/'native_book_reference_fixture.inc').read_text(), 'struct BookHandle').replace('ReferenceImage::', 'ImageBlock::') + ';\n' + '''
     // The frozen fixture externally owns Epub; this temporary facade only adapts its handle.
     static BookHandle book(void* raw) {
       return {std::shared_ptr<Epub>(static_cast<Epub*>(raw), [](Epub*) {})};
@@ -109,10 +109,7 @@ def fixture(native):
         else:
             selected = native
         cases = replace_once(cases, '/* ACTUAL_' + leaf.upper() + ' */', native_leaf(selected, 'child_' + leaf))
-    cases = replace_once(cases, '/* ACTUAL_INSTALL_EXTRACTOR */', definition((HERE/'native_book_reference_fixture.inc').read_text(), 'static const auto referenceExtractor =').split('=', 1)[1].strip())
-    cases = replace_once(cases, '// IMAGE_IO_ENUM', definition(image, 'enum class ImageIo') + ';')
-    begin, end = '    case ImageIo::HasSource:', '    case ImageIo::SourceSize:'
-    cases = replace_once(cases, '// ACTUAL_EXTRACTION_IO', begin + image.split(begin, 1)[1].split(end, 1)[0])
+    cases = replace_once(cases, '/* ACTUAL_INSTALL_EXTRACTOR */', definition((HERE/'native_book_reference_fixture.inc').read_text(), 'static const auto referenceExtractor =').split('=', 1)[1].strip().replace('ReferenceImage::', 'ImageBlock::'))
     return ALLOCATOR + source + cases
 
 
@@ -179,7 +176,7 @@ def main():
             assert rejected.returncode == 42 and rejected.stderr == b'EXPECTED_ASSERTION: SYNC_EXTRACTOR_RESTORED\n'
             print(json.dumps(dict(test_name='reader_child_native_faults',
                 sync_recovery='all three allocation failures retain extractor; third renders an uncached source through real Rust image policy',
-                physical_limits='book extraction and image decoder are physical fakes; historical native install fixture and actual extraction dispatch are extracted',
+                physical_limits='book source and files are physical fakes; historical native install observation feeds shipping Rust extraction and PNG decoding',
                 mutant='sync-extractor-not-restored', returncode=rejected.returncode,
                 mutant_source_sha256=digest(changed.encode()))), flush=True)
     finally:

@@ -13,7 +13,7 @@ source = Path(__file__).with_name('Frame.cpp.in').read_text()
 for marker, signature in [('FRAME', 'struct NativeRenderFrame {'),
                           ('RESOURCES', 'struct NativeResources {'),
                           ('RESOURCE_ACCESS', 'NativeResources& resources(void* handle)')]:
-    fragment = definition(native, signature)
+    fragment = definition(native, signature).replace('page.hasImagesNeedingDecode()', 'imageReference::needsDecode(page)')
     source = replace_once(source, '// ACTUAL_' + marker, fragment + (';' if signature.startswith('struct') else ''))
 for marker, leaf in [('BIND', 'render_bind_page'), ('FINISH', 'render_finish_page')]:
     source = replace_once(source, '/* ACTUAL_' + marker + ' */', native_leaf(native, leaf))

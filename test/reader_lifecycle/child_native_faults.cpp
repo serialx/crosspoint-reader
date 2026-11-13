@@ -2,62 +2,152 @@ static GfxRenderer* target;
 static MappedInputManager* mapped;
 // ACTUAL_OWNED_TEXT
 static CrossPointPosition position(const XpEpubPosition& value) { return {value.spine}; }
+#include <xp_book.h>
 #include <xp_ffi.h>
+#include <xp_page_paint.h>
 
 #include <string_view>
+#include <vector>
 
 #include "../hal_contract/Contract.h"
 #include "../hal_fake_strict.h"
-
-// IMAGE_IO_ENUM
-struct {
-  bool exists(const char* path) {
-    assert(std::string(path) == "/cache/unseen.png");
-    return imageSourceExists;
-  }
-} Storage;
-struct RecoveryImage {
-  bool hasImpl = false;
-  std::string_view path = "/cache/unseen.png", source = "OPS/unseen.png";
-  void* extractContext = ImageBlock::extractCtx;
-  ImageBlock::ExtractFn extract = ImageBlock::extractFn;
+extern "C" void xp_page_image_test_stream(void*, uint8_t (*)(void*, const uint8_t*, size_t, XpBookSink, void*));
+extern "C" void xp_page_image_test_paint(const XpPageTarget*, const XpPageImage*);
+static const uint8_t recoveryPng[] = {
+    137, 80,  78,  71,  13,  10,  26,  10,  0,   0,  0,   13, 73, 72,  68, 82,  0,  0,   0,   16, 0,   0,   0,   16,
+    8,   0,   0,   0,   0,   58,  152, 160, 189, 0,  0,   0,  60, 73,  68, 65,  84, 120, 156, 93, 193, 193, 0,   0,
+    32,  0,   192, 192, 33,  132, 16,  66,  8,   33, 132, 16, 66, 8,   33, 132, 16, 66,  8,   33, 132, 16,  66,  8,
+    253, 119, 7,   22,  132, 40,  36,  33,  11,  69, 168, 66, 19, 186, 48, 132, 41, 44,  97,  11, 71,  184, 194, 147,
+    15,  47,  119, 120, 1,   97,  1,   187, 246, 0,  0,   0,  0,  73,  69, 78,  68, 174, 66,  96, 130};
+static std::vector<uint8_t> recoveredSource;
+struct RecoveryFile {
+  size_t offset;
+  uint8_t kind;
+  bool initialized;
+  bool hasImpl;
 };
-static size_t recoveryImageIo(void* raw, uint32_t op, const uint8_t*, uint8_t*, size_t) {
-  auto& self = *static_cast<RecoveryImage*>(raw);
+extern "C" size_t xp_native_page_image_file(XpPageImageFile* cell, XpPageImageFileOp op, const uint8_t* path,
+                                            uint8_t* bytes, size_t value) {
+  auto& f = *reinterpret_cast<RecoveryFile*>(cell);
+  static_assert(sizeof(f) <= sizeof(*cell));
   assert(lockDepth == 1 && !modelDepth);
-  switch (static_cast<ImageIo>(op)) {
-    // ACTUAL_EXTRACTION_IO
-    case ImageIo::OpenCache:
-      self.hasImpl = true;
+  switch (op) {
+    case XP_IMAGE_FILE_INIT:
+      f = {0, 0, true, false};
       return 0;
-    case ImageIo::Close:
-      hal_fake::requireImpl(self.hasImpl, "close");
+    case XP_IMAGE_FILE_DROP:
+      assert(f.initialized);
+      f.initialized = false;
       return 0;
-    case ImageIo::FreeHeap:
-    case ImageIo::LargestBlock:
+    case XP_IMAGE_FILE_FREE_HEAP:
+    case XP_IMAGE_FILE_LARGEST_BLOCK:
+    case XP_IMAGE_FILE_FREE_INTERNAL_HEAP:
       return 100000;
-    case ImageIo::SourceSize:
-      return imageSourceExists ? 64 : SIZE_MAX;
-    case ImageIo::Decode:
-      assert(imageSourceExists && imageExtractions == 1);
-      ++imageDecodes;
-      return 2;
+    case XP_IMAGE_FILE_NOW:
+      return 0;
+    case XP_IMAGE_FILE_YIELD:
+      return 0;
+    case XP_IMAGE_FILE_OPEN_WRITE:
+    case XP_IMAGE_FILE_OPEN_CACHE_WRITE:
+    case XP_IMAGE_FILE_OPEN:
+    case XP_IMAGE_FILE_OPEN_PNG:
+      assert(f.initialized);
+      f.hasImpl = true;
+      break;
+    case XP_IMAGE_FILE_EXISTS:
+    case XP_IMAGE_FILE_IS_OPEN:
+      assert(f.initialized);
+      break;
     default:
-      assert(false && "unexpected uncached image IO");
+      hal_fake::requireImpl(f.hasImpl, "image operation");
+  }
+  switch (op) {
+    case XP_IMAGE_FILE_EXISTS:
+      return imageSourceExists;
+    case XP_IMAGE_FILE_OPEN_WRITE:
+      f.kind = 1;
+      f.offset = 0;
+      recoveredSource.clear();
+      return 1;
+    case XP_IMAGE_FILE_OPEN_CACHE_WRITE:
+      return 0;
+    case XP_IMAGE_FILE_OPEN:
+    case XP_IMAGE_FILE_OPEN_PNG:
+      f.offset = 0;
+      if (!imageSourceExists || std::string(reinterpret_cast<const char*>(path)).ends_with(".px2")) {
+        f.kind = 0;
+        return 0;
+      }
+      f.kind = 2;
+      return 1;
+    case XP_IMAGE_FILE_IS_OPEN:
+      return f.kind != 0;
+    case XP_IMAGE_FILE_READ:
+    case XP_IMAGE_FILE_READ_RAW: {
+      assert(f.kind == 2);
+      const size_t n = std::min(value, recoveredSource.size() - f.offset);
+      std::memcpy(bytes, recoveredSource.data() + f.offset, n);
+      f.offset += n;
+      return n;
+    }
+    case XP_IMAGE_FILE_SEEK:
+      if (value > recoveredSource.size()) return 0;
+      f.offset = value;
+      return 1;
+    case XP_IMAGE_FILE_POSITION:
+      return f.offset;
+    case XP_IMAGE_FILE_SIZE:
+      assert(f.kind == 2);
+      return recoveredSource.size();
+    case XP_IMAGE_FILE_FLUSH:
+      assert(f.kind == 1);
+      return 0;
+    case XP_IMAGE_FILE_CLOSE:
+      f.kind = 0;
+      return 0;
+    case XP_IMAGE_FILE_REMOVE:
+      assert(false && "PNG cache cannot start in this fixture");
+      return 0;
+    default:
+      assert(false && "unexpected recovery file operation");
       return 0;
   }
 }
+extern "C" uint8_t xp_native_page_image_write(void* raw, const uint8_t* bytes, size_t length) {
+  auto& f = *static_cast<RecoveryFile*>(raw);
+  assert(f.initialized && f.kind == 1);
+  recoveredSource.insert(recoveredSource.end(), bytes, bytes + length);
+  return 1;
+}
+extern "C" void xp_native_page_image_codec_log(const XpPageImageCodecLog*, uint32_t, uint32_t, uint32_t, uint32_t,
+                                               uint32_t) {}
+extern "C" void xp_native_page_image_log(void*, const XpPageImage*, const uint8_t*, uint32_t event, int32_t, int32_t) {
+  assert(event != 12);
+  if (event == 13) ++imageDecodes;
+}
 static void renderRecoveredImage() {
   RenderLock lock;
-  RecoveryImage image;
-  const XpAssetImageCallbacks callbacks{
-      &image, recoveryImageIo,
-      [](void*, XpImageTarget*) { assert(false && "uncached decode does not stream cached pixels"); },
-      [](void*, uint32_t, int32_t, int32_t) {}};
-  const XpAssetImageConfig config{0, 0, 16, 16, 600, 800, false, true};
-  const auto result = xp_assets_image_render(reinterpret_cast<const uint8_t*>(image.path.data()), image.path.size(),
-                                             &config, &callbacks);
-  assert(result == 1 && imageExtractions == 1 && imageDecodes == 1);
+  xp_page_image_test_stream(
+      ImageBlock::extractCtx,
+      [](void* owner, const uint8_t* path, size_t length, XpBookSink sink, void* context) -> uint8_t {
+        assert(ImageBlock::extractFn && std::string(reinterpret_cast<const char*>(path), length) == "OPS/unseen.png");
+        if (!ImageBlock::extractFn(owner, "OPS/unseen.png", "/cache/unseen.png")) return 0;
+        return sink(context, recoveryPng, sizeof(recoveryPng));
+      });
+  uint8_t pixels[32]{};
+  const XpPageTarget target{
+      {pixels, sizeof(pixels), 16, 16, 2, 0, 16, {0, 0, 16, 16}, 3, 0, 0, 0, 0}, nullptr, nullptr, 0};
+  const XpPageImage image{reinterpret_cast<const uint8_t*>("/cache/unseen.png"),
+                          reinterpret_cast<const uint8_t*>("OPS/unseen.png"),
+                          17,
+                          14,
+                          0,
+                          0,
+                          16,
+                          16};
+  xp_page_image_test_paint(&target, &image);
+  assert(imageSourceExists && imageExtractions == 1 && imageDecodes == 1);
+  xp_page_image_test_stream(nullptr, nullptr);
   xp_assets_image_reset(true);
 }
 
@@ -206,11 +296,15 @@ static void syncCaptureFailure(size_t after) {
 int main() {
   {
     RenderLock lock;
-    RecoveryImage image;
-    hal_contract::rejects([&] { recoveryImageIo(&image, uint32_t(ImageIo::Close), nullptr, nullptr, 0); });
-    assert(recoveryImageIo(&image, uint32_t(ImageIo::OpenCache), nullptr, nullptr, 0) == 0);
-    recoveryImageIo(&image, uint32_t(ImageIo::Close), nullptr, nullptr, 0);
-    recoveryImageIo(&image, uint32_t(ImageIo::Close), nullptr, nullptr, 0);
+    XpPageImageFile image{};
+    hal_contract::rejects([&] { xp_native_page_image_file(&image, XP_IMAGE_FILE_CLOSE, nullptr, nullptr, 0); });
+    xp_native_page_image_file(&image, XP_IMAGE_FILE_INIT, nullptr, nullptr, 0);
+    hal_contract::rejects([&] { xp_native_page_image_file(&image, XP_IMAGE_FILE_CLOSE, nullptr, nullptr, 0); });
+    assert(xp_native_page_image_file(&image, XP_IMAGE_FILE_OPEN, reinterpret_cast<const uint8_t*>("missing.px2"),
+                                     nullptr, 0) == 0);
+    xp_native_page_image_file(&image, XP_IMAGE_FILE_CLOSE, nullptr, nullptr, 0);
+    xp_native_page_image_file(&image, XP_IMAGE_FILE_CLOSE, nullptr, nullptr, 0);
+    xp_native_page_image_file(&image, XP_IMAGE_FILE_DROP, nullptr, nullptr, 0);
   }
   for (int kind = 0; kind < 6; ++kind) {
     outerAllocation(kind, -1);

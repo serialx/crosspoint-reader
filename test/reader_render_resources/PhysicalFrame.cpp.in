@@ -60,7 +60,7 @@ ResourceCallbacks callbacks(Content& context) {
       switch (query) {
         case XP_UI_READER_RENDER_NOW: return millis();
         case XP_UI_READER_RENDER_HAS_IMAGES: return content(c).page.hasImages();
-        case XP_UI_READER_RENDER_IMAGES_NEED_DECODE: return content(c).page.hasImagesNeedingDecode();
+        case XP_UI_READER_RENDER_IMAGES_NEED_DECODE: return imageReference::needsDecode(content(c).page);
         case XP_UI_READER_RENDER_ELEMENTS: return content(c).page.elementCount();
         case XP_UI_READER_RENDER_TAKE_FORCED: return 0;
         case XP_UI_READER_RENDER_COUNTER: return 3;

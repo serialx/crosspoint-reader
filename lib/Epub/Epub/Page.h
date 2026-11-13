@@ -281,7 +281,6 @@ class Page {
 #endif
 
   bool hasImages() const;
-  bool hasImagesNeedingDecode() const;
   bool getImageBoundingBox(int16_t& outX, int16_t& outY, int16_t& outW, int16_t& outH) const;
 };
 

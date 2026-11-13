@@ -8,8 +8,6 @@ from test_popup_resource import definition, replace_once, native_leaf
 
 def section_source(root):
     source = facade_source(root)
-    source = replace_once(source, definition(source, 'struct ImageBlock {') + ';', '')
-    source = replace_once(source, definition(source, 'void ImageBlock::setExtractor('), '')
     includes = ('#include <ProgressMapper.h>\n#include <ChapterXPathResolver.h>\n'
                 '#include <Epub/blocks/ImageBlock.h>\n#include <Epub/Section.h>\n'
                 '#include <Epub/Page.h>\n#include <GfxRenderer.h>\n')

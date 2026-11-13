@@ -9,7 +9,6 @@
 #include <xp_book.h>
 #include <xp_ffi.h>
 
-#include "Epub/converters/ImageDecoderFactory.h"
 #include "Epub/converters/ImagePipeline.h"
 ImageBlock::ImageBlock(const std::string& imagePath, const std::string& srcPath, int16_t width, int16_t height)
     : ownedImagePath(imagePath),
@@ -18,14 +17,6 @@ ImageBlock::ImageBlock(const std::string& imagePath, const std::string& srcPath,
       srcPath(ownedSrcPath),
       width(width),
       height(height) {}
-
-void* ImageBlock::extractCtx = nullptr;
-ImageBlock::ExtractFn ImageBlock::extractFn = nullptr;
-
-void ImageBlock::setExtractor(void* ctx, ExtractFn fn) {
-  extractCtx = ctx;
-  extractFn = fn;
-}
 
 namespace {
 enum class ImageDiagnostic : uint32_t {
@@ -47,83 +38,14 @@ enum class ImageDiagnostic : uint32_t {
   ExtractFailed = 15,
   Unsupported = 16
 };
-enum class ImageIo : uint32_t {
-  OpenCache,
-  Read,
-  Seek,
-  Size,
-  Close,
-  FreeHeap,
-  LargestBlock,
-  Extract,
-  SourceSize,
-  Decode,
-  HasSource,
-  HasExtractor,
-  SourceExists
-};
+
 struct Context {
   GfxRenderer* renderer;
   std::string_view path, source;
   int x, y, width, height;
-  void* extractContext;
-  ImageBlock::ExtractFn extract;
-  HalFile file{};
   const char* cache = "";
 };
-size_t io(void* raw, uint32_t op, const uint8_t* path, uint8_t* bytes, size_t len) {
-  auto& self = *static_cast<Context*>(raw);
-  switch (static_cast<ImageIo>(op)) {
-    case ImageIo::OpenCache:
-      self.cache = reinterpret_cast<const char*>(path);
-      return Storage.openFileForRead("IMG", self.cache, self.file);
-    case ImageIo::Read: {
-      const int count = self.file.read(bytes, len);
-      return count > 0 ? static_cast<size_t>(count) : 0;
-    }
-    case ImageIo::Seek:
-      return self.file.seek(len);
-    case ImageIo::Size:
-      return self.file.size();
-    case ImageIo::Close:
-      self.file.close();
-      return 0;
-    case ImageIo::FreeHeap:
-      return ESP.getFreeHeap();
-    case ImageIo::LargestBlock:
-      return ESP.getMaxAllocHeap();
-    case ImageIo::HasSource:
-      return !self.source.empty();
-    case ImageIo::HasExtractor:
-      return self.extract != nullptr;
-    case ImageIo::SourceExists:
-      return Storage.exists(self.path.data());
-    case ImageIo::Extract:
-      return self.extract(self.extractContext, self.source.data(), self.path.data());
-    case ImageIo::SourceSize: {
-      if (!Storage.openFileForRead("IMG", self.path.data(), self.file)) return SIZE_MAX;
-      const size_t size = self.file.size();
-      self.file.close();
-      return size;
-    }
-    case ImageIo::Decode: {
-      const std::string imagePath(self.path);
-      auto* decoder = ImageDecoderFactory::getDecoder(imagePath);
-      if (!decoder) return 0;
-      LOG_DBG("IMG", "Using %s decoder", decoder->getFormatName());
-      RenderConfig config;
-      config.x = self.x;
-      config.y = self.y;
-      config.maxWidth = self.width;
-      config.maxHeight = self.height;
-      config.useExactDimensions = true;
-      config.cachePath = reinterpret_cast<const char*>(path);
-      return decoder->decodeToFramebuffer(imagePath, *self.renderer, config) ? 2 : 1;
-    }
-  }
-  return 0;
-}
-void target(void* raw, XpImageTarget* output) { *output = imageWriteTarget(*static_cast<Context*>(raw)->renderer); }
+
 void diagnostic(void* raw, uint32_t event, [[maybe_unused]] int32_t a, [[maybe_unused]] int32_t b) {
   [[maybe_unused]] auto& self = *static_cast<Context*>(raw);
   switch (static_cast<ImageDiagnostic>(event)) {
@@ -323,14 +245,6 @@ extern "C" void xp_native_page_image_codec_log(const XpPageImageCodecLog* state,
   }
 }
 
-#ifdef XP_APP_TEST
-extern "C" uint8_t xp_native_page_image_extract(const XpPageImage* image, uint8_t query) {
-  if (query) return ImageBlock::extractFn != nullptr;
-  return ImageBlock::extractFn &&
-         ImageBlock::extractFn(ImageBlock::extractCtx, reinterpret_cast<const char*>(image->source),
-                               reinterpret_cast<const char*>(image->path));
-}
-#endif
 extern "C" void xp_native_page_image_log(void* raw, const XpPageImage* image, const uint8_t* cache, uint32_t event,
                                          int32_t a, int32_t b) {
   Context context{static_cast<GfxRenderer*>(raw),
@@ -339,25 +253,10 @@ extern "C" void xp_native_page_image_log(void* raw, const XpPageImage* image, co
                   image->x,
                   image->y,
                   image->width,
-                  image->height,
-                  nullptr,
-                  nullptr};
+                  image->height};
   context.cache = reinterpret_cast<const char*>(cache);
   diagnostic(&context, event, a, b);
 }
-
-bool ImageBlock::hasValidCache() const {
-  Context context{nullptr, imagePath, srcPath, 0, 0, width, height, extractCtx, extractFn};
-  const XpAssetImageCallbacks services{&context, io, target, diagnostic};
-  return xp_assets_image_valid(reinterpret_cast<const uint8_t*>(imagePath.data()), imagePath.size(), width, height,
-                               &services);
-}
-bool ImageBlock::needsDecode() const {
-  return !xp_assets_image_failed(reinterpret_cast<const uint8_t*>(imagePath.data()), imagePath.size()) &&
-         !hasValidCache();
-}
-void ImageBlock::clearRenderFailures() { xp_assets_image_reset(false); }
-void ImageBlock::releaseRenderCache() { xp_assets_image_reset(true); }
 
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
 void ImageBlock::setRenderReadWindow(uint8_t* data, size_t size) { xp_assets_image_read_window(data, size); }

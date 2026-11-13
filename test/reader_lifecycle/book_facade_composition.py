@@ -12,20 +12,19 @@ def facade_source(repo):
     common=common.replace('static const XpAppResources resources','// APP_CSTR_HELPER\nstatic const XpAppResources resources')
     epub=(repo/'lib/Epub/Epub.cpp').read_text();native=(repo/'src/activities/reader/RustEpubResources.cpp').read_text()
     methods='\n'.join(definition(epub,sig) for sig in ['Epub::BorrowedBook::BorrowedBook(', 'Epub::Epub(void* book,','bool Epub::requireOwned() const','CssParser* Epub::getCssParser() const','const std::string& Epub::getCachePath() const','const std::string& Epub::getPath() const','const std::string& Epub::getTitle() const','const std::string& Epub::getAuthor() const','const std::string& Epub::getLanguage() const','bool Epub::extractItemToFile(','int Epub::getSpineItemsCount() const','int Epub::getTocItemsCount() const','size_t Epub::getCumulativeSpineItemSize(','BookMetadataCache::SpineEntry Epub::getSpineItem(','BookMetadataCache::TocEntry Epub::getTocItem(','int Epub::getTocIndexForSpineIndex(','int Epub::getSpineIndexForSize(','size_t Epub::getBookSize() const','float Epub::calculateProgress('])
-    image=(repo/'lib/Epub/Epub/blocks/ImageBlock.cpp').read_text()
     facade=r'''
-    struct ImageBlock {
-     using ExtractFn=bool(*)(void*,const char*,const char*);
-     static inline void* extractCtx=nullptr;
-     static inline ExtractFn extractFn=nullptr;
-     static void setExtractor(void*,ExtractFn);
-     static void clearRenderFailures() {}
+    struct ReferenceImage {
+      using ExtractFn=bool(*)(void*,const char*,const char*);
+      static inline void* extractCtx=nullptr;
+      static inline ExtractFn extractFn=nullptr;
+      static void setExtractor(void* owner, ExtractFn fn) { extractCtx=owner; extractFn=fn; }
+      static void clearRenderFailures() {}
     };
-    '''+definition(image,'void ImageBlock::setExtractor(')+'\n'+(repo/'test/reader_lifecycle/native_book_reference_fixture.inc').read_text()+'\n'
+    '''+(repo/'test/reader_lifecycle/native_book_reference_fixture.inc').read_text()+'\n'
     common=common.replace('static const XpEpubLeaves leaves',facade+'static const XpEpubLeaves leaves')
     common=compose(common,('file_open_write','file_write','path_remove','path_rename','path_remove_tree','path_mkdir','heap_snapshot','cache_lock','cache_unlock'),('path_exists',))
     # Item methods occur before the added read-only facade methods.
-    pos=common.index('struct ImageBlock');common=common[:pos]+methods+'\n'+common[pos:]
+    pos=common.index('struct ReferenceImage');common=common[:pos]+methods+'\n'+common[pos:]
     return common
 
 def compile_command(repo, out, source, binary, archive=None):

@@ -168,12 +168,12 @@ int main(int argc, char** argv) {
         renderer.setRenderMode(static_cast<GfxRenderer::RenderMode>(plane));
         for (bool strip : {false, true}) {
           if (strip) renderer.beginStripTarget(directScratch.data(), 17, 80);
-          ImageBlock::releaseRenderCache();
+          xp_assets_image_reset(true);
           renderer.clearScreen();
           imagePage->render(renderer, 100, 0, 0);
           const auto adapterFrame = display.pixels;
           const auto adapterStrip = directScratch;
-          ImageBlock::releaseRenderCache();
+          xp_assets_image_reset(true);
           renderer.clearScreen();
           paintDirect(renderer, imageArena, imageRequest);
           require(display.pixels == adapterFrame && (!strip || directScratch == adapterStrip),
@@ -187,7 +187,7 @@ int main(int argc, char** argv) {
   renderer.setOrientation(GfxRenderer::LandscapeCounterClockwise);
   renderer.setRenderMode(GfxRenderer::BW);
   std::cout << "PASS direct cached images: four orientations, inverted display, three planes, full/strip targets\n";
-  ImageBlock::clearRenderFailures();
+  xp_assets_image_reset(false);
   renderer.clearScreen();
   imagePage->render(renderer, 100, 0, 0);
   const auto imageBw = display.pixels;
@@ -201,22 +201,22 @@ int main(int argc, char** argv) {
   require(ReaderStripPainter::paint(&imagePainter, scratch.data(), 0, 80) != 0, "late cache failure not reported");
   require(display.pixels == imageBw, "late image failure changed retained BW");
   HalFileTest::failWatchedReads = false;
-  ImageBlock::clearRenderFailures();
+  xp_assets_image_reset(false);
   require(ReaderStripPainter::paint(&imagePainter, scratch.data(), 0, 80) == 0, "image cache recovery");
   std::cout << "PASS streamed image cache failure with RAM slot unavailable preserves retained BW\n";
   std::array<uint8_t, 4096> window;
   window.fill(0xcd);
-  ImageBlock::releaseRenderCache();
+  xp_assets_image_reset(true);
   ImageBlock::setRenderReadWindow(window.data(), window.size());
   imagePage->render(renderer, 100, 0, 0);
   require(window[0] == 0x1b, "streaming did not use borrowed window");
-  ImageBlock::releaseRenderCache();  // Must not free the caller's storage.
+  xp_assets_image_reset(true);  // Must not free the caller's storage.
   ImageBlock::setRenderReadWindow(nullptr, 0);
   window.fill(0x5a);
   imagePage->render(renderer, 100, 0, 0);
   require(std::all_of(window.begin(), window.end(), [](uint8_t b) { return b == 0x5a; }),
           "ended window loan was reused");
-  ImageBlock::releaseRenderCache();
+  xp_assets_image_reset(true);
   ImageBlock::setRenderReadWindow(window.data(), 1);
   renderer.clearScreen();
   imagePage->render(renderer, 100, 0, 0);
@@ -225,7 +225,7 @@ int main(int argc, char** argv) {
   ImageBlock::setRenderReadWindow(nullptr, 0);
   std::cout << "PASS borrowed image window: used, not freed, ended, undersized fallback\n";
   ImageBlock isolated("image.png", "", width, height);
-  ImageBlock::releaseRenderCache();
+  xp_assets_image_reset(true);
   ImageBlock::setRenderReadWindow(window.data(), window.size());
   renderer.clearScreen();
   xp_test_fail_allocation_after(1);  // Only the cache path may allocate.
@@ -233,26 +233,26 @@ int main(int argc, char** argv) {
   require(display.pixels == imageBw, "borrowed window failed under allocation pressure");
   require(xp_test_allocation_attempts() == 1, "borrowed window allocated streaming storage");
   ImageBlock::setRenderReadWindow(nullptr, 0);
-  ImageBlock::releaseRenderCache();
+  xp_assets_image_reset(true);
   renderer.clearScreen();
   xp_test_fail_allocation_after(1);
   isolated.render(renderer, 0, 0);
   require(display.pixels != imageBw, "owned window allocation failure did not use placeholder");
   require(xp_test_allocation_attempts() >= 3, "owned full-row and single-row fallback were not attempted");
   xp_test_fail_allocation_after(SIZE_MAX);
-  ImageBlock::clearRenderFailures();
-  ImageBlock::releaseRenderCache();
+  xp_assets_image_reset(false);
+  xp_assets_image_reset(true);
   renderer.clearScreen();
   isolated.render(renderer, 0, 0);
   require(display.pixels == imageBw, "owned window did not recover after allocation failure");
   std::cout << "PASS borrowed window needs only path allocation; owned OOM fallback and recovery\n";
-  ImageBlock::releaseRenderCache();
+  xp_assets_image_reset(true);
   ImageBlock::setRenderReadWindow(window.data(), window.size());
   renderer.beginStripTarget(scratch.data(), 80, 80);
   renderer.clearScreen();
   isolated.render(renderer, 0, 0);
   const auto validBand = scratch;
-  ImageBlock::releaseRenderCache();
+  xp_assets_image_reset(true);
   window.fill(0x5a);
   HalFileTest::failWatchedSeekOffset = 4 + 80 * 90;
   HalFileTest::failedWatchedSeeks = 0;
@@ -262,8 +262,8 @@ int main(int argc, char** argv) {
   require(scratch != validBand, "failed row seek did not produce placeholder");
   require(window[0] == 0x5a, "failed row seek read into borrowed storage");
   HalFileTest::failWatchedSeekOffset = SIZE_MAX;
-  ImageBlock::clearRenderFailures();
-  ImageBlock::releaseRenderCache();
+  xp_assets_image_reset(false);
+  xp_assets_image_reset(true);
   renderer.clearScreen();
   isolated.render(renderer, 0, 0);
   require(scratch == validBand, "row seek failure did not recover with same loan");
@@ -285,14 +285,14 @@ int main(int argc, char** argv) {
       for (const auto mode : {GfxRenderer::BW, GfxRenderer::GRAYSCALE_LSB, GfxRenderer::GRAYSCALE_MSB}) {
         renderer.setRenderMode(mode);
         for (auto* item : {&isolated, &small}) {
-          ImageBlock::releaseRenderCache();
+          xp_assets_image_reset(true);
           renderer.clearScreen();
           item->render(renderer, 0, 0);
           const auto full = display.pixels;
           std::vector<uint8_t> bands;
           for (uint16_t y = 0; y < display.getDisplayHeight(); y += 80) {
             const uint16_t rows = std::min<unsigned>(80, display.getDisplayHeight() - y);
-            ImageBlock::releaseRenderCache();  // The same loan remains active.
+            xp_assets_image_reset(true);  // The same loan remains active.
             renderer.beginStripTarget(scratch.data(), y, rows);
             renderer.clearScreen();
             item->render(renderer, 0, 0);
@@ -305,7 +305,7 @@ int main(int argc, char** argv) {
     }
   }
   ImageBlock::setRenderReadWindow(nullptr, 0);
-  ImageBlock::releaseRenderCache();
+  xp_assets_image_reset(true);
   window.fill(0x5a);
   small.render(renderer, 0, 0);
   require(window[0] == 0x5a, "mixed-image loan teardown reused caller storage");
@@ -315,7 +315,7 @@ int main(int argc, char** argv) {
     ESP.freeHeap = heap;
     for (int orientation = 0; orientation < 4; ++orientation) {
       renderer.setOrientation(static_cast<GfxRenderer::Orientation>(orientation));
-      ImageBlock::releaseRenderCache();
+      xp_assets_image_reset(true);
       for (const auto mode : {GfxRenderer::BW, GfxRenderer::GRAYSCALE_LSB, GfxRenderer::GRAYSCALE_MSB}) {
         renderer.setRenderMode(mode);
         renderer.clearScreen();

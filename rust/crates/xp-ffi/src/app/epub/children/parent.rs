@@ -42,7 +42,7 @@ impl EpubSession {
             Overlay::Page | Overlay::More => match self.more_action(access, index) {
                 Some(3) => Some(self.settings(false).screen_inverted != 0),
                 Some(5) => Some(self.settings(false).ble_enabled != 0),
-                Some(4) => Some(unsafe { (self.runtime.frontlight_state)() } != 0),
+                Some(4) => Some(unsafe { self.runtime.frontlight_state() } != 0),
                 _ => None,
             },
             _ => None,

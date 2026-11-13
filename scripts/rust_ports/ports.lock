@@ -1803,13 +1803,9 @@ Modes.resources xp_font_registry_query
 Modes.resources xp_native_width
 Runtime.ble_before_screen_change xp_ble_before_screen
 Runtime.ble_tick xp_ble_tick
-Runtime.frontlight_set xp_hal_light_on
-Runtime.frontlight_set xp_hal_light_output
-Runtime.idle_wait xp_hal_input_adc
 Runtime.input_mapped_snapshot XpAppCompatibility.home_action
 Runtime.input_mapped_snapshot xp_app_event
 Runtime.input_mapped_snapshot xp_hal_input_update
-Runtime.power_saving xp_hal_power_set
 Runtime.screenshot XpAppCompatibility.screenshot_info
 Runtime.screenshot xp_assets_screenshot
 Runtime.screenshot xp_display_abort
@@ -1922,8 +1918,6 @@ Runtime.sleep_enter xp_xtc_owner_drop
 Runtime.sleep_enter xp_xtc_owner_init
 Runtime.sleep_enter xp_xtc_owner_open
 Runtime.sleep_enter xp_xtc_owner_view
-Runtime.tilt_update xp_hal_tilt_take
-Runtime.tilt_update xp_hal_tilt_update
 WiFi.clock_mark_and_save LANGUAGE_CODES
 WiFi.clock_mark_and_save xp_ble_write_json
 WiFi.clock_mark_and_save xp_i18n_language_from_code

@@ -106,6 +106,16 @@ int main(int argc, char** argv) {
     imuWake = variant != 4;
     HalTiltSensor sensor;
     sensor.begin();
+#ifdef XP_HAL_CONTEXT_TEST
+    auto update = [&](uint8_t mode, uint8_t orientation, bool reader) {
+      const auto context = sensor.context();
+      xp_hal_tilt_update(context.state, &context.services, mode, orientation, reader);
+    };
+    auto activity = [&] { return xp_hal_tilt_take(sensor.context().state, 2); };
+#else
+    auto update = [&](uint8_t mode, uint8_t orientation, bool reader) { sensor.update(mode, orientation, reader); };
+    auto activity = [&] { return sensor.hadActivity(); };
+#endif
     for (uint8_t mode : {1, 2, 0})
       for (uint8_t orientation : {0, 1, 2, 3, 4}) {
         for (float v : {0.f, 270.f, 271.f, 49.f, -270.f, -271.f, 0.f}) {
@@ -113,15 +123,15 @@ int main(int argc, char** argv) {
           sampleY = -v;
           for (uint32_t t : {0u, 49u, 50u, 299u, 300u, 599u, 600u}) {
             ticks += t;
-            sensor.update(mode, orientation, true);
-            printf("events %u %u %u\n", sensor.wasTiltedForward(), sensor.wasTiltedBack(), sensor.hadActivity());
+            update(mode, orientation, true);
+            printf("events %u %u %u\n", sensor.wasTiltedForward(), sensor.wasTiltedBack(), activity());
           }
         }
       }
     imuRead = false;
     ticks += 1000;
-    sensor.update(1, 0, true);
-    sensor.update(1, 0, false);
+    update(1, 0, true);
+    update(1, 0, false);
     sensor.clearPendingEvents();
     sensor.deepSleep();
   } else if (!strcmp(argv[1], "haptics")) {

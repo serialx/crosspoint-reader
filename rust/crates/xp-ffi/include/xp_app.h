@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "xp_hal.h"
 #include "xp_ui.h"
 
 #ifdef __cplusplus
@@ -372,10 +373,22 @@ typedef struct {
   void (*header_back_clear)(void);
   uint32_t (*now_ms)(void);
   void (*delay_ms)(uint32_t ms);
+#ifdef XP_APP_TEST
   void (*idle_wait)(uint32_t max_ms, uint32_t slice_ms);
+#else
+  void (*raw_input_sample)(XpHalRawInput* out);
+#endif
   void (*yield_task)(void);
+#ifdef XP_APP_TEST
   void (*power_saving)(uint8_t enabled);
+#else
+  void (*power_context)(XpHalPowerContext* out);
+#endif
+#ifdef XP_APP_TEST
   uint8_t (*tilt_update)(uint8_t enabled, uint8_t orientation, uint8_t reader);
+#else
+  void (*tilt_context)(XpHalTiltContext* out);
+#endif
   uint8_t (*battery_capacity_step)(void);
   void (*fading_fix)(uint8_t enabled);
   void (*memory_diagnostic)(void);
@@ -383,8 +396,16 @@ typedef struct {
   void (*screenshot)(void);
   void (*touch_feedback)(uint8_t long_press);
   uint8_t (*frontlight_present)(void);
+#ifdef XP_APP_TEST
   uint8_t (*frontlight_state)(void);
+#else
+  XpHalLight* (*light_state)(void);
+#endif
+#ifdef XP_APP_TEST
   void (*frontlight_set)(uint8_t enabled);
+#else
+  void (*light_output)(uint8_t brightness);
+#endif
   void (*settings_save)(const XpAppSettings* settings);
   uint8_t (*ble_tick)(const XpAppBleScene* scene);
   uint8_t (*ble_before_screen_change)(uint8_t reader);
@@ -427,6 +448,11 @@ static_assert(sizeof(XpAppResources) == 47 * sizeof(void*));
 #else
 static_assert(sizeof(XpAppResources) == 44 * sizeof(void*));
 #endif
+static_assert(sizeof(XpHalRawInput) == 12);
+static_assert(offsetof(XpHalRawInput, first) == 4);
+static_assert(offsetof(XpHalRawInput, second) == 8);
+static_assert(sizeof(XpHalPowerContext) == sizeof(void*) + sizeof(XpHalPowerServices));
+static_assert(sizeof(XpHalTiltContext) == sizeof(void*) + sizeof(XpHalTiltServices));
 static_assert(sizeof(XpAppRuntime) == 34 * sizeof(void*));
 static_assert(offsetof(XpAppRuntime, render_owned_by_current_task_retire_p18) == 33 * sizeof(void*));
 static_assert(sizeof(XpAppPlatform) == 4 * sizeof(void*));

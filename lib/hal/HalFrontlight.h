@@ -18,6 +18,10 @@ class HalFrontlight {
   void setWarmth(uint8_t warmPercent);
   void setOn(bool on);
 
+  // Borrowed synchronously; policy and selected brightness stay in the Rust state.
+  XpHalLight* lightState() { return &state; }
+  void writeOutput(uint8_t brightness) { manager.setBrightness(brightness); }
+
   // cppcheck-suppress functionStatic // Reads this instance's Rust light state.
   uint8_t brightness() const { return state.brightness; }
   uint8_t warmth() const { return manager.colorTemperature(); }

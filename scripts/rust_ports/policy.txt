@@ -249,11 +249,7 @@ deferred App.footer_draw NONREADER # Runtime-pointer study retirement assignment
 deferred EPUB.popup_input R5 # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 inherited Runtime.ble_before_screen_change R-RELAY # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 inherited Runtime.ble_tick R-RELAY # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
-inherited Runtime.frontlight_set R-RELAY # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
-inherited Runtime.idle_wait R-RELAY # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
-inherited Runtime.power_saving R-RELAY # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 inherited Runtime.screenshot R-RELAY # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
-inherited Runtime.tilt_update R-RELAY # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 inherited Runtime.input_mapped_snapshot R-RUNTIME # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 inherited Runtime.settings_save R-RUNTIME # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
 inherited Runtime.sleep_enter R-RUNTIME # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
@@ -278,3 +274,5 @@ callback EPUB.store_document # Returns a native document through the borrowed Ru
 import xp_native_page_image_write # Storage-only sink over the pinned caller-owned HalFile; consumes borrowed bytes synchronously, retains no pointers and never calls Rust, including when protection_stream supplies the bytes.
 import xp_native_page_image_codec_log # One-way synchronous diagnostic formatting; borrowed image/cache/file snapshot, no retained pointers and no Rust callbacks.
 callback EPUB.key_platform # Writes native-only key/NVS service pointers into caller-owned scratch; no Rust callback is accepted or retained; End destroys the AES/path context.
+callback Runtime.power_context # Returns existing native power state plus physical services for one synchronous call; state mutation remains under the existing Rust HAL mutex.
+callback Runtime.tilt_context # Returns existing native tilt state and IMU services for one synchronous app-loop call; no callback or context is retained.

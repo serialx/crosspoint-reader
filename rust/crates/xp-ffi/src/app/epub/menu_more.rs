@@ -109,8 +109,8 @@ impl EpubSession {
     }
 
     fn toggle_menu_frontlight(&self) {
-        let on = unsafe { (self.runtime.frontlight_state)() == 0 };
-        unsafe { (self.runtime.frontlight_set)(u8::from(on)) };
+        let on = unsafe { self.runtime.frontlight_state() == 0 };
+        unsafe { self.runtime.frontlight_set(u8::from(on)) };
         let mut settings = MaybeUninit::<app_abi::Settings>::uninit();
         unsafe { (self.runtime.loop_settings)(settings.as_mut_ptr()) };
         let mut settings = unsafe { settings.assume_init() };

@@ -608,6 +608,20 @@ const _: () = assert!(
             * core::mem::size_of::<usize>()
 );
 
+#[cfg(not(feature = "app-test"))]
+#[repr(C)]
+pub struct RawInput {
+    pub power: u8,
+    pub first: i32,
+    pub second: i32,
+}
+#[cfg(not(feature = "app-test"))]
+const _: () = {
+    assert!(core::mem::size_of::<RawInput>() == 12);
+    assert!(core::mem::offset_of!(RawInput, first) == 4);
+    assert!(core::mem::offset_of!(RawInput, second) == 8);
+};
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Runtime {
@@ -620,10 +634,19 @@ pub struct Runtime {
     pub header_back_clear: unsafe extern "C" fn(),
     pub now_ms: unsafe extern "C" fn() -> u32,
     pub delay_ms: unsafe extern "C" fn(u32),
+    #[cfg(feature = "app-test")]
     pub idle_wait: unsafe extern "C" fn(u32, u32),
+    #[cfg(not(feature = "app-test"))]
+    pub raw_input_sample: unsafe extern "C" fn(*mut RawInput),
     pub yield_task: unsafe extern "C" fn(),
+    #[cfg(feature = "app-test")]
     pub power_saving: unsafe extern "C" fn(u8),
+    #[cfg(not(feature = "app-test"))]
+    pub power_context: unsafe extern "C" fn(*mut crate::hal::power::Context),
+    #[cfg(feature = "app-test")]
     pub tilt_update: unsafe extern "C" fn(u8, u8, u8) -> u8,
+    #[cfg(not(feature = "app-test"))]
+    pub tilt_context: unsafe extern "C" fn(*mut crate::hal::tilt::Context),
     pub battery_capacity_step: unsafe extern "C" fn() -> u8,
     pub fading_fix: unsafe extern "C" fn(u8),
     pub memory_diagnostic: unsafe extern "C" fn(),
@@ -631,8 +654,14 @@ pub struct Runtime {
     pub screenshot: unsafe extern "C" fn(),
     pub touch_feedback: unsafe extern "C" fn(u8),
     pub frontlight_present: unsafe extern "C" fn() -> u8,
+    #[cfg(feature = "app-test")]
     pub frontlight_state: unsafe extern "C" fn() -> u8,
+    #[cfg(not(feature = "app-test"))]
+    pub light_state: unsafe extern "C" fn() -> *mut crate::hal::Light,
+    #[cfg(feature = "app-test")]
     pub frontlight_set: unsafe extern "C" fn(u8),
+    #[cfg(not(feature = "app-test"))]
+    pub light_output: unsafe extern "C" fn(u8),
     pub settings_save: unsafe extern "C" fn(*const Settings),
     pub ble_tick: unsafe extern "C" fn(*const BleScene) -> u8,
     pub ble_before_screen_change: unsafe extern "C" fn(u8) -> u8,

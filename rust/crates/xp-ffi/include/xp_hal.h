@@ -67,6 +67,11 @@ typedef struct {
   // Events 0..5: begin/standby/no-gyro/ready/wake/sleep; 6/7: forward/back.
   XpHalDiagnostic diagnostic;
 } XpHalTiltServices;
+// Borrowed state and services for one synchronous app-loop call.
+typedef struct {
+  XpHalTilt* state;
+  XpHalTiltServices services;
+} XpHalTiltContext;
 void xp_hal_tilt_begin(XpHalTilt*, const XpHalTiltServices*);
 bool xp_hal_tilt_wake(XpHalTilt*, const XpHalTiltServices*);
 bool xp_hal_tilt_sleep(XpHalTilt*, const XpHalTiltServices*);
@@ -109,6 +114,11 @@ typedef struct {
   XpHalDiagnostic diagnostic;
   int32_t low_frequency;
 } XpHalPowerServices;
+// Borrowed state and services for one synchronous app-loop call.
+typedef struct {
+  XpHalPower* state;
+  XpHalPowerServices services;
+} XpHalPowerContext;
 void xp_hal_power_set(XpHalPower*, const XpHalPowerServices*, bool enabled);
 bool xp_hal_power_lock(XpHalPower*, const XpHalPowerServices*);
 void xp_hal_power_unlock(XpHalPower*, const XpHalPowerServices*, bool valid);
@@ -135,6 +145,10 @@ typedef struct {
   bool page_pressed;
 } XpHalInput;
 void xp_hal_input_update(XpHalInput*, uint8_t buttons, bool usb);
+typedef struct {
+  uint8_t power;
+  int32_t first, second;
+} XpHalRawInput;
 bool xp_hal_input_adc(int32_t first, int32_t second);
 // Wake reason: 0 = power button, 1 = after flash, 2 = USB power, 3 = other.
 uint32_t xp_hal_wake_reason(bool deep_reset, bool button_wake, bool undefined_wake, bool power_reset,

@@ -56,10 +56,10 @@ fn toggle_light(app: &App, settings: &mut abi::Settings) {
     if unsafe { (app.runtime.frontlight_present)() } == 0 {
         return;
     }
-    let on = unsafe { (app.runtime.frontlight_state)() } == 0;
+    let on = unsafe { app.runtime.frontlight_state() } == 0;
     settings.frontlight_on = u8::from(on);
     unsafe {
-        (app.runtime.frontlight_set)(u8::from(on));
+        app.runtime.frontlight_set(u8::from(on));
         (app.runtime.settings_save)(settings);
         (app.runtime.diagnostic)(11, u32::from(on), 0);
     }
@@ -95,11 +95,11 @@ fn slide_switch(
         }
         _ => {
             if unsafe { (app.runtime.frontlight_present)() } == 0
-                || (unsafe { (app.runtime.frontlight_state)() } != 0) == on
+                || (unsafe { app.runtime.frontlight_state() } != 0) == on
             {
                 return;
             }
-            unsafe { (app.runtime.frontlight_set)(u8::from(on)) };
+            unsafe { app.runtime.frontlight_set(u8::from(on)) };
             settings.frontlight_on = u8::from(on);
         }
     }
@@ -132,14 +132,14 @@ fn iteration(app: &App, state: &mut State) {
         app.activity_loop();
         let prevent_sleep = unsafe { facts() }.prevent_sleep != 0;
         unsafe {
-            (app.runtime.power_saving)(u8::from(!prevent_sleep));
+            app.runtime.power_saving(u8::from(!prevent_sleep));
             (app.runtime.delay_ms)(if prevent_sleep { 10 } else { 50 });
         }
         return;
     }
     slide_switch(app, state, &frame, &mut settings);
     let tilt_activity = unsafe {
-        (app.runtime.tilt_update)(
+        app.runtime.tilt_update(
             settings.tilt,
             settings.reader_orientation,
             current.reader_in_stack,
@@ -170,7 +170,7 @@ fn iteration(app: &App, state: &mut State) {
         || unsafe { facts() }.prevent_sleep != 0
     {
         *last_activity = now(app);
-        unsafe { (app.runtime.power_saving)(0) };
+        unsafe { app.runtime.power_saving(0) };
     }
     if state.wake_release_pending && frame.power_held == 0 {
         state.wake_release_pending = false;
@@ -300,15 +300,15 @@ fn iteration(app: &App, state: &mut State) {
     drop(guard);
     if skip_delay {
         unsafe {
-            (app.runtime.power_saving)(0);
+            app.runtime.power_saving(0);
             (app.runtime.yield_task)();
         }
     } else if elapsed(app, *last_activity) >= settings.idle_power_saving
         && app.snapshot(false, false, false).cpu_hold == 0
     {
         unsafe {
-            (app.runtime.power_saving)(1);
-            (app.runtime.idle_wait)(50, 10);
+            app.runtime.power_saving(1);
+            app.runtime.idle_wait(50, 10);
         }
     } else {
         unsafe { (app.runtime.delay_ms)(10) };

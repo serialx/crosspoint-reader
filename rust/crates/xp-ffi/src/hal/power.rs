@@ -24,6 +24,12 @@ pub struct Services {
     diagnostic: super::Diagnostic,
     low_frequency: i32,
 }
+// Borrowed for one synchronous app-loop call; native HAL retains storage.
+#[repr(C)]
+pub struct Context {
+    pub state: *mut Power,
+    pub services: Services,
+}
 impl Services {
     unsafe fn op(&self, op: Op, arg: i32) -> i32 {
         (self.operation)(self.ctx, op, arg)
@@ -156,3 +162,8 @@ pub unsafe extern "C" fn xp_hal_power_battery(
 
 const _: () = assert!(core::mem::size_of::<Power>() == 8);
 const _: () = assert!(core::mem::size_of::<Battery>() == 8);
+
+const _: () = assert!(
+    core::mem::size_of::<Context>()
+        == core::mem::size_of::<Services>() + core::mem::size_of::<usize>()
+);

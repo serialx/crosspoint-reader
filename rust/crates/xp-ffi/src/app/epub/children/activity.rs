@@ -167,7 +167,7 @@ impl ChildTarget {
                         Toggles {
                             night: settings.screen_inverted != 0,
                             bluetooth: settings.ble_enabled != 0,
-                            frontlight: (parent.runtime.frontlight_state)() != 0,
+                            frontlight: parent.runtime.frontlight_state() != 0,
                         },
                     )
                 }

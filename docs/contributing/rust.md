@@ -1274,6 +1274,26 @@ in Rust, then read the remaining raw settings. R1c still owns the snapshot's
 native font resolver; this change does not claim that inherited chain is gone.
 No new allocation, cache or persistent state is introduced.
 
+### App-loop HAL calls
+
+The shipping app loop calls the existing Rust power, tilt and frontlight policy
+directly. Native context getters borrow the existing HAL state and copy its
+physical service callbacks for one synchronous call. They do not allocate, retain
+a context or create a second state object. Power changes keep the existing mutex
+and Wi-Fi check; tilt updates consume the activity flag while preserving pending
+forward/back events. Frontlight output reaches the SDK only when the on state
+changes, including the zero-brightness case.
+
+The idle-slice loop runs in Rust with wrapping millisecond arithmetic. Its raw
+native input sample reads the physical power button first and skips ADC reads
+when it is pressed. Sampling does not poll or consume the debounced input frame.
+Runtime keeps the same 34 pointer-sized slots through one-for-one field changes.
+`runtime_direct_hal` compiles the shipping adapter with the actual Rust HAL
+modules and strict physical callbacks. Existing injected host callbacks remain
+under `app-test` as HOST-RETIRE debt; no hardware tilt/frontlight result is inferred
+from these host tests. Input mapping, BLE loop delivery, sleep orchestration and
+settings serialization retain their separate owners.
+
 ## Reader protected-book boundary
 
 The Rust reader probes every book for an encryption manifest before checking its

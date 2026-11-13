@@ -573,20 +573,10 @@ const XpAppRuntime& appRuntime() {
       .header_back_clear = [] { HeaderBackTapTarget::clear(); },
       .now_ms = []() -> uint32_t { return millis(); },
       .delay_ms = [](uint32_t ms) { delay(ms); },
-      .idle_wait =
-          [](uint32_t duration, uint32_t slice) {
-            const auto started = millis();
-            while (millis() - started < duration) {
-              delay(slice);
-              if (gpio.rawInputActive()) break;
-            }
-          },
+      .raw_input_sample = [](XpHalRawInput* out) { *out = gpio.rawInputSample(); },
       .yield_task = [] { yield(); },
-      .power_saving = [](uint8_t enabled) { powerManager.setPowerSaving(enabled != 0); },
-      .tilt_update = [](uint8_t enabled, uint8_t orientation, uint8_t reader) -> uint8_t {
-        halTiltSensor.update(enabled, orientation, reader != 0);
-        return halTiltSensor.hadActivity();
-      },
+      .power_context = [](XpHalPowerContext* out) { *out = powerManager.context(); },
+      .tilt_context = [](XpHalTiltContext* out) { *out = halTiltSensor.context(); },
       .battery_capacity_step = []() -> uint8_t { return BatteryMonitor::loadDesignCapacity(); },
       .fading_fix = [](uint8_t enabled) { renderer.setFadingFix(enabled); },
       .memory_diagnostic =
@@ -618,8 +608,8 @@ const XpAppRuntime& appRuntime() {
       .screenshot = [] { ScreenshotUtil::takeScreenshot(renderer); },
       .touch_feedback = [](uint8_t longPress) { haptic_feedback::touchAction(longPress != 0); },
       .frontlight_present = []() -> uint8_t { return Frontlight.present(); },
-      .frontlight_state = []() -> uint8_t { return Frontlight.isOn(); },
-      .frontlight_set = [](uint8_t enabled) { Frontlight.setOn(enabled != 0); },
+      .light_state = []() { return Frontlight.lightState(); },
+      .light_output = [](uint8_t brightness) { Frontlight.writeOutput(brightness); },
       .settings_save =
           [](const XpAppSettings* settings) {
             SETTINGS.frontlightOn = settings->frontlight_on;

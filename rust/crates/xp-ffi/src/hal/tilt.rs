@@ -27,6 +27,12 @@ pub struct Services {
     millis: unsafe extern "C" fn() -> u32,
     diagnostic: super::Diagnostic,
 }
+// Borrowed for one synchronous app-loop call; native HAL retains storage.
+#[repr(C)]
+pub struct Context {
+    pub state: *mut Tilt,
+    pub services: Services,
+}
 impl Services {
     unsafe fn op(&self, op: Op) -> bool {
         (self.operation)(self.ctx, op)
@@ -212,3 +218,8 @@ pub unsafe extern "C" fn xp_hal_tilt_take(state: *mut Tilt, event: u8) -> bool {
 }
 
 const _: () = assert!(core::mem::size_of::<Tilt>() == 24);
+
+const _: () = assert!(
+    core::mem::size_of::<Context>()
+        == core::mem::size_of::<Services>() + core::mem::size_of::<usize>()
+);

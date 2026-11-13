@@ -122,9 +122,9 @@ impl Menu {
                 parent.request_update();
             }
             value if value == menu::Effect::ToggleFrontlight as u8 => {
-                let enabled = unsafe { (parent.runtime.frontlight_state)() == 0 };
+                let enabled = unsafe { parent.runtime.frontlight_state() == 0 };
                 unsafe {
-                    (parent.runtime.frontlight_set)(u8::from(enabled));
+                    parent.runtime.frontlight_set(u8::from(enabled));
                     let mut settings = MaybeUninit::uninit();
                     (parent.runtime.loop_settings)(settings.as_mut_ptr());
                     let mut settings = settings.assume_init();

@@ -21,6 +21,8 @@ class HalPowerManager {
   XpHalPowerServices services();
 
  public:
+  // The Rust HAL owns the synchronous borrow and existing synchronization.
+  XpHalPowerContext context() { return {&state, services()}; }
 #if BOARD_HAS_PSRAM
   static constexpr int LOW_POWER_FREQ = 80;  // MHz
 #else

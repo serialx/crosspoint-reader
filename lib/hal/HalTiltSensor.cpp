@@ -79,11 +79,6 @@ bool HalTiltSensor::deepSleep() {
   const auto s = services();
   return xp_hal_tilt_sleep(&state, &s);
 }
-void HalTiltSensor::update(uint8_t mode, uint8_t orientation, bool inReader) {
-  const auto s = services();
-  xp_hal_tilt_update(&state, &s, mode, orientation, inReader);
-}
 bool HalTiltSensor::wasTiltedForward() { return xp_hal_tilt_take(&state, 0); }
 bool HalTiltSensor::wasTiltedBack() { return xp_hal_tilt_take(&state, 1); }
-bool HalTiltSensor::hadActivity() { return xp_hal_tilt_take(&state, 2); }
 void HalTiltSensor::clearPendingEvents() { xp_hal_tilt_clear(&state); }

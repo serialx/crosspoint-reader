@@ -22,6 +22,8 @@ class HalTiltSensor {
   XpHalTiltServices services();
 
  public:
+  // Borrowed on the app task for one synchronous Rust HAL call.
+  XpHalTiltContext context() { return {&state, services()}; }
   // Call after BoardConfig has selected the active device.
   void begin();
 
@@ -34,9 +36,6 @@ class HalTiltSensor {
   // True if an IMU is present on this device
   bool isAvailable() const { return state.available; }
 
-  // Poll the accelerometer and update tilt gesture state.
-  void update(const uint8_t mode, const uint8_t orientation, const bool inReader);
-
   // Returns true once per tilt-forward gesture (next page direction).
   // Consumed on read — subsequent calls return false until next gesture.
   bool wasTiltedForward();
@@ -44,10 +43,6 @@ class HalTiltSensor {
   // Returns true once per tilt-back gesture (previous page direction).
   // Consumed on read.
   bool wasTiltedBack();
-
-  // Non-consuming: true if any tilt activity occurred since last call.
-  // Used to reset the auto-sleep inactivity timer.
-  bool hadActivity();
 
   // Discard any pending tilt events (call when leaving reader or disabling tilt).
   void clearPendingEvents();

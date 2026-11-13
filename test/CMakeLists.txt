@@ -245,3 +245,4 @@ add_subdirectory(reader_relays)
 
 
 add_subdirectory(reader_protection)
+add_subdirectory(runtime_hal)

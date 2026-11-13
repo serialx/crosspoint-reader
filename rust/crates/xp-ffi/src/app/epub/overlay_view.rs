@@ -126,10 +126,7 @@ impl EpubSession {
                 match action {
                     3 => (1, u8::from(self.settings(false).screen_inverted != 0)),
                     5 => (1, u8::from(self.settings(false).ble_enabled != 0)),
-                    4 => (
-                        1,
-                        u8::from(unsafe { (self.runtime.frontlight_state)() } != 0),
-                    ),
+                    4 => (1, u8::from(unsafe { self.runtime.frontlight_state() } != 0)),
                     _ => (0, 0),
                 }
             }

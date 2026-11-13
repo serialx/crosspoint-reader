@@ -8,6 +8,11 @@ pub struct Light {
     brightness: u8,
     lit: bool,
 }
+impl Light {
+    pub(crate) fn is_on(&self) -> bool {
+        self.lit
+    }
+}
 #[no_mangle]
 pub extern "C" fn xp_hal_percent(percent: u8) -> u8 {
     percent.min(100)
@@ -32,19 +37,19 @@ pub unsafe extern "C" fn xp_hal_light_output(state: *const Light) -> u8 {
     let Some(state) = state.as_ref() else {
         return 0;
     };
-    if state.lit {
+    if state.is_on() {
         state.brightness
     } else {
         0
     }
 }
 mod clock;
-mod tilt;
+pub(crate) mod tilt;
 
-mod power;
+pub(crate) mod power;
 
 mod display;
-mod gpio;
+pub(crate) mod gpio;
 
 mod storage;
 

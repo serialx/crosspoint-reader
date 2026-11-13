@@ -66,7 +66,7 @@ def run(root, archive):
             command.append(str(source_file))
         command += [str(HERE / 'check.cpp')]
         if archive:
-            command += [str(ROOT / 'test/cmake/xp_ffi_host.cpp'), archive]
+            command += ['-DXP_HAL_CONTEXT_TEST', str(ROOT / 'test/cmake/xp_ffi_host.cpp'), archive]
         subprocess.run(command + ['-o', exe], check=True)
         return {f'{name}/{v}': subprocess.check_output([exe, name, str(v)], text=True)
                 for name, count in CASES.items() for v in range(count)}

@@ -81,6 +81,8 @@ typedef struct {
   int32_t color, depth;
   uint8_t format, seek_failed;
 } XpPageImageCodecLog;
+// PROBE_OPEN/READ use state.format/path; a/b/c/d are zero. PROBE_VALIDATION uses
+// signed-32 a/b dimensions and c=1 invalid, 2 dimension limit, 3 area limit; d=0.
 // Borrows diagnostic state and paths; formatting does not retain or call Rust.
 void xp_native_page_image_codec_log(const XpPageImageCodecLog*, uint32_t event, uint32_t a, uint32_t b, uint32_t c,
                                     uint32_t d);

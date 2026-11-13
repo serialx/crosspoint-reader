@@ -249,3 +249,5 @@ add_subdirectory(reader_protection)
 add_subdirectory(runtime_hal)
 
 add_subdirectory(runtime_input)
+
+add_subdirectory(image_probe)

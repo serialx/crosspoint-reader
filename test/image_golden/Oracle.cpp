@@ -7,7 +7,9 @@
 #endif
 
 #ifdef READER_IMAGE_ORACLE
+#include <ImageDecoderFactory.h>
 #include <xp_page_paint.h>
+extern "C" uint8_t xp_page_image_test_format(const uint8_t*, size_t);
 extern "C" uint8_t xp_page_image_test_dimensions(const uint8_t*, size_t, uint16_t*, uint16_t*);
 extern "C" uint8_t xp_page_image_test_decode(const XpPageTarget*, const XpPageImage*, const uint8_t*);
 #include <HalStorage.h>
@@ -16,6 +18,10 @@ extern "C" uint8_t xp_page_image_test_decode(const XpPageTarget*, const XpPageIm
 #include <new>
 extern "C" void xp_test_fail_allocation_after(size_t);
 extern "C" size_t xp_test_live_allocations();
+// This oracle observes the unsupported-format probe event; other painter events stay strict.
+extern "C" void xp_native_page_image_log(void*, const XpPageImage*, const uint8_t*, uint32_t event, int32_t, int32_t) {
+  if (event != 16) std::abort();
+}
 static std::string faultSource, faultCache, fault;
 static size_t faultIndex = 0, faultCalls = 0;
 static bool failNativeAllocation = false;
@@ -64,6 +70,34 @@ int main(int argc, char** argv) {
   if (argc != 5) return 2;
   const std::string path = argv[1], cache = argv[2];
   const int variant = std::atoi(argv[3]), target = std::atoi(argv[4]);
+#ifdef READER_IMAGE_ORACLE
+  if (std::getenv("READER_IMAGE_PROBE_TUPLE")) {
+    ImageDimensions dimensions;
+    dimensions.width = 0x1234;
+    dimensions.height = 0x4321;
+    uint32_t format = 0;
+    bool valid = false;
+    if (std::getenv("READER_IMAGE_LEGACY")) {
+      auto* probe = ImageDecoderFactory::getDecoder(path);
+      if (dynamic_cast<PngToFramebufferConverter*>(probe)) format = 1;
+      if (dynamic_cast<JpegToFramebufferConverter*>(probe)) format = 2;
+      if (dynamic_cast<GifToFramebufferConverter*>(probe)) format = 3;
+      valid = probe && probe->getDimensions(path, dimensions);
+    } else {
+      const auto* bytes = reinterpret_cast<const uint8_t*>(path.c_str());
+      format = xp_page_image_test_format(bytes, path.size());
+      uint16_t width = dimensions.width, height = dimensions.height;
+      valid = xp_page_image_test_dimensions(bytes, path.size(), &width, &height) == 2;
+      dimensions.width = width;
+      dimensions.height = height;
+    }
+    u32(format);
+    u32(valid);
+    u32(dimensions.width);
+    u32(dimensions.height);
+    return xp_test_live_allocations() ? 4 : 0;
+  }
+#endif
   GfxRenderer renderer;
   renderer.orientation = static_cast<GfxRenderer::Orientation>(target % 4);
   renderer.mode = static_cast<GfxRenderer::RenderMode>((target / 4) % 3);

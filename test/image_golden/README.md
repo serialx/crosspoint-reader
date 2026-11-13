@@ -35,7 +35,7 @@ and progressive JPEG at 4:4:4 and 4:2:0, grayscale and CMYK JPEG, large downscal
 transparency/interlacing/animation, truncated headers and oversized dimensions.
 Each image runs 11 render
 variants across all 48 targets: fit/exact dimensions, down/upscale, clipping,
-crops, alpha, dither, cache disabled, grayscale and performance flags. Extra
+crops, alpha, dither and cache disabled. Extra
 cases cover uncropped fit-mode alpha PNG and independent X/Y crops for PNG,
 JPEG and GIF (GIF retains its existing crop-ignore behavior). The 864 added
 cases were captured from a scratch export of the same C++ revision. Apart from
@@ -97,7 +97,7 @@ the shipping storage and log adapters. JPEG uses the production native JPEGDEC l
 its heap threshold, decoder/file-handle allocations and cache failures are compared
 with the retained native shell.
 
-`ReaderImageGoldens` also probes dimensions through the production reader binding.
+`ReaderImageGoldens` executes the dimension probe but its pixel/cache records do not compare probe results.
 `ReaderImageProbeFailures` compares 73 PNG/GIF/JPEG probe fault cases against the
 retained native shells, including file operations, allocation failures and the
 JPEG heap threshold. Failed probes must preserve both caller output values.
@@ -106,3 +106,12 @@ JPEG heap threshold. Failed probes must preserve both caller output values.
 and observes its diagnostic arguments. Valid rendering and failed dimension probes
 (open, low heap and allocation) must pass zero dimensions except for the dimensions
 event. The observer is inserted into a generated host copy; firmware has no test hook.
+
+`ReaderImageProbeCorpus` compares the selected format, validity, width and height
+from the native factory/converters with the production Rust probe. It runs every
+file in the existing corpus, the generated PNG/GIF fault fixtures, extension and
+signature mismatches, and area-limit neighbors. Failed probes retain both caller
+outputs. This host-only check is registered in the default suite and the standalone
+image suite; inputs are generated at test time and no golden records are recaptured.
+The default suite fetches the firmware JPEGDEC pin and applies only its existing
+patches, so it does not require a prior PlatformIO build.

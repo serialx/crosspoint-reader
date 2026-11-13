@@ -571,6 +571,12 @@ pub(crate) unsafe fn dimensions(path: &[u8], width: &mut u16, height: &mut u16) 
 
 #[cfg(feature = "app-test")]
 #[no_mangle]
+unsafe extern "C" fn xp_page_image_test_format(path: *const u8, length: usize) -> u8 {
+    decode::format(slice::from_raw_parts(path, length)).map_or(0, |format| format as u8 + 1)
+}
+
+#[cfg(feature = "app-test")]
+#[no_mangle]
 unsafe extern "C" fn xp_page_image_test_dimensions(
     path: *const u8,
     length: usize,

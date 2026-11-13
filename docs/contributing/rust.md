@@ -1225,7 +1225,8 @@ window. Reader PNG and JPEG continue without caching when cache creation fails; 
 fails as before. The reader no longer allocates a GIF converter object at decode
 dispatch, so that allocation can no longer report an unsupported format. The
 build-time probe also selects formats and calls the shared dimension decoders in Rust.
-Its fallback still retries extraction three times with the same chunk sizes and delay.
+When both stream probes fail, the fallback extracts once in 4,096-byte chunks, then
+tries the cached dimension probe up to three times with 50 ms between failures.
 Native converters and their factory remain for non-reader callers.
 QR bitmap callers own the output storage and must supply a non-null
 pointer with the capacity returned by the plan call.

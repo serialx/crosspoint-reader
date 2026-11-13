@@ -171,3 +171,6 @@ target_compile_options(jpeg_diagnostic_arguments PRIVATE -ftrivial-auto-var-init
 target_link_libraries(jpeg_diagnostic_arguments PRIVATE xp_ffi_host)
 add_test(NAME JpegDiagnosticArguments COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/jpeg_diagnostic_arguments.py $<TARGET_FILE:jpeg_diagnostic_arguments>)
+
+add_test(NAME ReaderImageProbeCorpus COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/reader_probe_corpus.py $<TARGET_FILE:image_reader_oracle>)

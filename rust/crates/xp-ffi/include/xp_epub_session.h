@@ -566,7 +566,7 @@ typedef struct XpEpubLeaves {
   uint32_t (*file_position)(void* file);
   void (*file_flush)(void* file);
 #ifdef XP_APP_TEST
-  // Historical probe hooks; shipping section builds call Rust directly.
+  // HOST-RETIRE R4d2: historical probe hooks; shipping section builds call Rust directly.
   uint8_t (*image_supported)(XpAppText path);
   // 0: no decoder, 1: dimensions failed, 2: success. Path borrows terminated storage.
   uint8_t (*image_dimensions)(XpAppText path, uint16_t* width, uint16_t* height);

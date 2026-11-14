@@ -395,7 +395,7 @@ fn variant_ids_match_the_frozen_native_system() {
 
 #[test]
 fn typed_chapter_receiver_keeps_sd_failures_out_of_the_native_fallback() {
-    use xp_core::chapter::assembly::runtime::FontOperation;
+    use xp_layout::chapter::assembly::runtime::FontOperation;
     unsafe extern "C" fn fallback(_: *mut c_void, request: *const FontOperation) -> i32 {
         assert_eq!((*request).font, 123);
         314

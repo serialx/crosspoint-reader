@@ -25,7 +25,7 @@ class ChapterTraceTest(unittest.TestCase):
             self.assertNotIn('"Paragraph.' + op + '"', traced)
         self.assertIn('ChapterTrace::stream.write', traced)
         self.assertIn('LayoutTrace::stream.write', traced)
-        assembly = ROOT.parents[3] / 'rust/crates/xp-core/src/chapter/assembly'
+        assembly = ROOT.parents[3] / 'rust/crates/xp-layout/src/chapter/assembly'
         rust = ''.join(path.read_text() for path in assembly.glob('*.rs'))
         for op in ('BeginBlock','EndBlock','BoxOpen','BoxClose','Page','ImageReply','TableRowEnd','getFontAscenderSize','getLineHeight'):
             self.assertIn('"' + op + '"', rust)

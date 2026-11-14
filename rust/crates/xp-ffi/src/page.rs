@@ -2,13 +2,12 @@
 //! them. Builders borrow a separate output buffer until finish or reset.
 use core::{mem, ptr, slice};
 use xp_core::{
-    page::{
-        self,
-        builder::{Builder, Content, PackedLine, Rubies},
-        Error,
-    },
-    para::{paragraph::Span as ParaSpan, paragraph_extract::Output},
+    page::{self, Error},
     section::{Diagnostic, Kind, Record},
+};
+use xp_layout::{
+    page::builder::{self, Builder, Content, PackedLine, Rubies},
+    para::{paragraph::Span as ParaSpan, paragraph_extract::Output},
 };
 
 #[unsafe(no_mangle)]
@@ -20,7 +19,7 @@ pub extern "C" fn xp_page_line_capacity(
     fonts: u8,
     ruby_bytes: usize,
 ) -> usize {
-    page::builder::line_capacity(lines, words, text_bytes, focus != 0, fonts != 0, ruby_bytes)
+    builder::line_capacity(lines, words, text_bytes, focus != 0, fonts != 0, ruby_bytes)
 }
 
 #[unsafe(no_mangle)]

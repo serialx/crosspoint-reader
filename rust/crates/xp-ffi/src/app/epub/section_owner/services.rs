@@ -23,7 +23,7 @@ use core::{
     ffi::c_void,
     ptr::{self, NonNull},
 };
-use xp_core::{
+use xp_layout::{
     chapter::{
         assembly::{self, Diagnostic, ImageProbe, Position},
         services::Trace,

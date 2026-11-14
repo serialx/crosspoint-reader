@@ -222,7 +222,7 @@ Some sources are generated and should not be edited manually.
 - `scripts/build_html.py` generates `src/network/html/*.generated.h` from HTML files
 - `scripts/gen_i18n.py` generates `lib/I18n/I18nKeys.h`, `I18nStrings.h`, and `I18nStrings.cpp`
 - `scripts/generate_hyphenation_trie.py` validates and copies raw hyphenation
-  `.bin` files into `rust/crates/xp-core/data/hyph/`. Refresh them explicitly with
+  `.bin` files into `rust/crates/xp-layout/data/hyph/`. Refresh them explicitly with
   `./scripts/update_hyphenation.sh`; normal firmware builds embed the checked-in
   files. See the [trie format and refresh workflow](../hyphenation-trie-format.md).
 

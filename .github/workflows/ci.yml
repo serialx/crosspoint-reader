@@ -246,7 +246,7 @@ jobs:
 
       - name: Run Rust tests
         working-directory: rust
-        run: cargo test --locked -p xp-core -p xp-gif -p xp-ui -p xp-display
+        run: cargo test --locked -p xp-core -p xp-layout -p xp-gif -p xp-ui -p xp-display
 
       - name: Cache googletest source
         uses: actions/cache@v4

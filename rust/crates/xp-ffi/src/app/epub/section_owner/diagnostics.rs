@@ -1,5 +1,5 @@
 use super::super::{abi::XpEpubLeaves, book_owner::log};
-use xp_core::chapter::assembly::Diagnostic;
+use xp_layout::chapter::assembly::Diagnostic;
 mod scale;
 
 #[cfg(feature = "app-test")]

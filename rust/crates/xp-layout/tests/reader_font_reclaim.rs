@@ -1,4 +1,5 @@
-use xp_core::{para::reclaim_caches, sdfont::control::reader_font};
+use xp_core::sdfont::control::reader_font;
+use xp_layout::para::reclaim_caches;
 
 #[test]
 fn reader_font_preserves_all_point_sizes_and_loaded_family_precedence() {

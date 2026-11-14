@@ -1,5 +1,5 @@
 use super::super::abi::XpEpubLeaves;
-use xp_core::para::Allocator;
+use xp_layout::para::Allocator;
 
 pub(super) unsafe fn table(_leaves: &XpEpubLeaves) -> &'static Allocator {
     #[cfg(feature = "app-test")]
@@ -59,7 +59,7 @@ unsafe extern "C" fn reclaim(bytes: usize) {
     let Some(app) = crate::app::app() else { return };
     let mut geometry = core::mem::MaybeUninit::uninit();
     (app.epub.render_geometry)(geometry.as_mut_ptr());
-    xp_core::para::reclaim_caches(
+    xp_layout::para::reclaim_caches(
         bytes,
         have,
         geometry.assume_init().has_font_cache != 0,

@@ -55,6 +55,7 @@ name = "vector-manager-lifetime"
 version = "0.1.0"
 dependencies = [
  "xp-core",
+ "xp-layout",
 ]
 
 [[package]]
@@ -70,3 +71,10 @@ dependencies = [
 [[package]]
 name = "xp-gif"
 version = "0.1.0"
+
+[[package]]
+name = "xp-layout"
+version = "0.1.0"
+dependencies = [
+ "xp-core",
+]

@@ -613,8 +613,8 @@ pub struct XpEpubLeaves {
     pub scratch_claim: unsafe extern "C" fn(min_len: u32) -> *mut u8,
     pub scratch_release: unsafe extern "C" fn(bytes: *const u8),
     pub inflate_oom_log: unsafe extern "C" fn(allocation: XpAppText, bytes: u32),
-    pub build_metrics: unsafe extern "C" fn() -> *const xp_core::para::paragraph::Metrics,
-    pub build_allocator: unsafe extern "C" fn() -> *const xp_core::para::Allocator,
+    pub build_metrics: unsafe extern "C" fn() -> *const xp_layout::para::paragraph::Metrics,
+    pub build_allocator: unsafe extern "C" fn() -> *const xp_layout::para::Allocator,
     #[cfg(any(feature = "app-test", not(feature = "sd-font-catalog")))]
     pub font_variant: unsafe extern "C" fn(i32, f32) -> i32,
     #[cfg(feature = "app-test")]

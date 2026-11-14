@@ -1,6 +1,6 @@
 //! Thin exports for the private text-settings family.
 use core::ffi::c_char;
-use xp_core::para::paragraph::Paragraph;
+use xp_layout::para::paragraph::Paragraph;
 use xp_ui::{
     ffi::{Buffer, SceneView},
     model::{Effect, Input, Interest},

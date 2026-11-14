@@ -73,7 +73,7 @@ add_test(NAME SdFontSystemSwitch COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_S
   --parent $<TARGET_FILE:sdfont_system_parent> --candidate $<TARGET_FILE:sdfont_system_candidate>)
 
 add_test(NAME SdFontCatalogFrontDoor
-  COMMAND ${XP_FFI_CARGO} test --manifest-path ${REPO_ROOT}/rust/Cargo.toml -p xp-core
+  COMMAND ${XP_FFI_CARGO} test --manifest-path ${REPO_ROOT}/rust/Cargo.toml -p xp-layout
     --features sd-font-catalog --test font_owner_binding --offline --locked)
 set_tests_properties(SdFontCatalogFrontDoor PROPERTIES WORKING_DIRECTORY ${REPO_ROOT}/rust)
 add_test(NAME SdFontXtcOrder
@@ -87,6 +87,6 @@ add_test(NAME HalContract.sd_rust_slots COMMAND ${XP_FFI_CARGO} test
   --manifest-path ${CMAKE_CURRENT_SOURCE_DIR}/Cargo.toml --offline --locked --bin sdfont-owner)
 
 add_test(NAME ReaderFontReclaim
-  COMMAND ${XP_FFI_CARGO} test --manifest-path ${REPO_ROOT}/rust/Cargo.toml -p xp-core
+  COMMAND ${XP_FFI_CARGO} test --manifest-path ${REPO_ROOT}/rust/Cargo.toml -p xp-layout
     --test reader_font_reclaim --offline --locked)
 set_tests_properties(ReaderFontReclaim PROPERTIES WORKING_DIRECTORY ${REPO_ROOT}/rust)

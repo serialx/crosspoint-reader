@@ -270,10 +270,10 @@ pub(crate) unsafe fn control<'a>(owner: *const Owner) -> &'a mut Control<'static
 #[no_mangle]
 pub unsafe extern "C" fn xp_sd_font_chapter(
     context: *mut c_void,
-    request: *const xp_core::chapter::assembly::runtime::FontOperation,
-    fallback: xp_core::chapter::assembly::runtime::FontFallback,
+    request: *const xp_layout::chapter::assembly::runtime::FontOperation,
+    fallback: xp_layout::chapter::assembly::runtime::FontFallback,
 ) -> i32 {
-    use xp_core::chapter::assembly::runtime::FontOperationKind;
+    use xp_layout::chapter::assembly::runtime::FontOperationKind;
     let request = &*request;
     let Some(kind) = request.kind() else { return 0 };
     let owner = xp_native_chapter_font_owner(context);
@@ -593,7 +593,7 @@ unsafe fn bytes<'a>(data: *const u8, length: usize) -> &'a [u8] {
 pub unsafe extern "C" fn xp_sd_font_prepare_spans(
     context: *mut c_void,
     id: i32,
-    spans: *const xp_core::para::paragraph::Span,
+    spans: *const xp_layout::para::paragraph::Span,
     count: u32,
     space: u8,
     hyphen: u8,
@@ -623,7 +623,7 @@ pub unsafe extern "C" fn xp_sd_font_prepare_spans(
 pub unsafe extern "C" fn xp_sd_font_prepare_chapter(
     context: *mut c_void,
     id: i32,
-    spans: *const xp_core::para::paragraph::Span,
+    spans: *const xp_layout::para::paragraph::Span,
     count: u32,
     space: u8,
     hyphen: u8,

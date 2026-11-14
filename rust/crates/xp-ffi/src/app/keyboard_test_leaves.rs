@@ -131,8 +131,8 @@ unused_leaves! {
     scratch_claim(_a0: u32) -> *mut u8;
     scratch_release(_a0: *const u8) ;
     inflate_oom_log(_a0: XpAppText, _a1: u32) ;
-    build_metrics() -> *const xp_core::para::paragraph::Metrics;
-    build_allocator() -> *const xp_core::para::Allocator;
+    build_metrics() -> *const xp_layout::para::paragraph::Metrics;
+    build_allocator() -> *const xp_layout::para::Allocator;
     font_variant(_a0: i32, _a1: f32) -> i32;
     font_line_height(_a0: i32, _a1: f32) -> i32;
     font_ready(_a0: i32, _a1: i32) -> i32;

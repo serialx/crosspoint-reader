@@ -9,6 +9,7 @@ publish = false
 [dependencies]
 xp-ui = { path = "../../../rust/crates/xp-ui" }
 xp-core = { path = "../../../rust/crates/xp-core" }
+xp-layout = { path = "../../../rust/crates/xp-layout" }
 
 [lib]
 path = "lib.rs"

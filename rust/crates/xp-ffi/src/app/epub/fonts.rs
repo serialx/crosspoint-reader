@@ -140,7 +140,7 @@ impl XpEpubLeaves {
         }
         #[cfg(not(feature = "app-test"))]
         {
-            let id = xp_core::hyphen::language(language.bytes().unwrap_or_default());
+            let id = xp_layout::hyphen::language(language.bytes().unwrap_or_default());
             (self.hyphen_language)(id);
             id
         }

@@ -5,7 +5,7 @@ edition = "2021"
 publish = false
 
 [features]
-sd-font-catalog = []
+sd-font-catalog = ["xp-layout/sd-font-catalog"]
 legacy-reader-oracles = []
 legacy-keyboard-oracles = []
 legacy-network-oracles = []
@@ -13,6 +13,7 @@ legacy-network-oracles = []
 [dependencies]
 embedded-graphics-core.workspace = true
 xp-core = { path = "../xp-core" }
+xp-layout = { path = "../xp-layout" }
 
 [[example]]
 name = "dictionary_geometry"

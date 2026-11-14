@@ -3,17 +3,15 @@ extern crate alloc;
 use crate::css::Css;
 use alloc::alloc::{alloc, dealloc};
 use core::{alloc::Layout, ffi::c_void, ptr, ptr::NonNull};
-use xp_core::{
-    chapter::{
+use xp_core::xml::{Kind, Parser};
+use xp_layout::chapter::{
+    self,
+    assembly::{
         self,
-        assembly::{
-            self,
-            runtime::{Callbacks, Storage},
-        },
-        feedback::Query,
-        State,
+        runtime::{Callbacks, Storage},
     },
-    xml::{Kind, Parser},
+    feedback::Query,
+    State,
 };
 
 pub struct Chapter {
@@ -314,22 +312,20 @@ pub unsafe extern "C" fn xp_chapter_plan_columns(
 mod test_access {
     #[no_mangle]
     pub extern "C" fn xp_chapter_test_storage_retry(reclaim: unsafe extern "C" fn()) -> u8 {
-        let mut storage = xp_core::chapter::assembly::runtime::Storage::default();
+        let mut storage = xp_layout::chapter::assembly::runtime::Storage::default();
         u8::from(storage.test_image(reclaim))
     }
 
     use super::*;
     use alloc::vec::Vec;
-    use xp_core::{
-        chapter::services::Span,
-        xml::{Event, Field},
-    };
+    use xp_core::xml::{Event, Field};
+    use xp_layout::chapter::services::Span;
     /// # Safety
     /// Live idle state; the returned paragraph is borrowed until its next mutation.
     #[no_mangle]
     pub unsafe extern "C" fn xp_chapter_test_paragraph(
         state: *mut State,
-    ) -> *mut xp_core::para::paragraph::Paragraph {
+    ) -> *mut xp_layout::para::paragraph::Paragraph {
         (*state).test_paragraph()
     }
     /// # Safety

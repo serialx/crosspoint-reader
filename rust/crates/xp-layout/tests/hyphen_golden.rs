@@ -1,6 +1,6 @@
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
-use xp_core::hyphen::{self, Break};
+use xp_layout::hyphen::{self, Break};
 
 fn compact_root() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../test/hyphenation_eval")

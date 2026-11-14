@@ -1,5 +1,5 @@
 use core::{mem, ptr, slice};
-use xp_core::para::{Allocator, Word, WordStore};
+use xp_layout::para::{Allocator, Word, WordStore};
 
 // The caller owns pointer-aligned state storage and serializes all access. Callbacks
 // and their allocator record outlive the store; they must not reenter it.
@@ -54,7 +54,7 @@ pub unsafe extern "C" fn xp_word_store_chunk_count(state: *const WordStore) -> u
     (*state).chunk_count()
 }
 
-use xp_core::para::{Token, Tokens};
+use xp_layout::para::{Token, Tokens};
 const _: () = assert!(mem::size_of::<Tokens>() <= 26 * mem::size_of::<usize>());
 
 /// # Safety
@@ -105,8 +105,8 @@ pub unsafe extern "C" fn xp_tokens_source_after(
 
 // Paragraph layout: synchronous metrics and token mutation remain with the caller.
 
-use xp_core::chapter::style::Block;
-use xp_core::para::{
+use xp_layout::chapter::style::Block;
+use xp_layout::para::{
     paragraph::{Metrics, Paragraph, Span},
     paragraph_extract::{self, Options},
 };

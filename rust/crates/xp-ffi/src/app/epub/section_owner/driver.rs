@@ -7,7 +7,7 @@ use super::{
 };
 use crate::chapter::{self, Chapter, Options};
 use core::ptr::NonNull;
-use xp_core::chapter::ReaderServices;
+use xp_layout::chapter::ReaderServices;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Step {

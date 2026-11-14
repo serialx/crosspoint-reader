@@ -13,7 +13,7 @@ process() {
 
   python3 scripts/generate_hyphenation_trie.py \
     --input "build/$lang.bin" \
-    --output "rust/crates/xp-core/data/hyph/${lang}.bin"
+    --output "rust/crates/xp-layout/data/hyph/${lang}.bin"
 }
 
 process en

@@ -87,11 +87,11 @@ impl Drop for Input {
 pub(super) unsafe fn table(
     leaves: &'static XpEpubLeaves,
     path: &Text,
-    state: *mut xp_core::chapter::State,
-    visit: xp_core::chapter::table::UseReader,
+    state: *mut xp_layout::chapter::State,
+    visit: xp_layout::chapter::table::UseReader,
 ) {
     use core::ffi::c_void;
-    use xp_core::chapter::table::Reader;
+    use xp_layout::chapter::table::Reader;
     struct Context<'a> {
         leaves: &'static XpEpubLeaves,
         path: &'a Text,

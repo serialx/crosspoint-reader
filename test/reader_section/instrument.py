@@ -37,7 +37,7 @@ def instrument(relative, source):
 
 OBSERVER = '''// Generated host-only observer imports, absent from the shipping workspace.
 use crate::chapter::Options;
-use xp_core::chapter::services::Trace;
+use xp_layout::chapter::services::Trace;
 unsafe extern "C" {
     #[link_name = "reader_section_observe_semantic"] pub(super) fn semantic(record: *const Trace);
     #[link_name = "reader_section_observe_bytes"] pub(super) fn bytes(data: *const u8, len: usize);

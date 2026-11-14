@@ -61,7 +61,7 @@ fn page_bytes(bytes: &[u8]) -> Page {
 fn footnote_page_loan_first_match_and_owned_href_survive_navigation() {
     use super::selection_owned::Footnote;
     let mut storage = vec![0; 20_000];
-    let mut builder = xp_core::page::builder::Builder::new(&mut storage).unwrap();
+    let mut builder = xp_layout::page::builder::Builder::new(&mut storage).unwrap();
     let mut href = [0; 256];
     href[..12].copy_from_slice(b"chapter#note");
     let mut number = [0; 32];
@@ -569,7 +569,7 @@ unsafe extern "C" fn hints(labels: *const app_abi::Text) {
 }
 fn footnote_page() -> Page {
     let mut bytes = vec![0; 2000];
-    let mut builder = xp_core::page::builder::Builder::new(&mut bytes).unwrap();
+    let mut builder = xp_layout::page::builder::Builder::new(&mut bytes).unwrap();
     let mut a = [0; 256];
     a[..2].copy_from_slice(b"#a");
     let mut b = [0; 256];

@@ -8,6 +8,7 @@ publish = false
 
 [dependencies]
 xp-core = { path = "../../rust/crates/xp-core" }
+xp-layout = { path = "../../rust/crates/xp-layout" }
 
 [[bin]]
 name = "sdfont-owner"

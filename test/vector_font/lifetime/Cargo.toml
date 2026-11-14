@@ -13,3 +13,4 @@ sd-font-catalog = []
 app-test = []
 [dev-dependencies]
 xp-core = { path = "../../../rust/crates/xp-core", features = ["vector-owner-test"] }
+xp-layout = { path = "../../../rust/crates/xp-layout" }

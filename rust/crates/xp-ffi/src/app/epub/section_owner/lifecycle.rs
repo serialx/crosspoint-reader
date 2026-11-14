@@ -15,10 +15,8 @@ use super::{
 };
 use crate::{app::abi, chapter::Options, section_cache};
 use core::{ffi::c_void, ptr::NonNull};
-use xp_core::{
-    chapter::assembly,
-    section::{PARTIAL_VERSION, VERSION},
-};
+use xp_core::section::{PARTIAL_VERSION, VERSION};
+use xp_layout::chapter::assembly;
 
 pub(super) fn header(spec: &XpEpubRenderSpec, pages: u16) -> [u32; 20] {
     [

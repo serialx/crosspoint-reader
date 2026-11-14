@@ -1,7 +1,10 @@
 # Rust core and C ABI
 
 The firmware links a small Rust static library. `rust/crates/xp-core` contains
-portable `no_std` code and host tests. `rust/crates/xp-ffi` owns the C ABI,
+portable `no_std` code and host tests. `rust/crates/xp-layout` contains EPUB
+paragraph/chapter layout and page construction, compiled at release opt-level 2;
+the page renderer and shared font code remain in `xp-core` at opt-level "s".
+`rust/crates/xp-ffi` owns the C ABI,
 ESP-IDF allocator, and panic handler. Its public header is
 `rust/crates/xp-ffi/include/xp_ffi.h`.
 
@@ -62,8 +65,8 @@ Run portable checks from the workspace:
 ```sh
 cd rust
 cargo fmt --check
-cargo clippy -p xp-core -p xp-gif --all-targets -- -D warnings
-cargo test -p xp-core -p xp-gif
+cargo clippy -p xp-core -p xp-layout -p xp-gif --all-targets -- -D warnings
+cargo test -p xp-core -p xp-layout -p xp-gif
 ```
 
 The release profile uses `opt-level = "s"` to balance code size and chapter-build
@@ -209,7 +212,7 @@ Do not add callbacks on per-word, per-glyph or per-row success paths. Keep copie
 needed only for diagnostics in cold, non-inlined helpers so hot stack frames do
 not grow. For example, `Assembly::add_line` calls `diagnose_dropped_link` only
 after a rejected link; that helper copies at most 48 bytes in
-`rust/crates/xp-core/src/chapter/assembly/mod.rs`.
+`rust/crates/xp-layout/src/chapter/assembly/mod.rs`.
 
 When porting C++, inventory `LOG_*` statements before and after by counting
 `(level, origin, format)` tuples, including duplicates. Restore each line for the
@@ -448,7 +451,7 @@ Paragraph storage and line layout are behind the Rust ABI. The paragraph-level
 [layout oracle](../../test/section_golden/README.md#paragraph-layout-oracle)
 checks every call against the original C++ trace as well.
 
-`xp-core::para::paragraph::Paragraph` owns the word arena and token storage.
+`xp-layout::para::paragraph::Paragraph` owns the word arena and token storage.
 The C++ `Paragraph` adapter embeds 64 pointer-sized, pointer-aligned words, with
 compile-time Rust size/alignment checks and no separate handle allocation.
 Arena/token buffers use the existing C++ nothrow allocation callback and retry
@@ -694,7 +697,7 @@ The retained dictionary driver in `rust/crates/xp-ffi/src/book_parser.rs` borrow
 its native facade's chapter handle and read buffer through `xp_book_parse`. It calls the Rust XML
 parser in 1,024-byte steps, owns finalization and stop checks, and writes the
 packed status/error/line result through `result`.
-`rust/crates/xp-core/src/chapter/table.rs` opens, seeks and measures through a
+`rust/crates/xp-layout/src/chapter/table.rs` opens, seeks and measures through a
 synchronous borrowed native reader; only Rust accesses the active semantic state.
 Anchor membership and commit decisions, entity-buffer growth, image-cache
 suffix/counter selection and byte-versus-Page output selection also live in Rust.

@@ -15,7 +15,7 @@ use crate::{
     scene::{Arena, Error, Rect, Refresh, MAX_COMMAND_BYTES},
 };
 use core::{ffi::c_char, ptr, slice};
-use xp_core::para::paragraph::Paragraph;
+use xp_layout::para::paragraph::Paragraph;
 struct Adapter(Rows);
 impl Adapter {
     fn measured(v: i32) -> Result<i32, Error> {

@@ -5,11 +5,8 @@
 //! loads: an arena can start at any address, including on RISC-V.
 use crate::section::{self, Diagnostic, DiagnosticEvent as D, Kind};
 
-pub mod builder;
 pub mod probe;
 pub mod render;
-#[cfg(test)]
-mod tests;
 
 const HEADER: usize = 32;
 const ELEMENT: usize = 16;
@@ -47,7 +44,7 @@ fn u32_at(bytes: &[u8], at: usize) -> Result<u32> {
 fn put(bytes: &mut [u8], at: usize, value: usize) {
     bytes[at..at + 4].copy_from_slice(&(value as u32).to_le_bytes());
 }
-fn c_len(bytes: &[u8]) -> usize {
+pub fn c_len(bytes: &[u8]) -> usize {
     bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len())
 }
 

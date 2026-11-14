@@ -38,8 +38,8 @@ to the current node’s base.
 
 ## Embedding blobs into the firmware
 
-The eleven raw `.bin` files live in `rust/crates/xp-core/data/hyph/`.
-`xp-core::hyphen` embeds them with `include_bytes!` in a four-byte-aligned
+The eleven raw `.bin` files live in `rust/crates/xp-layout/data/hyph/`.
+`xp-layout::hyphen` embeds them with `include_bytes!` in a four-byte-aligned
 wrapper. The root address remains in the first four bytes; node and level
 offsets use the original file coordinates. The runtime reads bytes directly
 from flash, without allocating or expanding the trie. Normal firmware builds

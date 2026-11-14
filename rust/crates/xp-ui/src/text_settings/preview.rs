@@ -1,6 +1,6 @@
 use crate::scene::Rect;
 use core::ffi::{c_char, CStr};
-use xp_core::para::paragraph::Paragraph;
+use xp_layout::para::paragraph::Paragraph;
 #[repr(C)]
 #[derive(Clone, Copy, Default, PartialEq)]
 pub struct Key {
@@ -105,7 +105,7 @@ pub fn capacity(paragraph: &Paragraph, height: i32, line_height: i32, advance: i
     let Some(bytes) = bytes.checked_mul(2).and_then(|n| n.checked_add(extra * 4)) else {
         return usize::MAX;
     };
-    xp_core::page::builder::line_capacity(lines, words, bytes, true, false, 0)
+    xp_layout::page::builder::line_capacity(lines, words, bytes, true, false, 0)
 }
 /// # Safety
 /// paragraph is live and exclusively owned; text is a live terminated string.

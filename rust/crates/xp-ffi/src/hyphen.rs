@@ -1,5 +1,5 @@
 use core::{mem, slice};
-use xp_core::hyphen::{self, Break};
+use xp_layout::hyphen::{self, Break};
 
 /// # Safety
 /// tag borrows len readable bytes in one allocation, unchanged during the call.

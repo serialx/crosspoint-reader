@@ -7,10 +7,8 @@ use super::super::{
 };
 use alloc::vec::Vec;
 use core::{cell::Cell, ffi::c_void, ptr::NonNull};
-use xp_core::{
-    chapter::assembly::{Error, ImageProbe},
-    image::probe::Probe,
-};
+use xp_core::image::probe::Probe;
+use xp_layout::chapter::assembly::{Error, ImageProbe};
 
 // Physical decoder and framebuffer services never borrow the build owner.
 #[derive(Clone, Copy)]

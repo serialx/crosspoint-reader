@@ -3,7 +3,8 @@
 Malformed cases: the shipped decoder rejects cleanly (no sanitizer report, JPEG_DECODE_ERROR) and the
 observed copy reaches no unsafe use; the copy without the guard patch reaches the named unsafe use.
 EXIF cases: the shipped decoder skips the bad block and decodes the reference pixels.
-Valid, unusual and corpus files: the shipped decoder gives exactly the unguarded decoder's result.
+Valid, unusual and corpus files: the shipped decoder gives exactly the unguarded decoder's result,
+including the number of file reads, bytes read and seeks.
 """
 import argparse
 import json
@@ -14,7 +15,7 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-FIELDS = ('open', 'error', 'decode_error', 'width', 'height', 'orientation', 'thumb', 'decode', 'hash')
+FIELDS = ('open', 'error', 'decode_error', 'width', 'height', 'orientation', 'thumb', 'decode', 'hash', 'io')  # io: reads, bytes, seeks
 SANITIZER = ('ERROR: AddressSanitizer', 'runtime error:', 'UndefinedBehaviorSanitizer', 'SUMMARY: ')
 ENV = dict(os.environ, ASAN_OPTIONS='detect_leaks=0:handle_segv=1', UBSAN_OPTIONS='print_stacktrace=1')
 

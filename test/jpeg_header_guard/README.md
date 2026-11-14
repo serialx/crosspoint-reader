@@ -33,7 +33,7 @@ case in its own process for each copy:
 - valid files (combined tables, 16-bit DQT, restart intervals, progressive
   DC scan, 60 KB APP2, 40 KB EXIF, segments around the 1,024-byte refill
   point) and the existing image corpus: the shipped decoder returns exactly the
-  control's result;
+  control's result, including its file reads, bytes read and seeks;
 - unusual files (fill bytes, long SOF, trailing DHT bytes, a stray RST marker):
   same result as the control, except that the shipped decoder may reject a
   header that the control "opened" without a usable frame (0x0).

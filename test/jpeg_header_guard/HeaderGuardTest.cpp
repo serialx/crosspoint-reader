@@ -663,17 +663,22 @@ std::vector<Case> cases() {
 struct MemFile {
   Bytes data;
   int32_t pos = 0;
+  int reads = 0, seeks = 0;  // file calls, compared for healthy files
+  int64_t readBytes = 0;
 };
 int32_t memRead(JPEGFILE* f, uint8_t* buf, int32_t len) {
   auto* m = static_cast<MemFile*>(f->fHandle);
   const int32_t n = std::max<int32_t>(0, std::min<int32_t>(len, int32_t(m->data.size()) - m->pos));
   if (n) std::memcpy(buf, m->data.data() + m->pos, size_t(n));
+  m->reads++;
+  m->readBytes += n;
   m->pos += n;
   f->iPos += n;
   return n;
 }
 int32_t memSeek(JPEGFILE* f, int32_t pos) {  // like SdFat: no seek past the end
   auto* m = static_cast<MemFile*>(f->fHandle);
+  m->seeks++;
   if (pos < 0 || pos > int32_t(m->data.size())) return -1;
   m->pos = pos;
   f->iPos = pos;
@@ -708,10 +713,12 @@ int run(const std::string& label, Bytes data) {
   std::printf(
       "{\"case\": \"%s\", \"size\": %zu, \"open\": %d, \"error\": %d, \"decode_error\": %d, \"width\": %d, "
       "\"height\": %d, \"orientation\": %d, \"thumb\": [%d, %d, %d], \"decode\": %d, \"hash\": \"%016llx\", "
+      "\"io\": [%d, %lld, %d], "
       "\"hits\": {",
       label.c_str(), size, opened, opened == 1 ? 0 : jpeg->getLastError(), opened == 1 ? jpeg->getLastError() : 0,
       jpeg->getWidth(), jpeg->getHeight(), jpeg->getOrientation(), jpeg->hasThumb(), jpeg->getThumbWidth(),
-      jpeg->getThumbHeight(), decoded, static_cast<unsigned long long>(decoded == 1 ? g_hash : 0));
+      jpeg->getThumbHeight(), decoded, static_cast<unsigned long long>(decoded == 1 ? g_hash : 0), file.reads,
+      static_cast<long long>(file.readBytes), file.seeks);
   const char* sep = "";
   for (const auto& [site, n] : g_hits) {
     std::printf("%s\"%s\": %d", sep, site.c_str(), n);

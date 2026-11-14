@@ -3,8 +3,11 @@ PlatformIO pre-build script: apply CrossPoint's JPEGDEC patches via `git apply`.
 
 The upstream JPEGDEC pin still has progressive grayscale bugs in
 JPEGDecodeMCU_P, including unsafe MCU_SKIP writes and attempts to consume
-chroma components that are absent from the current scan.
-The patches in `scripts/jpegdec_patches/` carry the fix; this script applies
+chroma components that are absent from the current scan (patches 0001-0003).
+Its header parser also trusts file fields: component counts, segment and
+table lengths, table ids, EXIF offsets and the scan-header result (0004
+rejects such headers and skips malformed EXIF; test/jpeg_header_guard).
+The patches in `scripts/jpegdec_patches/` carry the fixes; this script applies
 each one against the libdep working tree.
 
 Each patch's idempotency is decided by git itself:

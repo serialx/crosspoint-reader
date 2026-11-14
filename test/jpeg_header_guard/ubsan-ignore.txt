@@ -1,0 +1,4 @@
+# Inherited JPEGDEC UB outside the header parser: the Huffman lookup builder shifts by a negative
+# count for every file. Header-parser functions stay fully checked.
+[undefined]
+fun:*JPEGMakeHuffTables*

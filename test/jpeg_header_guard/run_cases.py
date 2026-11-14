@@ -22,7 +22,7 @@ ENV = dict(os.environ, ASAN_OPTIONS='detect_leaks=0:handle_segv=1', UBSAN_OPTION
 
 def run(binary, *args):
     try:
-        p = subprocess.run([binary, *args], capture_output=True, text=True, errors='replace', timeout=120, env=ENV)
+        p = subprocess.run([binary, *args], capture_output=True, text=True, errors='replace', timeout=30, env=ENV)
         rc, out, err = p.returncode, p.stdout, p.stderr
     except subprocess.TimeoutExpired as e:
         rc, out, err = 'timeout', e.stdout or '', e.stderr or ''
@@ -43,6 +43,8 @@ def clean(r):
 
 
 def control_outcome(r):
+    if r['rc'] == 'timeout':
+        return 'hang (killed after 30 s)'
     if r['sanitizer'] or r['rc'] != 0:
         return 'sanitizer report or crash'
     if r['result']['open'] == 1:

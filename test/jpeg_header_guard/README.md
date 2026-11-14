@@ -27,7 +27,7 @@ case in its own process for each copy:
   a DHT larger than the buffer window, bad DHT ids, DQT underflow, bad scan
   headers): the shipped decoder returns `JPEG_DECODE_ERROR` with no sanitizer
   report. The control must reach the named unsafe use; the report records
-  whether it then crashed, accepted the header, or failed later;
+  whether it then crashed, hung, accepted the header, or failed later;
 - malformed EXIF: the shipped decoder skips the block and decodes the same
   pixels as the image without EXIF;
 - valid files (combined tables, 16-bit DQT, restart intervals, progressive

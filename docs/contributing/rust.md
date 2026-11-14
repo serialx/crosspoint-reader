@@ -73,8 +73,9 @@ The release profile uses `opt-level = "s"` to balance code size and chapter-buil
 speed, with fat LTO, eight codegen units, and abort-on-panic behavior.
 The decoder packages `miniz_oxide` and `xp-gif` use `opt-level = 3` in
 [`rust/Cargo.toml`](../../rust/Cargo.toml) to keep inflate and GIF decoding within
-their timing budgets. UI construction and input routing in `xp-ui` use `"z"`;
-the remaining packages keep `"s"`. `xp-gif` is the local, dependency-free
+their timing budgets. UI construction and input routing in `xp-ui` use `"z"`.
+Layout code in `xp-layout` uses `2` for speed, and the page renderer in `xp-core`
+plus the remaining packages keep `"s"`. `xp-gif` is the local, dependency-free
 package under [`rust/crates/xp-core/src/gif/decoder`](../../rust/crates/xp-core/src/gif/decoder),
 reexported by `xp-core::gif`.
 Overflow checks retain the release default (off); hash arithmetic wraps

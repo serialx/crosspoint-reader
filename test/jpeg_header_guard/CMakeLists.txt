@@ -1,6 +1,6 @@
 # JPEGDEC header guard: the shipped patch set against the same set without the guard patch, under ASan and UBSan.
 # Inherited decoder UB on every file is excluded: MOTOSHORT's unaligned 16-bit reads (alignment check off)
-# and the Huffman lookup builder's negative shifts (ubsan-ignore.txt). The header parser stays checked.
+# and the Huffman lookup builder's negative shift exponents (ubsan-ignore.txt). Every other check stays on.
 include(FetchContent)
 FetchContent_Declare(jpeg_header_guard_jpegdec
   GIT_REPOSITORY https://github.com/bitbank2/JPEGDEC.git
@@ -16,7 +16,7 @@ set(JHG_VARIANTS guarded guarded_observed control_observed)
 option(JPEG_HEADER_GUARD_MUTANTS "Also build one decoder per disabled guard hunk (evidence only)" OFF)
 if(JPEG_HEADER_GUARD_MUTANTS)
   foreach(hunk dht_id tiff_bounds marker_read segment_length segment_fit exif sof dqt sos
-      tifflong)
+      tifflong dht_id_0_3 huff_codes sos_ids)
     list(APPEND JHG_VARIANTS mutant_${hunk})
   endforeach()
 endif()
@@ -28,6 +28,7 @@ foreach(variant ${JHG_VARIANTS})
       ${jpeg_header_guard_jpegdec_SOURCE_DIR} ${JHG_PATCH_DIR} ${JHG_GUARD_PATCH} ${dir} ${variant}
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/make_variant.py ${JHG_PATCHES} VERBATIM)
   add_executable(jpeg_header_guard_${variant} HeaderGuardTest.cpp ${dir}/src/JPEGDEC.cpp)
+  set_property(SOURCE ${dir}/src/JPEGDEC.cpp APPEND PROPERTY OBJECT_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/ubsan-ignore.txt)
   target_include_directories(jpeg_header_guard_${variant} PRIVATE ${dir}/src ${CMAKE_CURRENT_SOURCE_DIR})
   target_compile_definitions(jpeg_header_guard_${variant} PRIVATE __LINUX__)
   target_compile_options(jpeg_header_guard_${variant} PRIVATE

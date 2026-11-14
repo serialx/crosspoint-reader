@@ -460,6 +460,36 @@ std::vector<Case> cases() {
     j.find(0xc4, 1).payload[0] = 0xff;
     return j.bytes();
   });
+  add("dht_dc_table_3", "malformed", "dht_id", "dht_table_id,huff_dc_table", "", [] {
+    // ucHuffDC holds two DC tables; the builder would put table 3 past it.
+    Jpeg j = baseJpeg();
+    j.segments.insert(j.segments.begin() + long(j.index(0xc4)), Segment{0xc4, huffPayload(0x03, dcTable())});
+    return j.bytes();
+  });
+  add("dht_ac_table_2", "malformed", "dht_id", "dht_table_id", "", [] {
+    // usHuffAC holds two AC tables. The unguarded builder refuses table 2 itself, so no unsafe write follows.
+    Jpeg j = baseJpeg();
+    j.segments.insert(j.segments.begin() + long(j.index(0xc4)), Segment{0xc4, huffPayload(0x12, acTable())});
+    return j.bytes();
+  });
+  add("huff_oversubscribed_ac", "malformed", "huff_codes", "huff_overflow", "", [] {
+    // Five codes of every length (80) do not form a prefix code; the builder writes past the decoder object.
+    Jpeg j = baseJpeg();
+    Bytes t = {0x11};
+    t.insert(t.end(), 16, 5);
+    for (int i = 0; i < 80; i++) t.push_back(uint8_t(i + 1));
+    j.find(0xc4, 3).payload = t;
+    return j.bytes();
+  });
+  add("huff_oversubscribed_dc", "malformed", "huff_codes", "huff_overflow", "", [] {
+    // 200 one-bit DC codes: the builder writes far past the DC table.
+    Jpeg j = baseJpeg();
+    Bytes t = {0x01, 200};
+    t.insert(t.end(), 15, 0);
+    for (int i = 0; i < 200; i++) t.push_back(uint8_t(i % 12));
+    j.find(0xc4, 2).payload = t;
+    return j.bytes();
+  });
   add("dqt_underflow", "malformed", "dqt", "dqt_underflow", "", [] {
     Jpeg j = baseJpeg();
     Segment& s = j.find(0xdb);
@@ -485,6 +515,12 @@ std::vector<Case> cases() {
   add("sos_bad_length", "malformed", "sos", "sos_ignored", "", [] {
     Jpeg j = baseJpeg();
     j.find(0xda).payload.push_back(0);
+    return j.bytes();
+  });
+  add("sos_table_selector_2", "malformed", "sos", "sos_table_selector", "", [] {
+    // Component 2 selects DC table 2 and AC table 2; decoding would read past usHuffAC.
+    Jpeg j = baseJpeg();
+    j.find(0xda).payload[4] = 0x22;
     return j.bytes();
   });
   // EXIF metadata: the bad block is skipped and the image still decodes.
@@ -592,6 +628,14 @@ std::vector<Case> cases() {
   add("valid_many_segments", "valid", "", "", "", [] {
     Jpeg j = baseJpeg();
     for (int i = 0; i < 120; i++) j.segments.insert(j.segments.begin() + 1, comment(size_t(37 + i * 7)));
+    return j.bytes();
+  });
+  add("valid_complete_code", "valid", "", "", "", [] {
+    // DC table 0 uses all sixteen 4-bit codes, 1111 included: complete, not over-subscribed.
+    Jpeg j = baseJpeg();
+    Segment& s = j.find(0xc4, 0);
+    s.payload[1 + 3] = 16;
+    for (int v = 12; v < 16; v++) s.payload.push_back(uint8_t(v));
     return j.bytes();
   });
   add("valid_trailing_data", "valid", "", "", "", [] {

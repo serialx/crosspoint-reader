@@ -15,8 +15,9 @@ only when that use is unsafe for the current input. Hooks sit after the guard
 code, so the guarded copy must never report. The firmware has no hook.
 Two inherited UB reports that occur for every file are excluded: alignment
 checks are off (the decoder reads unaligned 16-bit words), and
-`ubsan-ignore.txt` exempts the Huffman lookup builder's negative shifts. The
-header parser itself stays fully checked.
+`ubsan-ignore.txt` turns off only the shift-exponent check in the Huffman
+lookup builder (`JPEGMakeHuffTables`), which shifts by a negative count for
+short codes. Its bounds checks and all other checks stay on.
 
 `HeaderGuardTest.cpp` encodes a 24x16 baseline image and builds every input
 from it at run time; there are no binary fixtures. `run_cases.py` runs each
@@ -24,8 +25,9 @@ case in its own process for each copy:
 
 - malformed headers (component counts 0/5/255, short SOF, zero/one-byte
   segments, lengths past the end of the file, truncated segments and markers,
-  a DHT larger than the buffer window, bad DHT ids, DQT underflow, bad scan
-  headers): the shipped decoder returns `JPEG_DECODE_ERROR` with no sanitizer
+  a DHT larger than the buffer window, bad DHT ids including DC 3 and AC 2,
+  Huffman counts that are not a prefix code, DQT underflow, bad scan headers
+  and scan table selectors above 1): the shipped decoder returns `JPEG_DECODE_ERROR` with no sanitizer
   report. The control must reach the named unsafe use; the report records
   whether it then crashed, hung, accepted the header, or failed later;
 - malformed EXIF: the shipped decoder skips the block and decodes the same

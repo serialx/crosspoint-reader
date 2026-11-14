@@ -18,7 +18,8 @@ from pathlib import Path
 PARSED = ('(usMarker == 0xffc0 || usMarker == 0xffc2 || usMarker == 0xffc4 || usMarker == 0xffdb || '
           'usMarker == 0xffdd || usMarker == 0xffda)')
 
-# (anchor line, code inserted before it). Each anchor must occur exactly once in both copies.
+# (anchor line, code inserted before it[, 'all']). An anchor must occur exactly once in both copies, or with 'all'
+# at least once (the duplicates sit in JPEGDEC's uncompiled `#ifdef FUTURE` table builder).
 HOOKS = [
     ('usMarker = MOTOSHORT(&s[iOffset]);',
      'JHG_OBSERVE("marker_unread", iOffset + 4 > iBytesRead);'),
@@ -34,7 +35,13 @@ HOOKS = [
     ('usLen -= 8;', 'JHG_OBSERVE("sof_length_underflow", usLen < 8);'),
     ('usLen -= 3;', 'JHG_OBSERVE("sof_length_underflow", usLen < 3);'),
     ('if (ucTable & 0x10) // convert AC offset of 0x10 into offset of 4',
-     'JHG_OBSERVE("dht_table_id", (ucTable & 0xef) > 3);'),
+     'JHG_OBSERVE("dht_table_id", (ucTable & 0xee) != 0);'),
+    ('pucShort = &pJPEG->ucHuffDC[iTable*DC_TABLE_SIZE];',
+     'JHG_OBSERVE("huff_dc_table", iTable >= 2);'),
+    ('ucCode = *p++;  // get actual huffman code', 'JHG_OBSERVE("huff_overflow", cc >= (1 << iBitNum));', 'all'),
+    ('code = *p++;  // get actual huffman code', 'JHG_OBSERVE("huff_overflow", cc >= (1 << iBitNum));', 'all'),
+    ('pJPEG->JPCI[j].dc_tbl_no = c >> 4;',
+     'JHG_OBSERVE("sos_table_selector", (c >> 4) > 1 || (c & 0xf) > 1);'),
     ('iTableOffset = (ucTable & 0xf) * DCTSIZE;',
      'JHG_OBSERVE("dqt_underflow", usLen < ((ucTable & 0xf0) ? DCTSIZE*2+1 : DCTSIZE+1));'),
     ('iTagCount = TIFFSHORT(&cBuf[iOffset], bMotorola);  /* Number of tags in this dir */',
@@ -51,7 +58,10 @@ HOOKS = [
 
 # One guard hunk disabled per mutant: (old text, new text), each matched exactly once.
 MUTANTS = {
-    'dht_id': [('if ((ucTable & 0xef) > 3)', 'if (0)')],
+    'dht_id': [('if ((ucTable & 0xee) != 0)', 'if (0)')],
+    'dht_id_0_3': [('if ((ucTable & 0xee) != 0)', 'if ((ucTable & 0xef) > 3)')],
+    'huff_codes': [('if (iCodes > (2 << i))', 'if (0)')],
+    'sos_ids': [('if ((c & 0xf) > 1 || (c & 0xf0) > 0x10)', 'if ((c & 0xf) > 3 || (c & 0xf0) > 0x30)')],
     'tiff_bounds': [('if (iOffset > iEnd - 2)', 'if (0)'),
                     ('if (iTagCount * 12 > iEnd - iOffset - 2)', 'if (0)')],
     'marker_read': [('if (iOffset > iBytesRead - 4)', 'if (0)')],
@@ -77,12 +87,13 @@ def replace_once(text, old, new, what):
 
 def observe(text):
     lines = text.split('\n')
-    for anchor, code in HOOKS:
+    for anchor, code, *every in HOOKS:
         hits = [i for i, line in enumerate(lines) if line.strip() == anchor]
-        if len(hits) != 1:
+        if len(hits) != 1 and not (every and hits):
             sys.exit(f'hook anchor {anchor!r}: {len(hits)} matches')
-        indent = lines[hits[0]][:len(lines[hits[0]]) - len(lines[hits[0]].lstrip())]
-        lines[hits[0]:hits[0]] = [indent + c for c in code.split('\n')]
+        for at in reversed(hits):
+            indent = lines[at][:len(lines[at]) - len(lines[at].lstrip())]
+            lines[at:at] = [indent + c for c in code.split('\n')]
     text = '\n'.join(lines)
     text = replace_once(text, 'static int JPEGGetSOS(JPEGIMAGE *pJPEG, int *iOff)\n',
                         'static int JPEGGetSOS_unobserved(JPEGIMAGE *pJPEG, int *iOff)\n', 'SOS wrapper')

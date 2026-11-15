@@ -5,7 +5,11 @@
 struct EspHostStub {
   uint32_t freeHeap = UINT32_MAX;
   uint32_t maxAllocHeap = UINT32_MAX;
-  uint32_t getFreeHeap() const { return freeHeap; }
+  mutable unsigned freeHeapQueries = 0;
+  uint32_t getFreeHeap() const {
+    ++freeHeapQueries;
+    return freeHeap;
+  }
   uint32_t getMaxAllocHeap() const { return maxAllocHeap; }
 };
 

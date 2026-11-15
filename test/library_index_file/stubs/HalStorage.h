@@ -7,42 +7,42 @@
 #include <utility>
 #include <vector>
 
+#include "../../hal_fake_strict.h"
+
 class HalFile {
   friend class HalStorage;
 
  public:
   bool close() {
-    if (!hasImpl) {
-      invalidCloses++;
-      return false;
-    }
+    hal_fake::requireImpl(hasImpl, "close");
     open = false;
     return true;
   }
 
   bool isOpen() const { return hasImpl && open; }
   int read(void* dst, size_t len) {
+    hal_fake::requireImpl(hasImpl, "read");
     if (!isOpen() || !data || position + len > data->size()) return 0;
     std::memcpy(dst, data->data() + position, len);
     position += len;
     return static_cast<int>(len);
   }
-  uint64_t fileSize64() { return data ? data->size() : 0; }
+  uint64_t fileSize64() {
+    hal_fake::requireImpl(hasImpl, "fileSize64");
+    return data ? data->size() : 0;
+  }
   bool seekSet(size_t offset) {
+    hal_fake::requireImpl(hasImpl, "seekSet");
     if (!isOpen() || !data || offset > data->size()) return false;
     position = offset;
     return true;
   }
 
-  static void resetInvalidCloseCount() { invalidCloses = 0; }
-  static int invalidCloseCount() { return invalidCloses; }
-
  private:
-  bool hasImpl = false;
+  hal_fake::Impl hasImpl;  // A move leaves the source without an impl.
   bool open = false;
   const std::vector<uint8_t>* data = nullptr;
   size_t position = 0;
-  static inline int invalidCloses = 0;
 };
 
 class HalStorage {
@@ -54,7 +54,7 @@ class HalStorage {
 
   bool openFileForRead(const char*, const char* path, HalFile& file) {
     file.hasImpl = true;
-    file.open = path == filePath;
+    file.open = *path && path == filePath;
     file.data = file.open ? &fileData : nullptr;
     file.position = 0;
     return file.open;

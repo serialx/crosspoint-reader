@@ -1,0 +1,36 @@
+[package]
+name = "xp-ui"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[features]
+sd-font-catalog = ["xp-layout/sd-font-catalog"]
+legacy-reader-oracles = []
+legacy-keyboard-oracles = []
+legacy-network-oracles = []
+
+[dependencies]
+embedded-graphics-core.workspace = true
+xp-core = { path = "../xp-core" }
+xp-layout = { path = "../xp-layout" }
+
+[[example]]
+name = "dictionary_geometry"
+path = "../../../test/dictionary_ui/rust_oracle.rs"
+
+[[example]]
+name = "dictionary_paint"
+path = "../../../test/dictionary_ui/rust_paint.rs"
+
+[[test]]
+name = "utility_owned"
+path = "../../../test/ui_utility/owned.rs"
+
+[[test]]
+name = "settings_owned"
+path = "../../../test/ui_settings/owned.rs"
+
+[[test]]
+name = "wifi_resources_oracle"
+path = "../../../test/ui_network/resources_oracle.rs"

@@ -1,0 +1,4 @@
+p::first-letter { font-size: 3em; float: left; }
+.chapter p:first-letter { initial-letter: 4 3; }
+p { text-indent: 1em; }
+p::before { content: 'x'; font-weight: bold; }

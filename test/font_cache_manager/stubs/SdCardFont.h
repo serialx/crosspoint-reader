@@ -1,10 +1,14 @@
 #pragma once
 
+#include <EpdFontData.h>
+
 #include <cstdint>
 #include <cstdio>
 
 class SdCardFont {
  public:
+  EpdFontData data{};
+  SdCardFont() { data.glyphMissCtx = this; }
   struct PrewarmCall {
     char text[32] = {};
     uint8_t styleMask = 0;

@@ -1,0 +1,331 @@
+#pragma once
+
+#include <xp_ffi.h>
+
+#include <atomic>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "EpdFont.h"
+#include "EpdFontData.h"
+
+// On-disk binary format version for .cpfont files. Defined as a preprocessor
+// macro (rather than a constexpr) so it can be stringified into the SD-fonts
+// release URL — see FONT_MANIFEST_URL in FontDownloadActivity.h. No integer
+// suffix because stringification would include it (e.g. `4U` → `"4U"`).
+//
+// The canonical version for the build tooling lives in
+// lib/EpdFont/scripts/cpfont_version.py. This firmware-side copy must be
+// bumped manually when the firmware is updated to support a new format.
+// Reader enforcement: SdCardFont::load().
+#define CPFONT_VERSION 4
+
+class SdCardFont {
+ public:
+  static constexpr uint16_t MAX_PAGE_GLYPHS = 512;
+  // Rust prewarm: the bitmap arena did not fit the largest free block.
+  // Distinct from a missed-glyph count so the caller can retry smaller.
+  static constexpr int PREWARM_ARENA_TOO_LARGE = -2;
+  static constexpr uint8_t MAX_STYLES = 4;
+
+  SdCardFont() = default;
+  ~SdCardFont();
+  // Owns raw buffers freed in dtor — no shallow-copy semantics. Make any
+  // accidental pass-by-value or move a compile-time error.
+  SdCardFont(const SdCardFont&) = delete;
+  SdCardFont& operator=(const SdCardFont&) = delete;
+  SdCardFont(SdCardFont&&) = delete;
+  SdCardFont& operator=(SdCardFont&&) = delete;
+
+  // Load .cpfont file: reads header + intervals into RAM, records file layout offsets.
+  // Supports v4 (multi-style) format.
+  // Returns true on success.
+  bool load(const char* path);
+
+  // Pre-read glyphs needed for the given UTF-8 text from SD card.
+  // styleMask: bitmask of styles to prewarm (bit 0=regular, 1=bold, 2=italic, 3=bolditalic).
+  // Default 0x0F = all present styles.
+  // When metadataOnly=true, only glyph metrics are loaded (no bitmap data).
+  // Incremental string prewarms accumulate up to MAX_PAGE_GLYPHS so adjacent
+  // UI labels do not evict each other.
+  // Complete render scans pass accumulate=false: rebuild for this page only,
+  // while retaining buffers and allowing a resident subset hit.
+  // Returns number of glyphs that couldn't be loaded (0 on full success).
+  int prewarm(const char* utf8Text, uint8_t styleMask = 0x0F, bool metadataOnly = false, bool loadKernLig = true,
+              bool accumulate = true);
+
+  // Consumes exactly length borrowed UTF-8 bytes, accumulating residency without kern/ligature loads.
+  int prewarmSpan(const uint8_t* text, size_t length, uint8_t styleMask, bool metadataOnly);
+
+  // Multi-string variant: extracts codepoints from `textCount` strings fetched
+  // one at a time through `getter` (C-style callback: no std::function bloat,
+  // and callers never build a concatenated copy — a heap-tight screen aborting
+  // in a bare-new string append is exactly what this avoids). A null getter
+  // result skips that index. Unique codepoints cap at MAX_PAGE_GLYPHS.
+  // loadKernLig=false skips kern/ligature loading and the mini kern matrix:
+  // UI fallback text (CJK titles) has no useful kern pairs, and the per-rebuild
+  // class-table and matrix work is wasted there. Reader-quality paths keep the default.
+  using TextGetter = const char* (*)(const void* ctx, uint32_t index);
+  int prewarm(TextGetter getter, const void* ctx, uint32_t textCount, uint8_t styleMask = 0x0F,
+              bool metadataOnly = false, bool loadKernLig = true, bool accumulate = true);
+
+  // Build a compact advance-only table for layout measurement.
+  // Extracts ALL unique codepoints from words (no MAX_PAGE_GLYPHS cap),
+  // batch-reads advanceX from SD, stores in a sorted per-style table.
+  // extraText: optional additional codepoints to warm in the same SD pass
+  // (e.g. shaped Arabic presentation forms the measurement path will look up).
+  // Returns number of codepoints not found in font coverage.
+  int buildAdvanceTable(const char* utf8Text, uint8_t styleMask = 0x0F, const char* extraText = nullptr);
+  // Packed variant: each segment holds consecutive NUL-terminated words
+  // (paragraph word-arena chunks), scanned without per-word string objects.
+  // includeSmallCaps also prepares uppercase codepoints for small caps, retaining the originals.
+  int buildAdvanceTablePacked(const char* const* segments, const size_t* segmentLens, size_t segmentCount,
+                              bool includeSpace, bool includeHyphen, uint8_t styleMask = 0x0F,
+                              const char* extraText = nullptr, bool includeSmallCaps = false);
+
+  // Look up advanceX for a codepoint from the advance table.
+  // Returns the 12.4 fixed-point advance, or 0 if not found.
+  uint16_t getAdvance(uint32_t codepoint, uint8_t style) const;
+
+  // Returns true if advance table is populated for at least one style.
+  bool hasAdvanceTable() const;
+  void metricViews(XpNativeFamily& family) const;
+
+  // Free mini data for all styles and restore stub EpdFontData.
+  // Preserves the persistent advance cache so repeated layout passes can reuse
+  // previously fetched metrics.
+  void clearCache();
+
+  // Drop the persistent advance cache. Call when unloading the SD font or
+  // when font/size/family/glyph-table state changes, or to recover a failed bitmap allocation.
+  void clearPersistentCache();
+
+  // Release every rebuildable cache while keeping the font loaded and usable:
+  // mini glyph/kern arenas, ligature tables, the overflow ring, and
+  // the persistent advance tables. Coverage intervals stay so hasCodepoint()
+  // and reloads keep working; glyphs fault back in on demand and the next
+  // prewarm rebuilds the arenas. For heap-critical transitions (e.g. starting
+  // WiFi + the web server), where retained font data is the difference between
+  // a clean start and an OOM abort.
+  void releaseResidentCaches();
+
+  // Returns pointer to the managed EpdFont for a given style.
+  // Returns nullptr if the style is not present.
+  EpdFont* getEpdFont(uint8_t style = 0);
+
+  // Returns true if the given style is present in this font file.
+  bool hasStyle(uint8_t style) const;
+
+  // Resolve requested style bits to the closest present style.
+  uint8_t resolveStyle(uint8_t style) const;
+
+  // Resolve every requested style bit through fallback and return the actual
+  // styles that need cache/advance preparation.
+  uint8_t resolveStyleMask(uint8_t styleMask) const;
+
+  // Number of styles present in this font file.
+  uint8_t styleCount() const { return styleCount_; }
+
+  void bitmapView(const EpdFontData* font, XpGlyphSource& source) const;
+
+  // Returns true if the glyph pointer points into the overflow buffer.
+  bool isOverflowGlyph(const EpdGlyph* glyph) const;
+
+  // Returns the bitmap for an on-demand-loaded (overflow) glyph.
+  const uint8_t* getOverflowBitmap(const EpdGlyph* glyph) const;
+
+  // Extract SdCardFont* from an opaque glyphMissCtx pointer.
+  // Used by the temporary SD bitmap leaf to recover the font for overflow bitmaps.
+  static SdCardFont* fromMissCtx(void* ctx);
+
+  // True once after a loaded font first hits a corrupt glyph entry, so the UI can tell the user.
+  static bool takeCorruptGlyphNotice() { return corruptGlyphNotice_.exchange(false); }
+
+  struct Stats {
+    uint32_t prewarmTotalMs = 0;
+    uint32_t sdReadTimeMs = 0;
+    uint32_t seekCount = 0;
+    uint32_t uniqueGlyphs = 0;
+    uint32_t bitmapBytes = 0;
+  };
+  void resetStats();
+  const Stats& getStats() const { return stats_; }
+
+  // Content hash of the file header + style TOC entries (computed during load).
+  // Used to generate deterministic font IDs for section cache invalidation.
+  uint32_t contentHash() const { return contentHash_; }
+
+ private:
+  // Per-style metadata (parsed from file header/TOC)
+  using CpFontHeader = XpSdfontHeader;
+
+  // Stable slots borrowed by Rust sdfont::pool::Resident; layout is ABI-tested.
+  // C++ loads file metadata; Rust owns cache mutations and buffer lifetimes.
+  struct PerStyle {
+    CpFontHeader header{};
+
+    // File layout offsets for this style's data sections
+    uint32_t intervalsFileOffset = 0;
+    uint32_t glyphsFileOffset = 0;
+    uint32_t kernLeftFileOffset = 0;
+    uint32_t kernRightFileOffset = 0;
+    uint32_t kernMatrixFileOffset = 0;
+    uint32_t ligatureFileOffset = 0;
+    uint32_t bitmapFileOffset = 0;
+
+    // Full intervals loaded from file (kept in RAM for codepoint lookup)
+    EpdUnicodeInterval* fullIntervals = nullptr;
+    EPD_PACKED_BEGIN
+    struct BmpInterval16 {
+      uint16_t first;
+      uint16_t last;
+      uint16_t offset;
+    } EPD_PACKED_ATTR;
+    EPD_PACKED_END
+    static_assert(sizeof(BmpInterval16) == 6, "BmpInterval16 must remain compact");
+    BmpInterval16* bmpIntervals = nullptr;
+    bool intervalsAreBmp16 = false;
+    // The table may be shared with other styles and other loaded fonts; released by the Rust loader.
+
+    // Ligature table (lazy-loaded on first prewarm). No kern table is resident:
+    // the Rust kern builder reads the class-table blocks (~3KB per side per style
+    // in total) and the matrix rows it needs from SD for each page.
+    EpdLigaturePair* ligaturePairs = nullptr;
+    bool ligaturesLoaded = false;
+    // First codepoint of each block of the left, then the right, kern class table,
+    // each followed by the table's last codepoint. Sized at load so it sits with the
+    // other load-time tables, and filled by the first full read so later pages read
+    // only the blocks holding their codepoints.
+    uint16_t* kernBlockIndex = nullptr;
+    bool kernBlockIndexReady = false;
+
+    // Stub EpdFontData returned when not prewarmed
+    EpdFontData stubData{};
+
+    // Rust retains buffers and loaded data across scopes, so idle prewarm can
+    // serve the next turn without I/O. Buffers grow only when capacity is short;
+    // heap pressure and three underused rebuilds release oversized arenas.
+    EpdFontData miniData{};
+    EpdUnicodeInterval* miniIntervals = nullptr;
+    EpdGlyph* miniGlyphs = nullptr;
+    uint8_t* miniBitmap = nullptr;
+    uint32_t miniIntervalCount = 0;
+    uint32_t miniGlyphCount = 0;
+    uint32_t miniIntervalCapacity = 0;
+    uint32_t miniGlyphCapacity = 0;
+    uint32_t miniBitmapCapacity = 0;
+    // Bitmap bytes the current page actually used (set by Rust prewarm), the
+    // underuse-hysteresis signal; 0 = no bitmap built this scope (metadata-only
+    // prewarm), which leaves the hysteresis counter untouched.
+    uint32_t miniBitmapUsed = 0;
+    // Exact bitmap bytes per glyph of the last requested set, for the arena retry.
+    uint32_t measuredBytesPerGlyph = 0;
+    uint8_t miniUnderuseRuns = 0;
+    // True when the resident mini was built metadata-only (no bitmaps): it can
+    // serve metadata requests but a full render request must rebuild.
+    bool miniMetadataOnly = false;
+    // Only a rebuild contributes an underuse sample; subset hits retain it.
+    bool miniHysteresisPending = false;
+
+    // Per-page mini kern matrix (built by the Rust kern builder on each full
+    // prewarm). miniKernLeftClasses/miniKernRightClasses map ONLY the codepoints
+    // used on the current page to renumbered class IDs (1..miniKern*ClassCount).
+    // miniKernMatrix is a small miniKernLeftClassCount × miniKernRightClassCount
+    // flat matrix. Typical Latin page: ~25×25 matrix = ~625 bytes per style vs
+    // ~36KB for the full Literata matrix — ~50× reduction.
+    EpdKernClassEntry* miniKernLeftClasses = nullptr;
+    EpdKernClassEntry* miniKernRightClasses = nullptr;
+    uint16_t miniKernLeftEntryCount = 0;
+    uint16_t miniKernRightEntryCount = 0;
+    uint8_t miniKernLeftClassCount = 0;
+    uint8_t miniKernRightClassCount = 0;
+    int8_t* miniKernMatrix = nullptr;
+    // Kept-if-fits capacities, same rationale as the mini glyph buffers above.
+    uint16_t miniKernLeftCapacity = 0;
+    uint16_t miniKernRightCapacity = 0;
+    uint32_t miniKernMatrixCapacity = 0;
+    // True once the mini kern tables match the resident mini glyph set (possibly
+    // with no pairs). Subset hits skip the rebuild, which streams from SD.
+    bool miniKernBuilt = false;
+
+    // The EpdFont whose data pointer we manage
+    EpdFont epdFont{&stubData};
+  };
+
+  // Allocated once per load; EpdFont pointers remain stable until unload.
+  std::unique_ptr<PerStyle[]> styles_;
+  // Zero means absent; present styles store their array slot plus one.
+  uint8_t styleSlots_[MAX_STYLES] = {};
+  PerStyle& styleData(uint8_t style) { return styles_[styleSlots_[style] - 1]; }
+  const PerStyle& styleData(uint8_t style) const { return styles_[styleSlots_[style] - 1]; }
+  uint8_t styleCount_ = 0;
+
+  char filePath_[128] = {};
+
+  // Overflow context: glyphMissHandler needs to know which style it's serving
+  struct OverflowContext {
+    SdCardFont* self;
+    uint8_t styleIdx;
+  };
+  OverflowContext overflowCtx_[MAX_STYLES] = {};
+
+  // Shared on-demand overflow buffer (ring buffer of glyphs loaded via glyphMissHandler)
+  static constexpr uint32_t OVERFLOW_CAPACITY = 8;
+  struct OverflowEntry {
+    EpdGlyph glyph;
+    uint8_t* bitmap = nullptr;
+    uint32_t codepoint = 0;
+    uint8_t styleIdx = 0;
+  };
+  OverflowEntry overflow_[OVERFLOW_CAPACITY] = {};
+  uint32_t overflowCount_ = 0;
+  uint32_t overflowNext_ = 0;
+
+  // Compact advance-only table for layout measurement (per-style).
+  // Built by buildAdvanceTable(), queried by getAdvance().
+  struct AdvanceEntry {
+    uint32_t codepoint;
+    uint16_t advanceX;  // 12.4 fixed-point
+  };
+  // Per-style advance table. Sorted by codepoint for binary lookup.
+  // Bounded to ADVANCE_CACHE_LIMIT entries; persists across layout passes
+  // (across calls to clearCache()) so repeated indexing of the same font
+  // amortizes SD reads. Cleared only on font unload or clearPersistentCache().
+  static constexpr uint32_t ADVANCE_CACHE_LIMIT = 768;
+  AdvanceEntry* advanceTable_[MAX_STYLES] = {};
+  uint32_t advanceTableSize_[MAX_STYLES] = {};
+  // Allocated entries. Merges fill spare capacity in place, and growth doubles it,
+  // so a table moves a few times per section instead of on every layout pass.
+  uint32_t advanceTableCapacity_[MAX_STYLES] = {};
+
+  bool advanceTableLookup(uint8_t style, uint32_t cp, uint16_t* outAdvance) const;
+
+  Stats stats_;
+  uint32_t contentHash_ = 0;
+  uint32_t fileSize_ = 0;  // bounds glyph bitmap offsets in the Rust cache
+  uint8_t corruptGlyphsLogged_ = 0;
+  static inline std::atomic<bool> corruptGlyphNotice_{false};
+  bool loaded_ = false;
+
+  struct LoadIo;
+  static XpSdfontLoadServices loadServices(LoadIo*);
+  struct PoolIo;
+  XpSdfontPool cacheView(const XpSdfontServices* services = nullptr) const;
+  static XpSdfontServices cacheServices(PoolIo* io);
+
+  // Per-style helpers
+
+  void applyGlyphMissCallback(uint8_t styleIdx);
+
+  // Global helpers
+  void freeAll();
+
+  // Static callback for EpdFontData::glyphMissHandler (per-style via OverflowContext)
+  static const EpdGlyph* onGlyphMiss(void* ctx, uint32_t codepoint);
+
+  // Static callback for EpdFontData::coverageHandler: answers hasCodepoint()
+  // from the RAM-resident full interval table, without SD I/O.
+  static bool onCoverageQuery(void* ctx, uint32_t codepoint);
+};

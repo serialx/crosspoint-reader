@@ -1,0 +1,14 @@
+[package]
+name = "vector-owner-host"
+version = "0.1.0"
+edition = "2021"
+publish = false
+[workspace]
+[lib]
+crate-type = ["staticlib"]
+path = "native.rs"
+[dependencies]
+xp-core = { path = "../../../rust/crates/xp-core", features = ["vector-owner-test"] }
+[profile.release]
+opt-level = "s"
+panic = "abort"

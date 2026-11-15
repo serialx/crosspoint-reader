@@ -1,0 +1,180 @@
+case 0 stored=0 pending=0 async=0
+lock
+unlock
+state stored=0 pending=0 depth=0
+case 0 stored=1 pending=0 async=0
+lock
+discard 1
+unlock
+state stored=0 pending=0 depth=0
+case 0 stored=0 pending=1 async=0
+lock
+unlock
+state stored=0 pending=1 depth=0
+case 0 stored=1 pending=1 async=0
+lock
+discard 1
+unlock
+state stored=0 pending=1 depth=0
+case 0 stored=0 pending=0 async=1
+lock
+unlock
+state stored=0 pending=0 depth=0
+case 0 stored=1 pending=0 async=1
+lock
+discard 1
+unlock
+state stored=0 pending=0 depth=0
+case 0 stored=0 pending=1 async=1
+lock
+unlock
+state stored=0 pending=1 depth=0
+case 0 stored=1 pending=1 async=1
+lock
+discard 1
+unlock
+state stored=0 pending=1 depth=0
+case 1 stored=0 pending=0 async=0
+lock
+supports-async 0 1
+sync 1 1
+unlock
+state stored=0 pending=0 depth=0
+case 1 stored=1 pending=0 async=0
+lock
+supports-async 0 1
+sync 1 1
+unlock
+state stored=1 pending=0 depth=0
+case 1 stored=0 pending=1 async=0
+lock
+supports-async 0 1
+sync 1 1
+unlock
+state stored=0 pending=1 depth=0
+case 1 stored=1 pending=1 async=0
+lock
+supports-async 0 1
+sync 1 1
+unlock
+state stored=1 pending=1 depth=0
+case 1 stored=0 pending=0 async=1
+lock
+supports-async 1 1
+async 1 1
+unlock
+state stored=0 pending=1 depth=0
+case 1 stored=1 pending=0 async=1
+lock
+supports-async 1 1
+async 1 1
+unlock
+state stored=1 pending=1 depth=0
+case 1 stored=0 pending=1 async=1
+lock
+supports-async 1 1
+async 1 1
+unlock
+state stored=0 pending=1 depth=0
+case 1 stored=1 pending=1 async=1
+lock
+supports-async 1 1
+async 1 1
+unlock
+state stored=1 pending=1 depth=0
+case 2 stored=0 pending=0 async=0
+lock
+unlock
+state stored=0 pending=0 depth=0
+case 2 stored=1 pending=0 async=0
+lock
+unlock
+state stored=1 pending=0 depth=0
+case 2 stored=0 pending=1 async=0
+lock
+cleanup 1
+unlock
+state stored=0 pending=0 depth=0
+case 2 stored=1 pending=1 async=0
+lock
+cleanup 1
+unlock
+state stored=1 pending=0 depth=0
+case 2 stored=0 pending=0 async=1
+lock
+unlock
+state stored=0 pending=0 depth=0
+case 2 stored=1 pending=0 async=1
+lock
+unlock
+state stored=1 pending=0 depth=0
+case 2 stored=0 pending=1 async=1
+lock
+cleanup 1
+unlock
+state stored=0 pending=0 depth=0
+case 2 stored=1 pending=1 async=1
+lock
+cleanup 1
+unlock
+state stored=1 pending=0 depth=0
+case 3 stored=0 pending=0 async=0
+lock
+popup 1
+supports-async 0 1
+sync 1 1
+unlock
+state stored=0 pending=0 depth=0
+case 3 stored=1 pending=0 async=0
+lock
+popup 1
+supports-async 0 1
+sync 1 1
+unlock
+state stored=1 pending=0 depth=0
+case 3 stored=0 pending=1 async=0
+lock
+cleanup 1
+popup 1
+supports-async 0 1
+sync 1 1
+unlock
+state stored=0 pending=0 depth=0
+case 3 stored=1 pending=1 async=0
+lock
+cleanup 1
+popup 1
+supports-async 0 1
+sync 1 1
+unlock
+state stored=1 pending=0 depth=0
+case 3 stored=0 pending=0 async=1
+lock
+popup 1
+supports-async 1 1
+async 1 1
+unlock
+state stored=0 pending=1 depth=0
+case 3 stored=1 pending=0 async=1
+lock
+popup 1
+supports-async 1 1
+async 1 1
+unlock
+state stored=1 pending=1 depth=0
+case 3 stored=0 pending=1 async=1
+lock
+cleanup 1
+popup 1
+supports-async 1 1
+async 1 1
+unlock
+state stored=0 pending=1 depth=0
+case 3 stored=1 pending=1 async=1
+lock
+cleanup 1
+popup 1
+supports-async 1 1
+async 1 1
+unlock
+state stored=1 pending=1 depth=0

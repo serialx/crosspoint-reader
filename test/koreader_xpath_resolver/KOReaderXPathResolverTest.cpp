@@ -85,6 +85,24 @@ TEST(KOReaderXPathResolver, CountsUtf8CodepointsInsteadOfBytes) {
             "/body/DocFragment[1]/body/p[1]/text()[1].3");
 }
 
+TEST(KOReaderXPathResolver, ResolvesUtf16TextAcrossFullConversionBuffers) {
+  std::u16string xhtml = u"<?xml version=\"1.0\" encoding=\"UTF-16\"?><html><body><p>";
+  // Interior 1024-byte input chunks fill Expat's 1024-byte UTF-8 buffer with 512 pairs.
+  xhtml.append(4096, u'\u00E9');
+  xhtml += u"</p></body></html>";
+  std::string utf16 = "\xFF\xFE";
+  for (const char16_t unit : xhtml) {
+    utf16.push_back(static_cast<char>(unit & 0xFF));
+    utf16.push_back(static_cast<char>(unit >> 8));
+  }
+  const auto epub = epubWith(std::move(utf16));
+
+  EXPECT_EQ(ChapterXPathResolver::findXPathForVisibleTextOffset(epub, 0, 2048),
+            "/body/DocFragment[1]/body/p[1]/text()[1].2048");
+  EXPECT_EQ(ChapterXPathResolver::findXPathForProgress(epub, 0, 0.5f), "/body/DocFragment[1]/body/p[1]/text()[1].2048");
+  EXPECT_EQ(ChapterXPathResolver::findXPathForProgress(epub, 0, 1.0f), "/body/DocFragment[1]/body/p[1]/text()[1].4096");
+}
+
 TEST(KOReaderXPathResolver, SplitsTextNodesAroundComments) {
   const auto epub = epubWith(kCommentBoundaryFixture);
 

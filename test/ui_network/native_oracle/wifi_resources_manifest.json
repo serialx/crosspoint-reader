@@ -1,0 +1,14 @@
+{
+  "parent": "58ff4e0b195a889aa716a54d5f7ed1ea2f9d5e77",
+  "tie_decision": "msg_c4aa3aa138ba: tied saved/RSSI rows keep first scan order; no GCC permutation port",
+  "files": {
+    "wifi_truncated_text.txt": "06da2ab7cd51300c033ec422f1350553e7d98bebebaea5e08f9c31a37b3f0cdf",
+    "wifi_sort_cases.json": "4c2f8adb7b92cc4d6c7452e0e91c37496a7199e78b9b00060bdef5331d767be7"
+  },
+  "native_source": {
+    "path": "lib/GfxRenderer/GfxRenderer.cpp",
+    "function": "GfxRenderer::truncatedText",
+    "sha256": "a482d8cf76d4ddf1811449384619228585f448baa96d7c4c25a123c37ab461af"
+  },
+  "scope": "Test inputs, never a shipping include or compilation unit. Sort case JSON is the frozen CP0 input; the human tie rule supersedes its GCC fallback/permutation requirement."
+}

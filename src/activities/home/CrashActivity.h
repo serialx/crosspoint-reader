@@ -1,12 +1,12 @@
 #pragma once
-#include "activities/Activity.h"
+#include "activities/boot_sleep/BootUiActivity.h"
 
-class CrashActivity final : public Activity {
+class CrashActivity final : public BootUiActivity {
   std::string panicMessage;
 
  public:
   explicit CrashActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
-      : Activity("Crash", renderer, mappedInput) {}
+      : BootUiActivity("Crash", renderer, mappedInput) {}
   void onEnter() override;
   void loop() override;
   void render(RenderLock&&) override;

@@ -25,6 +25,7 @@ class Xtc {
   std::string cachePath;
   std::unique_ptr<xtc::XtcParser> parser;
   bool loaded;
+  bool generateImage(bool, int) const;
 
  public:
   explicit Xtc(std::string filepath, const std::string& cacheDir) : filepath(std::move(filepath)), loaded(false) {
@@ -58,7 +59,7 @@ class Xtc {
   std::string getTitle() const;
   std::string getAuthor() const;
   bool hasChapters() const;
-  const std::vector<xtc::ChapterInfo>& getChapters();
+  std::span<const XpXtcChapterRow> getChapters();
 
   // Cover image support (for sleep screen)
   std::string getCoverBmpPath() const;

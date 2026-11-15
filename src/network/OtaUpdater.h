@@ -1,14 +1,13 @@
 #pragma once
 
+#include <xp_ota.h>
+
 #include <string>
 
 class OtaUpdater {
-  bool updateAvailable = false;
+  XpOtaState state{};
   std::string latestVersion;
   std::string otaUrl;
-  size_t otaSize = 0;
-  size_t processedSize = 0;
-  size_t totalSize = 0;
 
  public:
   using ProgressCallback = void (*)(void* ctx);
@@ -24,11 +23,11 @@ class OtaUpdater {
     WRONG_DEVICE_ERROR,
   };
 
-  size_t getOtaSize() const { return otaSize; }
+  size_t getOtaSize() const { return state.size; }
 
-  size_t getProcessedSize() const { return processedSize; }
+  size_t getProcessedSize() const { return state.processed; }
 
-  size_t getTotalSize() const { return totalSize; }
+  size_t getTotalSize() const { return state.total; }
 
   OtaUpdater() = default;
   bool isUpdateNewer() const;

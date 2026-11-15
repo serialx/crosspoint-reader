@@ -1,0 +1,9 @@
+ background-color: #eee; 
+ background-color: #fff; 
+ background: black; 
+ background: rgb(200, 200, 200) url(x.png) no-repeat; 
+ border-bottom: 1px; 
+ border-left-width: 3pt; border-left-style: dashed; 
+ border-top: thick double; 
+ border-width: 2px 0; border-style: solid; 
+ border: 1px solid #000; 

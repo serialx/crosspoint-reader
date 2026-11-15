@@ -39,7 +39,7 @@ std::string decodeUriEscapes(const std::string& path) {
   return decoded;
 }
 
-std::string normalisePath(const std::string& path) {
+std::string normalisePath(std::string_view path) {
   std::vector<std::string_view> components;
   components.reserve(8);  // Eight nested folders is more than we might expect
 
@@ -168,8 +168,6 @@ bool hasImageExtension(std::string_view fileName) {
   return hasBmpExtension(fileName) || hasPngExtension(fileName) || hasJpgExtension(fileName);
 }
 
-bool hasGifExtension(std::string_view fileName) { return checkFileExtension(fileName, ".gif"); }
-
 bool hasEpubExtension(std::string_view fileName) { return checkFileExtension(fileName, ".epub"); }
 
 bool hasXtcExtension(std::string_view fileName) {
@@ -183,8 +181,6 @@ bool hasMarkdownExtension(std::string_view fileName) { return checkFileExtension
 bool hasReflowableBookExtension(std::string_view fileName) {
   return hasEpubExtension(fileName) || hasTxtExtension(fileName) || hasMarkdownExtension(fileName);
 }
-
-bool hasCssExtension(std::string_view fileName) { return checkFileExtension(fileName, ".css"); }
 
 std::string extractFolderPath(const std::string& filePath) {
   const auto lastSlash = filePath.find_last_of('/');

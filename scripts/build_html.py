@@ -1,3 +1,4 @@
+import argparse
 import os
 import re
 import gzip
@@ -67,6 +68,20 @@ def sanitize_identifier(name: str) -> str:
         sanitized = f"_{sanitized}"
     return sanitized
 
+def resolve_output_root():
+    """Read --output-root from a standalone run only: the firmware pre-build
+    execs this file under SCons, whose argv holds the PlatformIO flags."""
+    if __name__ != "__main__":
+        return os.curdir
+    parser = argparse.ArgumentParser(description="Generate PROGMEM headers for web assets.")
+    parser.add_argument("--output-root", default=os.curdir,
+                        help="Write generated headers under this directory, mirroring their path below "
+                             "the source root (default: the source tree, used by the firmware pre-build).")
+    return parser.parse_args().output_root
+
+
+output_root = resolve_output_root()
+
 for root, _, files in os.walk(SRC_DIR):
     for file in files:
         if file.endswith(tuple(ASSET_SUFFIXES)):
@@ -90,7 +105,8 @@ for root, _, files in os.walk(SRC_DIR):
             # Use appropriate suffix based on file type
             suffix = ASSET_SUFFIXES[os.path.splitext(file)[1]]
             base_name = sanitize_identifier(f"{os.path.splitext(file)[0]}{suffix}")
-            header_path = os.path.join(root, f"{base_name}.generated.h")
+            header_path = os.path.normpath(os.path.join(output_root, root, f"{base_name}.generated.h"))
+            os.makedirs(os.path.dirname(header_path), exist_ok=True)
 
             with open(header_path, "w", encoding="utf-8") as h:
                 h.write(HEADER_PREAMBLE)

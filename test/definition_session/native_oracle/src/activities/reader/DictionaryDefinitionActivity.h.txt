@@ -1,0 +1,57 @@
+  explicit DictionaryDefinitionActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, std::string headword,
+                                        std::string definition, bool htmlDefinition = false)
+      : RustActivityAdapter("DictionaryDefinition", renderer, mappedInput),
+        content{.headword = std::move(headword), .text = std::move(definition)},
+        htmlDefinition(htmlDefinition) {}
+
+  bool enableLookup(Dictionary& dictionary, std::string&& query);
+
+
+struct Line {
+    uint32_t start;
+    uint16_t len;
+    bool bold;
+  };
+
+struct BodyArea {
+    int x;
+    int y;
+    int width;
+    int height;
+  };
+
+struct Definition {
+    std::string headword;
+    std::string text;
+    std::vector<std::unique_ptr<Page>> pages;
+    std::vector<Line> lines;
+    int currentPage = 0;
+    int totalPages = 1;
+    int linesPerPage = 1;
+    int selectionPage = 0;
+    ClipSelectionActivity::Selection selection;
+
+    void releasePayload() {
+      std::string{}.swap(text);
+      std::vector<std::unique_ptr<Page>>{}.swap(pages);
+      std::vector<Line>{}.swap(lines);
+    }
+  };
+
+struct HistoryEntry {
+    DefinitionQuery query;
+    int page = 0;
+    int selectionPage = 0;
+    ClipSelectionActivity::Selection selection;
+    bool styled = false;
+  };
+
+struct LookupState {
+    explicit LookupState(Dictionary& dictionary) : dictionary(dictionary) {}
+    Dictionary& dictionary;  // Owned by the retained Rust lookup parent.
+    std::array<HistoryEntry, 16> history;
+    size_t depth = 0;
+    DefinitionQuery query;
+    DefinitionQuery pendingWord;
+    std::vector<std::unique_ptr<Page>> selectionPages;
+  };

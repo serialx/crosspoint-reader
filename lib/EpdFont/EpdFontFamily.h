@@ -1,4 +1,6 @@
 #pragma once
+#include <xp_font_registry.h>
+
 #include "EpdFont.h"
 
 class EpdFontFamily {
@@ -12,8 +14,8 @@ class EpdFontFamily {
     BOLD = 1,
     ITALIC = 2,
     BOLD_ITALIC = 3,
-    UNDERLINE = 4,       // drawn as a line below baseline by TextBlock::render()
-    STRIKETHROUGH = 8,   // drawn as a line through midline by TextBlock::render()
+    UNDERLINE = 4,       // drawn as a line below baseline by the page renderer
+    STRIKETHROUGH = 8,   // drawn as a line through midline by the page renderer
     SUP = 16,            // superscript: glyph scaled 50%, raised ~40% of ascender
     SUB = 32,            // subscript: glyph scaled 50%, lowered ~25% of ascender
     RUBY_CONTINUE = 64,  // Group ruby follower marker (used internally by Epub layout)
@@ -27,6 +29,17 @@ class EpdFontFamily {
   ~EpdFontFamily() = default;
   void getTextDimensions(const char* string, int* w, int* h, Style style = REGULAR) const;
   const EpdFontData* getData(Style style = REGULAR) const;
+  // Slots alias EpdFont::data cells; their owners stay at stable addresses until unregister.
+  XpRegisteredFont registration(int id) const {
+    static_assert(sizeof(EpdFont) == sizeof(const EpdFontData*));
+    static_assert(offsetof(EpdFont, data) == 0);
+    return {id,
+            {reinterpret_cast<const void* const*>(regular), reinterpret_cast<const void* const*>(bold),
+             reinterpret_cast<const void* const*>(italic), reinterpret_cast<const void* const*>(boldItalic)},
+            0};
+  }
+  // The EpdFont owner is stable during a synchronous draw; its tables may change.
+  const EpdFontData* const* getDataSlot(Style style) const { return &getFont(style)->data; }
   const EpdGlyph* getGlyph(uint32_t cp, Style style = REGULAR) const;
   const EpdGlyph* getGlyphMetrics(uint32_t cp, EpdGlyph& solidFallback, Style style = REGULAR) const {
     return getFont(style)->getGlyphMetrics(cp, solidFallback);

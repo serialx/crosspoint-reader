@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -45,6 +46,13 @@ TEST(LibraryFold, BothNormalisationsAgree) {
     EXPECT_EQ(fold(p.nfd), p.expected) << "NFD input: " << p.nfd;
     EXPECT_EQ(fold(p.nfc), fold(p.nfd)) << "forms disagree for " << p.expected;
   }
+}
+
+TEST(LibraryFold, ExactUnterminatedTwoByteCharacter) {
+  auto input = std::make_unique<char[]>(2);
+  input[0] = '\xC3';
+  input[1] = '\xA9';
+  EXPECT_EQ(fold(std::string_view(input.get(), 2)), "e");
 }
 
 TEST(LibraryFold, LettersWithoutCanonicalDecomposition) {

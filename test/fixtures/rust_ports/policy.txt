@@ -1,0 +1,6 @@
+table Reader PORTS Ports ports.h # Recorded 32-bit GNU readelf fixture.
+inherited Reader.bidi R1 # Bidi wrapper inherited before R1.
+inherited xp_keyboard_metrics R1 # Direct import inherited before R1.
+physical Reader.panel xp_panel # Panel HAL continuation, bound to this root and export.
+import xp_native_bidi_acquire # Acquires the native workspace; no callback parameters.
+import xp_keyboard_metrics # Keyboard metrics; no callback parameters.

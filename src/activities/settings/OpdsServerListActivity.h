@@ -1,8 +1,6 @@
 #pragma once
 
-#include <vector>
-
-#include "activities/UiListActivity.h"
+#include "activities/CatalogUiActivity.h"
 #include "components/OptionPopup.h"
 
 /**
@@ -11,7 +9,7 @@
  * When pickerMode is true, selecting a server navigates to the OPDS browser
  * instead of opening the editor (used from the home screen).
  */
-class OpdsServerListActivity final : public UiListActivity {
+class OpdsServerListActivity final : public CatalogUiActivity {
  public:
   explicit OpdsServerListActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, bool pickerMode = false);
 
@@ -20,7 +18,7 @@ class OpdsServerListActivity final : public UiListActivity {
 
  private:
   int listCount() const override { return getItemCount(); }
-  void buildScreen(UiScreen& screen) override;
+  bool rowAt(int index, XpUiCatalogRow& row) const override;
   void activateIndex(int index) override;
   // Popup input goes first; while it is open it consumes the pass.
   bool handleCustomInput() override;
@@ -28,15 +26,7 @@ class OpdsServerListActivity final : public UiListActivity {
   void onBackButton() override;
   const char* headerTitle() const override;
 
-  bool pickerMode = false;
   OptionPopup optionPopup;
-
-  // Row structure (labels, actionValue; server subtitles), rebuilt only when
-  // the server list itself reloads (rebuildRowItems(), called from onEnter()
-  // and after returning from the server editor) — not on every repaint. The
-  // folder/format rows' live subtitle is refreshed in place by buildScreen().
-  std::vector<freeink::ui::ListItem> rowItems_;
-  void rebuildRowItems();
 
   int getItemCount() const;
   void handleSelection();

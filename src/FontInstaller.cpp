@@ -8,7 +8,7 @@
 
 #include "CrossPointSettings.h"
 
-FontInstaller::FontInstaller(SdCardFontRegistry& registry) : registry_(registry) {}
+FontInstaller::FontInstaller(FontInstallCatalog& registry) : registry_(registry) {}
 
 bool FontInstaller::isValidFamilyName(const char* name) {
   if (name == nullptr || name[0] == '\0') return false;
@@ -63,9 +63,13 @@ bool FontInstaller::isValidVectorFontFilename(const char* name) {
 bool FontInstaller::ensureFamilyDir(const char* familyName) {
   // Reuse the family's existing root if installed; otherwise pick the
   // default-write root (hidden if no roots exist yet).
-  const char* root = SdCardFontRegistry::findFamilyRoot(familyName);
-  if (!root) root = SdCardFontRegistry::defaultWriteRoot();
+  const char* root = registry_.findFamilyRoot(familyName);
+  if (!root) root = registry_.defaultWriteRoot();
 
+  return ensureFamilyDirAt(root, familyName);
+}
+
+bool FontInstaller::ensureFamilyDirAt(const char* root, const char* familyName) {
   if (!Storage.exists(root)) {
     if (!Storage.mkdir(root)) {
       LOG_ERR("FONT", "Failed to create fonts dir: %s", root);
@@ -109,11 +113,11 @@ bool FontInstaller::validateCpfontFile(const char* path) {
   return true;
 }
 
-void FontInstaller::buildFontPath(const char* family, const char* filename, char* outBuf, size_t outBufSize) {
+void FontInstaller::buildFontPath(const char* family, const char* filename, char* outBuf, size_t outBufSize) const {
   // Use the same root selection as ensureFamilyDir: existing install dir wins,
   // otherwise the default-write root.
-  const char* root = SdCardFontRegistry::findFamilyRoot(family);
-  if (!root) root = SdCardFontRegistry::defaultWriteRoot();
+  const char* root = registry_.findFamilyRoot(family);
+  if (!root) root = registry_.defaultWriteRoot();
   snprintf(outBuf, outBufSize, "%s/%s/%s", root, family, filename);
 }
 
@@ -123,7 +127,7 @@ FontInstaller::Error FontInstaller::deleteFamily(const char* familyName) {
   }
 
   // A family may exist in either root (or, edge case, both). Remove from both.
-  const char* roots[] = {SdCardFontRegistry::FONTS_DIR_HIDDEN, SdCardFontRegistry::FONTS_DIR_VISIBLE};
+  const char* roots[] = {FontInstallCatalog::FONTS_DIR_HIDDEN, FontInstallCatalog::FONTS_DIR_VISIBLE};
   bool removedAny = false;
   bool sawAny = false;
   for (const char* root : roots) {
@@ -155,6 +159,4 @@ FontInstaller::Error FontInstaller::deleteFamily(const char* familyName) {
 
 void FontInstaller::refreshRegistry() { registry_.discover(); }
 
-bool FontInstaller::isFamilyInstalled(const char* familyName) const {
-  return registry_.findFamily(familyName) != nullptr;
-}
+bool FontInstaller::isFamilyInstalled(const char* familyName) const { return bool(registry_.findFamily(familyName)); }

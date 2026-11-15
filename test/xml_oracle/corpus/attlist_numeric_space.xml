@@ -1,0 +1,1 @@
+<!DOCTYPE r [<!ATTLIST r a NMTOKENS #IMPLIED>]><r a=" a &#32;  b &#9; "/>

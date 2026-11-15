@@ -1,0 +1,1 @@
+p { font-weight:bold; font-style:italic; }#inherited { font-weight:inherit; font-style:INHERIT; }.inherited { font-weight:normal; font-style:normal; }.last { font-weight:bold; font-weight:inherit; font-style:italic; font-style:inherit; }.normal { font-weight:inherit; font-weight:normal; font-style:inherit; font-style:normal; }

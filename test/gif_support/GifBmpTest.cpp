@@ -50,7 +50,7 @@ class GifBmpTest : public ::testing::Test {
     std::filesystem::remove(path);
   }
   void open(const std::vector<uint8_t>& bytes) {
-    file.close();
+    if (file) file.close();
     {
       std::ofstream out(path, std::ios::binary);
       out.write(reinterpret_cast<const char*>(bytes.data()), bytes.size());

@@ -1,26 +1,11 @@
 #pragma once
-#include <functional>
-#include <string>
-
-#include "activities/Activity.h"
-#include "components/OptionPopup.h"
-
-class ConfirmationActivity : public Activity {
- private:
-  // Input data
-  std::string heading;
-  std::string body;
-  std::string cancelLabel;
-  std::string confirmLabel;
-
-  OptionPopup confirmPopup;
+#include "DialogActivity.h"
+class ConfirmationActivity : public DialogActivity {
+  std::string heading, body, cancelLabel, confirmLabel;
 
  public:
-  ConfirmationActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, const std::string& heading,
-                       const std::string& body, const std::string& cancelLabel = {},
-                       const std::string& confirmLabel = {});
-
-  void onEnter() override;
-  void loop() override;
-  void render(RenderLock&& lock) override;
+  ConfirmationActivity(GfxRenderer&, MappedInputManager&, const std::string& heading, const std::string& body,
+                       const std::string& cancelLabel = {}, const std::string& confirmLabel = {});
+  XpDialogLaunch launch() const override;
+  void releaseLaunch() override;
 };

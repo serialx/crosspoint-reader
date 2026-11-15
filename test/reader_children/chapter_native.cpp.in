@@ -1,0 +1,124 @@
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <vector>
+
+static constexpr int kCount = 1000;
+static std::vector<size_t> offsets;
+static size_t endOffset;
+static int failRow = -1;
+static int failedReads = 0;
+static bool resourceGuard = false;
+static void pod(std::string& bytes, uint32_t value, int width) {
+  for (int i = 0; i < width; ++i) bytes.push_back(static_cast<char>(value >> (8 * i)));
+}
+static void field(std::string& bytes, const std::string& value) {
+  pod(bytes, value.size(), 4);
+  bytes += value;
+}
+static std::string fixture() {
+  std::string bytes;
+  pod(bytes, 10, 1);
+  pod(bytes, 29, 4);
+  pod(bytes, 0, 2);
+  pod(bytes, kCount, 2);
+  for (int i = 0; i < 5; ++i) field(bytes, "");
+  assert(bytes.size() == 29);
+  bytes.resize(29 + 4 * kCount);
+  for (int row = 0; row < kCount; ++row) {
+    offsets.push_back(bytes.size());
+    for (int i = 0; i < 4; ++i) bytes[29 + 4 * row + i] = static_cast<char>(bytes.size() >> (8 * i));
+    std::string title = std::to_string(row) + " 한국어 chapter — ";
+    for (int i = 0; i < row % 35; ++i) title += "title ";
+    field(bytes, title);
+    field(bytes, "OPS/chapter" + std::to_string(row) + ".xhtml");
+    field(bytes, "anchor" + std::to_string(row));
+    pod(bytes, row % 6, 1);
+    pod(bytes, row, 2);
+  }
+  endOffset = bytes.size();
+  return bytes;
+}
+static std::string hex(const std::string& bytes) {
+  if (bytes.empty()) return "-";
+  std::string out;
+  for (const unsigned char byte : bytes) {
+    out.push_back("0123456789abcdef"[byte >> 4]);
+    out.push_back("0123456789abcdef"[byte & 15]);
+  }
+  return out;
+}
+struct Epub {
+  BookMetadataCache& cache;
+  BookMetadataCache::TocEntry getTocItem(int index) const {
+    assert(resourceGuard);
+    auto row = cache.getTocEntry(index);
+    std::cout << "R " << index << " " << int(row.level) << " " << hex(row.title) << "\n";
+    return row;
+  }
+};
+struct ReaderChromeRow { const char* label = nullptr; };
+struct Renderer {
+  int prewarms = 0;
+  std::vector<std::string> warmed;
+  void prewarmFallbackText(int, const char* (*read)(const void*, uint32_t), const void* context, uint32_t count) {
+    assert(resourceGuard);
+    ++prewarms;
+    warmed.clear();
+    for (uint32_t i = 0; i < count; ++i) warmed.emplace_back(read(context, i));
+    assert(read(context, count) == nullptr);
+  }
+};
+struct Scale { int bodyFontId = 0; };
+static Scale uiScaleSpec() { return {}; }
+struct EpubReaderChapterSelectionActivity {
+  static constexpr int TOC_WINDOW = 24;
+  Epub* epub;
+  Renderer renderer;
+  int windowStart = -1, windowCount = 0;
+  std::string windowLabels[TOC_WINDOW];
+  ReaderChromeRow windowItems[TOC_WINDOW];
+  int listCount() const { return kCount; }
+  void refreshTocWindow(int);
+};
+@WINDOW@
+int main(int argc, char** argv) {
+  assert(argc == 2);
+  const std::string root = argv[1];
+  std::filesystem::create_directories(root);
+  const auto bytes = fixture();
+  std::ofstream(root + "/book.bin", std::ios::binary).write(bytes.data(), bytes.size());
+  HalFileTest::readLimit = [](const char*, size_t position, size_t count) {
+    if (failRow >= 0 && position >= offsets[failRow] &&
+        position < (failRow + 1 == kCount ? endOffset : offsets[failRow + 1])) {
+      ++failedReads;
+      return size_t(0);
+    }
+    return count;
+  };
+  {
+    BookMetadataCache cache(root);
+    assert(cache.load());
+    Epub book{cache};
+    EpubReaderChapterSelectionActivity owner{&book};
+    for (const auto [start, failure] : std::vector<std::pair<int, int>>{
+             {0, -1}, {0, -1}, {23, -1}, {24, 31}, {24, -1}, {48, -1}, {999, 987}, {1000, -1}, {-1, -1}}) {
+      failRow = failure;
+      const int priorFailures = failedReads;
+      std::cout << "W " << kCount << " " << start << "\n";
+      resourceGuard = true;
+      owner.refreshTocWindow(start);
+      resourceGuard = false;
+      if (failure >= 0) assert(failedReads > priorFailures);
+      std::cout << "E " << owner.windowStart << " " << owner.windowCount << "\n";
+      for (int i = 0; i < owner.windowCount; ++i) {
+        assert(owner.windowLabels[i] == owner.windowItems[i].label);
+        assert(owner.renderer.warmed[i] == owner.windowLabels[i]);
+        std::cout << "L " << i << " " << hex(owner.windowLabels[i]) << "\n";
+      }
+      std::cout << "P " << owner.renderer.prewarms << "\n";
+      if (failure >= 0) assert(owner.windowLabels[failure - owner.windowStart].empty());
+    }
+  }
+  assert(filesBorn == filesDied && xp_test_live_allocations() == 0 && cacheDepth == 0);
+}

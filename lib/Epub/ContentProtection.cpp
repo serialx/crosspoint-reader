@@ -1,9 +1,10 @@
+#include "Epub/parsers/PackageParser.h"
 // SD/HAL binding for the content-protection read path.
 //
 // The ContentProtection SDK lib is storage-agnostic (it works against a
 // ByteSource). This file is the firmware-side glue that backs that seam with
-// the device's SD storage: a HalStorage-backed ByteSource and the
-// openProtectedBook() entry point the reader calls. The book's content key
+// the device's SD storage through a HalStorage-backed ByteSource, reader
+// primitives and the native openProtectedBook() gate. The content key
 // comes from its device-wrapped "<book>.key" (BookKey.h), written when the
 // book was fulfilled; the reader carries no rights or account scheme.
 
@@ -20,9 +21,10 @@
 #include <Zip.h>
 #include <ZipFile.h>
 #include <esp_heap_caps.h>
+#include <xp_ffi.h>
 
 #include "BookKey.h"
-#include "Epub/parsers/EncryptionManifestProbe.h"
+#include "ReaderProtection.h"
 
 namespace freeink {
 namespace content {
@@ -36,20 +38,19 @@ WolfsslCrypto& crypto() {
 }
 
 void reclaimContentCaches() {
-  // miniz needs a contiguous inflate state plus stream buffers and metadata.
-  // ensureFree() checks total bytes and cannot detect a fragmented heap.
-  constexpr size_t CONTENT_WORKING_SET = 64 * 1024;
-  const size_t before = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
-  if (before >= CONTENT_WORKING_SET) return;
-  freeink::MemoryManager::instance().clearCaches();
-  LOG_DBG("CPRO", "Cache reclaim: max_block=%u -> %u, free=%u", static_cast<unsigned>(before),
-          static_cast<unsigned>(ESP.getMaxAllocHeap()), static_cast<unsigned>(ESP.getFreeHeap()));
+  xp_book_reclaim_content(
+      heap_caps_get_largest_free_block(MALLOC_CAP_8BIT), [] { freeink::MemoryManager::instance().clearCaches(); },
+      []([[maybe_unused]] size_t before) {
+        LOG_DBG("CPRO", "Cache reclaim: max_block=%u -> %u, free=%u", static_cast<unsigned>(before),
+                static_cast<unsigned>(ESP.getMaxAllocHeap()), static_cast<unsigned>(ESP.getFreeHeap()));
+      });
 }
 
 // ByteSource over an SD file (read-only). One open handle per instance.
 class SdByteSource : public ByteSource {
  public:
   explicit SdByteSource(std::string path) : path_(std::move(path)) {}
+  const std::string& path() const { return path_; }
   bool open() {
     file_ = Storage.open(path_.c_str(), O_RDONLY);
     return file_ && file_.isOpen();
@@ -78,10 +79,14 @@ class ProtectedBookDecryptor : public ContentDecryptor {
   size_t decryptedSize(const std::string& itemPath) const override { return book_->decryptedSize(itemPath); }
 
   bool decryptToSink(const std::string& itemPath, ContentChunkSink sink, void* context) override {
-    // Reuse one open SD handle for the whole reader session rather than
-    // reconstructing and reopening it per encrypted entry.
+    // Retained native EPUB callers reuse one SD handle across encrypted entries.
     if (!source_.ensureOpen()) return false;
     reclaimContentCaches();
+    return readPrepared(itemPath, sink, context);
+  }
+
+  bool prepare() { return source_.ensureOpen(); }
+  bool readPrepared(const std::string& itemPath, ContentChunkSink sink, void* context) {
     if (!book_->decryptEntryToSink(source_, crypto(), itemPath, sink, context)) {
       LOG_ERR("CPRO", "Decrypt failed: %s (%s), free=%u max_block=%u", itemPath.c_str(), book_->lastError().c_str(),
               static_cast<unsigned>(ESP.getFreeHeap()), static_cast<unsigned>(ESP.getMaxAllocHeap()));
@@ -95,7 +100,93 @@ class ProtectedBookDecryptor : public ContentDecryptor {
   std::unique_ptr<ProtectedBook> book_;
 };
 
+struct ReaderIndex {
+  SdByteSource source;
+  ZipScan scan;
+  std::unique_ptr<ProtectedBook> book;
+};
+static_assert(sizeof(HalFile) <= (sizeof(uintptr_t) == 4 ? 3 : 8) * sizeof(uintptr_t));
+static_assert(alignof(HalFile) <= alignof(uintptr_t));
+static_assert(sizeof(ReaderIndex) <= 24 * sizeof(uintptr_t));
+static_assert(alignof(ReaderIndex) <= alignof(uintptr_t));
+static_assert(sizeof(std::string) <= 6 * sizeof(uintptr_t));
+static_assert(alignof(std::string) <= alignof(uintptr_t));
+
 }  // namespace
+
+uint8_t readerProtectionIndex(void* storage, uint8_t stage, XpAppText path) {
+  switch (static_cast<IndexStage>(stage)) {
+    case IndexStage::Construct:
+      new (storage) ReaderIndex{SdByteSource(std::string(reinterpret_cast<const char*>(path.data), path.len)), {}, {}};
+      return 0;
+    case IndexStage::ProbeOpen: {
+      auto* file = new (storage) HalFile();
+      return Storage.openFileForRead("ZIP", reinterpret_cast<const char*>(path.data), *file);
+    }
+    case IndexStage::ProbeClose:
+      static_cast<HalFile*>(storage)->~HalFile();
+      return 0;
+    case IndexStage::Scan:
+      break;
+  }
+  auto& index = *static_cast<ReaderIndex*>(storage);
+  if (!index.source.open() || !index.scan.open(index.source)) {
+    LOG_ERR("CPRO", "Cannot index protected container");
+    return 0;
+  }
+  index.book = makeUniqueNoThrow<ProtectedBook>();
+  if (!index.book) return 2;
+  if (!index.book->openFromScan(index.source, std::move(index.scan))) {
+    LOG_ERR("CPRO", "Manifest open failed: %s", index.book->lastError().c_str());
+    return 3;
+  }
+  return index.book->isProtected() ? 1 : 4;
+}
+
+void* readerProtectionFinish(void* storage, uint8_t stage, const uint8_t* key, size_t length) {
+  auto& index = *static_cast<ReaderIndex*>(storage);
+  ContentDecryptor* result = nullptr;
+  switch (static_cast<FinishStage>(stage)) {
+    case FinishStage::InstallKey:
+      index.book->setContentKey(key, length);
+      return nullptr;
+    case FinishStage::Take:
+      result = makeUniqueNoThrow<ProtectedBookDecryptor>(index.source.path(), std::move(index.book)).release();
+      break;
+    case FinishStage::Discard:
+      break;
+  }
+  index.~ReaderIndex();
+  return result;
+}
+
+uint8_t readerProtectionStream(void* handle, void* storage, uint8_t stage, XpAppText path, XpBookSink sink,
+                               void* context) {
+  auto& book = *static_cast<ProtectedBookDecryptor*>(handle);
+  auto* item = static_cast<std::string*>(storage);
+  switch (static_cast<StreamStage>(stage)) {
+    case StreamStage::Prepare:
+      new (item) std::string(reinterpret_cast<const char*>(path.data), path.len);
+      if (book.prepare()) return 1;
+      item->~basic_string();
+      return 0;
+    case StreamStage::Read:
+      break;
+  }
+  struct Output {
+    XpBookSink sink;
+    void* context;
+  } output{sink, context};
+  const bool result = book.readPrepared(
+      *item,
+      [](void* raw, const uint8_t* bytes, size_t size) {
+        auto& out = *static_cast<Output*>(raw);
+        return out.sink(out.context, bytes, size) != 0;
+      },
+      &output);
+  item->~basic_string();
+  return result;
+}
 
 std::unique_ptr<ContentDecryptor> openProtectedBook(const std::string& epubPath, std::string& err) {
   err.clear();
@@ -107,7 +198,7 @@ std::unique_ptr<ContentDecryptor> openProtectedBook(const std::string& epubPath,
   size_t manifestSize = 0;
   if (!ZipFile(epubPath).getInflatedFileSize("META-INF/encryption.xml", &manifestSize)) return nullptr;
   {
-    EncryptionManifestProbe manifest;
+    PackageParser manifest(XP_PKG_ENCRYPTION, "", 0, "");
     if (!manifest.setup() || !ZipFile(epubPath).readFileToStream("META-INF/encryption.xml", manifest, 512) ||
         !manifest.finish()) {
       LOG_ERR("CPRO", "Cannot read encryption manifest");
@@ -155,16 +246,16 @@ std::unique_ptr<ContentDecryptor> openProtectedBook(const std::string& epubPath,
   // powered-off gap, it does not suspend it. A book carrying a due date with
   // no trustworthy clock at all fails closed rather than open.
   // Exact err strings below are matched by the reader for the user message.
-  if (expiresAt != 0) {
-    const int64_t now = trustedtime::trustedNow();
-    if (now == 0) {
+  enum class LoanStatus : uint32_t { Allowed, Unverified, Expired };
+  switch (static_cast<LoanStatus>(xp_book_loan(expiresAt, nullptr, [](void*) { return trustedtime::trustedNow(); }))) {
+    case LoanStatus::Allowed:
+      break;
+    case LoanStatus::Unverified:
       err = "loan date unverified";
       return nullptr;
-    }
-    if (now > expiresAt) {
+    case LoanStatus::Expired:
       err = "access expired";
       return nullptr;
-    }
   }
 
   auto decryptor = makeUniqueNoThrow<ProtectedBookDecryptor>(epubPath, std::move(book));

@@ -1,7 +1,10 @@
 #include <gtest/gtest.h>
+#include <xp_ffi.h>
 
 #include <cstring>
+#include <memory>
 #include <string>
+#include <tuple>
 
 #include "Utf8.h"
 
@@ -160,4 +163,63 @@ TEST(Utf8ComposeNfcInPlace, PreservesMalformedAndTruncatedBytes) {
       "\xE1\x84";
   utf8ComposeNfcInPlace(buffer);
   EXPECT_STREQ(buffer, "\xFF\xC3\xA9\xE1\x84");
+}
+
+TEST(TextFfi, IncompleteInputNeedsNoTerminator) {
+  const uint8_t input[] = {0xE2, 0x82};
+  size_t consumed = 99;
+  EXPECT_EQ(xp_utf8_next(input, sizeof(input), &consumed), 0xFFFDu);
+  EXPECT_EQ(consumed, 2u);
+  EXPECT_EQ(xp_utf8_next(nullptr, 0, &consumed), 0u);
+  EXPECT_EQ(consumed, 0u);
+}
+
+class Utf8NextCodepoint : public testing::TestWithParam<std::tuple<std::string, uint32_t, size_t>> {};
+
+TEST(Utf8NextCodepoint, AsciiStopsAtTerminator) {
+  const unsigned char input[] = {'A', 0};
+  const unsigned char* cursor = input;
+  EXPECT_EQ(utf8NextCodepoint(&cursor), static_cast<uint32_t>('A'));
+  EXPECT_EQ(cursor, input + 1);
+  EXPECT_EQ(utf8NextCodepoint(&cursor), 0u);
+  EXPECT_EQ(cursor, input + 1);
+}
+
+TEST_P(Utf8NextCodepoint, ExactUnterminatedAllocation) {
+  const auto& [bytes, expectedCodepoint, expectedConsumed] = GetParam();
+  auto input = std::make_unique<unsigned char[]>(bytes.size());
+  std::memcpy(input.get(), bytes.data(), bytes.size());
+  const unsigned char* cursor = input.get();
+  EXPECT_EQ(utf8NextCodepoint(&cursor), expectedCodepoint);
+  EXPECT_EQ(static_cast<size_t>(cursor - input.get()), expectedConsumed);
+  if (expectedConsumed < bytes.size()) {
+    EXPECT_EQ(utf8NextCodepoint(&cursor), static_cast<uint32_t>('A'));
+    EXPECT_EQ(static_cast<size_t>(cursor - input.get()), bytes.size());
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(BoundedBuffers, Utf8NextCodepoint,
+                         testing::Values(std::make_tuple(std::string("\xC3\xA9"), 0xE9u, size_t{2}),
+                                         std::make_tuple(std::string("\xE4\xB8\xAD"), 0x4E2Du, size_t{3}),
+                                         std::make_tuple(std::string("\xE0\xA0\x80"), 0x800u, size_t{3}),
+                                         std::make_tuple(std::string("\xED\x9F\xBF"), 0xD7FFu, size_t{3}),
+                                         std::make_tuple(std::string("\xEE\x80\x80"), 0xE000u, size_t{3}),
+                                         std::make_tuple(std::string("\xEF\xBF\xBF"), 0xFFFFu, size_t{3}),
+                                         std::make_tuple(std::string("\xFF"), 0xFFFDu, size_t{1}),
+                                         std::make_tuple(std::string("\xE1\x80\x41"), 0xFFFDu, size_t{2}),
+                                         std::make_tuple(std::string("\xE2\x41"), 0xFFFDu, size_t{1})));
+
+TEST(TextFfi, InsufficientOffsetStorageIsUntouched) {
+  const std::string input = "甲乙丙";
+  const auto* bytes = reinterpret_cast<const uint8_t*>(input.data());
+  size_t out[] = {99, 99, 99};
+  EXPECT_EQ(xp_text_offsets(bytes, input.size(), nullptr, 0), 2u);
+  EXPECT_EQ(xp_text_offsets(bytes, input.size(), out, 1), 2u);
+  EXPECT_EQ(out[0], 99u);
+  EXPECT_EQ(out[1], 99u);
+  EXPECT_EQ(xp_text_offsets(bytes, input.size(), out, 2), 2u);
+  EXPECT_EQ(out[0], 3u);
+  EXPECT_EQ(out[1], 6u);
+  EXPECT_EQ(out[2], 99u);
+  EXPECT_EQ(xp_text_offsets(nullptr, 0, nullptr, 0), 0u);
 }

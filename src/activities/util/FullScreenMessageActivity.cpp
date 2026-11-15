@@ -1,16 +1,22 @@
 #include "FullScreenMessageActivity.h"
 
-#include <GfxRenderer.h>
-
 #include "fontIds.h"
-
-void FullScreenMessageActivity::onEnter() {
-  Activity::onEnter();
-
-  const auto height = renderer.getLineHeight(UI_10_FONT_ID);
-  const auto top = (renderer.getScreenHeight() - height) / 2;
-
-  renderer.clearScreen();
-  renderer.drawCenteredText(UI_10_FONT_ID, top, text.c_str(), true, style);
-  renderer.displayBuffer(refreshMode);
+XpDialogLaunch FullScreenMessageActivity::launch() const {
+  XpDialogLaunch out{};
+  out.kind = XP_DIALOG_MESSAGE;
+  out.style = style;
+  out.message_font = UI_10_FONT_ID;
+  out.body = {reinterpret_cast<const uint8_t*>(text.data()), text.size()};
+  switch (refreshMode) {
+    case HalDisplay::FAST_REFRESH:
+      out.refresh = XP_UI_FAST;
+      break;
+    case HalDisplay::HALF_REFRESH:
+      out.refresh = XP_UI_HALF;
+      break;
+    case HalDisplay::FULL_REFRESH:
+      out.refresh = XP_UI_FULL;
+      break;
+  }
+  return out;
 }

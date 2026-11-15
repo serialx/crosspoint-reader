@@ -1,0 +1,2209 @@
+{
+  "baseline_revision": "04735f48d3670c575eb1876e07eaded295240521",
+  "epubs": {
+    "crosspoint-table-edge-cases.epub": "2fbf5e6777aa48afa829ea15768aca2a7dadb80ada9267e193e8df998a22c872",
+    "font-prewarm-benchmark.epub": "fb683591fb2c9f0daee19d88c4013e78b1c2462c2ba85d24684e1bb7a9af8af1",
+    "test_br_section_break.epub": "5b5a1fa55f4c79781b91d80db3d1a0670af67336112ec358fb29d1e0d443186a",
+    "test_dictionary_synonyms.epub": "54b112c12e96c77e440e85ab4f5634bdac851b54903dc4a7e8d9f2e56db9373d",
+    "test_display_none.epub": "74c413a5720d0b88223bee63e5fe5fbc3b81b45cdcfdc1fa0058ee74f8b5380a",
+    "test_emoji_ranges.epub": "440971ecadc1cdba01f6d279e0aa742043145b2736491a31237be5c588fcf30a",
+    "test_force_paragraph_indents.epub": "5e4d05cd42ea78c0cf1ef5279c49da2cf12b987c69701c47691cf3b57e836b82",
+    "test_hidden.epub": "bff8417e8b0130192716772c4538b7949cdddfb062636266b329fb41c1831f7b",
+    "test_jpeg_images.epub": "39c05073f6ab789058772fcc33e383bd038e3a84f7f5ad4c66351c7951c60c06",
+    "test_kerning_ligature.epub": "2aee3e98a06f46cfcc0f8bfd55e8794b318cea8006c30d1bc8abfc46092fedb4",
+    "test_mixed_images.epub": "07ab9fc89c979d11138afa4249fd3824a1e9702c9c76c74c6b6932847edaf5f0",
+    "test_png_images.epub": "68cdbe9c894171d89193732161a2b4f0d95418a7ce82f85c20d0775dcbac80c9",
+    "test_reader_menu_progress.epub": "2597db6f017f4f051d351b0e04e342bac2f31fe661d2d87e2bd8943dc9f20979",
+    "test_reader_rendering_matrix.epub": "0d348985c93a572bf7478afcaba209fc891ef50c067de4e6f448864ac3b3509b",
+    "test_supsub.epub": "729e51f719d14f0fe4e63113492a21c448e3b32ea87c677cbd3e15e909dca98e",
+    "test_synthetic_unicode_glyphs.epub": "6d8d8949ffcb0c2df58b276915defe353251e98c05fc20b5a393210989eae462",
+    "test_tables.epub": "290fa623eb6c0e6d7e5ca4f83fcfd677393caecf42a4346a35ee34b850eea297",
+    "test_text_decorations.epub": "153465cd929591ff0cfb968d3237ed81ce6d394a19b1d5a2c32eb4b068ea0aa7"
+  },
+  "sections": [
+    {
+      "section": "crosspoint-table-edge-cases/0/0.ops",
+      "spine": "EPUB/intro.xhtml",
+      "pages": 1,
+      "bytes": 74278,
+      "sha256": "698e6a5225306a0628247ead8a4e14efd67ce46efa2d72df3d87d3688d7d4490"
+    },
+    {
+      "section": "crosspoint-table-edge-cases/0/1.ops",
+      "spine": "EPUB/ltr.xhtml",
+      "pages": 6,
+      "bytes": 557349,
+      "sha256": "9b9d074ae44d7bc70909481338e8ecb8b683fd0bf74b2964b394e303f2a09c3c"
+    },
+    {
+      "section": "crosspoint-table-edge-cases/0/2.ops",
+      "spine": "EPUB/rtl.xhtml",
+      "pages": 3,
+      "bytes": 319594,
+      "sha256": "ed6381bcbd6a0d84868b713017c28064dd7355592de8c3dc1e6fabfad6c56c4b"
+    },
+    {
+      "section": "crosspoint-table-edge-cases/1/0.ops",
+      "spine": "EPUB/intro.xhtml",
+      "pages": 5,
+      "bytes": 76663,
+      "sha256": "61b8f60a9956661b9f9358912cbde85eddd271366bb4e977680ab2dfa89539be"
+    },
+    {
+      "section": "crosspoint-table-edge-cases/1/1.ops",
+      "spine": "EPUB/ltr.xhtml",
+      "pages": 24,
+      "bytes": 566121,
+      "sha256": "feeb2bf049086e5a39a5799e39b14e1f655bfd47785c0c5a8f22865c3cd4712e"
+    },
+    {
+      "section": "crosspoint-table-edge-cases/1/2.ops",
+      "spine": "EPUB/rtl.xhtml",
+      "pages": 17,
+      "bytes": 334089,
+      "sha256": "3e33b2f574f5cdc09237d12cd7b8a9803d6221d6ef69c8e39c8d43c94b76af87"
+    },
+    {
+      "section": "crosspoint-table-edge-cases/2/0.ops",
+      "spine": "EPUB/intro.xhtml",
+      "pages": 2,
+      "bytes": 74067,
+      "sha256": "74096d0ede3f59f1eeca2a4023a75818b94c252060fdea739ccc205fda7d6074"
+    },
+    {
+      "section": "crosspoint-table-edge-cases/2/1.ops",
+      "spine": "EPUB/ltr.xhtml",
+      "pages": 11,
+      "bytes": 555027,
+      "sha256": "317d031930c2e7e1acec9950df5c30a3aaca50d992dfc173b99c403e0e8ccd0b"
+    },
+    {
+      "section": "crosspoint-table-edge-cases/2/2.ops",
+      "spine": "EPUB/rtl.xhtml",
+      "pages": 6,
+      "bytes": 318783,
+      "sha256": "3d93f53b96754dc7daad7373143c15544d1315bf467b358e18d498274148fa58"
+    },
+    {
+      "section": "font-prewarm-benchmark/0/0.ops",
+      "spine": "OEBPS/instructions.xhtml",
+      "pages": 2,
+      "bytes": 51138,
+      "sha256": "dfdd43c0b6fca266915ef3cb4ee44cfa9fc7ec76e10a0b04f1422c0afe697d00"
+    },
+    {
+      "section": "font-prewarm-benchmark/0/1.ops",
+      "spine": "OEBPS/mixed.xhtml",
+      "pages": 12,
+      "bytes": 1339096,
+      "sha256": "6749a6ce8e5247a371b4e2f879fc5417336d75dc29aaed2977fc19d648e872d1"
+    },
+    {
+      "section": "font-prewarm-benchmark/0/2.ops",
+      "spine": "OEBPS/control.xhtml",
+      "pages": 12,
+      "bytes": 1065716,
+      "sha256": "a5cb108a39ca109de27f6c55ba3fd07a7b51215a1454312dc120365af1d510e9"
+    },
+    {
+      "section": "font-prewarm-benchmark/1/0.ops",
+      "spine": "OEBPS/instructions.xhtml",
+      "pages": 4,
+      "bytes": 52852,
+      "sha256": "22084b0c9c1d96113e4fc09b0ea1bc1cb3fda7c3f3acc8af6ec94b9cdeac1a68"
+    },
+    {
+      "section": "font-prewarm-benchmark/1/1.ops",
+      "spine": "OEBPS/mixed.xhtml",
+      "pages": 97,
+      "bytes": 1419262,
+      "sha256": "e23c38576dd6bc5b96566cb4f6ab30da7ff785baa447c73a7ab31006ce107df5"
+    },
+    {
+      "section": "font-prewarm-benchmark/1/2.ops",
+      "spine": "OEBPS/control.xhtml",
+      "pages": 97,
+      "bytes": 1145961,
+      "sha256": "c9ccac5d0a80992cfc7fb8f779bd4a47e3241c7b1c7b35cc72d91228c1df1945"
+    },
+    {
+      "section": "font-prewarm-benchmark/2/0.ops",
+      "spine": "OEBPS/instructions.xhtml",
+      "pages": 2,
+      "bytes": 51061,
+      "sha256": "b5d16cbc71f3a87677a4c41f3f5ba6aeaf47022673feb849b4fb7fcf1261ef8d"
+    },
+    {
+      "section": "font-prewarm-benchmark/2/1.ops",
+      "spine": "OEBPS/mixed.xhtml",
+      "pages": 25,
+      "bytes": 1339645,
+      "sha256": "25c5e1c525fa3046eb52300f6feb42e0b831a74b97ef845a1ba267d2fe208658"
+    },
+    {
+      "section": "font-prewarm-benchmark/2/2.ops",
+      "spine": "OEBPS/control.xhtml",
+      "pages": 25,
+      "bytes": 1066265,
+      "sha256": "d1e1d7fddd29424135254337e7789faf0f5ccaa9f9d1305dc36218b917dd2c52"
+    },
+    {
+      "section": "test_br_section_break/0/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 30696,
+      "sha256": "fed871510e5f02e35427437c00c0439514d1e55fc9f793930581fab3a5f19a91"
+    },
+    {
+      "section": "test_br_section_break/0/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 27485,
+      "sha256": "f755451c78ce0d2196fcb520ad5ceefc06ea4b6fad6f6df2a51405b6223c3a9d"
+    },
+    {
+      "section": "test_br_section_break/0/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 45602,
+      "sha256": "5a51245ea95a9cbbe8055df1db6413617a7d81437f62e4eae9682273f5965331"
+    },
+    {
+      "section": "test_br_section_break/0/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 1,
+      "bytes": 28272,
+      "sha256": "d25ddc71ca3edc044fa168037fdfa6869bab2937058f5c6c583f694e087471fd"
+    },
+    {
+      "section": "test_br_section_break/0/4.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 1,
+      "bytes": 27344,
+      "sha256": "d2c526acfecdcd2c922f226d1e62855ee0c8359c26bbb317178b4647a6910f49"
+    },
+    {
+      "section": "test_br_section_break/0/5.ops",
+      "spine": "OEBPS/chapter6.xhtml",
+      "pages": 1,
+      "bytes": 21811,
+      "sha256": "ca0d52293d39857a58f1b383b2ada30f35c5324a7ae64e352f65480082e14e29"
+    },
+    {
+      "section": "test_br_section_break/0/6.ops",
+      "spine": "OEBPS/chapter7.xhtml",
+      "pages": 1,
+      "bytes": 52856,
+      "sha256": "9777f7da8ac0942b6ca4605a85f3c076282d43b17ca903fe34245fc90d462dca"
+    },
+    {
+      "section": "test_br_section_break/0/7.ops",
+      "spine": "OEBPS/chapter8.xhtml",
+      "pages": 1,
+      "bytes": 54449,
+      "sha256": "329bcbb0505b3b596a5566e33ad10ef39cccadc505ae1da5252e9bd1418ae405"
+    },
+    {
+      "section": "test_br_section_break/0/8.ops",
+      "spine": "OEBPS/chapter9.xhtml",
+      "pages": 1,
+      "bytes": 38261,
+      "sha256": "daf0e3fec43a4a9b5b0ffc8f3e97656ea5cc45d0f7fe7823e678d9d28341a823"
+    },
+    {
+      "section": "test_br_section_break/1/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 2,
+      "bytes": 31434,
+      "sha256": "0b639e1d62b86c778580a744b78edd764fcf38b864a274f092ed9dd79b81c748"
+    },
+    {
+      "section": "test_br_section_break/1/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 2,
+      "bytes": 28399,
+      "sha256": "a68b7fa1d442b48a2f23519a28dd52db70b98bed1abf63a5c5732ea58f52d2c6"
+    },
+    {
+      "section": "test_br_section_break/1/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 3,
+      "bytes": 46845,
+      "sha256": "781f0bf82adffdc1af38ab31633b68875db6d1856f0ee006fb30f483d6374b98"
+    },
+    {
+      "section": "test_br_section_break/1/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 2,
+      "bytes": 29109,
+      "sha256": "adb890f02835dcde440647da0af5f8116715606201dc057a6549d30239ec0ed7"
+    },
+    {
+      "section": "test_br_section_break/1/4.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 2,
+      "bytes": 28102,
+      "sha256": "b51bac722cafd779ec083b728c2b92940f54ea47e46068e97f2513583bf793a5"
+    },
+    {
+      "section": "test_br_section_break/1/5.ops",
+      "spine": "OEBPS/chapter6.xhtml",
+      "pages": 2,
+      "bytes": 22469,
+      "sha256": "899d5bf848573aeac7d5eaca1fbf80044ad2a447e75a3187610196f413708275"
+    },
+    {
+      "section": "test_br_section_break/1/6.ops",
+      "spine": "OEBPS/chapter7.xhtml",
+      "pages": 3,
+      "bytes": 54353,
+      "sha256": "ec85a5e589a0a6354311e5b6b7912fae7adc4812fc21a9942535c71e446d2318"
+    },
+    {
+      "section": "test_br_section_break/1/7.ops",
+      "spine": "OEBPS/chapter8.xhtml",
+      "pages": 3,
+      "bytes": 55768,
+      "sha256": "c304ae2f39b47b826a5bbb22df1de31d29b8d8488744666a2aefda99209d192b"
+    },
+    {
+      "section": "test_br_section_break/1/8.ops",
+      "spine": "OEBPS/chapter9.xhtml",
+      "pages": 2,
+      "bytes": 39408,
+      "sha256": "c5e41908d11c0fe88b5bb656f467949917f5dbdced7c52a85d24747c30a3a4b1"
+    },
+    {
+      "section": "test_br_section_break/2/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 30464,
+      "sha256": "64fa15c8f012e128791f194fc604007b0a79b428766efd0ae3b1bd40ccdc23d2"
+    },
+    {
+      "section": "test_br_section_break/2/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 27486,
+      "sha256": "74954f0f1f9878b2aece51c17fd01f009fef7c0e631a9c4423c219d703bd3eeb"
+    },
+    {
+      "section": "test_br_section_break/2/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 45447,
+      "sha256": "282f802618e60c0016cc3969ecb71941eda65515d30cc4506ce95a58c6e919f5"
+    },
+    {
+      "section": "test_br_section_break/2/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 1,
+      "bytes": 28117,
+      "sha256": "37da1ec0bf7467e9e452cbc7ddbd98f78f61c4f5094f0c4a87dce8fef0d9ba51"
+    },
+    {
+      "section": "test_br_section_break/2/4.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 1,
+      "bytes": 27345,
+      "sha256": "6436e292bb1ac90b7e562de579c57ab143d0cd50d6d9b6b2a8b6479c361c2b64"
+    },
+    {
+      "section": "test_br_section_break/2/5.ops",
+      "spine": "OEBPS/chapter6.xhtml",
+      "pages": 1,
+      "bytes": 21734,
+      "sha256": "20af6570a28cd7c988993480dff0f3e6a6fb406718ed2abc0836805bcdd7a601"
+    },
+    {
+      "section": "test_br_section_break/2/6.ops",
+      "spine": "OEBPS/chapter7.xhtml",
+      "pages": 1,
+      "bytes": 52700,
+      "sha256": "35cac96a0c1240cef07f05165453627c359360afb93417de6bf9af0a6e433ca9"
+    },
+    {
+      "section": "test_br_section_break/2/7.ops",
+      "spine": "OEBPS/chapter8.xhtml",
+      "pages": 1,
+      "bytes": 54371,
+      "sha256": "a4b3ddbe09cbab7ca059a7cf6005749ea3efca3cafd9f18beea104fc5e4844d4"
+    },
+    {
+      "section": "test_br_section_break/2/8.ops",
+      "spine": "OEBPS/chapter9.xhtml",
+      "pages": 1,
+      "bytes": 38261,
+      "sha256": "bde07bee8a52c782721691816d6ee3561ad148e8b59f2247ce514c17a2aef6d8"
+    },
+    {
+      "section": "test_dictionary_synonyms/0/0.ops",
+      "spine": "OEBPS/chapter0.xhtml",
+      "pages": 1,
+      "bytes": 24574,
+      "sha256": "b49aede9c8f7e56d1da7997acce19a29dd32da067ebb2badef37cceb24695e9e"
+    },
+    {
+      "section": "test_dictionary_synonyms/0/1.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 33187,
+      "sha256": "8b42860b7100082008a2e88906af340b3d705ae22e090986c553de52dd952e23"
+    },
+    {
+      "section": "test_dictionary_synonyms/0/2.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 18548,
+      "sha256": "a5b15f12ef1e9d388d00783b666a14a4af3f491bc43f0f3f58c2d376a4431a33"
+    },
+    {
+      "section": "test_dictionary_synonyms/0/3.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 11198,
+      "sha256": "13bcd9f193a081dcd21a3494fb0d25eef35dee3c4cb449eb84d30b2819a1dc0a"
+    },
+    {
+      "section": "test_dictionary_synonyms/0/4.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 1,
+      "bytes": 13879,
+      "sha256": "d6e9a9cbcae01e7611681e82c914e67e40a92ea1710be7453e7525ef67fef5fa"
+    },
+    {
+      "section": "test_dictionary_synonyms/1/0.ops",
+      "spine": "OEBPS/chapter0.xhtml",
+      "pages": 2,
+      "bytes": 25468,
+      "sha256": "c3fed203abcc2de743fafc7cd14b8e386c7d54dd5856d6961d57c48c244f3e77"
+    },
+    {
+      "section": "test_dictionary_synonyms/1/1.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 2,
+      "bytes": 34314,
+      "sha256": "7b7d4399a6784475dbcf59c2b51fc005e2e63a0daa46c4e1e1fc13984afa0cf1"
+    },
+    {
+      "section": "test_dictionary_synonyms/1/2.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 19091,
+      "sha256": "8c33d980957c2471454f9ea912d2a5c4603a760265c7ddbe7e33c347f612e9e5"
+    },
+    {
+      "section": "test_dictionary_synonyms/1/3.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 11508,
+      "sha256": "6e7b6f1a6efef481997e2dd7035dbe71cc9112f1a2b01b5de44dea889e071586"
+    },
+    {
+      "section": "test_dictionary_synonyms/1/4.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 1,
+      "bytes": 14190,
+      "sha256": "32afea5cbc78e8e667e01eed415aa48a96827b09b30b828740a5222ebc667eb7"
+    },
+    {
+      "section": "test_dictionary_synonyms/2/0.ops",
+      "spine": "OEBPS/chapter0.xhtml",
+      "pages": 1,
+      "bytes": 24575,
+      "sha256": "903760c2aa486597d5cf9dd5da70f66c80619f3527317a80388dada3befe1a25"
+    },
+    {
+      "section": "test_dictionary_synonyms/2/1.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 33188,
+      "sha256": "831101e8b710fdcbf1bdcf20af416356cffec3da87ae5ecf9ccc719e0810f65b"
+    },
+    {
+      "section": "test_dictionary_synonyms/2/2.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 18549,
+      "sha256": "d21316821dd05357a2b5e549861cf2a585ac219058b8a1aa2213135d3d1965f1"
+    },
+    {
+      "section": "test_dictionary_synonyms/2/3.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 11199,
+      "sha256": "8ac9a58b6f94d36c0c95283de9920bb03a55c65a49306ec3869d39b2d2630b18"
+    },
+    {
+      "section": "test_dictionary_synonyms/2/4.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 1,
+      "bytes": 13880,
+      "sha256": "d28fec0157ef070ac555755b9fbf910270afba5766fc5a2c79816c2b3fc6efff"
+    },
+    {
+      "section": "test_display_none/0/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 19716,
+      "sha256": "83420fcf984fe97ef8b9bcc3ebdc8e5faed5525776e02b224cd982486255fee5"
+    },
+    {
+      "section": "test_display_none/0/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 39101,
+      "sha256": "d62a8af804eab40537924a5707506b8a6036457dfe8ff3b08fe7db6e8eb18230"
+    },
+    {
+      "section": "test_display_none/0/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 26560,
+      "sha256": "352abffdb301478c39e6ebf01b8ebe7af5df97e526c09dd83b9539a7ed16567a"
+    },
+    {
+      "section": "test_display_none/0/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 1,
+      "bytes": 40932,
+      "sha256": "4065d12c031637ed3e22369626ea1cc4985814ce13eb9649449113370b7047f1"
+    },
+    {
+      "section": "test_display_none/0/4.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 1,
+      "bytes": 28386,
+      "sha256": "5a2cf8f573c56c2bcf4062863e67a39c705657164a6d7625dde8ae7829ed470b"
+    },
+    {
+      "section": "test_display_none/0/5.ops",
+      "spine": "OEBPS/chapter6.xhtml",
+      "pages": 1,
+      "bytes": 23699,
+      "sha256": "76327ef5a231023222b9cccc1a049916fe009d2e9370dd3f9349de2bceee3598"
+    },
+    {
+      "section": "test_display_none/0/6.ops",
+      "spine": "OEBPS/chapter7.xhtml",
+      "pages": 1,
+      "bytes": 26985,
+      "sha256": "fa886c66524bb637d5dca846077845cc6cb4d3ef98c96c1a78f198e9b154a981"
+    },
+    {
+      "section": "test_display_none/0/7.ops",
+      "spine": "OEBPS/chapter8.xhtml",
+      "pages": 1,
+      "bytes": 52955,
+      "sha256": "58925beb9646f9a10e84a42c3661803210423ae9b2e1cacb3e82307564b0ba2e"
+    },
+    {
+      "section": "test_display_none/0/8.ops",
+      "spine": "OEBPS/chapter9.xhtml",
+      "pages": 1,
+      "bytes": 33647,
+      "sha256": "66855f5f4431ca7de4b658eeaf81125c2d0361d054699b545203ed584dea33ec"
+    },
+    {
+      "section": "test_display_none/0/9.ops",
+      "spine": "OEBPS/chapter10.xhtml",
+      "pages": 1,
+      "bytes": 90017,
+      "sha256": "f29faccbf8760f90cca3d546341e2a576a419a7e70448b6a51ec92114bdc4e5b"
+    },
+    {
+      "section": "test_display_none/0/10.ops",
+      "spine": "OEBPS/chapter11.xhtml",
+      "pages": 1,
+      "bytes": 33408,
+      "sha256": "501d8c4f1d3dc5b4567d1ca1c6654b7e3dac970b29b1ed45ca238a1333347acd"
+    },
+    {
+      "section": "test_display_none/0/11.ops",
+      "spine": "OEBPS/chapter12.xhtml",
+      "pages": 1,
+      "bytes": 44194,
+      "sha256": "31c1015656338394b1f8e104e99a9e5d3bbae16314e7702f2d55197a90f87379"
+    },
+    {
+      "section": "test_display_none/1/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 2,
+      "bytes": 20375,
+      "sha256": "8638ef8c187a668fe7d05b29de4be2be61b053e0fb44053bc65f85e13c15ca8f"
+    },
+    {
+      "section": "test_display_none/1/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 3,
+      "bytes": 40174,
+      "sha256": "7706743c646d362e156826d00963635ed66b1b7e75c8933282ed8001be94c21f"
+    },
+    {
+      "section": "test_display_none/1/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 2,
+      "bytes": 26907,
+      "sha256": "bf9b90d1f0990ec29bd83f694808e58e930e4e587d1cf01d2d9e8a6897a304cc"
+    },
+    {
+      "section": "test_display_none/1/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 3,
+      "bytes": 42119,
+      "sha256": "2a8938e9856214077f019813ed497d1c3e570510a5d39638b197f2ebbdf4f7ce"
+    },
+    {
+      "section": "test_display_none/1/4.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 2,
+      "bytes": 29010,
+      "sha256": "a968308441d470374b904edda5b79f7a7835f0753bc608408efab2ea4d90e08f"
+    },
+    {
+      "section": "test_display_none/1/5.ops",
+      "spine": "OEBPS/chapter6.xhtml",
+      "pages": 2,
+      "bytes": 24435,
+      "sha256": "072a6634d95430b1f2c950f36b683d165de6069958c8fbb9e7f3d1118b8a8b36"
+    },
+    {
+      "section": "test_display_none/1/6.ops",
+      "spine": "OEBPS/chapter7.xhtml",
+      "pages": 2,
+      "bytes": 27687,
+      "sha256": "e04c81ead9f888f5754c3f67414c9a3e4f98d04f6401c80ba93f8d247d0535f1"
+    },
+    {
+      "section": "test_display_none/1/7.ops",
+      "spine": "OEBPS/chapter8.xhtml",
+      "pages": 4,
+      "bytes": 54895,
+      "sha256": "9fe2d0e0c78e7957f4241da9653a5f262d9bf1b4cca99ebef4d0744682b562f8"
+    },
+    {
+      "section": "test_display_none/1/8.ops",
+      "spine": "OEBPS/chapter9.xhtml",
+      "pages": 2,
+      "bytes": 33996,
+      "sha256": "ee9c4bfa3e6b2445cdbe0dc37dec7f7f6e41118812ba5ed87b831aad7412877c"
+    },
+    {
+      "section": "test_display_none/1/9.ops",
+      "spine": "OEBPS/chapter10.xhtml",
+      "pages": 6,
+      "bytes": 93134,
+      "sha256": "cad562f2be64b17fa5cdf76a297767fc8737a15058550f8586e2ddf610f254cd"
+    },
+    {
+      "section": "test_display_none/1/10.ops",
+      "spine": "OEBPS/chapter11.xhtml",
+      "pages": 2,
+      "bytes": 33911,
+      "sha256": "2e31cbbd5af74cfbe841ff1711bfeafd6abb326c60de40ebb72c9723ee60d420"
+    },
+    {
+      "section": "test_display_none/1/11.ops",
+      "spine": "OEBPS/chapter12.xhtml",
+      "pages": 2,
+      "bytes": 45480,
+      "sha256": "997850da0976b5226c76c2f41c62c64fdf85174943893c963a8c7fc4ae75d28a"
+    },
+    {
+      "section": "test_display_none/2/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 19561,
+      "sha256": "3ee94b9d36e9a7d13530b6f2e313551ebee405133435e8d86bbb0640bb06283b"
+    },
+    {
+      "section": "test_display_none/2/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 39101,
+      "sha256": "8f90d44dc439782b23ca00778f14444ddc18ebb65c1a2182e15afc8b3fd0f270"
+    },
+    {
+      "section": "test_display_none/2/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 26561,
+      "sha256": "ea1820ba72046fe13d5c825e9605c03df94f2b73ff284584ae926d62c9dd7c88"
+    },
+    {
+      "section": "test_display_none/2/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 1,
+      "bytes": 40699,
+      "sha256": "1bc1fa2a77d2603b0bd51c6db674010c61e359be0558043247175d75f0849227"
+    },
+    {
+      "section": "test_display_none/2/4.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 1,
+      "bytes": 28386,
+      "sha256": "fc30a0f334c17891b9c5aad2f834b777c487a8b9347ac9526bbefc4e450a15ec"
+    },
+    {
+      "section": "test_display_none/2/5.ops",
+      "spine": "OEBPS/chapter6.xhtml",
+      "pages": 1,
+      "bytes": 23699,
+      "sha256": "5b82728287b0038ac259c025d512648e021bc15293bb6b4d3fbe9a0db4717db1"
+    },
+    {
+      "section": "test_display_none/2/6.ops",
+      "spine": "OEBPS/chapter7.xhtml",
+      "pages": 1,
+      "bytes": 26907,
+      "sha256": "4503519c5e24030c1733104809297d971100f24a626ad9fbe924ea022d0d3a54"
+    },
+    {
+      "section": "test_display_none/2/7.ops",
+      "spine": "OEBPS/chapter8.xhtml",
+      "pages": 1,
+      "bytes": 52877,
+      "sha256": "37a9c0de85992080c8d1f206baae3ba96e2bbb6b80443c49846af702c3cb96a6"
+    },
+    {
+      "section": "test_display_none/2/8.ops",
+      "spine": "OEBPS/chapter9.xhtml",
+      "pages": 1,
+      "bytes": 33570,
+      "sha256": "aae6fca6fcc7f521feda8d989040b70166c4fc4a5bba9c0b17c0a2152ab2058a"
+    },
+    {
+      "section": "test_display_none/2/9.ops",
+      "spine": "OEBPS/chapter10.xhtml",
+      "pages": 2,
+      "bytes": 89998,
+      "sha256": "7eb67043d35719feb72dcd3f614c8fdb7e2514326668fd01f88acbdafca8fe67"
+    },
+    {
+      "section": "test_display_none/2/10.ops",
+      "spine": "OEBPS/chapter11.xhtml",
+      "pages": 1,
+      "bytes": 33408,
+      "sha256": "c9f4cc6fbd0fdc0e2ccab5ca2da0df57ee484826a3aaba3a46edbe7ad956bd01"
+    },
+    {
+      "section": "test_display_none/2/11.ops",
+      "spine": "OEBPS/chapter12.xhtml",
+      "pages": 1,
+      "bytes": 44116,
+      "sha256": "aabc2e04f1f00725af480e38b656c8269802f310fd5cb0a530fc150ef6be5aed"
+    },
+    {
+      "section": "test_emoji_ranges/0/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 40105,
+      "sha256": "0111aa6e0e7fbe7f7790400c9ec359bf4bca4ba6596dc8515e3f94c57fc08b2d"
+    },
+    {
+      "section": "test_emoji_ranges/0/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 66647,
+      "sha256": "a39b38722e068dd4cb10a9f33ec0b53cb4bc1565eadadfa6b832880ee5fb037b"
+    },
+    {
+      "section": "test_emoji_ranges/0/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 125331,
+      "sha256": "d9b43a48a7e0a3f50f0cd387f3300d0e49c961c660a8a9bfb42897d80d5f7e81"
+    },
+    {
+      "section": "test_emoji_ranges/0/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 1,
+      "bytes": 76723,
+      "sha256": "e560ff1115b9d450a6a8d2184c00223d52fc5547f3365247dd807b5911f2ea60"
+    },
+    {
+      "section": "test_emoji_ranges/1/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 3,
+      "bytes": 41291,
+      "sha256": "473bf0caa734e20f425942823e4aa2fb9fa72298d6fcf4d14d2ef4a0f32a569a"
+    },
+    {
+      "section": "test_emoji_ranges/1/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 3,
+      "bytes": 66954,
+      "sha256": "5f3a59d176349cd41045c48ca554786175b3b412cd9302939e656b3565758d87"
+    },
+    {
+      "section": "test_emoji_ranges/1/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 4,
+      "bytes": 127122,
+      "sha256": "f611000187181fb1ede38e1a38082dd530b89d2ad4478d3eef78989273e7c3c1"
+    },
+    {
+      "section": "test_emoji_ranges/1/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 3,
+      "bytes": 77619,
+      "sha256": "83600e338fc292dc042a20551490a051e6b36c2ef90b80e7506c08fcf7492634"
+    },
+    {
+      "section": "test_emoji_ranges/2/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 39949,
+      "sha256": "e195169f9b3da83fbd21a57d97ad8ac143cc4c0e2f701610577fcda858502760"
+    },
+    {
+      "section": "test_emoji_ranges/2/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 2,
+      "bytes": 66685,
+      "sha256": "ad3627d74252a1b7664a51b7a25597b44aecba47dbc179a7fb4caa4e07dd40c2"
+    },
+    {
+      "section": "test_emoji_ranges/2/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 2,
+      "bytes": 125390,
+      "sha256": "cb45cf8c5e0970984982f1c1e674404b443f61fa147113ac2703b23a4ad98ae7"
+    },
+    {
+      "section": "test_emoji_ranges/2/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 1,
+      "bytes": 76568,
+      "sha256": "af720079b9b3391af594d067eef0a08568e218d283553df295362bbb219524e9"
+    },
+    {
+      "section": "test_force_paragraph_indents/0/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 30914,
+      "sha256": "c6f315a1ef8b2ba4c4698061dbe755e7c8ac62606b96d728bb31e538eb858330"
+    },
+    {
+      "section": "test_force_paragraph_indents/0/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 59640,
+      "sha256": "a4814fd37ec4bd04445be4d9f3d30e8ab806f2c00ce2ebe0d575fc0af2e1874a"
+    },
+    {
+      "section": "test_force_paragraph_indents/0/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 48394,
+      "sha256": "48d8c5d60af508d05231e96296d9cff812d38cc06dbba2ee0d86af61c0bca9c5"
+    },
+    {
+      "section": "test_force_paragraph_indents/0/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 1,
+      "bytes": 42497,
+      "sha256": "77148006e241fd119126b7b3423b962d22837fa80b49414d5d57e89f2ceb1bde"
+    },
+    {
+      "section": "test_force_paragraph_indents/1/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 2,
+      "bytes": 31848,
+      "sha256": "960de5722fbb2ff93a37f8801af2a2a1dfc041e11d5b2d7ef4c476072e7a7d8e"
+    },
+    {
+      "section": "test_force_paragraph_indents/1/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 4,
+      "bytes": 61623,
+      "sha256": "e8ff9c25cc55246c4e41b3b2151348be1029ee0d04b3decb721eaed23d02b249"
+    },
+    {
+      "section": "test_force_paragraph_indents/1/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 4,
+      "bytes": 49972,
+      "sha256": "8ead694f2f8532b895e3444be3a4bfb708bf3d5fa3fabdc8a7731bbbe4728ba9"
+    },
+    {
+      "section": "test_force_paragraph_indents/1/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 3,
+      "bytes": 44095,
+      "sha256": "636ce05eb2fabad9224041eb78fb8615126cdd3b7b91c3a1189bd3b829ebd627"
+    },
+    {
+      "section": "test_force_paragraph_indents/2/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 30758,
+      "sha256": "2850b077446924f339e232bb0a15114e0e3238fa347f7ab9c555ae6e0365dbf2"
+    },
+    {
+      "section": "test_force_paragraph_indents/2/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 2,
+      "bytes": 59542,
+      "sha256": "9dd09e6b7bcde91e6b94d1860545781560143751835877bb25125f26ec400bdf"
+    },
+    {
+      "section": "test_force_paragraph_indents/2/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 48238,
+      "sha256": "ca50d73db61ad939de34033e7527e2d08b9572b034e4c6492a9a66338311b8a4"
+    },
+    {
+      "section": "test_force_paragraph_indents/2/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 1,
+      "bytes": 42420,
+      "sha256": "525904097f4085b8b093a5fefbfe0e18844f4ee65d4c35cfd60010388311fdbb"
+    },
+    {
+      "section": "test_hidden/0/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 20167,
+      "sha256": "be36d6f33a1e242eca0599b88f1d318564d22e545ec2e0bbb70dee5db8265056"
+    },
+    {
+      "section": "test_hidden/0/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 35269,
+      "sha256": "d2a0441dfac1a9c0b4c6f297d3c95a80dd99e645850e155686fb9a4dfcd9763e"
+    },
+    {
+      "section": "test_hidden/0/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 23737,
+      "sha256": "e4f01faac91553e0cd66cdf33c3577c1648d67692c10462505589c449ed4a3d0"
+    },
+    {
+      "section": "test_hidden/1/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 2,
+      "bytes": 20769,
+      "sha256": "41f0ffd6070c9bdbce4a2cec06459bf2d6e0c73132e53fa2094402ef936d8b37"
+    },
+    {
+      "section": "test_hidden/1/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 2,
+      "bytes": 36084,
+      "sha256": "e1ce0f996aac1baf2346e5b8877e9b3f7b67ab86b19f71f99c7b101a13ffec05"
+    },
+    {
+      "section": "test_hidden/1/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 2,
+      "bytes": 24318,
+      "sha256": "1c3ee313f0978cc9bee13c287926517a404380303b18d9358a0f0df1b42ed8bf"
+    },
+    {
+      "section": "test_hidden/2/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 20012,
+      "sha256": "8a98192f0f5e5463af8ee7a65a2a87d873a8214c97a8c823ecb454802af06caa"
+    },
+    {
+      "section": "test_hidden/2/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 35269,
+      "sha256": "02dc245f3bdd365663048604a24c9d15d94f19294a443076a0b94240913339b3"
+    },
+    {
+      "section": "test_hidden/2/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 23659,
+      "sha256": "e5ca989a5a472804c90479771669a5829e6d7227b01fdcb63b4df3fb1e152d82"
+    },
+    {
+      "section": "test_jpeg_images/0/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 27758,
+      "sha256": "0fd6c7641b24207d33aec573147285b2061a75951696fc78cbb4e62c617f39c6"
+    },
+    {
+      "section": "test_jpeg_images/0/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 12395,
+      "sha256": "c8bb078a88c59bcba233989757150c83bc0639c33b6ab5ddeb77cc204da5e281"
+    },
+    {
+      "section": "test_jpeg_images/0/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 8640,
+      "sha256": "2e8653f963e4b2d8afa0d17ee826016ffcea32190d593fde0f548cd6162f4ca3"
+    },
+    {
+      "section": "test_jpeg_images/0/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 1,
+      "bytes": 8395,
+      "sha256": "b1172aed3ec805f50e3893affdd34bd84408ec25605706798d9677ea91088782"
+    },
+    {
+      "section": "test_jpeg_images/0/4.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 1,
+      "bytes": 8190,
+      "sha256": "4527d5a6825053ef4f78b71a2b1f12908ad202480102600f879ab9c6fb74619b"
+    },
+    {
+      "section": "test_jpeg_images/0/5.ops",
+      "spine": "OEBPS/chapter6.xhtml",
+      "pages": 1,
+      "bytes": 13080,
+      "sha256": "c9086a677ccd602a0df891b8ac361bdfaf919fbd9546cb2f43dc3465a06ba5cd"
+    },
+    {
+      "section": "test_jpeg_images/0/6.ops",
+      "spine": "OEBPS/chapter7.xhtml",
+      "pages": 1,
+      "bytes": 13898,
+      "sha256": "53c293ac4c25b9e98ec3a99aa7755d5427788f1eb15def63eb1efd2ce127eb1c"
+    },
+    {
+      "section": "test_jpeg_images/0/7.ops",
+      "spine": "OEBPS/chapter8.xhtml",
+      "pages": 1,
+      "bytes": 13288,
+      "sha256": "40bc272f76a227a1ab0f4cb59cba3b57b1c8f68a1fcce4c6eda27900e2428f63"
+    },
+    {
+      "section": "test_jpeg_images/0/8.ops",
+      "spine": "OEBPS/chapter9.xhtml",
+      "pages": 1,
+      "bytes": 13516,
+      "sha256": "197f44083f448ef90a74c3eb48ba62a413cbda8597e51148c53d783b0015a966"
+    },
+    {
+      "section": "test_jpeg_images/0/9.ops",
+      "spine": "OEBPS/chapter10.xhtml",
+      "pages": 1,
+      "bytes": 54189,
+      "sha256": "292de2e14fd2dcaf3bb85e65a7174592e893d9d6a82c2e66205310696dc2cba6"
+    },
+    {
+      "section": "test_jpeg_images/1/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 2,
+      "bytes": 28182,
+      "sha256": "b7e58caacf252aae084d31cf19775b756063913ee81a77836db318ad2d9c8249"
+    },
+    {
+      "section": "test_jpeg_images/1/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 2,
+      "bytes": 12604,
+      "sha256": "d29005afede4e40d836a47a676e53dfa98d0ee7ef241d55d9948deaa9154c527"
+    },
+    {
+      "section": "test_jpeg_images/1/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 2,
+      "bytes": 8830,
+      "sha256": "4fa4901ed89201f8aec932557ab1e4d72810c72fe63fbcdcc8ce66e38ff5911d"
+    },
+    {
+      "section": "test_jpeg_images/1/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 2,
+      "bytes": 8508,
+      "sha256": "3ebfa93bbc871869ecf665cf8886c032b80a8beb1c4299fcc76306ad7268799a"
+    },
+    {
+      "section": "test_jpeg_images/1/4.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 2,
+      "bytes": 8380,
+      "sha256": "0961aeaee89680035dbfb45120d9ddcd4704dd229d20e9c08ff96d4086c9e546"
+    },
+    {
+      "section": "test_jpeg_images/1/5.ops",
+      "spine": "OEBPS/chapter6.xhtml",
+      "pages": 2,
+      "bytes": 13350,
+      "sha256": "73350e1e031a15ba132fb4509df6ae1f08c8a01ba270c9901aef1521bfaea02b"
+    },
+    {
+      "section": "test_jpeg_images/1/6.ops",
+      "spine": "OEBPS/chapter7.xhtml",
+      "pages": 2,
+      "bytes": 14323,
+      "sha256": "7598234f72bce310acedcb014bad5eed7abff38b65664efac0cf23ab1fbfd7ea"
+    },
+    {
+      "section": "test_jpeg_images/1/7.ops",
+      "spine": "OEBPS/chapter8.xhtml",
+      "pages": 2,
+      "bytes": 13554,
+      "sha256": "0b7b6d039cf5fb744972d02f92961f6de8cbe4ad743d7166c53fcb68dd90311d"
+    },
+    {
+      "section": "test_jpeg_images/1/8.ops",
+      "spine": "OEBPS/chapter9.xhtml",
+      "pages": 2,
+      "bytes": 13803,
+      "sha256": "b007441abd5ccbfc03bcc9a7bbc53859c884ddea725cfd68bc948850a6e5d5b3"
+    },
+    {
+      "section": "test_jpeg_images/1/9.ops",
+      "spine": "OEBPS/chapter10.xhtml",
+      "pages": 5,
+      "bytes": 56210,
+      "sha256": "d63260473c40408be4dc226a6407cf3916b5f8907d8d2bee476bc7a66843ebc8"
+    },
+    {
+      "section": "test_jpeg_images/2/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 27758,
+      "sha256": "23302ad22a4e96b4dcc694c8c6109bd8126cf417d13b87aab09cbc5d1d390c1a"
+    },
+    {
+      "section": "test_jpeg_images/2/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 12395,
+      "sha256": "eb85d5b3fb9fd90b599737c9d8af762d3801bf2a066b8ccb8282b2445e703b14"
+    },
+    {
+      "section": "test_jpeg_images/2/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 2,
+      "bytes": 8675,
+      "sha256": "f37392c1d85ce8e8738b35fb44c0c990ff90274f6a3ce0109a399f0ebdb84315"
+    },
+    {
+      "section": "test_jpeg_images/2/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 2,
+      "bytes": 8430,
+      "sha256": "82e3c110ff7bb6532993141538c8847f9f128a71c52ea374e143ceb636391bbb"
+    },
+    {
+      "section": "test_jpeg_images/2/4.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 2,
+      "bytes": 8225,
+      "sha256": "54e3a39344b3d0b7fb4407da330464c5926781841806ab983253775880fe989b"
+    },
+    {
+      "section": "test_jpeg_images/2/5.ops",
+      "spine": "OEBPS/chapter6.xhtml",
+      "pages": 2,
+      "bytes": 13117,
+      "sha256": "2d6e3c69e41960c740fd64c47e30a77e63e8d28d2a6742ad2c60f5142865ec8f"
+    },
+    {
+      "section": "test_jpeg_images/2/6.ops",
+      "spine": "OEBPS/chapter7.xhtml",
+      "pages": 1,
+      "bytes": 13898,
+      "sha256": "c57a0b4b595bf7e3d2ba1693cf72f1e13018757444772cf39b69af64a2601710"
+    },
+    {
+      "section": "test_jpeg_images/2/7.ops",
+      "spine": "OEBPS/chapter8.xhtml",
+      "pages": 1,
+      "bytes": 13288,
+      "sha256": "e736247489076835540d08d30c75425de576938ce41cf8f374366c1a0f174e68"
+    },
+    {
+      "section": "test_jpeg_images/2/8.ops",
+      "spine": "OEBPS/chapter9.xhtml",
+      "pages": 1,
+      "bytes": 13516,
+      "sha256": "4f0816436593b84c2c5d0d029e6ceabc0975da65c73c2e110eeab7c8f1d43e28"
+    },
+    {
+      "section": "test_jpeg_images/2/9.ops",
+      "spine": "OEBPS/chapter10.xhtml",
+      "pages": 3,
+      "bytes": 54032,
+      "sha256": "3cedc3f68f3f4f0fa28955daa12218aaa387407f86932e03f36e34e2934823b1"
+    },
+    {
+      "section": "test_kerning_ligature/0/0.ops",
+      "spine": "OEBPS/cover.xhtml",
+      "pages": 1,
+      "bytes": 2089,
+      "sha256": "82c0b5f94d408f8acf2389c205098d052db020b59325651712019b29f66f1e4a"
+    },
+    {
+      "section": "test_kerning_ligature/0/1.ops",
+      "spine": "OEBPS/toc.xhtml",
+      "pages": 1,
+      "bytes": 63031,
+      "sha256": "cc9c3c8a8fd9affea66710b4379f120f8a672ffcaf2a23d89e1f98e07e7538a9"
+    },
+    {
+      "section": "test_kerning_ligature/0/2.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 118665,
+      "sha256": "bca832d101a9f0d33a815f0b742b3893880b51da5522634cbd6dcc9455b7d934"
+    },
+    {
+      "section": "test_kerning_ligature/0/3.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 118120,
+      "sha256": "c59f499e8b5cb3321077fbf07cb2e9a4b36345f2fbf0b1ea8c94d2ccae029a8c"
+    },
+    {
+      "section": "test_kerning_ligature/0/4.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 135637,
+      "sha256": "d0fce795620aabe79a06ed24acaca9d6397962a6d52b51e5d8877b50bb998d56"
+    },
+    {
+      "section": "test_kerning_ligature/0/5.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 1,
+      "bytes": 125387,
+      "sha256": "4a320da942eede5754aefb229f2f797132b6bc0c130c8c1720b82b7d769f0572"
+    },
+    {
+      "section": "test_kerning_ligature/0/6.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 2,
+      "bytes": 241940,
+      "sha256": "16e8d836e4e256b3d5bfee2b85b6d6f34def28002b0c5e92c53a0cd1a3b3df97"
+    },
+    {
+      "section": "test_kerning_ligature/0/7.ops",
+      "spine": "OEBPS/chapter6.xhtml",
+      "pages": 3,
+      "bytes": 387360,
+      "sha256": "5132e59b576b7696f8a5c51062d80d3d5d44c14e66194fc34b0bf1f76e24cece"
+    },
+    {
+      "section": "test_kerning_ligature/0/8.ops",
+      "spine": "OEBPS/chapter7.xhtml",
+      "pages": 3,
+      "bytes": 454273,
+      "sha256": "8927a06e060c34e1969e56a62581936546a6253b7de66f77a1d28f5f2a0da3ea"
+    },
+    {
+      "section": "test_kerning_ligature/0/9.ops",
+      "spine": "OEBPS/chapter8.xhtml",
+      "pages": 3,
+      "bytes": 484951,
+      "sha256": "e2451b8ab88d75590b5941da90d3169bdeb2d699fe652be3fee85b9916837334"
+    },
+    {
+      "section": "test_kerning_ligature/0/10.ops",
+      "spine": "OEBPS/chapter9.xhtml",
+      "pages": 3,
+      "bytes": 326522,
+      "sha256": "e4939a0b5b082e62ecdb357c3fff0697726e049fb1ad1ea361e5b1461c31aecb"
+    },
+    {
+      "section": "test_kerning_ligature/0/11.ops",
+      "spine": "OEBPS/chapter10.xhtml",
+      "pages": 3,
+      "bytes": 413774,
+      "sha256": "ec9df5afd8cc99464b552a0ecf6e2499830dd67ebeb78eb7f096afc365bc2548"
+    },
+    {
+      "section": "test_kerning_ligature/0/12.ops",
+      "spine": "OEBPS/chapter11.xhtml",
+      "pages": 4,
+      "bytes": 537561,
+      "sha256": "b816a6802fb8a55b86095fab5696e2ae8f519ba13f4f06e4e673c9e44ef0acbe"
+    },
+    {
+      "section": "test_kerning_ligature/1/0.ops",
+      "spine": "OEBPS/cover.xhtml",
+      "pages": 1,
+      "bytes": 2089,
+      "sha256": "481db8cfeb1c3143e3b9f274deeb061c96d3e7815d4810499e50863a922656ac"
+    },
+    {
+      "section": "test_kerning_ligature/1/1.ops",
+      "spine": "OEBPS/toc.xhtml",
+      "pages": 3,
+      "bytes": 64083,
+      "sha256": "b3a17ad3047015b115a5b173b09a34eb03779d18c6c9fd5f3fd3f63905351eeb"
+    },
+    {
+      "section": "test_kerning_ligature/1/2.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 6,
+      "bytes": 122391,
+      "sha256": "131c5d542200fc8f4339d2e31415127af71b1cbaf4afa17ad8abb88f31aed8c7"
+    },
+    {
+      "section": "test_kerning_ligature/1/3.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 6,
+      "bytes": 121693,
+      "sha256": "56138f28c8ec3472ce8cfb479be48c03cdeb8e9d2bca2fd0d2217fcfcb2c7ab9"
+    },
+    {
+      "section": "test_kerning_ligature/1/4.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 7,
+      "bytes": 139924,
+      "sha256": "2a3fdff8d98c85d7c355fa37faf589304946e578d4e13359c24cff8fe35ddff4"
+    },
+    {
+      "section": "test_kerning_ligature/1/5.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 6,
+      "bytes": 129065,
+      "sha256": "8ad922e5e2e01bd2f1c12aaea1cf8a905f18d4cf29b6eeb11023ddca38640a3f"
+    },
+    {
+      "section": "test_kerning_ligature/1/6.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 10,
+      "bytes": 248168,
+      "sha256": "0f94b16c2921cb714e7818fcb02843b851c42694b89756abae322ca4eaaebe54"
+    },
+    {
+      "section": "test_kerning_ligature/1/7.ops",
+      "spine": "OEBPS/chapter6.xhtml",
+      "pages": 18,
+      "bytes": 399049,
+      "sha256": "73c2eb58ebf8c9ecbce843f9e0a7c7572a42b2dd86c7662795ab4a2b592cd31e"
+    },
+    {
+      "section": "test_kerning_ligature/1/8.ops",
+      "spine": "OEBPS/chapter7.xhtml",
+      "pages": 19,
+      "bytes": 465929,
+      "sha256": "5ab5de77a8bcab43c6bb90243b1ef2d15a856defe67176e847f23bc275ec3809"
+    },
+    {
+      "section": "test_kerning_ligature/1/9.ops",
+      "spine": "OEBPS/chapter8.xhtml",
+      "pages": 16,
+      "bytes": 493623,
+      "sha256": "4aa50cddee9f868932e7a40e24a0ff43a94ff909114fdec59b552d5c650d87ba"
+    },
+    {
+      "section": "test_kerning_ligature/1/10.ops",
+      "spine": "OEBPS/chapter9.xhtml",
+      "pages": 15,
+      "bytes": 335519,
+      "sha256": "a091df0237cf3f501807ed1a4ffdde7a306aa834da883a2d22d29c6df35f33ce"
+    },
+    {
+      "section": "test_kerning_ligature/1/11.ops",
+      "spine": "OEBPS/chapter10.xhtml",
+      "pages": 16,
+      "bytes": 422152,
+      "sha256": "3a747fe18a6eb73b6b27f24a84702c147eed0da77874e299fb0cab006018fca6"
+    },
+    {
+      "section": "test_kerning_ligature/1/12.ops",
+      "spine": "OEBPS/chapter11.xhtml",
+      "pages": 25,
+      "bytes": 553218,
+      "sha256": "9ae29b96a6915eb0a012b0acdc5b194e4b6043e3788d771a6934eb1d52b25130"
+    },
+    {
+      "section": "test_kerning_ligature/2/0.ops",
+      "spine": "OEBPS/cover.xhtml",
+      "pages": 1,
+      "bytes": 2089,
+      "sha256": "4844e247cfe47bb0da8ead58f0fab2bc0d4f8d84cf9b5f56d5c6904c95617545"
+    },
+    {
+      "section": "test_kerning_ligature/2/1.ops",
+      "spine": "OEBPS/toc.xhtml",
+      "pages": 1,
+      "bytes": 63031,
+      "sha256": "e50d208f7417a3cd93da72ad2e49b755ee696113fc72508caf36f909c9150dda"
+    },
+    {
+      "section": "test_kerning_ligature/2/2.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 2,
+      "bytes": 118390,
+      "sha256": "2570a2c8843627d8b586aa3fdc8ad821b119dc7fd6eddd823a19cca22aa2ca02"
+    },
+    {
+      "section": "test_kerning_ligature/2/3.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 2,
+      "bytes": 117769,
+      "sha256": "7844b2cd686948ff23bf9f5228312a63c8e4efc08a76ed02459487787a3424e8"
+    },
+    {
+      "section": "test_kerning_ligature/2/4.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 2,
+      "bytes": 135303,
+      "sha256": "854d7c62f296641503bac405e4d696c5f126f1a61a35b31aea0f5cf2758f15d5"
+    },
+    {
+      "section": "test_kerning_ligature/2/5.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 2,
+      "bytes": 125034,
+      "sha256": "6a01a2a917c137ec00984d7fe5a2d59a77f1ea2e5a3fcaf3c8a49c17b5302870"
+    },
+    {
+      "section": "test_kerning_ligature/2/6.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 4,
+      "bytes": 241961,
+      "sha256": "720c256a9c7cbc44a40da3c207b5094d3dc1e7d167562758fdd67c7c4ea78023"
+    },
+    {
+      "section": "test_kerning_ligature/2/7.ops",
+      "spine": "OEBPS/chapter6.xhtml",
+      "pages": 6,
+      "bytes": 386320,
+      "sha256": "7ea5b9b3026eb453e6b774ebcbc36ef9861d18ec1ded32afedab4b958f519579"
+    },
+    {
+      "section": "test_kerning_ligature/2/8.ops",
+      "spine": "OEBPS/chapter7.xhtml",
+      "pages": 6,
+      "bytes": 453630,
+      "sha256": "34af3fe1577fb2372f40f3651246f14065e53113c3de4572c6ae7dd0f0d6f0c4"
+    },
+    {
+      "section": "test_kerning_ligature/2/9.ops",
+      "spine": "OEBPS/chapter8.xhtml",
+      "pages": 6,
+      "bytes": 484364,
+      "sha256": "99b11c2ca24e86f46e23c0960f14730e280e88960bf54a871fb69363d0d3be06"
+    },
+    {
+      "section": "test_kerning_ligature/2/10.ops",
+      "spine": "OEBPS/chapter9.xhtml",
+      "pages": 6,
+      "bytes": 325998,
+      "sha256": "cd6916eb1a1ca3e2b1247bd8b462064f094cbccf5817433d091e57b74d7d0d8e"
+    },
+    {
+      "section": "test_kerning_ligature/2/11.ops",
+      "spine": "OEBPS/chapter10.xhtml",
+      "pages": 6,
+      "bytes": 412868,
+      "sha256": "60dabfaf494e74754197ee6142c82d8bc3b750e50da9e819535f71b16bfa57db"
+    },
+    {
+      "section": "test_kerning_ligature/2/12.ops",
+      "spine": "OEBPS/chapter11.xhtml",
+      "pages": 8,
+      "bytes": 536291,
+      "sha256": "ace50e592a845d824900e677caf571d2200795364ef30e51a3a294e3e270a4c0"
+    },
+    {
+      "section": "test_mixed_images/0/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 12146,
+      "sha256": "ef658a065df127fc04f5c349cf7fd5fd88bd72fde03f9f8565e0378440011ab6"
+    },
+    {
+      "section": "test_mixed_images/0/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 8542,
+      "sha256": "ed2905a775cf99774417d6f51fc7e3426575da5c43c79e4b4e973548bbdb0e82"
+    },
+    {
+      "section": "test_mixed_images/0/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 8530,
+      "sha256": "eae297b049255dee55fab3393452372041b3a963fe5a0b1f8b2bef79888bc9c2"
+    },
+    {
+      "section": "test_mixed_images/0/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 2,
+      "bytes": 15051,
+      "sha256": "966f74c4d815d0a37a6781c585045708f6b182e7690bfbd8e5712a2573369117"
+    },
+    {
+      "section": "test_mixed_images/1/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 12378,
+      "sha256": "371f2659b43bcfb1cb7cd263e9c922cae5ccbb9a8cfd608ecff94ce64c345fc5"
+    },
+    {
+      "section": "test_mixed_images/1/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 8619,
+      "sha256": "5f1f76ae7b036a5d3a6f09f6e227c23df5019e9db3bb28e1186cf57de5e8609a"
+    },
+    {
+      "section": "test_mixed_images/1/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 8607,
+      "sha256": "81cd4982208e16d78bba3e89097535db1c5dfb0be1a695efbcc25647214a24a7"
+    },
+    {
+      "section": "test_mixed_images/1/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 5,
+      "bytes": 15311,
+      "sha256": "b8681eb1ba689e0d2b29f7b5937c8bf2386752d7d2a6d403abf4566569fa04ed"
+    },
+    {
+      "section": "test_mixed_images/2/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 12146,
+      "sha256": "30e7a7003b7eb25e76445dccf67063eefe7d79d85553f007646aba62b51cff97"
+    },
+    {
+      "section": "test_mixed_images/2/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 8542,
+      "sha256": "bdb944038bf632256b0134ebc1e2184a790be4b0db788d2225ec730dc9fc0ff3"
+    },
+    {
+      "section": "test_mixed_images/2/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 8530,
+      "sha256": "225c2bcd80de166c65ac16786e7ebbbbd54a0cbb97c5e9fd2b0772346259a0d9"
+    },
+    {
+      "section": "test_mixed_images/2/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 5,
+      "bytes": 15156,
+      "sha256": "e8376f82d769f16136fa6c4d3acd1a06edd35c2a3cac3caa47358bbe346e3d87"
+    },
+    {
+      "section": "test_png_images/0/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 28212,
+      "sha256": "43a6907c21a539a81d175e454c763ec20c0aa3cb77cbb432445103ec36cfeebe"
+    },
+    {
+      "section": "test_png_images/0/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 13421,
+      "sha256": "f4f5963df7bbc488d19f68aec5de3ab857e5f869d270d6ce4cd6ec6c3011f0fd"
+    },
+    {
+      "section": "test_png_images/0/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 8640,
+      "sha256": "0fe110bf3836b60b4add8345af775031c5e946fb3bdcf221a6955369e5642b3e"
+    },
+    {
+      "section": "test_png_images/0/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 1,
+      "bytes": 8395,
+      "sha256": "e5dc11f512794a29a4fe296b4dafa77f5b2dfe918351d70da5b6b887da25fc28"
+    },
+    {
+      "section": "test_png_images/0/4.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 1,
+      "bytes": 8190,
+      "sha256": "a12e186afcdd7166dcb6d58e057b03aab46bb3cc7f1ae3b5ea7224abb1edaeca"
+    },
+    {
+      "section": "test_png_images/0/5.ops",
+      "spine": "OEBPS/chapter6.xhtml",
+      "pages": 1,
+      "bytes": 13080,
+      "sha256": "717df221109a52b781e77c7f6d0f271f5e5690bdc3d1de990e86a34b3e60b83e"
+    },
+    {
+      "section": "test_png_images/0/6.ops",
+      "spine": "OEBPS/chapter7.xhtml",
+      "pages": 1,
+      "bytes": 13898,
+      "sha256": "9f6ce204ca086a4726942b43f43db2ed7be044fbd7daee89d8cf28356f3c8892"
+    },
+    {
+      "section": "test_png_images/0/7.ops",
+      "spine": "OEBPS/chapter8.xhtml",
+      "pages": 1,
+      "bytes": 13288,
+      "sha256": "b11ba36668e50bb8ca9000fded0e6aa06894a370c014bacc84031a7966be2c18"
+    },
+    {
+      "section": "test_png_images/0/8.ops",
+      "spine": "OEBPS/chapter9.xhtml",
+      "pages": 1,
+      "bytes": 13516,
+      "sha256": "03030f35464e16003c890f694fd49223c8b6a998f9980bb0cc850edfb818297b"
+    },
+    {
+      "section": "test_png_images/0/9.ops",
+      "spine": "OEBPS/chapter10.xhtml",
+      "pages": 1,
+      "bytes": 54189,
+      "sha256": "7b91076a9719738bd3bc765047357752066f0120db7e8fde02ebfedbfce72033"
+    },
+    {
+      "section": "test_png_images/1/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 2,
+      "bytes": 28636,
+      "sha256": "88ce99e48b7cd6d1336091d58e41a9f2e46a8edae338e18d95a68c4fe258e18b"
+    },
+    {
+      "section": "test_png_images/1/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 2,
+      "bytes": 13629,
+      "sha256": "8f30de2333f83336d95a0ec61b123309bc0d240193c23221c149d8efafd4b250"
+    },
+    {
+      "section": "test_png_images/1/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 2,
+      "bytes": 8830,
+      "sha256": "a7ae5793fcf363edbb7365816f42ce7b63356be04e243f8f81ea6c15e027690f"
+    },
+    {
+      "section": "test_png_images/1/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 2,
+      "bytes": 8508,
+      "sha256": "47db8694fec4e55ae0086156d391535e38ac5b57869cf1cbadf86f43c36761ae"
+    },
+    {
+      "section": "test_png_images/1/4.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 2,
+      "bytes": 8380,
+      "sha256": "8393a497499d13ca53fab1ac0fcf9aeb4fe9a75f2a6bc435923ede3d674c25d7"
+    },
+    {
+      "section": "test_png_images/1/5.ops",
+      "spine": "OEBPS/chapter6.xhtml",
+      "pages": 2,
+      "bytes": 13350,
+      "sha256": "7d0ec1998566d7c0eadcd245d92a9103c62cf031609d1fe6b081b2126c26ebd2"
+    },
+    {
+      "section": "test_png_images/1/6.ops",
+      "spine": "OEBPS/chapter7.xhtml",
+      "pages": 2,
+      "bytes": 14323,
+      "sha256": "1d934e934082914e0d99bb89936e3bbd4c6b850d7b3f181980eb007ae799bbe4"
+    },
+    {
+      "section": "test_png_images/1/7.ops",
+      "spine": "OEBPS/chapter8.xhtml",
+      "pages": 2,
+      "bytes": 13554,
+      "sha256": "7dae35dd87bf8909c9a3ed1f014d94c507d8f478a7ed37d1506fca959769d468"
+    },
+    {
+      "section": "test_png_images/1/8.ops",
+      "spine": "OEBPS/chapter9.xhtml",
+      "pages": 2,
+      "bytes": 13803,
+      "sha256": "1450fe9a29eb4e1e1bae3c24d5c9aef56c4e73a2205676a58e3e22f66e65680d"
+    },
+    {
+      "section": "test_png_images/1/9.ops",
+      "spine": "OEBPS/chapter10.xhtml",
+      "pages": 5,
+      "bytes": 56210,
+      "sha256": "b7d9880331b77c048fdfdc7109eee8fa7d170aee4fed3b7720a0a06141c4670c"
+    },
+    {
+      "section": "test_png_images/2/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 28212,
+      "sha256": "e93a9111a95a4c3caa007344a07b658dab16f5c086c4f50805fbf4523c849f17"
+    },
+    {
+      "section": "test_png_images/2/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 13343,
+      "sha256": "add23f24437e763087899257ea0016ff62f3aa634cb515c372067c972496dece"
+    },
+    {
+      "section": "test_png_images/2/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 2,
+      "bytes": 8675,
+      "sha256": "69db8bd932d55ff247fd3536f15cffd73208d76e097f185f4e897ce7cadafc4c"
+    },
+    {
+      "section": "test_png_images/2/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 2,
+      "bytes": 8430,
+      "sha256": "e619ff463357a79d680cc3e5117bedeb05c51e3abe2a6b1037078a527f17ad02"
+    },
+    {
+      "section": "test_png_images/2/4.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 2,
+      "bytes": 8225,
+      "sha256": "55479ac54f540a4a314b64c39a1a32a0a74830598619f9e2c009169402b19a45"
+    },
+    {
+      "section": "test_png_images/2/5.ops",
+      "spine": "OEBPS/chapter6.xhtml",
+      "pages": 2,
+      "bytes": 13117,
+      "sha256": "ccc7643cc87fe7414e16de71437140dadb3f70e719ca062a480ddc86dfbc3924"
+    },
+    {
+      "section": "test_png_images/2/6.ops",
+      "spine": "OEBPS/chapter7.xhtml",
+      "pages": 1,
+      "bytes": 13898,
+      "sha256": "ed21d63257a36cedd1a0552bc00fbc5d99116196ec1b12739bf5bf48304ce2c2"
+    },
+    {
+      "section": "test_png_images/2/7.ops",
+      "spine": "OEBPS/chapter8.xhtml",
+      "pages": 1,
+      "bytes": 13288,
+      "sha256": "d5ae804a0f734cbf2bfaa4ac681441a1091f42aa92cbb2a8d4335b02c3be8966"
+    },
+    {
+      "section": "test_png_images/2/8.ops",
+      "spine": "OEBPS/chapter9.xhtml",
+      "pages": 1,
+      "bytes": 13516,
+      "sha256": "5c8520b8b440414cdb95a18daf38e1904a8c27d6dfdadbab94e7ba86e20f5f3a"
+    },
+    {
+      "section": "test_png_images/2/9.ops",
+      "spine": "OEBPS/chapter10.xhtml",
+      "pages": 3,
+      "bytes": 54032,
+      "sha256": "4fad0490fd1da8373664fcf9f433fd6ef170bfd0e98d0bfc92abbdfccc75db93"
+    },
+    {
+      "section": "test_reader_menu_progress/0/0.ops",
+      "spine": "OEBPS/chapter0.xhtml",
+      "pages": 2,
+      "bytes": 132892,
+      "sha256": "3cb833f85036514dfd156d9d11e7c19423324ef4e44aed99b6e4acfeb812db10"
+    },
+    {
+      "section": "test_reader_menu_progress/0/1.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 8,
+      "bytes": 887267,
+      "sha256": "d3c39a2a539ed574b02a2b4162d1504d99ff615c498725eac6cdc23ece6bd9e2"
+    },
+    {
+      "section": "test_reader_menu_progress/0/2.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 46170,
+      "sha256": "deffe0b70400a954efd5fa552a20f10ccb0163de72965c5f88e1843ff81fc744"
+    },
+    {
+      "section": "test_reader_menu_progress/1/0.ops",
+      "spine": "OEBPS/chapter0.xhtml",
+      "pages": 9,
+      "bytes": 138772,
+      "sha256": "30709b4ade86fc64fee5eb8bb1eb54194c18ba0ba17c8100785aa10ef8c45aec"
+    },
+    {
+      "section": "test_reader_menu_progress/1/1.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 57,
+      "bytes": 930675,
+      "sha256": "e239a2bc7f6f2bc9387a0090e493ac0123d565b37ea07564054795ac17a7b352"
+    },
+    {
+      "section": "test_reader_menu_progress/1/2.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 3,
+      "bytes": 48274,
+      "sha256": "8d866d7da20eef0bc14166c752cfbc2a62cf3e2ea3b2a6a2433cbbe7d54e87ba"
+    },
+    {
+      "section": "test_reader_menu_progress/2/0.ops",
+      "spine": "OEBPS/chapter0.xhtml",
+      "pages": 3,
+      "bytes": 132303,
+      "sha256": "d0c5a529e9dbf528e08faad292644749ce7142dbb7cc68c20971c25c58c7787f"
+    },
+    {
+      "section": "test_reader_menu_progress/2/1.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 15,
+      "bytes": 883081,
+      "sha256": "f1378fe8d2d8e8b8ff5e1277fc7495e31d035c55bb7812fcef8dfac7a7d9cc57"
+    },
+    {
+      "section": "test_reader_menu_progress/2/2.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 46014,
+      "sha256": "7f883b8402bf5cf9979c26f97c9d907254f0cb8498ac9e3ab9ef8cda1378b16e"
+    },
+    {
+      "section": "test_reader_rendering_matrix/0/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 65933,
+      "sha256": "d3fde68e88e0de95f6483945d2e3237f36d8d2a68a1dd4987281c91dba605c1e"
+    },
+    {
+      "section": "test_reader_rendering_matrix/0/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 118949,
+      "sha256": "62205862564a3f4543e514378bdd35bfd233f4c2dbfa03a598e0dc37c08e08c4"
+    },
+    {
+      "section": "test_reader_rendering_matrix/0/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 93533,
+      "sha256": "00fa6595e1dbf51df4731f166965117719bc5fa46b9545451519e7126892d38d"
+    },
+    {
+      "section": "test_reader_rendering_matrix/0/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 3,
+      "bytes": 115723,
+      "sha256": "4d7c67ce9166e09c7ec90141412ee5452e9959217a544b700b5ae3316f474bc2"
+    },
+    {
+      "section": "test_reader_rendering_matrix/0/4.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 1,
+      "bytes": 128232,
+      "sha256": "8ee5d7a2547ff6597319ba589d8bfd747d147bf40dc5604fa39d0a881d3d481a"
+    },
+    {
+      "section": "test_reader_rendering_matrix/1/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 3,
+      "bytes": 67899,
+      "sha256": "3c36bbc8ea84d987f85f84fdd4b68ae1b286c5a34a0bb86b91db844b916aaf18"
+    },
+    {
+      "section": "test_reader_rendering_matrix/1/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 6,
+      "bytes": 123067,
+      "sha256": "2f1711dd222d3f73b14b0123aca1d5b8c26bf399f08adede3f5cc5893f442565"
+    },
+    {
+      "section": "test_reader_rendering_matrix/1/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 4,
+      "bytes": 95900,
+      "sha256": "da1d32a9cabecb790fabb8a332fdc852240c5080ec8a634fe9d5e3db99c8f49f"
+    },
+    {
+      "section": "test_reader_rendering_matrix/1/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 7,
+      "bytes": 119614,
+      "sha256": "68e685d5691ed06013f3e6f833ebfe3ffd9c4e9dfb2256cb2231c66d526a39f8"
+    },
+    {
+      "section": "test_reader_rendering_matrix/1/4.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 6,
+      "bytes": 131480,
+      "sha256": "66283ed136eb01fbc43d707401b339e7ddcc7ed224786f590fd9ebe2ee038c27"
+    },
+    {
+      "section": "test_reader_rendering_matrix/2/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 65777,
+      "sha256": "b9195b9065a3513e7a708b7914e3f069d38f62de686464c3ee2ee3ec8dfc9adb"
+    },
+    {
+      "section": "test_reader_rendering_matrix/2/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 2,
+      "bytes": 118755,
+      "sha256": "983ed1a100b07f918d1c7c463546a507234e068fd102fffb3ecb49ce54a4b20a"
+    },
+    {
+      "section": "test_reader_rendering_matrix/2/2.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 2,
+      "bytes": 93574,
+      "sha256": "3538c4bc97dd8aae753bb1d6dee5834ed5cec43f812496a53e4d5171302e0b47"
+    },
+    {
+      "section": "test_reader_rendering_matrix/2/3.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 3,
+      "bytes": 115016,
+      "sha256": "a52cd32f65b1be4932b7372f027547ce823b56679127bb164cd6fb0677d02e14"
+    },
+    {
+      "section": "test_reader_rendering_matrix/2/4.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 2,
+      "bytes": 127956,
+      "sha256": "446220bfa84dedfb97fcf0dc2310aa3cf6dc378149d3a594052c77fe3957c568"
+    },
+    {
+      "section": "test_supsub/0/0.ops",
+      "spine": "OEBPS/chapter0.xhtml",
+      "pages": 1,
+      "bytes": 32654,
+      "sha256": "5efe54ee9ff1ff6cecb5edeac52bf2d40b1d571e4d2f0eefa21a9560d331722b"
+    },
+    {
+      "section": "test_supsub/0/1.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 36778,
+      "sha256": "feede322bbd3b9453b004585f1ccc30b57543f5cd1f71b748d2c86c83d0a6d54"
+    },
+    {
+      "section": "test_supsub/0/2.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 39255,
+      "sha256": "504a75ec71a276599a1ff86003dc3f7d78bfb788a650a416deea6888364f3f57"
+    },
+    {
+      "section": "test_supsub/0/3.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 36973,
+      "sha256": "8f9e225ab1db7a02844c9f9a8e29b06423ad321ddc9d976022bb1b28563b1707"
+    },
+    {
+      "section": "test_supsub/0/4.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 1,
+      "bytes": 37847,
+      "sha256": "cc9cc469b4f2ff229d369a9a4272bbf7dee7efaeecd3583e264eb3ef5e293c3d"
+    },
+    {
+      "section": "test_supsub/0/5.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 1,
+      "bytes": 46944,
+      "sha256": "0234d20ecea5b67a0cc766346ab384e482cce75379e63c249ede57c3128574b9"
+    },
+    {
+      "section": "test_supsub/0/6.ops",
+      "spine": "OEBPS/chapter6.xhtml",
+      "pages": 1,
+      "bytes": 58212,
+      "sha256": "c8e2c8b3f05769c03016995d65209b1941940363243f796f64772c03b4fca854"
+    },
+    {
+      "section": "test_supsub/0/7.ops",
+      "spine": "OEBPS/chapter7.xhtml",
+      "pages": 1,
+      "bytes": 51076,
+      "sha256": "a8699e74ea17b8a57898e7f139533d79185bf25e70502eecf980df56b3fa0f8d"
+    },
+    {
+      "section": "test_supsub/0/8.ops",
+      "spine": "OEBPS/chapter8.xhtml",
+      "pages": 1,
+      "bytes": 93170,
+      "sha256": "b77da917fcb611dd66f5ffa9dd01ae668d5a8b1cc75910626d123d7f8e8cd34f"
+    },
+    {
+      "section": "test_supsub/1/0.ops",
+      "spine": "OEBPS/chapter0.xhtml",
+      "pages": 2,
+      "bytes": 33313,
+      "sha256": "fa88b6d0babf920d55e1d34d8c0fcdc55fc80f8c6854fc0e9adb0e869f8b4f6e"
+    },
+    {
+      "section": "test_supsub/1/1.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 2,
+      "bytes": 37281,
+      "sha256": "9000b6cb271e53644638c7cc75feb431d968d6dc518d307771808688a23bdf09"
+    },
+    {
+      "section": "test_supsub/1/2.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 2,
+      "bytes": 39646,
+      "sha256": "7c46762128d7ce0f02bbc633346fb0cf1992633e894f8161bf6b9b5f20b614b1"
+    },
+    {
+      "section": "test_supsub/1/3.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 2,
+      "bytes": 37656,
+      "sha256": "6732c32070565201b6a7993837cb1087400204311d8573c9477f06e0ec4c06c2"
+    },
+    {
+      "section": "test_supsub/1/4.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 2,
+      "bytes": 38428,
+      "sha256": "21d68d1aa57796a59bfd5e8be1ad3459435243a5a65036fb206a70ebfad4ff21"
+    },
+    {
+      "section": "test_supsub/1/5.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 2,
+      "bytes": 47625,
+      "sha256": "24c3ddb5c7c0508c2dc74203b1146a30ab19513374853c9b175a68d4bafd9696"
+    },
+    {
+      "section": "test_supsub/1/6.ops",
+      "spine": "OEBPS/chapter6.xhtml",
+      "pages": 3,
+      "bytes": 59107,
+      "sha256": "a9c62433dc29db9ae4d19cc6675a1564ce7083fd60fd476f779ddcd18841d662"
+    },
+    {
+      "section": "test_supsub/1/7.ops",
+      "spine": "OEBPS/chapter7.xhtml",
+      "pages": 3,
+      "bytes": 52009,
+      "sha256": "75f923aa183236b092c00f57fc9ce90dcaacd938baeb681f83b4f839dfed4486"
+    },
+    {
+      "section": "test_supsub/1/8.ops",
+      "spine": "OEBPS/chapter8.xhtml",
+      "pages": 4,
+      "bytes": 94463,
+      "sha256": "1abf3f0d3e0289830318d1b6c9846e1141b8cdf86d0a992fba9f0f9812bca5a6"
+    },
+    {
+      "section": "test_supsub/2/0.ops",
+      "spine": "OEBPS/chapter0.xhtml",
+      "pages": 1,
+      "bytes": 32654,
+      "sha256": "e5b9ea82cacbc2a2ed545f0283c14e5c77072bf15ffa4d8f1021100438d2ef2d"
+    },
+    {
+      "section": "test_supsub/2/1.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 36778,
+      "sha256": "9a113a9f6c2fa16bdbf43b040c6ec540d2ce7536041a01a7d1ebe518a9d257a3"
+    },
+    {
+      "section": "test_supsub/2/2.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 39255,
+      "sha256": "0447a7f2adea0bda03698b8f59794f6e1da7824dea8cc527385ed7b8eb70d968"
+    },
+    {
+      "section": "test_supsub/2/3.ops",
+      "spine": "OEBPS/chapter3.xhtml",
+      "pages": 1,
+      "bytes": 36973,
+      "sha256": "6d8ce0e1da82d9900101ff5e32b0abbdd3c62d0187d9b9ab9503529794a36122"
+    },
+    {
+      "section": "test_supsub/2/4.ops",
+      "spine": "OEBPS/chapter4.xhtml",
+      "pages": 1,
+      "bytes": 37847,
+      "sha256": "8cfe18f32e3c4f5b8d948a1d28787e33fbc000c2811c2c25d69b2c5d5825e379"
+    },
+    {
+      "section": "test_supsub/2/5.ops",
+      "spine": "OEBPS/chapter5.xhtml",
+      "pages": 1,
+      "bytes": 46944,
+      "sha256": "0a93232e034b4e784e41b233751754dd0c1676f54b34a19886097b2c2ba43009"
+    },
+    {
+      "section": "test_supsub/2/6.ops",
+      "spine": "OEBPS/chapter6.xhtml",
+      "pages": 1,
+      "bytes": 57979,
+      "sha256": "46ae46b2d05a2e684a66465eea7569b2dafc60f330d0c8af889df56c6ee43c98"
+    },
+    {
+      "section": "test_supsub/2/7.ops",
+      "spine": "OEBPS/chapter7.xhtml",
+      "pages": 1,
+      "bytes": 50998,
+      "sha256": "e6116cce7843f9adf8df8f1ad9846bbad2b76d73cd1382f1acfb46128abb66fe"
+    },
+    {
+      "section": "test_supsub/2/8.ops",
+      "spine": "OEBPS/chapter8.xhtml",
+      "pages": 2,
+      "bytes": 93209,
+      "sha256": "91752c2cf38c03e19509026fa226406d82ca7660996e98fbc1ac45115d2f6e26"
+    },
+    {
+      "section": "test_synthetic_unicode_glyphs/0/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 1,
+      "bytes": 86846,
+      "sha256": "2523c3ec855afeede5e40ca9fdbee0c81fbd8ca5028f63aed3a35b76316def66"
+    },
+    {
+      "section": "test_synthetic_unicode_glyphs/0/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 1,
+      "bytes": 59235,
+      "sha256": "9d40d1f5cc9ef88aa00618e8be4b99cec962d30610be76d5a4de3579c1e54c92"
+    },
+    {
+      "section": "test_synthetic_unicode_glyphs/1/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 5,
+      "bytes": 88710,
+      "sha256": "263a552da83deb7fb00f1c7e701ba29a276437253c391d17a1fb7f0c807b1e8e"
+    },
+    {
+      "section": "test_synthetic_unicode_glyphs/1/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 4,
+      "bytes": 60823,
+      "sha256": "3094ec612745c025f84796f7196155c57e3e6b40e4b181fd06ce5ff42ae00487"
+    },
+    {
+      "section": "test_synthetic_unicode_glyphs/2/0.ops",
+      "spine": "OEBPS/chapter1.xhtml",
+      "pages": 2,
+      "bytes": 86652,
+      "sha256": "298c475424d06468efb9c33e040ea7ba34a1ec67e8513270f3f47ac883803175"
+    },
+    {
+      "section": "test_synthetic_unicode_glyphs/2/1.ops",
+      "spine": "OEBPS/chapter2.xhtml",
+      "pages": 2,
+      "bytes": 59118,
+      "sha256": "19c3d2c6704813edbb150befb0c276886a4a0c8ea2577316433084e6d9c24584"
+    },
+    {
+      "section": "test_tables/0/0.ops",
+      "spine": "EPUB/text/cover.xhtml",
+      "pages": 1,
+      "bytes": 5101,
+      "sha256": "ef48c271c47726fb1d961e2be8fd133cab7f8536d19da9e2f3da412e337fb1e2"
+    },
+    {
+      "section": "test_tables/0/1.ops",
+      "spine": "EPUB/text/title_page.xhtml",
+      "pages": 1,
+      "bytes": 9304,
+      "sha256": "7b200151351044c6ed5c188c4c1a3aefd72b5b5f11ab9d26e9ea147f6266fcf9"
+    },
+    {
+      "section": "test_tables/0/2.ops",
+      "spine": "EPUB/text/ch001.xhtml",
+      "pages": 1,
+      "bytes": 38743,
+      "sha256": "3dc9fa1fcdc3e2e38b987999d7b2e161b6c197a30422c1b1ae7561d601b01a70"
+    },
+    {
+      "section": "test_tables/0/3.ops",
+      "spine": "EPUB/text/ch002.xhtml",
+      "pages": 1,
+      "bytes": 106566,
+      "sha256": "a23feffc6dfee1f94496ce9854889244c2b4f628fe23efdef2fb7ef41757a651"
+    },
+    {
+      "section": "test_tables/1/0.ops",
+      "spine": "EPUB/text/cover.xhtml",
+      "pages": 1,
+      "bytes": 5101,
+      "sha256": "8bfd6fd47f78661f1a47badcabfdc36b94c970223afede0e862e9562037b4b2f"
+    },
+    {
+      "section": "test_tables/1/1.ops",
+      "spine": "EPUB/text/title_page.xhtml",
+      "pages": 1,
+      "bytes": 9381,
+      "sha256": "ed790c0a0fb444dda15ee93aa13dabd46213c402515451613226d76f95161018"
+    },
+    {
+      "section": "test_tables/1/2.ops",
+      "spine": "EPUB/text/ch001.xhtml",
+      "pages": 2,
+      "bytes": 38862,
+      "sha256": "65925102fdb2e1d17402097e4ce766794bb4d93de4faeaf7ec9ec6087ca83797"
+    },
+    {
+      "section": "test_tables/1/3.ops",
+      "spine": "EPUB/text/ch002.xhtml",
+      "pages": 5,
+      "bytes": 112610,
+      "sha256": "21da09ab0cbe3b3979de0abbc809504e65f9e66261a7a30440ed2a788b85e44d"
+    },
+    {
+      "section": "test_tables/2/0.ops",
+      "spine": "EPUB/text/cover.xhtml",
+      "pages": 1,
+      "bytes": 5101,
+      "sha256": "55a03c51ca8b6e8fe7c3fa5d5ceaa9e4c6181ca294e1c09e50e7ccccc52d2b73"
+    },
+    {
+      "section": "test_tables/2/1.ops",
+      "spine": "EPUB/text/title_page.xhtml",
+      "pages": 1,
+      "bytes": 9304,
+      "sha256": "0af4ddb4eea49e0f00bb2c7a330f89b4f7324429ea4fd8f5739fe7d82f4c0b07"
+    },
+    {
+      "section": "test_tables/2/2.ops",
+      "spine": "EPUB/text/ch001.xhtml",
+      "pages": 1,
+      "bytes": 38743,
+      "sha256": "d96e7756fb8b187655f18d2f28cefc1163a4aef209210fc5758c8c11f69a2342"
+    },
+    {
+      "section": "test_tables/2/3.ops",
+      "spine": "EPUB/text/ch002.xhtml",
+      "pages": 1,
+      "bytes": 106161,
+      "sha256": "812aae61b7d9e226cfa3bd73ddf5aebf14e7aaae5133a02d09f092b74fa2ebda"
+    },
+    {
+      "section": "test_text_decorations/0/0.ops",
+      "spine": "433bee84c82abf23d867069cb23f5fc0.html",
+      "pages": 1,
+      "bytes": 91313,
+      "sha256": "6b3fde236cb9bc2e539c36bdf5117aac70fd009545187872082bb0cb0aefce0b"
+    },
+    {
+      "section": "test_text_decorations/1/0.ops",
+      "spine": "433bee84c82abf23d867069cb23f5fc0.html",
+      "pages": 4,
+      "bytes": 92286,
+      "sha256": "e550b07f847c7af5dd403e0c87de5d972a55a918c30c1abb0f87e28d8172efcc"
+    },
+    {
+      "section": "test_text_decorations/2/0.ops",
+      "spine": "433bee84c82abf23d867069cb23f5fc0.html",
+      "pages": 2,
+      "bytes": 91195,
+      "sha256": "44b9b6e021eb77b5e29a3ab46dcc5afd57aed13f5ffd450a91fcf612f6ddbdf1"
+    }
+  ]
+}

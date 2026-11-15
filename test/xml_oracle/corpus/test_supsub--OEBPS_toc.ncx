@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="test-supsub-001"/>
+  </head>
+  <docTitle><text>Subscript and Superscript Tests</text></docTitle>
+  <navMap>
+    
+    <navPoint id="navPoint-1" playOrder="1">
+      <navLabel><text>Introduction</text></navLabel>
+      <content src="chapter0.xhtml"/>
+    </navPoint>
+    <navPoint id="navPoint-2" playOrder="2">
+      <navLabel><text>Basic Superscript</text></navLabel>
+      <content src="chapter1.xhtml"/>
+    </navPoint>
+    <navPoint id="navPoint-3" playOrder="3">
+      <navLabel><text>Basic Subscript</text></navLabel>
+      <content src="chapter2.xhtml"/>
+    </navPoint>
+    <navPoint id="navPoint-4" playOrder="4">
+      <navLabel><text>Mixed Sup and Sub</text></navLabel>
+      <content src="chapter3.xhtml"/>
+    </navPoint>
+    <navPoint id="navPoint-5" playOrder="5">
+      <navLabel><text>Ordinals and Dates</text></navLabel>
+      <content src="chapter4.xhtml"/>
+    </navPoint>
+    <navPoint id="navPoint-6" playOrder="6">
+      <navLabel><text>Nested Styles</text></navLabel>
+      <content src="chapter5.xhtml"/>
+    </navPoint>
+    <navPoint id="navPoint-7" playOrder="7">
+      <navLabel><text>Long Runs</text></navLabel>
+      <content src="chapter6.xhtml"/>
+    </navPoint>
+    <navPoint id="navPoint-8" playOrder="8">
+      <navLabel><text>Edge Cases</text></navLabel>
+      <content src="chapter7.xhtml"/>
+    </navPoint>
+    <navPoint id="navPoint-9" playOrder="9">
+      <navLabel><text>CSS Style Tests</text></navLabel>
+      <content src="chapter8.xhtml"/>
+    </navPoint>
+  </navMap>
+</ncx>

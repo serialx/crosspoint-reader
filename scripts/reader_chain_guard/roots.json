@@ -1,0 +1,184 @@
+{
+  "root_tables": [
+    {
+      "id": "epub",
+      "symbol": "rustEpubResources\\(GfxRenderer&, MappedInputManager&\\)::leaves",
+      "source": "src/activities/reader/RustEpubResources.cpp",
+      "start": "static const XpEpubLeaves leaves{",
+      "end": "return leaves;",
+      "fields": "^      \\.(\\w+)\\s*="
+    },
+    {
+      "id": "app",
+      "symbol": "rustAppResources\\(GfxRenderer&, MappedInputManager&\\)::resources",
+      "source": "src/activities/RustAppResources.cpp",
+      "start": "static const XpAppResources resources{",
+      "end": "return resources;",
+      "fields": "^      \\.(\\w+)\\s*=",
+      "exclude": [
+        "paint_scene"
+      ],
+      "data_fields": [
+        "font_owner"
+      ]
+    },
+    {
+      "id": "legacy",
+      "symbol": "ActivityManager::begin\\(XpAppRuntime const&\\)::legacy",
+      "source": "src/activities/ActivityManager.cpp",
+      "start": "static const XpAppLegacy legacy{",
+      "end": "static XpAppRuntime runtime",
+      "fields": "^      \\.(\\w+)\\s*="
+    }
+  ],
+  "callback_roots": [
+    {
+      "pattern": "(?:ReaderActivity|XtcReaderActivity|XtcReaderChapterSelectionActivity|ClipSelectionActivity|TextSettingsActivity|TextSettingsPreview|ChapterPageAssembler|ChapterHtmlSlimParser|Paragraph|EndOfBookOptions|OptionPopup|Dictionary|DefinitionPayload|GfxRenderer::uiPaint|\\(anonymous namespace\\)::Jpeg(?:Render|Dimensions)Context)::.*(?:_FUN\\(|operation\\(|resources\\(|rustResources\\().*",
+      "reason": "Reader callback contexts passed to Rust engines; source families in reader-path-audit, including conditional preview and chapter callbacks.",
+      "sources": [
+        "src/activities/reader",
+        "src/activities/settings/TextSettingsActivity.cpp",
+        "lib/Epub/Epub/parsers/ChapterPlatform.cpp",
+        "lib/Epub/Epub/converters/JpegToFramebufferConverter.cpp"
+      ]
+    },
+    {
+      "pattern": ".*xp_ffi::app::(?:epub|keyboard|dialog)::.*",
+      "language": "rust",
+      "reason": "Reader and shared reader-child Rust entry points, including trait callbacks whose instance cannot be propagated through an indirect call.",
+      "sources": [
+        "rust/crates/xp-ffi/src/app/epub",
+        "rust/crates/xp-ffi/src/app/keyboard",
+        "rust/crates/xp-ffi/src/app/dialog.rs"
+      ]
+    },
+    {
+      "pattern": "\\(anonymous namespace\\)::jpegDrawCallback\\(jpeg_draw_tag\\*\\)",
+      "reason": "JPEGDEC invokes the block callback registered by JpegDimensionsContext::operation.",
+      "sources": [
+        "lib/Epub/Epub/converters/JpegToFramebufferConverter.cpp:79"
+      ]
+    },
+    {
+      "pattern": "freeink::content::ProtectedBook::decryptEntryToSink\\(.*\\)",
+      "reason": "SDK streaming crypto/miniz invokes the supplied output sink while the reader Rust frame is retained.",
+      "sources": [
+        "freeink-sdk/libs/book/ContentProtection/src/ProtectedBook.cpp:200",
+        "src/activities/reader/RustEpubResources.cpp:496"
+      ]
+    }
+  ],
+  "callback_bindings": [
+    {
+      "roots": [
+        "epub.protection_open"
+      ],
+      "target": "<xp_ffi::app::epub::book_owner::Protection>::open::receive",
+      "source": "rust/crates/xp-ffi/src/app/epub/book_owner.rs",
+      "reason": "Failure-only protection error sink."
+    },
+    {
+      "roots": [
+        "epub.state_open_path",
+        "epub.document_id",
+        "app.text_wrap",
+        "app.text_truncate"
+      ],
+      "target": "<xp_ffi::app::resources::Text>::receive::sink",
+      "source": "rust/crates/xp-ffi/src/app/resources.rs",
+      "reason": "Synchronous returned text copy; not a physical exception."
+    },
+    {
+      "roots": [
+        "epub.storage_read_file"
+      ],
+      "target": ".*xp_ffi::app::epub::bookmark_storage::Storage.*::read_file::receive.*",
+      "source": "rust/crates/xp-ffi/src/app/epub/bookmark_storage.rs",
+      "reason": "Native storage read invokes the supplied bookmark decoding sink."
+    },
+    {
+      "roots": [
+        "epub.child_definition_payload_lookup"
+      ],
+      "target": ".*xp_ffi::app::epub::children::definition_owned::DefinitionOwner.*::try_lookup::query",
+      "source": "rust/crates/xp-ffi/src/app/epub/children/definition_owned.rs",
+      "reason": "Lookup payload invokes the Rust query sink before native payload construction."
+    },
+    {
+      "roots": [
+        "epub.end_input"
+      ],
+      "target": "<xp_ffi::app::epub::EpubSession>::handle_end_menu::selected",
+      "source": "rust/crates/xp-ffi/src/app/epub/base.rs",
+      "reason": "End menu publishes its selected action synchronously."
+    },
+    {
+      "roots": [
+        "epub.popup_show",
+        "epub.popup_input",
+        "epub.popup_paint",
+        "epub.popup_process_render"
+      ],
+      "target": "xp_ffi::app::epub::(?:settings::(?:label_at|text_choice)|menu_more::menu_choice|recovery::failure_choice|children::(?:menu_actions|bookmark_actions|clipping_actions)::(?:label|choose))",
+      "source": "src/activities/reader/RustEpubResources.cpp",
+      "reason": "OptionPopup retains Rust label/choice callbacks for later input and paint."
+    },
+    {
+      "roots": [
+        "epub.protection_stream"
+      ],
+      "target": "xp_ffi::app::epub::section_owner::image::(?:dimensions|probe)::sink",
+      "source": "rust/crates/xp-ffi/src/app/epub/section_owner/image.rs",
+      "reason": "Protected image probing streams decoded bytes into the reader-owned image sinks; other forwarded sinks remain unresolved."
+    },
+    {
+      "roots": [],
+      "from_pattern": "freeink::content::ProtectedBook::decryptEntryToSink\\(.*\\)",
+      "target": "xp_ffi::app::epub::section_owner::image::(?:dimensions|probe)::sink",
+      "source": "freeink-sdk/libs/book/ContentProtection/src/ProtectedBook.cpp:200",
+      "reason": "SDK crypto/miniz bounded output continuation, through the native protection_stream sink adapter."
+    }
+  ],
+  "source_fingerprints": {
+    "lib/Epub/ContentProtection.cpp": "08f1d12a8dbf286694992ca01cc3b61af728a5bba6ae03f98781498b49b50ba6",
+    "lib/Epub/Epub/Paragraph.cpp": "8742dd7308f4f6b9883994a681517eb8874c71729988ee6c105f49ae9867e8fb",
+    "lib/Epub/Epub/blocks/ImageBlock.cpp": "280abd9b66df60205b7276e91c1d6479179ca77f11530110601945651d027e84",
+    "lib/Epub/Epub/converters/GifToFramebufferConverter.cpp": "e96696437fe1a96edd3fbf75638e50dd605bd0e6ab20563883c0e676a92580a4",
+    "lib/Epub/Epub/converters/ImagePipeline.h": "9f9aa5c75409461d08695c4d126d6f2ade2e23b15c9e48397769f56033a0642c",
+    "lib/Epub/Epub/converters/JpegToFramebufferConverter.cpp": "4a373d101a5a9a3e540c896ff3304e57bece411a8447debdec8ddb5462d23a33",
+    "lib/Epub/Epub/converters/PngToFramebufferConverter.cpp": "4f0e93aa3d3bd79d62a1fc839c81a3756bc2bbb4a779fb38f96e46445f7d1d92",
+    "lib/Epub/Epub/parsers/ChapterPlatform.cpp": "85bdcbbcea1d7327dae61f93d32c8201ab3953888b6bc1d998ce526c275477bf",
+    "lib/GfxRenderer/RustUiRenderer.cpp": "40885c3e4edc2f7700ee82e020f102c9fb6d87e2f49e6ea5f4c802bf654f98df",
+    "rust/Cargo.toml": "410e16160a912eae75fefb58012d714db9e15d189843690967aa08c9eea58178",
+    "rust/crates/xp-ffi/src/app/epub/base.rs": "6c36f0b1a0926d336740f209d08f29210508e585186702ed6d401383a53a85f2",
+    "rust/crates/xp-ffi/src/app/epub/book_owner.rs": "060b470aba6636625c6c505d6a3917f51f2112c1f2b4e0c37a965c03e4a360fb",
+    "rust/crates/xp-ffi/src/app/epub/bookmark_storage.rs": "97e9d82317af7c4a639c56cd2a3fdbaa8f9a64821e1fbd41cd98dc4f50f7f5ec",
+    "rust/crates/xp-ffi/src/app/epub/children/bookmark_actions.rs": "a79f0f375b01398561963b1837be2e26c74c1453e575c867be5b634e7d9ca1ac",
+    "rust/crates/xp-ffi/src/app/epub/children/chapter_view.rs": "637e2fd9785799776615e1c1a790a8a8189a122891e7ab050fa4b2ec430cce2b",
+    "rust/crates/xp-ffi/src/app/epub/children/clipping_actions.rs": "585a3294981940f07185fb89f57bacbcf428da75a1a19cec0cee0a9412af257d",
+    "rust/crates/xp-ffi/src/app/epub/children/definition_owned.rs": "3341f1f27bbfe20821d8be1043519a513299a80e0ec4dd8dc34093031ef41fd0",
+    "rust/crates/xp-ffi/src/app/epub/children/menu_actions.rs": "c70910ed6d967ac52a556de6c4e3e45a266f02cee3a8e8fb2e1ec45efc11e4a3",
+    "rust/crates/xp-ffi/src/app/epub/menu_more.rs": "13438818f11aee6feeeaaefd3a8a2cec0537e6a541b77eb31d73719361aa0d40",
+    "rust/crates/xp-ffi/src/app/epub/recovery.rs": "025bf8cba1af2a095e8c6d6c3a99cd95a6a6cdc88534ccde76e18203ff9e336a",
+    "rust/crates/xp-ffi/src/app/epub/section_owner/image.rs": "a508a0935d645aa0c77d644365708d59149c012c599a63cf82dafc3ea9d70eae",
+    "rust/crates/xp-ffi/src/app/epub/settings.rs": "e23c3d8c4e3487d73f65bcf3918de1078d9631f908a61e6da5f1cfe7d7208548",
+    "rust/crates/xp-ffi/src/app/resources.rs": "ce0a33fd064f19002a112df58e10fc89789145af2adb6108c1253f06d793761c",
+    "rust/rust-toolchain.toml": "78658521817949560efa836f837aa7b326cd58229a9a015804e0835d0560eff8",
+    "scripts/build_rust.py": "9133311ec98419d79c515b5f1c2c83eacded884b300c98b572c3e313bb144863",
+    "src/activities/RustAppResources.cpp": "a1141b3ae0334dc06c213f8e2996c0139628ea664096dd01263b27101b556187",
+    "src/activities/reader/ClipSelectionActivity.cpp": "1c4e9e8e7afba448f6d86e9b70db60c1c1d3340cfb639287b07433575d567449",
+    "src/activities/reader/EndOfBookOptions.cpp": "142016b3038d7116e4e5f22463d81e7c1dbba54e4c0aeadcfbc15e5b4d29d050",
+    "src/activities/reader/ReaderActivity.cpp": "2ed10869711ccfd9fa271e5b221fb4b6be6a37c3145f02368d3c22be2c97a7f1",
+    "src/activities/reader/RustEpubResources.cpp": "ede354c5f4204df56156c23e2c9cfddeac2aea5f23e3b46f57137529b09cef91",
+    "src/activities/reader/RustReaderDrawing.cpp": "d8df9f177569bb85c5a20c80c2419ea7ac4e031b23c466e3a7ee2a83652f8259",
+    "src/activities/reader/RustReaderLookup.cpp": "fbb8c950a74794bf86a49678b2540ce3338bbe1839abbc97aec9863f84e1fc4a",
+    "src/activities/reader/XtcReaderActivity.cpp": "b715bd9fc1c83d3da979e4d02e04120d6a7b0309f817a2ca98f1e6c86fa2573a",
+    "src/activities/reader/XtcReaderChapterSelectionActivity.cpp": "18e9b750115b85c0c5dcba6ef4394437717fc310817da106cf6c5f136fafd17d",
+    "src/activities/settings/TextSettingsActivity.cpp": "3133f627cdecec8806687bfa1cb6eaa6b1bc8e6900a9051c7125b2aea390153a",
+    "src/activities/settings/TextSettingsPreview.cpp": "4e176d9c8b014762293dfabf419d3801ffb7f922730e9ff5f1af7bd349716868",
+    "src/components/OptionPopup.h": "21823b65aa976185bea2ed8988cf9f1afd2be3f5a7ebf9b3ff5d563bc61b80fa",
+    "src/util/DictHtmlPages.cpp": "0c79bbabd6593b9542973a20e2e4adecc2462481c1183089b3fb37eee90ce01a",
+    "src/util/Dictionary.cpp": "ff54630a0e693d055fcd647086ef3ab5909f631077c4b6cdb40f11432814eef1"
+  },
+  "sdk_pin": "6a573acd0562e45e4ce96837e0c2aebada219760"
+}

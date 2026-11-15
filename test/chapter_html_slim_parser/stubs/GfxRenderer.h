@@ -3,6 +3,7 @@
 #include <EpdFontFamily.h>
 #include <GfxRenderer/FontVariantProvider.h>
 #include <Utf8.h>
+#include <xp_page_paint.h>
 
 #include <deque>
 #include <functional>
@@ -17,22 +18,54 @@ enum class BidiBaseDir : signed char { AUTO = -1, LTR = 0, RTL = 1 };
 
 enum Color : uint8_t { Clear = 0x00, White = 0x01, LightGray = 0x05, DarkGray = 0x0A, Black = 0x10 };
 
+extern "C" void xp_page_render_rects(const uint8_t*, size_t, void*,
+                                     void (*)(void*, int32_t, int32_t, int32_t, int32_t, uint8_t), int32_t, int32_t,
+                                     uint8_t);
+
 class GfxRenderer {
  public:
   mutable size_t fontPreparations = 0;
   std::function<void()> onFontPrepare;
   enum class TextMeasureMode { Layout, Rendered };
-  // The fixture has no framebuffer to lend; image probes run as without a loan.
+  size_t loanDepth = 0;
+  // Track loan scope without allocating a framebuffer in this fixture.
   class FrameBufferLoan {
    public:
-    explicit FrameBufferLoan(GfxRenderer&) {}
-    void end() {}
+    explicit FrameBufferLoan(GfxRenderer& renderer) : owner(&renderer) { ++owner->loanDepth; }
+    ~FrameBufferLoan() { end(); }
+    void end() {
+      if (owner) {
+        --owner->loanDepth;
+        owner = nullptr;
+      }
+    }
+
+   private:
+    GfxRenderer* owner;
   };
   // Fixture metrics: every glyph is 8 px wide, a space is 4 px, kerning is zero.
   static int trackingBetween(uint32_t left, uint32_t right, int8_t tracking) {
     return left == 0 || left == ' ' || right == ' ' ? 0 : tracking;
   }
-  bool isFontCacheScanning() const { return false; }
+  void pageTarget(XpPageTarget& out, bool = true) const {
+    out = {};
+    out.native = const_cast<GfxRenderer*>(this);
+  }
+  // This metrics fixture observes primitive order; raster fixtures use the real painter.
+  static uint32_t paintPrimitives(const uint8_t* arena, size_t size, const XpPageTarget* target,
+                                  const XpPagePaint* request) {
+    xp_page_render_rects(
+        arena, size, target->native,
+        [](void* raw, int32_t x, int32_t y, int32_t w, int32_t h, uint8_t shade) {
+          const auto& self = *static_cast<GfxRenderer*>(raw);
+          if (shade)
+            self.fillRectDither(x, y, w, h, Color::LightGray);
+          else
+            self.fillRect(x, y, w, h);
+        },
+        request->x, request->y, request->mode);
+    return 0;
+  }
   mutable int lastLineY = -1;
   mutable int drawnLineCount = 0;
   void drawLine(int, int y, int, int, int, bool) const {
@@ -40,7 +73,13 @@ class GfxRenderer {
     ++drawnLineCount;
   }
   mutable std::string boxPaints;
-  void fillRect(int, int, int, int, bool = true) const { boxPaints += 'b'; }
+  void fillRect(int, int y, int, int h, bool = true) const {
+    boxPaints += 'b';
+    if (h == 2) {
+      lastLineY = y;
+      ++drawnLineCount;
+    }
+  }
   void fillRectDither(int, int, int, int, Color) const { boxPaints += 's'; }
   // Fixture glyphs: 8 px advance, capitals 10 px tall.
   int drawScaledCodepoint(int, uint32_t, EpdFontFamily::Style, int, int, int scale256) const {
@@ -130,3 +169,6 @@ class GfxRenderer {
  private:
   FontVariantProvider fontVariantProvider_;
 };
+
+// Compile-only Page adapters in this metrics fixture retain the primitive observer.
+#define xp_page_paint GfxRenderer::paintPrimitives

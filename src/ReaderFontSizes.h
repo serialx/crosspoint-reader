@@ -2,6 +2,12 @@
 
 #include <SdCardFontRegistry.h>
 
+#ifdef XP_SD_FONT_CATALOG
+using ReaderFontCatalog = SdFontCatalog;
+#else
+using ReaderFontCatalog = SdCardFontRegistry;
+#endif
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -50,7 +56,12 @@ inline constexpr uint8_t VECTOR_READER_POINT_SIZES[] = {8, 9, 10, 11, 12, 13, 14
 // Point sizes selectable for the active reader font, ascending: the vector set
 // or installed .cpfont sizes for a known SD family, otherwise the built-in set.
 // Never returns empty.
-std::vector<uint8_t> readerFontPointSizes(const SdCardFontRegistry* registry, const char* sdFamilyName);
+std::vector<uint8_t> readerFontPointSizes(const ReaderFontCatalog* registry, const char* sdFamilyName);
+
+#ifdef XP_SD_FONT_CATALOG
+// Copy policy results without selecting a family or fallback.
+std::vector<uint8_t> readerFontPointSizes(const XpSdChoices& choices);
+#endif
 
 // Closest entry in `sizes` (ascending, `count` > 0) to `pt`; ties resolve to the
 // smaller size. Takes a raw range rather than a vector because getReaderFontId()

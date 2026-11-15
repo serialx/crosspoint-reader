@@ -1,0 +1,13 @@
+{
+  "vectors": 125326,
+  "uncompressed_sha256": "2a63d5b79282f53a6bcb37443c6627b0968e34c159860efbbeabbddd3afadddf",
+  "raw_target_sha256": "c7244bd9574e0d3b9417b027ecf0b7ed826302e37fa6eaa9368e0c9f9ecc3a9e",
+  "targets": [
+    "esp32c3",
+    "esp32s3"
+  ],
+  "toolchains": "pinned GCC 14.2.0 no-rtti libc.a",
+  "source": "p16-o3c/checkpoint-1/scale-proof",
+  "reference": "target snprintf(\"%.2f\", (double)f), not host libc",
+  "recipe": "both signs; fixed edge values; 0.125/0.375 +/-1 ULP; 10001 hundredth ties +/-1 ULP; finite bits stride 65537"
+}

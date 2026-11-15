@@ -1,12 +1,14 @@
 #include <HalStorage.h>
 #include <gtest/gtest.h>
 
+#include <atomic>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <new>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "Epub/BookMetadataCache.h"
@@ -149,4 +151,29 @@ TEST(BookMetadataCacheSizes, SpineIndexForSizeMatchesLinearScan) {
       EXPECT_LE(Storage.readOpens - opens, 1) << spineCount << " items, size " << size;
     }
   }
+}
+
+TEST(BookMetadataCacheSizes, InterleavedEntriesAndWindowReloadsKeepTheirOwnCursors) {
+  const auto cumulative = buildBook(cacheDir(), 100);
+  BookMetadataCache cache(cacheDir());
+  ASSERT_TRUE(cache.load());
+  std::atomic<bool> begin{false};
+  auto sizes = [&](int offset) {
+    while (!begin.load()) std::this_thread::yield();
+    for (int step = 0; step < 2000; ++step) {
+      const int index = (step * 37 + offset) % 100;
+      EXPECT_EQ(cache.getCumulativeSize(index), cumulative[index]);
+    }
+  };
+  std::thread first(sizes, 0);
+  std::thread second(sizes, 31);
+  begin = true;
+  for (int step = 0; step < 2000; ++step) {
+    const int index = step % 100;
+    const auto entry = cache.getSpineEntry(index);
+    EXPECT_EQ(entry.href, chapterHref(index));
+    EXPECT_EQ(entry.cumulativeSize, cumulative[index]);
+  }
+  first.join();
+  second.join();
 }

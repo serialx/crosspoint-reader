@@ -1,0 +1,64 @@
+#include "ResourceCallbacks.h"
+#include <xp_ui_reader.h>
+#include <array>
+#include <cassert>
+#include <cstdarg>
+#include <cstdio>
+#include <cstring>
+#include <string>
+
+static std::string expected, actual;
+static int expectedSeverity, actualSeverity;
+static void capture(int severity, const char* tag, const char* format, ...) {
+  assert(!std::strcmp(tag, "ERS"));
+  char bytes[512];
+  va_list args;
+  va_start(args, format);
+  const int count = vsnprintf(bytes, sizeof(bytes), format, args);
+  va_end(args);
+  assert(count >= 0 && static_cast<size_t>(count) < sizeof(bytes));
+  expected.assign(bytes, count);
+  expectedSeverity = severity;
+}
+#define LOG_ERR(tag, format, ...) capture(1, tag, format __VA_OPT__(,) __VA_ARGS__)
+#define LOG_DBG(tag, format, ...) capture(0, tag, format __VA_OPT__(,) __VA_ARGS__)
+struct ReaderStripBuffers { static constexpr unsigned SCRATCH_BYTES = 8000, COMMAND_BYTES = 16384, MAX_ELEMENTS = 512; };
+// Native unsigned long is 32 bits on both firmware targets. Keep the method
+// body unchanged while reproducing target wrapping before host printf promotion.
+struct ClockWord {
+  uint32_t value;
+  friend unsigned long operator-(ClockWord a, ClockWord b) { return uint32_t(a.value - b.value); }
+};
+struct NativeLog {
+  ClockWord times[10];
+  bool images, msb;
+  struct { int getDisplayWidthBytes() const { return 99; } } renderer;
+  // ACTUAL_LOG
+};
+extern "C" void xp_epub_test_render_resources_log(const ResourceCallbacks*, uint8_t, const uint32_t*,
+                                                  uint8_t, uint8_t, uint32_t);
+int main() {
+  ResourceCallbacks callbacks{};
+  callbacks.log = [](void*, uint8_t severity, const uint8_t* bytes, size_t size) {
+    actual.assign(reinterpret_cast<const char*>(bytes), size);
+    actualSeverity = severity;
+  };
+  size_t checks = 0, longest = 0;
+  for (unsigned pattern = 0; pattern < 4; ++pattern) {
+    uint32_t times[10];
+    for (unsigned i = 0; i < 10; ++i)
+      times[i] = pattern == 0 ? i * 17 : pattern == 1 ? uint32_t(0xfffffff0u + i * 9) : pattern == 2 ? (i & 1 ? 0xffffffffu : 0) : 0xffffffffu - i;
+    for (bool images : {false, true}) for (bool msb : {false, true}) for (uint8_t kind = 0; kind < 9; ++kind) {
+      NativeLog native{};
+      for (unsigned i = 0; i < 10; ++i) native.times[i].value = times[i];
+      native.images = images; native.msb = msb;
+      expected.clear(); actual.clear(); expectedSeverity = actualSeverity = -1;
+      native.log(kind);
+      xp_epub_test_render_resources_log(&callbacks, kind, times, images, msb, 99);
+      assert(expected == actual && expectedSeverity == actualSeverity);
+      longest = std::max(longest, actual.size());
+      ++checks;
+    }
+  }
+  std::printf("%zu unchanged-parent log comparisons; longest %zu bytes\n", checks, longest);
+}

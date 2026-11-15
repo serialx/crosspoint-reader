@@ -25,7 +25,9 @@ include(GoogleTest)
 
 get_filename_component(BLETURNER_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
 
+include(${BLETURNER_ROOT}/../../test/cmake/xp_ffi_host.cmake)
 add_library(bleturner_test_flags INTERFACE)
+target_link_libraries(bleturner_test_flags INTERFACE xp_ffi_host)
 target_include_directories(bleturner_test_flags INTERFACE
   ${BLETURNER_ROOT}/include ${BLETURNER_ROOT}/src
   ${BLETURNER_ROOT}/../../freeink-sdk/libs/network/BleKeyboardHost/include
@@ -73,3 +75,41 @@ add_executable(BlePageTurnerSourceContractTest SourceContractTest.cpp)
 target_compile_definitions(BlePageTurnerSourceContractTest PRIVATE BLETURNER_ROOT_PATH="${BLETURNER_ROOT}")
 target_link_libraries(BlePageTurnerSourceContractTest PRIVATE bleturner_test_flags GTest::gtest_main)
 gtest_discover_tests(BlePageTurnerSourceContractTest)
+
+# Frozen C++ outputs: policies, persisted bytes, radio effects and diagnostic text.
+foreach(profile IN ITEMS c3 s3)
+  add_executable(BleOracle_${profile} Oracle.cpp Fakes.cpp ${BLETURNER_ROOT}/src/Runtime.cpp)
+  target_compile_definitions(BleOracle_${profile} PRIVATE BLETURNER_TESTING)
+  if(profile STREQUAL "s3")
+    target_compile_definitions(BleOracle_${profile} PRIVATE FREEINK_BLE_STACK_IN_PSRAM=1)
+  endif()
+  target_link_libraries(BleOracle_${profile} PRIVATE bleturner_test_flags bleturner_arduinojson)
+  add_test(NAME BleOracle_${profile} COMMAND ${CMAKE_COMMAND}
+    -DPROGRAM=$<TARGET_FILE:BleOracle_${profile}>
+    -DGOLDEN=${CMAKE_CURRENT_SOURCE_DIR}/oracle-${profile}.txt
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/CompareOracle.cmake)
+endforeach()
+add_executable(BleJsonAllocationOracle JsonAllocationOracle.cpp)
+target_link_libraries(BleJsonAllocationOracle PRIVATE bleturner_test_flags bleturner_arduinojson)
+add_test(NAME BleJsonAllocationOracle COMMAND ${CMAKE_COMMAND}
+  -DPROGRAM=$<TARGET_FILE:BleJsonAllocationOracle>
+  -DGOLDEN=${CMAKE_CURRENT_SOURCE_DIR}/oracle-json-allocations.txt
+  -P ${CMAKE_CURRENT_SOURCE_DIR}/CompareOracle.cmake)
+
+# Count real linked-list advances in an isolated ArduinoJson copy. This catches
+# indexed traversal regressions without timing thresholds or firmware hooks.
+set(BLE_JSON_COUNTED "${CMAKE_CURRENT_BINARY_DIR}/counted-json")
+file(COPY "${arduinojson_SOURCE_DIR}/src/" DESTINATION "${BLE_JSON_COUNTED}")
+set(BLE_JSON_COLLECTION "${BLE_JSON_COUNTED}/ArduinoJson/Collection/CollectionImpl.hpp")
+file(READ "${BLE_JSON_COLLECTION}" BLE_JSON_SOURCE)
+set(BLE_JSON_NEXT "inline void CollectionIterator::next(const ResourceManager* resources) {")
+string(FIND "${BLE_JSON_SOURCE}" "${BLE_JSON_NEXT}" BLE_JSON_NEXT_OFFSET)
+if(BLE_JSON_NEXT_OFFSET EQUAL -1)
+  message(FATAL_ERROR "ArduinoJson iterator instrumentation needs updating")
+endif()
+string(REPLACE "${BLE_JSON_NEXT}" "${BLE_JSON_NEXT}\n  ++::bleJsonIteratorSteps;" BLE_JSON_SOURCE "${BLE_JSON_SOURCE}")
+file(WRITE "${BLE_JSON_COLLECTION}" "${BLE_JSON_SOURCE}")
+add_executable(BleJsonScalingTest JsonScalingTest.cpp)
+target_include_directories(BleJsonScalingTest SYSTEM BEFORE PRIVATE "${BLE_JSON_COUNTED}")
+target_link_libraries(BleJsonScalingTest PRIVATE bleturner_test_flags GTest::gtest_main)
+gtest_discover_tests(BleJsonScalingTest)

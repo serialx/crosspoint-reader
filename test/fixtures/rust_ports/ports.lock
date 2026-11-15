@@ -1,0 +1,3 @@
+Reader.bidi xp_bidi_reorder
+Reader.panel xp_panel
+xp_keyboard_metrics xp_bidi_reorder

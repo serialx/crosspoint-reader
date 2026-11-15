@@ -1,0 +1,10 @@
+{
+  "base": "4e227d9201b62ab179adce02d658e7456bc31055",
+  "note": "Unmodified native manager source and header, frozen before PT-VEC CP2 activation.",
+  "sha256": {
+    "test/vector_font/frozen/SdCardFontSystem.cpp": "a637b3cf258dd58e53b47cc2ffe61114e0c0973b7c983a1aa359ca8396825b58",
+    "test/vector_font/frozen/SdCardFontSystem.h": "64d3b75c90b3653d0b8cece77762f4c8872521ddddf30be5a028dcb2af81b042",
+    "test/vector_font/frozen/raw.rs": "dd5c5db4fe363c7a9c5aee8952fd07b6b9ffacac9da64da207dc5e263d94b7b8",
+    "test/vector_font/frozen/utf8-next.rs": "7e514da0b0717853410a6b541c1aa4471e079e0cffb1abfc0ff9d24dd2db5718"
+  }
+}

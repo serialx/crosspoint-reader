@@ -48,59 +48,23 @@ StrId opdsFormatLabel(uint8_t format) {
 int OpdsServerListActivity::getItemCount() const {
   int count = static_cast<int>(OPDS_STORE.getCount());
   // Picker mode appends "Add Server"; Settings also adds folder and format.
-  count += pickerMode ? 1 : 3;
+  count += ui.picker ? 1 : 3;
   return count;
 }
 
 OpdsServerListActivity::OpdsServerListActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                                const bool pickerMode)
-    : UiListActivity("OpdsServerList", renderer, mappedInput), pickerMode(pickerMode) {}
+    : CatalogUiActivity("OpdsServerList", renderer, mappedInput, XP_UI_CATALOG_SERVERS, -1, pickerMode) {}
 
 void OpdsServerListActivity::onEnter() {
-  UiListActivity::onEnter();
+  ResourceLock resources(*this);
+  CatalogUiActivity::onEnter();
+  if (!hasUiStorage()) return;
 
   // Reload from disk in case servers were added/removed by a subactivity or the web UI
   OPDS_STORE.loadFromFile();
-  nav.selected = 0;
-  rebuildRowItems();
-}
-
-// Rebuilds rowItems_ (labels/actionValue, server subtitles) from OPDS_STORE.
-// Structural — call only when the server list actually reloads, not from
-// buildScreen(). The folder/format rows' live subtitle is refreshed in place
-// by buildScreen() every render instead, since those track live SETTINGS
-// values that can change without a server-list reload.
-void OpdsServerListActivity::rebuildRowItems() {
-  rowItems_.clear();
-  const int itemCount = getItemCount();
-  if (itemCount == 0) return;
-  rowItems_.reserve(itemCount);
-
-  const auto& servers = OPDS_STORE.getServers();
-  const auto serverCount = static_cast<int>(servers.size());
-  for (int i = 0; i < serverCount; i++) {
-    fui::ListItem item;
-    item.label = servers[i].name.empty() ? servers[i].url.c_str() : servers[i].name.c_str();
-    if (!servers[i].name.empty()) item.subtitle = servers[i].url.c_str();
-    item.actionValue = static_cast<int16_t>(i);
-    rowItems_.push_back(item);
-  }
-  fui::ListItem addServer;
-  addServer.label = tr(STR_ADD_SERVER);
-  addServer.actionValue = static_cast<int16_t>(serverCount);
-  rowItems_.push_back(addServer);
-
-  if (!pickerMode) {
-    fui::ListItem folder;
-    folder.label = tr(STR_OPDS_DOWNLOAD_FOLDER);
-    folder.actionValue = static_cast<int16_t>(serverCount + 1);
-    rowItems_.push_back(folder);  // subtitle refreshed per render below
-
-    fui::ListItem format;
-    format.label = tr(STR_OPDS_FILENAME_FORMAT);
-    format.actionValue = static_cast<int16_t>(serverCount + 2);
-    rowItems_.push_back(format);  // subtitle refreshed per render below
-  }
+  resetSelection();
+  closeRouting();
 }
 
 bool OpdsServerListActivity::handleCustomInput() {
@@ -108,7 +72,7 @@ bool OpdsServerListActivity::handleCustomInput() {
 }
 
 void OpdsServerListActivity::onBackButton() {
-  if (pickerMode) {
+  if (ui.picker) {
     activityManager.goHome(HomeMenuItem::OPDS_BROWSER);
   } else {
     finish();
@@ -118,10 +82,9 @@ void OpdsServerListActivity::onBackButton() {
 const char* OpdsServerListActivity::headerTitle() const { return tr(STR_OPDS_SERVERS); }
 
 void OpdsServerListActivity::activateIndex(const int index) {
-  nav.selected = index;
+  selectIndex(index);
   // Activation opens an editor/browser or repaints a new value; a lingering
   // flash would gray an unrelated row.
-  app.clearTapFlash();
   handleSelection();
   requestUpdate();
 }
@@ -129,10 +92,10 @@ void OpdsServerListActivity::activateIndex(const int index) {
 void OpdsServerListActivity::handleSelection() {
   const auto serverCount = static_cast<int>(OPDS_STORE.getCount());
 
-  if (pickerMode) {
+  if (ui.picker) {
     // Picker mode: selecting a server navigates to the OPDS browser
-    if (nav.selected < serverCount) {
-      const auto* server = OPDS_STORE.getServer(static_cast<size_t>(nav.selected));
+    if (selectedIndex() < serverCount) {
+      const auto* server = OPDS_STORE.getServer(static_cast<size_t>(selectedIndex()));
       if (server) {
         activityManager.replaceActivity(std::make_unique<OpdsBookBrowserActivity>(renderer, mappedInput, *server));
       }
@@ -143,15 +106,16 @@ void OpdsServerListActivity::handleSelection() {
         return;
       }
       startActivityForResult(std::move(editor), [this](const ActivityResult&) {
+        ResourceLock resources(*this);
         OPDS_STORE.loadFromFile();
-        rebuildRowItems();
+        closeRouting();
       });
     }
     return;
   }
 
   // Index layout: [servers 0..serverCount-1], [Add Server], [Download folder], [Filename format].
-  if (nav.selected == serverCount + 1) {
+  if (selectedIndex() == serverCount + 1) {
     auto folderHandler = [this](const ActivityResult& result) {
       if (!result.isCancelled) {
         const auto& kb = std::get<KeyboardResult>(result.data);
@@ -170,7 +134,7 @@ void OpdsServerListActivity::handleSelection() {
   }
 
   // "Filename format": picker like every other multi-option setting.
-  if (nav.selected == serverCount + 2) {
+  if (selectedIndex() == serverCount + 2) {
     static constexpr StrId formatLabels[] = {StrId::STR_FMT_AUTHOR_TITLE, StrId::STR_FMT_TITLE_AUTHOR,
                                              StrId::STR_FMT_TITLE};
     optionPopup.show(StrId::STR_OPDS_FILENAME_FORMAT, formatLabels, static_cast<int>(OpdsFilenameFormat::Count),
@@ -184,55 +148,39 @@ void OpdsServerListActivity::handleSelection() {
 
   // Settings mode: open editor for selected server, or create a new one
   auto resultHandler = [this](const ActivityResult&) {
+    ResourceLock resources(*this);
     // Reload server list when returning from editor
     OPDS_STORE.loadFromFile();
-    nav.selected = 0;
-    rebuildRowItems();
+    resetSelection();
+    closeRouting();
   };
 
-  if (nav.selected < serverCount) {
-    startActivityForResult(std::make_unique<OpdsSettingsActivity>(renderer, mappedInput, nav.selected), resultHandler);
+  if (selectedIndex() < serverCount) {
+    startActivityForResult(std::make_unique<OpdsSettingsActivity>(renderer, mappedInput, selectedIndex()),
+                           resultHandler);
   } else {
     startActivityForResult(std::make_unique<OpdsSettingsActivity>(renderer, mappedInput, -1), resultHandler);
   }
 }
 
-void OpdsServerListActivity::buildScreen(UiScreen& screen) {
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  // Content below the GUI.drawHeader band, above the button hints; derived
-  // from the safe area so board bezel insets apply (same as LanguageSelect).
-  const Rect safe = UITheme::getInstance().getScreenSafeArea(renderer, true, false);
-  screen.setContentMarginFromScreen(
-      fui::Insets{static_cast<int16_t>(safe.y + metrics.topPadding + metrics.headerHeight),
-                  static_cast<int16_t>(renderer.getScreenWidth() - (safe.x + safe.width)),
-                  static_cast<int16_t>(renderer.getScreenHeight() - (safe.y + safe.height) + metrics.buttonHintsHeight),
-                  static_cast<int16_t>(safe.x)});
-  screen.spacer(static_cast<int16_t>(metrics.verticalSpacing));
-
-  const int itemCount = getItemCount();
-  if (itemCount == 0) {
-    screen.centeredText(tr(STR_NO_SERVERS), screen.theme().bodyText);
-    return;
+bool OpdsServerListActivity::rowAt(int index, XpUiCatalogRow& row) const {
+  const int count = static_cast<int>(OPDS_STORE.getCount());
+  if (index < 0 || index >= getItemCount()) return false;
+  if (index < count) {
+    const auto* server = OPDS_STORE.getServer(index);
+    if (!server) return false;
+    row.label = server->name.empty() ? server->url.c_str() : server->name.c_str();
+    row.subtitle = server->name.empty() ? nullptr : server->url.c_str();
+  } else if (index == count)
+    row.label = tr(STR_ADD_SERVER);
+  else if (index == count + 1) {
+    row.label = tr(STR_OPDS_DOWNLOAD_FOLDER);
+    row.subtitle = SETTINGS.opdsDownloadFolder[0] ? SETTINGS.opdsDownloadFolder : tr(STR_OPDS_SD_ROOT);
+  } else {
+    row.label = tr(STR_OPDS_FILENAME_FORMAT);
+    row.subtitle = I18N.get(opdsFormatLabel(SETTINGS.opdsFilenameFormat));
   }
-
-  // rowItems_ (labels/actionValue, server subtitles) was built by
-  // rebuildRowItems() when the server list last reloaded; only the
-  // folder/format rows' live subtitle needs refreshing here (pointer
-  // reassignment onto already-owned strings — no allocation).
-  if (!pickerMode) {
-    const auto serverCount = static_cast<int>(OPDS_STORE.getServers().size());
-    rowItems_[serverCount + 1].subtitle =
-        SETTINGS.opdsDownloadFolder[0] ? SETTINGS.opdsDownloadFolder : tr(STR_OPDS_SD_ROOT);
-    rowItems_[serverCount + 2].subtitle = I18N.get(opdsFormatLabel(SETTINGS.opdsFilenameFormat));
-  }
-
-  fui::ListProps props;
-  props.items = rowItems_.data();
-  props.count = static_cast<uint16_t>(rowItems_.size());
-  props.action = ACTION_ROW;
-  props.inputMask = fui::InputTouch;  // physical buttons stay in loop()
-  syncListViewport(screen, props);
-  screen.list(props);
+  return true;
 }
 
 void OpdsServerListActivity::render(RenderLock&& lock) {
@@ -240,5 +188,5 @@ void OpdsServerListActivity::render(RenderLock&& lock) {
 
   // Header via GUI.drawHeader (already FreeInkUI-themed) for the battery
   // indicator; the rest of the screen renders through the base skeleton.
-  UiListActivity::render(std::move(lock));
+  CatalogUiActivity::render(std::move(lock));
 }

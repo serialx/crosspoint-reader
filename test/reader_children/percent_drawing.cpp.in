@@ -1,0 +1,449 @@
+#include <BoardConfig.h>
+#include "components/HeaderBackTapTarget.h"
+#include "components/icons/headerIcons.h"
+#include <FontCacheManager.h>
+#include <FontDecompressor.h>
+#include <FreeInkApp.h>
+#include <FreeInkUIIcon.h>
+#include <xp_app.h>
+#include "percent_i18n_keys.h"
+#include "app_leaves.h"
+#include <xp_ui_reader_chrome.h>
+#include "components/icons/readerToolbarIcons.h"
+#include <FreeInkUIGfxRenderer.h>
+#include <GfxRenderer.h>
+#include <builtinFonts/all.h>
+#include <xp_ui_utility.h>
+
+#include <algorithm>
+#include <atomic>
+#include <cassert>
+#include <cstdio>
+#include <cstring>
+#include <string>
+
+#include "Trace.h"
+#include "components/UIScale.h"
+#include "components/themes/BaseTheme.h"
+#include "components/themes/lyra/LyraTheme.h"
+#include "components/themes/roundedraff/RoundedRaffTheme.h"
+
+namespace fui = freeink::ui;
+void textGoldenGlyph(const EpdFontFamily&, uint32_t, int, int, EpdFontFamily::Style) {}
+void textGoldenScaled(int, uint32_t, int, int, EpdFontFamily::Style) {}
+namespace BoardConfig {
+bool touch = false;
+bool hasTouch() { return touch; }
+}
+struct UITheme {
+  ThemeMetrics metrics = BaseMetrics::values;
+  static UITheme& getInstance() { static UITheme theme; return theme; }
+  const ThemeMetrics& getMetrics() const { return metrics; }
+  Rect getScreenSafeArea(const GfxRenderer& r, bool, bool) const { return Rect{12, 16, r.getScreenWidth()-24, r.getScreenHeight()-32}; }
+  Rect getHeaderRect(const GfxRenderer&, bool, bool) const { return Rect{12, 16, 200, 36}; }
+};
+enum { STR_GO_TO_PERCENT, STR_STEP_HINT_FRONT, STR_STEP_HINT_SIDE, STR_CONFIRM };
+const char* tr(int key) {
+  static const char* const labels[] = {"Go to percent", "Front buttons:", "Side buttons:", "Confirm"};
+  return labels[key];
+}
+struct {
+  const char* get(StrId key) const {
+    switch (key) {
+      case StrId::STR_STEP_HINT_FRONT: return tr(STR_STEP_HINT_FRONT);
+      case StrId::STR_STEP_HINT_SIDE: return tr(STR_STEP_HINT_SIDE);
+      case StrId::STR_GO_TO_PERCENT: return tr(STR_GO_TO_PERCENT);
+      case StrId::STR_CONFIRM: return tr(STR_CONFIRM);
+      case StrId::STR_BACK: return "Back";
+      case StrId::STR_SELECT: return "Select";
+      default: std::abort();
+    }
+  }
+} I18N;
+struct MappedInputManager {
+  bool hasTouch() const { return BoardConfig::touch; }
+  struct Labels { const char* btn1; const char* btn2; const char* btn3; const char* btn4; };
+  Labels mapLabels(const char* a, const char* b, const char* c, const char* d) const { return {d,c,b,a}; }
+} mappedInput;
+struct {
+  bool edgeButtons = false;
+  bool hasEdgeSideButtons() const { return edgeButtons; }
+  bool hasTouch() const { return BoardConfig::touch; }
+  bool isUsbConnected() const { return false; }
+} gpio;
+struct { unsigned getBatteryPercentage() const { return 63; } } powerManager;
+struct CrossPointSettings { enum class HIDE_BATTERY_PERCENTAGE { HIDE_ALWAYS, SHOW }; };
+struct {
+  CrossPointSettings::HIDE_BATTERY_PERCENTAGE hideBatteryPercentage = CrossPointSettings::HIDE_BATTERY_PERCENTAGE::SHOW;
+  bool clockShowInHeader = false;
+  unsigned clockFormat = 0;
+} SETTINGS;
+struct { bool isAvailable() const { return false; } bool formatTime(char*, size_t, bool) const { return false; } } halClock;
+constexpr int batteryPercentSpacing = 4, cornerRadius = 6, kGuideFontId = SMALL_FONT_ID, kBottomRadius = 15;
+static unsigned nativeTheme;
+
+struct Gui {
+  Rect header{};
+  std::array<int,4> footerClip{};
+  bool back = false;
+  void drawHeader(GfxRenderer&, Rect, const char*, const char* = nullptr, bool = true);
+  void drawButtonHints(GfxRenderer&, const char*, const char*, const char*, const char*);
+} GUI;
+struct UiAppHost { using UiScreen = fui::Screen<24>; };
+using UiScreen = UiAppHost::UiScreen;
+constexpr int kSmallStep = 1, kLargeStep = 10;
+constexpr fui::ActionId ACTION_SLIDER = 1, ACTION_STEP = 2, ACTION_OK = 4, ACTION_CHROME = 5;
+struct EpubReaderPercentSelectionActivity {
+  int percent;
+  fui::GfxRendererTarget& uiTarget;
+  const MappedInputManager& mappedInput;
+  void buildPercentScreen(UiScreen&);
+  void setPercent(int);
+  static void onSliderEvent(const fui::ActionEvent&, void*);
+  void requestUpdate() {}
+};
+@DRAWING@
+
+struct Labels {
+  char readout[16], front[64], side[64];
+  explicit Labels(int value) {
+    std::snprintf(readout, sizeof(readout), "%d%%", value);
+    std::snprintf(front, sizeof(front), "%s 1%%", tr(STR_STEP_HINT_FRONT));
+    std::snprintf(side, sizeof(side), "%s 10%%", tr(STR_STEP_HINT_SIDE));
+  }
+  const char* get(uint32_t handle) const {
+    switch (handle) {
+      case 1: return tr(STR_GO_TO_PERCENT);
+      case 4: return tr(STR_CONFIRM);
+      case 5: return readout;
+      case 6: return "0%";
+      case 7: return "100%";
+      case 8: return front;
+      case 9: return side;
+      case 26: return "-";
+      case 27: return "+";
+      default: return "";
+    }
+  }
+};
+struct Candidate {
+  GfxRenderer& renderer;
+  Labels labels;
+};
+uint32_t rustAction(fui::ActionId action) {
+  switch (action) {
+    case ACTION_CHROME: return 100;
+    case ACTION_SLIDER: return 102;
+    case ACTION_STEP: return 103;
+    case ACTION_OK: return 104;
+    default: return 0;
+  }
+}
+
+extern "C" {
+void* xp_epub_test_percent_open(const XpAppRuntime*, int32_t);
+void xp_epub_test_percent_input(void*, const XpUiInput*);
+uint16_t xp_epub_test_percent_render(void*, const XpAppResources*, const XpUiUtilityLayout*);
+void xp_epub_test_percent_close(void*);
+}
+static GfxRenderer* adapterRenderer;
+static unsigned adapterRefreshes, adapterFooters;
+static XpAppResources percentResources() {
+  auto r = appTestResources();
+  r.translate = [](uint16_t id) -> XpAppText {
+    const char* value = I18N.get(static_cast<StrId>(id));
+    return {reinterpret_cast<const uint8_t*>(value), std::strlen(value)};
+  };
+  r.line_height = [](int32_t font) -> int32_t { return adapterRenderer->getLineHeight(font); };
+  r.text_box_height = [](XpAppText text, XpAppTextLayout layout) -> int32_t {
+    assert(text.data[text.len] == 0);
+    fui::GfxRendererTarget target(*adapterRenderer);
+    target.setFont(0, layout.font);
+    fui::TextStyle style;
+    style.bold = layout.style;
+    style.maxLines = layout.lines;
+    return fui::measureWrappedText(target, reinterpret_cast<const char*>(text.data), style, layout.width).height;
+  };
+  r.text_draw = [](const XpUiCommand* command, XpUiRect clip, XpAppText text) {
+    assert(text.data[text.len] == 0);
+    adapterRenderer->drawUiText(*command, clip, reinterpret_cast<const char*>(text.data));
+  };
+  r.paint_scene = [](const XpUiScene* scene, const XpUiPaint* paint) -> uint8_t {
+    return adapterRenderer->drawUiScene(*scene, paint);
+  };
+  r.footer_draw = [](const XpAppText* text) {
+    const char* expected[] = {"Back", "Select", "-", "+"};
+    for (unsigned i = 0; i < 4; ++i)
+      assert(std::string(reinterpret_cast<const char*>(text[i].data), text[i].len) == expected[i]);
+    ++adapterFooters;
+  };
+  r.refresh = [](uint8_t mode) { assert(mode == XP_UI_FAST); ++adapterRefreshes; };
+  r.buffer_allocate = [](XpAppMemoryDomain, size_t) -> uint8_t* { std::abort(); };
+  return r;
+}
+
+int main() {
+  HalDisplay display;
+  GfxRenderer renderer(display);
+  renderer.begin();
+  adapterRenderer = &renderer;
+  static const auto adapterRuntime = appTestRuntime();
+  const auto adapterResources = percentResources();
+  unsigned adapterCases = 0;
+  static EpdFont small(&ubuntu_10_regular), smallBold(&ubuntu_10_bold), body(&ubuntu_12_regular),
+      bodyBold(&ubuntu_12_bold), title(&notosans_18_regular), titleBold(&notosans_18_bold);
+  static EpdFont tiny(&ubuntu_8_regular);
+  renderer.insertFont(SMALL_FONT_ID, EpdFontFamily(&tiny));
+  renderer.insertFont(UI_10_FONT_ID, EpdFontFamily(&small, &smallBold));
+  renderer.insertFont(UI_12_FONT_ID, EpdFontFamily(&body, &bodyBold));
+  renderer.insertFont(NOTOSANS_18_FONT_ID, EpdFontFamily(&title, &titleBold));
+  FontDecompressor decompressor;
+  assert(decompressor.init());
+  FontCacheManager cache(renderer.getFontMap(), renderer.getSdCardFonts(), renderer.getTtfFonts());
+  cache.setFontDecompressor(&decompressor);
+  renderer.setFontCacheManager(&cache);
+  // Native theme bodies and the real renderer/SDK supply the physical drawing.
+  const XpAppText titleText{reinterpret_cast<const uint8_t*>("title"), 5};
+  const XpAppText footerText[] = {{reinterpret_cast<const uint8_t*>("one"),3}, {reinterpret_cast<const uint8_t*>("two"),3}, {reinterpret_cast<const uint8_t*>("three"),5}, {reinterpret_cast<const uint8_t*>("four"),4}};
+  const std::array<std::array<int,4>,4> expectedClip{{{10,20,120,240},{20,670,240,120},{350,540,120,240},{220,10,240,120}}};
+  const freeink::Icon* icons[] = {&icon_reader_contents_24, &icon_reader_text_24, &icon_reader_more_24, &icon_reader_back_24, &icon_reader_next_24};
+  for (bool inverted : {false, true})
+  for (int orientation = 0; orientation < 4; ++orientation) {
+    display.inverted = inverted;
+    renderer.setOrientation(static_cast<GfxRenderer::Orientation>(orientation));
+    renderer.setClipRect(1,2,300,350);
+    const auto savedClip = renderer.getClipRect();
+    drawReaderHeader(renderer, {3,4,90,20}, titleText, false);
+    assert(GUI.back && GUI.header.x == 3 && GUI.header.y == 4 && GUI.header.width == 90);
+    drawReaderHeader(renderer, {3,4,90,20}, titleText, true);
+    assert(GUI.back && GUI.header.x == 12 && GUI.header.y == 16 && GUI.header.width == 200);
+    drawReaderUtilityFooter(renderer, mappedInput, {10,20,120,240}, footerText);
+    assert(GUI.footerClip == expectedClip[orientation]);
+    assert(renderer.getClipRect() == savedClip);
+    for (unsigned icon = 0; icon < 5; ++icon) {
+      display.pixels.fill(0xa5);
+      renderer.setClipRect(40,40,12,12);
+      auto target = makeUiTarget(renderer);
+      target.bitmap({36,36,24,24}, fui::bitmapFromIcon(*icons[icon]), fui::BitmapMode::Center);
+      const auto expected = display.pixels;
+      display.pixels.fill(0xa5);
+      renderer.setClipRect(1,2,300,350);
+      drawReaderToolbarIcon(renderer, XP_UI_READER_TOOL_CONTENTS + icon, {36,36,24,24}, {40,40,12,12});
+      assert(display.pixels == expected);
+      assert(renderer.getClipRect() == savedClip);
+    }
+  }
+  unsigned chromeCases = 0;
+  for (nativeTheme = 0; nativeTheme < 3; ++nativeTheme) {
+    UITheme::getInstance().metrics = nativeTheme == 0 ? BaseMetrics::values : nativeTheme == 1 ? RoundedRaffMetrics::values : LyraMetrics::values;
+    for (bool inverted : {false,true}) for (int orientation = 0; orientation < 4; ++orientation)
+      for (bool touch : {false,true}) {
+        display.inverted = inverted; BoardConfig::touch = touch;
+        renderer.setOrientation(static_cast<GfxRenderer::Orientation>(orientation));
+        for (bool list : {false,true}) {
+          display.pixels.fill(0xa5); renderer.setClipRect(0,0,renderer.getScreenWidth(),renderer.getScreenHeight());
+          const Rect rect = list ? UITheme::getInstance().getHeaderRect(renderer, true, false) : Rect{0,0,renderer.getScreenWidth(),96};
+          GUI.drawHeader(renderer, rect, "Reader title");
+          const auto expected = display.pixels;
+          const std::array<int,4> back{HeaderBackTapTarget::x,HeaderBackTapTarget::y,HeaderBackTapTarget::w,HeaderBackTapTarget::h};
+          display.pixels.fill(0xa5);
+          const XpAppText title{reinterpret_cast<const uint8_t*>("Reader title"),12};
+          drawReaderHeader(renderer, {0,0,static_cast<int16_t>(renderer.getScreenWidth()),96}, title, list);
+          assert(display.pixels == expected);
+          assert((back == std::array<int,4>{HeaderBackTapTarget::x,HeaderBackTapTarget::y,HeaderBackTapTarget::w,HeaderBackTapTarget::h}));
+          ++chromeCases;
+        }
+        display.pixels.fill(0xa5); renderer.setClipRect(0,0,renderer.getScreenWidth(),renderer.getScreenHeight());
+        // UtilityActivity paints mapped hints after converting its scene clip to portrait.
+        UtilityActivity utility{renderer};
+        const auto nativePaint = utility.rustResources();
+        XpUiCommand footer{};
+        footer.resource = UtilityActivity::Footer;
+        nativePaint.resource(nativePaint.context, nullptr, &footer,
+                             {0,0,static_cast<int16_t>(renderer.getScreenWidth()),static_cast<int16_t>(renderer.getScreenHeight())});
+        const auto expected = display.pixels;
+        display.pixels.fill(0xa5);
+        drawReaderUtilityFooter(renderer, mappedInput, {0,0,static_cast<int16_t>(renderer.getScreenWidth()),static_cast<int16_t>(renderer.getScreenHeight())}, footerText);
+        assert(display.pixels == expected);
+        assert(renderer.getOrientation() == static_cast<GfxRenderer::Orientation>(orientation));
+        ++chromeCases;
+      }
+  }
+  std::printf("Native theme header/footer pixel and Back-target parity: %u cases\n", chromeCases);
+  unsigned prewarmCalls = 0;
+  prewarmReaderRows(renderer, UI_12_FONT_ID, &prewarmCalls, [](const void* p, uint32_t i) -> XpAppText {
+    assert(i < 3);
+    ++*const_cast<unsigned*>(static_cast<const unsigned*>(p));
+    return {reinterpret_cast<const uint8_t*>("rows"), 4};
+  }, 3);
+  assert(prewarmCalls > 0);
+  unsigned cases = 0;
+  for (bool inverted : {false, true})
+  for (const auto& theme : {BaseMetrics::values, RoundedRaffMetrics::values, LyraMetrics::values})
+    for (int orientation = 0; orientation < 4; ++orientation)
+      for (bool touch : {false, true})
+        for (int value : {0, 1, 50, 99, 100})
+          for (int active = -1; active < (touch ? 5 : 2); ++active)
+            for (int flash = 0; flash < 2; ++flash) {
+              display.inverted = inverted;
+              BoardConfig::touch = touch;
+              UITheme::getInstance().metrics = theme;
+              renderer.setOrientation(static_cast<GfxRenderer::Orientation>(orientation));
+              renderer.setClipRect(0, 0, renderer.getScreenWidth(), renderer.getScreenHeight());
+              auto target = makeUiTarget(renderer);
+              const auto tokens = uiThemeTokens(target);
+              fui::InteractionBuffer<24> nativeHits;
+              EpubReaderPercentSelectionActivity native{value, target, mappedInput};
+              auto drawNative = [&] {
+                const auto device = target.deviceContext();
+                const fui::InputSnapshot frameInput{};
+                fui::Frame<24> frame(target, device, frameInput, nativeHits);
+                UiScreen screen(frame, tokens);
+                native.buildPercentScreen(screen);
+              };
+              drawNative();
+              fui::ActionId action = 0;
+              int activeValue = 0;
+              if (active >= 0) {
+                const auto hit = nativeHits.data()[active];
+                action = hit.action;
+                activeValue = hit.value;
+                if (flash) {
+                  // OK clears flash when it leaves; slider releases are drags.
+                  if (action == ACTION_STEP || action == ACTION_CHROME) nativeHits.setFlash(action, activeValue);
+                }
+                else {
+                  fui::InputSnapshot input;
+                  input.touchPressed = true;
+                  input.touchHeld = true;
+                  input.touchX = hit.rect.x + 1;
+                  input.touchY = hit.rect.y + 1;
+                  nativeHits.route(input);
+                  // The chrome corner is outside its child controls.
+                  assert(nativeHits.activeIndex() == active);
+                }
+              }
+              // A patterned prior frame catches an accidental full-screen clear.
+              display.pixels.fill(0xa5);
+              drawNative();
+              const auto expected = display.pixels;
+
+              Candidate candidate{renderer, Labels(value)};
+              XpUiUtilityState state{};
+              state.kind = XP_UI_UTILITY_INTERVAL;
+              state.maximum = 100;
+              state.value = value;
+              state.active_action = flash ? 0 : rustAction(action);
+              state.active_value = activeValue;
+              if (flash && action == ACTION_STEP) state.flash_pending = activeValue < 0 ? 1 : 2;
+              const auto layout = sampleLayout(renderer, mappedInput);
+              XpUiUtilityLayout physicalLayout{};
+              for (bool edgeButtons : {false, true}) {
+                gpio.edgeButtons = edgeButtons;
+                assert(sampleReaderUtilityLayout(renderer, mappedInput, physicalLayout) == edgeButtons);
+              }
+              assert(std::memcmp(&physicalLayout, &layout, sizeof(layout)) == 0);
+              XpUiReaderTheme originalTheme{}, childTheme{};
+              for (bool bookmarks : {false, true}) {
+                nativeReaderChromeTheme(renderer, originalTheme, bookmarks);
+                sampleReaderChromeTheme(renderer, childTheme, bookmarks);
+                assert(std::memcmp(&originalTheme, &childTheme, sizeof(childTheme)) == 0);
+              }
+              XpUiReaderThemeFacts facts{};
+              for (bool toolbar : {false, true}) {
+                nativeReaderChildTheme(renderer, originalTheme, toolbar);
+                sampleReaderChildTheme(renderer, childTheme, facts, toolbar);
+                assert(facts.body_line_height == 0);
+                facts.body_line_height = renderer.getLineHeight(childTheme.body_font);
+                assert(xp_ui_reader_theme_compose(&childTheme, &facts,
+                    toolbar ? XP_UI_READER_THEME_TOOLBAR : XP_UI_READER_THEME_LIST));
+                assert(std::memcmp(&originalTheme, &childTheme, sizeof(childTheme)) == 0);
+              }
+              const auto safe = target.deviceContext().safeRect();
+              assert(childTheme.safe.x == safe.x && childTheme.safe.y == safe.y && childTheme.safe.w == safe.width && childTheme.safe.h == safe.height);
+              assert(childTheme.row_min == theme.listRowHeight);
+              const XpUiMetrics metrics{&renderer,
+                  [](void* p, int32_t font, const uint8_t* text, uint16_t length, uint8_t style) -> int32_t {
+                    return static_cast<GfxRenderer*>(p)->getTextWidth(font,
+                        std::string(reinterpret_cast<const char*>(text), length).c_str(),
+                        static_cast<EpdFontFamily::Style>(style));
+                  }, [](void* p, int32_t font) -> int32_t { return static_cast<GfxRenderer*>(p)->getLineHeight(font); }};
+              const XpUiUtilityTexts texts{&candidate,
+                  [](void* p, uint32_t h) { return static_cast<Candidate*>(p)->labels.get(h); },
+                  [](void* p, uint32_t h, int32_t font, int16_t width, uint8_t bold, uint8_t lines) -> int16_t {
+                    auto& c = *static_cast<Candidate*>(p);
+                    fui::GfxRendererTarget target(c.renderer);
+                    target.setFont(0, font);
+                    fui::TextStyle style;
+                    style.bold = bold;
+                    style.maxLines = lines;
+                    return fui::measureWrappedText(target, c.labels.get(h), style, width).height;
+                  }};
+              XpUiCommand commands[18]{};
+              XpUiInteraction hits[5]{};
+              const XpUiBuffer buffer{commands, hits, 18, 5};
+              XpUiUtilityFeedback feedback{};
+              XpUiScene scene{};
+              assert(xp_ui_utility_view(&state, &layout, &metrics, &texts, &buffer, &feedback, &scene));
+              const XpUiPaint paint{&candidate, nullptr, nullptr,
+                  [](void*, uint32_t, uint32_t generation) -> uint8_t { return generation == 1; },
+                  [](void* p, const XpGlyphTarget*, const XpUiCommand* command, XpUiRect clip) {
+                    auto& c = *static_cast<Candidate*>(p);
+                    if (command->kind == XP_UI_TEXT_HANDLE)
+                      c.renderer.drawUiText(*command, clip, c.labels.get(command->resource));
+                  }};
+              display.pixels.fill(0xa5);
+              assert(renderer.drawUiScene(scene, &paint));
+              if (display.pixels != expected) {
+                std::fprintf(stderr, "Percent drawing differs: radius=%d orientation=%d touch=%d value=%d active=%d flash=%d inverted=%d\n",
+                    theme.popupCornerRadius, orientation, touch, value, active, flash, inverted);
+                return 1;
+              }
+              if (!flash) {
+                void* owner = xp_epub_test_percent_open(&adapterRuntime, value);
+                xp_epub_test_percent_render(owner, &adapterResources, &layout);
+                if (active >= 0) {
+                  const auto& hit = nativeHits.data()[active];
+                  XpUiInput input{};
+                  input.touch_flags = XP_UI_TOUCH_PRESSED | XP_UI_TOUCH_HELD;
+                  input.touch_x = hit.rect.x + 1;
+                  input.touch_y = hit.rect.y + 1;
+                  xp_epub_test_percent_input(owner, &input);
+                  fui::InputSnapshot nativeInput;
+                  nativeInput.touchPressed = true;
+                  nativeInput.touchHeld = true;
+                  nativeInput.touchX = input.touch_x;
+                  nativeInput.touchY = input.touch_y;
+                  const auto event = nativeHits.route(nativeInput);
+                  if (event.action == ACTION_SLIDER) EpubReaderPercentSelectionActivity::onSliderEvent(event, &native);
+                }
+                display.pixels.fill(0xa5);
+                drawNative();
+                const auto expectedOwner = display.pixels;
+                display.pixels.fill(0xa5);
+                assert(xp_epub_test_percent_render(owner, &adapterResources, &layout) <= 18);
+                if (display.pixels != expectedOwner) {
+                  std::fprintf(stderr, "Percent owner differs: orientation=%d touch=%d value=%d active=%d inverted=%d\n", orientation, touch, value, active, inverted);
+                  return 1;
+                }
+                xp_epub_test_percent_close(owner);
+                ++adapterCases;
+              }
+              assert(scene.interaction_count == nativeHits.count());
+              for (unsigned i = 0; i < scene.interaction_count; ++i) {
+                const auto& a = hits[i];
+                const auto& b = nativeHits.data()[i];
+                assert(a.rect.x == b.rect.x && a.rect.y == b.rect.y && a.rect.w == b.rect.width && a.rect.h == b.rect.height);
+                const unsigned nativeInputs = (b.inputMask & fui::InputTouch ? 1 : 0) |
+                                              (b.inputMask & fui::InputDrag ? 2 : 0);
+                if (a.action != rustAction(b.action) || a.value != b.value || a.inputs != nativeInputs) {
+                  std::fprintf(stderr, "Percent hit %u: Rust %u/%d/%u native %u/%d/%u\n", i,
+                      a.action, a.value, a.inputs, unsigned(b.action), b.value, unsigned(b.inputMask));
+                  return 1;
+                }
+              }
+              ++cases;
+            }
+  assert(adapterRefreshes == adapterCases * 2 && adapterFooters == adapterCases * 2);
+  std::printf("Percent drawing and interaction parity: %u cases, real owner pixel parity: %u cases\n", cases, adapterCases);
+}

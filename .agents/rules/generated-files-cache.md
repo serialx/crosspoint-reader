@@ -11,6 +11,12 @@ Edit sources, not generated output. Stage only sources.
 
 Other ignored artifacts include `.pio/`, `build/`, and `compile_commands.json`.
 
+Host tests do not read these ignored outputs. `test/CMakeLists.txt` generates the
+web asset headers into the build tree with `scripts/build_html.py`, and
+archive-linked fixtures include the `I18nKeys.h` generated beside the archive they
+link, so a test result never depends on which build last wrote `src/network/html`
+or `lib/I18n`.
+
 ### Modifying Generated Content Workflow
 
 For HTML, edit `data/html/`; the next relevant firmware build regenerates the
@@ -60,10 +66,35 @@ at the same path leaves this key unchanged.
 
 ### Cache Invalidation Rules
 
-Inspect `Section::loadSectionFile()` for the full comparison of layout settings,
-fonts, and viewport dimensions. Format/version mismatches invalidate saved data.
+Section cache invalidation is decided by `xp_core::section::header_matches`
+(`rust/crates/xp-core/src/section/mod.rs`): it compares the font id, bit-exact
+line compression, and header word slots `values[3..14]`.
+`section_owner::lifecycle::header` in
+`rust/crates/xp-ffi/src/app/epub/section_owner/lifecycle.rs` derives those slots
+from `XpEpubRenderSpec`. `ReaderSection::load` in
+`rust/crates/xp-ffi/src/app/epub/section_owner/owner.rs` validates the cached
+header through `section_cache`.
+Format/version mismatches also invalidate saved data.
 Path changes select another cache; same-path content replacement needs the
 appropriate freshness check and an affected-cache reset during testing.
+
+`book.bin` is checked before its metadata becomes available to the reader. The
+version, metadata lengths, LUT location/span and ordered targets must be valid.
+The loader scans the LUT and spine records forward, bounds every TOC target, and
+checks only the last TOC record's lengths and final fields at open to catch a
+truncated tail. Other TOC lengths are checked on query. A failed spine/TOC row
+read fails the query; section preparation stops and cleans up before any section
+cache is saved, so missing metadata cannot become an empty row. Each non-final spine/TOC
+query is bounded by the next LUT target and must end exactly there; the final
+row is bounded by EOF. All query read/seek results are checked. A rejected cache takes the existing rebuild path; a failed reload after
+that one rebuild fails the open. Cumulative sizes may wrap as the writer permits.
+Later size-window read failures remain unknown to progress and navigation callers.
+Trailing bytes remain allowed. The format, version and write order are unchanged.
+
+Incomplete ZIP directory discovery fails book loading before CSS parsing or saving
+`css_rules.cache`; it is not a complete list of stylesheets. These checked size and
+CSS-discovery rules apply to the reader; the retained non-reader BookMetadataCache
+(`book_cache.rs`) and native Epub CSS path (`Epub.cpp`) keep the inherited behavior.
 
 Back up progress/state first. Prefer clearing only the affected book's
 `sections/` when checking layout regeneration. Removing all of `.crosspoint/`
@@ -71,8 +102,12 @@ also deletes settings, credentials, and application state.
 
 ### Cache File Format Versioning
 
-Read `BOOK_CACHE_VERSION` and `SECTION_FILE_VERSION` from
-`BookMetadataCache.cpp` and `Section.cpp`; layouts/history are in
+Read `BOOK_CACHE_VERSION` from `lib/Epub/Epub/PackagePlatform.cpp`. The section
+format version is `XP_SEC_VERSION` / `XP_SEC_PARTIAL_VERSION` in
+`rust/crates/xp-ffi/include/xp_ffi.h`, which mirror
+`xp_core::section::VERSION` / `PARTIAL_VERSION` in
+`rust/crates/xp-core/src/section/mod.rs`. Bump the Rust and header values
+together. Layouts/history are in
 [file-formats.md](../../docs/file-formats.md).
 Increment the relevant version before changing serialized structure or layout
 behavior that changes cached line breaks, widths, or word positions, and document

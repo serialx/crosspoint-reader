@@ -231,7 +231,7 @@ typedef struct {
   const EpdGlyph* (*glyphMissHandler)(void* ctx, uint32_t codepoint);
 
   /// Context pointer for glyphMissHandler (typically SdCardFont*).  Also used by
-  /// GfxRenderer::getGlyphBitmap() to retrieve overflow bitmaps via SdCardFont.
+  /// the temporary SD bitmap leaf to retrieve overflow bitmaps via SdCardFont.
   void* glyphMissCtx;
 
   /// Full-coverage query for fonts whose interval table only reflects what is
@@ -242,7 +242,7 @@ typedef struct {
   bool (*coverageHandler)(void* ctx, uint32_t codepoint);
 
   /// Vector-font bitmap accessor (FreeInkFont / TtfEpdFont). When non-null,
-  /// GfxRenderer::getGlyphBitmap() returns vectorBitmapHandler(glyphMissCtx, glyph)
+  /// the Rust bitmap dispatcher calls vectorBitmapHandler(glyphMissCtx, glyph)
   /// instead of indexing ->bitmap or going through the SdCardFont overflow path.
   /// This lets a runtime-rasterized TTF fault + cache glyphs on ANY draw path
   /// (via glyphMissHandler) without pre-warming. nullptr for every other font,

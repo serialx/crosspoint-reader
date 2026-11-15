@@ -1,0 +1,290 @@
+[
+  {
+    "name": "valid-empty",
+    "hex": "000000000000",
+    "logs": [],
+    "accepted": 1,
+    "attempts": 1,
+    "requested": 80
+  },
+  {
+    "name": "valid-line",
+    "hex": "010001000000000200000400ffff0000000000000000000000000000000000000200000000000000610062000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "logs": [],
+    "accepted": 1,
+    "attempts": 4,
+    "requested": 310
+  },
+  {
+    "name": "word-count",
+    "hex": "010001000000001127001127ffff00000000",
+    "logs": [
+      "ERR\tTXB\tDeserialization failed: word count 10001 exceeds maximum",
+      "ERR\tPGE\tDeserialization failed: null TextBlock"
+    ],
+    "accepted": 0,
+    "attempts": 1,
+    "requested": 80
+  },
+  {
+    "name": "paragraph-start",
+    "hex": "010001000000000200000400020000000000",
+    "logs": [
+      "ERR\tTXB\tDeserialization failed: word count 2 exceeds maximum",
+      "ERR\tPGE\tDeserialization failed: null TextBlock"
+    ],
+    "accepted": 0,
+    "attempts": 1,
+    "requested": 80
+  },
+  {
+    "name": "text-size",
+    "hex": "010001000000000200000100ffff00000000",
+    "logs": [
+      "ERR\tTXB\tDeserialization failed: bad text size 1 for 2 words",
+      "ERR\tPGE\tDeserialization failed: null TextBlock"
+    ],
+    "accepted": 0,
+    "attempts": 1,
+    "requested": 80
+  },
+  {
+    "name": "arena-read",
+    "hex": "010001000000000200000400ffff000000000000",
+    "logs": [
+      "ERR\tTXB\tDeserialization failed: arena read (30 bytes)",
+      "ERR\tPGE\tDeserialization failed: null TextBlock"
+    ],
+    "accepted": 0,
+    "attempts": 3,
+    "requested": 286
+  },
+  {
+    "name": "arena-first-offset",
+    "hex": "010001000000000200000400ffff0000000000000000000000000000000001000200000000000000610062000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "logs": [
+      "ERR\tTXB\tDeserialization failed: corrupt text layout",
+      "ERR\tPGE\tDeserialization failed: null TextBlock"
+    ],
+    "accepted": 0,
+    "attempts": 3,
+    "requested": 286
+  },
+  {
+    "name": "arena-last-terminator",
+    "hex": "010001000000000200000400ffff0000000000000000000000000000000000000200000000000000610062780000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "logs": [
+      "ERR\tTXB\tDeserialization failed: corrupt text layout",
+      "ERR\tPGE\tDeserialization failed: null TextBlock"
+    ],
+    "accepted": 0,
+    "attempts": 3,
+    "requested": 286
+  },
+  {
+    "name": "word-offset",
+    "hex": "010001000000000200000400ffff0000000000000000000000000000000000000000000000000000610062000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "logs": [
+      "ERR\tTXB\tDeserialization failed: corrupt word offset 1",
+      "ERR\tPGE\tDeserialization failed: null TextBlock"
+    ],
+    "accepted": 0,
+    "attempts": 3,
+    "requested": 286
+  },
+  {
+    "name": "font-flag",
+    "hex": "010001000000000200000400ffff0000000000000000000000000000000000000200000000000000610062000000000000000000000000000000000000000000000000000000000000000000000000000200000000",
+    "logs": [
+      "ERR\tTXB\tDeserialization failed: bad word font flag 2",
+      "ERR\tPGE\tDeserialization failed: null TextBlock"
+    ],
+    "accepted": 0,
+    "attempts": 3,
+    "requested": 286
+  },
+  {
+    "name": "word-font-read",
+    "hex": "010001000000000200000400ffff00000000000000000000000000000000000002000000000000006100620000000000000000000000000000000000000000000000000000000000000000000000000001",
+    "logs": [
+      "ERR\tTXB\tDeserialization failed: word fonts",
+      "ERR\tPGE\tDeserialization failed: null TextBlock"
+    ],
+    "accepted": 0,
+    "attempts": 4,
+    "requested": 300
+  },
+  {
+    "name": "word-font-slot",
+    "hex": "010001000000000200000400ffff00000000000000000000000000000000000002000000000000006100620000000000000000000000000000000000000000000000000000000000000000000000000001010000000200000003000000000400000000",
+    "logs": [
+      "ERR\tTXB\tDeserialization failed: bad word font slot 4",
+      "ERR\tPGE\tDeserialization failed: null TextBlock"
+    ],
+    "accepted": 0,
+    "attempts": 4,
+    "requested": 300
+  },
+  {
+    "name": "word-font-slot-high",
+    "hex": "010001000000000200000400ffff00000000000000000000000000000000000002000000000000006100620000000000000000000000000000000000000000000000000000000000000000000000000001010000000200000003000000008400000000",
+    "logs": [
+      "ERR\tTXB\tDeserialization failed: bad word font slot 132",
+      "ERR\tPGE\tDeserialization failed: null TextBlock"
+    ],
+    "accepted": 0,
+    "attempts": 4,
+    "requested": 300
+  },
+  {
+    "name": "word-font-missing",
+    "hex": "010001000000000200000400ffff00000000000000000000000000000000000002000000000000006100620000000000000000000000000000000000000000000000000000000000000000000000000001000000000200000003000000010000000000",
+    "logs": [
+      "ERR\tTXB\tDeserialization failed: bad word font slot 1",
+      "ERR\tPGE\tDeserialization failed: null TextBlock"
+    ],
+    "accepted": 0,
+    "attempts": 4,
+    "requested": 300
+  },
+  {
+    "name": "unknown-tag",
+    "hex": "0100ff00000000",
+    "logs": [
+      "ERR\tPGE\tDeserialization failed: Unknown tag 255"
+    ],
+    "accepted": 0,
+    "attempts": 1,
+    "requested": 80
+  },
+  {
+    "name": "rule-width",
+    "hex": "0100030000000000000100000000",
+    "logs": [
+      "ERR\tPGE\tDeserialization failed: invalid horizontal rule metadata (width=0 thickness=1)"
+    ],
+    "accepted": 0,
+    "attempts": 1,
+    "requested": 80
+  },
+  {
+    "name": "rule-thickness",
+    "hex": "0100030000000032000000000000",
+    "logs": [
+      "ERR\tPGE\tDeserialization failed: invalid horizontal rule metadata (width=50 thickness=0)"
+    ],
+    "accepted": 0,
+    "attempts": 1,
+    "requested": 80
+  },
+  {
+    "name": "drop-scale",
+    "hex": "0100040000000001000000000000014100000000",
+    "logs": [
+      "ERR\tPGE\tDeserialization failed: invalid drop cap"
+    ],
+    "accepted": 0,
+    "attempts": 1,
+    "requested": 80
+  },
+  {
+    "name": "drop-length",
+    "hex": "01000400000000010000000001000000000000",
+    "logs": [
+      "ERR\tPGE\tDeserialization failed: invalid drop cap"
+    ],
+    "accepted": 0,
+    "attempts": 1,
+    "requested": 80
+  },
+  {
+    "name": "drop-read",
+    "hex": "01000400000000010000000001000c",
+    "logs": [
+      "ERR\tPGE\tDeserialization failed: invalid drop cap"
+    ],
+    "accepted": 0,
+    "attempts": 1,
+    "requested": 80
+  },
+  {
+    "name": "border-style",
+    "hex": "010005000000000100010000050006000000000000000000",
+    "logs": [
+      "ERR\tPGE\tDeserialization failed: invalid border style 5"
+    ],
+    "accepted": 0,
+    "attempts": 1,
+    "requested": 80
+  },
+  {
+    "name": "border-empty",
+    "hex": "010005000000000000010000000000000000000000000000",
+    "logs": [
+      "ERR\tPGE\tDeserialization failed: empty border box"
+    ],
+    "accepted": 0,
+    "attempts": 1,
+    "requested": 80
+  },
+  {
+    "name": "footnote-count",
+    "hex": "000011000000",
+    "logs": [
+      "ERR\tPGE\tInvalid footnote count 17"
+    ],
+    "accepted": 0,
+    "attempts": 1,
+    "requested": 80
+  },
+  {
+    "name": "footnote-read",
+    "hex": "00000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "logs": [
+      "ERR\tPGE\tFailed to read footnote 1"
+    ],
+    "accepted": 0,
+    "attempts": 1,
+    "requested": 80
+  },
+  {
+    "name": "link-count",
+    "hex": "000000002100",
+    "logs": [
+      "ERR\tPGE\tInvalid link count 33"
+    ],
+    "accepted": 0,
+    "attempts": 1,
+    "requested": 80
+  },
+  {
+    "name": "link-read",
+    "hex": "000000000200616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161",
+    "logs": [
+      "ERR\tPGE\tFailed to read link 1"
+    ],
+    "accepted": 0,
+    "attempts": 1,
+    "requested": 80
+  },
+  {
+    "name": "link-empty",
+    "hex": "000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000100",
+    "logs": [
+      "ERR\tPGE\tInvalid link geometry 0"
+    ],
+    "accepted": 0,
+    "attempts": 1,
+    "requested": 80
+  },
+  {
+    "name": "link-width",
+    "hex": "000000000100610000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100",
+    "logs": [
+      "ERR\tPGE\tInvalid link geometry 0"
+    ],
+    "accepted": 0,
+    "attempts": 1,
+    "requested": 80
+  }
+]

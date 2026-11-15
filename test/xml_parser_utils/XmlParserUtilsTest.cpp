@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "XmlParserUtils.h"
+#include "XmlQName.h"
 
 TEST(XmlParserUtils, MatchesLocalNamesRegardlessOfPrefix) {
   EXPECT_TRUE(xmlLocalNameEquals("package", "package"));

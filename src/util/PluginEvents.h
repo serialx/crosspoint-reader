@@ -1,5 +1,7 @@
 #pragma once
 
+#include <xp_plugin.h>
+
 #include <cstddef>
 #include <cstdint>
 
@@ -26,7 +28,7 @@ class GfxRenderer;
 // a "download" (response streamed to `dest` on SD, e.g. a sleep image).
 //
 // Execution is deferred: plugin handlers need the network, and events mostly
-// fire with WiFi down (leaving the reader, entering sleep). emit() appends one
+// fire with WiFi down (leaving the reader, entering sleep). Event emission appends one
 // JSON line to the plugin's SD outbox (<plugin dir>/events.jsonl) and costs
 // nothing beyond that; drain() later replays queued events through the
 // declared requests whenever the device is already online. Substitution in
@@ -44,11 +46,11 @@ class GfxRenderer;
 namespace pluginevents {
 
 enum class Event : uint8_t {
-  ReaderOpen,      // "reader.open"      vars: book
-  ReaderExit,      // "reader.exit"      vars: book, percent
-  ReaderSession,   // "reader.session"   vars: book, document, active-session summary
-  BookDownloaded,  // "book.downloaded"  vars: path, title, plugin
-  SleepEnter,      // "sleep.enter"      vars: book, percent when sleeping from a reader, else none
+#define XP_PLUGIN_EVENT(name, id, wire) name = id,
+#define XP_PLUGIN_LIMIT(name, value)
+#include <xp_plugin_contract.def>
+#undef XP_PLUGIN_LIMIT
+#undef XP_PLUGIN_EVENT
   COUNT
 };
 
@@ -65,6 +67,13 @@ void refreshSubscriptions();
 
 // True when at least one plugin subscribes to `e` (a few string compares).
 bool anySubscriber(Event e);
+// App-task query only: borrow through return, never across refreshSubscriptions().
+const XpPluginSubscriber* subscriptionView();
+
+// Non-null ops constructs in pinned storage; null ops destroys after synchronous use.
+// eventCodec leaves append null: the calling owner must bind it before xp_plugin_emit.
+XpPluginSequence* eventCodec(XpPluginEventStorage* storage, XpPluginEmitOps* ops);
+void eventAppend(XpPluginAppendStorage* storage, void* event, const XpPluginSubscriber* sub, XpPluginOps* ops);
 
 // Bit per Event the named plugin subscribes to (0 = none), for disclosing
 // what leaves the device. Reflects the last refreshSubscriptions().

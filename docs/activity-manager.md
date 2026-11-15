@@ -9,7 +9,7 @@ This document explains the refactoring from the original per-activity render tas
 | Render task | One per activity (8KB stack each) | Single shared task in `ActivityManager` |
 | Render mutex | Per-activity `renderingMutex` | Single global mutex in `ActivityManager` |
 | `RenderLock` | Inner class of `Activity` | Standalone class, acquires global mutex |
-| Subactivities | `ActivityWithSubactivity` base class | Activity stack managed by `ActivityManager` |
+| Subactivities | `ActivityWithSubactivity` base class | Activity stack owned by `xp-ui::app::Application`; `ActivityManager` forwards navigation |
 | Navigation | Free functions in `main.cpp` | `activityManager.goHome()`, `goToReader()`, etc. |
 | Subactivity results | Callback lambdas stored in parent | `startActivityForResult()` / `setResult()` / `finish()` |
 | `requestUpdate()` | Notifies activity's own render task | Delegates to `ActivityManager` (immediate or deferred) |
@@ -48,38 +48,72 @@ Problems with this approach:
 - **Dangerous deletion patterns**: `exitActivity()` + `enterNewActivity()` in callbacks led to `delete this` situations where the caller was destroyed while its code was still on the stack
 - **Subactivity coupling**: Parents stored callbacks to child results, creating tight coupling and lifetime hazards
 
-### New Model: Centralized ActivityManager
+### Application owner and native facade
 
-A single `ActivityManager` owns the render task and manages an activity stack:
+`xp-ui::app::Application` owns the current activity, retained parents and pending
+transition. `ActivityManager` forwards native navigation through `xp_app.h` and
+retains the render task, RenderLock and completion notification. See
+[Application ownership](contributing/rust-ui.md#application-ownership).
+
+The EPUB session owns one Rust `ReaderBook` and `ReaderSection`. The Section
+owns its incremental Chapter build. Chapters, Bookmarks and Toolbar read TOC
+rows directly from the Rust book under resource access. Bookmark and progress
+mapping also use that owner. The Rust-owned image extractor borrows the stable
+ReaderBook allocation. Exit detaches the extractor, drops Section and destroys
+the ReaderBook. Normal host sessions use the same ownership path. Only explicit
+native comparison fixtures register a facade and check its close lifetime. Native
+Home, Library, Sleep and sync objects retain their ordinary Epub ownership. See
+[Reader book ownership](contributing/rust.md#reader-book-ownership).
 
 ```text
-┌──────────────────────────────────────────────────────────┐
-│ Main Task (Arduino loop)                                 │
-│                                                          │
-│  activityManager.loop()                                  │
-│    │                                                     │
-│    ├── currentActivity->loop()                           │
-│    │     ├── handle input                                │
-│    │     ├── update state (under RenderLock)              │
-│    │     └── requestUpdate()                             │
-│    │                                                     │
-│    ├── process pending actions (Push / Pop / Replace)    │
-│    │                                                     │
-│    └── if requestedUpdate: ──notify──► Render Task       │
-│                                         (single, shared) │
-│                                         8KB stack        │
-│                                         global mutex     │
-│                                                          │
-│  Activity Stack:                                         │
-│  ┌──────────┬──────────┬──────────┐    ┌──────────┐     │
-│  │ Home     │ Settings │ Wifi     │    │ Keyboard │     │
-│  │ (stack)  │ (stack)  │ (stack)  │    │ (current)│     │
-│  └──────────┴──────────┴──────────┘    └──────────┘     │
-│   stackActivities[]                    currentActivity   │
-└──────────────────────────────────────────────────────────┘
+Main task -> xp_app_loop -> Rust Application
+                            current: Rust Home, EPUB session, reader child or owned legacy activity
+                            parents: retained owners
+                            pending: Push / Pop / Replace / Sleep
+                            render request -> shared native render task
 ```
 
+The driver and EPUB reader use the [loop sampling contract](contributing/rust-ui.md#loop-sampling).
+The native input-source table address is stable; its query context is built per
+call. Gesture results remain consumable within a frame; activity code must not
+cache those results across consumers.
+
 ## Migration Checklist
+
+Reader-list owners share admission and list preparation through
+`xp_ui::runtime::SceneGate`, `next_capacity` and
+`reader_chrome::runtime::ListRequest`. Native activities reach the gate and
+capacity policy through `xp_ui.h`; Rust owners call the typed functions directly.
+Keep the four-byte gate in the owner and command/hit buffers in its render
+storage. A failed scene suppresses activation until recovery and held-input
+release; a stale successful scene requests repaint. Custom cancellation remains
+the screen's responsibility.
+
+Gate mutation requires the caller's model lock; the gate provides no
+synchronization. After any render, resource or text lock wait following
+admission, check the gate again before acting: rendering may have rejected the
+scene during the wait.
+
+Rust-owned screens call `app::scene::paint`; native-origin screens enter the
+same Rust renderer through `GfxRenderer::drawUiScene` and `xp_ui_render`. The
+current target and clear/text services are synchronous loans; resource callbacks
+retain their own context. This does not transfer publication to the renderer.
+
+List preparation does not paint or publish. Grow storage using the screen's
+existing capacity sequence, releasing the old buffer before allocation and
+retaining the request for a failed-allocation retry. Paint a completed scene,
+release temporary resource loans in the caller's required order, then publish
+under the model lock and perform the caller's refresh. Do not move scene scratch
+into shared application dispatch or standardize refresh order across families.
+This storage and preparation protocol is for reader lists. Keyboard allocates
+replacement buffers before releasing old ones; keyboard and utility dialogs do
+not use `ListRequest`.
+See [Shared scene and list policy](contributing/rust-ui.md#shared-scene-and-list-policy)
+for the native and owned callers, theme sampling and retained native consumers.
+In Phase 18, retire `xp_ui_scene_gate_*`, `xp_ui_command_next_capacity` and
+`xp_ui_reader_theme_compose` only after their last actual native callers retire.
+Keep the common commands/sampler file while FileBrowser, Library, TextSettings
+or EndOfBookOptions uses it, even after native Bookmarks and Clippings retire.
 
 ### 1. Change Base Class
 
@@ -264,6 +298,13 @@ There are two tasks relevant to the activity system:
 └──────────────────────┘     └──────────────────────────┘
 ```
 
+Session entry and book load run through the loop task's transition drain;
+render callbacks and clipping sync have render-task call chains. Measure their
+stack minima separately: the entry/load frame is not a render-frame cost.
+Rust Section builds can progress over later loop ticks under resource access.
+The ReaderBook and physical services must remain valid until the build or its
+cancellation finishes; no mutable owner borrow survives a physical callback.
+
 Both tasks run at priority 1. Since the ESP32-C3 is single-core, they alternate execution: the main task runs `loop()`, then at the end of the loop iteration, notifies the render task if an update was requested. The render task wakes, acquires the mutex, calls `render()`, releases the mutex, and blocks again.
 
 Do not use `xTaskCreate` inside activities. If you have a use case that seems to require a background task, open a discussion to propose a lifecycle-aware `Worker` abstraction first.
@@ -372,73 +413,56 @@ requestUpdateAndWait()
   └─ return
 ```
 
-### Activity Lifecycle Under ActivityManager
+### Activity lifecycle through ActivityManager
+
+Native `replaceActivity`, `pushActivity` and `popActivity` forward events to the
+Rust application. The outer loop drains queued transitions. Replacement exits and
+drops current and retained owners under RenderLock, publishes the new current
+owner, then unlocks before calling `onEnter()`.
+
+For push/pop navigation:
 
 ```text
-activityManager.replaceActivity(make_unique<MyActivity>(...))
-  │
-  ▼
-╔═══════════════════════════════════════════════════╗
-║  pendingAction = Replace                          ║
-║  pendingActivity = MyActivity                     ║
-╚═══════════════════════════════════════════════════╝
-  │
-  ▼ (next loop iteration)
-  ActivityManager::loop()
-  │
-  ├── currentActivity->loop()     // old activity's last loop
-  │
-  ├── process pending action:
-  │   ├── RenderLock lock;
-  │   ├── oldActivity->onExit()   // cleanup under lock
-  │   ├── delete oldActivity
-  │   ├── clear stack
-  │   ├── currentActivity = MyActivity
-  │   ├── lock.unlock()
-  │   └── MyActivity->onEnter()   // init new activity
-  │
-  └── if requestedUpdate:
-      └── notify render task
+Parent: startActivityForResult(child, handler)
+  -> store handler in parent; enqueue Push in Rust (child not entered yet)
+  -> Parent::loop() returns; the loop drain in the same xp_app_loop pass applies Push:
+  -> Rust retains parent and installs child under RenderLock
+  -> unlock; Child::onEnter()
+
+Child: setResult(value); finish()
+  -> enqueue Pop in Rust (nothing destroyed yet)
+  -> Child::loop() returns; the loop drain in the same xp_app_loop pass applies Pop:
+  -> acquire RenderLock
+  -> native bridge moves child result into a temporary stack slot
+  -> synchronous Rust continuation exits and destroys child
+  -> Rust restores and publishes parent
+  -> unlock
+  -> generic pop delivery: deliver borrowed result to parent
+  -> discard result slot; the drain continues with any newly queued transition
 ```
 
-For push/pop (subactivity) navigation:
+A loop pass that returns before its drain (suppressed release, exclusive storage,
+a Home gesture, the frontlight panel) defers the queued transition to a later pass.
+The drain is the last navigation step of `App::activity_loop` (`rust/crates/xp-ffi/src/app/mod.rs:654`)
+and `Application::drain` applies the transition there (`rust/crates/xp-ui/src/app/mod.rs:235`).
 
-```text
-Parent calls: startActivityForResult(make_unique<Child>(...), handler)
-  │
-  ▼
-╔══════════════════════════════════════╗
-║  pendingAction = Push               ║
-║  pendingActivity = Child            ║
-║  parent->resultHandler = handler    ║
-╚══════════════════════════════════════╝
-  │
-  ▼ (next loop iteration)
-  ├── Parent moved to stackActivities[]
-  ├── currentActivity = Child
-  └── Child->onEnter()
+The continuation holds no navigation borrow across a native callback. Handlers
+may enqueue another pop or replacement. Generic native-result handlers must copy
+borrowed text they retain. The generic
+[`Application::pop`](../rust/crates/xp-ui/src/app/mod.rs#L177-L202)
+requests a parent render if no transition was queued.
 
-        ... child runs ...
-
-Child calls: setResult(MyResult{...}); finish();
-  │
-  ▼
-╔══════════════════════════════════════╗
-║  pendingAction = Pop                ║
-║  child->result = MyResult{...}      ║
-╚══════════════════════════════════════╝
-  │
-  ▼ (next loop iteration)
-  ├── result = child->result
-  ├── Child->onExit(); delete Child
-  ├── currentActivity = Parent (popped from stack)
-  ├── Parent->resultHandler(result)
-  └── requestUpdate()   // automatic re-render for parent
-```
+For Definition, Rust [filters for `RESULT_CLIPPING`](../rust/crates/xp-ffi/src/app/definition.rs#L69-L82),
+then [selection processing](../rust/crates/xp-ffi/src/app/epub/children/definition_navigation.rs#L90-L142)
+releases temporary Pages and checks cancellation, history depth and heap capacity.
+If those checks pass, it copies the text once into the pending owned block without
+reacquiring RenderLock. The native `ActivityResult` stays alive until delivery
+returns. See [Definition ownership](contributing/rust-ui.md#reader-child-ownership)
+for the resource and result lifetimes.
 
 ### Common Pitfalls
 
-**Calling `finish()` and continuing to access `this`**: `finish()` sets `pendingAction = Pop` but does not immediately destroy the activity. The activity is destroyed on the next `ActivityManager::loop()` iteration. It's safe to access member variables after `finish()` within the same function, but don't rely on the activity surviving past the current `loop()` call.
+**Calling `finish()` and continuing to access `this`**: `finish()` calls `activityManager.popActivity()`, which only queues `Transition::Pop` in the Rust application (`rust/crates/xp-ffi/src/app/mod.rs:767`); it does not destroy the activity. The activity is destroyed when the loop drains that pop, after the current `loop()` call returns (`Application::pop`, `rust/crates/xp-ui/src/app/mod.rs:187`). It's safe to access member variables after `finish()` within the same function, but don't rely on the activity surviving past the current `loop()` call.
 
 **Modifying shared state without `RenderLock`**: If `render()` reads a variable and `loop()` writes it, the write must be under a `RenderLock`. Without it, `render()` could see a half-written value (e.g., a partially updated string or struct).
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <xp_hal.h>
+
 #include <cstdint>
 
 // A monotonic floor under the system clock, for loan-expiry enforcement.
@@ -49,5 +51,7 @@ bool syncNow(uint32_t timeoutMs);
 // this boot or restored from the floor, so a backward clock step cannot undo
 // an expiry. Callers enforcing a date fail closed on 0.
 int64_t trustedNow();
+const XpHalTimeServices* readerServices();
+XpHalSyncServices readerStartSync();
 
 }  // namespace trustedtime

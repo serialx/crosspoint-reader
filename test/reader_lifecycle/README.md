@@ -1,0 +1,306 @@
+# Reader lifecycle oracle
+
+The suite retains the original 38 CTest declarations and 39 compressed golden
+files. Those files record pre-port behavior and remain unchanged. Current EPUB
+candidates call ordinary `EpubSession` methods in
+`rust/crates/xp-ffi/src/app/epub/`; shared ReaderActivity/XTC and component checks
+remain in the suite. Retiring a native EPUB owner or export must not remove its
+original cases, shared callers or recorded expectations.
+
+## Test boundaries
+
+Historical fixtures use deterministic clocks, locks, heap, storage, display and
+child values. Some also stub an inner policy method. Their host-only `app-test`
+adapters preserve that boundary with named typed hooks. A matching outer trace
+therefore proves the outer method under those supplied values, not execution of
+the replaced inner method. Separate method tests cover those inner algorithms.
+Observers record actual values before or after an operation and must not replace
+them. Setup and read-only exports are distinct from policy hooks.
+
+The historical adapters include supplied idle thresholds, repeated dirty link-note
+repaints, a sync result of false, fixture-specific clear mutations and a fixed
+clipping signature. These values belong to those fixtures; they are not additional
+production behavior. The `app-test` feature and its `xp_app_test_*` and
+`xp_epub_test_*` exports must remain absent from firmware.
+
+`reader_app_epub_a1` separately exercises an App-owned session without policy
+hooks: real entry, cached book rendering, page movement, toolbar display and
+cancellation, forced refresh, final Update and exit. It runs both strip
+configurations with asymmetric margins, a selected body font, text AA and nonempty
+metadata/highlights. It uses the named historical native-book fixture, while
+native resource/frame and strip code execute over physical fakes. This does not
+exercise ReaderBook loading, the full parser, storage medium or panel.
+
+`reader_app_epub_results` exercises native children returning to the actual App
+owner. The native producer moves the result into callback-local storage. Child
+exit and destruction occur under RenderLock, then the parent is restored and
+published, the lock is released, and the ordinary EPUB result handler runs.
+Borrowed text remains valid until delivery returns; retained values must be copied.
+The matrix includes cancellation, repeated child returns, transferred Page destruction,
+long text, stack allocation failure and pending shutdown. It does not replace the
+native child widgets' own tests.
+
+`reader_app_routing` uses actual App navigation for empty paths, bitmap formats,
+XTC/XTCH, EPUB, TXT, Markdown and fallback paths, with case variants and a long
+path. It checks native factory and resource counts, constructor refresh frequency,
+Rust/native acquisition failures preserving the active owner, invalid path spans,
+and rejection of a missing EPUB service table. These 57 cases use the actual
+Rust ReaderBook with valid v10 cache bytes, physical storage and UI fakes.
+Observers check real bind/close events; native allocation failures are injected.
+Legacy native-book services trap if called.
+
+## Actual book and borrower compositions
+
+`reader_harden` builds with `app-test` disabled and drives the shipping cache,
+ZIP and TXT owners through strict HAL fakes. It rejects truncated metadata,
+failed reads/seeks and stale zero-size TXT caches. It also checks incomplete CSS
+walks, size-window failure propagation and the native percentage boundaries.
+`reader_harden_build_failure` injects either missing popup-size bound into the real
+render control flow and requires chapter build, rendering and progress saving;
+strict HAL cases separately prove that failed window reads produce that result.
+Separately, the
+`reader_book_cache` oracle in this directory retains the healthy native golden;
+incomplete/reused loads now assert rejection instead
+of preserving the inherited error collapse. Cache version and writer bytes are unchanged.
+
+`reader_book_*` resource, cache, ZIP, package, CSS, load and TXT cases call the
+actual Rust book modules. The owner is active in firmware; component-only
+helpers remain behind `app-test`. Book lifetime/render traces compare current
+EpubSession methods with frozen bytes, without retaining a second dispatch
+engine as their reference implementation.
+
+`reader_book_facade` loads ReaderBook and explicitly registers the native comparison
+adapter in `native_book_reference_fixture.inc` through
+`xp_epub_test_native_reference_bind`. Rust owns the book lifetime; the adapter
+supplies the native Epub/CssParser reference and extractor. It checks the six historical reverse
+callbacks, nested stream queries,
+CSS load/clear, native outer allocation failures and forbidden metadata getters.
+The two simulated loan ticks in this test are not a real Section build.
+
+`reader_book_section` supplies actual Rust ReaderBook/ReaderSection/Chapter/CSS,
+the Rust Page owner with native facades, cache-only Section, ProgressMapper and
+ChapterXPathResolver. It checks serialized background ticks, cache/page reads,
+active-build cancellation and a visible-offset/XPath round trip. Native file,
+font/render and scheduler inputs remain physical fakes; it does not qualify
+panel timing or concurrent hardware execution.
+
+`reader_child_handle_composition` retains 77 original cases: 76 use actual
+ReaderBook with the registered native reference adapter, and one keeps the historical single-attempt selection
+metadata fault through the explicitly named legacy fixture. The real-owner
+allocation matrix separately fails cache-query and packed-metadata allocations
+without moving its fault arm. Original parent outcome checks and 22 mutants
+remain. Actual chapter/bookmark constructors and shared-pointer members exercise
+loan retention and release; native child widgets keep their separate tests.
+
+`book_store_composition.py` extracts the actual bookmark and recents adapters.
+Clipping load, count, row lookup and insert now execute against the App-owned
+Rust store, backed by a physical file fake. Host-only observers retain historical
+load/unload and borrowed-result assertions; they cannot choose storage results.
+Result/child compositions use a 4,096-byte total book path and preserve the
+4,096-byte borrowed selection. Dedicated ownership/routing cases retain their
+original 4,102-byte path. `clipping_app_store_physical` independently proves that
+the real writer rejects a 4,102-byte path without creating a file.
+
+The native singleton cleared four strings on unload without releasing capacity.
+The real App fixture warms those strings before allocation baselines. Its named
+reader allocation domain excludes exactly the persistent store header and four
+strings, while preserving every original numeric teardown expectation. The
+physical store test separately reports capacities before/after unload. Operation
+peaks and target allocator overhead require the qualification measurements.
+
+Historical service fixtures live in `legacy_book_fixture.h` and Rust
+`test_support::{legacy_book,legacy_section}`, behind `app-test`. The Section
+fixture is an explicit variant alongside the actual owner; shipping SectionSlot
+stores only a typed ReaderSection pointer and has no legacy dispatch. These
+fixtures preserve captured allocation
+attempts and supplied metadata without becoming a production fallback. Their
+symbols must be absent from shipping images. Keep both historical and actual
+owner paths: passing one does not establish the other's guarantees.
+
+The archive absence check in `reader_lifecycle_abi` honors `NM`. Set it to an
+LLVM-compatible `llvm-nm` if the system tool cannot read the Rust toolchain's
+bitcode archive members; symbol-reader errors fail the check.
+
+ModelLock allows only bounded scalar reads and publication. Physical leaves run
+outside it. ResourceAccess represents the existing nonrecursive RenderLock:
+render methods borrow the caller's lock and loop operations acquire it where live
+resources are accessed. Fixtures track these depths and preserve the distinction
+between published scalar facts and live Section/Page reads.
+
+Run the registered reader CTests in the configured host build. Candidate drivers
+compare the original traces directly to their frozen compressed bytes, applying
+only their explicit approved observation projections. Original hash/length checks
+and projection counts remain active. Mutants change actual candidate source and
+must reach the intended assertion; compile failures or arbitrary crashes do not
+establish sensitivity. Never regenerate a golden from a port. Additive App and
+resource tests use direct contract assertions and do not rewrite those goldens.
+
+The composition tests extend the historical method coverage; they do not make
+every historical hook path a composed App path. Parser/background progression,
+connected radio, successful clock-sync restart, complete end-menu/Home workflows
+and every Text/More choice retain their separate coverage limits. Host success
+does not establish target stack, allocation budgets or device qualification.
+
+The shipping reader now binds extraction directly to the Rust book and retires
+the native facade and image reset/release/eligibility table slots. Historical
+composition fixtures observe real bind/drop events with `xp_epub_test_book_observer`
+and real reset/release events with `xp_epub_test_image_observer`; the retired fields
+are gone. The source-including
+[page image file tests](../page_image_pin/README.md) exercise the new extraction
+sink, pinned file lifetime and cache probe independently of those adapters.
+
+## Original capture history
+
+The initial compressed lifecycle golden records
+`8d534a99e53f3bc98d842740de606b0396d38d56` before porting reader policy.
+`extract.py` compiled selected original activity methods against deterministic
+clock, lock, heap, storage and display leaves. It did not keep a second
+implementation of those methods. The capture descriptions below preserve that
+history; references to original method bodies do not require the retired EPUB
+owner to remain in the current firmware or normal host build.
+
+The trace covers session dwell thresholds and clock wrap, chapter/page turns,
+queued turns during rendering and the 200 ms manual-turn gap, chapter skipping,
+radio/build admission, background build failure and framebuffer loans,
+progress bytes and failure ordering, link-stack persistence, refresh cadence,
+link-note repaint, gesture settings and language detection. Progress cases
+include old four-byte files, six- and ten-byte files, truncated/oversized reads,
+stale last-page sentinels, invalid write values and temporary-file failures.
+
+The original capture path built `ReaderLifecycleOracle` from the then-production
+source. Changing its extracted `section->currentPage++` to `+= 2` failed the
+comparison. Current candidates retain those expectations through the ordinary
+owner and actual-source mutants; the old native cursor is not authoritative.
+
+These host tests supply captured input at method boundaries. They do not model
+GPIO debounce or prove that a physical tap wholly inside a blocking build is
+sampled. Emulator input scripts and paired screen/heap/timing captures remain
+necessary for the complete reader migration. Storage leaves record ordering and
+bytes; they do not simulate FAT power-loss recovery. The display leaves record
+requested refresh policy, not controller waveforms.
+
+The render-sequence captures compiled the original `renderContents` body with
+logging platform leaves, both with and without `XP_STRIP_RENDER`. Their 5,120
+cases cover five board/controller combinations, text/image/placeholder pages,
+the strip element limit, grayscale capabilities, refresh counters, failed
+allocations and driver operations. They freeze ordered operations, cadence,
+allocation attempts and diagnostics; dimensions use an 83-row panel to exercise
+a partial final strip. They do not validate pixels or actual panel waveforms;
+paired emulator captures provide that evidence.
+
+The input capture extracted the original ReaderUtils policies and recorded lazy
+input probes as well as results. Repeated calls on one frame exercise release
+suppression after LONG and tap-held-time overrides. The matrix covers button
+combinations, all persisted short-power values, long-press boundaries, tilt,
+swapped navigation, touch zones, RTL, swipe/menu gestures, Back and exact float
+bits for chapter fractions. Renderer dimension reads are pure fixture values
+and are not logged. No GPIO polling or real input scheduling is simulated.
+
+Render generation 2 additionally records heap/capability probes, timestamps and
+array allocation/release order. It uses the production 80-row strip size and
+8-byte row bounds; generation 1 used smaller synthetic equivalents. Both were
+captured from the original `8d534a99` method bodies before the render port.
+The viewport oracle freezes 7,680 cases from the pinned SDK ListNav, including
+stale row counts, partial pages, empty lists, clamps and no-op scrolls.
+
+The full-loop capture added 4,608 two-frame scenarios from the unchanged original
+EPUB loop. It records lazy input probes and resource calls for overlays, end-book
+menus, automatic turns, queued turns, build gates, radio state and timed messages.
+A busy render lock suppresses background work but leaves input sampling active;
+the original pending-turn behavior is preserved. Inverting the final session-turn
+direction is detected. The fixture uses host clock values within the uint32 range;
+clock wrap remains covered by the session oracle rather than this host loop.
+
+Progress lifetime cases distinguish closing a file from destroying its allocated
+HAL implementation. The original destroys the temporary file before remove and
+rename, including release of the implementation; an explicit close alone fails
+the frozen trace. The prior 6,789-line lifecycle trace remains an exact prefix.
+
+Full-loop generation 2 also extracts the production timing constants. The first
+fixture supplied a 2,000 ms message duration; the source uses 2,500 ms. The corrected
+capture includes 2,499/2,500/2,501 ms cases and was frozen before the activity port.
+
+Full-loop generation 3 evaluates diagnostic arguments just as Logging.h does,
+including the clock read inside the idle-prewarm debug log. A separate release
+capture omits debug logs and their argument evaluation. Both captures come from
+the original loop before its port; generation 2 only recorded the log event.
+
+The shared ReaderActivity oracle covers 576 lifecycle/input configurations from
+8d534a99: entry/exit ordering, remembered-book publication, end-book allocation
+and actions, format/Back precedence, touch/buttons, skips and session flushes.
+Its 53,786 trace lines include failed allocation and load, absent subscribers,
+invalid document IDs and two loop frames around a render. The page renderer and
+child activities are deterministic leaves; their own oracles cover their policy.
+An inverted session direction is rejected at line 494.
+
+Shared lifecycle generation 2 extracts the production end-book action enum as
+well as method bodies. The first fixture listed all actions in a different
+numeric order; generation 2 freezes the actual IDs before porting this code.
+
+Shared lifecycle generation 3 records requested allocation and release sizes,
+including nested menu paths and document IDs. Delaying the document release
+until the outer onExit returns fails at line 64. Both helpers must release their
+transient strings at the original boundary, before their caller continues.
+
+Both lifecycle fixtures assert that every completed loop/render/lifecycle run
+returns with zero render-lock depth; the full-loop fixture also tracks failed
+try-lock scopes. These assertions stay enabled in both logging configurations.
+
+
+The frozen read-folder policy trace uses the named private `LegacyReadFolder`
+adapter for its historical atomic move boundary. Its 100-case manifest and bytes
+stay unchanged. The separate `clipping_read_folder_physical_*` cases invoke the
+real App store and reader route without this adapter and assert exact rename,
+rollback, sidecar, cache and state ordering, bytes and handle release. Inherited
+key/rights failure leaves moved clipping files at the destination while restoring
+the book path; this behavior is explicitly tested rather than silently changed.
+The switch packet records six child fixture generations plus this separate seam
+so architecture review can assess the retained fixture layering.
+
+The polling reduction keeps the frozen input-consumption and full-loop traces.
+`input_session_rust.inc` requires exactly one service-table fetch for the session
+and forwards every callback to the current mapped-input fixture. Idle admission
+uses one facts/settings sample for its confirm threshold; the ordinary path
+still re-reads facts after touch consumers. Settings snapshots are local to page
+dispatch, and are not retained across frames or settings-writing helpers.
+
+The strict Rust `poll_lite` cases live in
+`rust/crates/xp-ffi/src/app/epub/children/toolbar_owner/poll_lite_tests.rs` and run
+through the [Home app-owner suite](../home_ui/README.md), including strict Miri.
+They also check that an undrawn link-note slot skips radio status, while a drawn
+empty title detects a new note and drawn notes detect changes or disappearance.
+The native link-note fixtures retain their original output traces and assert
+that only drawn title slots fetch status during the loop.
+
+The book/Section fixture also binds the production Rust image extractor and paints
+a stored PNG through the shipping image state. A ZIP read failure and an extracted
+source short write must remove the partial source, suppress retries within that
+render, and recover after the failure set is cleared for the next render.
+
+Unit 3 adds 20 shipping row-query cases (five query types with healthy, short-read,
+seek-failure and allocation-failure inputs). `SectionMetadataReadFailure` checks
+both spine uses and both TOC preparation passes, no published section after a
+failed row, recovery, and failed candidate/hash-verification TOC selection.
+`reader_text_reference_failure` keeps restored and initial positions open after
+an unavailable optional text-reference query; the ordinary lifetime oracle still
+compares all healthy traces with its immutable native reference.
+
+Reader-hardening follow-up tests compose the real consumer paths with strict
+physical fakes: `reader_harden_sync_metadata_failure` preserves the true local save;
+`reader_harden_cosmetic_failure` paints toolbar/status without failed titles;
+`reader_chapter_resource_guard` omits failed list labels without command growth or
+idle metadata reads; and `reader_harden_chapter_recovery` plus
+`reader_harden_recovery_input` cover saved-page recovery, bounded idle behavior and
+explicit continuation through the partial watermark (successful retry stays in the
+chapter; persistent failure restores the saved page). `reader_harden_recovery_back`
+drives the real Back input and App transition to Home after failed preparation.
+`reader_harden_menu_failure` also covers menu actions without a prepared section.
+`reader_harden_forced_break` uses the exact CP0 synthetic HTML: its healthy section
+has three pages and 2,132 bytes; failed row reads or allocation publish no section.
+
+The overlay-view fixture supplies density as a published model value and fails
+if rendering calls the live input-facts leaf. Its 960 historical cases still
+compare all rendered models and rows; only the obsolete `touch` query trace is
+removed from the expected trace. Cursor and touch capability vary independently.
+The live-query and inverted-density mutants must fail. The overlay-open fixture
+checks that the production loop path publishes density from touch capability.

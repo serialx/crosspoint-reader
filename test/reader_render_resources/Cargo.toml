@@ -1,0 +1,16 @@
+[package]
+name = "reader-render-resources-test"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+xp-ui = { path = "../../rust/crates/xp-ui" }
+
+[features]
+reader-strips = []
+
+[lib]
+path = "lib.rs"

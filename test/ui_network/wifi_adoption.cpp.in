@@ -1,0 +1,118 @@
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <memory>
+#include <string>
+#include <utility>
+#include <xp_network_owner.h>
+#include <xp_ui_keyboard.h>
+#include "physical_defaults.h"
+
+extern "C" void xp_app_test_activity_loop();
+extern "C" uint8_t xp_app_test_drain();
+
+struct ReaderActivity { bool inputOverPage() const { return false; } };
+struct Activity {
+  std::string name = "WifiSelection";
+  bool isReaderActivity() const { return false; }
+  ReaderActivity* readerControls() { return nullptr; }
+  bool acceptsRemoteInput() const { return false; }
+  bool preventAutoSleep() const { return true; }
+  bool requiresExclusiveStorageLoop() const { return false; }
+  bool skipLoopDelay() const { return false; }
+};
+template <typename T, typename... A>
+std::unique_ptr<T> makeUniqueNoThrow(A&&... args) {
+  return std::make_unique<T>(std::forward<A>(args)...);
+}
+#define LOG_ERR(...) ((void)0)
+@OWNERSHIP@
+
+unsigned scans = 0, paints = 0, keyboardLaunches = 0, loads = 0;
+bool renderLocked = false, modelLocked = false, resourceLocked = false;
+int32_t scanResult = -1;
+XpUiInput input{};
+
+template <typename F> struct Unexpected;
+template <typename R, typename... A> struct Unexpected<R (*)(A...)> {
+  [[noreturn]] static R call(A...) { std::abort(); }
+};
+extern "C" const XpWifiPhysical XP_WIFI_PHYSICAL = [] {
+  XpWifiPhysical value{};
+@DEFAULTS@
+  value.allow_auto = [](void*) -> uint8_t { return false; };
+  value.resource_lock = [](void*, uint8_t acquire) {
+    assert(resourceLocked != bool(acquire));
+    resourceLocked = acquire;
+  };
+  value.layout = [](void*, XpUiWifiLayout* out) {
+    *out = {};
+    out->base.safe = {0, 0, 528, 792};
+    out->base.list.screen = out->base.safe;
+    out->base.list.area = out->base.safe;
+    out->base.list.row_height = 40;
+    out->base.header_height = 40;
+    out->base.tab_height = 24;
+    out->base.spacing = 8;
+  };
+  value.line = [](void*, int32_t) -> int32_t { return 20; };
+  value.width = [](void*, const char* text, int32_t, uint8_t) -> int32_t { return std::strlen(text) * 8; };
+  value.height = [](void*, const char*, int32_t, uint8_t, uint8_t, int16_t) -> int32_t { return 20; };
+  value.read_mac = [](uint8_t out[6]) -> int32_t { std::memset(out, 0, 6); return 0; };
+  value.store_load = [] { ++loads; };
+  value.store_count = []() -> uint32_t { return 0; };
+  value.station_mode = [] {};
+  value.disconnect = [] {};
+  value.scan_begin = [] { ++scans; scanResult = -1; };
+  value.scan_complete = []() -> int32_t { return scanResult; };
+  value.scan_delete = [] { scanResult = -2; };
+  value.release_resources = [](void*) {};
+  return value;
+}();
+
+int main() {
+  auto legacy = appTestLegacy();
+  legacy.facts = @FACTS@;
+  legacy.enter = [](void*) {};
+  legacy.destroy = [](void* p) { delete static_cast<OwnedLegacyActivity*>(p); };
+  legacy.create = [](const XpAppLaunch* launch) -> void* {
+    assert(launch->kind == XP_APP_KEYBOARD);
+    ++keyboardLaunches;
+    // Reject after observing the real owned keyboard launch descriptor.
+    assert(launch->value.keyboard->maximum == 32);
+    return nullptr;
+  };
+  auto resources = appTestResources();
+  resources.paint_scene = [](const XpUiScene* scene, const XpUiPaint* paint) -> uint8_t {
+    assert(scene->command_count != 0 && paint && paint->resource);
+    ++paints;
+    return 1;
+  };
+  auto runtime = appTestRuntime();
+  runtime.render_lock = []() -> void* { assert(!renderLocked); renderLocked = true; return &renderLocked; };
+  runtime.render_unlock = [](void*) { assert(renderLocked); renderLocked = false; };
+  runtime.model_lock = [] { assert(!modelLocked); modelLocked = true; };
+  runtime.model_unlock = [] { assert(modelLocked); modelLocked = false; };
+  auto epub = unexpectedEpubLeaves();
+  epub.input_snapshot = [](XpUiInput* out) { *out = input; };
+  epub.input_screen_point = [](uint8_t, int32_t*, int32_t*) -> uint8_t { return false; };
+  const XpAppPlatform platform{&legacy, &resources, &runtime, &epub};
+  XpAppCompatibility compatibility{};
+  assert(xp_app_init(&platform, &compatibility) == XP_APP_OK);
+  auto native = ownLegacy(std::make_unique<Activity>());
+  XpAppEvent event{.kind = XP_APP_ADOPT_REPLACE};
+  event.value.adopt_replace = native.release();
+  assert(xp_app_event(&event) == XP_APP_ACCEPTED);
+  assert(scans == 1 && "Wi-Fi adoption must issue the initial scan");
+  assert(loads == 1);
+  scanResult = 0;
+  xp_app_test_activity_loop();
+  XpAppRenderToken token{&renderLocked};
+  xp_app_render(&token);
+  assert(paints != 0 && "The scan result must publish a Wi-Fi list");
+  input.released = XP_UI_CONFIRM;
+  xp_app_test_activity_loop();
+  assert(keyboardLaunches == 1 && "Confirm on the hidden row must launch the SSID keyboard");
+  std::puts("PASS real native identity -> Rust entry/scan/list publication -> Confirm keyboard launch");
+}

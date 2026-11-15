@@ -1,0 +1,3406 @@
+{
+  "approval": "390 cases follow documented Phase 7 decoder outcomes; 21 earlier-validation diagnostic exceptions approved by the P7-G1 coordinator on 2026-10-28. Each candidate multiset remains exact.",
+  "cases": {
+    "png/format-2-1/bmp": {
+      "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output.",
+      "source": "png-rejections.json#mutation-format-2-1/bmp4",
+      "logs": [
+        "DBG PNG Converting PNG to 2-bit BMP (target: 37x53)",
+        "DBG PNG Image: 7x5, depth=1, color=2, interlace=0"
+      ]
+    },
+    "png/format-2-2/bmp": {
+      "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output.",
+      "source": "png-rejections.json#mutation-format-2-2/bmp4",
+      "logs": [
+        "DBG PNG Converting PNG to 2-bit BMP (target: 37x53)",
+        "DBG PNG Image: 7x5, depth=2, color=2, interlace=0"
+      ]
+    },
+    "png/format-2-4/bmp": {
+      "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output.",
+      "source": "png-rejections.json#mutation-format-2-4/bmp4",
+      "logs": [
+        "DBG PNG Converting PNG to 2-bit BMP (target: 37x53)",
+        "DBG PNG Image: 7x5, depth=4, color=2, interlace=0"
+      ]
+    },
+    "png/format-3-16/bmp": {
+      "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output.",
+      "source": "png-rejections.json#mutation-format-3-16/bmp4",
+      "logs": [
+        "DBG PNG Converting PNG to 2-bit BMP (target: 37x53)",
+        "DBG PNG Image: 7x5, depth=16, color=3, interlace=0"
+      ]
+    },
+    "png/format-4-1/bmp": {
+      "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output.",
+      "source": "png-rejections.json#mutation-format-4-1/bmp4",
+      "logs": [
+        "DBG PNG Converting PNG to 2-bit BMP (target: 37x53)",
+        "DBG PNG Image: 7x5, depth=1, color=4, interlace=0"
+      ]
+    },
+    "png/format-4-2/bmp": {
+      "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output.",
+      "source": "png-rejections.json#mutation-format-4-2/bmp4",
+      "logs": [
+        "DBG PNG Converting PNG to 2-bit BMP (target: 37x53)",
+        "DBG PNG Image: 7x5, depth=2, color=4, interlace=0"
+      ]
+    },
+    "png/format-4-4/bmp": {
+      "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output.",
+      "source": "png-rejections.json#mutation-format-4-4/bmp4",
+      "logs": [
+        "DBG PNG Converting PNG to 2-bit BMP (target: 37x53)",
+        "DBG PNG Image: 7x5, depth=4, color=4, interlace=0"
+      ]
+    },
+    "png/format-6-1/bmp": {
+      "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output.",
+      "source": "png-rejections.json#mutation-format-6-1/bmp4",
+      "logs": [
+        "DBG PNG Converting PNG to 2-bit BMP (target: 37x53)",
+        "DBG PNG Image: 7x5, depth=1, color=6, interlace=0"
+      ]
+    },
+    "png/format-6-2/bmp": {
+      "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output.",
+      "source": "png-rejections.json#mutation-format-6-2/bmp4",
+      "logs": [
+        "DBG PNG Converting PNG to 2-bit BMP (target: 37x53)",
+        "DBG PNG Image: 7x5, depth=2, color=6, interlace=0"
+      ]
+    },
+    "png/format-6-4/bmp": {
+      "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output.",
+      "source": "png-rejections.json#mutation-format-6-4/bmp4",
+      "logs": [
+        "DBG PNG Converting PNG to 2-bit BMP (target: 37x53)",
+        "DBG PNG Image: 7x5, depth=4, color=6, interlace=0"
+      ]
+    },
+    "png/truncate-0-57/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-57/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-58/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-58/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-59/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-59/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-60/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-60/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-61/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-61/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-62/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-62/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-63/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-63/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-64/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-64/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-65/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-65/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-66/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-66/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-67/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-67/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-68/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-68/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-69/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-69/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-70/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-70/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-71/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-71/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-72/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-72/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-73/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-73/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-74/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-74/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-75/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-75/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-76/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-76/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-77/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-77/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-78/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-78/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-79/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-79/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-80/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-80/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-81/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-81/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-82/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-82/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-83/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-83/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-84/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-84/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-85/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-85/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-86/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-86/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-87/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-87/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-88/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-88/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-0-89/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-0-89/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/flip-0-12/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/flip-0-13/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/flip-0-14/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/flip-0-15/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/truncate-2-129/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-129/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-130/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-130/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-131/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-131/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-132/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-132/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-133/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-133/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-134/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-134/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-135/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-135/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-136/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-136/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-137/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-137/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-138/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-138/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-139/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-139/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-140/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-140/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-141/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-141/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-142/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-142/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-143/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-143/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-144/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-144/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-145/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-145/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-146/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-146/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-147/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-147/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-148/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-148/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-149/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-149/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-150/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-150/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-151/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-151/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-152/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-152/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-153/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-153/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-154/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-154/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-155/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-155/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-156/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-156/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-157/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-157/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-158/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-158/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-159/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-159/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-160/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-160/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-2-161/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-2-161/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/flip-2-12/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/flip-2-13/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/flip-2-14/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/flip-2-15/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/truncate-3-1089/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1089/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1090/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1090/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1091/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1091/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1092/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1092/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1093/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1093/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1094/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1094/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1095/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1095/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1096/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1096/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1097/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1097/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1098/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1098/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1099/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1099/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1100/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1100/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1101/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1101/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1102/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1102/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1103/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1103/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1104/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1104/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1105/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1105/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1106/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1106/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1107/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1107/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1108/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1108/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1109/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1109/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1110/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1110/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1111/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1111/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1112/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1112/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1113/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1113/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1114/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1114/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1115/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1115/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1116/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1116/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1117/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1117/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1118/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1118/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1119/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1119/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1120/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1120/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1121/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1121/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1122/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1122/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1123/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1123/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1124/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1124/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1125/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1125/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1126/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1126/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1127/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1127/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1128/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1128/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1129/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1129/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1130/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1130/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1131/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1131/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1132/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1132/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1133/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1133/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1134/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1134/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1135/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1135/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1136/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1136/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-3-1137/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-3-1137/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/flip-3-12/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/flip-3-13/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/flip-3-14/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/flip-3-15/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/truncate-4-94/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-94/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-95/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-95/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-96/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-96/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-97/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-97/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-98/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-98/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-99/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-99/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-100/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-100/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-101/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-101/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-102/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-102/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-103/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-103/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-104/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-104/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-105/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-105/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-106/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-106/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-107/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-107/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-108/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-108/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-109/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-109/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-110/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-110/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-111/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-111/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-112/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-112/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-113/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-113/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-114/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-114/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-115/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-115/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-116/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-116/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-117/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-117/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-118/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-118/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-119/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-119/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-120/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-120/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-121/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-121/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-122/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-122/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-123/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-123/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-124/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-124/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-125/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-125/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-4-126/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-4-126/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/flip-4-12/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/flip-4-13/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/flip-4-14/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/flip-4-15/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/truncate-6-164/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-164/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-165/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-165/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-166/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-166/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-167/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-167/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-168/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-168/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-169/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-169/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-170/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-170/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-171/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-171/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-172/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-172/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-173/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-173/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-174/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-174/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-175/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-175/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-176/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-176/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-177/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-177/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-178/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-178/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-179/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-179/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-180/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-180/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-181/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-181/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-182/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-182/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-183/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-183/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-184/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-184/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-185/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-185/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-186/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-186/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-187/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-187/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-188/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-188/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-189/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-189/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-190/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-190/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-191/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-191/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-192/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-192/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-193/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-193/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-194/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-194/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-195/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-195/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/truncate-6-196/frame": {
+      "reason": "Truncated IDAT: old decoder hangs; reject before decoding.",
+      "source": "png-rejections.json#mutation-truncate-6-196/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/flip-6-12/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/flip-6-13/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/flip-6-14/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/flip-6-15/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/width-4294967295/frame": {
+      "reason": "The Rust PNG parser rejects the missing IHDR or overflowing row size before PNGdec reached its zero/signed-dimension check; both consumers still fail. Coordinator approved this earlier-validation diagnostic exception on 2026-10-28.",
+      "source": "P7-G1 coordinator approval",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Failed to open PNG",
+        "ERR PNG Failed to open PNG for dimensions"
+      ]
+    },
+    "png/height-3072/frame": {
+      "reason": "Too few decoded rows for IHDR height: reject incomplete image.",
+      "source": "png-rejections.json#mutation-height-3072/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/height-32767/frame": {
+      "reason": "Too few decoded rows for IHDR height: reject incomplete image.",
+      "source": "png-rejections.json#mutation-height-32767/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/color-1/frame": {
+      "reason": "Unsupported color type: reject instead of synthesizing gray pixels.",
+      "source": "png-rejections.json#mutation-color-1/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/color-5/frame": {
+      "reason": "Unsupported color type: reject instead of synthesizing gray pixels.",
+      "source": "png-rejections.json#mutation-color-5/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/color-7/frame": {
+      "reason": "Unsupported color type: reject instead of synthesizing gray pixels.",
+      "source": "png-rejections.json#mutation-color-7/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/color-255/frame": {
+      "reason": "Unsupported color type: reject instead of synthesizing gray pixels.",
+      "source": "png-rejections.json#mutation-color-255/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/chunk-IHDR-2147483647/frame": {
+      "reason": "Oversized chunk length or palette payload: reject before offset arithmetic or copying.",
+      "source": "png-rejections.json#mutation-chunk-IHDR-2147483647/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/chunk-PLTE-769/frame": {
+      "reason": "Oversized chunk length or palette payload: reject before offset arithmetic or copying.",
+      "source": "png-rejections.json#mutation-chunk-PLTE-769/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/chunk-PLTE-1024/frame": {
+      "reason": "Oversized chunk length or palette payload: reject before offset arithmetic or copying.",
+      "source": "png-rejections.json#mutation-chunk-PLTE-1024/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/chunk-PLTE-2048/frame": {
+      "reason": "Oversized chunk length or palette payload: reject before offset arithmetic or copying.",
+      "source": "png-rejections.json#mutation-chunk-PLTE-2048/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/chunk-PLTE-2147483647/frame": {
+      "reason": "Oversized chunk length or palette payload: reject before offset arithmetic or copying.",
+      "source": "png-rejections.json#mutation-chunk-PLTE-2147483647/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/chunk-tRNS-2147483647/frame": {
+      "reason": "Oversized chunk length or palette payload: reject before offset arithmetic or copying.",
+      "source": "png-rejections.json#mutation-chunk-tRNS-2147483647/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/chunk-IEND-2147483647/frame": {
+      "reason": "Oversized chunk length or palette payload: reject before offset arithmetic or copying.",
+      "source": "png-rejections.json#mutation-chunk-IEND-2147483647/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/chunk-ABCD-2147483647/frame": {
+      "reason": "Oversized chunk length or palette payload: reject before offset arithmetic or copying.",
+      "source": "png-rejections.json#mutation-chunk-ABCD-2147483647/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "png/chunk-abCD-2147483647/frame": {
+      "reason": "Oversized chunk length or palette payload: reject before offset arithmetic or copying.",
+      "source": "png-rejections.json#mutation-chunk-abCD-2147483647/frame",
+      "logs": [
+        "DBG PNG Decoding PNG: <input>",
+        "ERR PNG Decode failed"
+      ]
+    },
+    "gif/truncate-044/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-044",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-044/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-044",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-045/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-045",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-045/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-045",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-046/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-046",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-046/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-046",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-047/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-047",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-047/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-047",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-048/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-048",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-048/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-048",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-049/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-049",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-049/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-049",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-050/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-050",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-050/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-050",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-051/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-051",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-051/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-051",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-052/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-052",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-052/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-052",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-053/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-053",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-053/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-053",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-054/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-054",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-054/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-054",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-055/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-055",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-055/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-055",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-056/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-056",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-056/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-056",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-057/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-057",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-057/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-057",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-058/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-058",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-058/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-058",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-059/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-059",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-059/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-059",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-060/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-060",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-060/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-060",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-061/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-061",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-061/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-061",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-062/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-062",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-062/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-062",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-063/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-063",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-063/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-063",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-064/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-064",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/truncate-064/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#truncate-064",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-044-2/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-044-2",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-044-2/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-044-2",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-044-4/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-044-4",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-044-4/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-044-4",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-045-1/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-045-1",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-045-1/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-045-1",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-045-2/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-045-2",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-045-2/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-045-2",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-045-3/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-045-3",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-045-3/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-045-3",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-045-4/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-045-4",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-045-4/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-045-4",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-045-5/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-045-5",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-045-5/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-045-5",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-045-6/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-045-6",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-045-6/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-045-6",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-045-7/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-045-7",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-045-7/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-045-7",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-050-6/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-050-6",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-050-6/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-050-6",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-050-7/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-050-7",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-050-7/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-050-7",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-051-0/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-051-0",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-051-0/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-051-0",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-051-1/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-051-1",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-051-1/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-051-1",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-051-2/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-051-2",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-051-2/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-051-2",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-051-3/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-051-3",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-051-3/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-051-3",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-051-4/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-051-4",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-051-4/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-051-4",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-052-0/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-052-0",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-052-0/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-052-0",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-052-1/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-052-1",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-052-1/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-052-1",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-052-2/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-052-2",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-052-2/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-052-2",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-052-3/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-052-3",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-052-3/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-052-3",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-052-4/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-052-4",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-052-4/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-052-4",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-052-5/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-052-5",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-052-5/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-052-5",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-053-2/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-053-2",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-053-2/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-053-2",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-053-3/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-053-3",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-053-3/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-053-3",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-053-4/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-053-4",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-053-4/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-053-4",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-053-5/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-053-5",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-053-5/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-053-5",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-053-6/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-053-6",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-053-6/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-053-6",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-054-3/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-054-3",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-054-3/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-054-3",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-054-4/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-054-4",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-054-4/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-054-4",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-054-5/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-054-5",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-054-5/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-054-5",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-054-6/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-054-6",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-054-6/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-054-6",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-054-7/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-054-7",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-054-7/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-054-7",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-055-2/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-055-2",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-055-2/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-055-2",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-055-3/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-055-3",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-055-3/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-055-3",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-055-4/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-055-4",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-055-4/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-055-4",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-055-5/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-055-5",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-055-5/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-055-5",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-055-6/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-055-6",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-055-6/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-055-6",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-055-7/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-055-7",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-055-7/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-055-7",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-056-0/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-056-0",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-056-0/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-056-0",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-057-2/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-057-2",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-057-2/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-057-2",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-057-5/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-057-5",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-057-5/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-057-5",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-057-6/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-057-6",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-057-6/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-057-6",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-057-7/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-057-7",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-057-7/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-057-7",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-058-0/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-058-0",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-058-0/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-058-0",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-058-1/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-058-1",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-058-1/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-058-1",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-058-2/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-058-2",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-058-2/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-058-2",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-058-7/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-058-7",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-058-7/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-058-7",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-059-0/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-059-0",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-059-0/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-059-0",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-059-1/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-059-1",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-059-1/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-059-1",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-059-2/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-059-2",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-059-2/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-059-2",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-059-3/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-059-3",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-059-3/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-059-3",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-060-1/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-060-1",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-060-1/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-060-1",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-060-2/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-060-2",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-060-2/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-060-2",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-060-3/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-060-3",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-060-3/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-060-3",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-060-4/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-060-4",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-060-4/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-060-4",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-061-2/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-061-2",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-061-2/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-061-2",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-061-3/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-061-3",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-061-3/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-061-3",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-061-4/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-061-4",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-061-4/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-061-4",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-061-5/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-061-5",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-061-5/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-061-5",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-062-3/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-062-3",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-062-3/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-062-3",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-062-4/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-062-4",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-062-4/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-062-4",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-062-5/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-062-5",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-062-5/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-062-5",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-062-6/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-062-6",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-062-6/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-062-6",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-063-4/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-063-4",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-063-4/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-063-4",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-063-5/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-063-5",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-063-5/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-063-5",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-063-6/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-063-6",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-063-6/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-063-6",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-063-7/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-063-7",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/flip-063-7/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#flip-063-7",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/code-3/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#code-3",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/code-3/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#code-3",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/code-4/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#code-4",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/code-4/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#code-4",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/code-7/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#code-7",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/code-7/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#code-7",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/lzw-0001ff0f/frame": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#lzw-0001ff0f",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "ERR GIF GIF decode failed"
+      ]
+    },
+    "gif/lzw-0001ff0f/bmp": {
+      "reason": "Rejects an undefined LZW dictionary code or insufficient compressed bits instead of decoding zero-filled or stale decoder storage.",
+      "source": "../gif_support/deviations.json#lzw-0001ff0f",
+      "logs": [
+        "DBG GIF Converting GIF to 1-bit BMP (target: 8x4)",
+        "ERR GIF GIF decode failed"
+      ]
+    }
+  }
+}

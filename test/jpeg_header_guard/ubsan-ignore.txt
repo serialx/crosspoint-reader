@@ -1,0 +1,4 @@
+# Inherited JPEGDEC UB on every file: JPEGMakeHuffTables shifts by a negative exponent (`cc >> (iBitNum-5)`
+# for codes shorter than 5 bits). Only that check in that function is off; bounds checks there stay on.
+[shift-exponent]
+fun:*JPEGMakeHuffTables*

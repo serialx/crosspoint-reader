@@ -1,0 +1,40 @@
+#include "RustStripPainter.h"
+#include "ResourceCallbacks.h"
+#include <xp_ui_reader.h>
+#include <cstdlib>
+
+// ACTUAL_OPERATION
+// ACTUAL_FRAMEBUFFER
+extern "C" uint32_t xp_epub_test_strip_replay(const ResourceCallbacks*, uint16_t*, uint8_t*, uint16_t,
+                                              uint16_t, uint8_t, uint8_t, int32_t);
+uint32_t RustStripPainter::paint(void* raw, uint8_t* scratch, uint16_t y, uint16_t rows) {
+  auto& painter = *static_cast<RustStripPainter*>(raw);
+  ResourceCallbacks calls{};
+  calls.context = raw;
+  calls.query = [](void* raw, uint8_t query) -> uint32_t {
+    const auto& renderer = static_cast<RustStripPainter*>(raw)->renderer;
+    switch (query) {
+      case XP_EPUB_RENDER_WIDTH_BYTES: return renderer.getDisplayWidthBytes();
+      case XP_EPUB_RENDER_MODE: return renderer.getRenderMode();
+      default: std::abort();
+    }
+  };
+  calls.operation = [](void* raw, const XpEpubPhysicalOp* op) {
+    return physicalRenderOperation(static_cast<RustStripPainter*>(raw)->renderer, *op);
+  };
+  calls.framebuffer = [](void* raw, size_t* length) {
+    uint32_t bytes = 0;
+    auto* result = physicalFramebuffer(static_cast<RustStripPainter*>(raw)->renderer, &bytes);
+    *length = bytes;
+    return result;
+  };
+  calls.pageCommand = [](void* raw, uint8_t command, uint32_t) {
+    auto& p = *static_cast<RustStripPainter*>(raw);
+    if (command == XP_UI_READER_RENDER_PAGE) p.page.render(p.renderer, p.font, p.left, p.top);
+    else if (command == XP_UI_READER_RENDER_HIGHLIGHTS) {
+      if (p.highlights) p.highlights(p.highlightsContext, p.page, p.font, p.left, p.top);
+    } else std::abort();
+  };
+  return xp_epub_test_strip_replay(&calls, &painter.committedRows, scratch, y, rows,
+                                  painter.page.hasImages(), painter.inverted, painter.statusTop);
+}

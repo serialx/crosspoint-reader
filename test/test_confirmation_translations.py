@@ -1,5 +1,6 @@
 """Confirmation headings are translated questions, not concatenated button labels."""
 from pathlib import Path
+import re
 import sys
 import unittest
 
@@ -46,7 +47,7 @@ class ConfirmationTranslationsTest(unittest.TestCase):
         ):
             with self.subTest(filename=filename):
                 text = (ROOT / filename).read_text()
-                normalized = " ".join(text.split())
+                normalized = re.sub(r"\(\s+", "(", " ".join(text.split()))
                 self.assertIn(
                     f"makeUniqueNoThrow<ConfirmationActivity>(renderer, mappedInput, tr({key}),",
                     normalized,

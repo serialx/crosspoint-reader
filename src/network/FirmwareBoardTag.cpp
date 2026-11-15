@@ -53,35 +53,6 @@ const char* boardName() { return TAG + MAGIC_LEN; }
 size_t boardNameLen() { return sizeof(TAG) - 1 - MAGIC_LEN - 1; }  // strip magic and ';'
 
 void Scanner::feed(const uint8_t* data, size_t len) {
-  if (mismatchFound) return;
-  for (size_t i = 0; i < len; i++) {
-    const char c = static_cast<char>(data[i]);
-    if (capturing) {
-      if (c == ';') {
-        capturing = false;
-        captured[nameLen] = '\0';
-        if (nameLen != boardNameLen() || memcmp(captured, boardName(), nameLen) != 0) {
-          mismatchFound = true;
-          return;
-        }
-      } else if (nameLen < MAX_NAME && c > 0x20 && c < 0x7F) {
-        captured[nameLen++] = c;
-      } else {
-        // Overlong or non-printable: a chance byte-collision, not a real tag.
-        capturing = false;
-      }
-      continue;
-    }
-    if (c == TAG[magicMatched]) {
-      if (++magicMatched == MAGIC_LEN) {
-        magicMatched = 0;
-        capturing = true;
-        nameLen = 0;
-      }
-    } else {
-      magicMatched = (c == TAG[0]) ? 1 : 0;
-    }
-  }
+  xp_board_scan(&state, data, len, reinterpret_cast<const uint8_t*>(TAG), sizeof(TAG) - 1);
 }
-
 }  // namespace board_tag

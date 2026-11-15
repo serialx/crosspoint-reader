@@ -1,0 +1,9 @@
+.all { border: 1px solid #000; }
+.top { border-top: thick double; }
+.edges { border-width: 2px 0; border-style: solid; }
+.nostyle { border-bottom: 1px; }
+.long { border-left-width: 3pt; border-left-style: dashed; }
+.gray { background-color: #eee; }
+.white { background-color: #fff; }
+.dark { background: black; }
+.rgb { background: rgb(200, 200, 200) url(x.png) no-repeat; }

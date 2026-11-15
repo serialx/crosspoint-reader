@@ -1,0 +1,4 @@
+P { text-align: center; }
+.Note { font-weight: bold; text-align: right; }
+p.note { font-style: italic; text-align: justify; }
+.note { margin-top: 2em; }

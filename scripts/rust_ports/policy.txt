@@ -1,0 +1,267 @@
+# Default X3 native ports. Exact roots; no wildcard ownership or physical permission.
+table EPUB _ZZ17rustEpubResourcesR11GfxRendererR18MappedInputManagerE6leaves XpEpubLeaves rust/crates/xp-ffi/include/xp_epub_session.h # Reader session ports.
+table App _ZZ16rustAppResourcesR11GfxRendererR18MappedInputManagerE9resources XpAppResources rust/crates/xp-ffi/include/xp_app.h # Shared application ports.
+# App.popup_facts is a one-way native theme/state read; no font query, painting or Rust callback.
+table Legacy _ZZN15ActivityManager5beginERK12XpAppRuntimeE6legacy XpAppLegacy rust/crates/xp-ffi/include/xp_app.h # Legacy activities.
+table WiFi XP_WIFI_PHYSICAL XpWifiPhysical rust/crates/xp-ffi/include/xp_network_owner.h # Wi-Fi owner ports.
+table Modes XP_NETWORK_MODES_PHYSICAL XpNetworkModesPhysical rust/crates/xp-ffi/include/xp_network_owner.h # Network mode ports.
+# Physical permission is an exact root/export pair and still requires a lock line.
+physical EPUB.input_raw_contact xp_hal_input_adc # ADC HAL sample.
+physical EPUB.local_calendar xp_hal_clock_read # Clock HAL calendar.
+physical EPUB.render_physical_operation xp_display_abort xp_display_capabilities xp_display_drop xp_display_execute xp_display_init_v2 xp_hal_display_refresh xp_hal_wake_reason # Panel/bus HAL continuation.
+physical App.refresh xp_display_abort xp_display_capabilities xp_display_drop xp_display_execute xp_display_init_v2 xp_hal_display_refresh xp_hal_wake_reason # Panel/bus HAL continuation.
+physical WiFi.clock_sync xp_hal_clock_sync # Clock HAL synchronization.
+physical XP_WIFI_PHYSICAL xp_hal_clock_sync # Same clock HAL slot reached through the directly imported Wi-Fi table.
+physical EPUB.protection_index xp_inflate_init xp_inflate_state_align xp_inflate_state_size xp_inflate_step # SDK ProtectedBook index scans encryption XML through MinizCompat; named physical byte stream, no reader policy callback.
+# SDK UI measurement/drawing continuations use runtime callbacks; audit them at R8b.
+# Battery HAL and nested clipping_physical callbacks also require manual R8b review.
+callback EPUB.protection_stream # Prepare opens caller-owned SD scratch; Read synchronously emits SDK decrypted bytes to the borrowed sink, which is not retained after Read returns.
+callback EPUB.popup_show # Retains label/choice callbacks until the popup is dismissed; review both lifetimes.
+callback EPUB.end_input # Delivers the selected end-menu action synchronously.
+callback EPUB.state_open_path # Copies the stored open path through the supplied text sink.
+callback EPUB.child_definition_payload_lookup # Supplies a query callback during native definition payload construction.
+callback EPUB.child_definition_payload_plain # Supplies text callbacks during native payload construction.
+callback EPUB.storage_read_file # Delivers file bytes to the bookmark/text sink.
+callback App.recents_visit # Visits stored recent-book records through a caller-supplied sink.
+callback App.library_row # Returns a library record through a caller-supplied sink.
+callback App.book_thumb_path # Returns the book thumbnail path through a text sink.
+callback App.thumbnail_path # Returns the derived thumbnail path through a text sink.
+callback App.text_wrap # Delivers native line wrapping results to the Rust continuation.
+callback App.text_truncate # Delivers native text truncation results to the Rust continuation.
+callback Legacy.with_result # The synchronous continuation destroys the child and delivers the stack-owned result.
+callback Legacy.screenshot_info # Copies native screenshot metadata through the supplied sink.
+callback EPUB.clipping_physical # Nested callback struct; not inferred from pointer-to-struct type.
+inherited App.bitmap_draw R1b # Shared app font relay.
+inherited App.book_close R4 # Book thumbnail/image facade relay.
+inherited App.book_generate_thumb R4 # Book thumbnail/image facade relay.
+inherited App.book_generate_thumb_from_source R4 # Book thumbnail/image facade relay.
+inherited App.book_load R4 # Book thumbnail/image facade relay.
+inherited App.book_progress R4 # Book thumbnail/image facade relay.
+inherited App.book_thumb_path R4 # Book thumbnail/image facade relay.
+inherited App.library_open R3a # Native persistence/state/store or shared app relay.
+inherited App.library_rebuild R3a # Native persistence/state/store or shared app relay.
+inherited App.library_row R3a # Native persistence/state/store or shared app relay.
+inherited App.placeholder_draw R1b # Shared app font relay.
+inherited App.recent_update R3a # Native persistence/state/store or shared app relay.
+inherited App.text_truncate R1b # Shared app font relay.
+inherited App.text_wrap R1b # Shared app font relay.
+deferred EPUB.build_metrics R6 # Shared metric table and retained chapter/definition provider adapter; also reachable during reader builds.
+deferred EPUB.child_definition_draw_body R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_definition_payload_find R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_definition_payload_prepare R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_definition_selection_build R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_definition_selection_child R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_list_help R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_list_icon R6 # Deferred dictionary/selection/chapter child bridge.
+# EPUB.child_list_theme returns native theme constants only; Rust fills line height from its font owner.
+deferred EPUB.child_lookup_find R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_lookup_index R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_lookup_open R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_qr_draw R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_selection R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_sync R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_text_settings R5 # Deferred preview/popup/end-of-book path.
+deferred EPUB.child_toolbar_icon R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_utility_layout R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.child_wifi R6 # Deferred dictionary/selection/chapter child bridge.
+deferred EPUB.end_input R5 # Deferred preview/popup/end-of-book path.
+deferred EPUB.end_load R5 # Deferred preview/popup/end-of-book path.
+deferred EPUB.end_open R5 # Deferred preview/popup/end-of-book path.
+deferred EPUB.end_paint R5 # Deferred preview/popup/end-of-book path.
+deferred EPUB.fonts_ensure_loaded SET-OWN # Catalog settings serialization; named exception in the R-RUNTIME decision, outside RELAY-B. Noncatalog retains native font effects.
+inherited EPUB.fonts_take_corrupt_notice R-RELAY # Reference-gate entry is already a direct Rust target in the shipping EPUB table, not a native relay; retained for the final R8b classification.
+deferred EPUB.paint_dither R6 # Saved-highlight shade exception: runs on page turns for books with saved clippings; calls the font scan query before dithering.
+physical EPUB.status_facts xp_hal_clock_format xp_hal_clock_read xp_hal_power_battery # Native settings/theme facts are one-way reads; RTC formatting/read and battery sampling are named HAL continuations, with no reader layout or text work.
+deferred EPUB.popup_paint R5 # Deferred preview/popup/end-of-book path.
+deferred EPUB.popup_process_render R5 # Deferred preview/popup/end-of-book path.
+# RUNTIME-SLEEP exception: EPUB.restart_reader is now one-way; sleep arbitration and retained RTC/frontlight restart state remain native; Rust paints between prepare and finish.
+inherited EPUB.settings_save R3a # Native persistence/state/store or shared app relay.
+deferred Legacy.create R7 # Deferred legacy activity factory including XTC/TOC; static closure spans all activities.
+inherited Modes.paint R1b # Shared SDK UI font references; references are not proof of execution.
+inherited Modes.resources R1b # Shared SDK UI font references; references are not proof of execution.
+inherited WiFi.clock_mark_and_save R3a # Native persistence/state/store or shared app relay.
+inherited WiFi.credential_lookup R3a # Native persistence/state/store or shared app relay.
+inherited WiFi.layout R1b # Shared SDK UI font references; references are not proof of execution.
+inherited WiFi.line R1b # Shared SDK UI font references; references are not proof of execution.
+inherited WiFi.paint R1b # Shared SDK UI font references; references are not proof of execution.
+inherited WiFi.plugin_drain R3a # Native persistence/state/store or shared app relay.
+inherited WiFi.store_has R3a # Native persistence/state/store or shared app relay.
+inherited WiFi.store_last R3a # Native persistence/state/store or shared app relay.
+inherited WiFi.store_load R3a # Native persistence/state/store or shared app relay.
+inherited WiFi.store_remove R3a # Native persistence/state/store or shared app relay.
+inherited WiFi.store_save R3a # Native persistence/state/store or shared app relay.
+inherited WiFi.width R1b # Shared SDK UI font references; references are not proof of execution.
+inherited XP_NETWORK_MODES_PHYSICAL R3a # Native persistence/state/store or shared app relay.
+inherited XP_WIFI_PHYSICAL R3a # Native persistence/state/store or shared app relay.
+deferred xp_dialog_format R6 # Deferred child dialog/keyboard bridge.
+deferred xp_dialog_layout R6 # Deferred child dialog/keyboard bridge.
+deferred xp_dialog_metrics R6 # Deferred child dialog/keyboard bridge.
+deferred xp_keyboard_chrome R6 # Deferred child dialog/keyboard bridge.
+deferred xp_keyboard_draw_key R6 # Deferred child dialog/keyboard bridge.
+deferred xp_keyboard_metrics R6 # Deferred child dialog/keyboard bridge.
+inherited xp_native_render_target R1b # Target query references font paths; audit says the branch is unreachable.
+deferred xp_settings_shell_paint R5 # Deferred text settings shell.
+deferred xp_settings_shell_snapshot R5 # Deferred text settings shell.
+deferred xp_settings_shell_theme_reload R5 # Deferred text settings shell.
+
+# Stored-pointer contracts. Function patterns are full matches; vtable targets name methods, never whole tables.
+table Runtime _ZZN12_GLOBAL__N_110appRuntimeEvE7runtime XpAppRuntime rust/crates/xp-ffi/include/xp_app.h # App loop runtime; seven zero-initialized slots patched by ActivityManager::begin.
+patch Runtime.render_lock _ZZN15ActivityManager5beginERK12XpAppRuntimeENUlvE_4_FUNEv # ActivityManager.cpp:248-270 overwrites this null static slot before xp_app_init; synchronous mutex/task primitive.
+patch Runtime.render_try_lock _ZZN15ActivityManager5beginERK12XpAppRuntimeENUlvE0_4_FUNEv # ActivityManager.cpp:248-270 overwrites this null static slot before xp_app_init; synchronous mutex/task primitive.
+patch Runtime.render_owned_by_current_task_retire_p18 _ZZN15ActivityManager5beginERK12XpAppRuntimeENUlvE1_4_FUNEv # ActivityManager.cpp:248-270 overwrites this null static slot before xp_app_init; synchronous mutex/task primitive.
+patch Runtime.model_lock _ZZN15ActivityManager5beginERK12XpAppRuntimeENUlvE2_4_FUNEv # ActivityManager.cpp:248-270 overwrites this null static slot before xp_app_init; synchronous mutex/task primitive.
+patch Runtime.model_unlock _ZZN15ActivityManager5beginERK12XpAppRuntimeENUlvE3_4_FUNEv # ActivityManager.cpp:248-270 overwrites this null static slot before xp_app_init; synchronous mutex/task primitive.
+patch Runtime.notify_render _ZZN15ActivityManager5beginERK12XpAppRuntimeENUlvE4_4_FUNEv # ActivityManager.cpp:248-270 overwrites this null static slot before xp_app_init; synchronous mutex/task primitive.
+patch Runtime.render_unlock _ZZN15ActivityManager5beginERK12XpAppRuntimeENUlPvE6_4_FUNES3_ # ActivityManager.cpp:248-270 overwrites this null static slot before xp_app_init; synchronous mutex/task primitive.
+dispatch theme.header root:App.header_draw|EPUB.child_header _ZTV(?:9BaseTheme|9LyraTheme|16Lyra3CoversTheme|16RoundedRaffTheme) .*10drawHeader.* # UITheme::setTheme stores one of these four concrete themes; select only the invoked virtual method.
+dispatch theme.footer root:App.footer_draw|EPUB.child_utility_footer _ZTV(?:9BaseTheme|9LyraTheme|16Lyra3CoversTheme|16RoundedRaffTheme) .*15drawButtonHints.* # UITheme::setTheme stores one of these four concrete themes; select only the invoked virtual method.
+dispatch theme.directional root:EPUB.child_directional_hints _ZTV(?:9BaseTheme|9LyraTheme|16Lyra3CoversTheme|16RoundedRaffTheme) .*15drawButtonHints.* # UITheme::setTheme stores one of these four concrete themes; select only the invoked virtual method.
+dispatch theme.battery (?:_ZNK9BaseTheme15drawBatteryLeftERK11GfxRenderer4Rectb) _ZTV(?:9BaseTheme|9LyraTheme|16Lyra3CoversTheme|16RoundedRaffTheme) .*15fillBatteryIcon.* # UITheme::setTheme stores one of these four concrete themes; select only the invoked virtual method.
+dispatch panel.selectDriver (?:_ZN7freeink14FreeInkDisplay12selectDriverEv) _ZTVN7freeink15RustPanelDriverE (?:.*17setBackgroundHint.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.begin (?:_ZN7freeink14FreeInkDisplay5beginEv) _ZTVN7freeink15RustPanelDriverE (?:.*5begin.*|.*12busyPolarity.*|.*4coCs.*|.*8geometry.*|.*5spiHz.*|.*7spiMiso.*|.*15usesExternalBus.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.setInverted (?:_ZN7freeink14FreeInkDisplay11setInvertedEb) _ZTVN7freeink15RustPanelDriverE (?:.*17setBackgroundHint.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.syncPendingAsync (?:_ZN7freeink14FreeInkDisplay16syncPendingAsyncEv) _ZTVN7freeink15RustPanelDriverE (?:.*13displayFinish.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.supportsAsyncRefresh (?:_ZNK7freeink14FreeInkDisplay20supportsAsyncRefreshEv) _ZTVN7freeink15RustPanelDriverE (?:.*20supportsAsyncDisplay.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.grayscaleCapabilities (?:_ZNK7freeink14FreeInkDisplay21grayscaleCapabilitiesENS_13GrayscaleModeE) _ZTVN7freeink15RustPanelDriverE (?:.*21grayscaleCapabilities.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.displayBuffer (?:_ZN7freeink14FreeInkDisplay13displayBufferENS0_11RefreshModeEb) _ZTVN7freeink15RustPanelDriverE (?:.*7display.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.displayAsyncImpl (?:_ZN7freeink14FreeInkDisplay16displayAsyncImplENS0_11RefreshModeEbb) _ZTVN7freeink15RustPanelDriverE (?:.*12displayStart.*|.*20supportsAsyncDisplay.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.triggerDisplay (?:_ZN7freeink14FreeInkDisplay14triggerDisplayENS0_11RefreshModeEb) _ZTVN7freeink15RustPanelDriverE (?:.*12displayStart.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.syncRedRamFromFrameBuffer (?:_ZN7freeink14FreeInkDisplay25syncRedRamFromFrameBufferEv) _ZTVN7freeink15RustPanelDriverE (?:.*17seedPreviousFrame.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.displayWindow (?:_ZN7freeink14FreeInkDisplay13displayWindowEttttb) _ZTVN7freeink15RustPanelDriverE (?:.*13displayWindow.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.displayGrayBuffer (?:_ZN7freeink14FreeInkDisplay17displayGrayBufferEbPKhb) _ZTVN7freeink15RustPanelDriverE (?:.*11displayGray.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.displayGrayCalibration (?:_ZN7freeink14FreeInkDisplay22displayGrayCalibrationEtttt) _ZTVN7freeink15RustPanelDriverE (?:.*22displayGrayCalibration.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.copyGrayscaleBuffers (?:_ZN7freeink14FreeInkDisplay20copyGrayscaleBuffersEPKhS2_) _ZTVN7freeink15RustPanelDriverE (?:.*16copyGrayscaleLsb.*|.*16copyGrayscaleMsb.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.cancelGrayscalePass (?:_ZN7freeink14FreeInkDisplay19cancelGrayscalePassEv) _ZTVN7freeink15RustPanelDriverE (?:.*13requestResync.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.displayGrayscaleBase (?:_ZN7freeink14FreeInkDisplay20displayGrayscaleBaseENS0_11RefreshModeEb|_ZN7freeink14FreeInkDisplay20displayGrayscaleBaseENS_13GrayscaleModeENS0_11RefreshModeEb) _ZTVN7freeink15RustPanelDriverE (?:.*14beginGrayscale.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.preconditionGrayscale (?:_ZN7freeink14FreeInkDisplay21preconditionGrayscaleEtttt|_ZN7freeink14FreeInkDisplay21preconditionGrayscaleEv) _ZTVN7freeink15RustPanelDriverE (?:.*21preconditionGrayscale.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.copyGrayscaleLsbBuffers (?:_ZN7freeink14FreeInkDisplay23copyGrayscaleLsbBuffersEPKh) _ZTVN7freeink15RustPanelDriverE (?:.*16copyGrayscaleLsb.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.copyGrayscaleMsbBuffers (?:_ZN7freeink14FreeInkDisplay23copyGrayscaleMsbBuffersEPKh) _ZTVN7freeink15RustPanelDriverE (?:.*16copyGrayscaleMsb.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.writeGrayscalePlaneStrip (?:_ZN7freeink14FreeInkDisplay24writeGrayscalePlaneStripENS0_9GrayPlaneEPKhtt) _ZTVN7freeink15RustPanelDriverE (?:.*24writeGrayscalePlaneStrip.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.prepareGrayscaleTarget (?:_ZN7freeink14FreeInkDisplay22prepareGrayscaleTargetEv) _ZTVN7freeink15RustPanelDriverE (?:.*22prepareGrayscaleTarget.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.cleanupGrayscaleBuffers (?:_ZN7freeink14FreeInkDisplay23cleanupGrayscaleBuffersEPKh) _ZTVN7freeink15RustPanelDriverE (?:.*23cleanupGrayscaleBuffers.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.requestResync (?:_ZN7freeink14FreeInkDisplay13requestResyncEh) _ZTVN7freeink15RustPanelDriverE (?:.*13requestResync.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.skipInitialResync (?:_ZN7freeink14FreeInkDisplay17skipInitialResyncEv) _ZTVN7freeink15RustPanelDriverE (?:.*17skipInitialResync.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.beginDisplayWork (?:_ZN7freeink14FreeInkDisplay16beginDisplayWorkEv) _ZTVN7freeink15RustPanelDriverE (?:.*16beginDisplayWork.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.abortPostRefresh (?:_ZN7freeink14FreeInkDisplay16abortPostRefreshEv) _ZTVN7freeink15RustPanelDriverE (?:.*16abortPostRefresh.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.postRefreshAborted (?:_ZNK7freeink14FreeInkDisplay18postRefreshAbortedEv) _ZTVN7freeink15RustPanelDriverE (?:.*18postRefreshAborted.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.displayCommitted (?:_ZNK7freeink14FreeInkDisplay16displayCommittedEv) _ZTVN7freeink15RustPanelDriverE (?:.*16displayCommitted.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.runMaintenance (?:_ZN7freeink14FreeInkDisplay14runMaintenanceEv) _ZTVN7freeink15RustPanelDriverE (?:.*14runMaintenance.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.hasPendingMaintenance (?:_ZNK7freeink14FreeInkDisplay21hasPendingMaintenanceEv) _ZTVN7freeink15RustPanelDriverE (?:.*21hasPendingMaintenance.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.controllerIdle (?:_ZN7freeink14FreeInkDisplay14controllerIdleEv) _ZTVN7freeink15RustPanelDriverE (?:.*14controllerIdle.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.requestCompleteWaveformNextRefresh (?:_ZN7freeink14FreeInkDisplay34requestCompleteWaveformNextRefreshEv) _ZTVN7freeink15RustPanelDriverE (?:.*34requestCompleteWaveformNextRefresh.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.setFullRefreshCompletesWaveform (?:_ZN7freeink14FreeInkDisplay31setFullRefreshCompletesWaveformEb) _ZTVN7freeink15RustPanelDriverE (?:.*31setFullRefreshCompletesWaveform.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.setAccentPlaneSlot (?:_ZN7freeink14FreeInkDisplay18setAccentPlaneSlotEhPKhh) _ZTVN7freeink15RustPanelDriverE (?:.*18setAccentPlaneSlot.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.setFastRefreshCutoffMs (?:_ZN7freeink14FreeInkDisplay22setFastRefreshCutoffMsEt) _ZTVN7freeink15RustPanelDriverE (?:.*22setFastRefreshCutoffMs.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.fastRefreshCutoffMs (?:_ZNK7freeink14FreeInkDisplay19fastRefreshCutoffMsEv) _ZTVN7freeink15RustPanelDriverE (?:.*19fastRefreshCutoffMs.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.setHoldPeriodicFullRefresh (?:_ZN7freeink14FreeInkDisplay26setHoldPeriodicFullRefreshEb) _ZTVN7freeink15RustPanelDriverE (?:.*19setHoldPeriodicFull.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.grayscaleRevert (?:_ZN7freeink14FreeInkDisplay15grayscaleRevertEv) _ZTVN7freeink15RustPanelDriverE (?:.*15grayscaleRevert.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.setCustomLUT (?:_ZN7freeink14FreeInkDisplay12setCustomLUTEbPKh) _ZTVN7freeink15RustPanelDriverE (?:.*12setCustomLut.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch panel.deepSleep (?:_ZN7freeink14FreeInkDisplay9deepSleepEv) _ZTVN7freeink15RustPanelDriverE (?:.*9deepSleep.*) # FreeInkDisplay.cpp calls these named _driver methods; default X3 selectDriver installs RustPanelDriver.
+dispatch decrypt.close root:EPUB.protection_close _ZTVN7freeink7content12_GLOBAL__N_122ProtectedBookDecryptorE .*D0Ev # Deleting destructor of the concrete object returned by protection_finish Take; no decryption or policy callback is invoked.
+dispatch font.resolve _ZNK18CrossPointSettings15getReaderFontIdEv _ZZN16SdCardFontSystem5beginER11GfxRendererENUlPvPKchE_4_FUNES2_S4_h # SdCardFontSystem::begin stores sdFontIdResolver; settings sampling calls it only when resolving a font.
+dispatch memory.evict _ZN7freeink13MemoryManager11clearCachesEj _ZNSt17_Function_handlerIFjjEZN11GfxRenderer5beginEvEUljE[0]?_E9_M_invokeERKSt9_Any_dataOj # GfxRenderer::begin registers the two X3 eviction sinks; layout allocation failure and non-reader protection reclaim call clearCaches; reader reclaim uses the Rust pressure list directly.
+rustfill XpAppCompatibility.home_action _ZNK15ActivityManager16homeButtonActionEv rust/crates/xp-ffi/include/xp_app.h # xp_app_init writes this Rust function to ActivityManager::compatibility for the app lifetime; ActivityManager invokes this field.
+rustfill XpAppCompatibility.activity_facts _ZNK15ActivityManager5factsEv(?:\.isra\.\d+)? rust/crates/xp-ffi/include/xp_app.h # xp_app_init writes this Rust function to ActivityManager::compatibility for the app lifetime; ActivityManager invokes this field.
+rustfill XpAppCompatibility.screenshot_info _ZNK15ActivityManager17getScreenshotInfoEv rust/crates/xp-ffi/include/xp_app.h # xp_app_init writes this Rust function to ActivityManager::compatibility for the app lifetime; ActivityManager invokes this field.
+rustfill XpEpubBookBorrow.spine (?:_ZNK4Epub12getSpineItemEi|_ZZNK4Epub12getSpineItemEiENUlPvPK11XpEpubSpineE_4_FUNES0_S3_) rust/crates/xp-ffi/include/xp_epub_session.h # Host-fixture-only BORROW registration stores the Rust query; the dormant native borrowed-facade branch calls this field.
+rustfill XpEpubBookBorrow.toc (?:_ZNK4Epub10getTocItemEi|_ZZNK4Epub10getTocItemEiENUlPvPK9XpEpubTocE_4_FUNES0_S3_) rust/crates/xp-ffi/include/xp_epub_session.h # Host-fixture-only BORROW registration stores the Rust query; the dormant native borrowed-facade branch calls this field.
+rustfill XpEpubBookBorrow.cumulative (?:_ZNK4Epub26getCumulativeSpineItemSizeEi) rust/crates/xp-ffi/include/xp_epub_session.h # Host-fixture-only BORROW registration stores the Rust query; the dormant native borrowed-facade branch calls this field.
+rustfill XpEpubBookBorrow.spine_for_size (?:_ZNK4Epub20getSpineIndexForSizeEj) rust/crates/xp-ffi/include/xp_epub_session.h # Host-fixture-only BORROW registration stores the Rust query; the dormant native borrowed-facade branch calls this field.
+rustfill XpEpubBookBorrow.stream (?:_ZNK4Epub24readItemContentsToStreamERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEER5Printjb|_ZZNK4Epub24readItemContentsToStreamERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEER5PrintjbENUlPvPKhjE_4_FUNESA_SC_j) rust/crates/xp-ffi/include/xp_epub_session.h # Host-fixture-only BORROW registration stores the Rust query; the dormant native borrowed-facade branch calls this field.
+rustfill XpEpubBookBorrow.item_size (?:_ZNK4Epub11getItemSizeERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEPj) rust/crates/xp-ffi/include/xp_epub_session.h # Host-fixture-only BORROW registration stores the Rust query; the dormant native borrowed-facade branch calls this field.
+callback EPUB.child_selection # XpEpubOwnedPage.destroy is retained until the deferred selection child releases the page.
+import XP_NETWORK_MODES_PHYSICAL # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import XP_WIFI_PHYSICAL # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import fiFontFree # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import fiFontMalloc # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_ble_atomic_cas8 # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_ble_atomic_load8 # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_ble_atomic_store8 # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_ble_atomic_swap8 # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_dialog_deliver # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_dialog_footer # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_dialog_format # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_dialog_launch # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_dialog_layout # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_dialog_log # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_dialog_metrics # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_dialog_release_launch # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_display_platform_increment # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_keyboard_chrome # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_keyboard_deliver # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_keyboard_draw_key # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_keyboard_launch # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_keyboard_layouts # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_keyboard_metrics # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_keyboard_release_launch # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_keyboard_snapshot # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_keyboard_text_lock # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_bidi_acquire # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_bidi_release # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_chapter_font_owner # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_font_cache_diagnostic # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_font_diagnostic # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_page_image_file # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_page_image_log # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_render_target # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_sd_allocate # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_sd_diagnostic # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_sd_directory_next # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_sd_directory_open # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_sd_file_close # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_sd_file_open # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_sd_file_read # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_sd_file_seek # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_sd_free # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_sd_handle_destroy # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_sd_handle_init # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_sd_path_exists # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_settings_shell_paint # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_settings_shell_snapshot # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_settings_shell_theme_reload # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+deferred EPUB.protection_close NONREADER # One-way destruction; vtable references reach decryptToSink -> reclaimContentCaches, but the deleting destructor never calls decryptToSink.
+deferred EPUB.protection_finish NONREADER # One-way key install/transfer/destruction; Take writes the native vptr, but no finish stage calls decryptToSink -> reclaimContentCaches; reader streaming calls readPrepared after direct Rust eviction.
+deferred EPUB.child_utility_footer R6 # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
+deferred EPUB.child_directional_hints R6 # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
+deferred App.header_draw NONREADER # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
+deferred EPUB.popup_input R5 # Runtime-pointer study retirement assignment in READER-CLOSE PLAN; references may include infeasible branches.
+deferred Runtime.screenshot RUNTIME-SHOT # Explicit R-RUNTIME decision: rare screenshot storage/feedback orchestration, not a page-turn path.
+deferred Runtime.settings_save SET-OWN # Explicit R-RUNTIME decision and ruling 45: synchronous settings serialization, not a page-turn path.
+deferred Runtime.sleep_enter RUNTIME-SLEEP # Explicit R-RUNTIME decision: sleep/storage orchestration remains a named exception.
+physical EPUB.render_geometry xp_display_capabilities # Stored RustPanelDriver virtual method; panel capability/operation continuation.
+physical EPUB.render_physical_query xp_display_capabilities # Stored RustPanelDriver virtual method; panel capability/operation continuation.
+physical EPUB.render_restore_bw xp_display_execute # Stored RustPanelDriver virtual method; panel capability/operation continuation.
+physical EPUB.framebuffer_lend xp_display_execute # Stored RustPanelDriver virtual method; panel capability/operation continuation.
+physical EPUB.protection_stream xp_inflate_init xp_inflate_state_align xp_inflate_state_size xp_inflate_step # Reader readPrepared calls SDK ZIP/miniz byte-stream decompression through MinizCompat directly; legacy decryptToSink is not called.
+callback xp_dialog_deliver # Borrows XpAppLegacy to deliver a dialog result synchronously; retained parent stays owned by the app.
+callback xp_keyboard_deliver # Borrows XpAppLegacy to deliver a keyboard result synchronously; no callback retention.
+callback xp_native_render_target # Fills XpPageTarget and XpUiPaint output tables with native callbacks; incoming output fields are not invoked.
+callback EPUB.input_sources # Returns native-only mapped input probes; Rust supplies a synchronous XpEpubInputQuery with its current Home action and consumes any returned tilt state directly; no pointer is retained.
+callback EPUB.build_metrics # Returns native layout metric callbacks for the section build.
+callback EPUB.build_allocator # Returns process-lifetime physical allocation/free/log callbacks; no reclaim or Rust callback on firmware.
+callback EPUB.display_source # Receives a Rust display source table; lifetime covers the configured display source.
+callback Modes.resources # Returns native settings resources including label/draw function pointers.
+callback EPUB.time_services # Returns native time service callbacks; no Rust callback parameter is retained.
+callback EPUB.time_start_sync # Registers a Rust time notification callback for asynchronous SNTP completion; review context lifetime.
+callback EPUB.store_rows # Visits serialized native store rows through the borrowed Rust row sink.
+callback EPUB.store_document # Returns a native document through the borrowed Rust sink.
+import xp_native_page_image_write # Storage-only sink over the pinned caller-owned HalFile; consumes borrowed bytes synchronously, retains no pointers and never calls Rust, including when protection_stream supplies the bytes.
+import xp_native_page_image_codec_log # One-way synchronous diagnostic formatting; borrowed image/cache/file snapshot, no retained pointers and no Rust callbacks.
+callback EPUB.key_platform # Writes native-only key/NVS service pointers into caller-owned scratch; no Rust callback is accepted or retained; End destroys the AES/path context.
+callback Runtime.power_context # Returns existing native power state plus physical services for one synchronous call; state mutation remains under the existing Rust HAL mutex.
+callback Runtime.tilt_context # Returns existing native tilt state and IMU services for one synchronous app-loop call; no callback or context is retained.
+import xp_native_page_jpeg # Physical JPEGDEC operations only; Rust owns decode sequence, dimensions policy, pipeline and close/drop/free order.
+callback xp_native_page_jpeg # rows borrows the stable Rust JPEG context; JPEGDEC retains it only between configure and close and its block callback synchronously calls xp_page_image_jpeg_row, the accepted physical stream up-call.
+physical xp_native_page_jpeg xp_page_image_jpeg_row # JPEGDEC block callback only; file callbacks stay native and pipeline/clock/yield orchestration stays Rust-owned.
+import xp_native_page_jpeg_log # One-way synchronous diagnostic formatting from borrowed JPEG facts; no retained pointers or Rust calls.
+# EPUB.document_io is a one-way HAL file/SDK MD5 primitive in caller storage; no sampling, string sink or Rust callback.
+
+callback EPUB.event_codec # Rust events::emit borrows native ArduinoJson/line storage and the sequence/nonce shared with pluginevents::emit; native-only callbacks, no Rust pointer accepted or retained.
+callback EPUB.event_append # Rust events::append obtains native HalFile operations over the codec-owned line; Rust calls its append owner directly; destruction ends all event/subscriber borrows.
+
+# THEME-CHROME: provisional R8b exception, owner UI-SCENE CP3 (all-screens theme migration).
+# Three themes remain native for home/settings/keyboard/dialogs; a reader-only port would duplicate their composition.
+deferred App.text_draw THEME-CHROME # Reader toolbar_view.rs:140 and children/list.rs:63 still draw UI text through shared native chrome.
+deferred App.text_box_height THEME-CHROME # Reader children/list.rs:188 measures wrapped menu text through the same shared native chrome.
+deferred EPUB.child_header THEME-CHROME # Reader children/list.rs:53 -> RustReaderDrawing.cpp drawReaderHeader uses the shared native theme header.
+deferred App.footer_draw THEME-CHROME # Reader children/list.rs:59 and book_render.rs book_error draw shared native hints on menu and error screens.

@@ -13,6 +13,7 @@ inline std::string remoteResponse;
 inline int requests = 0;
 inline int failHttpAt = -1;
 inline bool incomplete = false;
+inline void (*onRequest)() = nullptr;
 }  // namespace fake
 namespace freeink {
 class SecureHttpClient {
@@ -25,6 +26,7 @@ class SecureHttpClient {
   void addHeader(const std::string&, const std::string&) {}
   template <typename Sink>
   int sendRequest(const char* method, const uint8_t* data, size_t length, Sink sink) {
+    if (fake::onRequest) fake::onRequest();
 #if defined(CONFIG_IDF_TARGET_ESP32C3) && CONFIG_IDF_TARGET_ESP32C3
     // The transfer must hold the exclusive scratch claim until its response is parsed.
     assert(buildscratch::claim(32768) == nullptr);

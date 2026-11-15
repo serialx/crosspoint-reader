@@ -5,11 +5,17 @@
 #include <vector>
 
 #include "BlePageTurner.h"
+#include "BleRust.h"
 #include "RadioPort.h"
 
 // The radio (RadioPort.h, linked instead of SdkRadio.cpp) and the host (a bleturner::Host),
 // both under the test's hand.
 namespace fake {
+
+inline bool tick(const bleturner::Scene& scene) { return bleturner::rust::xp_ble_tick(&scene); }
+inline bool beforeScreenChange(uint32_t timeout = 0, bool reader = false) {
+  return bleturner::rust::xp_ble_before_screen(timeout, reader);
+}
 
 struct Radio {
   bool running = false;

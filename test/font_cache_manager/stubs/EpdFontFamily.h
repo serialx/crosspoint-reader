@@ -1,10 +1,9 @@
 #pragma once
 
-#include <cstdint>
+#include <EpdFontData.h>
+#include <xp_font_registry.h>
 
-struct EpdFontData {
-  const void* groups = nullptr;
-};
+#include <cstdint>
 
 class EpdFontFamily {
  public:
@@ -21,6 +20,13 @@ class EpdFontFamily {
     if ((requested & BOLD) && styleData[BOLD]) return styleData[BOLD];
     if ((requested & ITALIC) && styleData[ITALIC]) return styleData[ITALIC];
     return styleData[REGULAR];
+  }
+
+  XpRegisteredFont registration(int id) const {
+    XpRegisteredFont entry{id, {}, 0};
+    for (uint8_t i = 0; i < 4; ++i)
+      if (styleData[i]) entry.slots[i] = reinterpret_cast<const void* const*>(&styleData[i]);
+    return entry;
   }
 
  private:

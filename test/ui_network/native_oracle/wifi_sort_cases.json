@@ -1,0 +1,66 @@
+{
+  "recorded": {
+    "source": "test/ui_network/effects.cpp:600-613",
+    "rows": [
+      [
+        "zeta",
+        -80,
+        true
+      ],
+      [
+        "alpha",
+        -70,
+        false
+      ],
+      [
+        "zeta",
+        -40,
+        false
+      ],
+      [
+        "",
+        -20,
+        true
+      ]
+    ],
+    "saved": [
+      "alpha"
+    ],
+    "automatic": [
+      false,
+      true
+    ],
+    "scan_results": [
+      -2,
+      -1,
+      0
+    ]
+  },
+  "required_extension": {
+    "sizes": [
+      0,
+      1,
+      2,
+      15,
+      16,
+      17,
+      31,
+      32,
+      33,
+      64,
+      128,
+      1024,
+      32767
+    ],
+    "families": [
+      "all equal flags/RSSI with unique identity labels",
+      "saved and unsaved ties",
+      "alternating same-strength groups",
+      "ascending and descending RSSI",
+      "adversarial depth fallback",
+      "duplicate names weaker/equal/stronger first-observation preservation",
+      "hidden placeholder appended after sort"
+    ]
+  },
+  "comparison": "Exact identity permutation after scan dedup/sort, RSSI/encryption/saved flags, derived status bytes, then appended hidden row. No changing oracle outputs or switching to stable order on a mismatch."
+}

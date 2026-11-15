@@ -1,5 +1,8 @@
 add_executable(HomeButtonInputTest HomeButtonInputTest.cpp)
 
+target_compile_definitions(HomeButtonInputTest PRIVATE
+  XP_HOME_MANIFEST="${REPO_ROOT}/rust/Cargo.toml")
+
 target_include_directories(HomeButtonInputTest PRIVATE ../../src)
 
 target_link_libraries(HomeButtonInputTest PRIVATE

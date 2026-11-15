@@ -11,6 +11,24 @@ All POD fields are written in the ESP32 little-endian representation used by
 `book.bin` stores EPUB metadata plus lookup tables for spine and TOC entries.
 The current firmware writes this version from `BookMetadataCache`.
 
+The reader rejects `book.bin` when its version or reads fail, a metadata string
+exceeds the file, the LUT is misplaced/truncated, or its ordered targets cannot
+fit their minimum record sizes. Open scans the LUT and spine records, bounds all
+TOC targets, and checks the last TOC record's lengths and final fields to catch a
+truncated tail. Other TOC lengths are checked on query. Each non-final spine/TOC query is bounded
+by the next LUT target and must end exactly there; the final row is bounded by
+EOF. Rejection uses the existing
+one-rebuild path; rejection of the rebuilt file fails the open. Wrapped cumulative
+sizes and trailing bytes are accepted. A query-time read, seek, allocation, or
+row-boundary failure returns no row. Required chapter metadata failure prevents
+saving that section; cosmetic labels may be omitted by the view. The layout and
+write order are unchanged.
+
+The ImHex LUT-offset warning indicates a firmware rejection. Its trailing-data
+warning does not. `MAX_STRING_LENGTH` is a pattern warning threshold only: the
+firmware has no matching 65,535-byte cap; strings must fit the file and available
+allocation capacity when materialized.
+
 ImHex pattern:
 
 ```c++
@@ -96,6 +114,21 @@ Version 68 preserves the binary layout but rebuilds completed and partial
 sections to remove mid-line hyphens left by drop-cap layout. The lines beside
 the drop cap use bounded greedy wrapping; the rest keep their usual wrapping.
 Book metadata and saved progress are kept.
+
+The 44-byte header uses little-endian fields without padding. The page count
+is at byte 22; the five 32-bit table offsets begin at byte 24. Page bodies
+start at byte 44. The page-offset table gives each page's start; the next entry
+(or the page-table offset for the last page) gives its end.
+`rust/crates/xp-ffi/src/book_section.rs` derives that span, rejects an end that
+is not above the start, runs into the page-offset table or lies past the written
+bytes, seeks to the start and passes only the bounded span to the page decoder.
+`visibleTextOffset` lives in its separate table, not in the page body.
+
+A build starts with version 0. Committing patches the page count and table
+offsets, then writes version 68 last. A suspended build uses
+`0xFE - (68 - 28) = 214` instead. It has the same layout plus two `u32` values,
+`bytesConsumed` and `totalBytes`, immediately after the visible-offset table.
+The ImHex example below describes finalized sections only.
 
 ### Version 67
 
@@ -359,7 +392,7 @@ import std.mem;
 import std.string;
 import std.core;
 
-#define EXPECTED_VERSION 64
+#define EXPECTED_VERSION 68
 #define MAX_STRING_LENGTH 65535
 #define FOOTNOTE_NUMBER_LEN 32
 #define FOOTNOTE_HREF_LEN 256
@@ -427,8 +460,14 @@ struct TextBlock {
     u16 wordCount;
     u8 hasFocus;
     u16 textBytes [[comment("Total size of text[], including one NUL per word")]];
+    u16 paragraphStartWord [[comment("Visual word index, or 65535 for a continuation")]];
 
     if (wordCount > 0) {
+        struct SourceRange {
+            u32 start;
+            u32 end;
+        };
+        SourceRange sourceRanges[wordCount];
         u16 textOff[wordCount] [[comment("Byte offset of word i's text within text[]")]];
         s16 wordXPos[wordCount];
         if (hasFocus != 0) {
@@ -441,6 +480,7 @@ struct TextBlock {
         char text[textBytes] [[comment("All words back to back, each NUL-terminated")]];
     }
 
+    String rubyTexts[wordCount];
     BlockStyle blockStyle;
     u8 hasWordFonts;
     if (hasWordFonts != 0) {
@@ -527,6 +567,15 @@ struct Page {
 
     u16 footnoteCount;
     FootnoteEntry footnotes[footnoteCount];
+    u16 linkCount;
+    struct PageLink {
+        char href[FOOTNOTE_HREF_LEN];
+        s16 x;
+        s16 y;
+        s16 width;
+        s16 height;
+    };
+    PageLink links[linkCount];
 };
 
 struct AnchorEntry {
@@ -726,3 +775,21 @@ Book moves rename the store and its `.deleted` journal (plus recovery sidecars)
 together. The stored source path is informational and is refreshed on the next
 save; the current file path selects the store. Local book deletion cleans up all
 of these sidecars but preserves the independent `My Clippings.txt` export.
+
+## Image pixel cache (`.px2`)
+
+Each extracted image has a pixel cache beside it, using the same filename stem
+and the `.px2` extension. The filename versions the decoded pixels; the binary
+format remains little-endian `uint16_t width`, `uint16_t height`, followed by
+row-major 2-bit pixels (four pixels per byte, most significant pixel first).
+Each row occupies `(width + 3) / 4` bytes.
+
+Version 2 replaces the unversioned `.pxc` cache after correcting PNGdec's
+back-reference copy error. Existing unversioned files are ignored, so each
+previously cached image is decoded and cached again on its first view. That
+view pays the normal decode and SD-write cost; later views reuse the new cache.
+Old cache files remain unused until the book cache is removed. Normal book deletion
+calls `clearBookCache()` in `src/util/BookCacheUtils.cpp`, then `Epub::clearCache()`;
+that removes the whole book-cache directory without filtering filename extensions.
+No manual reset is needed to obtain corrected pixels, and the automatic rebuild
+leaves reading progress, book metadata, and section caches unchanged.

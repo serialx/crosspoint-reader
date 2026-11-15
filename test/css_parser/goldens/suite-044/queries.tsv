@@ -1,0 +1,11 @@
+P			
+P	BOLD		
+P	HIDDEN		
+div	a b c d e f g h i	id	
+p			
+p	 unrelated		
+p	bold		
+p	bold unrelated		
+p	hidden		
+p	hidden unrelated		
+span	note	target	

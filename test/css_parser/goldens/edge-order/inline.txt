@@ -1,0 +1,9 @@
+font-size:250%;float:left;initial-letter:2
+font-style:italic
+font-weight:normal!important
+margin:1px;font-weight:bold
+margin:2px
+margin:3px
+margin:4px
+padding:1px 2em 3pt 4%;
+text-align:right

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <BoardConfig.h>
+#include <xp_hal.h>
 
 #include <cstdint>
 
@@ -10,23 +11,35 @@
 
 // Application-owned feedback policy; the SDK owns motor timing and PWM.
 class HalHaptics {
-  // Persisted option order: Low, Medium, High. This scales motor PWM duty,
-  // not pulse duration; perceived strength depends on the motor and battery.
-  // Metalio's motor did not respond to short pulses at 50% in device testing.
-  // Use approximately 60%, 75%, and 88%; validate the new floor on hardware.
-  static constexpr uint8_t gain(uint8_t level) { return level == 0 ? 153 : level == 1 ? 191 : 224; }
+#if FREEINK_CAP_HAPTIC && !CROSSPOINT_EMULATED
+  static bool dispatch(XpHalHapticOp op, uint8_t value) {
+    auto& motor = HapticManager::getInstance();
+    switch (op) {
+      case XP_HAL_HAPTIC_ENABLE:
+        motor.setEnabled(value != 0);
+        break;
+      case XP_HAL_HAPTIC_INTENSITY:
+        motor.setIntensity(value);
+        break;
+      case XP_HAL_HAPTIC_BEGIN:
+        return motor.begin();
+      case XP_HAL_HAPTIC_PULSE:
+        motor.pulse();
+        break;
+      case XP_HAL_HAPTIC_PATTERN: {
+        static constexpr HapticManager::Step pattern[] = {{45, 255}, {55, 0}, {45, 255}};
+        motor.play(pattern, 3);
+        break;
+      }
+    }
+    return true;
+  }
+#endif
 
  public:
   static void longPress(bool enabled, uint8_t intensity) {
 #if FREEINK_CAP_HAPTIC && !CROSSPOINT_EMULATED
-    if (!enabled) return;
-    auto& motor = HapticManager::getInstance();
-    motor.setEnabled(true);
-    motor.setIntensity(gain(intensity));
-    // A double pulse distinguishes recognition from the initial touch pulse.
-    // The SDK copies this fixed pattern and plays it without blocking input.
-    static constexpr HapticManager::Step pattern[] = {{45, 255}, {55, 0}, {45, 255}};
-    if (motor.begin()) motor.play(pattern, 3);
+    xp_hal_haptic(dispatch, true, enabled, false, intensity);
 #else
     (void)enabled;
     (void)intensity;
@@ -35,13 +48,7 @@ class HalHaptics {
 
   static void feedback(bool enabled, bool pressed, uint8_t intensity) {
 #if FREEINK_CAP_HAPTIC && !CROSSPOINT_EMULATED
-    auto& motor = HapticManager::getInstance();
-    motor.setEnabled(enabled);
-    // Initialize lazily: Off does not allocate a timer or attach PWM.
-    if (enabled && pressed && motor.begin()) {
-      motor.setIntensity(gain(intensity));
-      motor.pulse();
-    }
+    xp_hal_haptic(dispatch, false, enabled, pressed, intensity);
 #else
     (void)enabled;
     (void)pressed;

@@ -82,7 +82,10 @@ OpdsBookBrowserActivity::OpdsBookBrowserActivity(GfxRenderer& renderer, MappedIn
 
 void OpdsBookBrowserActivity::onEnter() {
   CatalogActivity::onEnter();
-  app.on(ACTION_PAGE, &OpdsBookBrowserActivity::onPageEvent, this);
+  if (!hasUiStorage()) return;
+#ifdef CROSSPOINT_UI_ORACLE
+  if (uiOracleOpdsEnter(*this)) return;
+#endif
 
   // Configure the OPDS client for this server, restore any persisted token, and
   // reset the per-session auth latches. Accept-Language localizes the catalog
@@ -96,13 +99,15 @@ void OpdsBookBrowserActivity::onEnter() {
   opdsClient.setAcceptLanguage(uiAcceptLanguage());
   opdsClient.onStatus(&OpdsBookBrowserActivity::onClientStatus, this);
 
-  state = State::CHECK_WIFI;
+  setState(State::CHECK_WIFI);
   statusMessage = tr(STR_CHECKING_WIFI);
   checkAndConnectWifi();
 }
 
 void OpdsBookBrowserActivity::onExit() {
-  releaseEntries();
+  // ActivityManager already holds the render lock during exit.
+  closeRouting();
+  std::vector<OpdsEntry>().swap(entries);
   navigationHistory.clear();
   if (!detailCoverPath.empty()) {
     if (Storage.exists(detailCoverPath.c_str())) Storage.remove(detailCoverPath.c_str());
@@ -112,56 +117,44 @@ void OpdsBookBrowserActivity::onExit() {
 }
 
 void OpdsBookBrowserActivity::activateIndex(const int index) {
-  app.clearTapFlash();
   const auto& entry = entries[index];
   entry.type == OpdsEntryType::BOOK ? openPublicationDetail(entry) : navigateToEntry(entry);
 }
 
-bool OpdsBookBrowserActivity::handleCustomInput() {
-  if (state == State::BROWSING &&
-      (!pageNextHref.empty() || !pagePrevHref.empty() || !pageFirstHref.empty() || !pageLastHref.empty())) {
-    // On a paginated feed the side buttons belong to feed pages exclusively.
-    // NavNext/NavPrevious resolve to the side buttons too, so every side
-    // press/hold pass is swallowed here or the shared list nav would also
-    // step the selection under the same physical button.
-    if (mappedInput.wasReleased(MappedInputManager::Button::PageForward)) {
-      if (!pageNextHref.empty()) followPageLink(pageNextHref);
-      return true;
-    }
-    if (mappedInput.wasReleased(MappedInputManager::Button::PageBack)) {
-      if (!pagePrevHref.empty()) followPageLink(pagePrevHref);
-      return true;
-    }
-    if (mappedInput.isPressed(MappedInputManager::Button::PageForward) ||
-        mappedInput.isPressed(MappedInputManager::Button::PageBack)) {
-      return true;
-    }
-  }
-  return CatalogActivity::handleCustomInput();
+uint8_t OpdsBookBrowserActivity::pageLinks() const {
+  return (!pageFirstHref.empty() ? 1 : 0) | (!pagePrevHref.empty() ? 2 : 0) | (!pageNextHref.empty() ? 4 : 0) |
+         (!pageLastHref.empty() ? 8 : 0);
 }
-
-void OpdsBookBrowserActivity::onPageEvent(const fui::ActionEvent& event, void* user) {
-  auto* self = static_cast<OpdsBookBrowserActivity*>(user);
-  if (self->state != State::BROWSING) return;
-  self->app.clearTapFlash();
+void OpdsBookBrowserActivity::catalogEffect(const XpUiEffect& effect) {
+  if (effect.kind != XP_UI_CATALOG_PAGE) {
+    CatalogActivity::catalogEffect(effect);
+    return;
+  }
   const std::string* href = nullptr;
-  switch (event.value) {
+  switch (effect.value) {
     case PAGE_FIRST:
-      href = &self->pageFirstHref;
+      href = &pageFirstHref;
       break;
     case PAGE_PREV:
-      href = &self->pagePrevHref;
+      href = &pagePrevHref;
       break;
     case PAGE_NEXT:
-      href = &self->pageNextHref;
+      href = &pageNextHref;
       break;
     case PAGE_LAST:
-      href = &self->pageLastHref;
+      href = &pageLastHref;
       break;
     default:
       return;
   }
-  if (href && !href->empty()) self->followPageLink(*href);
+  if (!href->empty()) followPageLink(*href);
+}
+const char* OpdsBookBrowserActivity::catalogText(uint32_t handle) const {
+  if (handle == 0x8000000c) {
+    snprintf(pageText, sizeof(pageText), "%d/%d", pageCurrent, pageTotal);
+    return pageText;
+  }
+  return CatalogActivity::catalogText(handle);
 }
 
 // Follow a pagination link. isPaginationHref() keeps the search-term header
@@ -174,6 +167,7 @@ void OpdsBookBrowserActivity::followPageLink(const std::string& href) {
 }
 
 void OpdsBookBrowserActivity::setSearchQuery(const std::string& query) {
+  ResourceLock resourceLock(*this);
   searchQuery = query;
   headerSearchTitle = query.empty() ? std::string() : "“" + query + "”";
 }
@@ -188,100 +182,16 @@ const char* OpdsBookBrowserActivity::browserTitle() const {
                                     : server.name.c_str();
 }
 
-void OpdsBookBrowserActivity::buildScreen(UiScreen& screen) {
-  screenHeader(screen, browserTitle());
-  if (buildStatusScreen(screen, /*boldError=*/false, /*showDownloadTotal=*/true)) return;
-  buildBrowsingScreen(screen);
-}
-
-// Bottom pagination bar: arrow-icon tabs following the feed's first/prev/next/
-// last links. Prev and Next always show when the feed is paginated (the
-// unavailable direction is disabled); First/Last appear only when advertised.
-void OpdsBookBrowserActivity::buildPaginationBar(UiScreen& screen) {
-  // Backward arrows on the left, forward arrows on the right, "Page N of M"
-  // between them when the feed reports its pagination.
-  fui::TabItem left[2], right[2];
-  int lc = 0, rc = 0;
-  const auto addTab = [](fui::TabItem* tabs, int& count, const freeink::Icon& icon, const int16_t value,
-                         const std::string& href) {
-    tabs[count].icon = fui::bitmapFromIcon(icon);
-    tabs[count].value = value;
-    tabs[count].enabled = !href.empty();
-    ++count;
-  };
-  if (!pageFirstHref.empty()) addTab(left, lc, icon_page_first_32, PAGE_FIRST, pageFirstHref);
-  addTab(left, lc, icon_page_prev_32, PAGE_PREV, pagePrevHref);
-  addTab(right, rc, icon_page_next_32, PAGE_NEXT, pageNextHref);
-  if (!pageLastHref.empty()) addTab(right, rc, icon_page_last_32, PAGE_LAST, pageLastHref);
-
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  const fui::Rect band = screen.takeBottom(static_cast<int16_t>(metrics.tabBarHeight));
-  // Full-width band with a top rule, matching the tab chrome elsewhere.
-  const fui::Rect frameRect = screen.frame().screen();
-  const fui::Rect barRect{frameRect.x, band.y, frameRect.width, band.height};
-  screen.target().fill(fui::Rect{barRect.x, barRect.y, barRect.width, 1}, fui::Paint::solid(fui::Color::Black));
-
-  const auto side = static_cast<int16_t>(metrics.contentSidePadding);
-  const int16_t zoneW = static_cast<int16_t>((barRect.width - 2 * side) / 3);
-  const int16_t slotY = static_cast<int16_t>(barRect.y + 1);
-  const int16_t slotH = static_cast<int16_t>(barRect.height - 1);
-  fui::TabBarProps props;
-  props.action = ACTION_PAGE;
-  props.inputMask = fui::InputTouch;
-  props.iconSize = 32;
-  props.tabs = left;
-  props.count = static_cast<uint16_t>(lc);
-  fui::tabBar(screen.frame(), fui::Rect{static_cast<int16_t>(barRect.x + side), slotY, zoneW, slotH}, props);
-  props.tabs = right;
-  props.count = static_cast<uint16_t>(rc);
-  fui::tabBar(screen.frame(), fui::Rect{static_cast<int16_t>(barRect.right() - side - zoneW), slotY, zoneW, slotH},
-              props);
-
-  if (pageCurrent > 0 && pageTotal > 0) {
-    char pageText[32];
-    snprintf(pageText, sizeof(pageText), "%d/%d", pageCurrent, pageTotal);
-    fui::TextStyle centered = screen.theme().smallText;
-    centered.align = fui::TextAlign::Center;
-    const int16_t lh = screen.target().lineHeight(centered.font);
-    screen.target().text(fui::Rect{static_cast<int16_t>(barRect.x + side + zoneW),
-                                   static_cast<int16_t>(slotY + (slotH - lh) / 2), zoneW, lh},
-                         pageText, centered);
-  }
-}
-
-void OpdsBookBrowserActivity::buildBrowsingScreen(UiScreen& screen) {
-  // Reserve the pagination band before the list claims the remaining height.
-  if (!pageNextHref.empty() || !pagePrevHref.empty() || !pageFirstHref.empty() || !pageLastHref.empty()) {
-    buildPaginationBar(screen);
-  }
-
-  if (entries.empty()) {
-    screen.centeredText(tr(STR_NO_ENTRIES), screen.theme().bodyText);
-    return;
-  }
-
-  // rowItems is built whenever entries changes (see rebuildRowItems(), called
-  // from fetchFeed()/releaseEntries()) and reused here on every repaint.
-  fui::ListProps props;
-  props.items = rowItems.data();
-  props.count = static_cast<uint16_t>(rowItems.size());
-  props.action = ACTION_ROW;
-  props.inputMask = fui::InputTouch;  // physical buttons stay in loop()
-  props.valueInset = 8;               // air between the nav chevron and the row edge
-  syncListViewport(screen, props);
-  screen.list(props);
-}
-
 void OpdsBookBrowserActivity::drawFooter() {
   MappedInputManager::Labels labels;
-  switch (state) {
+  switch (getState()) {
     case State::BROWSING: {
       const char* confirmLabel = tr(STR_OPEN);
-      if (!entries.empty() && nav.selected >= 0 && nav.selected < static_cast<int>(entries.size()) &&
-          entries[nav.selected].type == OpdsEntryType::BOOK) {
-        confirmLabel = entries[nav.selected].purchase ? tr(STR_OPDS_BUY) : tr(STR_DOWNLOAD);
+      if (!entries.empty() && selectedIndex() >= 0 && selectedIndex() < static_cast<int>(entries.size()) &&
+          entries[selectedIndex()].type == OpdsEntryType::BOOK) {
+        confirmLabel = entries[selectedIndex()].purchase ? tr(STR_OPDS_BUY) : tr(STR_DOWNLOAD);
       }
-      const char* searchLabel = (hasSearch() && nav.selected == 0) ? tr(STR_SEARCH) : tr(STR_DIR_UP);
+      const char* searchLabel = (hasSearch() && selectedIndex() == 0) ? tr(STR_SEARCH) : tr(STR_DIR_UP);
       labels = mappedInput.mapLabels(tr(STR_BACK), confirmLabel, searchLabel, tr(STR_DIR_DOWN));
       break;
     }
@@ -300,7 +210,7 @@ void OpdsBookBrowserActivity::drawFooter() {
 
 void OpdsBookBrowserActivity::startBrowse() {
   releaseEntries();  // harmless when already empty
-  nav.reset();
+  resetSelection();
   beginLoading();
   fetchFeed(currentPath);
 }
@@ -340,6 +250,7 @@ void OpdsBookBrowserActivity::fetchFeed(const std::string& path) {
     return;
   }
 
+  ResourceLock resourceLock(*this);
   searchTemplate = parser.getSearchTemplate();
   searchDescriptionUrl = parser.getSearchDescriptionUrl();
   searchTemplateBase = "";  // feed-inline template resolves against the feed URL
@@ -362,10 +273,10 @@ void OpdsBookBrowserActivity::fetchFeed(const std::string& path) {
   // Reset the selection before the swap: the render task reads the selected
   // entry under only an empty() guard, and the new feed can be shorter than
   // the old selection.
-  nav.reset();
+  resetSelection();
   entries = parser.takeEntries();
 
-  // Pagination is a bottom tab bar (buildPaginationBar), not list rows.
+  // Pagination occupies the bottom bar, not list rows.
   auto facetRows = parser.takeFacetEntries();
   entries.reserve(entries.size() + facetRows.size());
   // Facet groups (sort orders, filters) come after the catalog content, each
@@ -405,39 +316,28 @@ void OpdsBookBrowserActivity::fetchFeed(const std::string& path) {
     LOG_INF("OPDS", "Feed truncated to fit memory");
   }
 
-  state = entries.empty() ? State::ERROR : State::BROWSING;
+  setState(entries.empty() ? State::ERROR : State::BROWSING);
   if (entries.empty()) errorMessage = tr(STR_NO_ENTRIES);
-  rebuildRowItems();
   requestUpdate();
 }
 
-// Derives rowItems from entries. Called whenever entries changes
-// (fetchFeed()/releaseEntries()) so buildBrowsingScreen() reuses the cached
-// rows on every repaint instead of rebuilding them per render.
-void OpdsBookBrowserActivity::rebuildRowItems() {
-  rowItems.clear();
-  rowItems.reserve(entries.size());
-  for (const auto& entry : entries) {
-    fui::ListItem item;
-    // A group's "see all" self link carries no title of its own; the UI
-    // supplies the label (the group name is the section heading above it).
-    item.label = entry.id == OPDS_SEE_ALL_ID ? tr(STR_OPDS_SEE_ALL) : entry.title.c_str();
-    if (!entry.heading.empty()) item.sectionHeading = entry.heading.c_str();
-    if (entry.type == OpdsEntryType::BOOK && !entry.author.empty()) item.subtitle = entry.author.c_str();
-    if (entry.type == OpdsEntryType::NAVIGATION) item.value = entry.detail.empty() ? ">" : entry.detail.c_str();
-    // Purchases show their price in the value column.
-    if (entry.type == OpdsEntryType::BOOK && entry.purchase && !entry.detail.empty()) item.value = entry.detail.c_str();
-    item.actionValue = static_cast<int16_t>(rowItems.size());
-    rowItems.push_back(item);
-  }
+bool OpdsBookBrowserActivity::rowAt(int index, XpUiCatalogRow& row) const {
+  if (index < 0 || index >= static_cast<int>(entries.size())) return false;
+  const auto& entry = entries[index];
+  row.label = entry.id == OPDS_SEE_ALL_ID ? tr(STR_OPDS_SEE_ALL) : entry.title.c_str();
+  if (!entry.heading.empty()) row.heading = entry.heading.c_str();
+  if (entry.type == OpdsEntryType::BOOK && !entry.author.empty()) row.subtitle = entry.author.c_str();
+  if (entry.type == OpdsEntryType::NAVIGATION) row.value = entry.detail.empty() ? ">" : entry.detail.c_str();
+  if (entry.type == OpdsEntryType::BOOK && entry.purchase && !entry.detail.empty()) row.value = entry.detail.c_str();
+  return true;
 }
 
 void OpdsBookBrowserActivity::releaseEntries() {
+  ResourceLock resourceLock(*this);
   // The app's interaction table holds row indices (and hit rects) for the old
   // entries; stop routing touches against it until the next render.
   closeRouting();
   std::vector<OpdsEntry>().swap(entries);
-  std::vector<fui::ListItem>().swap(rowItems);
 }
 
 void OpdsBookBrowserActivity::navigateToEntry(const OpdsEntry& entry) {
@@ -630,7 +530,10 @@ void OpdsBookBrowserActivity::downloadLcpBook(const OpdsEntry& book) {
 // One /unlock round trip with an already-derived user-key hash. Terminal
 // failures (unsupported profile, network, key store) call fail() themselves.
 OpdsBookBrowserActivity::LcpUnlock OpdsBookBrowserActivity::requestLcpUnlock(const std::string& userKeyHex) {
-  statusMessage = tr(STR_LOADING);
+  {
+    ResourceLock resourceLock(*this);
+    statusMessage = tr(STR_LOADING);
+  }
   requestUpdate(true);
 
   std::string deviceId;
@@ -702,8 +605,11 @@ void OpdsBookBrowserActivity::startLcpUnlock() {
 }
 
 void OpdsBookBrowserActivity::promptLcpPassphrase(const bool retry) {
-  state = State::AUTH;
-  statusMessage = tr(STR_LCP_PASSPHRASE);
+  {
+    ResourceLock resourceLock(*this);
+    setState(State::AUTH);
+    statusMessage = tr(STR_LCP_PASSPHRASE);
+  }
   requestUpdate();
   // The license's hint is the prompt the provider wrote for this passphrase.
   const char* title = retry                             ? tr(STR_LCP_WRONG_PASSPHRASE)
@@ -964,6 +870,7 @@ const char* OpdsBookBrowserActivity::acquireLabel(const OpdsAvailability& av) co
 // frozen on the previous message.
 void OpdsBookBrowserActivity::onClientStatus(void* ctx, const freeink::opds::ClientPhase phase) {
   auto* self = static_cast<OpdsBookBrowserActivity*>(ctx);
+  ResourceLock resourceLock(*self);
   self->statusMessage = phase == freeink::opds::ClientPhase::SigningIn ? tr(STR_OPDS_SIGNING_IN) : tr(STR_LOADING);
   self->requestUpdate(true);
 }
@@ -1000,7 +907,7 @@ bool OpdsBookBrowserActivity::ensureSearchTemplate() {
 
 void OpdsBookBrowserActivity::performSearch(const std::string& query) {
   if (query.empty()) {
-    state = State::BROWSING;
+    setState(State::BROWSING);
     requestUpdate();
     return;
   }

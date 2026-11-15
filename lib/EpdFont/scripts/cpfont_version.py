@@ -4,7 +4,7 @@
 # (release-fonts.yml) and both Python scripts (fontconvert_sdcard.py,
 # generate-font-manifest.py) read from here.
 #
-# The firmware C++ headers (SdCardFont.h, FontDownloadActivity.h) carry their
+# The firmware C++ headers (CpfontVersion.h, FontDownloadActivity.h) carry their
 # own copies — those must be bumped manually when the firmware is updated to
 # support a new version.
 

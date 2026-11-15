@@ -1,7 +1,11 @@
 #pragma once
+#include <xp_ui.h>
+#define XP_NATIVE_TEXT_MEASUREMENT 1
 
 #include <EpdFontFamily.h>
+#include <FontTableGeneration.h>
 #include <HalDisplay.h>
+#include <xp_ffi.h>
 
 namespace BidiUtils {
 // Paragraph base direction for the Unicode BiDi algorithm (UAX#9).
@@ -15,6 +19,8 @@ class FontCacheManager;
 class SdCardFont;
 class TtfEpdFont;
 
+#include <xp_page_paint.h>
+
 #include <array>
 #include <cstring>
 #include <map>
@@ -22,17 +28,16 @@ class TtfEpdFont;
 #include <vector>
 
 #include "Bitmap.h"
+#include "FontRegistry.h"
 #include "FontVariantProvider.h"
-
-namespace glyphBitmap {
-struct Frame;
-}
 
 // Color representation: uint8_t mapped to 4x4 Bayer matrix dithering levels
 // 0 = transparent, 1-16 = gray levels (white to black)
 enum Color : uint8_t { Clear = 0x00, White = 0x01, LightGray = 0x05, DarkGray = 0x0A, Black = 0x10 };
 
 class GfxRenderer {
+  friend uint8_t xp_native_sd_font_load(void*, int32_t);
+
  public:
   enum RenderMode { BW, GRAYSCALE_LSB, GRAYSCALE_MSB };
 
@@ -59,16 +64,16 @@ class GfxRenderer {
   uint16_t panelWidthBytes = HalDisplay::DISPLAY_WIDTH_BYTES;
   uint32_t frameBufferSize = HalDisplay::BUFFER_SIZE;
   std::vector<uint8_t*> bwBufferChunks;
-  std::map<int, EpdFontFamily> fontMap;
-  // Mutable because ensureSdCardFontReady() is const (called from layout code
-  // that holds a const GfxRenderer&) but triggers SD card reads and heap
-  // allocation inside the SdCardFont objects. Same pragmatic compromise as
-  // fontCacheManager_ below.
+  FontRegistry fontMap;
+#ifdef XP_APP_TEST
+  // Native oracle faces are separate from the shipping Rust SD owner.
   mutable std::map<int, SdCardFont*> sdCardFonts_;
-  mutable std::map<int, uint16_t> sdCardFontScales_;  // fontId -> 8.8 fixed point scale (256=1.0x)
-  // TTF (vector) fonts: rebuilt per page by ensureSdCardFontReady(). Mutable for
-  // the same reason as sdCardFonts_ (const layout path triggers a rebuild).
+  mutable std::map<int, uint16_t> sdCardFontScales_;
+#endif
+  // Native vector map exists only for historical host oracles.
+#ifdef XP_APP_TEST
   mutable std::map<int, TtfEpdFont*> ttfFonts_;
+#endif
 
   // Mutable because drawText() is const but needs to delegate scan-mode
   // recording to the (non-const) FontCacheManager. Same pragmatic compromise
@@ -98,34 +103,71 @@ class GfxRenderer {
   mutable int clipRight_ = 32767;
   mutable int clipBottom_ = 32767;
 
-  // CJK UI font fallback map: primary (built-in, Latin-only) UI font id -> a
-  // size-matched SD-card font id that carries CJK glyphs. When a string drawn
-  // or measured with a mapped primary font contains a CJK codepoint the primary
-  // cannot render, the whole string is routed to the mapped fallback so it
-  // appears at the same point size as the surrounding UI text. Populated by the
-  // app-level SD font setup when an SD family is loaded. See resolveTextFontId().
-  std::map<int, int> fallbackFontMap_;
+  // Resolves sized reader-font variants and loads absent variants on demand.
+#if defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
   FontVariantProvider fontVariantProvider_;
+#endif
 
   // If `text` contains a CJK codepoint that `fontId` cannot render and `fontId`
   // has a registered fallback, returns the fallback id; otherwise returns
   // fontId unchanged. The whole string is routed as a unit so each draw/measure
   // call stays single-font (consistent bit depth, metrics, wrapping).
+  struct GlyphContext {
+    XpFontGlyphContext glyphs;
+    const GfxRenderer* renderer;
+    int resolvedFont;
+    EpdFontFamily::Style style;
+    bool rotated, fallback;
+    XpGlyphPaint* paint;
+  };
+  static_assert(offsetof(GlyphContext, glyphs) == 0);
+  // Image polarity follows the strip target only in the opt-in reader path.
+  bool skipImageStrip() const {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+    return false;
+#else
+    return _stripActive;
+#endif
+  }
+  int imageOrigin() const {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+    return getWriteOriginY();
+#else
+    return 0;
+#endif
+  }
+  int imageEnd() const {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+    return getWriteOriginY() + getWriteRows();
+#else
+    return panelHeight;
+#endif
+  }
+  uint8_t* imageBuffer() const {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+    return getWriteTarget();
+#else
+    return frameBuffer;
+#endif
+  }
+
+  XpGlyphTarget glyphTarget(bool includeScanning = true) const;
+  void glyphSource(const EpdFontData* font, XpGlyphSource& source) const;
+  void drawGlyphRun(int fontId, int x, int y, const char* text, bool black, EpdFontFamily::Style style,
+                    BidiUtils::BidiBaseDir baseDir, int8_t tracking, bool rotated) const;
   int resolveTextFontId(int fontId, const char* text, EpdFontFamily::Style style) const;
 
   // Batch-load `text`'s glyphs into an SD-card font's resident mini tables
   // before a per-glyph measure/draw loop runs. Called when resolveTextFontId
   // redirected a string to the SD fallback: UI screens (file browser, home)
-  // draw those strings without the reader's PrewarmScope, and every glyph
-  // would otherwise fault through SdCardFont::onGlyphMiss — one .cpfont file
+  // draw those strings without the reader's FontScan, and every glyph
+  // would otherwise fault through the Rust SD miss handler — one .cpfont file
   // open + seek + read per glyph, per redraw, through an 8-slot overflow ring
   // (#2725). One prewarm per string costs a single file open; re-measuring or
   // re-drawing resident glyphs is a RAM-only subset check. No-op for built-in
   // fonts.
   void ensureSdGlyphsResident(int fontId, const char* text, EpdFontFamily::Style style, bool metadataOnly) const;
 
-  void renderChar(const EpdFontFamily& fontFamily, uint32_t cp, int* x, int* y, bool pixelState,
-                  EpdFontFamily::Style style) const;
   void freeBwBufferChunks();
   template <Color color>
   void drawPixelDither(int x, int y) const;
@@ -140,19 +182,30 @@ class GfxRenderer {
 
  public:
   explicit GfxRenderer(HalDisplay& halDisplay)
-      : display(halDisplay), renderMode(BW), orientation(Portrait), fadingFix(false) {}
+      : display(halDisplay), renderMode(BW), orientation(Portrait), fadingFix(false), fontMap(this) {}
   ~GfxRenderer() { freeBwBufferChunks(); }
 
   // Setup
+  XpNativeProvider textProvider() const;
+  // Borrows the current framebuffer/strip target and Rust font owner for a synchronous paint.
+  void pageTarget(XpPageTarget& out, bool includeScanning = true) const;
+  bool drawUiScene(const XpUiScene& scene, const XpUiPaint* resources = nullptr) const;
+  XpUiPaint uiPaint() const;
+  // Shared text/resource services follow this target for the whole synchronous call.
+  bool drawUiScene(const XpUiScene& scene, const XpGlyphTarget& target, const XpUiPaint* resources) const;
+  void drawUiText(const XpUiCommand& command, XpUiRect clip, const char* text) const;
   void begin();  // must be called right after display.begin()
   void insertFont(int fontId, EpdFontFamily font);
   // Clears both the flash-font map and any SD-font registration for fontId.
   // Coupled to avoid dangling SdCardFont* in sdCardFonts_ when callers free
   // the underlying SdCardFont and forget the SD-side unregister.
   void removeFont(int fontId) {
+    ++fontTableGeneration;
     fontMap.erase(fontId);
+#ifdef XP_APP_TEST
     sdCardFonts_.erase(fontId);
     sdCardFontScales_.erase(fontId);
+#endif
   }
   void setFontCacheManager(FontCacheManager* m) { fontCacheManager_ = m; }
   FontCacheManager* getFontCacheManager() const { return fontCacheManager_; }
@@ -171,43 +224,76 @@ class GfxRenderer {
   void prewarmFallbackText(int fontId, TextGetter getter, const void* ctx, uint32_t textCount,
                            EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
   void prewarmFallbackText(int fontId, const char* text, EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
-  bool isFontCacheScanning() const;
-  const std::map<int, EpdFontFamily>& getFontMap() const { return fontMap; }
-  void registerSdCardFont(int fontId, SdCardFont* font) { sdCardFonts_[fontId] = font; }
-  void unregisterSdCardFont(int fontId) { removeFont(fontId); }
+  const FontRegistry& getFontMap() const { return fontMap; }
+#ifdef XP_APP_TEST
+  void registerSdCardFont(int fontId, SdCardFont* font) {
+    ++fontTableGeneration;
+    sdCardFonts_[fontId] = font;
+  }
   void clearSdCardFonts() {
+    ++fontTableGeneration;
     sdCardFonts_.clear();
     sdCardFontScales_.clear();
   }
-  void registerSdCardFontScale(int fontId, uint16_t scale) { sdCardFontScales_[fontId] = scale; }
-  void clearSdCardFontScales() { sdCardFontScales_.clear(); }
-  uint16_t getSdCardFontScale(int fontId) const {
-    auto it = sdCardFontScales_.find(fontId);
-    return (it != sdCardFontScales_.end()) ? it->second : 256;
-  }
   const std::map<int, SdCardFont*>& getSdCardFonts() const { return sdCardFonts_; }
-  bool isSdCardFont(int fontId) const { return sdCardFonts_.count(fontId) > 0; }
+#endif
+  bool isSdCardFont(int fontId) const {
+#ifdef XP_APP_TEST
+    if (sdCardFonts_.count(fontId)) return true;
+#endif
+    return xp_font_registry_query(fontMap.raw(), XP_FONT_SD, fontId, 0, nullptr).value != 0;
+  }
+#ifdef XP_APP_TEST
   // TTF (vector) fonts rendered via TtfEpdFont/FreeInkFont. Registered like an
   // ordinary EpdFontFamily (insertFont), plus tracked here so ensureSdCardFontReady()
   // rebuilds their per-page glyph set on demand — the eager analogue of the SD
   // font prewarm. The TtfEpdFont is owned by the caller (SdCardFontSystem).
-  void registerTtfFont(int fontId, TtfEpdFont* font) { ttfFonts_[fontId] = font; }
-  void unregisterTtfFont(int fontId) { ttfFonts_.erase(fontId); }
-  const std::map<int, TtfEpdFont*>& getTtfFonts() const { return ttfFonts_; }
-  // Register/clear size-matched CJK UI fallbacks (see fallbackFontMap_).
-  // setFallbackFont maps a primary UI font id to an SD font id of the same size.
-  void setFallbackFont(int primaryFontId, int fallbackFontId) { fallbackFontMap_[primaryFontId] = fallbackFontId; }
-  void clearFallbackFonts() { fallbackFontMap_.clear(); }
-
-  void setFontVariantProvider(const FontVariantProvider& provider) { fontVariantProvider_ = provider; }
-  int resolveFontVariant(const int fontId, const float scale) const {
-    return fontVariantProvider_.resolveFont(fontId, scale);
+  void registerTtfFont(int fontId, TtfEpdFont* font) {
+    ++fontTableGeneration;
+    ttfFonts_[fontId] = font;
   }
-  // True when fontId is registered, loading it through the variant provider if needed.
+  void unregisterTtfFont(int fontId) {
+    ++fontTableGeneration;
+    ttfFonts_.erase(fontId);
+  }
+  const std::map<int, TtfEpdFont*>& getTtfFonts() const { return ttfFonts_; }
+#endif
+  // Fallback IDs live in the Rust loaded-font registry via FontRegistry::setFallback.
+  // A size-matched SD fallback routes the whole UI string when the primary lacks CJK coverage.
+  // resolveTextFontId() queries that registry through fontMap.fallback().
+  void setFallbackFont(int primaryFontId, int fallbackFontId) {
+    ++fontTableGeneration;
+    fontMap.setFallback(primaryFontId, fallbackFontId);
+  }
+  void clearFallbackFonts() {
+    ++fontTableGeneration;
+    fontMap.clearFallbacks();
+  }
+
+#if defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
+  void setFontVariantProvider(const FontVariantProvider& provider) { fontVariantProvider_ = provider; }
+#endif
+  int resolveFontVariant(int fontId, float scale) const;
+  int resolveNonSdFontVariant(int fontId, float scale) const;
+  // Native fallback is restricted to builtin/vector fonts in catalog builds.
+  bool ensureNonSdFontLoaded(const int fontId) const {
+#if defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)
+    return fontMap.count(fontId) ||
+           (fontVariantProvider_.load && fontVariantProvider_.load(fontVariantProvider_.ctx, fontId) &&
+            fontMap.count(fontId));
+#else
+    return fontMap.count(fontId);
+#endif
+  }
+  // True when fontId is registered, loading it through its owner if needed.
   bool ensureFontLoaded(const int fontId) const {
     if (fontMap.count(fontId) != 0) return true;
-    return fontVariantProvider_.load && fontVariantProvider_.load(fontVariantProvider_.ctx, fontId) &&
-           fontMap.count(fontId) != 0;
+#ifdef XP_SD_FONT_CATALOG
+    const XpRegisteredFont entry{fontId, {}, 0};
+    return xp_font_registry_update(const_cast<XpLoadedFonts*>(fontMap.raw()), XP_FONT_ENSURE_LOADED, &entry);
+#else
+    return ensureNonSdFontLoaded(fontId);
+#endif
   }
   // Ensure SD card font glyph data is loaded for the given text. Called from layout code
   // (which holds a const GfxRenderer&) before measuring word widths. Safe to call on non-SD fonts (no-op).
@@ -270,6 +356,9 @@ class GfxRenderer {
   // whose physical row falls outside the band are clipped. The clip is applied
   // after the orientation rotate, so it is orientation-agnostic. Used to render
   // grayscale planes band-by-band without a full second buffer.
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  void copyStatusToStrip(int top, bool sourceInverted) const;
+#endif
   void beginStripTarget(uint8_t* scratch, int stripY0, int stripRows) const;
   void endStripTarget() const;
 
@@ -301,9 +390,6 @@ class GfxRenderer {
     clipBottom_ = y + height;
   }
   void drawPixel(int x, int y, bool state = true) const;
-  // Draw glyph ink with clipping and orientation resolved once per glyph.
-  void drawGlyphBitmap(const uint8_t* bitmap, int width, int height, const glyphBitmap::Frame& frame, bool twoBit,
-                       RenderMode mode, bool state) const;
   void drawLine(int x1, int y1, int x2, int y2, bool state = true) const;
   void drawLine(int x1, int y1, int x2, int y2, int lineWidth, bool state) const;
   void drawArc(int maxRadius, int cx, int cy, int xDir, int yDir, int lineWidth, bool state) const;
@@ -424,7 +510,9 @@ class GfxRenderer {
   void cleanupGrayscaleWithFrameBuffer() const;
 
   // Font helpers
+#ifdef XP_APP_TEST
   const uint8_t* getGlyphBitmap(const EpdFontData* fontData, const EpdGlyph* glyph) const;
+#endif
 
   // Lend the 48 KB framebuffer's bytes to a memory-hungry phase (chapter
   // builds) WITHOUT freeing the allocation, so it never moves and repeated

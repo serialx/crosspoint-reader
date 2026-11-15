@@ -1,0 +1,68 @@
+{
+  "snapshots": [
+    {
+      "file": "RustActivityAdapter.cpp.txt",
+      "source": "src/activities/RustActivityAdapter.cpp",
+      "revision": "8389157f693eff753259d08bc92624663458ab97",
+      "scope": "complete file",
+      "bytes": 5123,
+      "sha256": "a77d730d8ff293a1f6ddd215b6fe8cb6c1166655fd765d0dea5c0f397886754e",
+      "consumer": "test/ui_runtime/runtime_policy.py",
+      "retirement": "remove when frozen native/bridge adapter differential retires"
+    },
+    {
+      "file": "RustActivityAdapter.h.txt",
+      "source": "src/activities/RustActivityAdapter.h",
+      "revision": "8389157f693eff753259d08bc92624663458ab97",
+      "scope": "complete file",
+      "bytes": 2883,
+      "sha256": "b4474233c6ac066e892414f74cede6aa8510170ececc9c83a0e63df0df395eb1",
+      "consumer": "test/ui_runtime/runtime_policy.py",
+      "retirement": "remove when frozen native/bridge adapter differential retires"
+    },
+    {
+      "file": "ReaderChromeCommands.txt",
+      "source": [
+        "src/activities/reader/ReaderChromeListActivity.h",
+        "src/activities/reader/ReaderChromeListActivity.cpp"
+      ],
+      "revision": "8389157f693eff753259d08bc92624663458ab97",
+      "scope": [
+        "class ReaderChromeCommands",
+        "ReaderChromeCommands::reserve",
+        "ReaderChromeCommands::grow"
+      ],
+      "bytes": 991,
+      "sha256": "5e97f7954c703a8ad61e7003db129453a17697e2612fb7696c8e91ca9fb5d077",
+      "consumer": "test/ui_runtime/runtime_policy.py",
+      "retirement": "remove when native storage differential retires"
+    },
+    {
+      "file": "UpdateUiRender.txt",
+      "source": "src/activities/settings/UpdateUiActivity.cpp",
+      "revision": "8389157f693eff753259d08bc92624663458ab97",
+      "scope": "UpdateUiActivity::render",
+      "bytes": 909,
+      "sha256": "68154836591840e270d7b123142839cd4829843469b3ed8da4977161e2752ee2",
+      "consumer": "test/ui_runtime/runtime_policy.py via runtime_order.cpp.in",
+      "retirement": "remove when native release/publish/refresh differential retires"
+    },
+    {
+      "file": "ReaderThemeSampling.txt",
+      "source": [
+        "src/activities/reader/ReaderChromeListActivity.cpp",
+        "src/activities/reader/RustReaderDrawing.cpp"
+      ],
+      "revision": "420ea5f7c444cd77ae5f6f970bf9d31fa12f0853",
+      "scope": [
+        "sampleReaderChromeTheme",
+        "sampleReaderChildTheme"
+      ],
+      "bytes": 2081,
+      "sha256": "9501edb9963d2d09779c67ecf51cc483edf9411e301a99cc12b0038b59320222",
+      "consumer": "test/reader_children/prepare_percent_drawing.py via percent_drawing.cpp.in",
+      "retirement": "remove when the native/owned theme sampling differential retires"
+    }
+  ],
+  "total_bytes": 11987
+}

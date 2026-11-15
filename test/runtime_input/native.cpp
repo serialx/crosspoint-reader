@@ -84,6 +84,7 @@ int main() {
   mapped.pollFeedback();
   trace.push_back("rust-input-polled");
   mapped.pollFinish();
+  assert(gpio.heldReads == 0);  // No fired long press needs a held-state query.
   assert((trace == std::vector<std::string>{"sdk", "pages", "usb", "edges", "haptic", "rust-input-polled"}));
   trace.clear();
   gpio.state = {};
@@ -125,4 +126,33 @@ int main() {
   gpio.released = false;
   gpio.held = true;
   assert(mapped.wasLongPressed(B::Confirm, 900, H::Ignore));
+  gpio.heldReads = 0;
+  mapped.pollFinish();
+  assert(gpio.heldReads == 1);
+  assert(!mapped.wasLongPressed(B::Confirm, 900, H::Ignore));
+  gpio.held = false;
+  mapped.pollFinish();
+  gpio.heldReads = 0;
+  mapped.pollFinish();
+  assert(gpio.heldReads == 0);
+  // Multiple fired bits are independent, including the final logical button.
+  for (uint8_t value = 0; value <= static_cast<uint8_t>(B::ScreenDown); ++value) {
+    gpio.button = value;
+    gpio.held = true;
+    assert(mapped.wasLongPressed(static_cast<B>(value), 900, H::Ignore));
+  }
+  gpio.heldReads = 0;
+  mapped.pollFinish();
+  assert(gpio.heldReads == static_cast<unsigned>(B::ScreenDown) + 1);
+  gpio.heldReads = 0;
+  mapped.pollFinish();
+  assert(gpio.heldReads == 1);
+  assert(!mapped.wasLongPressed(B::ScreenDown, 900, H::Ignore));
+  gpio.held = false;
+  gpio.released = true;
+  mapped.pollFinish();
+  assert(mapped.consumeSuppressedRelease());
+  gpio.released = false;
+  gpio.held = true;
+  assert(mapped.wasLongPressed(B::ScreenDown, 900, H::Ignore));
 }

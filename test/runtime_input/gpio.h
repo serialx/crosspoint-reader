@@ -16,6 +16,7 @@ struct HalGPIO {
   XpHalInput state{};
   bool pressed = false, released = false, held = false, home = false;
   uint8_t button = 0;
+  mutable unsigned heldReads = 0;
   void update();
   XpHalInputPoll pollRaw();
   bool isUsbConnected() {
@@ -26,7 +27,10 @@ struct HalGPIO {
   bool wasAnyReleased() const { return released; }
   bool wasPressed(uint8_t b) const { return b == button && pressed; }
   bool wasReleased(uint8_t b) const { return b == button && released; }
-  bool isPressed(uint8_t b) const { return b == button && held; }
+  bool isPressed(uint8_t b) const {
+    ++heldReads;
+    return b == button && held;
+  }
   bool isCapacitivePagePressed(uint8_t) const { return false; }
   unsigned long getHeldTime() const { return 900; }
   bool wasCapacitivePagePressed() const { return state.page_pressed; }

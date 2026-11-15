@@ -38,8 +38,10 @@ void MappedInputManager::pollFeedback() const {
 }
 
 void MappedInputManager::pollFinish() const {
+  if (longPressFiredButtons == 0) return;
   for (uint8_t value = 0; value <= static_cast<uint8_t>(Button::ScreenDown); ++value) {
-    if (!isPressed(static_cast<Button>(value))) longPressFiredButtons &= ~(1u << value);
+    const uint16_t bit = 1u << value;
+    if ((longPressFiredButtons & bit) != 0 && !isPressed(static_cast<Button>(value))) longPressFiredButtons &= ~bit;
   }
 }
 

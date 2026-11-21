@@ -1,22 +1,30 @@
 --- a/Parsing.cpp
 +++ b/Parsing.cpp
-@@ -73,10 +73,13 @@
+@@ -73,10 +73,21 @@
    return buf;
  }
 
 +#include "UploadIngress.h"
 +
  bool WebServer::_parseRequest(NetworkClient &client) {
++  auto badUpload = [&]() {
++    static constexpr char response[] = "HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
++    if (client.connected()) client.write(reinterpret_cast<const uint8_t*>(response), sizeof(response) - 1);
++    return false;
++  };
 +  auto read = [&]() { return _uploadReadByte(client); };
    // Read the first line of HTTP request
 -  String req = client.readStringUntil('\r');
 -  client.readStringUntil('\n');
 +  String req;
-+  if (!upload_ingress::readHeaderLine(req, read, upload_ingress::LineKind::Request)) return false;
++  if (!upload_ingress::readHeaderLine(req, read, upload_ingress::LineKind::Request)) {
++    if (req.startsWith("POST /upload?") || req.startsWith("POST /upload ")) badUpload();
++    return false;
++  }
    //reset header value
    if (_collectAllHeaders) {
      // clear previous headers
-@@ -100,14 +103,18 @@
+@@ -100,14 +111,18 @@
    String methodStr = req.substring(0, addr_start);
    String url = req.substring(addr_start + 1, addr_end);
    String versionEnd = req.substring(addr_end + 8);
@@ -36,7 +44,7 @@
    _chunked = false;
    _clientContentLength = 0;  // not known yet, or invalid
 
-@@ -143,11 +150,11 @@
+@@ -143,11 +158,11 @@
      String headerName;
      String headerValue;
      bool isForm = false;
@@ -46,11 +54,11 @@
      while (1) {
 -      req = client.readStringUntil('\r');
 -      client.readStringUntil('\n');
-+      if (!upload_ingress::readHeaderLine(req, read, fileUpload ? upload_ingress::LineKind::Upload : upload_ingress::LineKind::Other)) return false;
++      if (!upload_ingress::readHeaderLine(req, read, fileUpload ? upload_ingress::LineKind::Upload : upload_ingress::LineKind::Other)) return fileUpload ? badUpload() : false;
        if (req == "") {
          break;  //no moar headers
        }
-@@ -157,6 +164,7 @@
+@@ -157,6 +172,7 @@
        }
        headerName = req.substring(0, headerDiv);
        headerValue = req.substring(headerDiv + 1);
@@ -58,7 +66,7 @@
        headerValue.trim();
        _collectHeader(headerName.c_str(), headerValue.c_str());
 
-@@ -168,7 +176,9 @@
+@@ -168,7 +184,9 @@
            isForm = false;
            isEncoded = true;
          } else if (headerValue.startsWith(F("multipart/"))) {
@@ -69,27 +77,25 @@
            boundaryStr.replace("\"", "");
            if (boundaryStr.length() > 70) {  // RFC 2046: max boundary length is 70
              log_e("Invalid boundary length: %s", boundaryStr.c_str());
-@@ -238,8 +248,18 @@
+@@ -238,9 +256,15 @@
        }
      } else {
        // it IS a form
 -      _parseArguments(searchStr);
-+      // Request parsing precedes response-header initialization; OOM must not allocate more headers.
-+      static constexpr char badUpload[] = "HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
 +      if (fileUpload) {
 +        if (!upload_ingress::parseUploadArguments(searchStr, _currentArgs, _currentArgCount)) {
-+          client.write(reinterpret_cast<const uint8_t*>(badUpload), sizeof(badUpload) - 1);
-+          return false;
++          return badUpload();
 +        }
 +      } else {
 +        _parseArguments(searchStr);
 +      }
        if (!_parseForm(client, boundaryStr, _clientContentLength)) {
-+        if (fileUpload && client.connected()) client.write(reinterpret_cast<const uint8_t*>(badUpload), sizeof(badUpload) - 1);
-         return false;
+-        return false;
++        return fileUpload ? badUpload() : false;
        }
      }
-@@ -410,23 +430,38 @@
+   } else {
+@@ -410,23 +434,38 @@
  }
 
  bool WebServer::_parseForm(NetworkClient &client, const String &boundary, uint32_t len) {
@@ -133,7 +139,7 @@
      while (1) {
        String argName;
        String argValue;
-@@ -434,70 +469,83 @@
+@@ -434,70 +473,83 @@
        String argFilename;
        bool argIsFile = false;
 
@@ -253,7 +259,7 @@
              _currentUpload->totalSize = 0;
              _currentUpload->currentSize = 0;
              log_v("Start File: %s Type: %s", _currentUpload->filename.c_str(), _currentUpload->type.c_str());
-@@ -511,7 +559,7 @@
+@@ -511,7 +563,7 @@
              snprintf(fastBoundary, fastBoundaryLen, "\r\n--%s", boundary.c_str());
              int boundaryPtr = 0;
              while (true) {
@@ -262,7 +268,7 @@
                if (ret < 0) {
                  // Unexpected, we should have had data available per above
                  return _parseFormUploadAborted();
-@@ -539,6 +587,17 @@
+@@ -539,6 +591,17 @@
                  }
                }
              }
@@ -280,7 +286,7 @@
              // Found the boundary string, finish processing this file upload
              if (_currentHandler && _currentHandler->canUpload(*this, _currentUri)) {
                _currentHandler->upload(*this, _currentUri, *_currentUpload);
-@@ -552,9 +611,7 @@
+@@ -552,9 +615,7 @@
              if (!client.connected()) {
                return _parseFormUploadAborted();
              }
@@ -291,7 +297,7 @@
                log_v("Done Parsing POST");
                break;
              }
-@@ -564,6 +621,7 @@
+@@ -564,6 +625,7 @@
        }
      }
 
@@ -299,7 +305,7 @@
      int iarg;
      int totalArgs = ((WEBSERVER_MAX_POST_ARGS - _postArgsLen) < _currentArgCount) ? (WEBSERVER_MAX_POST_ARGS - _postArgsLen) : _currentArgCount;
      for (iarg = 0; iarg < totalArgs; iarg++) {
-@@ -574,7 +632,11 @@
+@@ -574,7 +636,11 @@
      if (_currentArgs) {
        delete[] _currentArgs;
      }

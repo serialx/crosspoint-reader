@@ -134,7 +134,7 @@ int main() {
   const std::string dir(24,'a');
   const std::string fileStart="Content-Disposition: form-data; name=\"file\"; filename=\"a.txt\"\r\n\r\n";
   const std::string closed="--b\r\n"+fileStart+"first\r\n--b--\r\n";
-  for(const std::string mode: {"valid","two","decode-oom","short-first","short-second","bad-suffix","empty","no-crlf"}) {
+  for(const std::string mode: {"valid","two","decode-oom","short-first","short-second","bad-suffix","empty","no-crlf","long-request","long-header"}) {
     WebServer web;
     NetworkClient client;
     web.failDecode=mode=="decode-oom";
@@ -146,9 +146,13 @@ int main() {
     if(mode=="empty")body="--b\r\n"+fileStart+"\r\n--b--\r\n";
     if(mode=="no-crlf")body.resize(body.size()-2);
     client.input="POST /upload?overwrite=true&path="+dir+" HTTP/1.1\r\nContent-Type: multipart/form-data; boundary=b\r\nContent-Length: "+std::to_string(body.size())+"\r\nX-End: yes\r\n\r\n"+body;
+    if(mode=="long-request")client.input.insert(client.input.find(" HTTP"), 8192, 'x');
+    if(mode=="long-header")client.input.insert(client.input.find("X-End: "), "X-Long: "+std::string(8192,'x')+"\r\n");
     bool ok=web._parseRequest(client);
     auto& done=web.handler.committed;
-    if(mode=="decode-oom"){
+    if(mode=="long-request" || mode=="long-header"){
+      assert(!ok && web.handler.events.empty());
+    } else if(mode=="decode-oom"){
       assert(String::failedAllocations==1 && !ok && web.handler.events.empty());
     } else if(mode=="short-second"){
       assert(!ok && done==std::vector<std::string>{"first"} && web.handler.events.back()==UPLOAD_FILE_ABORTED);

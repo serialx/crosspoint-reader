@@ -192,6 +192,8 @@ pub struct Request {
     pub last_redirected: *mut bool,
     pub capture_error_body: bool,
     pub downgrade_redirects: bool,
+    pub defer_open: bool,
+    pub refuse_write: bool,
     pub client_storage: *mut c_void,
     pub file_storage: *mut c_void,
 }

@@ -21,6 +21,7 @@ struct Transfer<'a> {
     same_origin: bool,
     first: bool,
     invalid: bool,
+    file_opened: bool,
     end: usize,
     attempt_start: usize,
 }
@@ -47,6 +48,7 @@ impl<'a> Transfer<'a> {
             same_origin: true,
             first: true,
             invalid: false,
+            file_opened: false,
             end: 0,
             attempt_start: 0,
         }
@@ -111,6 +113,20 @@ fn range(bytes: &[u8]) -> Option<(usize, usize, usize)> {
 #[inline(never)]
 unsafe fn begin_response(t: *mut Transfer<'_>, facts: Facts) -> bool {
     (*t).first = false;
+    if (*t).request.defer_open && !(*t).file_opened {
+        if (*t).request.refuse_write {
+            (*t).stopped = true;
+            return false;
+        }
+        let file = &*(*t).leaves.file;
+        let part = (*t).part.as_ref().unwrap().native();
+        // The file leaf truncates a stale part when it opens successfully.
+        if !(file.open_write)((*t).request.file_storage, part) {
+            (*t).stopped = true;
+            return false;
+        }
+        (*t).file_opened = true;
+    }
     if facts.status == 206 {
         let value = (*t).pool.header(
             &*(*t).leaves.sdk,
@@ -483,7 +499,7 @@ unsafe fn run(t: *mut Transfer<'_>) -> u32 {
     let r = (*t).request;
     let file = &*(*t).leaves.file;
     let is_file = matches!(r.kind, Kind::Download | Kind::PostFile);
-    if is_file {
+    if is_file && !r.defer_open {
         let part = (*t).part.as_ref().unwrap().native();
         (file.remove)(part);
         if !(file.open_write)(r.file_storage, part) {
@@ -535,6 +551,9 @@ unsafe fn run(t: *mut Transfer<'_>) -> u32 {
     };
     if let Some(guard) = guard {
         exit_guard(guard, (*t).leaves.radio, (*t).leaves.diagnostics);
+    }
+    if r.defer_open && !(*t).file_opened {
+        return result;
     }
     if r.kind == Kind::Download {
         (file.close)(r.file_storage, false);

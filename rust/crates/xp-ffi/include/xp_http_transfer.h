@@ -154,6 +154,8 @@ typedef struct {
   bool* last_redirected;
   bool capture_error_body;
   bool downgrade_redirects;
+  bool defer_open;
+  bool refuse_write;
   // Exclusive call-local placement storage; no new native owner allocation.
   void* client_storage;
   void* file_storage;

@@ -33,6 +33,8 @@ class HttpDownloader {
   static constexpr uint32_t MIN_TLS_FREE_HEAP = 40000;
   static constexpr uint32_t MIN_TLS_MAX_ALLOC = 20000;
 
+  enum class FileOpen : uint8_t { Immediate, AfterSuccess, RefuseOnSuccess };
+
   using Header = std::pair<std::string, std::string>;
 
   /**
@@ -109,7 +111,8 @@ class HttpDownloader {
   static DownloadError downloadToFile(const std::string& url, const std::string& destPath,
                                       ProgressCallback progress = nullptr, const bool* cancelFlag = nullptr,
                                       const std::string& username = "", const std::string& password = "",
-                                      const std::vector<Header>& headers = {}, bool downgradeRedirectsToHttp = false);
+                                      const std::vector<Header>& headers = {}, bool downgradeRedirectsToHttp = false,
+                                      FileOpen fileOpen = FileOpen::Immediate);
 
   /**
    * POST a body (e.g. an LCP license to the fulfillment service) and stream

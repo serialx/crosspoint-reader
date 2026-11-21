@@ -1,5 +1,6 @@
 #include "Oracle.h"
 
+#include <cassert>
 #include <cstdlib>
 #include <iostream>
 #include <new>
@@ -255,6 +256,29 @@ int main() {
                      output.size(), oracle::hash(reinterpret_cast<const uint8_t*>(output.data()), output.size()));
       dump("http-" + std::to_string(kind) + "-" + std::to_string(scenario));
     }
+  for (const int status : {200, 401, 403}) {
+    for (const auto open : {HttpDownloader::FileOpen::AfterSuccess, HttpDownloader::FileOpen::RefuseOnSuccess}) {
+      oracle::reset();
+      oracle::responses = {oracle::Response{}};
+      oracle::responseIndex = 0;
+      oracle::responses[0].status = status;
+      oracle::files["/book.part"] = {42};
+      const auto result =
+          HttpDownloader::downloadToFile("https://host/file", "/book", {}, nullptr, "", "", {}, false, open);
+      if (status == 200 && open == HttpDownloader::FileOpen::AfterSuccess) {
+        assert(result == HttpDownloader::OK && oracle::files.count("/book") == 1);
+      } else {
+        if (status != 200)
+          assert(result == HttpDownloader::UNAUTHORIZED);
+        else
+          assert(result != HttpDownloader::OK);
+        assert(oracle::files.count("/book") == 0 && oracle::files.at("/book.part") == std::vector<uint8_t>{42});
+        for (const auto& line : oracle::trace)
+          assert(!line.starts_with("open ") && !line.starts_with("remove ") && !line.starts_with("replace ") &&
+                 !line.starts_with("write "));
+      }
+    }
+  }
   for (const char* p : {"/", "/.crosspoint/wifi.json", "//.crosspoint/./wifi.json.", "/a/../.crosspoint/opds.json",
                         "/CROSSP~1/WIFI~1.JSO", "/a/b/IMG~1.JPG", "/.fonts/a", "/a/../../.crosspoint/koreader.json",
                         "/ .crosspoint / wifi.json.backup"}) {

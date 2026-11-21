@@ -40,6 +40,7 @@ class CrossPointWebServer : private XpWebLifecycle {
     HalFile file;
     String fileName;
     String path = "/";
+    String stagedPath;  // Retained until close or abort so cleanup needs no allocation.
     mutable XpWebUpload policy{};
     String error = "";
 

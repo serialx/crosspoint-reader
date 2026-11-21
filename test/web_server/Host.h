@@ -232,6 +232,10 @@ class HalFile {
 };
 
 struct StorageStub {
+  bool isDirectory(const char* p) const {
+    const auto file = open(p);
+    return file && file.isDirectory();
+  }
   bool exists(const char* p) const {
     host::trace.push_back(std::string("exists:") + p);
     return host::files.count(p);
@@ -288,6 +292,10 @@ struct StorageStub {
   bool replaceFile(const char* from, const char* to) const {
     host::trace.push_back(std::string("replace:") + from + ":" + to);
     if (host::fail("replace") || !host::files.count(from)) return false;
+    if (host::fail("rename")) {
+      host::files.erase(to);
+      return false;
+    }
     host::files[to] = host::files[from];
     host::files.erase(from);
     return true;

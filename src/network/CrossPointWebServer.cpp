@@ -160,6 +160,8 @@ struct WebFileBridge {
         return uploadState->fileName;
       case XP_WEB_UPLOAD_PATH:
         return uploadState->path;
+      case XP_WEB_UPLOAD_STAGE:
+        return uploadState->stagedPath;
       case XP_WEB_UPLOAD_ERROR:
         return uploadState->error;
       case XP_WEB_WS_NAME:
@@ -228,6 +230,8 @@ const XpWebServices WebFileBridge::services = {
       if (slot >= 3) return 0;
       auto& file = slot == 0 && b.borrowed ? *b.borrowed : b.files[slot];
       switch (static_cast<XpWebIo>(operation)) {
+        case XP_WEB_IS_DIRECTORY_PATH:
+          return Storage.isDirectory(path);
         case XP_WEB_EXISTS:
           return Storage.exists(path);
         case XP_WEB_OPEN:
@@ -1058,6 +1062,7 @@ void WebFileBridge::http(const CrossPointWebServer& owner, CrossPointWebServer::
     length = part.currentSize;
   }
   xp_web_upload(&bridge, &transfers, &state.policy, event, name, bytes, length);
+  if (!state.file) state.stagedPath = static_cast<const char*>(nullptr);
 }
 
 void WebFileBridge::ws(const CrossPointWebServer& owner, uint8_t client, uint32_t event, uint8_t* payload,

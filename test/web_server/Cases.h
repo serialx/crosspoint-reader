@@ -197,6 +197,39 @@ static void text(CrossPointWebServer& app, uint8_t client, const std::string& by
 int main() {
 #ifdef XP_FFI_HOST_FAULT_INJECTION
 
+  if (const char* check = std::getenv("WEB_UPLOAD_OVERWRITE_CHECK")) {
+    record(check, [&](auto& app) {
+      const std::string mode(check), dest("/books/a.epub"), part(dest + ".part");
+      app.server->args["path"] = "/books";
+      app.server->args["overwrite"] = mode == "refuse" ? "yes" : mode == "success" ? "1" : "true";
+      app.server->part.filename = "a.epub";
+      if (mode == "directory") host::add(dest, "", true);
+      upload(app, UPLOAD_FILE_START);
+      if (mode == "directory" || mode == "refuse") {
+        if (host::files.contains(part) || app.upload.error.isEmpty()) std::abort();
+        return;
+      }
+      if (!host::files.contains(part) || host::files.at(dest)->bytes != "original") std::abort();
+      upload(app, UPLOAD_FILE_WRITE, "new");
+      if (mode == "close" || mode == "replace" || mode == "rename") {
+        host::failOperation = mode;
+        host::failAfter = 0;
+      }
+      upload(app, mode == "cancel" ? UPLOAD_FILE_ABORTED : UPLOAD_FILE_END);
+      const bool installed = mode == "success", recovered = mode == "rename";
+      if (app.upload.policy.success != installed || host::files.contains(part) != recovered) std::abort();
+      if (recovered) {
+        if (host::files.contains(dest) || host::files.at(part)->bytes != "new") std::abort();
+      } else if (host::files.at(dest)->bytes != (installed ? "new" : "original")) {
+        std::abort();
+      }
+      for (const std::string event : {"cache:/books/a.epub", "library-dirty"}) {
+        if (std::count(host::trace.begin(), host::trace.end(), event) != int(installed || recovered)) std::abort();
+      }
+    });
+    return 0;
+  }
+
   if (const char* check = std::getenv("WEB_UPLOAD_CLOSE_CHECK")) {
     record("upload-close-failure", [&](auto& app) {
       constexpr std::string_view error = "Failed to write final data to SD card";

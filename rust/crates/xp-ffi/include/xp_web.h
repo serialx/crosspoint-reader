@@ -41,7 +41,8 @@ typedef enum {
   XP_WEB_REPLACE,  // path is source; data is a NUL-terminated target path.
   XP_WEB_OPEN_APPEND,
   XP_WEB_FLUSH,
-  XP_WEB_CREATE_PLUGIN
+  XP_WEB_CREATE_PLUGIN,
+  XP_WEB_IS_DIRECTORY_PATH
 } XpWebIo;
 typedef enum { XP_WEB_CACHE, XP_WEB_REMOVE_BOOK, XP_WEB_MOVE_BOOK, XP_WEB_LIBRARY_BOOK } XpWebBook;
 typedef enum {
@@ -126,7 +127,8 @@ typedef enum {
   XP_WEB_FONT_FAMILY,
   XP_WEB_FONT_PATH,
   XP_WEB_PLUGIN_PATH,
-  XP_WEB_PLUGIN_TMP
+  XP_WEB_PLUGIN_TMP,
+  XP_WEB_UPLOAD_STAGE
 } XpWebStoredText;
 typedef enum {
   XP_WEB_UPLOAD_STOPPED,

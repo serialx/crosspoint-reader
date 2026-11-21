@@ -182,6 +182,7 @@ enum Io {
     OpenAppend,
     Flush,
     CreatePlugin,
+    IsDirectoryPath,
 }
 #[repr(u32)]
 #[derive(Clone, Copy)]
@@ -866,6 +867,7 @@ enum Field {
     FontPath,
     PluginPath,
     PluginTmp,
+    UploadStage,
 }
 #[repr(u32)]
 #[derive(Clone, Copy)]
@@ -939,7 +941,11 @@ impl Transfer<'_> {
         state.buffer = core::ptr::null_mut();
     }
     fn remove_upload(&self, ws: bool) -> (Span, bool) {
-        let path = unsafe { (self.t.joined_path)(self.r.ctx, ws) };
+        let path = if !ws && !self.get(Field::UploadStage).is_empty() {
+            unsafe { (self.t.get)(self.r.ctx, Field::UploadStage as u32) }
+        } else {
+            unsafe { (self.t.joined_path)(self.r.ctx, ws) }
+        };
         let removed = !path.data.is_null()
             && self
                 .r
@@ -1007,6 +1013,7 @@ impl Transfer<'_> {
                 self.r.watchdog();
                 self.set(Field::UploadName, name);
                 state.size = 0;
+                self.set(Field::UploadStage, b"");
                 state.success = false;
                 self.set(Field::UploadError, b"");
                 state.started_at = self.time();
@@ -1027,18 +1034,35 @@ impl Transfer<'_> {
                 self.set(Field::UploadPath, path.bytes());
                 self.diagnostic(TransferEvent::UploadStart, name, path.bytes(), 0, 0, 0);
                 self.diagnostic(TransferEvent::UploadHeap, b"", b"", 0, 0, 0);
-                let path = self.path(false)?;
+                let mut path = self.path(false)?;
                 if self.r.sensitive(&path) {
                     self.set(Field::UploadError, b"Cannot write protected items");
                     return Ok(());
                 }
                 self.r.watchdog();
                 if self.r.fs(Io::Exists, 0, &path) != 0 {
-                    let mut error = Text::new(b"File already exists: ")?;
-                    error.append(name)?;
-                    self.set(Field::UploadError, error.bytes());
-                    self.diagnostic(TransferEvent::UploadCollision, path.bytes(), b"", 0, 0, 0);
-                    return Ok(());
+                    let value =
+                        unsafe { (self.r.services.argument)(self.r.ctx, c"overwrite".as_ptr()) };
+                    let overwrite = matches!(unsafe { value.bytes() }, b"1" | b"true");
+                    unsafe { (self.r.services.argument)(self.r.ctx, core::ptr::null()) };
+                    let directory = overwrite && self.r.fs(Io::IsDirectoryPath, 1, &path) != 0;
+                    if !overwrite || directory {
+                        let mut error = Text::new(if directory {
+                            b"A folder with this name already exists: "
+                        } else {
+                            b"File already exists: "
+                        })?;
+                        error.append(name)?;
+                        self.set(Field::UploadError, error.bytes());
+                        self.diagnostic(TransferEvent::UploadCollision, path.bytes(), b"", 0, 0, 0);
+                        return Ok(());
+                    }
+                    path.0.try_reserve_exact(5).map_err(|_| ())?;
+                    path.append(b".part")?;
+                    self.set(Field::UploadStage, path.bytes());
+                    if self.get(Field::UploadStage).len() != path.bytes().len() {
+                        return Err(());
+                    }
                 }
                 state.buffer = unsafe { (self.r.services.buffer)(self.r.ctx, true) };
                 if state.buffer.is_null() {
@@ -1123,6 +1147,48 @@ impl Transfer<'_> {
                     if !flushed || !closed || !self.get(Field::UploadError).is_empty() {
                         self.remove_upload(false);
                     } else {
+                        let Ok(dest) = self.path(false) else {
+                            self.remove_upload(false);
+                            return Err(());
+                        };
+                        let part = unsafe { (self.t.get)(self.r.ctx, Field::UploadStage as u32) };
+                        if part.len != 0 {
+                            self.r.watchdog();
+                            if self.r.io(
+                                Io::Replace,
+                                0,
+                                part.data.cast(),
+                                dest.ptr().cast_mut().cast(),
+                                0,
+                            ) == 0
+                            {
+                                if self.r.fs(Io::Exists, 0, &dest) != 0 {
+                                    self.r.io(
+                                        Io::Remove,
+                                        0,
+                                        part.data.cast(),
+                                        core::ptr::null_mut(),
+                                        0,
+                                    );
+                                    self.set(
+                                        Field::UploadError,
+                                        b"Failed to replace the existing file",
+                                    );
+                                } else {
+                                    self.r.book(0, &dest, None);
+                                    self.r.book(3, &dest, None);
+                                    self.free_buffer(state);
+                                    let mut error =
+                                        Text::new(b"Replace failed; the new file is kept as ")?;
+                                    error.append(self.get(Field::UploadName))?;
+                                    error.append(b".part")?;
+                                    self.set(Field::UploadError, error.bytes());
+                                    return Ok(());
+                                }
+                                self.free_buffer(state);
+                                return Ok(());
+                            }
+                        }
                         state.success = true;
                         let elapsed = self.time().wrapping_sub(state.started_at) as usize;
                         self.diagnostic(
@@ -1141,9 +1207,8 @@ impl Transfer<'_> {
                             state.write_time as usize,
                             elapsed,
                         );
-                        let path = self.path(false)?;
-                        self.r.book(0, &path, None);
-                        self.r.book(3, &path, None);
+                        self.r.book(0, &dest, None);
+                        self.r.book(3, &dest, None);
                     }
                 }
                 self.free_buffer(state);

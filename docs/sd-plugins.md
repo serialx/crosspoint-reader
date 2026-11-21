@@ -205,7 +205,10 @@ String fields explicitly passed through the template resolver support substituti
 Template-bearing fields include request URLs, bodies, and header values;
 `browse.lists_url`; list notice title/message/Confirm/Cancel text; `bundle.subdir`;
 download filename/username/password; and sidecar path/body.
-Catalog template expansions, including the XML listing base used to resolve links, are limited to 16 KiB each, and the escaped request URL, body, header names and header values must fit within 16 KiB in total.
+For each outgoing catalog request, the escaped URL, body, header names and
+header values must fit within 16 KiB in total. The expanded XML listing base used
+to resolve links also has a 16 KiB limit. After a download, an expanded sidecar
+path or body over 16 KiB is treated as a sidecar write failure.
 
 | Variable | Meaning | Available in |
 |---|---|---|
@@ -427,7 +430,8 @@ JSON catalogs may also map `description`, `detail_author`, and `repository` for 
   fetched lists follow any `lists` from the manifest. A 401 or 403 triggers
   one token refresh and retry when a password grant is configured. If the
   request still returns 401 or 403, the catalog shows the sign-in screen.
-  For other fetch failures, the manifest's own lists stay available and the
+  An oversized request shows the fetch error. For other fetch failures, the
+  manifest's own lists stay available and the
   catalog waits until it is reopened to fetch the index again. Without fixed
   lists, the catalog shows an error and Retry fetches again. Firmware before
   this change ignores `lists_url` when `lists` is also

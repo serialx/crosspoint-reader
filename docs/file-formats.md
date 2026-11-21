@@ -113,10 +113,9 @@ This branch applies the upstream invalidations for versions 69 through 73 togeth
 ### Version 73
 
 Version 73 keeps the binary layout and rebuilds completed and partial sections.
-When a TrueType font has no mapping for U+FFFD (the replacement character),
-the reader renders and advances its .notdef glyph. This can change cached line
-breaks and word positions. Other unmapped characters keep their usual fallback.
-Book metadata and saved progress are kept.
+TrueType vector fonts now render and advance the .notdef glyph for missing
+characters instead of omitting them. Cached line breaks and word positions change
+for text containing glyph fallbacks. Book metadata and saved progress are kept.
 
 ### Version 72
 

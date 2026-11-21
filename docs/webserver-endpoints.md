@@ -40,7 +40,7 @@ Response:
 
 ```json
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "firmwareFamily": "crosspoint",
   "pluginApi": 1,
   "pluginCapabilities": "catalog.lists,catalog.notices,catalog.bundle_install,catalog.version_tracking,catalog.compatibility,catalog.item_details,catalog.encoded_item_fields,catalog.list_index_mapping,catalog.list_requirements,catalog.server_paths",

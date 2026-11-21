@@ -103,18 +103,23 @@ struct String : std::string {
 namespace freeink {
 struct SecureHttpClient {
   std::string path;
+  bool connected = false;
   void setUserAgent(const char*) {}
   void setInsecure() {}
   void setTimeout(int) {}
-  void addHeader(const std::string&, const std::string&) {}
+  void addHeader(const std::string&, const std::string&) { assert(connected); }
   bool begin(const std::string& wire) { path = wire; return true; }
+  bool connect(const std::function<bool()>& abort) {
+    connected = !abort || !abort();
+    return connected;
+  }
 };
 }
 namespace pluginhttp {
 using Headers = std::vector<std::pair<std::string, std::string>>;
 }
 freeink::SecureHttpClient* openClient(freeink::SecureHttpClient*, freeink::SecureHttpClient&,
-                                    const std::string&, const pluginhttp::Headers&);
+                                    const std::string&, const pluginhttp::Headers&, const std::function<bool()>&);
 
 namespace pluginhttp {
 struct RequestSpec { std::string url, method, body; Headers headers; };
@@ -153,7 +158,7 @@ int request(int* session, const std::string& url, const std::string&, const std:
   if (constrainDetails) {
     assert(session);
     freeink::SecureHttpClient client;
-    assert(openClient(&client, client, url, headers) == &client);
+    assert(openClient(&client, client, url, headers, {}) == &client);
     assert(client.path == expectedDetailsWire);
     response = body;
     assert(url == expectedDetailsRaw && url.capacity() < 4096);

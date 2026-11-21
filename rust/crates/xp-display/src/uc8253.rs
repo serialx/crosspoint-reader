@@ -1,5 +1,5 @@
 // MIT: Copyright (c) 2026 FreeInk. See LICENSE.freeink.
-// Port of FreeInk SDK 37d272d4 Uc8253X3Driver.cpp; waveform policy is unchanged.
+// Port of FreeInk SDK Uc8253X3Driver.cpp.
 use crate::constants::*;
 use crate::{frame::Frame, luts, Bus, Panel, Request, RowOrder};
 
@@ -70,6 +70,8 @@ const STATE_PENDING: u16 = 1 << 8;
 const STATE_PENDING_OFF: u16 = 1 << 9;
 const STATE_PENDING_FULL: u16 = 1 << 10;
 const STATE_PENDING_FAST: u16 = 1 << 11;
+// RAM cleanup restores the B/W planes while the glass still holds AA gray.
+const STATE_GRAY_ON_GLASS: u16 = 1 << 12;
 
 pub struct Uc8253 {
     width: u16,
@@ -320,6 +322,9 @@ impl Uc8253 {
             self.set(STATE_SCREEN_ON, true);
         }
         bus.cmd(0x12);
+        if full || !fast {
+            self.set(STATE_GRAY_ON_GLASS, false);
+        }
         let start = bus.clock_ms();
         while bus.busy_level() == 1 && bus.clock_ms().wrapping_sub(start) < 50 {
             bus.delay_ms(1);
@@ -407,6 +412,7 @@ impl Uc8253 {
             || self.has(STATE_LSB_VALID)
             || self.has(STATE_FORCE_SYNC)
             || self.initial_syncs > 0
+            || (mode != Refresh::Fast && self.has(STATE_GRAY_ON_GLASS))
         {
             self.display(bus, fb, mode, false)?;
             self.load_cdi(bus, 0xa9, Bank::PreBwMid);
@@ -512,6 +518,7 @@ impl Uc8253 {
         );
         self.trigger(bus, off, TAG_X3_DRF);
         self.set(STATE_RED_SYNCED, false);
+        self.set(STATE_GRAY_ON_GLASS, true);
         self.set(STATE_FORCE_SYNC, false);
         self.condition_passes = 0;
         self.set(STATE_LSB_VALID, false);
@@ -557,6 +564,7 @@ impl Uc8253 {
         self.trigger(bus, false, TAG_X3_DRF);
         self.set(STATE_LSB_VALID, false);
         self.set(STATE_RED_SYNCED, true);
+        self.set(STATE_GRAY_ON_GLASS, false);
     }
     pub fn execute(&mut self, bus: &mut impl Bus, r: Request<'_>) -> Result<u32, u32> {
         self.execute_source(bus, r, None)
@@ -577,6 +585,7 @@ impl Uc8253 {
             OP_BEGIN => self.begin(bus),
             OP_SLEEP => {
                 self.set(STATE_LSB_VALID, false);
+                self.set(STATE_GRAY_ON_GLASS, false);
                 self.set(STATE_ABSOLUTE, false);
                 self.set(STATE_DIRECT_PASS, false);
                 if self.has(STATE_SCREEN_ON) {
@@ -712,6 +721,7 @@ impl Panel for Uc8253 {
         self.condition_passes = 0;
         self.set(STATE_IN_GRAY, false);
         self.set(STATE_LSB_VALID, false);
+        self.set(STATE_GRAY_ON_GLASS, false);
         self.set(STATE_ABSOLUTE, false);
         self.set(STATE_DIRECT_PASS, false);
         self.set(STATE_DIRECT_ON_PANEL, false);

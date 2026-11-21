@@ -45,7 +45,7 @@ int main() {
       [](void*, size_t) { return span("/plugins/demo"); },
       [](void*, size_t) { return true; },
       [](void*, size_t i) { return i < 5 ? span(NAMES[i]) : XpPluginSpan{nullptr, 0}; },
-      [](void*, size_t) { return false; },
+      [](void*, size_t, bool*, XpPluginSpan*) { return true; },
       [](void*) {},
       nullptr};
   xp_plugin_subscriptions(table, &subscriptions);

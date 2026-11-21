@@ -26,11 +26,13 @@ class GfxRenderer;
 //
 // A handler is either a "request" (response discarded; an acknowledgement) or
 // a "download" (response streamed to `dest` on SD, e.g. a sleep image).
+// "require_meta" queues only events whose book sidecar has a non-empty value
+// for the named key. book.downloaded supplies the book path in "path".
 //
 // Execution is deferred: plugin handlers need the network, and events mostly
 // fire with WiFi down (leaving the reader, entering sleep). Event emission appends one
-// JSON line to the plugin's SD outbox (<plugin dir>/events.jsonl) and costs
-// nothing beyond that; drain() later replays queued events through the
+// JSON line to the plugin's SD outbox (<plugin dir>/events.jsonl).
+// drain() later replays queued events through the
 // declared requests whenever the device is already online. Substitution in
 // url/body/headers/toast: {token}, {cfg.KEY}, and the event's {event.*} vars.
 //

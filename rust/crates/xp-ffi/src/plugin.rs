@@ -1,5 +1,11 @@
 //! Plugin policy. Containers, JSON conversions and I/O remain synchronous leaves.
-use core::ffi::{c_char, c_void};
+extern crate alloc;
+use crate::web_jobs::paths::{xp_plugin_path_candidate, xp_sensitive_path};
+use alloc::vec::Vec;
+use core::{
+    ffi::{c_char, c_void, CStr},
+    mem::MaybeUninit,
+};
 
 #[repr(u32)]
 enum SubscriptionDiagnostic {
@@ -274,12 +280,14 @@ pub struct Subscriber {
     dir: [u8; SUB_DIR_BYTES],
     mask: u8,
     connect_mask: u8,
+    meta_key_hash: [u32; EVENT_COUNT],
 }
 const EMPTY_SUB: Subscriber = Subscriber {
     name: [0; SUB_NAME_BYTES],
     dir: [0; SUB_DIR_BYTES],
     mask: 0,
     connect_mask: 0,
+    meta_key_hash: [0; EVENT_COUNT],
 };
 fn zbytes(s: &[u8]) -> &[u8] {
     &s[..s.iter().position(|&b| b == 0).unwrap_or(s.len())]
@@ -293,7 +301,7 @@ pub struct Subscriptions {
     dir: unsafe extern "C" fn(*mut c_void, usize) -> Span,
     parse: unsafe extern "C" fn(*mut c_void, usize) -> bool,
     event: unsafe extern "C" fn(*mut c_void, usize) -> Span,
-    connect: unsafe extern "C" fn(*mut c_void, usize) -> bool,
+    options: unsafe extern "C" fn(*mut c_void, usize, *mut bool, *mut Span) -> bool,
     release: unsafe extern "C" fn(*mut c_void),
     diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, usize, usize)>,
 }
@@ -328,6 +336,7 @@ pub unsafe extern "C" fn xp_plugin_subscriptions(
             continue;
         }
         let (mut mask, mut connect) = (0, 0);
+        let mut meta_key_hash = [0; EVENT_COUNT];
         let mut n = 0;
         loop {
             let event = (s.event)(s.ctx, n);
@@ -338,10 +347,20 @@ pub unsafe extern "C" fn xp_plugin_subscriptions(
             if e < 0 {
                 s.diagnostic(SubscriptionDiagnostic::Unknown as u32, i, n);
             } else {
-                let bit = xp_plugin_event_mask(e as u32);
-                mask |= bit;
-                if (s.connect)(s.ctx, n) {
-                    connect |= bit;
+                let mut wake = false;
+                let mut key = Span::new(&[]);
+                if (s.options)(s.ctx, n, &mut wake, &mut key) {
+                    let bit = xp_plugin_event_mask(e as u32);
+                    mask |= bit;
+                    if wake {
+                        connect |= bit;
+                    }
+                    let key = key.bytes();
+                    meta_key_hash[e as usize] = if key.is_empty() {
+                        0
+                    } else {
+                        meta_key_hash_of(key)
+                    };
                 }
             }
             n += 1;
@@ -356,6 +375,7 @@ pub unsafe extern "C" fn xp_plugin_subscriptions(
         sub.dir[..dir.len()].copy_from_slice(dir);
         sub.mask = mask;
         sub.connect_mask = connect;
+        sub.meta_key_hash = meta_key_hash;
         slot += 1;
         s.diagnostic(SubscriptionDiagnostic::Added as u32, i, usize::from(mask));
     }
@@ -954,6 +974,93 @@ pub struct Emit {
     pub(crate) append: unsafe extern "C" fn(*mut c_void, *const Subscriber, usize),
     pub(crate) oversize: unsafe extern "C" fn(*mut c_void, usize),
 }
+fn meta_key_hash_of(key: &[u8]) -> u32 {
+    let hash = key.iter().fold(2166136261u32, |hash, &byte| {
+        (hash ^ u32::from(byte)).wrapping_mul(16777619)
+    });
+    if hash == 0 {
+        1
+    } else {
+        hash
+    }
+}
+
+#[repr(C, align(8))]
+struct MetadataStorage {
+    words: [MaybeUninit<usize>; 30],
+}
+
+extern "C" {
+    // A null path drops the document created by a successful read.
+    fn xp_native_plugin_metadata(
+        storage: *mut MetadataStorage,
+        path: *const c_char,
+        json: *mut Json,
+    ) -> bool;
+}
+
+#[inline(never)]
+unsafe fn metadata_mask(table: &[Subscriber; MAX_EVENT_PLUGINS], event: usize, vars: &[Var]) -> u8 {
+    // The event JSON uses the last value for each name.
+    let value = |key: &[u8]| {
+        vars.iter()
+            .rev()
+            .find(|v| !v.key.is_null() && CStr::from_ptr(v.key).to_bytes() == key)
+            .filter(|v| !v.value.is_null())
+            .map_or(b"".as_slice(), |v| CStr::from_ptr(v.value).to_bytes())
+    };
+    let mut book = value(b"book");
+    if book.is_empty() {
+        book = value(b"path");
+    }
+    if book.is_empty() {
+        return 0;
+    }
+
+    let suffix = b".meta.json";
+    let len = book.len() + suffix.len();
+    let mut bytes = Vec::new();
+    if bytes.try_reserve_exact(2 * (len + 1)).is_err() {
+        return 0;
+    }
+    bytes.extend_from_slice(book);
+    bytes.extend_from_slice(suffix);
+    bytes.resize(2 * (len + 1), 0);
+    let (path, scratch) = bytes.split_at_mut(len + 1);
+    if !xp_plugin_path_candidate(path.as_ptr(), len)
+        || xp_sensitive_path(path.as_ptr(), len, scratch.as_mut_ptr())
+    {
+        return 0;
+    }
+
+    let mut storage = MetadataStorage {
+        words: [MaybeUninit::uninit(); 30],
+    };
+    let mut json = MaybeUninit::uninit();
+    if !xp_native_plugin_metadata(&mut storage, path.as_ptr().cast(), json.as_mut_ptr()) {
+        return 0;
+    }
+    drop(bytes);
+    let json = json.assume_init();
+    let v = &*json.vtable;
+    let mut key = Span::new(&[]);
+    let mut matches = 0;
+    let mut index = 0;
+    while (v.pair)(json.ctx, 0, 1, index, &mut key) {
+        if json.text(1, b"").len != 0 || (v.integer)(json.ctx, 1) {
+            let hash = meta_key_hash_of(key.bytes());
+            for (i, sub) in table.iter().enumerate() {
+                if sub.meta_key_hash[event] == hash {
+                    matches |= 1 << i;
+                }
+            }
+        }
+        index += 1;
+    }
+    xp_native_plugin_metadata(&mut storage, core::ptr::null(), core::ptr::null_mut());
+    matches
+}
+
 /// # Safety
 /// Table has eight entries, sequence is exclusively writable, vars has count entries.
 /// Text callbacks copy values; the boolean marks static envelope keys.
@@ -966,7 +1073,7 @@ pub unsafe extern "C" fn xp_plugin_emit(
     count: usize,
     ops: *const Emit,
 ) {
-    if !xp_plugin_any(table, event) {
+    if event as usize >= EVENT_COUNT || !xp_plugin_any(table, event) {
         return;
     }
     let s = &*ops;
@@ -1007,10 +1114,26 @@ pub unsafe extern "C" fn xp_plugin_emit(
         return;
     }
     let bit = xp_plugin_event_mask(event);
-    for sub in &*table {
-        if sub.name[0] != 0 && sub.mask & bit != 0 {
-            (s.append)(s.ctx, sub, len);
+    let mut metadata_matches = None;
+    for (index, sub) in (*table).iter().enumerate() {
+        if sub.name[0] == 0 || sub.mask & bit == 0 {
+            continue;
         }
+        if sub.meta_key_hash[event as usize] != 0 {
+            let matches = *metadata_matches.get_or_insert_with(|| {
+                // A null vars pointer is valid for the empty event payload.
+                let vars = if count == 0 {
+                    &[]
+                } else {
+                    core::slice::from_raw_parts(vars, count)
+                };
+                metadata_mask(&*table, event as usize, vars)
+            });
+            if matches & (1 << index) == 0 {
+                continue;
+            }
+        }
+        (s.append)(s.ctx, sub, len);
     }
 }
 #[repr(C)]

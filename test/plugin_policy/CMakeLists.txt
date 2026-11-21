@@ -25,3 +25,7 @@ add_test(NAME plugin_reader_events COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT
 add_test(NAME plugin_url_encoding COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py
   --build ${CMAKE_CURRENT_BINARY_DIR}/encoding --archive ${XP_FFI_HOST_ARCHIVE} --encoding
   --json-include ${XP_TEST_ARDUINOJSON_SRC})
+
+add_test(NAME plugin_event_metadata COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py
+  --build ${CMAKE_CURRENT_BINARY_DIR}/metadata --archive ${XP_FFI_HOST_ARCHIVE} --metadata
+  --json-include ${XP_TEST_ARDUINOJSON_SRC})

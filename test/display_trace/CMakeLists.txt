@@ -108,6 +108,10 @@ if(DISPLAY_TRACE_RUST)
   add_test(NAME display_cancellation_sensitivity COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/mutation_check.py
     --work-dir ${CMAKE_CURRENT_BINARY_DIR}/cancellation-sensitivity --kind cancellation
     --workspace ${XP_FFI_HOST_WORKSPACE} --sdk ${DISPLAY_TRACE_SDK})
+  if(DISPLAY_TRACE_STRIPS)
+    add_test(NAME display_strip_recovery COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/strip_recovery.py
+      --candidate-bin $<TARGET_FILE:display_trace_c3_single>)
+  endif()
 endif()
 
 if(DISPLAY_TRACE_RUST)

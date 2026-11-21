@@ -102,17 +102,10 @@ pub(super) unsafe fn dispatch_x4(action: Action<'_>, controller: u32) -> u32 {
                     if r.operation == OP_DISPLAY_START {
                         p.start(bus, d, r.mode, off);
                         value |= RESULT_ASYNC;
+                    } else if r.operation == OP_DISPLAY_WINDOW {
+                        p.display_window(bus, d, [r.x, r.y, r.width, r.height], off);
                     } else {
-                        p.display(
-                            bus,
-                            d,
-                            if r.operation == OP_DISPLAY_WINDOW {
-                                2
-                            } else {
-                                r.mode
-                            },
-                            off,
-                        );
+                        p.display(bus, d, r.mode, off);
                     }
                 }
                 OP_DISPLAY_FINISH => {

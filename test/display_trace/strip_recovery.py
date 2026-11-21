@@ -29,6 +29,35 @@ def decode(text, controller):
     return states, activations
 
 
+def check_x3_cleanup_recovery(run):
+    prefix = 'begin\nframe\nsource 80\ndisplay 0\ngray-base 0\ngray-full\ngray-show\n'
+    buffered = 'source 0\ncleanup\n'
+    followup = 'frame 1\ndisplay 2\ngray-base 1\n'
+    baseline, counts = decode(run('uc8253', prefix + buffered + followup), 'uc8253')
+    gray, clean = baseline['step gray-show'], baseline['step cleanup']
+    assert gray[0x10] != gray[0x13] and all(gray[plane] != clean[plane] for plane in gray), (
+        'gray input must differ between planes and from the cleanup bitmap')
+    assert counts['step cleanup'] == 0, 'buffered cleanup activated a waveform'
+    assert counts['step display 2'] == 1, 'warm Fast must leave gray on the glass'
+    assert counts['step gray-base 1'] == 2, 'buffered cleanup lost the Half scrub before the settle'
+
+    waveform_mismatches = []
+    for failure in (None, 0, 7, 13):
+        setup = '' if failure is None else f'source-fail {failure}\n'
+        raw = run('uc8253', prefix + setup + 'cleanup\nsource 0\n' + followup)
+        cleanup = raw.split('step cleanup\n', 1)[1].split('step source 0\n', 1)[0]
+        assert cleanup.count('source.read ') == (14 if failure is None else failure), (
+            failure, 'cleanup stopped at the wrong strip')
+        assert cleanup.count('source.failure ') == int(failure is not None), (failure, 'fault did not fire')
+        states, activations = decode(raw, 'uc8253')
+        for step in ('step cleanup', 'step display 2', 'step gray-base 1'):
+            assert states[step] == baseline[step], (failure, step, 'RAM differs from buffered path')
+            if activations[step] != counts[step]:
+                waveform_mismatches.append((failure, step, activations[step], counts[step]))
+    assert not waveform_mismatches, ('waveform count differs from buffered path', waveform_mismatches)
+    print('uc8253: buffered, streamed and first/middle/last cleanup failures preserve the Half scrub and settle')
+
+
 def main():
     parser = argparse.ArgumentParser(__doc__)
     parser.add_argument('--candidate-bin', type=pathlib.Path, required=True)
@@ -38,6 +67,7 @@ def main():
         def run(controller, content):
             script.write_text(content)
             return subprocess.check_output([str(args.candidate_bin.resolve()), controller, str(script), '--full'], text=True)
+        check_x3_cleanup_recovery(run)
         for controller, bands, planes in [('uc8253', 7, 2), ('ssd1677', 6, 1)]:
             prefix = 'begin\nframe\nsource 80\ndisplay 0\ngray-base 0\ngray-full\ngray-show\n'
             baseline, base_activations = decode(run(controller, prefix + 'source 0\ncleanup\nframe 1\ndisplay 2\n'), controller)

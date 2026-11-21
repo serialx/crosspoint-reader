@@ -31,7 +31,7 @@ struct XpAppEvent {
   int kind;
   struct {
     bool defer_home = false;
-  } value;
+  } value{};
 };
 void xp_app_event(const XpAppEvent* event) { trace.push_back(event->value.defer_home ? "defer" : "event"); }
 extern "C" void xp_hal_input_update(XpHalInput* state, uint8_t buttons, bool usb) {

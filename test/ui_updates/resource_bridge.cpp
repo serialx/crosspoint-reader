@@ -6,6 +6,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <future>
 #include <memory>
@@ -13,6 +14,12 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+#if defined(__ELF__)
+// The Rust archive aborts on panic. ELF compiler builtins still carry this unwind reference.
+extern "C" __attribute__((weak)) void rust_eh_personality() { std::abort(); }
+#endif
+
 #define LOG_ERR(...) ((void)0)
 #define LOG_DBG(...) ((void)0)
 #define tr(x) #x

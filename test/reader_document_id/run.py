@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Compare shipping reader sampling to the retained native KOReader implementation."""
-import argparse, io, os, pathlib, subprocess, zipfile
+import argparse, io, os, pathlib, subprocess, sys, zipfile
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 p = argparse.ArgumentParser()
@@ -23,5 +23,6 @@ with zipfile.ZipFile(book, 'w') as z:
     z.writestr('chapter.xhtml', '<p>Still here</p>')
 (a.build / 'BookData.inc').write_text(','.join(map(str, book.getvalue())))
 sources = [HERE / 'Oracle.cpp', ROOT / 'src/activities/reader/RustReaderDocument.cpp', ROOT / 'lib/KOReaderSync/KOReaderDocumentId.cpp', ROOT / 'test/cmake/xp_ffi_host.cpp']
-subprocess.run(['c++', '-std=c++20', '-O1', '-g', '-UNDEBUG', '-DXP_SD_FONT_CATALOG', '-DXP_FFI_HOST_CSS_FAULT_INJECTION=1', '-Wno-deprecated-declarations', '-fsanitize=address,undefined', '-fno-sanitize-recover=all', *[f'-I{x}' for x in includes], *map(str, sources), str(archive), '-o', str(a.build / 'oracle')], check=True)
+crypto = [] if sys.platform == 'darwin' else ['-lcrypto']
+subprocess.run(['c++', '-std=c++20', '-O1', '-g', '-UNDEBUG', '-DXP_SD_FONT_CATALOG', '-DXP_FFI_HOST_CSS_FAULT_INJECTION=1', '-Wno-deprecated-declarations', '-fsanitize=address,undefined', '-fno-sanitize-recover=all', *[f'-I{x}' for x in includes], *map(str, sources), str(archive), *crypto, '-o', str(a.build / 'oracle')], check=True)
 subprocess.run([str(a.build / 'oracle')], check=True)

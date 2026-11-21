@@ -55,6 +55,9 @@ methods = "\n".join(block(viewer, signature) for signature in (
 methods = methods.replace("void DictionaryDefinitionActivity::startSelection(const int x, const int y) {",
                           "void DictionaryDefinitionActivity::startSelection(const int x, const int y) {\n  widgetViewer = this;")
 methods = methods.replace("xp_app_event(&event)", "widgetEvent(&event)")
+# Spell out the frozen fixture's implicit aggregate initialization for Clang 22.
+methods = methods.replace("XpAppEvent event{.kind = XP_APP_ADOPT_PUSH};",
+                          "XpAppEvent event{.kind = XP_APP_ADOPT_PUSH, .value = {}};")
 structs = "\n".join(block(header, f"struct {name} {{", True) for name in (
     "Line", "BodyArea", "Definition", "HistoryEntry", "LookupState"
 ))
@@ -102,6 +105,8 @@ inline_entry = '\n'.join(block(inline_source, signature, signature.startswith('s
     'struct Definition {', 'Definition* construct(', 'void* definitionPlain(', 'void definitionDrop('
 ))
 constructor = header[header.index('  explicit DictionaryDefinitionActivity('):header.index('  bool enableLookup(')]
+constructor = constructor.replace(".text = std::move(definition)}",
+                                  ".text = std::move(definition), .pages = {}, .lines = {}, .selection = {}}")
 harness = r'''
 #include <algorithm>
 #include <xp_ui_reader.h>

@@ -44,7 +44,7 @@ with tempfile.TemporaryDirectory(prefix="runtime-ble-") as temp:
     folder = Path(temp)
     (folder / "check.cpp").write_text(source)
     subprocess.run(
-        ["clang++", "-std=c++20", "-Wall", "-Wextra", "-Werror", "-fsanitize=address,undefined",
+        ["c++", "-std=c++20", "-Wall", "-Wextra", "-Werror", "-fsanitize=address,undefined",
          "-I", str(ROOT / "rust/crates/xp-ffi/include"), str(folder / "check.cpp"),
          "-o", str(folder / "check")], check=True,
     )

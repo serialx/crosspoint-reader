@@ -54,6 +54,7 @@ pub const OP_ACCENT: u32 = 28;
 pub const OP_FAST_CUTOFF: u32 = 29;
 pub const OP_HOLD_FULL: u32 = 30;
 pub const OP_CUSTOM_LUT: u32 = 31;
+pub const OP_POWER_OFF_BETWEEN_FRAMES: u32 = 32;
 pub const TAG_NONE: u32 = 0;
 pub const TAG_X3_PON: u32 = 1;
 pub const TAG_X3_POF: u32 = 2;

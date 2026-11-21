@@ -219,6 +219,7 @@ unsafe fn execute(
             panel.set_lut(bus, lut);
         }
         OP_RESYNC => panel.resync(),
+        OP_POWER_OFF_BETWEEN_FRAMES => panel.power_off_between_frames(bus),
         OP_GRAY_PRECONDITION
         | OP_GRAY_PREPARE
         | OP_GRAY_REVERT

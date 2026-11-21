@@ -9,6 +9,7 @@ import json
 import re
 from pathlib import Path
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -119,9 +120,9 @@ def main():
                          '--target-dir', target, '-p', 'xp-ffi', '--release', '--locked', '--features', 'app-test,sd-font-catalog'],
                         name + '-cargo', cwd=copied / 'rust')
                 result = run(name, target / 'release/libxp_ffi.a')
-                assert result.returncode != 0 and b'Assertion failed' in result.stderr, (name, result.returncode, result.stderr)
                 marker = b'!renderDepth && !modelDepth' if name == 'persistence-under-render-lock' else b'order == expected'
-                assert marker in result.stderr, result.stderr
+                assert result.returncode == -signal.SIGABRT and marker in result.stderr, (
+                    name, result.returncode, result.stderr)
                 assert b'AddressSanitizer' not in result.stderr and b'runtime error:' not in result.stderr
                 report['mutants'].append(dict(name=name, source_sha256=digest(changed.encode()),
                                              returncode=result.returncode, stderr_sha256=digest(result.stderr)))

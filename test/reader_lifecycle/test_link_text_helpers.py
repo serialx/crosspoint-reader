@@ -99,11 +99,13 @@ def main():
         source_path = work / 'candidate.cpp'
         source_path.write_text(fixture)
         baseline_flags = rust_link_flags()
+        # The frozen summary trace records signed plain char.
+        char_flags = ['-fsigned-char'] if args.mode == 'sanitize' else []
 
         def run(name, archive=None):
             flags = baseline_flags if archive is None else rust_link_flags(archive=str(archive))
             subprocess.run(['c++', '-std=c++20', '-UNDEBUG', '-O0', '-fsanitize=address,undefined',
-                            '-I', str(work), '-I', str(HERE), str(source_path), *flags,
+                            *char_flags, '-I', str(work), '-I', str(HERE), str(source_path), *flags,
                             '-o', str(work / name)], check=True)
             return subprocess.check_output([str(work / name), args.mode])
 

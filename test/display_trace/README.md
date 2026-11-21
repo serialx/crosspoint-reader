@@ -25,6 +25,12 @@ Mono's generation check in another copy and requires the overlap assertion to fa
 Build/check requirements: C++20, CMake, the repository Rust toolchain, Python 3
 with standard-library gzip/lzma, and the initialized SDK; no device or PlatformIO.
 
+Traces from the 2.0.0 SDK sync use the scoped replacements in
+[sync-200-goldens](sync-200-goldens/README.md) over the historical fixtures.
+Configure with `-DDISPLAY_TRACE_STRIPS=ON` to register the strip recovery test.
+It injects failures during streamed grayscale cleanup and compares controller RAM
+and the subsequent X3 Half scrub and settle with the buffered path.
+
 ## Controller and board coverage
 
 Each row runs in single- and dual-buffer modes, in separate processes so driver

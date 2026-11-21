@@ -18,6 +18,10 @@ sys.path.insert(0, str(ROOT / 'test'))
 from rust_host import rust_link_flags
 
 
+# Order of the tied-18 case in the C3 and S3 libstdc++ std::sort implementations.
+TIED_18_TARGET_ORDER = [9, 17, 16, 15, 14, 13, 12, 11, 10, 0, 8, 7, 6, 5, 4, 3, 2, 1]
+
+
 def fnv(path):
     value = 14695981039346656037
     for byte in path.encode(): value = ((value ^ byte) * 1099511628211) % 2**64
@@ -38,8 +42,10 @@ static_assert([]{{auto values=sorted();for(unsigned i=0;i<values.size();++i)if(v
 '''
     cpp = case / 'target-sort.cpp'; cpp.write_text(source)
     checks = []
-    for name, compiler in [('c3', '/Users/serialx/.platformio/packages/toolchain-riscv32-esp/bin/riscv32-esp-elf-g++'),
-                           ('s3', '/Users/serialx/.platformio/packages/toolchain-xtensa-esp-elf/bin/xtensa-esp32s3-elf-g++')]:
+    for name, executable in [('c3', 'riscv32-esp-elf-g++'), ('s3', 'xtensa-esp32s3-elf-g++')]:
+        compiler = shutil.which(executable)
+        if compiler is None:
+            continue
         command = [compiler, '-std=c++20', '-fsyntax-only', str(cpp)]
         ran = subprocess.run(command, capture_output=True)
         (case / (name + '.log')).write_bytes(ran.stdout + ran.stderr)
@@ -118,8 +124,11 @@ def main():
         if tied_keys:
             sorted_result = subprocess.run([str(binary), 'sort', *args], cwd=output, capture_output=True, check=True)
             permutation = [int(value) for value in sorted_result.stdout.split()]
-            checks = target_checks(case, paths, permutation)
-            permutation_path = case / 'permutation.txt'; permutation_path.write_text(' '.join(map(str, permutation)))
+            assert name == 'tied-18'
+            assert permutation == TIED_18_TARGET_ORDER, permutation
+            checks = target_checks(case, paths, TIED_18_TARGET_ORDER)
+            permutation_path = case / 'permutation.txt'
+            permutation_path.write_text(' '.join(map(str, TIED_18_TARGET_ORDER)))
             options['CSS_TARGET_PERMUTATION'] = str(permutation_path)
         steps = 0
         required_discovery_steps = 0
@@ -166,7 +175,9 @@ def main():
         results.append(dict(name=name, host_only_target_sort_adaptation=tied_keys, target_checks=checks, physical_faults=steps, rejected_discovery_faults=required_discovery_steps))
     (output / 'results.json').write_text(json.dumps(dict(command=command, cases=results,
         generated_source_sha256=hashlib.sha256(source.encode()).hexdigest()), indent=2) + '\n')
-    print(f'{len(results)} composed CSS cases with every reached storage fault pass; tied-key host adaptations are explicit and checked on C3/S3.')
+    checked_targets = ', '.join(check['name'] for result in results for check in result['target_checks'])
+    print(f'{len(results)} composed CSS cases with every reached storage fault pass.')
+    print(f'Tied-key order matches the recorded C3/S3 order. Cross-compilers checked: {checked_targets or "none"}.')
 
 
 if __name__ == '__main__': main()

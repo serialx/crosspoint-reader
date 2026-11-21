@@ -1,16 +1,24 @@
 --- attestations-candidate.json
 +++ attestations-candidate.json
-@@ -9412,6 +9412,137 @@
+@@ -3860,14 +3860,6 @@
+       "prior": "/private/tmp/runtime-i/moved-7c6a984f/parent-attestations.json"
+     },
+     {
+-      "caller": "FunctionRequestHandler::handle(WebServer&, http_method, String const&)",
+-      "callee": "std::_Function_handler<void (), CrossPointWebServer::registerRoutes()::{lambda()#15}>::_M_invoke(std::_Any_data const&)",
+-      "kind": "typed native facade/runtime binding",
+-      "source": "src/network/CrossPointWebServer.cpp: setupRoutes; Arduino FunctionRequestHandler",
+-      "mechanism": "The matching HTTP route invokes its retained std::function handler; the callback calls CrossPointWebServer::handleDelete() const Inherited source-selected binding; PT2 and N2w patches composed without source conflict. Fresh direct calls are preferred. No new source callback inferred from a numeric sum.",
+-      "prior": "/private/tmp/runtime-i/moved-7c6a984f/parent-attestations.json"
+-    },
+-    {
+       "caller": "xp_clippings_p18_apply_remote",
+       "callee": "ActivityManager::begin(XpAppRuntime const&)::{lambda()#3}::_FUN()",
+       "kind": "typed native facade/runtime binding",
+@@ -9412,6 +9404,151 @@
        "kind": "R4d1 synchronous decoder callback or tail",
        "source": "rust/crates/xp-ffi/src/page_render/images/{decode,jpeg}.rs; native JPEGDEC file callbacks; inherited allocator tail",
        "mechanism": "PNG read and GIF Input.read point to Decode::read; JPEG Services points to Probe::{operation,diagnostic}; diagnostic tail and physical file/allocator tails are charged conservatively."
-+    },
-+    {
-+      "caller": "xp_ffi::app::epub::book_owner::protection::stream",
-+      "callee": "freeink::content::readerProtectionStream(void*, void*, unsigned char, XpAppText, unsigned char (*)(void*, unsigned char const*, unsigned int), void*)",
-+      "kind": "current typed callback",
-+      "source": "book_owner/protection.rs:348-381 and ContentProtection.cpp:163-188",
-+      "mechanism": "The same callback binding is emitted at the adjusted source or ABI boundary."
 +    },
 +    {
 +      "caller": "xp_dictionary_ifo",
@@ -135,6 +143,27 @@
 +      "kind": "current typed callback",
 +      "source": "rust/crates/xp-ffi/src/app/epub/children/definition_input.rs:10-16; src/activities/reader/RustEpubResources.cpp",
 +      "mechanism": "The header sampler makes the same DefinitionPhysical layout call. Charge the sampler and native layout frames."
++    },
++    {
++      "caller": "FunctionRequestHandler::handle(WebServer&, http_method, String const&)",
++      "callee": "std::_Function_handler<void (), CrossPointWebServer::registerRoutes()::{lambda()#16}>::_M_invoke(std::_Any_data const&)",
++      "kind": "source-selected WebServer route",
++      "source": "CrossPointWebServer::registerRoutes handler registration",
++      "mechanism": "POST /move selects its own FunctionRequestHandler. Its nonempty std::function starts at object offset 24 and tail-dispatches its sole invoker at offset 12 before the original handler."
++    },
++    {
++      "caller": "FunctionRequestHandler::handle(WebServer&, http_method, String const&)",
++      "callee": "std::_Function_handler<void (), CrossPointWebServer::registerRoutes()::{lambda()#15}>::_M_invoke(std::_Any_data const&)",
++      "kind": "source-selected WebServer route",
++      "source": "CrossPointWebServer::registerRoutes handler registration",
++      "mechanism": "POST /rename selects its own FunctionRequestHandler. Its nonempty std::function starts at object offset 24 and tail-dispatches its sole invoker at offset 12 before the original handler."
++    },
++    {
++      "caller": "FunctionRequestHandler::handle(WebServer&, http_method, String const&)",
++      "callee": "std::_Function_handler<void (), CrossPointWebServer::registerRoutes()::{lambda()#17}>::_M_invoke(std::_Any_data const&)",
++      "kind": "source-selected WebServer route",
++      "source": "CrossPointWebServer::registerRoutes handler registration",
++      "mechanism": "POST /delete selects its own FunctionRequestHandler. Its nonempty std::function starts at object offset 24 and tail-dispatches its sole invoker at offset 12 before the original handler."
      }
    ]
 -}

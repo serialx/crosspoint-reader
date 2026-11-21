@@ -11,15 +11,18 @@ pass the patched copies to the linked audit.
 
 The X3 image uses the `font::loaded::ensure` closure form on the 20 font routes
 and calls `std::__throw_length_error` directly on the 20 HTTP reallocation routes.
-The bookmark input prologue uses `OUTLINED_FUNCTION_22` in the 112-byte
+The bookmark input prologue uses `OUTLINED_FUNCTION_7` in the 112-byte
 `Layout::hit` frame. The dictionary routes bind the bounded IFO scanner,
 grouped lookup, header input, and separate styled and plain viewer paths. The
 111 book file GET routes use the linked GET closure, transfer facade, and
-progress invoker.
+progress invoker. The Control Center launch routes include the shared
+`open_control_center` helper. The former definition-only frontlight-availability
+probe was removed for the lightless Control Center. The rename, move, and delete
+routes follow the POST handlers at their new linked closure ordinals.
 
 `x3-default-sleep-event.json` lists the sleep-entry emitter and metadata
 callback paths. The audit adds the linked physical continuation to the emitter
 prefix and checks its complete bound against the loop-task gate.
 
-See `sync-200/integrate-B` in the evidence directory for the call-site
+See `sync-200/integrate-C` in the evidence directory for the call-site
 instructions, callback targets, and route totals.

@@ -39,6 +39,15 @@ def corpus():
             for password in ['', 'x' * 64, 'x' * 65, 'x' * 2048]:
                 inputs.append(json.dumps({'credentials': [{'ssid': 'x', 'password': password}]}))
         cases[kind] = inputs
+    # Old rings above load as empty cycles. Exercise the upstream packed words independently.
+    cases['state'] += [
+        json.dumps({'openEpubPath': '/책.epub', 'sleepLcgCount': 131075, 'sleepLcgState': 4294967295,
+                    'sleepOverlayLcgCount': 65538, 'sleepOverlayLcgState': 2147483648,
+                    'readerActivityLoadCount': 3, 'lastSleepFromReader': True, 'showBootScreen': False}),
+        *[json.dumps({key: value}) for key in ('sleepLcgCount', 'sleepLcgState', 'sleepOverlayLcgCount',
+                                              'sleepOverlayLcgState')
+          for value in (None, -1, 0, 65536, 4294967295, 4294967296, '12', True, 1.5)],
+    ]
     cases['settings'] += [json.dumps({key: value}) for key in ['sleepScreen', 'wordSpacing', 'fontSize', 'fontFamily', 'frontButtonBack', 'touchReaderControls', 'sleepTimeout', 'paragraphIndentSpaces', 'longPressMenuFunction', 'shortPwrBtn', 'keyboardLayouts', 'language', 'opdsDownloadFolder'] for value in [None, True, -1, 0, 1, 2, 3, 4, 5, 6, 7, 255, 256, 65535, 65536, 'KO', [], {}, 'x'*128]]
     cases['settings-home'] = cases['settings']
     for n in [2047, 2048, 2049]:

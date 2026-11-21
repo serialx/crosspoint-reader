@@ -5,6 +5,9 @@
 #include <xp_app.h>
 #include <cassert>
 #include <cstdio>
+#include <fstream>
+#include <iterator>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -39,8 +42,8 @@ Result run(bool rust, int failAt, bool failMkdir) {
   APP_STATE.fromJson(empty.as<JsonVariantConst>());
   APP_STATE.openEpubPath = "/old.epub";
   APP_STATE.readerActivityLoadCount = 7;
-  APP_STATE.recentSleepImages[0] = 65535;
-  APP_STATE.recentOverlaySleepImages[15] = 32768;
+  APP_STATE.sleepCycle.state = 65535;
+  APP_STATE.overlayCycle.count = 32768;
   APP_STATE.showBootScreen = false;
   store_test::files = {{"/책/읽기 📖.epub", "book"}, {"/b.epub", "book"}};
   store_test::writes = 0; store_test::failAt = failAt; store_test::failMkdir = failMkdir;
@@ -89,7 +92,67 @@ Result run(bool rust, int failAt, bool failMkdir) {
   out.events = store_test::io;
   return out;
 }
-int main() {
+long random(long upper) {
+  static uint32_t state = 0x12345u;
+  state = 1664525u * state + 1013904223u;
+  return (state >> 8) % upper;
+}
+
+void testSleepCycles(const char* upstreamFile) {
+  std::ifstream input(upstreamFile, std::ios::binary);
+  assert(input);
+  const std::string bytes{std::istreambuf_iterator<char>(input), {}};
+  auto& file = store_test::files[CrossPointState::getFilePath()];
+  file = bytes;
+  assert(APP_STATE.loadFromFile());
+  assert(APP_STATE.sleepCycle.count == 131075 && APP_STATE.sleepCycle.state == UINT32_MAX);
+  assert(APP_STATE.overlayCycle.count == 65538 && APP_STATE.overlayCycle.state == 2147483648u);
+  assert(APP_STATE.saveToFile() && file == bytes);
+
+  file = R"({"openEpubPath":"/old.epub","recentSleepImages":[2,1],"lastSleepImage":3,"recentSleepFill":2})";
+  assert(APP_STATE.loadFromFile() && APP_STATE.openEpubPath == "/old.epub");
+  assert(APP_STATE.sleepCycle.count == 0 && APP_STATE.sleepCycle.state == 0);
+  assert(APP_STATE.overlayCycle.count == 0 && APP_STATE.overlayCycle.state == 0);
+
+  // Recorded from d663dcc6f with the random() above. The count changes partway through cycle three.
+  SleepImageCycle upstreamSequence;
+  constexpr uint16_t indexes[] = {6, 5, 0, 2, 1, 4, 3, 6, 1, 0, 3, 2, 5, 4, 3, 0, 2, 1, 0};
+  for (size_t i = 0; i < std::size(indexes); ++i) {
+    assert(upstreamSequence.next(i < 15 ? 7 : 3) == indexes[i]);
+  }
+  assert(upstreamSequence.count == 131075 && upstreamSequence.state == 131072);
+
+  for (const uint16_t count : {1, 2, 3, 16, 37, 65535}) {
+    SleepImageCycle cycle;
+    uint16_t last = 0;
+    for (int round = 0; round < 2; ++round) {
+      std::set<uint16_t> seen;
+      for (unsigned i = 0; i < count; ++i) {
+        const auto index = cycle.next(count);
+        assert(index < count && seen.insert(index).second);
+        if (round && i == 0 && count > 1) assert(index != last);
+        last = index;
+        if (i == count / 2) {
+          APP_STATE.sleepCycle = cycle;
+          assert(APP_STATE.saveToFile());
+          APP_STATE.sleepCycle = {};
+          assert(APP_STATE.loadFromFile());
+          assert(APP_STATE.sleepCycle.count == cycle.count && APP_STATE.sleepCycle.state == cycle.state);
+          cycle = APP_STATE.sleepCycle;
+        }
+      }
+    }
+  }
+  auto& normal = APP_STATE.sleepCycle;
+  normal.next(13);
+  normal.next(7);
+  assert((normal.count >> 16) == 6 && (normal.count & 0xffff) == 7);
+  assert(APP_STATE.overlayCycle.count == 0);
+}
+
+int main(int argc, char** argv) {
+  assert(argc == 2);
+  testSleepCycles(argv[1]);
   for (bool failMkdir : {false, true}) {
     for (int failAt = 0; failAt <= 26; ++failAt) {
       const auto before = run(false, failAt, failMkdir);

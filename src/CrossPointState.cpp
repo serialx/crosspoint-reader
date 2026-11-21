@@ -3,39 +3,22 @@
 #include <StoreBridge.h>
 
 namespace {
-static_assert(sizeof(CrossPointState::recentSleepImages) / sizeof(uint16_t) == XP_STORE_SLEEP_RECENT_COUNT);
-static_assert(sizeof(CrossPointState::recentOverlaySleepImages) / sizeof(uint16_t) == XP_STORE_SLEEP_RECENT_COUNT);
 XpStoreState view(CrossPointState& state) {
   return {&state.openEpubPath,
           [](void* ctx) { return store_bridge::bytes(*static_cast<std::string*>(ctx)); },
           [](void* ctx, XpStoreBytes value) {
             static_cast<std::string*>(ctx)->assign(reinterpret_cast<const char*>(value.data), value.len);
           },
-          state.recentSleepImages,
-          &state.recentSleepPos,
-          &state.recentSleepFill,
-          state.recentOverlaySleepImages,
-          &state.recentOverlaySleepPos,
-          &state.recentOverlaySleepFill,
+          &state.sleepCycle.count,
+          &state.sleepCycle.state,
+          &state.overlayCycle.count,
+          &state.overlayCycle.state,
           &state.readerActivityLoadCount,
           &state.lastSleepFromReader,
           &state.showBootScreen};
 }
 }  // namespace
 XpStoreState CrossPointState::readerView() { return view(*this); }
-bool CrossPointState::isRecentSleep(uint16_t idx, uint8_t checkCount) const {
-  return xp_store_recent_contains(recentSleepImages, recentSleepPos, recentSleepFill, idx, checkCount);
-}
-bool CrossPointState::isRecentOverlaySleep(uint16_t idx, uint8_t checkCount) const {
-  return xp_store_recent_contains(recentOverlaySleepImages, recentOverlaySleepPos, recentOverlaySleepFill, idx,
-                                  checkCount);
-}
-void CrossPointState::pushRecentSleep(uint16_t idx) {
-  xp_store_recent_push(recentSleepImages, &recentSleepPos, &recentSleepFill, idx);
-}
-void CrossPointState::pushRecentOverlaySleep(uint16_t idx) {
-  xp_store_recent_push(recentOverlaySleepImages, &recentOverlaySleepPos, &recentOverlaySleepFill, idx);
-}
 void CrossPointState::toJson(JsonDocument& doc) const {
   auto state = view(const_cast<CrossPointState&>(*this));
   store_bridge::Json json(doc);

@@ -1,11 +1,15 @@
 # Persistence compatibility oracle
 
 The golden file was captured from CrossPoint `539ebafc` before the Rust port.
+The state cases use upstream `d663dcc6f` with the same ArduinoJson and storage
+stubs. They cover legacy ring files, the four packed cycle words and invalid
+JSON values. The upstream store also wrote
+`test/reader_persistence/upstream-sleep-state.json` through `saveToFile()`.
 `run.py` compiles the actual store implementations with a memory filesystem,
 a fixed synthetic device key, and the installed mbedTLS base64 implementation.
 No private credentials, books, or device files are used.
 
-The 2,529 cases cover JSON truncations and mutations, legacy settings, invalid
+The 2,566 cases cover JSON truncations and mutations, legacy settings, invalid
 credential lengths/checksums, token limits, mutation/write sequences with failed
 writes, buffered reads/writes/seeks, JSON allocation failures, and buffer allocation
 failure fallback. They compare serialized bytes, state, diagnostic text, storage
@@ -24,7 +28,7 @@ advances during token and Wi-Fi loads with 256–4,096 rejected rows before a va
 row. The linear operation bound catches repeated indexed traversal independently
 of host timing. `scaling-golden.json.gz`, captured from the original C++ with
 `--record-scaling`, also checks saved bytes, diagnostics and JSON allocation traces
-for those 15 inputs; the original 2,529 golden cases remain unchanged.
+for those 15 inputs; the scaling corpus is independent of the sleep state cases.
 
 CMake resolves ArduinoJson itself (pinned in
 `test/cmake/xp_test_arduinojson.cmake`; override with `XP_TEST_ARDUINOJSON_SRC`)

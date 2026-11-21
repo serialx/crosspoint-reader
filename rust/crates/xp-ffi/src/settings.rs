@@ -2,9 +2,6 @@
 use core::ffi::c_void;
 use core::ptr;
 
-// Fixed ABI width: XP_STORE_SLEEP_RECENT_COUNT in xp_settings.h.
-const SLEEP_RECENT_COUNT: usize = 16;
-
 #[repr(u32)]
 #[derive(Clone, Copy)]
 enum JsonQuery {
@@ -260,41 +257,6 @@ pub unsafe extern "C" fn xp_store_xor(data: *mut u8, len: usize, key: *const u8,
     for i in 0..len {
         *data.add(i) ^= *key.add(i % key_len);
     }
-}
-
-/// # Safety
-/// Images has sixteen elements; pos/fill point to valid ring state.
-#[no_mangle]
-pub unsafe extern "C" fn xp_store_recent_push(
-    images: *mut u16,
-    pos: *mut u8,
-    fill: *mut u8,
-    index: u16,
-) {
-    *images.add(*pos as usize) = index;
-    *pos = (*pos + 1) % SLEEP_RECENT_COUNT as u8;
-    if *fill < SLEEP_RECENT_COUNT as u8 {
-        *fill += 1;
-    }
-}
-
-/// # Safety
-/// Images has sixteen elements; pos and fill are valid ring state.
-#[no_mangle]
-pub unsafe extern "C" fn xp_store_recent_contains(
-    images: *const u16,
-    pos: u8,
-    fill: u8,
-    index: u16,
-    count: u8,
-) -> bool {
-    for i in 0..count.min(fill) {
-        let slot = (pos as usize + SLEEP_RECENT_COUNT - 1 - i as usize) % SLEEP_RECENT_COUNT;
-        if *images.add(slot) == index {
-            return true;
-        }
-    }
-    false
 }
 
 #[repr(C)]
@@ -654,66 +616,25 @@ pub struct State {
     ctx: *mut c_void,
     path_get: unsafe extern "C" fn(*mut c_void) -> Bytes,
     path_set: unsafe extern "C" fn(*mut c_void, Bytes),
-    images: *mut u16,
-    pos: *mut u8,
-    fill: *mut u8,
-    overlay: *mut u16,
-    overlay_pos: *mut u8,
-    overlay_fill: *mut u8,
+    sleep_count: *mut u32,
+    sleep_state: *mut u32,
+    overlay_count: *mut u32,
+    overlay_state: *mut u32,
     load_count: *mut u8,
     from_reader: *mut bool,
     boot: *mut bool,
 }
 
-unsafe fn load_ring(
-    json: &JsonOps,
-    images: *mut u16,
-    pos: *mut u8,
-    fill: *mut u8,
-    keys: [&'static core::ffi::CStr; 3],
-) {
-    let mut root = JsonPath::root(keys[0]);
-    let count = json
-        .num(&root, JsonQuery::ArraySize, 0)
-        .min(SLEEP_RECENT_COUNT as u64) as usize;
-    ptr::write_bytes(images, 0, SLEEP_RECENT_COUNT);
-    for i in 0..count {
-        root.index = i;
-        *images.add(i) = json.num(&root, JsonQuery::U16, 0) as u16;
+impl State {
+    fn cycles(&self) -> [(&'static core::ffi::CStr, *mut u32); 4] {
+        [
+            (c"sleepLcgCount", self.sleep_count),
+            (c"sleepLcgState", self.sleep_state),
+            (c"sleepOverlayLcgCount", self.overlay_count),
+            (c"sleepOverlayLcgState", self.overlay_state),
+        ]
     }
-    *pos = json.num(&JsonPath::root(keys[1]), JsonQuery::U8, 0) as u8;
-    if *pos >= SLEEP_RECENT_COUNT as u8 {
-        *pos = if count > 0 {
-            *pos % SLEEP_RECENT_COUNT as u8
-        } else {
-            0
-        };
-    }
-    *fill = (json.num(&JsonPath::root(keys[2]), JsonQuery::U8, 0) as u8).min(count as u8);
 }
-unsafe fn save_ring(
-    json: &JsonOps,
-    images: *const u16,
-    pos: u8,
-    fill: u8,
-    keys: [&'static core::ffi::CStr; 3],
-) {
-    let mut root = JsonPath::root(keys[0]);
-    json.put(&root, JsonWrite::Array, 0);
-    for i in 0..SLEEP_RECENT_COUNT {
-        root.index = i;
-        json.put(&root, JsonWrite::Number, *images.add(i) as u64);
-    }
-    json.put(&JsonPath::root(keys[1]), JsonWrite::Number, pos as u64);
-    json.put(&JsonPath::root(keys[2]), JsonWrite::Number, fill as u64);
-}
-const SLEEP_KEYS: [&core::ffi::CStr; 3] =
-    [c"recentSleepImages", c"recentSleepPos", c"recentSleepFill"];
-const OVERLAY_KEYS: [&core::ffi::CStr; 3] = [
-    c"recentOverlaySleepImages",
-    c"recentOverlaySleepPos",
-    c"recentOverlaySleepFill",
-];
 
 /// # Safety
 /// State fields are valid, nonoverlapping and exclusively borrowed for this call.
@@ -721,20 +642,8 @@ const OVERLAY_KEYS: [&core::ffi::CStr; 3] = [
 pub unsafe extern "C" fn xp_store_state_load(state: *const State, json: *const JsonOps) {
     let (state, json) = (&*state, &*json);
     (state.path_set)(state.ctx, json.root_text(c"openEpubPath"));
-    load_ring(json, state.images, state.pos, state.fill, SLEEP_KEYS);
-    load_ring(
-        json,
-        state.overlay,
-        state.overlay_pos,
-        state.overlay_fill,
-        OVERLAY_KEYS,
-    );
-    let legacy = JsonPath::root(c"lastSleepImage");
-    if *state.fill == 0 && json.num(&legacy, JsonQuery::Null, 0) == 0 {
-        let value = json.num(&legacy, JsonQuery::U8, 255) as u8;
-        if value != 255 {
-            xp_store_recent_push(state.images, state.pos, state.fill, value as u16);
-        }
+    for (key, field) in state.cycles() {
+        *field = json.root_num(key, JsonQuery::U32, 0) as u32;
     }
     *state.load_count = json.root_num(c"readerActivityLoadCount", JsonQuery::U8, 0) as u8;
     *state.from_reader = json.root_num(c"lastSleepFromReader", JsonQuery::Bool, 0) != 0;
@@ -753,14 +662,9 @@ pub unsafe extern "C" fn xp_store_state_save(state: *const State, json: *const J
         0,
         (state.path_get)(state.ctx),
     );
-    save_ring(json, state.images, *state.pos, *state.fill, SLEEP_KEYS);
-    save_ring(
-        json,
-        state.overlay,
-        *state.overlay_pos,
-        *state.overlay_fill,
-        OVERLAY_KEYS,
-    );
+    for (key, field) in state.cycles() {
+        json.root_put(key, JsonWrite::Number, u64::from(*field));
+    }
     json.root_put(
         c"readerActivityLoadCount",
         JsonWrite::Number,

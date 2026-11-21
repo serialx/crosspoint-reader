@@ -388,19 +388,6 @@ AlphaOverlayResult tryRenderTransparentOverlayBmp(HalFile& file, GfxRenderer& re
 
 enum class SleepRecentKind : uint8_t { Standard, Overlay };
 
-bool isRecentSleepIndex(const SleepRecentKind recentKind, const uint16_t idx, const uint8_t window) {
-  return recentKind == SleepRecentKind::Overlay ? APP_STATE.isRecentOverlaySleep(idx, window)
-                                                : APP_STATE.isRecentSleep(idx, window);
-}
-
-void pushRecentSleepIndex(const SleepRecentKind recentKind, const uint16_t idx) {
-  if (recentKind == SleepRecentKind::Overlay) {
-    APP_STATE.pushRecentOverlaySleep(idx);
-  } else {
-    APP_STATE.pushRecentSleep(idx);
-  }
-}
-
 bool findNextValidSleepImage(HalFile& dir, const SleepRecentKind recentKind, char* name) {
   for (auto dirFile = dir.openNextFile(); dirFile; dirFile = dir.openNextFile()) {
     if (dirFile.isDirectory()) continue;
@@ -454,15 +441,9 @@ bool selectRandomSleepFile(const char* firstDirPath, const char* secondDirPath, 
 
   if (fileCount == 0) return false;
 
-  // Pick a random wallpaper, excluding recently shown ones.
-  // Window: up to SLEEP_RECENT_COUNT entries, capped at fileCount-1.
-  const uint8_t recentFill =
-      recentKind == SleepRecentKind::Overlay ? APP_STATE.recentOverlaySleepFill : APP_STATE.recentSleepFill;
-  const uint8_t window = static_cast<uint8_t>(std::min<uint16_t>(recentFill, fileCount - 1));
-  auto randomFileIndex = static_cast<uint16_t>(random(fileCount));
-  for (uint8_t attempt = 0; attempt < 20 && isRecentSleepIndex(recentKind, randomFileIndex, window); attempt++) {
-    randomFileIndex = static_cast<uint16_t>(random(fileCount));
-  }
+  auto& cycle = recentKind == SleepRecentKind::Overlay ? APP_STATE.overlayCycle : APP_STATE.sleepCycle;
+  auto nextCycle = cycle;
+  const uint16_t randomFileIndex = nextCycle.next(fileCount);
 
   size_t directoryIndex = 0;
   uint16_t localIndex = randomFileIndex;
@@ -485,7 +466,7 @@ bool selectRandomSleepFile(const char* firstDirPath, const char* secondDirPath, 
   selectedPath = selectedDirPath;
   selectedPath += "/";
   selectedPath += name.get();
-  pushRecentSleepIndex(recentKind, randomFileIndex);
+  cycle = nextCycle;
   APP_STATE.saveToFile();
   return true;
 }

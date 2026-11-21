@@ -16,3 +16,5 @@ class String : public std::string {
   }
 };
 class Stream {};
+
+long random(long upper);

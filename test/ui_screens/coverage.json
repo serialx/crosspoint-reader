@@ -792,6 +792,11 @@
         "reader-popups"
       ],
       "reason": "Native resource and result adapter for Rust confirmation, interval and message dialogs."
+    },
+    {
+      "source": "src/activities/reader/RustReaderDocument.cpp",
+      "status": "shared-implementation",
+      "reason": "Native HAL storage and ROM MD5 leaf for the Rust book owner's document ID; no separate activity entry."
     }
   ],
   "additional_limits": [

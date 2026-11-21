@@ -197,6 +197,32 @@ static void text(CrossPointWebServer& app, uint8_t client, const std::string& by
 int main() {
 #ifdef XP_FFI_HOST_FAULT_INJECTION
 
+  if (std::getenv("WEB_CAPTIVE_PORTAL_CHECK")) {
+    record("captive-portal", [&](auto& app) {
+      app.apMode = true;
+      app.registerRoutes();
+      auto& server = *app.server;
+      if (!server.middleware) std::abort();
+      for (auto method : {HTTP_GET, HTTP_HEAD, HTTP_POST, HTTP_OPTIONS}) {
+        for (const char* host : {"connectivitycheck.gstatic.com", "crosspoint.local", ""}) {
+          server.requestMethod = method;
+          server._hostHeader = host;
+          bool next = false;
+          host::trace.clear();
+          if (!server.middleware(server, [&] { next = true; return true; })) std::abort();
+          const bool redirect = (method == HTTP_GET || method == HTTP_HEAD) &&
+                                std::string_view(host) == "connectivitycheck.gstatic.com";
+          if (next == redirect) std::abort();
+          if (redirect && (host::trace.size() != 2 || host::trace[0] != "header:Location:http://192.0.2.2/" ||
+                           host::trace[1] != "response:302:text/plain:")) std::abort();
+        }
+      }
+      server._hostHeader = "example.com";
+      static_cast<CrossPointHttpServer&>(server).pump();
+      if (!server._hostHeader.isEmpty()) std::abort();
+    });
+    return 0;
+  }
   if (std::getenv("WEB_PLUGIN_ETAG_CHECK")) {
     record("plugin-file-etag", [&](auto& app) {
       app.server->args["name"] = "test";

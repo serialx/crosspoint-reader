@@ -10,4 +10,6 @@ namespace UrlUtils {
  */
 std::string buildUrl(const std::string& serverUrl, const std::string& path);
 
+bool isForeignHost(const char* hostHeader);
+
 }  // namespace UrlUtils

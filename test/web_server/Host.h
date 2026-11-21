@@ -334,7 +334,9 @@ struct SettingsStub {
 };
 inline SettingsStub SETTINGS;
 
-enum HTTPMethod { HTTP_GET, HTTP_POST, HTTP_OPTIONS };
+enum HTTPMethod { HTTP_GET, HTTP_POST, HTTP_OPTIONS, HTTP_HEAD };
+class WebServer;
+struct Middleware { using Callback = std::function<bool()>; using Function = std::function<bool(WebServer&, Callback)>; };
 enum HTTPUploadStatus { UPLOAD_FILE_START, UPLOAD_FILE_WRITE, UPLOAD_FILE_END, UPLOAD_FILE_ABORTED };
 struct HTTPUpload {
   HTTPUploadStatus status = UPLOAD_FILE_START;
@@ -371,6 +373,9 @@ class WebServer {
   std::map<std::string, std::function<void()>> routes;
   std::map<std::string, String> args;
   String requestUri;
+  String _hostHeader;
+  Middleware::Function middleware;
+  void addMiddleware(Middleware::Function fn) { middleware = std::move(fn); }
   HTTPMethod requestMethod = HTTP_GET;
   HTTPUpload part;
   bool uploadAvailable = true;

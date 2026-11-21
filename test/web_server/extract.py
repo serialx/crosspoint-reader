@@ -48,6 +48,9 @@ def generate(source, header):
     pieces = ['#include "Host.h"', '#include "MD5Builder.h"', '#include "Endpoints.h"', header]
     if "xp_web_files" in source:
         pieces.insert(0, '#include "xp_web.h"')
+    if "UrlUtils::isForeignHost" in source:
+        helper = function((ROOT / "src/util/UrlUtils.cpp").read_text(), "isForeignHost")
+        pieces.append("namespace UrlUtils {\n" + helper + "\n}")
     helpers = (ROOT / "lib/FsHelpers/FsHelpers.cpp").read_text()
     pieces.append("namespace FsHelpers {\n" + "\n".join(function(helpers, name) for name in
                   ["normalisePath", "isSafePathComponent", "checkFileExtension"]) + "\n}")
@@ -147,7 +150,7 @@ def main():
             subprocess.run([str(args.build / "oracle")],
                            env={**os.environ, "WEB_FONT_UPLOAD_CLOSE_CHECK": kind},
                            stdout=subprocess.DEVNULL, check=True)
-        for variable in ["WEB_PLUGIN_ETAG_CHECK", "WEB_COMPLETION_CHECK", "WEB_LOCALIZATION_CHECK", "WEB_SYSTEM_NAME_CHECK", "WEB_KEY_LIFETIME_CHECK", "WEB_JOB_ALLOCATION_CHECK", "WEB_FETCH_ALLOCATION_CHECK", "WEB_STATIC_SCRATCH_CHECK"]:
+        for variable in ["WEB_CAPTIVE_PORTAL_CHECK", "WEB_PLUGIN_ETAG_CHECK", "WEB_COMPLETION_CHECK", "WEB_LOCALIZATION_CHECK", "WEB_SYSTEM_NAME_CHECK", "WEB_KEY_LIFETIME_CHECK", "WEB_JOB_ALLOCATION_CHECK", "WEB_FETCH_ALLOCATION_CHECK", "WEB_STATIC_SCRATCH_CHECK"]:
             subprocess.run([str(args.build / "oracle")], env={**os.environ, variable: "1"},
                            stdout=subprocess.DEVNULL, check=True)
         for stage in ["tls", "pkcs12", "resume", "fetch"]:

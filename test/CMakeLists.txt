@@ -116,6 +116,7 @@ add_subdirectory(inflate_stream)
 add_subdirectory(zip_file)
 add_subdirectory(fs_helpers)
 add_subdirectory(http_header)
+add_subdirectory(url_utils)
 # The server oracle compiles the production server, which includes the generated
 # web page headers. Generate them into the build tree with the firmware pre-build
 # script so the oracle never reads a header left in src/network/html by an

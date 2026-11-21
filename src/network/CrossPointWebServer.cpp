@@ -58,6 +58,7 @@
 #include "util/PluginHttp.h"
 #include "util/PluginLocations.h"
 #include "util/TaskWatchdog.h"
+#include "util/UrlUtils.h"
 
 namespace {
 // Arduino's WebServer retains parsed request arguments until the next request.
@@ -74,6 +75,14 @@ class CrossPointHttpServer final : public WebServer {
     }
     return false;
   }
+
+  void pump() {
+    // The framework leaves the previous Host in place if the next request omits it.
+    _hostHeader = "";
+    handleClient();
+  }
+
+  bool foreignHost() const { return UrlUtils::isForeignHost(_hostHeader.c_str()); }
 
   void releaseRequestArguments() {
     if (_currentArgs) {
@@ -510,7 +519,7 @@ const XpWebLifeServices WebLifeBridge::services = {
           break;
         }
         case XP_WEB_LIFE_HTTP_PUMP: {
-          o.server->handleClient();
+          static_cast<CrossPointHttpServer*>(o.server.get())->pump();
           releaseRequestArguments(o.server.get());
           break;
         }
@@ -691,6 +700,17 @@ void CrossPointWebServer::registerRoutes() {
   // and PWAs on other origins can use the HTTP API. Preflight OPTIONS requests
   // are answered in handleNotFound().
   server->enableCORS(true);
+  if (apMode) {
+    server->addMiddleware([](WebServer& request, Middleware::Callback next) {
+      if ((request.method() != HTTP_GET && request.method() != HTTP_HEAD) ||
+          !static_cast<CrossPointHttpServer&>(request).foreignHost()) {
+        return next();
+      }
+      request.sendHeader("Location", "http://" + WiFi.softAPIP().toString() + "/", true);
+      request.send(302, "text/plain", "");
+      return true;
+    });
+  }
 
   // Setup routes
   LOG_DBG("WEB", "Setting up routes...");

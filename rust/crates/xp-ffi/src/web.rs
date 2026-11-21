@@ -720,11 +720,6 @@ impl Request<'_> {
             return Ok(());
         }
         let uri = self.arg_or(b"\0", b"")?;
-        if self.flags() & 1 != 0 && !uri.bytes().starts_with(b"/api/") {
-            self.header(b"Location\0", b"/");
-            self.send(302, b"");
-            return Ok(());
-        }
         let mut body = Text::new(b"404 Not Found\n\nURI: ")?;
         body.append(uri.bytes())?;
         body.append(b"\n")?;

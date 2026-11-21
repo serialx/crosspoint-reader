@@ -205,6 +205,7 @@ String fields explicitly passed through the template resolver support substituti
 Template-bearing fields include request URLs, bodies, and header values;
 `browse.lists_url`; list notice title/message/Confirm/Cancel text; `bundle.subdir`;
 download filename/username/password; and sidecar path/body.
+Catalog template expansions, including the XML listing base used to resolve links, are limited to 16 KiB each, and the escaped request URL, body, header names and header values must fit within 16 KiB in total.
 
 | Variable | Meaning | Available in |
 |---|---|---|

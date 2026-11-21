@@ -197,7 +197,8 @@ std::mutex panel,model;
 using String=std::string;
 struct StrId {enum {STR_PLUGIN_AUTH_FAILED};};
 unsigned millis(){return 10;}
-struct Request {std::string url,body;};
+struct Request {std::string url,body,method; int headers;};
+namespace pluginhttp { using RequestSpec = Request; }
 void substituteAll(std::string&,const char*,const std::string&){}
 struct PluginCatalogActivity;
 struct RenderLock {std::unique_lock<std::mutex> lock;RenderLock(PluginCatalogActivity&):lock(panel){}};
@@ -209,7 +210,7 @@ struct PluginCatalogActivity {
  std::string authDeviceCode;
  bool requested=false;
  void fail(int){assert(false);}
- Request substitutedRequest(const Request& r){return r;}
+ bool buildRequest(Request&, const std::string&,const std::string&,int,void*,std::string_view,bool){return true;}
  int apiRequest(Request,String&){requested=true;return -1;}
  void pollAuth();
 };

@@ -174,8 +174,9 @@ struct PluginCatalogActivity {
  void requestUpdate(){}void loadConfig(){}bool loadToken(){return true;}
  bool refreshCredentialToken(){++auth;return false;}
  void fail(int){assert(false);}
- std::string substituted(const std::string& s,void*){return s;}
- std::vector<int> substitutedHeaders(const std::vector<int>& h,void*){return h;}
+ bool substituted(const std::string& s,std::string& out){out=s;return true;}
+ bool buildRequest(pluginhttp::RequestSpec&,const std::string&,const std::string&,const std::vector<int>&,void*,std::string_view){return true;}
+ std::string_view activeBrowseOrigin(){return {};}
  std::string activeBrowseUrl(){return "search";}std::string activeBrowseBody(){return {};}
  void releaseRows(){}void resetSelection(){}
  void beginLoading(){setState(State::LOADING);}

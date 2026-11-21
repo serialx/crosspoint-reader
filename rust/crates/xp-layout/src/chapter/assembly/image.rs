@@ -254,13 +254,14 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         } else {
             self.ensure_page();
         }
+        top_margin =
+            i32::from(top_margin).max(self.last_glyph_bottom(sink) - i32::from(self.next_y)) as i16;
         if i32::from(self.next_y) + i32::from(top_margin) + height > i32::from(self.options.height)
         {
             top_margin =
                 (i32::from(self.options.height) - height - i32::from(self.next_y)).max(0) as i16;
         }
-        self.next_y = (i32::from(self.next_y) + i32::from(top_margin))
-            .max(self.last_glyph_bottom(sink)) as i16;
+        self.next_y = self.next_y.wrapping_add(top_margin);
         let result = sink.create_image(resource, width, height);
         if result.is_err() {
             sink.diagnostic(Diagnostic::ImageBlock, 0, 0, 0, &[]);

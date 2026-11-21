@@ -69,25 +69,27 @@
            boundaryStr.replace("\"", "");
            if (boundaryStr.length() > 70) {  // RFC 2046: max boundary length is 70
              log_e("Invalid boundary length: %s", boundaryStr.c_str());
-@@ -238,8 +248,16 @@
+@@ -238,8 +248,18 @@
        }
      } else {
        // it IS a form
 -      _parseArguments(searchStr);
++      // Request parsing precedes response-header initialization; OOM must not allocate more headers.
++      static constexpr char badUpload[] = "HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
 +      if (fileUpload) {
 +        if (!upload_ingress::parseUploadArguments(searchStr, _currentArgs, _currentArgCount)) {
-+          send(400, "text/plain", "Invalid upload arguments");
++          client.write(reinterpret_cast<const uint8_t*>(badUpload), sizeof(badUpload) - 1);
 +          return false;
 +        }
 +      } else {
 +        _parseArguments(searchStr);
 +      }
        if (!_parseForm(client, boundaryStr, _clientContentLength)) {
-+        if (fileUpload && client.connected()) send(400, "text/plain", "Invalid multipart upload");
++        if (fileUpload && client.connected()) client.write(reinterpret_cast<const uint8_t*>(badUpload), sizeof(badUpload) - 1);
          return false;
        }
      }
-@@ -410,22 +428,36 @@
+@@ -410,22 +430,36 @@
  }
 
  bool WebServer::_parseForm(NetworkClient &client, const String &boundary, uint32_t len) {
@@ -129,7 +131,7 @@
      _postArgsLen = 0;
      while (1) {
        String argName;
-@@ -434,58 +466,64 @@
+@@ -434,58 +468,64 @@
        String argFilename;
        bool argIsFile = false;
 
@@ -214,7 +216,7 @@
                log_v("Done Parsing POST");
                break;
              } else if (_postArgsLen >= WEBSERVER_MAX_POST_ARGS) {
-@@ -493,11 +531,12 @@
+@@ -493,11 +533,12 @@
                return false;
              }
            } else {
@@ -231,7 +233,7 @@
              _currentUpload->totalSize = 0;
              _currentUpload->currentSize = 0;
              log_v("Start File: %s Type: %s", _currentUpload->filename.c_str(), _currentUpload->type.c_str());
-@@ -511,7 +550,7 @@
+@@ -511,7 +552,7 @@
              snprintf(fastBoundary, fastBoundaryLen, "\r\n--%s", boundary.c_str());
              int boundaryPtr = 0;
              while (true) {
@@ -240,7 +242,7 @@
                if (ret < 0) {
                  // Unexpected, we should have had data available per above
                  return _parseFormUploadAborted();
-@@ -539,6 +578,17 @@
+@@ -539,6 +580,17 @@
                  }
                }
              }
@@ -258,7 +260,7 @@
              // Found the boundary string, finish processing this file upload
              if (_currentHandler && _currentHandler->canUpload(*this, _currentUri)) {
                _currentHandler->upload(*this, _currentUri, *_currentUpload);
-@@ -552,9 +602,7 @@
+@@ -552,9 +604,7 @@
              if (!client.connected()) {
                return _parseFormUploadAborted();
              }
@@ -269,7 +271,7 @@
                log_v("Done Parsing POST");
                break;
              }
-@@ -574,7 +622,11 @@
+@@ -574,7 +624,11 @@
      if (_currentArgs) {
        delete[] _currentArgs;
      }

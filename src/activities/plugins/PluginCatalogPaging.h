@@ -17,6 +17,9 @@ inline Paging pagingOf(std::string_view url, std::string_view body, const Header
 
 inline int limitFor(Paging paging, int pageSize) { return paging == Paging::SizedPages ? pageSize : pageSize + 1; }
 
+// A static list is sliced after filtering; server pages count every returned row.
+inline bool countsTowardPage(Paging paging, bool shown) { return paging != Paging::Static || shown; }
+
 class PageWindow {
  public:
   PageWindow(size_t start, size_t limit) : window{start, limit, 0, 0} {}

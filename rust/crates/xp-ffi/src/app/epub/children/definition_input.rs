@@ -7,6 +7,15 @@ use xp_ui::{
 };
 
 impl DefinitionSession {
+    // Only the header hit and width are needed once the layout callback returns.
+    // Keep its scratch off the definition navigation stack.
+    #[inline(never)]
+    unsafe fn input_header(&self, x: i32, y: i32) -> (bool, i32) {
+        let mut layout = Layout::default();
+        let hit = unsafe { (self.physical.layout)(&mut layout, x, y) } != 0;
+        (hit, i32::from(layout.screen.w))
+    }
+
     unsafe fn action(
         &self,
         effect: Effect,
@@ -94,14 +103,12 @@ impl DefinitionSession {
         let long_press =
             !failed && lookup && unsafe { (leaves.input_screen_point)(0, &mut x, &mut y) } != 0;
         // Native samples the recorded header target immediately after consuming the long press.
-        let mut layout = Layout::default();
-        let header_back_hit = unsafe {
-            (self.physical.layout)(
-                &mut layout,
+        let (header_back_hit, width) = unsafe {
+            self.input_header(
                 if long_press { x } else { -1 },
                 if long_press { y } else { -1 },
             )
-        } != 0;
+        };
         let header_long = long_press && header_back_hit;
         let mut input = Input::default();
         unsafe { leaves.input_snapshot(&mut input) };
@@ -111,14 +118,10 @@ impl DefinitionSession {
         input.touch_y = if tap { ty } else { y } as i16;
         let (mut effect, dismiss) = self.model.with(|model| {
             let visible = model.state.message_visible;
-            let effect = model.state.update(
-                input,
-                tap,
-                long_press,
-                header_long,
-                i32::from(layout.screen.w),
-                touch_controls,
-            );
+            let effect =
+                model
+                    .state
+                    .update(input, tap, long_press, header_long, width, touch_controls);
             let dismiss = visible != 0 && model.state.message_visible == 0;
             // Dismissal is published only after the current render loan has ended.
             if dismiss {

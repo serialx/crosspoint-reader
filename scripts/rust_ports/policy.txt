@@ -12,6 +12,8 @@ physical EPUB.render_physical_operation xp_display_abort xp_display_capabilities
 physical App.refresh xp_display_abort xp_display_capabilities xp_display_drop xp_display_execute xp_display_init_v2 xp_hal_display_refresh xp_hal_wake_reason # Panel/bus HAL continuation.
 physical WiFi.clock_sync xp_hal_clock_sync # Clock HAL synchronization.
 physical XP_WIFI_PHYSICAL xp_hal_clock_sync # Same clock HAL slot reached through the directly imported Wi-Fi table.
+physical EPUB.child_definition_payload_find xp_inflate_small_step_segmented # 280895ff6: DictZip borrows four caller-owned history buffers to decode one SD chunk.
+physical EPUB.child_lookup_find xp_inflate_small_step_segmented # 280895ff6: DictZip borrows four caller-owned history buffers to decode one SD chunk.
 physical EPUB.protection_index xp_inflate_init xp_inflate_state_align xp_inflate_state_size xp_inflate_step # SDK ProtectedBook index scans encryption XML through MinizCompat; named physical byte stream, no reader policy callback.
 # SDK UI measurement/drawing continuations use runtime callbacks; audit them at R8b.
 # Battery HAL and nested clipping_physical callbacks also require manual R8b review.
@@ -50,6 +52,7 @@ deferred EPUB.child_definition_draw_body R6 # Deferred dictionary/selection/chap
 deferred EPUB.child_definition_payload_find R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_definition_payload_prepare R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_definition_selection_build R6 # Deferred dictionary/selection/chapter child bridge.
+physical EPUB.child_definition_selection_child xp_dictionary_registry # 6b863e485: Constructor retains the onEnter vtable address; DefinitionLookup mode always bypasses the registry.
 deferred EPUB.child_definition_selection_child R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_list_help R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_list_icon R6 # Deferred dictionary/selection/chapter child bridge.
@@ -58,6 +61,7 @@ deferred EPUB.child_lookup_find R6 # Deferred dictionary/selection/chapter child
 deferred EPUB.child_lookup_index R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_lookup_open R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_qr_draw R6 # Deferred dictionary/selection/chapter child bridge.
+physical EPUB.child_selection xp_dictionary_registry # 6b863e485: Constructor retains the onEnter vtable address; the enter callback checks the selected dictionary on SD before extracting words.
 deferred EPUB.child_selection R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_sync R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_text_settings R5 # Deferred preview/popup/end-of-book path.

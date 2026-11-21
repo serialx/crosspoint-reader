@@ -1395,9 +1395,8 @@ definition 65536 a9c6f43f08762325
 ERR DICT /dictionaries/Demo/test uses 64-bit index offsets (unsupported)
 ifo idxoffsetbits=64
  0 0
-ERR DICT /dictionaries/Demo/test uses 64-bit index offsets (unsupported)
 ifo idxoffsetbits = 64
- 0 0
+ 1 1
 ifo sametypesequence=x
  1 1
 ifo sametypesequence=hm

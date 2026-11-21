@@ -6,7 +6,7 @@ bool recursiveInitialized = false;
 unsigned recursiveCases = 0;
 }
 
-extern "C" uint8_t xp_recursive_dictionary_result(const ActivityResult* original) {
+extern "C" uint8_t xp_recursive_dictionary_result(const ActivityResult* original, bool touch, bool controlsEnabled) {
   assert(original && original->data.index() == 0);
   if (!recursiveInitialized) {
     fixture = &recursiveState;
@@ -22,6 +22,8 @@ extern "C" uint8_t xp_recursive_dictionary_result(const ActivityResult* original
     recursiveState.path = "/" + std::string(4090, 'p') + ".epub";
     results = Results{};
   }
+  results.hasTouch = touch;
+  results.touchReaderControls = controlsEnabled;
   const size_t before = xp_test_live_allocations();
   recursiveState.startAttempt();
   assert(install() == 1);
@@ -74,11 +76,11 @@ extern "C" uint8_t xp_recursive_dictionary_result(const ActivityResult* original
 }
 extern "C" unsigned xp_recursive_dictionary_cases() { return recursiveCases; }
 #else
-extern "C" uint8_t xp_recursive_dictionary_result(const ActivityResult*);
+extern "C" uint8_t xp_recursive_dictionary_result(const ActivityResult*, bool, bool);
 extern "C" unsigned xp_recursive_dictionary_cases();
 
 void DictionaryDefinitionActivity::onLookupResult(const ActivityResult& result) {
   // Observation of a real physical selection child, not a cancellation predicate.
-  selectionOpened = xp_recursive_dictionary_result(&result) != 0;
+  selectionOpened = xp_recursive_dictionary_result(&result, mappedInput.touch, SETTINGS.touchReaderControls) != 0;
 }
 #endif

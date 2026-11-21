@@ -51,7 +51,7 @@ int main() {
         const bool candidate = payload.prepareDefinition(renderer, payload.slots[0], styled, false, body);
         assert(old == candidate);
         auto& slot = payload.slots[0];
-        assert(slot.text == oracle.content.text && slot.totalPages == oracle.content.totalPages &&
+        assert(slot.textView() == oracle.content.text && slot.totalPages() == oracle.content.totalPages &&
                slot.linesPerPage == oracle.content.linesPerPage);
         assert(slot.pages.size() == oracle.content.pages.size() && slot.lines.size() == oracle.content.lines.size());
         for (size_t i = 0; i < slot.lines.size(); ++i) {
@@ -70,7 +70,7 @@ int main() {
         assert(selectionOriginX == body.x && selectionOriginY == body.y);
         delete child;
         payload.slots[0].releasePayload();
-        assert(slot.text.empty() && slot.pages.empty() && slot.lines.empty());
+        assert(slot.textView().empty() && slot.pages.empty() && slot.lines.empty());
         ++cases;
       }
   // Both paths keep native reserve/headroom failure behavior and font release ordering.
@@ -98,7 +98,7 @@ int main() {
   };
   assert(DefinitionPayload::constructPlain(&storage, {}, source.size(), fill, &filled));
   auto& plain = DefinitionPayload::get(&storage);
-  assert(plain.slots[0].text == source && plain.slots[0].text.data() == reinterpret_cast<char*>(filled));
+  assert(plain.slots[0].textView() == source && plain.slots[0].textView().data() == reinterpret_cast<char*>(filled));
   std::destroy_at(&plain);
   assert(!DefinitionPayload::constructPlain(
       &storage, {}, 8, [](void*, uint8_t*, uint32_t) -> uint8_t { return 0; }, nullptr));
@@ -116,9 +116,9 @@ int main() {
     uint8_t html = 0;
     assert(DefinitionPayload::constructNative(&storage, &transfer, &html));
     auto& p = DefinitionPayload::get(&storage);
-    assert(html && p.slots[0].text == source && p.slots[0].headword == title);
+    assert(html && p.slots[0].textView() == source && p.slots[0].headword == title);
     if (move)
-      assert(p.slots[0].text.data() == original);
+      assert(p.slots[0].textView().data() == original);
     else
       assert(text == source);
     std::destroy_at(&p);
@@ -126,21 +126,21 @@ int main() {
   readerLookup::PayloadLookup lookup;
   lookup.query = source;
   lookup.headword = "head";
-  lookup.definition = source;
+  memcpy(lookup.definition.resize(source.size()), source.data(), source.size());
   lookup.dictionary.entries = {{10, "found"}};
   auto* lookupStorage = reinterpret_cast<XpEpubLookupStorage*>(&lookup);
   uint8_t html = 99;
   assert(!readerLookup::payloadLookup(
       &storage, lookupStorage, [](void*, XpAppText) -> uint8_t { return 0; }, nullptr, &html));
-  assert(lookup.query == source && lookup.definition == source && lookup.headword == "head" && html == 99);
+  assert(lookup.query == source && lookup.definition.view() == source && lookup.headword == "head" && html == 99);
   const auto* original = lookup.definition.data();
   assert(readerLookup::payloadLookup(
       &storage, lookupStorage, [](void*, XpAppText text) -> uint8_t { return text.len == 4097; }, nullptr, &html));
   auto& p = DefinitionPayload::get(&storage);
-  assert(lookup.query.empty() && lookup.query.capacity() < source.size() && p.slots[0].text.data() == original);
+  assert(lookup.query.empty() && lookup.query.capacity() < source.size() && p.slots[0].textView().data() == original);
   uint8_t result = 99;
   assert(readerLookup::payloadFind(&storage, 1, lookupStorage, {reinterpret_cast<const uint8_t*>("same"), 4}, &result));
-  assert(result == 0 && p.slots[1].text == "found");
+  assert(result == 0 && p.slots[1].textView() == "found");
   assert(!readerLookup::payloadFind(&storage, 1, lookupStorage, {reinterpret_cast<const uint8_t*>("missing"), 7},
                                     &result) &&
          result == 1);

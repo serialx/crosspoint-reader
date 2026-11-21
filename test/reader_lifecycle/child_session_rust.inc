@@ -113,6 +113,10 @@ static void configureChildLeaves() {
     clippingLockEventsQuiet = false;
   };
   childRuntime.now_ms = millis;
+  childLeaves.physical.input_facts = [](XpEpubInputFacts* out) {
+    assert(!modelDepth);
+    *out = {};
+  };
   childLeaves.physical.settings_snapshot = [](uint8_t font, XpEpubSettings* out) {
     assert(!modelDepth && !font);
     *out = {};

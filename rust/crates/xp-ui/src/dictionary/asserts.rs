@@ -64,7 +64,8 @@ const _: () = {
     assert!(offset_of!(selection::Layout, action_font) == 36);
     assert!(offset_of!(selection::Layout, touch) == 40);
     assert!(offset_of!(selection::Layout, radius) == 41);
-    assert!(offset_of!(selection::Layout, reserved) == 42);
+    assert!(offset_of!(selection::Layout, lookup_hidden) == 42);
+    assert!(offset_of!(selection::Layout, reserved) == 43);
     assert!(size_of::<selection::Painted>() == 24);
     assert!(align_of::<selection::Painted>() == 4);
     assert!(offset_of!(selection::Painted, selected) == 0);

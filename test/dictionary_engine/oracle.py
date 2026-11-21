@@ -19,10 +19,22 @@ def main():
     parser.add_argument('--source-root', type=Path, default=ROOT)
     parser.add_argument('--write-golden', action='store_true')
     parser.add_argument('--check-mutation', action='store_true')
+    parser.add_argument('--availability', action='store_true')
     parser.add_argument('--compressed', action='store_true', help='check compressed lookup failure and retry')
     args = parser.parse_args()
     args.build.mkdir(parents=True, exist_ok=True)
     source = args.source_root
+    if args.availability:
+        activity = (source / 'src/activities/reader/ClipSelectionActivity.cpp').read_text()
+        # Compile the production entry path up to the first font/render operation.
+        enter = activity.split('void ClipSelectionActivity::onEnter() {', 1)[1].split('  fontId = ', 1)[0]
+        (args.build / 'SelectionEntry.inc').write_text(enter)
+        binary = args.build / 'selection'
+        subprocess.run([os.environ.get('CXX', 'c++'), '-std=c++20', '-I', str(HERE / 'stubs'),
+                        '-I', str(source / 'src/util'), '-I', str(args.build), str(HERE / 'Selection.cpp'),
+                        str(source / 'src/util/DictionaryRegistry.cpp'), *rust_link_flags(), '-o', binary], check=True)
+        subprocess.run([binary], check=True)
+        return 0
     html = (source / 'src/util/DictHtmlPages.cpp').read_text()
     # Expose the production normalizer, excluding parser/layout dependencies.
     html = html[html.index('namespace {'):html.index('bool buildDictionaryHtmlPages(')]

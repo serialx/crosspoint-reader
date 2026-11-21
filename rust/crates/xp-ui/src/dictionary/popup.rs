@@ -55,6 +55,9 @@ impl Lookup {
     pub fn expired(&self, now: u32) -> bool {
         self.popup >= 2 && now.wrapping_sub(self.since) >= 1500
     }
+    pub fn expired_result(&self, now: u32) -> Option<bool> {
+        self.expired(now).then_some(self.popup == 3)
+    }
 }
 #[repr(C)]
 #[derive(Clone, Copy, Default)]

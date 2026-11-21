@@ -53,7 +53,13 @@ void bindResultsPhysical() {
   leaves.settings_snapshot = [](uint8_t resolve, XpEpubSettings* out) {
     physical("settings"); assert(resolve <= 1); *out = {}; out->embedded_style = 1;
     out->font = resolve ? 1 : 0; out->font_size = 14; out->font_family = literal("fixture");
+    out->touch_controls = results.touchReaderControls;
     out->dictionary_available = 1; out->menu_style = results.toolbarMode ? 1 : 0;
+  };
+  leaves.input_facts = [](XpEpubInputFacts* out) {
+    *out = {};
+    out->touch = results.hasTouch;
+    out->board_touch = results.hasTouch;
   };
   leaves.render_geometry = [](XpEpubGeometry* out) {
     physical("geometry"); *out = {}; out->width = 528; out->height = 792;

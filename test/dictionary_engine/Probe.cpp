@@ -49,12 +49,21 @@ void stored(const char* path) {
   bytes(path, std::string(b.begin(), b.end()));
 }
 void lookup(Dictionary& d, const char* word) {
-  std::string text = "old", matched = "old";
+#if __has_include("DictionaryBuffer.h")
+  DictionaryBuffer text;
+  const int savedLimit = allocationLimit;
+  allocationLimit = -1;
+  memcpy(text.resize(3), "old", 3);
+  allocationLimit = savedLimit;
+#else
+  std::string text = "old";
+#endif
+  std::string matched = "old";
   Dictionary::LookupResult r{};
   bool ok = d.lookup(word, text, matched, &r);
   printf("lookup %s %d %d\n", word, ok, int(r));
   bytes("matched", matched);
-  bytes("definition", text);
+  bytes("definition", std::string(text.data(), text.size()));
 }
 void fixture(bool html = false) {
   files.clear();

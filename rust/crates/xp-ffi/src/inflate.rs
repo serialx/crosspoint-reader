@@ -3,7 +3,7 @@ use core::{
     mem::{align_of, size_of},
     slice,
 };
-use xp_core::inflate::{InflateState, SmallInflateState};
+use xp_core::inflate::{InflateState, SmallInflateState, WINDOW_SEGMENTS, WINDOW_SEGMENT_BYTES};
 
 const BAD_PARAM: i32 = -3;
 
@@ -185,6 +185,58 @@ pub unsafe extern "C" fn xp_inflate_small_step(
         output,
         *out_pos,
         wrapping_window != 0,
+        out_max,
+    );
+    *consumed = used;
+    *produced = written;
+    *out_pos += written;
+    status
+}
+
+/// # Safety
+/// Same initialized state, input, and disjoint counter contract as xp_inflate_small_step.
+/// Segments hold four disjoint initialized 8192-byte allocations, borrowed for this call.
+#[no_mangle]
+pub unsafe extern "C" fn xp_inflate_small_step_segmented(
+    state: *mut c_void,
+    input: *const u8,
+    in_len: usize,
+    more_input: u8,
+    segments: *const [*mut [u8; WINDOW_SEGMENT_BYTES]; WINDOW_SEGMENTS],
+    out_pos: *mut usize,
+    consumed: *mut usize,
+    produced: *mut usize,
+    out_max: usize,
+) -> i32 {
+    if state.is_null()
+        || !(state as usize).is_multiple_of(align_of::<SmallInflateState>())
+        || segments.is_null()
+        || out_pos.is_null()
+        || consumed.is_null()
+        || produced.is_null()
+    {
+        return BAD_PARAM;
+    }
+    *consumed = 0;
+    *produced = 0;
+    if (input.is_null() && in_len != 0)
+        || in_len > isize::MAX as usize
+        || more_input > 1
+        || (*segments).iter().any(|segment| segment.is_null())
+    {
+        return BAD_PARAM;
+    }
+    let input = if in_len == 0 {
+        &[]
+    } else {
+        slice::from_raw_parts(input, in_len)
+    };
+    let output = (*segments).map(|segment| &mut *segment);
+    let (status, used, written) = (&mut *state.cast::<SmallInflateState>()).step_segmented(
+        input,
+        more_input != 0,
+        output,
+        *out_pos,
         out_max,
     );
     *consumed = used;

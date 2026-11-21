@@ -36,7 +36,8 @@ use ::core::convert::TryInto;
 mod tables;
 pub use tables::{FastTables, HuffmanStorage, SmallTables};
 
-use self::output_buffer::{InputWrapper, OutputBuffer};
+use self::output_buffer::{InputWrapper, Output, OutputBuffer, Segmented};
+pub use self::output_buffer::{WINDOW_SEGMENTS, WINDOW_SEGMENT_BYTES};
 
 #[cfg(feature = "serde")]
 use crate::serde::big_array::BigArray;
@@ -872,7 +873,7 @@ struct LocalVars {
 }
 
 #[inline]
-fn transfer(
+pub(super) fn transfer(
     out_slice: &mut [u8],
     mut source_pos: usize,
     mut out_pos: usize,
@@ -918,15 +919,15 @@ fn transfer(
 }
 
 #[inline(always)]
-fn apply_match(
-    out_slice: &mut [u8],
+fn apply_match<O: Output>(
+    out: &mut O,
     out_pos: usize,
     dist: usize,
     match_len: usize,
     out_buf_size_mask: usize,
 ) {
     let source_pos = out_pos.wrapping_sub(dist) & out_buf_size_mask;
-    transfer(out_slice, source_pos, out_pos, match_len, out_buf_size_mask);
+    out.copy_match(source_pos, out_pos, match_len, out_buf_size_mask);
 }
 
 /// Fast inner decompression loop which is run  while there is at least
@@ -938,10 +939,10 @@ fn apply_match(
 /// Currently we don't do this here, but this function does avoid having to jump through the
 /// big match loop on each state change(as rust does not have fallthrough or gotos at the moment),
 /// and already improves decompression speed a fair bit.
-fn decompress_fast<T: HuffmanStorage>(
+fn decompress_fast<T: HuffmanStorage, O: Output>(
     r: &mut DecompressorOxide<T>,
     in_iter: &mut InputWrapper,
-    out_buf: &mut OutputBuffer,
+    out_buf: &mut OutputBuffer<O>,
     flags: u32,
     local_vars: &mut LocalVars,
     out_buf_size_mask: usize,
@@ -1060,7 +1061,7 @@ fn decompress_fast<T: HuffmanStorage>(
             let position = out_buf.position();
             if (l.dist as usize > out_buf.position()
                 && (flags & TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF != 0))
-                || (l.dist as usize > out_buf.get_ref().len())
+                || (l.dist as usize > out_buf.output.len())
                 || l.dist as usize > usize::from(r.history_size) + out_buf.position() - out_start
             {
                 // We encountered a distance that refers a position before
@@ -1070,7 +1071,7 @@ fn decompress_fast<T: HuffmanStorage>(
             }
 
             apply_match(
-                out_buf.get_mut(),
+                &mut out_buf.output,
                 position,
                 l.dist as usize,
                 l.counter as usize,
@@ -1147,6 +1148,35 @@ pub fn decompress_with_limit<T: HuffmanStorage>(
     out_max: usize,
     flags: u32,
 ) -> (TINFLStatus, usize, usize) {
+    decompress_to(r, in_buf, out, out_pos, out_max, flags)
+}
+
+/// Decode into one window segment at a time, keeping all four readable for matches.
+pub fn decompress_segmented<T: HuffmanStorage>(
+    r: &mut DecompressorOxide<T>,
+    in_buf: &[u8],
+    segments: [&mut [u8; WINDOW_SEGMENT_BYTES]; WINDOW_SEGMENTS],
+    out_pos: usize,
+    out_max: usize,
+    flags: u32,
+) -> (TINFLStatus, usize, usize) {
+    if out_pos >= WINDOW_SEGMENTS * WINDOW_SEGMENT_BYTES {
+        return (TINFLStatus::BadParam, 0, 0);
+    }
+    let count = out_max.min(WINDOW_SEGMENT_BYTES - out_pos % WINDOW_SEGMENT_BYTES);
+    decompress_to(r, in_buf, Segmented(segments), out_pos, count, flags)
+}
+
+// Keep the existing contiguous decoder as the linked boundary for its callers.
+#[inline(always)]
+fn decompress_to<T: HuffmanStorage, O: Output>(
+    r: &mut DecompressorOxide<T>,
+    in_buf: &[u8],
+    out: O,
+    out_pos: usize,
+    out_max: usize,
+    flags: u32,
+) -> (TINFLStatus, usize, usize) {
     let out_buf_size_mask = if flags & TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF != 0 {
         usize::MAX
     } else {
@@ -1168,7 +1198,7 @@ pub fn decompress_with_limit<T: HuffmanStorage>(
 
     let mut state = r.state;
 
-    let mut out_buf = OutputBuffer::from_slice_pos_and_max(out, out_pos, out_max);
+    let mut out_buf = OutputBuffer::new(out, out_pos, out_max);
 
     // Make a local copy of the important variables here so we can work with them on the stack.
     let mut l = LocalVars {
@@ -1467,7 +1497,7 @@ pub fn decompress_with_limit<T: HuffmanStorage>(
                 } else if
                 // If there is enough space, use the fast inner decompression
                 // function.
-                    out_buf.bytes_left() >= 259 &&
+                    O::FAST && out_buf.bytes_left() >= 259 &&
                     in_iter.bytes_left() >= 14
                 {
                     let (status, new_state) = decompress_fast(
@@ -1612,7 +1642,7 @@ pub fn decompress_with_limit<T: HuffmanStorage>(
 
             HuffDecodeOuterLoop2 => generate_state!(state, 'state_machine, {
                 if (l.dist as usize > out_buf.position() &&
-                    (flags & TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF != 0)) || (l.dist as usize > out_buf.get_ref().len())
+                    (flags & TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF != 0)) || (l.dist as usize > out_buf.output.len())
                     || l.dist as usize > usize::from(r.history_size) + out_buf.position() - out_pos
                 {
                     // We encountered a distance that refers a position before
@@ -1640,7 +1670,7 @@ pub fn decompress_with_limit<T: HuffmanStorage>(
                         }
                     } else {
                         apply_match(
-                            out_buf.get_mut(),
+                            &mut out_buf.output,
                             out_pos,
                             l.dist as usize,
                             l.counter as usize,
@@ -1661,7 +1691,7 @@ pub fn decompress_with_limit<T: HuffmanStorage>(
 
                     let len = cmp::min(out_buf.bytes_left(), l.counter as usize);
 
-                    transfer(out_buf.get_mut(), source_pos, out_pos, len, out_buf_size_mask);
+                    out_buf.output.copy_match(source_pos, out_pos, len, out_buf_size_mask);
 
                     out_buf.set_position(out_pos + len);
                     l.counter -= len as u32;
@@ -1785,7 +1815,10 @@ pub fn decompress_with_limit<T: HuffmanStorage>(
     };
     if need_adler && status as i32 >= 0 {
         let out_buf_pos = out_buf.position();
-        r.check_adler32 = update_adler32(r.check_adler32, &out_buf.get_ref()[out_pos..out_buf_pos]);
+        r.check_adler32 = update_adler32(
+            r.check_adler32,
+            out_buf.output.region(out_pos, out_buf_pos - out_pos),
+        );
 
         // disabled so that random input from fuzzer would not be rejected early,
         // before it has a chance to reach interesting parts of code

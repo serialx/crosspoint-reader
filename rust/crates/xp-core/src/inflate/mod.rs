@@ -1,9 +1,11 @@
 //! Allocation-free streaming inflate; the caller owns state and output history.
 use miniz_oxide::inflate::core::{
-    decompress, decompress_with_limit, inflate_flags, DecompressorOxide, FastTables,
-    HuffmanStorage, SmallTables,
+    decompress, decompress_segmented, decompress_with_limit, inflate_flags, DecompressorOxide,
+    FastTables, HuffmanStorage, SmallTables,
 };
 use miniz_oxide::inflate::TINFLStatus;
+
+pub use miniz_oxide::inflate::core::{WINDOW_SEGMENTS, WINDOW_SEGMENT_BYTES};
 
 pub type InflateState = DecoderState<FastTables>;
 pub type SmallInflateState = DecoderState<SmallTables>;
@@ -73,13 +75,40 @@ impl<T: HuffmanStorage> DecoderState<T> {
         } else {
             decompress_with_limit(&mut self.decoder, input, output, out_pos, out_max, flags)
         };
-        let status = match status {
-            TINFLStatus::NeedsMoreInput => 0,
-            TINFLStatus::Done => 1,
-            TINFLStatus::HasMoreOutput => 2,
-            error => error as i32,
+        (wire_status(status), consumed, produced)
+    }
+}
+
+impl SmallInflateState {
+    pub fn step_segmented(
+        &mut self,
+        input: &[u8],
+        more_input: bool,
+        output: [&mut [u8; WINDOW_SEGMENT_BYTES]; WINDOW_SEGMENTS],
+        out_pos: usize,
+        out_max: usize,
+    ) -> (i32, usize, usize) {
+        let flags = if self.zlib_wrapped {
+            inflate_flags::TINFL_FLAG_PARSE_ZLIB_HEADER
+        } else {
+            0
+        } | if more_input {
+            inflate_flags::TINFL_FLAG_HAS_MORE_INPUT
+        } else {
+            0
         };
-        (status, consumed, produced)
+        let (status, consumed, produced) =
+            decompress_segmented(&mut self.decoder, input, output, out_pos, out_max, flags);
+        (wire_status(status), consumed, produced)
+    }
+}
+
+fn wire_status(status: TINFLStatus) -> i32 {
+    match status {
+        TINFLStatus::NeedsMoreInput => 0,
+        TINFLStatus::Done => 1,
+        TINFLStatus::HasMoreOutput => 2,
+        error => error as i32,
     }
 }
 

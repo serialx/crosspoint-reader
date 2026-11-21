@@ -13,7 +13,7 @@ bool InflateReader::init(bool streaming) {
   if (streaming) {
     ringBuffer = static_cast<uint8_t*>(malloc(RING_BYTES));
     if (!ringBuffer) return false;
-    ownsRing = true;
+    window = Window::Owned;
     memset(ringBuffer, 0, RING_BYTES);
   }
   // Changing the facade layout requires deliberate heap remeasurement.
@@ -31,19 +31,42 @@ bool InflateReader::initWithRing(uint8_t* ring) {
     return false;
   }
   ringBuffer = ring;
+  window = Window::Borrowed;
   memset(ringBuffer, 0, RING_BYTES);
   return true;
 }
 
+bool InflateReader::initWithSegments(uint8_t* const (&segments)[RING_SEGMENTS]) {
+  deinit();
+  for (size_t i = 0; i < RING_SEGMENTS; ++i) {
+    if (!segments[i]) return false;
+    const auto address = reinterpret_cast<uintptr_t>(segments[i]);
+    for (size_t j = 0; j < i; ++j) {
+      const auto previous = reinterpret_cast<uintptr_t>(segments[j]);
+      const auto distance = address < previous ? previous - address : address - previous;
+      if (distance < RING_SEGMENT_BYTES) return false;
+    }
+  }
+  if (!init(false)) return false;
+  for (size_t i = 0; i < RING_SEGMENTS; ++i) {
+    segmentTable[i] = segments[i];
+    memset(segmentTable[i], 0, RING_SEGMENT_BYTES);
+  }
+  ringBuffer = segmentTable;
+  window = Window::Segmented;
+  return true;
+}
+
 void InflateReader::deinit() {
-  if (ownsRing) free(ringBuffer);
+  if (window == Window::Owned) free(ringBuffer);
   ringBuffer = nullptr;
   input = nullptr;
   available = position = 0;
   fill = nullptr;
   context = nullptr;
   outputStart = nullptr;
-  ownsRing = exhausted = ready = finished = false;
+  window = Window::None;
+  exhausted = ready = finished = false;
 }
 
 void InflateReader::setSource(const uint8_t* src, size_t len) {
@@ -72,15 +95,26 @@ InflateStatus InflateReader::readAtMost(uint8_t* dest, size_t maxLen, size_t* pr
       if (!available) exhausted = true;
     }
     const size_t start = position;
-    const size_t count = ringBuffer ? std::min(maxLen - *produced, RING_BYTES - position) : maxLen - *produced;
     size_t used = 0, written = 0;
-    const int32_t status = xp_inflate_small_step(
-        state, input, available, !exhausted, ringBuffer ? ringBuffer : outputStart,
-        ringBuffer ? RING_BYTES : position + count, &position, ringBuffer != nullptr, &used, &written, count);
+    const uint8_t* decoded = nullptr;
+    int32_t status;
+    if (window == Window::Segmented) {
+      auto* segments = static_cast<uint8_t**>(ringBuffer);
+      status = xp_inflate_small_step_segmented(state, input, available, !exhausted, segments, &position, &used,
+                                               &written, maxLen - *produced);
+      decoded = segments[start / RING_SEGMENT_BYTES] + start % RING_SEGMENT_BYTES;
+    } else {
+      const size_t count = ringBuffer ? std::min(maxLen - *produced, RING_BYTES - position) : maxLen - *produced;
+      auto* ring = static_cast<uint8_t*>(ringBuffer);
+      status = xp_inflate_small_step(state, input, available, !exhausted, ring ? ring : outputStart,
+                                     ring ? RING_BYTES : position + count, &position, ring != nullptr, &used, &written,
+                                     count);
+      if (ring) decoded = ring + start;
+    }
     if (used) input += used;
     available -= used;
-    if (ringBuffer) {
-      memcpy(dest + *produced, ringBuffer + start, written);
+    if (decoded) {
+      memcpy(dest + *produced, decoded, written);
       if (position == RING_BYTES) position = 0;
     }
     *produced += written;

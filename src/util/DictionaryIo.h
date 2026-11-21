@@ -26,6 +26,9 @@ enum class DictionaryView : uint8_t {
 enum class DictionaryOutput : uint8_t {
   Reserve = XP_DICTIONARY_OUTPUT_RESERVE,
   Append = XP_DICTIONARY_OUTPUT_APPEND,
+  Capacity = XP_DICTIONARY_OUTPUT_CAPACITY,
+  Grow = XP_DICTIONARY_OUTPUT_GROW,
+  Restore = XP_DICTIONARY_OUTPUT_RESTORE,
 };
 enum class DictionaryDataOpen : uint8_t {
   Plain = XP_DICTIONARY_DATA_OPEN_PLAIN,
@@ -41,6 +44,8 @@ enum class DictionaryDefinitionEvent : uint8_t {
   Bounds = XP_DICTIONARY_DEFINITION_EVENT_BOUNDS,
   Seek = XP_DICTIONARY_DEFINITION_EVENT_SEEK,
   Fallback = XP_DICTIONARY_DEFINITION_EVENT_FALLBACK,
+  InvalidField = XP_DICTIONARY_DEFINITION_EVENT_INVALID_FIELD,
+  DecodedCap = XP_DICTIONARY_DEFINITION_EVENT_DECODED_CAP,
 };
 enum class DictionaryOpenEvent : uint8_t {
   MissingFolder = XP_DICTIONARY_OPEN_EVENT_MISSING_FOLDER,
@@ -56,6 +61,7 @@ enum class DictionaryLookupEvent : uint8_t {
   FirstCap = XP_DICTIONARY_LOOKUP_EVENT_FIRST_CAP,
   CombinedCap = XP_DICTIONARY_LOOKUP_EVENT_COMBINED_CAP,
   LowHeap = XP_DICTIONARY_LOOKUP_EVENT_LOW_HEAP,
+  SkipEntry = XP_DICTIONARY_LOOKUP_EVENT_SKIP_ENTRY,
 };
 enum class DictionaryRegistryEvent : uint8_t {
   Ambiguous = XP_DICTIONARY_REGISTRY_EVENT_AMBIGUOUS,

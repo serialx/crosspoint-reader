@@ -89,11 +89,11 @@ impl LookupData {
         parent: &crate::app::epub::EpubSession,
         now: u32,
     ) -> bool {
-        let (pending, failed, expired) = self.model.with(|model| {
+        let (pending, failed, expired_result) = self.model.with(|model| {
             (
                 model.state.pending != 0,
                 model.failed,
-                model.state.expired(now),
+                model.state.expired_result(now),
             )
         });
         if failed {
@@ -128,13 +128,13 @@ impl LookupData {
             }
             return false;
         }
-        if expired {
+        if let Some(cancelled) = expired_result {
             unsafe {
                 *self.result.get() =
-                    Some(super::child_result::ReaderChildResult::LookupClosed { cancelled: false })
+                    Some(super::child_result::ReaderChildResult::LookupClosed { cancelled })
             };
         }
-        expired
+        expired_result.is_some()
     }
 
     pub(in crate::app) fn definition_install_failed(&self, now: u32) {

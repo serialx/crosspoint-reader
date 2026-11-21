@@ -18,6 +18,7 @@
 #include "clippings/ClippingText.h"
 #include "components/UIScale.h"
 #include "components/UITheme.h"
+#include "util/DictionaryRegistry.h"
 #include "util/WordSelectionInput.h"
 
 using Input = WordSelectionInput;
@@ -63,6 +64,10 @@ ClipSelectionActivity::ClipSelectionActivity(GfxRenderer& renderer, MappedInputM
 
 void ClipSelectionActivity::onEnter() {
   Activity::onEnter();
+  if (mode != Mode::DefinitionLookup) {
+    std::string dictionaryPath;
+    lookupHidden = !DictionaryRegistry::resolveBasePath(SETTINGS.dictionaryName, dictionaryPath);
+  }
   fontId = SETTINGS.getReaderFontId();
   lineHeight = renderer.getLineHeight(fontId);
   const bool extracted = extractWords();
@@ -467,7 +472,8 @@ XpUiSelectionLayout ClipSelectionActivity::sampleLayout() const {
           font,
           static_cast<uint8_t>(mappedInput.hasTouch()),
           static_cast<uint8_t>(m.controlRadius),
-          {0, 0}};
+          static_cast<uint8_t>(lookupHidden),
+          0};
 }
 
 XpUiPaint ClipSelectionActivity::rustResources() {

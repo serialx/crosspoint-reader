@@ -97,7 +97,7 @@ pub fn selection(
             )?;
         }
         if state.dragging == 0 {
-            let count = if state.mode == 2 { 1 } else { 3 };
+            let (first, count) = state.action_span(layout);
             let actions = state.actions(words, layout);
             for i in 0..count {
                 let r = action_button(actions, layout.padding, count, i);
@@ -112,7 +112,7 @@ pub fn selection(
                 arena.push(Command {
                     kind: Kind::TextHandle as u8,
                     rect: r,
-                    resource: LOOKUP + i as u32,
+                    resource: LOOKUP + (first + i) as u32,
                     generation: 1,
                     font: layout.action_font,
                     align: 1,

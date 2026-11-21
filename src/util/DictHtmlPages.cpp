@@ -17,7 +17,7 @@ namespace {
 constexpr const char* TMP_HTML_PATH = "/.crosspoint/dicthtml.tmp";
 constexpr size_t MAX_STYLED_PAGES = 64;
 
-bool writeNormalizedXhtml(const std::string& html, HalFile& file) {
+bool writeNormalizedXhtml(std::string_view html, HalFile& file) {
   return xp_dictionary_html(
       reinterpret_cast<const uint8_t*>(html.data()), html.size(), &file,
       [](void* ctx, const uint8_t* data, size_t size) { return static_cast<HalFile*>(ctx)->write(data, size); });
@@ -25,7 +25,7 @@ bool writeNormalizedXhtml(const std::string& html, HalFile& file) {
 
 }  // namespace
 
-bool buildDictionaryHtmlPages(GfxRenderer& renderer, const std::string& definition, const uint16_t viewportWidth,
+bool buildDictionaryHtmlPages(GfxRenderer& renderer, std::string_view definition, const uint16_t viewportWidth,
                               const uint16_t viewportHeight, std::vector<std::unique_ptr<Page>>& pagesOut) {
   if (!xp_dictionary_html_ready(ESP.getFreeHeap(), ESP.getMaxAllocHeap())) {
     LOG_ERR("DHTML", "Low heap for styled definition (%u free, %u max block)", ESP.getFreeHeap(),

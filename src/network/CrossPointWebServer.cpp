@@ -12,6 +12,7 @@
 #include <I18n.h>
 #include <LibraryBuilder.h>
 #include <Logging.h>
+#include <MD5Builder.h>
 #include <Memory.h>
 #include <ResumableFetch.h>
 #include <SecureHttpClient.h>
@@ -66,6 +67,13 @@ namespace {
 class CrossPointHttpServer final : public WebServer {
  public:
   explicit CrossPointHttpServer(uint16_t port) : WebServer(port) {}
+
+  bool matchesFileTag(const char* tag) const {
+    for (auto* field = _currentHeaders; field; field = field->next) {
+      if (field->key == "If-None-Match") return field->value == tag;
+    }
+    return false;
+  }
 
   void releaseRequestArguments() {
     if (_currentArgs) {
@@ -1470,6 +1478,25 @@ const XpWebPlugins WebPluginBridge::services = {
               break;
           }
         },
+    .file_tag = [](void* ctx, char* etag) -> int32_t {
+      auto& b = plugins(ctx);
+      auto& file = b.files[0];
+      MD5Builder digest;
+      digest.begin();
+      uint8_t chunk[128];
+      int n;
+      while ((n = file.read(chunk, sizeof(chunk))) > 0) {
+        digest.add(chunk, n);
+        resetTaskWatchdogIfSubscribed();
+      }
+      if (n < 0 || !file.seek(0)) return -1;
+      digest.calculate();
+      etag[0] = '"';
+      digest.getChars(etag + 1);
+      etag[33] = '"';
+      etag[34] = 0;
+      return static_cast<CrossPointHttpServer*>(b.owner.server.get())->matchesFileTag(etag);
+    },
 };
 
 void CrossPointWebServer::handlePluginList() const { WebPluginBridge::route(*this, XP_WEB_PLUGIN_LIST); }

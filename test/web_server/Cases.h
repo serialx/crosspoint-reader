@@ -197,6 +197,35 @@ static void text(CrossPointWebServer& app, uint8_t client, const std::string& by
 int main() {
 #ifdef XP_FFI_HOST_FAULT_INJECTION
 
+  if (std::getenv("WEB_PLUGIN_ETAG_CHECK")) {
+    record("plugin-file-etag", [&](auto& app) {
+      app.server->args["name"] = "test";
+      app.server->args["file"] = "index.js";
+      host::add("/plugins/test/index.js", "abc");
+      const char* tag = "\"900150983cd24fb0d6963f7d28e17f72\"";
+      auto seen = [&](const std::string& event) {
+        return std::find(host::trace.begin(), host::trace.end(), event) != host::trace.end();
+      };
+      app.handlePluginFile();
+      if (!seen(std::string("header:ETag:") + tag) || !seen("header:Cache-Control:no-cache")) std::abort();
+      app.server->headers["If-None-Match"] = tag;
+      host::trace.clear();
+      app.handlePluginFile();
+      if (!seen("response:304:text/html:") || seen("length:3")) std::abort();
+      host::add("/plugins/test/index.js", "abd");
+      host::trace.clear();
+      app.handlePluginFile();
+      if (!seen("length:3") || seen("response:304:text/html:")) std::abort();
+      for (const char* failure : {"read", "seek"}) {
+        host::trace.clear();
+        host::failOperation = failure;
+        host::failAfter = 0;
+        app.handlePluginFile();
+        if (!seen("response:500:text/plain:Failed to read file")) std::abort();
+      }
+    });
+    return 0;
+  }
   if (const char* check = std::getenv("WEB_UPLOAD_OVERWRITE_CHECK")) {
     record(check, [&](auto& app) {
       const std::string mode(check), dest("/books/a.epub"), part(dest + ".part");

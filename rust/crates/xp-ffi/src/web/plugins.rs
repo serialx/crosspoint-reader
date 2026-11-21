@@ -32,6 +32,7 @@ pub struct Plugins {
     store: unsafe extern "C" fn(*const c_char, *const u8, usize, i64) -> bool,
     page: Asset,
     diagnostic: unsafe extern "C" fn(*mut c_void, u32, Span, Span),
+    file_tag: unsafe extern "C" fn(*mut c_void, *mut c_char) -> i32,
 }
 const EMPTY: Span = Span {
     data: core::ptr::null(),
@@ -149,6 +150,18 @@ impl PluginRequest<'_> {
             || self.r().file(Io::IsDir, 0) != 0
         {
             self.r().send(404, b"not found");
+            return Ok(());
+        }
+        let mut tag = [0u8; 35];
+        let matched = unsafe { (self.p.file_tag)(self.r().ctx, tag.as_mut_ptr().cast()) };
+        if matched < 0 {
+            self.r().send(500, b"Failed to read file");
+            return Ok(());
+        }
+        self.r().header(b"ETag\0", &tag[..34]);
+        self.r().header(b"Cache-Control\0", b"no-cache");
+        if matched != 0 {
+            unsafe { (self.r().services.send)(self.r().ctx, 304, c"text/html".as_ptr(), EMPTY) };
             return Ok(());
         }
         let mime = if file.bytes().ends_with(b".js") {

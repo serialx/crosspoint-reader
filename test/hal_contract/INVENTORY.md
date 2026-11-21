@@ -31,7 +31,7 @@ Impl presence is separate from open-state queries wherever those queries are imp
 
 | Path | Operations guarded | impl installed by | Move leaves source without impl | Notes |
 | --- | --- | --- | --- | --- |
-| `test/web_server/Host.h` | flush isDirectory close size available getName openNextFile read write | successful and failed `open`, `openFileForWrite`, `openNextFile` including exhaustion | yes (move ctor + assign) | `isOpen`/`operator bool` stay safe |
+| `test/web_server/Host.h` | flush isDirectory close seek size available getName openNextFile read write | successful and failed `open`, `openFileForWrite`, `openNextFile` including exhaustion | yes (move ctor + assign) | `isOpen`/`operator bool` stay safe |
 | `test/book_io/epub-stubs/HalStorage.h` | available read write flush seek seekCur close position size | every `open()` call, before the fault hooks | yes (move ctor + assign) | 64-bit ABI padding holds impl/limit flags; checked uint32 budget, described below |
 | `test/chapter_html_slim_parser/stubs/HalStorage.h` | same as above | every `open()` call | yes | |
 | `test/section_io/stubs/HalStorage.h` | same as above | every `open()` call | yes | |

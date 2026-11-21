@@ -403,6 +403,7 @@ typedef struct {
   bool (*store)(const char*, const uint8_t*, size_t, int64_t);
   XpWebAsset page;
   void (*diagnostic)(void*, uint32_t, XpWebText, XpWebText);
+  int32_t (*file_tag)(void*, char* etag);  // 35 bytes: quoted hex MD5 and NUL; -1 on I/O error, 1 on match.
 } XpWebPlugins;
 void xp_web_plugins(void*, const XpWebPlugins*, uint32_t route);
 // Status: start=0, write=1, end=2, aborted=3, response=4 (no upload-data loan).

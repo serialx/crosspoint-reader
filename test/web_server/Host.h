@@ -180,6 +180,12 @@ class HalFile {
     node.reset();
     return !host::fail("close");
   }
+  bool seek(size_t offset) {
+    hal_fake::requireImpl(hasImpl, "seek", path.c_str());
+    if (!node || host::fail("seek") || offset > node->bytes.size()) return false;
+    pos = offset;
+    return true;
+  }
   size_t size() const {
     hal_fake::requireImpl(hasImpl, "size", path.c_str());
     return node ? node->bytes.size() : 0;
@@ -359,6 +365,9 @@ class WebServer {
   String* _postArgs = nullptr;
   int _currentArgCount = 0, _postArgsLen = 0;
   std::map<std::string, String> headers;
+  struct RequestArgument { String key; String& value; RequestArgument* next; };
+  RequestArgument conditional{"If-None-Match", headers["If-None-Match"], nullptr};
+  RequestArgument* _currentHeaders = &conditional;
   std::map<std::string, std::function<void()>> routes;
   std::map<std::string, String> args;
   String requestUri;

@@ -45,7 +45,7 @@ def generate(source, header):
     header = re.sub(r"^#(?:pragma|include).*\n", "", header, flags=re.MULTILINE)
     header = header.replace(" private:", " public:")
     header = header.replace(": private XpWebLifecycle", ": public XpWebLifecycle")
-    pieces = ['#include "Host.h"', '#include "Endpoints.h"', header]
+    pieces = ['#include "Host.h"', '#include "MD5Builder.h"', '#include "Endpoints.h"', header]
     if "xp_web_files" in source:
         pieces.insert(0, '#include "xp_web.h"')
     helpers = (ROOT / "lib/FsHelpers/FsHelpers.cpp").read_text()
@@ -108,7 +108,7 @@ def main():
                         "-I" + str(ROOT / "test/web_server"), "-I" + str(args.html_root),
                         "-I" + str(ROOT),
                         "-I" + str(args.arduinojson), "-I" + str(args.ffi_include),
-                        str(generated), *link, "-o", str(args.build / "oracle")], check=True)
+                        str(generated), str(ROOT / "freeink-sdk/libs/font/FreeInkFont/third_party/freetype/src/base/md5.c"), *link, "-o", str(args.build / "oracle")], check=True)
         try:
             return subprocess.check_output([str(args.build / "oracle")])
         except subprocess.CalledProcessError as error:
@@ -147,7 +147,7 @@ def main():
             subprocess.run([str(args.build / "oracle")],
                            env={**os.environ, "WEB_FONT_UPLOAD_CLOSE_CHECK": kind},
                            stdout=subprocess.DEVNULL, check=True)
-        for variable in ["WEB_COMPLETION_CHECK", "WEB_LOCALIZATION_CHECK", "WEB_SYSTEM_NAME_CHECK", "WEB_KEY_LIFETIME_CHECK", "WEB_JOB_ALLOCATION_CHECK", "WEB_FETCH_ALLOCATION_CHECK", "WEB_STATIC_SCRATCH_CHECK"]:
+        for variable in ["WEB_PLUGIN_ETAG_CHECK", "WEB_COMPLETION_CHECK", "WEB_LOCALIZATION_CHECK", "WEB_SYSTEM_NAME_CHECK", "WEB_KEY_LIFETIME_CHECK", "WEB_JOB_ALLOCATION_CHECK", "WEB_FETCH_ALLOCATION_CHECK", "WEB_STATIC_SCRATCH_CHECK"]:
             subprocess.run([str(args.build / "oracle")], env={**os.environ, variable: "1"},
                            stdout=subprocess.DEVNULL, check=True)
         for stage in ["tls", "pkcs12", "resume", "fetch"]:

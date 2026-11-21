@@ -448,14 +448,19 @@ bool DefinitionPayload::buildPlainSelectionPages(GfxRenderer& renderer, const in
 void DefinitionPayload::drawBody(GfxRenderer& renderer, const int fontId, const int x, const int startY,
                                  const int currentPage) const {
   const auto& content = slots[0];
-  const auto& pages = content.pages;
+  if (content.pages.empty()) {
+    drawPlainBody(renderer, content, fontId, x, startY, currentPage);
+    return;
+  }
+  content.pages[currentPage]->render(renderer, fontId, x, startY);
+}
+
+// Plain text needs a line buffer. Styled pages can enter the JPEG decoder here.
+[[gnu::noinline]] void DefinitionPayload::drawPlainBody(GfxRenderer& renderer, const Slot& content, const int fontId,
+                                                        const int x, const int startY, const int currentPage) {
   const auto& lines = content.lines;
   const auto definition = content.textView();
   const int linesPerPage = content.linesPerPage;
-  if (!pages.empty()) {
-    pages[currentPage]->render(renderer, fontId, x, startY);
-    return;
-  }
   const int lineHeight = renderer.getLineHeight(fontId, PLAIN_TEXT_LINE_SPACING);
   char buf[MAX_LINE_BYTES + 1];
   const int firstLine = currentPage * linesPerPage;

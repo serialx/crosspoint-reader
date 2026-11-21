@@ -62,6 +62,7 @@ class DefinitionPayload {
 
  private:
   struct PlainSelectionLine;
+  static void drawPlainBody(GfxRenderer& renderer, const Slot& content, int fontId, int x, int startY, int currentPage);
   static bool convertHtmlToPlain(GfxRenderer& renderer, Slot& next);
   static bool layoutHtmlPages(GfxRenderer& renderer, Slot& next, XpUiRect body);
   static bool wrapText(GfxRenderer& renderer, Slot& next, XpUiRect body);

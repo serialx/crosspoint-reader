@@ -887,6 +887,7 @@ bool LibraryListActivity::buildRustScene(XpUiScene& scene) {
     const auto status =
         xp_ui_library_view(&frame.snapshot, &f, &layout, &resources, &buffer, &frame.next, &frame.hits, &scene);
     if (status == XP_UI_HOME_VIEW_OK) {
+#if defined(ENABLE_SERIAL_LOG) && LOG_LEVEL >= 2
       if (f.books) {
         const int next = frame.next.list.drawn;
         const int loadedRows = winItems.size();
@@ -896,6 +897,7 @@ bool LibraryListActivity::buildRustScene(XpUiScene& scene) {
         LOG_DBG("LIB", "page first=%d title=%s", loadedRows > 0 ? windowStart : -1,
                 loadedRows > 0 ? winTitles[0].c_str() : "<none>");
       }
+#endif
       return true;
     }
     if (status != XP_UI_HOME_VIEW_CAPACITY || !frame.commands.grow()) return false;

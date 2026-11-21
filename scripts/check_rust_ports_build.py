@@ -7,7 +7,9 @@ from pathlib import Path
 Import("env")  # noqa: F821 - supplied by PlatformIO/SCons
 env = globals()["env"]
 
-if env.subst("$PIOENV") == "default":
+# A cold Arduino core build does not compile the firmware objects. PioArduino
+# starts a separate firmware pass after the core build completes.
+if env.subst("$PIOENV") == "default" and env.subst("$ARDUINO_LIB_COMPILE_FLAG") != "Build":
     project = Path(env.subst("$PROJECT_DIR"))
     mode = env.GetProjectOption("custom_rust_ports", "enforce")
     if mode not in {"report", "enforce"}:

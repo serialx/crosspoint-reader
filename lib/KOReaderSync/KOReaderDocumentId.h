@@ -12,7 +12,9 @@
  * Producing: 0, 1024, 4096, 16384, 65536, 262144, 1048576, 4194304,
  *            16777216, 67108864, 268435456, 1073741824 bytes
  *
- * If an offset is at or beyond the file size, it is skipped.
+ * LuaJIT masks the negative shift count to 30, which makes 1024 overflow
+ * 32 bits to 0 for i = -1. An offset at or beyond the file size is skipped,
+ * and a chunk near the end is truncated.
  */
 class KOReaderDocumentId {
  public:

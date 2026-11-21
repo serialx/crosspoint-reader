@@ -7,6 +7,10 @@
 #include <XteinkDetect.h>
 #include <esp_sleep.h>
 
+#if FREEINK_DEVICE_LILYGO
+#include <BoardT5S3.h>
+#endif
+
 // Rust detection policy uses the SDK verdict as its numeric ABI.
 static_assert(static_cast<uint8_t>(freeink::XteinkVerdict::X4Confirmed) == 0 &&
               static_cast<uint8_t>(freeink::XteinkVerdict::X3Confirmed) == 1 &&
@@ -80,6 +84,14 @@ void HalGPIO::begin() {
   _deviceType = DeviceType::X4;
 #endif
   inputMgr.begin();
+#if FREEINK_DEVICE_LILYGO
+  // Configure only the key, since BoardT5S3::begin() also reinitializes I2C and SPI.
+  if (BoardConfig::ACTIVE.board == BoardConfig::Board::LilyGoT5S3) {
+    BoardT5S3::setPca9535PinMode(PCA9535_IO12_BUTTON, INPUT);
+    InputManager::setButtonHook(
+        []() -> uint8_t { return BoardT5S3::readButton() ? static_cast<uint8_t>(1U << InputManager::BTN_DOWN) : 0; });
+  }
+#endif
 }
 
 void HalGPIO::update() {
@@ -111,6 +123,9 @@ bool HalGPIO::wasReleased(uint8_t buttonIndex) const { return inputMgr.wasReleas
 bool HalGPIO::wasAnyReleased() const { return inputMgr.wasAnyReleased(); }
 
 bool HalGPIO::rawInputActive() {
+#if FREEINK_DEVICE_LILYGO
+  if (BoardConfig::ACTIVE.board == BoardConfig::Board::LilyGoT5S3 && BoardT5S3::readButton()) return true;
+#endif
   const auto sample = rawInputSample();
   return sample.power || xp_hal_input_adc(sample.first, sample.second);
 }

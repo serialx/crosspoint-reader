@@ -714,8 +714,11 @@ void OpdsBookBrowserActivity::openPublicationDetail(const OpdsEntry& entry) {
 
   beginLoading();
 
-  releaseEntries();
-  if (auto* fcm = renderer.getFontCacheManager()) fcm->releaseSdFontCaches();
+  {
+    RenderLock lock;  // A loading repaint can still be using the SD font caches.
+    releaseEntries();
+    if (auto* fcm = renderer.getFontCacheManager()) fcm->releaseSdFontCaches();
+  }
 
   if (haveSelf) {
     opdsClient.fetchPublication(docUrl, publication);

@@ -19,14 +19,16 @@ FIXTURE = ROOT / "test/fixtures/rust_ports"
 
 
 class HookEnvironment:
-    def __init__(self, mode="enforce", profile="default"):
+    def __init__(self, mode="enforce", profile="default", core_compile="Inactive"):
         self.mode, self.profile = mode, profile
+        self.core_compile = core_compile
         self.dependencies, self.actions = [], []
         self.always, self.required, self.aliases = [], [], []
 
     def subst(self, name):
         return {
             "$PIOENV": self.profile,
+            "$ARDUINO_LIB_COMPILE_FLAG": self.core_compile,
             "$PROJECT_DIR": str(ROOT),
             "$PYTHONEXE": "python3",
             "$BUILD_DIR": "build",
@@ -246,6 +248,14 @@ class PortTests(unittest.TestCase):
 
     def test_hook_skips_other_boards(self):
         env = HookEnvironment(profile="x4pro")
+        runpy.run_path(
+            str(ROOT / "scripts/check_rust_ports_build.py"),
+            init_globals={"env": env, "Import": lambda name: None},
+        )
+        self.assertEqual(env.actions, [])
+
+    def test_hook_skips_core_only_build(self):
+        env = HookEnvironment(core_compile="Build")
         runpy.run_path(
             str(ROOT / "scripts/check_rust_ports_build.py"),
             init_globals={"env": env, "Import": lambda name: None},

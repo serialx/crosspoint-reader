@@ -95,6 +95,7 @@
       const el = document.getElementById('families');
       try {
         const res = await fetch('/api/fonts');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         allowVector = !!data.vectorFonts;
         // Build rows with DOM APIs and textContent so on-device family names

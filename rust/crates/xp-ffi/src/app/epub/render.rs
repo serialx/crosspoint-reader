@@ -13,6 +13,7 @@ use super::{
 struct RenderContext<'a, 'b> {
     access: &'a ResourceAccess<'b>,
     page: View<'a>,
+    dither_images: bool,
 }
 impl RenderContext<'_, '_> {
     fn geometry(&self) -> PageGeometry {
@@ -24,7 +25,7 @@ impl Context for RenderContext<'_, '_> {
         unsafe { (self.access.owner.runtime.now_ms)() }
     }
     fn has_images(&self) -> bool {
-        self.page.has_images()
+        !self.dither_images && self.page.has_images()
     }
     fn images_need_decode(&self) -> bool {
         self.page.info(self.access.owner.leaves).images_need_decode != 0
@@ -69,6 +70,7 @@ impl Context for RenderContext<'_, '_> {
             bounds: core::ptr::null_mut(),
             count: 0,
             prepare: 0,
+            dither_images: u8::from(self.dither_images),
         };
         #[cfg(feature = "reader-strips")]
         if let Some((plan, bounds, preparing)) = owner.plan_loan() {
@@ -135,6 +137,7 @@ impl EpubSession {
         access: &ResourceAccess<'_>,
         page: Page,
         font: i32,
+        dither_images: bool,
         margins: [i32; 4],
         strip_enabled: bool,
     ) {
@@ -146,7 +149,11 @@ impl EpubSession {
         #[cfg(feature = "app-test")]
         assert!(self.legacy_pages.get().is_none() && self.render_hooks.is_none());
         let view = page.borrow();
-        let context = RenderContext { access, page: view };
+        let context = RenderContext {
+            access,
+            page: view,
+            dither_images,
+        };
         let geometry = PageGeometry {
             font,
             left: margins[3],

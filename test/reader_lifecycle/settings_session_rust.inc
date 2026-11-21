@@ -24,13 +24,14 @@ static std::string nativeText(XpAppText value) {
   return value.len ? std::string(reinterpret_cast<const char*>(value.data), value.len) : std::string();
 }
 static constexpr StrId nativeKeys[] = {
-  StrId::STR_FONT_SIZE, StrId::STR_LINE_SPACING, StrId::STR_PARA_ALIGNMENT, StrId::STR_TIGHT,
-  StrId::STR_NORMAL, StrId::STR_WIDE, StrId::STR_EXTRA_WIDE, StrId::STR_JUSTIFY,
+  StrId::STR_FONT_SIZE, StrId::STR_LINE_SPACING, StrId::STR_PARA_ALIGNMENT, StrId::STR_SPACING_PLUS_10_PERCENT,
+  StrId::STR_SPACING_PLUS_20_PERCENT_DEFAULT, StrId::STR_SPACING_PLUS_30_PERCENT, StrId::STR_SPACING_PLUS_45_PERCENT, StrId::STR_JUSTIFY,
   StrId::STR_ALIGN_LEFT, StrId::STR_CENTER, StrId::STR_ALIGN_RIGHT, StrId::STR_BOOK_S_STYLE,
+  StrId::STR_SPACING_0_PERCENT, StrId::STR_SPACING_PLUS_60_PERCENT, StrId::STR_SPACING_PLUS_75_PERCENT,
 };
 static const char* translatedKeys[] = {
   "fixture-key-0", "fixture-key-1", "fixture-key-2", "fixture-key-3", "fixture-key-4", "fixture-key-5",
-  "fixture-key-6", "fixture-key-7", "fixture-key-8", "fixture-key-9", "fixture-key-10", "fixture-key-11",
+  "fixture-key-6", "fixture-key-7", "fixture-key-8", "fixture-key-9", "fixture-key-10", "fixture-key-11", "fixture-key-12", "fixture-key-13", "fixture-key-14",
 };
 static FixtureStrId fixtureId(const std::string& value) {
   for (size_t i = 0; i < std::size(translatedKeys); ++i)

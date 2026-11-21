@@ -71,6 +71,20 @@ pub struct XpEpubRenderSpec {
     pub focus_reading: u8,
 }
 
+impl XpEpubRenderSpec {
+    pub(super) fn dither_images(&self) -> bool {
+        self.images == 3
+    }
+
+    pub(super) fn layout_images(&self) -> u8 {
+        if self.dither_images() {
+            0
+        } else {
+            self.images
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct XpEpubSettings {

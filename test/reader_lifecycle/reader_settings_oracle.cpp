@@ -23,17 +23,23 @@ enum FixtureStrId {
   STR_FONT_SIZE,
   STR_LINE_SPACING,
   STR_PARA_ALIGNMENT,
-  STR_TIGHT,
-  STR_NORMAL,
-  STR_WIDE,
-  STR_EXTRA_WIDE,
+  STR_SPACING_PLUS_10_PERCENT,
+  STR_SPACING_PLUS_20_PERCENT_DEFAULT,
+  STR_SPACING_PLUS_30_PERCENT,
+  STR_SPACING_PLUS_45_PERCENT,
   STR_JUSTIFY,
   STR_ALIGN_LEFT,
   STR_CENTER,
   STR_ALIGN_RIGHT,
-  STR_BOOK_S_STYLE
+  STR_BOOK_S_STYLE,
+  STR_SPACING_0_PERCENT,
+  STR_SPACING_PLUS_60_PERCENT,
+  STR_SPACING_PLUS_75_PERCENT
 };
-constexpr FixtureStrId kSpacingIds[] = {STR_TIGHT, STR_NORMAL, STR_WIDE, STR_EXTRA_WIDE};
+constexpr FixtureStrId kSpacingIds[] = {
+    STR_SPACING_0_PERCENT,       STR_SPACING_PLUS_10_PERCENT, STR_SPACING_PLUS_20_PERCENT_DEFAULT,
+    STR_SPACING_PLUS_30_PERCENT, STR_SPACING_PLUS_45_PERCENT, STR_SPACING_PLUS_60_PERCENT,
+    STR_SPACING_PLUS_75_PERCENT};
 constexpr FixtureStrId kAlignIds[] = {STR_JUSTIFY, STR_ALIGN_LEFT, STR_CENTER, STR_ALIGN_RIGHT, STR_BOOK_S_STYLE};
 constexpr int PAGE_TURN_RATES[] = {1, 1, 3, 6, 12};
 static int lockDepth = 0;
@@ -54,7 +60,7 @@ struct RenderLock {
 };
 struct Renderer {};
 struct CrossPointSettings {
-  static constexpr int LINE_COMPRESSION_COUNT = 4, PARAGRAPH_ALIGNMENT_COUNT = 5;
+  static constexpr int LINE_COMPRESSION_COUNT = 7, PARAGRAPH_ALIGNMENT_COUNT = 5;
   uint8_t orientation = 0, fontPointSize = 14, lineSpacing = 7, paragraphAlignment = 8;
   char sdFontFamilyName[12] = "Fixture";
   void saveToFile() { event("save", lockDepth); }

@@ -583,7 +583,7 @@ uint16_t xp_pkg_cache_count(const XpPkgCache*, uint8_t toc);
 // NULL is permitted only for zero-length buffers. Status: 0 OK, 1 NEED_INPUT,
 // 2 NEED_OUTPUT, 3 INVALID. Failed encode leaves output untouched.
 enum { XP_SEC_OK = 0, XP_SEC_NEED_INPUT = 1, XP_SEC_NEED_OUTPUT = 2, XP_SEC_INVALID = 3 };
-enum { XP_SEC_VERSION = 68, XP_SEC_PARTIAL_VERSION = 214, XP_SEC_HEADER_SIZE = 44 };
+enum { XP_SEC_VERSION = 73, XP_SEC_PARTIAL_VERSION = 209, XP_SEC_HEADER_SIZE = 44 };
 typedef enum {
   XP_SEC_U8,
   XP_SEC_U16,
@@ -1094,7 +1094,7 @@ uint32_t xp_font_apply_ligatures(const void* data, uint32_t cp, const uint8_t* t
 typedef struct {
   XpFontSdView styles[4];
   int32_t fallback;
-  uint8_t hasFallback, sd, advanceTable, resolved[4];
+  uint8_t hasFallback, sd, advanceTable, resolved[4], points;
 } XpNativeFamily;
 // Failure-only synchronous diagnostics: MissingFont (1): a is the signed font ID
 // bit pattern; BidiLimit (2): a=128; MissingGlyph (3): a=codepoint. b/c/d are zero.

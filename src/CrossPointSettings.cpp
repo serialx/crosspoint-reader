@@ -113,6 +113,12 @@ bool CrossPointSettings::fromJson(JsonVariantConst doc) {
   forEachBaseSetting(visit);
   const auto settings = view(*this);
   needsResave |= xp_settings_tail(&settings, &ops, false);
+  // "lineSpacing" saves predate the 1.0 option: Tight/Normal/Wide/Extra Wide (0..3) become 1.1..1.45.
+  if (doc["lineHeight"].isNull() && doc["lineSpacing"].is<uint8_t>()) {
+    const int legacyValue = doc["lineSpacing"].as<uint8_t>();
+    lineSpacing = legacyValue + 1 < LINE_COMPRESSION_COUNT ? static_cast<uint8_t>(legacyValue + 1) : LINE_SPACING_120;
+    needsResave = true;
+  }
   if (!bleturner::readJson(ble, doc)) needsResave = true;
   if (needsResave) {
     LOG_DBG("CPS", "Resaving settings to update format");
@@ -152,7 +158,7 @@ ReaderRenderSpec CrossPointSettings::readerRenderSpec(const uint16_t viewportWid
   spec.viewportHeight = viewportHeight;
   spec.hyphenationEnabled = hyphenationEnabled != 0;
   spec.embeddedStyle = embeddedStyle != 0;
-  spec.imageRendering = imageRendering;
+  spec.imageRendering = imageRendering == IMAGES_DISPLAY_BW ? static_cast<uint8_t>(IMAGES_DISPLAY) : imageRendering;
   spec.focusReadingEnabled = focusReadingEnabled != 0;
   return spec;
 }

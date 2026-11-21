@@ -178,6 +178,7 @@ pub unsafe extern "C" fn xp_epub_test_session_render(
                 access,
                 page::Page::Reader(page),
                 24,
+                false,
                 [11, 0, 20, 7],
                 strips != 0,
             );

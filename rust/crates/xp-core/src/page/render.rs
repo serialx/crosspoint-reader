@@ -368,14 +368,17 @@ pub fn line(line: Line<'_>, c: &mut impl Canvas, section: i32, x: i32, y: i32) -
             let n = usize::from(word.focus_boundary)
                 .min(word.text.len())
                 .min(39);
+            let rtl = bidi::starts_with_rtl(word.text, 5);
+            let split = i32::from(word.focus_suffix);
             c.text(Text {
                 bytes: &word.text[..n],
+                x: if rtl { t.x + split } else { t.x },
                 style: word.style | 1,
                 ..t
             });
             c.text(Text {
                 bytes: &word.text[n..],
-                x: t.x + i32::from(word.focus_suffix),
+                x: if rtl { t.x } else { t.x + split },
                 ..t
             });
         } else {
@@ -499,18 +502,20 @@ fn draw_ruby(data: &RenderLine<'_>, i: u16, c: &mut impl Canvas, t: Text<'_>) ->
     while i + count < line.count && data.word(i + count)?.style & 64 != 0 {
         count += 1;
     }
-    let (mut width, mut chars) = (0, 0);
-    for k in 0..count {
-        let w = data.word(i + k)?;
-        width += c.advance(
+    let last = data.word(i + count - 1)?;
+    let width = i32::from(last.x) - i32::from(data.word(i)?.x)
+        + c.advance(
             Text {
-                bytes: w.text,
-                style: w.style,
+                bytes: last.text,
+                style: last.style,
                 direction: -1,
                 ..t
             },
             MeasureMode::Layout,
         );
+    let mut chars = 0;
+    for k in 0..count {
+        let w = data.word(i + k)?;
         chars += w
             .text
             .iter()

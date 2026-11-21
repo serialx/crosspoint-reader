@@ -123,6 +123,15 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             self.visible_set = false;
         }
     }
+    fn last_glyph_bottom<S: Sink<Payload = B>>(&self, sink: &mut S) -> i32 {
+        let Some(last) = self.page.as_ref().and_then(|page| page.elements.last()) else {
+            return 0;
+        };
+        let Content::Line(line) = &last.content else {
+            return 0;
+        };
+        i32::from(last.y) + sink.line_glyph_height(line, self.options)
+    }
     fn nonempty_page(&self) -> bool {
         self.page
             .as_ref()
@@ -634,7 +643,7 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         self.lines_after = line.lines_after;
         let metrics = sink.line_metrics(&line.payload, self.options);
         self.ensure_page();
-        if i32::from(self.next_y) + metrics.height() > i32::from(self.options.height) {
+        if i32::from(self.next_y) + metrics.content_height() > i32::from(self.options.height) {
             let (carry, paragraph_lines) = self.lines_to_carry();
             self.break_carrying(carry, paragraph_lines, line.visible_offset, flow, sink)?;
         }
@@ -688,7 +697,7 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         )?;
         self.note_content(
             i32::from(self.next_y),
-            i32::from(self.next_y) + metrics.height(),
+            i32::from(self.next_y) + metrics.content_height(),
         );
         self.next_y = (i32::from(self.next_y) + metrics.height()) as i16;
         if self.layout_active {

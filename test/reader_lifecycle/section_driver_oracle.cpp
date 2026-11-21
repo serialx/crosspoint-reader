@@ -4,7 +4,7 @@
 #undef free
 extern "C" size_t xp_test_live_allocations();
 extern "C" uint8_t xp_epub_test_section_driver(const XpAppResources*, const XpEpubLeaves*, const XpAppRuntime*,
-                                               XpAppText, XpAppText, uint8_t, uint8_t,
+                                               XpAppText, XpAppText, uint8_t, uint8_t, uint8_t,
                                                void (*)(void*, const XpEpubPageView*, uint16_t, uint8_t, uint32_t));
 static uint32_t expectedVisible;
 static void native(void* raw, const XpEpubPageView* rawPage, uint16_t pages, uint8_t partial, uint32_t popups) {
@@ -35,6 +35,7 @@ int main(int argc, char** argv) {
   expectedVisible = std::stoul(argv[5]);
   std::string path = argv[1], cache = argv[2];
   const bool partial = std::string(argv[3]) == "partial";
+  const bool upgrade = std::string(argv[3]) == "upgrade";
   const bool popup = std::string(argv[4]) == "popup";
   sectionMetrics.context = &driverRenderer;
   {
@@ -50,7 +51,8 @@ int main(int argc, char** argv) {
     value.delay_ms = [](uint32_t) {};
     return value;
   }();
-  assert(xp_epub_test_section_driver(&resources, &leaves, &runtime, text(path), text(cache), partial, popup, native));
+  assert(xp_epub_test_section_driver(&resources, &leaves, &runtime, text(path), text(cache), partial, popup, upgrade,
+                                     native));
   assert(driverRenderer.loanDepth == 0);
   assert(xp_test_live_allocations() == 0 && nativeBuffers.empty());
 }

@@ -50,7 +50,13 @@ def main():
                 name = case + '-' + mode + '-' + popup
                 commands.append((name, [str(binary), str(case_book), str(case_cache), mode, popup, str(10 if case == 'plain' else 1112)]))
                 cases[name] = (case_cache, expected[case + '-' + mode])
+    for mode in ('complete', 'partial'):
+        commands.append(('upgrade-' + mode, [str(binary), str(book), str(cache), 'upgrade', 'none', '10']))
+    legacy = {}
     for name, command in commands:
+        if name.startswith('upgrade-'):
+            section_file = cache / 'sections/0.bin'
+            section_file.write_bytes(legacy[name.removeprefix('upgrade-')])
         result = subprocess.run(command, capture_output=True)
         (output / (name + '.log')).write_bytes(result.stdout + result.stderr)
         check = dict(name=name, command=command, returncode=result.returncode)
@@ -65,9 +71,17 @@ def main():
         if name in cases:
             case_cache, frozen = cases[name]
             data = (case_cache / 'sections/0.bin').read_bytes()
-            actual = dict(bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
+            partial = '-partial-' in name
+            assert data[0] == (209 if partial else 73), (name, data[0])
+            historical = bytes([214 if partial else 68]) + data[1:]
+            actual = dict(bytes=len(data), sha256=hashlib.sha256(historical).hexdigest())
             check['cache'] = actual
             assert actual == frozen, (name, actual, frozen)
+            if name.startswith('plain-'):
+                legacy['partial' if partial else 'complete'] = historical
+        elif name.startswith('upgrade-'):
+            rebuilt = section_file.read_bytes()
+            assert rebuilt == bytes([73]) + legacy['complete'][1:], name
     # The retired native null-popup mutation remains in the historical oracle.
     # This mutant checks the corresponding callback behavior on the actual owner.
     production_path = ROOT / 'rust/crates/xp-ffi/src/app/epub/section_owner/lifecycle.rs'

@@ -8,8 +8,8 @@ from pathlib import Path
 from test_codec_coverage import fixture, invoke
 
 
-def observations(binary):
-    data, _ = fixture()
+def observations(binary, version):
+    data, _ = fixture(version=version)
     anchors, paragraphs = struct.unpack_from('<II', data, 28)
     cases = {'complete': data}
     for end in range(anchors, paragraphs + 1):
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     parser.add_argument('--capture', type=Path)
     parser.add_argument('--compare', type=Path)
     args = parser.parse_args()
-    actual = observations(args.dump.resolve())
+    actual = observations(args.dump.resolve(), 68 if args.capture else 73)
     if args.capture:
         with args.capture.open('x') as file:
             json.dump(actual, file, indent=2)

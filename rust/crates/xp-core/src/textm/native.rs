@@ -16,6 +16,7 @@ pub struct Family {
     pub sd: u8,
     pub advance_table: u8,
     pub resolved: [u8; 4],
+    pub points: u8,
 }
 impl Family {
     const EMPTY: Self = Self {
@@ -32,6 +33,7 @@ impl Family {
         sd: 0,
         advance_table: 0,
         resolved: [0; 4],
+        points: 0,
     };
 }
 #[repr(u32)]
@@ -343,6 +345,14 @@ impl FontFace for Face<'_> {
     fn ascender(&self, style: u8) -> i32 {
         self.engine
             .loan(self.id, style, |f| f.map_or(0, |f| f.data().ascender))
+    }
+    fn size_in_pixels(&self) -> f32 {
+        let points = self.engine.family_value(self.id, |f| f.points);
+        if points == 0 {
+            f32::from(self.line_height())
+        } else {
+            f32::from(points) * super::FONT_RASTER_DPI as f32 / 72.0
+        }
     }
     fn line_height(&self) -> u8 {
         self.engine

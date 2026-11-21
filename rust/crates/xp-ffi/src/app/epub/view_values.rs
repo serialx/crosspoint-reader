@@ -15,12 +15,7 @@ const TEXT_NAMES: [u16; 5] = [
     ids::STR_PARA_ALIGNMENT,
     ids::STR_FOCUS_READING,
 ];
-const SPACING: [u16; 4] = [
-    ids::STR_TIGHT,
-    ids::STR_NORMAL,
-    ids::STR_WIDE,
-    ids::STR_EXTRA_WIDE,
-];
+use xp_ui::text_settings::LINE_SPACING_LABELS as SPACING;
 const ALIGNMENT: [u16; 5] = [
     ids::STR_JUSTIFY,
     ids::STR_ALIGN_LEFT,
@@ -135,7 +130,7 @@ impl EpubSession {
                 }
             }
             1 => RowText::number(u32::from(settings.font_size), b" pt"),
-            2 => self.row_label(SPACING[usize::from(settings.line_spacing) % 4]),
+            2 => self.row_label(SPACING[usize::from(settings.line_spacing) % SPACING.len()]),
             3 => self.row_label(ALIGNMENT[usize::from(settings.alignment) % 5]),
             _ => unreachable!(),
         }

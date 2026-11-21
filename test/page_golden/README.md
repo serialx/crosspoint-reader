@@ -308,3 +308,11 @@ an explicit `XP_FFI_HOST_FEATURES` override must include it too. The expanded
 matrix also includes 80- and 160-row bands. `ReaderStripBuffersTest` in the full
 host suite checks every buffer allocation failure and retry. The retained-plan
 harness also checks null storage, missing/short bounds and exhausted capacity.
+
+The version-73 check applies the independent native 2.0.0 layout and rendering
+reference in `v73-changes.json.gz`. It updates 458 page records across 23
+configurations and pins all 216 section files in the 28 original image cases.
+The original page archive and parent image-path checks continue to cover the
+other records. The host font fixture retains its historical metrics for fonts
+registered without a point size. The chapter line-spacing tests separately
+exercise fonts with explicit point sizes.

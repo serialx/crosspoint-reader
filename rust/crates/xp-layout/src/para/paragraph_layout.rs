@@ -113,21 +113,43 @@ impl Metrics {
         }
     }
     pub fn prefix(&self, font: i32, word: &[u8], style: u8, focus: u8, tracking: i8) -> u16 {
-        let mut buffer = [0; 40];
-        let len = usize::from(focus).min(39).min(word.len());
-        buffer[..len].copy_from_slice(&word[..len]);
+        let prefix = &word[..usize::from(focus).min(39).min(word.len())];
         let bold = style | 1;
         let mut pos = usize::from(focus).min(word.len());
         let next = crate::utf8::next(word, &mut pos).unwrap_or(0);
-        let kern = self.kern(font, last(&buffer[..len]), next, bold, tracking);
-        // The zero-filled buffer retains a NUL after the copied prefix.
-        (unsafe { self.advance(font, &buffer[..=len], bold, tracking) } + kern) as u16
+        let last = last(prefix);
+        let kern = if crate::bidi::starts_with_rtl(prefix, 5) {
+            self.kern(font, next, last, style, tracking)
+        } else {
+            self.kern(font, last, next, bold, tracking)
+        };
+        let width = if let Some(engine) = unsafe { self.engine.as_ref() } {
+            engine.advance(
+                font,
+                prefix,
+                bold,
+                tracking,
+                -1,
+                crate::textm::MeasureMode::Layout,
+            )
+        } else {
+            self.callback_prefix_width(font, prefix, bold, tracking)
+        };
+        (width + kern) as u16
+    }
+
+    #[inline(never)]
+    fn callback_prefix_width(&self, font: i32, prefix: &[u8], style: u8, tracking: i8) -> i32 {
+        // Only the native callback adapter needs a NUL after the measured prefix.
+        let mut buffer = [0; 40];
+        buffer[..prefix.len()].copy_from_slice(prefix);
+        unsafe { self.advance(font, &buffer[..=prefix.len()], style, tracking) }
     }
     #[allow(clippy::too_many_arguments)] // Preserves the existing token/metric operation.
     /// # Safety
     /// When terminated is true, storage includes its trailing NUL.
     /// Suffix views retain that byte; other views use the existing copying path.
-    unsafe fn width(
+    pub(super) unsafe fn width(
         &self,
         font: i32,
         storage: &[u8],
@@ -209,7 +231,7 @@ impl Paragraph {
         while finish < end && self.tokens.get(finish).unwrap_or_default().style & 64 != 0 {
             finish += 1;
         }
-        self.ruby_overlap(start, finish, m, font)
+        Some(self.ruby_excess(start, finish, m, font)? / (2 * (finish - start) as i32))
     }
     pub fn ruby_end(&self, start: usize, end: usize, m: &Metrics, font: i32) -> Option<i32> {
         if self.ruby.is_empty() || end == 0 || start >= end {
@@ -224,9 +246,10 @@ impl Paragraph {
         {
             return Some(0);
         }
-        self.ruby_overlap(leader, end, m, font)
+        let units = 2 * (end - leader) as i32;
+        Some((self.ruby_excess(leader, end, m, font)? + units - 1) / units)
     }
-    fn ruby_overlap(&self, start: usize, end: usize, m: &Metrics, font: i32) -> Option<i32> {
+    fn ruby_excess(&self, start: usize, end: usize, m: &Metrics, font: i32) -> Option<i32> {
         let mut width = 0;
         for i in start..end {
             // WordStore appends a NUL after each word.
@@ -253,8 +276,7 @@ impl Paragraph {
                     self.block.character_spacing,
                 )
             } - width)
-                .max(0)
-                / 2,
+                .max(0),
         )
     }
     pub fn widths(&mut self, m: &Metrics, font: i32) -> Option<Widths> {
@@ -297,7 +319,7 @@ impl Paragraph {
         struct Group {
             start: usize,
             count: usize,
-            overlap: i32,
+            excess: i32,
         }
         let mut groups = Vec::new();
         let mut i = 0;
@@ -323,7 +345,7 @@ impl Paragraph {
                 groups.push(Group {
                     start: i,
                     count,
-                    overlap: ((ruby - base) / 2).max(0),
+                    excess: (ruby - base).max(0),
                 });
                 i += count;
             } else {
@@ -331,53 +353,47 @@ impl Paragraph {
             }
         }
         for (index, g) in groups.iter().enumerate() {
-            if g.start > 0 {
-                let extra = if ideograph(last(self.word(g.start - 1))) {
-                    g.overlap
-                } else {
-                    (g.overlap - i32::from(w[g.start - 1]) / 2).max(0)
-                };
-                w[g.start - 1] = w[g.start - 1].wrapping_add(extra as u16);
-            }
+            let units = 2 * g.count as i32;
+            let left = g.excess / units;
+            let right = (g.excess + units - 1) / units;
             let next = g.start + g.count;
-            if next >= self.tokens.len() {
-                continue;
+            let mut previous = left;
+            for (k, width) in w[g.start..next - 1].iter_mut().enumerate() {
+                let cumulative =
+                    ((i64::from(g.excess) * (3 + 2 * k as i64)) / i64::from(units)) as i32;
+                *width = width.wrapping_add((cumulative - previous) as u16);
+                previous = cumulative;
             }
-            if let Some(other) = groups.get(index + 1).filter(|other| other.start == next) {
-                w[next - 1] = w[next - 1].wrapping_add((g.overlap + other.overlap) as u16);
-                continue;
-            }
-            let extra = if ideograph(first(self.word(next))) {
-                g.overlap
-            } else {
-                (g.overlap - i32::from(w[next]) / 2).max(0)
+            let edge_advance = |cp: u32| {
+                let mut buf = [0; 5];
+                let n = crate::utf8::encode(cp, (&mut buf[..4]).try_into().unwrap());
+                unsafe { m.advance(font, &buf[..=n], 16, self.block.character_spacing) }
             };
-            w[next - 1] = w[next - 1].wrapping_add(extra as u16);
-            if let Some(other) = groups.get(index + 1) {
-                let mut non_ideo = true;
-                let mut gap = 0;
-                for (k, width) in w.iter().enumerate().take(other.start).skip(next) {
-                    if ideograph(first(self.word(k))) {
-                        non_ideo = false;
-                        break;
-                    }
-                    gap += i32::from(*width);
-                }
-                if non_ideo {
-                    let allowed_right = g.overlap.min(i32::from(w[next - 1]) / 2);
-                    let allowed_left = other.overlap.min(i32::from(w[other.start - 1]) / 2);
-                    w[next - 1] = w[next - 1]
-                        .wrapping_add((allowed_right + allowed_left - gap).max(0) as u16);
-                }
+            if left > 0
+                && g.start > 0
+                && (index == 0 || groups[index - 1].start + groups[index - 1].count != g.start)
+            {
+                let width = &mut w[g.start - 1];
+                let overhang =
+                    (i32::from(*width) / 4).min(edge_advance(first(self.ruby_text(g.start))) / 2);
+                *width = width.wrapping_add((left - overhang).max(0) as u16);
+            }
+            if next < w.len() {
+                let extra = if let Some(other) = groups.get(index + 1).filter(|g| g.start == next) {
+                    right + other.excess / (2 * other.count as i32)
+                } else if right > 0 {
+                    let overhang = (i32::from(w[next]) / 4)
+                        .min(edge_advance(last(self.ruby_text(g.start))) / 2);
+                    (right - overhang).max(0)
+                } else {
+                    0
+                };
+                w[next - 1] = w[next - 1].wrapping_add(extra as u16);
             }
         }
         Some(widths)
     }
 }
-fn ideograph(cp: u32) -> bool {
-    matches!(cp, 0x4e00..=0x9fff | 0x3400..=0x4dbf | 0xf900..=0xfaff | 0x20000..=0x3ffff)
-}
-
 struct Breaking<'a> {
     paragraph: *mut Paragraph,
     metrics: &'a Metrics,

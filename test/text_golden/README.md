@@ -183,3 +183,8 @@ All available source styles are included at 14 pt. The capture used FreeType
 2.13.2 and fontTools 4.63.0. Conversion versions can change rasterization; normal
 checks use the frozen generated fixtures and need no Python font packages.
 The three OFL notices are beside the fixtures. Gzip timestamps are zero.
+
+The public check also applies the 1,056 changed SD advance group hashes in
+`sd-advance-3985.json.gz`. They come from the original native producer at
+`e75c7dda7` with upstream `a790b1449` applied to GfxRenderer. All other
+group hashes, draw samples and corpus inputs retain their original references.

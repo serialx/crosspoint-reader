@@ -187,12 +187,8 @@ mod assets {
 mod tests {
     use super::*;
 
-    fn draw(reject: bool) {
-        REJECT_OPEN.with(|value| value.set(reject));
-        DROPS.with(|value| value.set(0));
-        OPERATIONS.with(|value| value.set(0));
-        let mut pixels = [0xff; 8];
-        let target = direct::Target {
+    fn target(pixels: &mut [u8; 8], plane: u8) -> direct::Target {
+        direct::Target {
             glyphs: xp_core::glyph::GlyphTarget {
                 buffer: pixels.as_mut_ptr(),
                 buffer_len: 8,
@@ -208,20 +204,28 @@ mod tests {
                     bottom: 8,
                 },
                 orientation: 3,
-                plane: 0,
+                plane,
                 absolute: 0,
                 strip: 0,
                 scanning: 0,
             },
             native: ptr::null_mut(),
             inverted: 0,
-        };
+        }
+    }
+
+    fn draw(reject: bool) {
+        REJECT_OPEN.with(|value| value.set(reject));
+        DROPS.with(|value| value.set(0));
+        OPERATIONS.with(|value| value.set(0));
+        let mut pixels = [0xff; 8];
+        let target = target(&mut pixels, 0);
         let path = match DECODE_KIND.with(Cell::get) {
             1 => c"image.png",
             2 => c"image.gif",
             _ => c"image.jpg",
         };
-        unsafe { images::paint(&target, path.to_bytes(), b"source\0", 0, 0, 4, 4, false) };
+        unsafe { images::paint(&target, path.to_bytes(), b"source\0", 0, 0, 4, 4, false, false) };
         assert!(FILES.with(|files| files.borrow().is_empty()));
         assert_eq!(
             DROPS.with(Cell::get),
@@ -241,6 +245,18 @@ mod tests {
                     10
                 }
         );
+    }
+
+    #[test]
+    fn monochrome_images_leave_both_text_aa_planes_untouched() {
+        for plane in [1, 2] {
+            let mut pixels = [0x5a; 8];
+            let target = target(&mut pixels, plane);
+            OPERATIONS.with(|value| value.set(0));
+            unsafe { images::paint(&target, b"image.jpg", b"source\0", 0, 0, 4, 4, false, true) };
+            assert_eq!(pixels, [0x5a; 8]);
+            assert_eq!(OPERATIONS.with(Cell::get), 0);
+        }
     }
 
     #[test]

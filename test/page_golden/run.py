@@ -234,7 +234,7 @@ def main():
         args.golden.write_bytes(archive)
     else:
         expected = json.loads(gzip.decompress(args.golden.read_bytes()))
-        if not private and not args.decoded_images:
+        if not private:
             expected = paths.production_expectation(expected, args.golden)
         if args.case:
             expected['cases'] = {args.case: expected['cases'][args.case]}

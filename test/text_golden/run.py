@@ -240,6 +240,11 @@ def main():
         args.golden.write_bytes(archive)
     else:
         old = json.loads(gzip.decompress(args.golden.read_bytes()))
+        if args.golden == HERE / 'golden.json.gz':
+            # Native a790b1449 measurement on the original corpus and fonts.
+            changes = json.loads(gzip.decompress((HERE / 'sd-advance-3985.json.gz').read_bytes()))
+            for field, records in changes.items():
+                old[field].update(records)
         if old != result:
             changed = [key for key in set(old['groups']) | set(result['groups'])
                        if old['groups'].get(key) != result['groups'].get(key)]

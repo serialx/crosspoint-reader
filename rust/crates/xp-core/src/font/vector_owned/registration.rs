@@ -49,7 +49,7 @@ impl<'a, P: Rasterizer, M: Memory, E: Pressure> Registered<'a, P, M, E> {
     }
     /// # Safety
     /// The initialized owner obeys initialize's pinned, serialized loan contract.
-    pub unsafe fn entry(owner: *const Self, id: i32) -> Entry {
+    pub unsafe fn entry(owner: *const Self, id: i32, points: u16) -> Entry {
         Entry {
             id,
             slots: core::array::from_fn(|i| {
@@ -58,6 +58,7 @@ impl<'a, P: Rasterizer, M: Memory, E: Pressure> Registered<'a, P, M, E> {
                     .add(i)
             }),
             fallback: 0,
+            points,
         }
     }
     unsafe fn publish(owner: *const Self) {

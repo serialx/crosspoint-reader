@@ -293,6 +293,12 @@ int main(int argc, char** argv) {
       roundTrip<OpdsServerStore>(
           R"({"servers":[{"name":"long-name-first","headers":[{"name":"long-header-first","value_obf":"AAAA"}]},{"name":"long-name-second"}]})",
           result, std::stoi(input));
+    } else if (kind == "reader-layout") {
+      store_test::readerLayout = true;
+      auto& settings = CrossPointSettings::getInstance();
+      settings.lineSpacing = CrossPointSettings::LINE_SPACING_120;
+      roundTrip<CrossPointSettings>(input, result);
+      result["multiplier"] = settings.getReaderLineCompression();
     } else if (kind == "settings" || kind == "settings-home") {
       store_test::hasHome = kind == "settings-home";
       roundTrip<CrossPointSettings>(input, result);

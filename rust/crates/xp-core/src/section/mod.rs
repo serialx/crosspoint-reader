@@ -1,4 +1,4 @@
-//! Section cache wire format, version 68.
+//! Section cache wire format, version 73.
 //!
 //! Integers are little-endian, without padding; booleans occupy one byte.
 //! Floating-point fields carry IEEE-754 binary32 bits. Strings are a u32 byte
@@ -14,8 +14,8 @@
 //! Page count starts at byte 22; the five table offsets start at byte 24.
 //!
 //! Version 0 denotes an uncommitted build. Final commit patches the count and
-//! offsets before stamping version 68. A suspended build stamps
-//! `0xfe - (68 - 28) = 214`, invalidating partial caches alongside final caches.
+//! offsets before stamping version 73. A suspended build stamps
+//! `0xfe - (73 - 28) = 209`, invalidating partial caches alongside final caches.
 //! It appends bytesConsumed:u32 and totalBytes:u32 after the visible-offset LUT.
 //! Version changes can invalidate pagination without changing the binary layout.
 //!
@@ -130,7 +130,7 @@ impl Kind {
     }
 }
 
-pub const VERSION: u8 = 68;
+pub const VERSION: u8 = 73;
 pub const PARTIAL_VERSION: u8 = 0xfe - (VERSION - 28);
 pub const HEADER_SIZE: usize = 44;
 pub const FIELD_COUNT: usize = 20;
@@ -467,6 +467,21 @@ mod tests {
         assert_eq!(table_entry(44, u32::MAX, 4, u32::MAX, 44), None);
     }
     #[test]
+    fn rejects_version_68_sections_and_suspended_builds() {
+        // Empty section, with all five table offsets immediately after the header.
+        let mut file = [0u8; 52];
+        for offset in file[24..44].chunks_exact_mut(4) {
+            offset.copy_from_slice(&44u32.to_le_bytes());
+        }
+        file[0] = 68;
+        assert_eq!(decode(Kind::Header, &file[..44]), Err(Error::Invalid));
+        file[0] = 214;
+        file[44..48].copy_from_slice(&30u32.to_le_bytes());
+        file[48..52].copy_from_slice(&60u32.to_le_bytes());
+        assert_eq!(decode(Kind::Header, &file), Err(Error::Invalid));
+    }
+
+    #[test]
     fn partial_header_and_watermark_bounds() {
         let mut header = Record {
             kind: Kind::Header as u32,
@@ -476,7 +491,7 @@ mod tests {
         header.values[14] = 2;
         header.values[18] = 100;
         header.values[19] = 104;
-        assert_eq!(PARTIAL_VERSION, 214);
+        assert_eq!(PARTIAL_VERSION, 209);
         assert_eq!(partial_trailer(&header, 120), Some(112));
         assert_eq!(partial_trailer(&header, 119), None);
         header.values[19] = u32::MAX;

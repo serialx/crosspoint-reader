@@ -46,8 +46,20 @@ def candidate():
         raise SystemExit('Expected no arguments, or the historical --freeze-original path.')
     golden = HERE / 'view-values.golden.gz'
     compressed = golden.read_bytes()
-    expected = gzip.decompress(compressed)
-    assert digest(compressed) == GZIP_SHA and digest(expected) == TRACE_SHA
+    raw = gzip.decompress(compressed)
+    assert digest(compressed) == GZIP_SHA and digest(raw) == TRACE_SHA
+    # The row selects the v73 label using the stored index modulo seven.
+    labels = (b'STR_SPACING_0_PERCENT', b'STR_SPACING_PLUS_10_PERCENT',
+              b'STR_SPACING_PLUS_20_PERCENT_DEFAULT', b'STR_SPACING_PLUS_30_PERCENT',
+              b'STR_SPACING_PLUS_45_PERCENT', b'STR_SPACING_PLUS_60_PERCENT',
+              b'STR_SPACING_PLUS_75_PERCENT')
+    lines = raw.splitlines(keepends=True)
+    for index, line in enumerate(lines):
+        if line.startswith(b'values '):
+            spacing = int(line.split()[1])
+        elif line.startswith(b'text 2 [STR_LINE_SPACING]'):
+            lines[index] = b'text 2 [STR_LINE_SPACING] [' + labels[spacing % len(labels)] + b']\n'
+    expected = b''.join(lines)
     counts = collections.Counter(line.split(b' ', 1)[0].decode() for line in expected.splitlines())
     assert len(expected.splitlines()) == 10776 and counts['case'] == 960 and counts['values'] == 14
     fixture_source = (HERE / 'view_values_oracle.cpp').read_bytes()

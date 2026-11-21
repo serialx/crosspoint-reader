@@ -24,7 +24,7 @@ enum FixtureStrId {
   STR_BT_FAILED,
   STR_BT_LOW_MEMORY,
   STR_CENTER,
-  STR_EXTRA_WIDE,
+  STR_SPACING_PLUS_45_PERCENT,
   STR_FOCUS_READING,
   STR_FONT,
   STR_FONT_SIZE,
@@ -32,28 +32,52 @@ enum FixtureStrId {
   STR_LANDSCAPE_CCW,
   STR_LANDSCAPE_CW,
   STR_LINE_SPACING,
-  STR_NORMAL,
+  STR_SPACING_PLUS_20_PERCENT_DEFAULT,
   STR_NOTO_SANS,
   STR_ORIENTATION_INVERTED,
   STR_PARA_ALIGNMENT,
   STR_PORTRAIT,
   STR_STATE_OFF,
-  STR_TIGHT,
+  STR_SPACING_PLUS_10_PERCENT,
   STR_UNNAMED,
-  STR_WIDE
+  STR_SPACING_PLUS_30_PERCENT,
+  STR_SPACING_0_PERCENT,
+  STR_SPACING_PLUS_60_PERCENT,
+  STR_SPACING_PLUS_75_PERCENT
 };
 #ifndef VIEW_VALUES_OWNER
 using StrId = FixtureStrId;
 #endif
 const char* tr(FixtureStrId id) {
-  static const char* names[] = {
-      "STR_ALIGN_LEFT",     "STR_ALIGN_RIGHT",   "STR_AUTO_TURN_ENABLED", "STR_BOOK_S_STYLE",
-      "Connected %s",       "STR_BT_CONNECTING", "STR_BT_FAILED",         "STR_BT_LOW_MEMORY",
-      "STR_CENTER",         "STR_EXTRA_WIDE",    "STR_FOCUS_READING",     "STR_FONT",
-      "STR_FONT_SIZE",      "STR_JUSTIFY",       "STR_LANDSCAPE_CCW",     "STR_LANDSCAPE_CW",
-      "STR_LINE_SPACING",   "STR_NORMAL",        "STR_NOTO_SANS",         "STR_ORIENTATION_INVERTED",
-      "STR_PARA_ALIGNMENT", "STR_PORTRAIT",      "STR_STATE_OFF",         "STR_TIGHT",
-      "STR_UNNAMED",        "STR_WIDE"};
+  static const char* names[] = {"STR_ALIGN_LEFT",
+                                "STR_ALIGN_RIGHT",
+                                "STR_AUTO_TURN_ENABLED",
+                                "STR_BOOK_S_STYLE",
+                                "Connected %s",
+                                "STR_BT_CONNECTING",
+                                "STR_BT_FAILED",
+                                "STR_BT_LOW_MEMORY",
+                                "STR_CENTER",
+                                "STR_SPACING_PLUS_45_PERCENT",
+                                "STR_FOCUS_READING",
+                                "STR_FONT",
+                                "STR_FONT_SIZE",
+                                "STR_JUSTIFY",
+                                "STR_LANDSCAPE_CCW",
+                                "STR_LANDSCAPE_CW",
+                                "STR_LINE_SPACING",
+                                "STR_SPACING_PLUS_20_PERCENT_DEFAULT",
+                                "STR_NOTO_SANS",
+                                "STR_ORIENTATION_INVERTED",
+                                "STR_PARA_ALIGNMENT",
+                                "STR_PORTRAIT",
+                                "STR_STATE_OFF",
+                                "STR_SPACING_PLUS_10_PERCENT",
+                                "STR_UNNAMED",
+                                "STR_SPACING_PLUS_30_PERCENT",
+                                "STR_SPACING_0_PERCENT",
+                                "STR_SPACING_PLUS_60_PERCENT",
+                                "STR_SPACING_PLUS_75_PERCENT"};
   return names[id];
 }
 struct {
@@ -62,7 +86,7 @@ struct {
 struct CrossPointSettings {
   enum STATUS_BAR_TITLE { BOOK_TITLE, CHAPTER_TITLE, HIDE_TITLE };
   enum {
-    LINE_COMPRESSION_COUNT = 4,
+    LINE_COMPRESSION_COUNT = 7,
     PARAGRAPH_ALIGNMENT_COUNT = 5,
     FONT_FAMILY_COUNT = 1,
     ORIENTATION_COUNT = 4,
@@ -80,8 +104,13 @@ struct CrossPointSettings {
 constexpr FixtureStrId kTextRowNames[] = {FixtureStrId::STR_FONT, FixtureStrId::STR_FONT_SIZE,
                                           FixtureStrId::STR_LINE_SPACING, FixtureStrId::STR_PARA_ALIGNMENT,
                                           FixtureStrId::STR_FOCUS_READING};
-constexpr FixtureStrId kSpacingIds[] = {FixtureStrId::STR_TIGHT, FixtureStrId::STR_NORMAL, FixtureStrId::STR_WIDE,
-                                        FixtureStrId::STR_EXTRA_WIDE};
+constexpr FixtureStrId kSpacingIds[] = {FixtureStrId::STR_SPACING_0_PERCENT,
+                                        FixtureStrId::STR_SPACING_PLUS_10_PERCENT,
+                                        FixtureStrId::STR_SPACING_PLUS_20_PERCENT_DEFAULT,
+                                        FixtureStrId::STR_SPACING_PLUS_30_PERCENT,
+                                        FixtureStrId::STR_SPACING_PLUS_45_PERCENT,
+                                        FixtureStrId::STR_SPACING_PLUS_60_PERCENT,
+                                        FixtureStrId::STR_SPACING_PLUS_75_PERCENT};
 constexpr FixtureStrId kAlignIds[] = {FixtureStrId::STR_JUSTIFY, FixtureStrId::STR_ALIGN_LEFT, FixtureStrId::STR_CENTER,
                                       FixtureStrId::STR_ALIGN_RIGHT, FixtureStrId::STR_BOOK_S_STYLE};
 constexpr int kTextRowCount = static_cast<int>(std::size(kTextRowNames));

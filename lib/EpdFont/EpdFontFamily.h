@@ -25,7 +25,10 @@ class EpdFontFamily {
 
   explicit EpdFontFamily(const EpdFont* regular, const EpdFont* bold = nullptr, const EpdFont* italic = nullptr,
                          const EpdFont* boldItalic = nullptr)
-      : regular(regular), bold(bold), italic(italic), boldItalic(boldItalic) {}
+      : EpdFontFamily(0, regular, bold, italic, boldItalic) {}
+  EpdFontFamily(uint16_t points, const EpdFont* regular, const EpdFont* bold = nullptr, const EpdFont* italic = nullptr,
+                const EpdFont* boldItalic = nullptr)
+      : points(points), regular(regular), bold(bold), italic(italic), boldItalic(boldItalic) {}
   ~EpdFontFamily() = default;
   void getTextDimensions(const char* string, int* w, int* h, Style style = REGULAR) const;
   const EpdFontData* getData(Style style = REGULAR) const;
@@ -36,7 +39,8 @@ class EpdFontFamily {
     return {id,
             {reinterpret_cast<const void* const*>(regular), reinterpret_cast<const void* const*>(bold),
              reinterpret_cast<const void* const*>(italic), reinterpret_cast<const void* const*>(boldItalic)},
-            0};
+            0,
+            points};
   }
   // The EpdFont owner is stable during a synchronous draw; its tables may change.
   const EpdFontData* const* getDataSlot(Style style) const { return &getFont(style)->data; }
@@ -54,6 +58,7 @@ class EpdFontFamily {
   }
 
  private:
+  uint16_t points;
   const EpdFont* regular;
   const EpdFont* bold;
   const EpdFont* italic;

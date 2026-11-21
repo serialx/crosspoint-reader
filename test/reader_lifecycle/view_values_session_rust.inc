@@ -29,7 +29,7 @@ static constexpr StrId keys[] = {
   StrId::STR_BT_FAILED,
   StrId::STR_BT_LOW_MEMORY,
   StrId::STR_CENTER,
-  StrId::STR_EXTRA_WIDE,
+  StrId::STR_SPACING_PLUS_45_PERCENT,
   StrId::STR_FOCUS_READING,
   StrId::STR_FONT,
   StrId::STR_FONT_SIZE,
@@ -37,15 +37,16 @@ static constexpr StrId keys[] = {
   StrId::STR_LANDSCAPE_CCW,
   StrId::STR_LANDSCAPE_CW,
   StrId::STR_LINE_SPACING,
-  StrId::STR_NORMAL,
+  StrId::STR_SPACING_PLUS_20_PERCENT_DEFAULT,
   StrId::STR_NOTO_SANS,
   StrId::STR_ORIENTATION_INVERTED,
   StrId::STR_PARA_ALIGNMENT,
   StrId::STR_PORTRAIT,
   StrId::STR_STATE_OFF,
-  StrId::STR_TIGHT,
+  StrId::STR_SPACING_PLUS_10_PERCENT,
   StrId::STR_UNNAMED,
-  StrId::STR_WIDE,
+  StrId::STR_SPACING_PLUS_30_PERCENT,
+  StrId::STR_SPACING_0_PERCENT, StrId::STR_SPACING_PLUS_60_PERCENT, StrId::STR_SPACING_PLUS_75_PERCENT,
 };
 // Action order is the existing MenuAction enum; labels come from buildMenuItems.
 static constexpr StrId actionLabels[] = {

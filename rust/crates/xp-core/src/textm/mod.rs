@@ -4,6 +4,8 @@
 //! streams and any SD prewarming; no measurement function retains a borrow.
 use crate::text::{combining, small_caps_upper};
 
+pub const FONT_RASTER_DPI: u32 = 150;
+
 pub const SUP: u8 = 16;
 pub const SUB: u8 = 32;
 pub const SMALL_CAPS: u8 = 128;
@@ -47,6 +49,9 @@ pub trait FontFace {
     fn ascender(&self, style: u8) -> i32;
     /// The regular face's advanceY, no I/O.
     fn line_height(&self) -> u8;
+    fn size_in_pixels(&self) -> f32 {
+        f32::from(self.line_height())
+    }
 }
 
 /// Registration and coverage are read-only and never trigger glyph loads.
@@ -194,12 +199,11 @@ pub fn advance_stream(
     if mode == MeasureMode::Layout && face.has_advance_table() {
         let resolved = face.resolve_style(style);
         let mut width = 0i32;
-        let mut spacing = 0i32;
         for cp in visual {
             if cp == 0 {
                 break;
             }
-            if transparent(cp) {
+            if transparent(cp) || (cp >= 0x300 && combining(cp)) {
                 continue;
             }
             let mapped = if style & SMALL_CAPS != 0 {
@@ -208,17 +212,15 @@ pub fn advance_stream(
                 cp
             };
             let mut advance = i32::from(face.advance(mapped, resolved));
-            if mapped < 0x300 || !combining(mapped) {
-                if advance == 0 || (solid(mapped) && !face.has_codepoint(mapped, style)) {
-                    advance =
-                        glyph_metrics(face, mapped, style).map_or(0, |g| i32::from(g.advance));
-                }
-                spacing = spacing.wrapping_add(tracking_between(prev, mapped, tracking));
-                prev = mapped;
+            if advance == 0 || (solid(mapped) && !face.has_codepoint(mapped, style)) {
+                advance = glyph_metrics(face, mapped, style).map_or(0, |g| i32::from(g.advance));
             }
-            width = width.wrapping_add(scaled(advance, style, mapped != cp));
+            width = width
+                .wrapping_add(tracking_between(prev, mapped, tracking))
+                .wrapping_add(to_pixel(scaled(advance, style, mapped != cp)));
+            prev = mapped;
         }
-        return to_pixel(width).wrapping_add(spacing);
+        return width;
     }
     let mut width = 0i32;
     let mut previous_advance = 0;
@@ -295,7 +297,7 @@ pub fn line_height(face: &impl FontFace) -> i32 {
     i32::from(face.line_height())
 }
 pub fn compressed_line_height(face: &impl FontFace, compression: f32) -> i32 {
-    (line_height(face) as f32 * compression + 0.5) as i32
+    (face.size_in_pixels() * compression + 0.5) as i32
 }
 
 /// Ink bounds, matching EpdFont::getTextDimensions. Decorations, small caps,

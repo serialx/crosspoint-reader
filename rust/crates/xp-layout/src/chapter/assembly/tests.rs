@@ -170,12 +170,13 @@ impl Sink for MockSink {
     fn codepoint(&mut self, font: i32, _: u32, _: u8) -> Option<(i32, i32)> {
         Some((font * 8, font * 3 / 4))
     }
-    fn line_metrics(&mut self, line: &Payload, _: Options) -> LineMetrics {
+    fn line_metrics(&mut self, line: &Payload, options: Options) -> LineMetrics {
         self.metrics_calls += 1;
         LineMetrics {
             x: model::left(line.style),
             words: line.words,
-            base_height: 10,
+            base_height: self.line_height(options.font, options.compression),
+            glyph_height: 10,
             ruby_shift: 0,
         }
     }
@@ -498,6 +499,40 @@ fn boxes_slice_edges_and_preserve_nested_order() {
         }
         _ => panic!(),
     }
+}
+
+#[test]
+fn tight_line_image_clamps_glyph_clearance_at_viewport_bottom() {
+    let mut asm = Asm::new(Options {
+        compression: 0.5,
+        ..options()
+    });
+    let mut sink = MockSink {
+        image: Some((12, 13)),
+        ..MockSink::default()
+    };
+    let mut flow = Flow::default();
+    asm.begin(&mut flow, &mut sink).unwrap();
+    flow.block_depth = 2;
+    flow.parent.margin_bottom = -4;
+    for id in 1..=3 {
+        asm.add_line(sink.line(id), &flow, &mut sink).unwrap();
+    }
+    assert_eq!(asm.next_y, 15);
+    assert_eq!(asm.last_glyph_bottom(&mut sink), 20);
+    asm.process_image(
+        b"image.png",
+        ImageStyle::default(),
+        &mut flow,
+        &mut sink,
+        |_, _, _| Ok(()),
+    )
+    .unwrap();
+    assert!(sink.pages.is_empty());
+    let image = &asm.page.as_ref().unwrap().elements[3];
+    assert!(matches!(image.content, Content::Image(_)));
+    assert_eq!(image.y, 17);
+    assert_eq!(asm.next_y, 26);
 }
 
 #[test]

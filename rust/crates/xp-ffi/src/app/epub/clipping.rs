@@ -181,7 +181,7 @@ impl EpubSession {
             u32::from(spec.height),
             u32::from(spec.hyphenation),
             u32::from(spec.embedded_style),
-            u32::from(spec.images),
+            u32::from(spec.layout_images()),
             u32::from(spec.focus_reading),
         ];
         unsafe { crate::book_policy::xp_book_layout_signature(&fields, spec.compression) }

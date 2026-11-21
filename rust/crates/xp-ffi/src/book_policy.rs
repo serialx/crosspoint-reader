@@ -293,7 +293,7 @@ pub unsafe extern "C" fn xp_book_layout_signature(
     let Some(fields) = fields.as_ref() else {
         return 1;
     };
-    let mut signature = 2166136261u32;
+    let mut signature = (2166136261u32 ^ 1).wrapping_mul(16777619);
     for (i, &field) in fields.iter().enumerate() {
         let value = if i == 1 {
             (compression * 1000.0) as u32

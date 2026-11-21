@@ -110,6 +110,7 @@ unsafe extern "C" fn family(context: *mut c_void, id: i32, out: *mut Family) {
         return;
     };
     (*out).fallback = entry.fallback;
+    (*out).points = entry.points as u8;
     (*out).has_fallback = u8::from(entry.fallback != 0);
     for style in 0..4 {
         (*out).styles[style].data = entry.slot(style as u8).read();
@@ -258,9 +259,9 @@ pub unsafe extern "C" fn xp_font_registry_source(
 const _: () = {
     let _: [u8; if cfg!(target_pointer_width = "32") {
         if cfg!(any(test, feature = "sd-font-catalog")) {
-            4272
+            4336
         } else {
-            4252
+            4316
         }
     } else {
         if cfg!(any(test, feature = "sd-font-catalog")) {
@@ -356,6 +357,12 @@ pub unsafe extern "C" fn xp_font_registry_query(
     out: *mut Entry,
 ) -> QueryResult {
     match query {
+        7 => QueryResult {
+            value: (*owner)
+                .registry
+                .find(id)
+                .map_or(0, |entry| usize::from(entry.points)),
+        },
         6 => QueryResult {
             value: usize::from(crate::font_sd::control(owner).face(id).is_some()),
         },

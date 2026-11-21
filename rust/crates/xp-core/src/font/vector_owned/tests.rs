@@ -394,10 +394,10 @@ fn registered_cells_survive_table_relocation_and_invalidate_before_drop() {
             Evict::default(),
         );
         assert!(R::load(owner, 14, 4096, 64));
-        assert!(registry.insert(R::entry(owner, 20)));
+        assert!(registry.insert(R::entry(owner, 20, 14)));
         let slot = registry.slot(20, 0);
         // Insertion shifts the real registry entries; the face-owned slot stays fixed.
-        assert!(registry.insert(R::entry(owner, 10)));
+        assert!(registry.insert(R::entry(owner, 10, 14)));
         assert_eq!(registry.slot(20, 0), slot);
         registry.remove(10);
         for style in 0..4 {
@@ -475,4 +475,20 @@ fn render_pressure_clears_active_metadata_after_returning_the_raster_loan() {
     }
     drop(family);
     assert_eq!(heap.live.get(), 0);
+}
+
+#[test]
+fn missing_replacement_caches_notdef_but_other_missing_characters_fall_back() {
+    let heap = Heap::default();
+    let mut font = family(&heap);
+    let mut pressure = Evict::default();
+    assert!(font.as_mut().load(14, true, 4096, 3));
+    assert!(font.as_mut().glyph(0, 0x2603, &mut pressure).is_none());
+    for _ in 0..2 {
+        let mut pin = font.as_mut();
+        let replacement = pin.as_mut().glyph(0, 0xfffd, &mut pressure).unwrap();
+        assert_eq!(replacement.glyph.advance_x, 32);
+        assert_eq!(replacement.bitmap, [0x05, 0xaf]);
+    }
+    assert_eq!(font.faces[0].ft.rasters, 1);
 }

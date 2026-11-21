@@ -21,6 +21,7 @@ pub(crate) struct Request {
     pub(crate) bounds: *mut c_void,
     pub(crate) count: usize,
     pub(crate) prepare: u8,
+    pub(crate) dither_images: u8,
 }
 const _: () = {
     assert!(
@@ -46,6 +47,7 @@ struct Direct<'a> {
     target: &'a Target,
     font: Cell<i32>,
     style: Cell<u8>,
+    dither_images: bool,
 }
 extern "C" {
     pub(crate) fn xp_native_render_target(
@@ -98,6 +100,7 @@ pub(crate) unsafe fn paint_current(arena: &[u8], font: i32, x: i32, y: i32, mode
         bounds: ptr::null_mut(),
         count: 0,
         prepare: 0,
+        dither_images: 0,
     };
     paint_request_current(arena, &request)
 }
@@ -178,6 +181,7 @@ impl Resources for Direct<'_> {
             i32::from(width),
             i32::from(height),
             placeholder,
+            self.dither_images,
         );
     }
     fn miss(&self) -> Miss {
@@ -232,6 +236,7 @@ pub(crate) unsafe fn paint(arena: &[u8], target: &Target, request: &Request) -> 
         target,
         font: Cell::new(request.font),
         style: Cell::new(0),
+        dither_images: request.dither_images != 0,
     };
     #[cfg(feature = "reader-strips")]
     if !request.plan.is_null() {

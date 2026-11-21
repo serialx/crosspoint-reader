@@ -1,6 +1,7 @@
 """Keep historical identity-path Pages and real-parent image bytes independently checked."""
 import argparse
 import copy
+from functools import lru_cache
 import gzip
 import hashlib
 import importlib.util
@@ -12,6 +13,16 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 HISTORICAL = tuple(f'test_tables/public/{config}' for config in range(4))
 REFERENCE = json.loads(gzip.decompress((HERE / 'page_image_parent.json.gz').read_bytes()))
+
+
+@lru_cache(maxsize=1)
+def v73_reference():
+    return json.loads(gzip.decompress((ROOT / 'test/page_golden/v73-changes.json.gz').read_bytes()))
+
+
+def layout_pages(pages, update):
+    wanted = (f'{spine}/{index}' for spine, count in update['chapters'].items() for index in range(count))
+    return {key: update['pages'][key] if key in update['pages'] else pages[key] for key in wanted}
 
 
 def sha(data):
@@ -26,10 +37,16 @@ def check_parent_case(key, records, cache):
     pages = {name: {field: page[field] for field in
                    ('raw_bytes', 'raw_sha256', 'wire_bytes', 'wire_sha256')}
              for name, page in records['pages'].items()}
-    if pages != expected['pages']:
+    reference = v73_reference()
+    parent_pages = expected['pages']
+    if key in reference['cases']:
+        parent_pages = {name: {field: page[field] for field in
+                        ('raw_bytes', 'raw_sha256', 'wire_bytes', 'wire_sha256')}
+                        for name, page in layout_pages(parent_pages, reference['cases'][key]).items()}
+    if pages != parent_pages:
         raise ValueError(f'Parent production Page bytes mismatch: {key}')
     files = {str(p.relative_to(cache)): sha(p.read_bytes()) for p in cache.rglob('*') if p.is_file()}
-    if files != expected['cache']:
+    if files != {**expected['cache'], **reference['sections'][key]}:
         raise ValueError(f'Parent production cache mismatch: {key}')
 
 
@@ -40,6 +57,11 @@ def production_expectation(historical, path):
     expected = copy.deepcopy(historical)
     for key in HISTORICAL:
         expected['cases'][key]['pages']['0/0'] = REFERENCE['cases'][key]['historical_replacement']
+    for key, update in v73_reference()['cases'].items():
+        case = expected['cases'][key]
+        case['pages'] = layout_pages(case['pages'], update)
+        case['chapters'] = update['chapters']
+        case['counts'] = update['counts']
     return expected
 
 

@@ -65,7 +65,7 @@ pub unsafe extern "C" fn xp_epub_test_render_contents(
     )
     .expect("owned fixture Page");
     assert!(owner.render_with(|access| {
-        owner.render_contents(access, page, font, margins, strip_enabled != 0);
+        owner.render_contents(access, page, font, false, margins, strip_enabled != 0);
     }));
 }
 

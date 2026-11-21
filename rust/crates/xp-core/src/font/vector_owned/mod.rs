@@ -303,7 +303,7 @@ impl<'a, P: Rasterizer, M: Memory> Family<'a, P, M> {
         if matches!(this.sources[0], Source::Missing) {
             return false;
         }
-        this.size = (u32::from(points) * 150 * 64 + 36) / 72;
+        this.size = (u32::from(points) * crate::textm::FONT_RASTER_DPI * 64 + 36) / 72;
         this.pixels = ((this.size + 32) >> 6) as u16;
         this.cap = cap;
         this.maximum = maximum;
@@ -375,7 +375,7 @@ impl<'a, P: Rasterizer, M: Memory> Family<'a, P, M> {
         if gid == 0 && (0xfb00..=0xfb04).contains(&cp) {
             gid = face.lig_gids[(cp - 0xfb00) as usize];
         }
-        if gid == 0 {
+        if gid == 0 && cp != 0xfffd {
             return None;
         }
         // The raster loan excludes FT mutation; pressure can only touch other families.

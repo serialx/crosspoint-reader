@@ -51,3 +51,8 @@ before measurement. Host `Page` objects retain test-only codec vectors, so these
 are comparative host measurements, not exact target heap sizes. The fixed recorder
 aborts if its 32,768-entry capacity is exceeded. Run both revisions serially on the
 same host and retain the source/build identities with the numbers.
+
+The 2.0.0 reference overlays the 48 frames for the four book-selection
+fixtures and their changed geometry. These fixtures mix ruby and focus text.
+The native upstream ParsedText and TextBlock implementations produced
+`rich-pages-v73.json.gz` with the original fonts and selection consumer.

@@ -1,7 +1,9 @@
 #include <Epub.h>
 #include <Epub/Page.h>
+#include <Epub/Paragraph.h>
 #include <Epub/converters/ImageDimsProbe.h>
 #include <GfxRenderer.h>
+#include <MiniBidi/BidiUtils.h>
 #include <gtest/gtest.h>
 
 #include <array>
@@ -959,6 +961,261 @@ class ChapterBlockDecorationTest : public ChapterHtmlSlimParserTest {
     return found;
   }
 };
+
+class ChapterTightSpacingTest : public ChapterBlockDecorationTest {
+ protected:
+  static constexpr int GLYPH_HEIGHT = 34;
+  void SetUp() override {
+    ChapterBlockDecorationTest::SetUp();
+    renderer.fontLineHeights[0] = GLYPH_HEIGHT;
+    renderer.fontSizePixels[0] = 25;
+    renderer.fontAscenders[0] = 28;
+    parser.lineCompression = 0.9f;
+    parser.viewportHeight = 69;
+  }
+};
+
+TEST_F(ChapterTightSpacingTest, FontSizeLineSpacingKeepsLastLineInsidePage) {
+  open("p", nullptr);
+  text(words(80));
+  close("p");
+  ASSERT_TRUE(ChapterTestAccess::finish(parser));
+  ASSERT_GE(pages.size(), 2u);
+  bool checkedSpacing = false;
+  for (const auto& page : pages) {
+    int previousY = -1;
+    for (uint16_t i = 0; i < page->elementCount(); ++i) {
+      const auto element = page->element(i);
+      if (element.getTag() != TAG_PageLine) continue;
+      EXPECT_LE(element.yPos + GLYPH_HEIGHT, parser.viewportHeight);
+      if (previousY >= 0) {
+        EXPECT_EQ(element.yPos - previousY, 23);
+        checkedSpacing = true;
+      }
+      previousY = element.yPos;
+    }
+  }
+  EXPECT_TRUE(checkedSpacing);
+}
+
+TEST_F(ChapterTightSpacingTest, TightTableLinesStayTogetherAndInsidePage) {
+  open("table", nullptr);
+  ChapterTestAccess::columns(parser, 240, 240);
+  open("tr", nullptr);
+  for (int column = 0; column < 2; ++column) {
+    open("td", nullptr);
+    text(words(80));
+    close("td");
+  }
+  ASSERT_FALSE(ChapterTestAccess::assembly(parser, 2));
+  close("tr");
+  close("table");
+  ASSERT_TRUE(ChapterTestAccess::finish(parser));
+  ASSERT_GE(pages.size(), 2u);
+  for (const auto& page : pages) {
+    std::map<int, int> columnsAtY;
+    for (uint16_t i = 0; i < page->elementCount(); ++i) {
+      const auto element = page->element(i);
+      if (element.getTag() != TAG_PageLine) continue;
+      EXPECT_LE(element.yPos + GLYPH_HEIGHT, parser.viewportHeight);
+      ++columnsAtY[element.yPos];
+    }
+    for (const auto& [y, columns] : columnsAtY) {
+      EXPECT_EQ(columns, 2) << "at y=" << y;
+    }
+  }
+}
+
+TEST_F(ChapterTightSpacingTest, TightDropCapMovesWithAllSpannedLines) {
+  open("p", nullptr);
+  text("Before");
+  close("p");
+  ASSERT_EQ(ChapterTestAccess::assembly(parser, 1), 23);
+  open("p", nullptr);
+  open("span", "float: left; font-size: 2em");
+  text("T");
+  close("span");
+  text("he " + words(50));
+  close("p");
+  ASSERT_TRUE(ChapterTestAccess::finish(parser));
+  ASSERT_GE(pages.size(), 2u);
+  size_t capCount = 0;
+  for (size_t index = 0; index < pages.size(); ++index) {
+    bool hasCap = false;
+    size_t besideCap = 0;
+    for (uint16_t i = 0; i < pages[index]->elementCount(); ++i) {
+      const auto element = pages[index]->element(i);
+      if (element.getTag() == TAG_PageDropCap) {
+        hasCap = true;
+        ++capCount;
+      }
+      if (element.getTag() == TAG_PageLine) {
+        EXPECT_LE(element.yPos + GLYPH_HEIGHT, parser.viewportHeight);
+        if (element.xPos > 0) ++besideCap;
+      }
+    }
+    if (hasCap) {
+      EXPECT_GT(index, 0u);
+      EXPECT_EQ(besideCap, 2u);
+    } else {
+      EXPECT_EQ(besideCap, 0u);
+    }
+  }
+  EXPECT_EQ(capCount, 1u);
+}
+
+TEST_F(ChapterTightSpacingTest, TextAfterBoxStartsBelowItsFrame) {
+  parser.viewportHeight = 400;
+  parser.extraParagraphSpacing = false;
+  open("div", "border: 1px solid black");
+  open("p", nullptr);
+  text("Framed");
+  close("p");
+  close("div");
+  open("p", nullptr);
+  text("Outside");
+  close("p");
+  ASSERT_EQ(elementsWithTag(TAG_PageBorderBox).size(), 1u);
+  const auto lines = elementsWithTag(TAG_PageLine);
+  ASSERT_EQ(lines.size(), 2u);
+  EXPECT_EQ(lines[1].yPos, lines[0].yPos + GLYPH_HEIGHT + 5);  // 4 px gap + 1 px border
+}
+
+TEST_F(ChapterTightSpacingTest, BoxFrameStartsBelowPreviousLineGlyphs) {
+  parser.viewportHeight = 400;
+  open("p", nullptr);
+  text("Before");
+  close("p");
+  open("div", "border: 1px solid black");
+  open("p", nullptr);
+  text("Framed");
+  close("p");
+  close("div");
+  const auto boxes = elementsWithTag(TAG_PageBorderBox);
+  ASSERT_EQ(boxes.size(), 1u);
+  const auto lines = elementsWithTag(TAG_PageLine);
+  ASSERT_EQ(lines.size(), 2u);
+  EXPECT_EQ(boxes[0].yPos, lines[0].yPos + GLYPH_HEIGHT);
+}
+
+TEST_F(ChapterTightSpacingTest, BorderedTableStartsBelowPreviousLineGlyphs) {
+  parser.viewportHeight = 400;
+  open("p", nullptr);
+  text("Before");
+  close("p");
+  const char* bordered[] = {"border", "1", nullptr};
+  ChapterTestAccess::startElement(&parser, "table", bordered);
+  ChapterTestAccess::columns(parser, 240, 240);
+  open("tr", nullptr);
+  for (const char* cell : {"alpha", "beta"}) {
+    open("td", nullptr);
+    text(cell);
+    close("td");
+  }
+  ASSERT_FALSE(ChapterTestAccess::assembly(parser, 2));
+  close("tr");
+  close("table");
+  const auto boxes = elementsWithTag(TAG_PageBorderBox);
+  ASSERT_EQ(boxes.size(), 2u);
+  const auto lines = elementsWithTag(TAG_PageLine);
+  ASSERT_GE(lines.size(), 1u);
+  EXPECT_EQ(boxes[0].yPos, lines[0].yPos + GLYPH_HEIGHT);
+}
+
+TEST_F(ChapterTightSpacingTest, BorderedTableRowMovesWholeWhenRaisedRowDoesNotFit) {
+  parser.viewportHeight = 66;  // the row fits below the line's spacing, not below its glyphs
+  open("p", nullptr);
+  text("Before");
+  close("p");
+  const char* bordered[] = {"border", "1", nullptr};
+  ChapterTestAccess::startElement(&parser, "table", bordered);
+  ChapterTestAccess::columns(parser, 240, 240);
+  open("tr", nullptr);
+  for (const char* cell : {"alpha", "beta"}) {
+    open("td", nullptr);
+    text(cell);
+    close("td");
+  }
+  close("tr");
+  close("table");
+  ASSERT_TRUE(ChapterTestAccess::finish(parser));
+  ASSERT_EQ(pages.size(), 2u);
+  std::map<PageElementTag, std::vector<int>> secondPage;
+  for (uint16_t i = 0; i < pages[1]->elementCount(); ++i) {
+    const auto element = pages[1]->element(i);
+    secondPage[element.getTag()].push_back(element.yPos);
+  }
+  ASSERT_EQ(secondPage[TAG_PageLine].size(), 2u);
+  EXPECT_EQ(secondPage[TAG_PageLine][0], 3);  // 1 px border + 2 px gap
+  EXPECT_EQ(secondPage[TAG_PageLine][1], 3);
+  ASSERT_EQ(secondPage[TAG_PageBorderBox].size(), 2u);
+  EXPECT_EQ(secondPage[TAG_PageBorderBox][0], 0);
+  for (uint16_t i = 0; i < pages[0]->elementCount(); ++i) EXPECT_NE(pages[0]->element(i).getTag(), TAG_PageBorderBox);
+}
+
+TEST_F(ChapterTightSpacingTest, StackedTableRuleStartsBelowRowGlyphs) {
+  parser.viewportHeight = 400;
+  open("table", nullptr);
+  open("tr", nullptr);
+  open("td", nullptr);
+  text("Only cell");
+  close("td");
+  close("tr");
+  close("table");
+  const auto rules = elementsWithTag(TAG_PageHorizontalRule);
+  ASSERT_EQ(rules.size(), 1u);
+  const auto lines = elementsWithTag(TAG_PageLine);
+  ASSERT_EQ(lines.size(), 1u);
+  EXPECT_EQ(rules[0].yPos, lines[0].yPos + GLYPH_HEIGHT + 1);
+}
+
+TEST_F(ChapterTightSpacingTest, HorizontalRuleStartsBelowPreviousLineGlyphs) {
+  parser.viewportHeight = 400;
+  open("p", nullptr);
+  text("Before");
+  close("p");
+  open("hr", "margin-top: 1px");
+  close("hr");
+  const auto rules = elementsWithTag(TAG_PageHorizontalRule);
+  ASSERT_EQ(rules.size(), 1u);
+  const auto lines = elementsWithTag(TAG_PageLine);
+  ASSERT_EQ(lines.size(), 1u);
+  EXPECT_EQ(rules[0].yPos, lines[0].yPos + GLYPH_HEIGHT);
+}
+
+TEST_F(ChapterBlockDecorationTest, BoxBottomPaddingSitsInsideItsFrame) {
+  open("div", "border: 1px solid black");
+  open("p", nullptr);
+  text("X");
+  close("p");
+  close("div");
+  for (const char* word : {"Y", "Z"}) {
+    open("p", nullptr);
+    text(word);
+    close("p");
+  }
+  const auto lines = elementsWithTag(TAG_PageLine);
+  ASSERT_EQ(lines.size(), 3u);
+  EXPECT_EQ(lines[1].yPos, lines[0].yPos + 16 + 5);  // 4 px gap + 1 px border
+  EXPECT_EQ(lines[2].yPos, lines[1].yPos + 16);
+}
+
+TEST_F(ChapterBlockDecorationTest, BoxFrameUsesOnlyThePaddingItNeeds) {
+  open("div", "border: 1px solid black");
+  open("p", "margin-bottom: 2px");
+  text("X");
+  close("p");
+  close("div");
+  for (const char* word : {"Y", "Z"}) {
+    open("p", nullptr);
+    text(word);
+    close("p");
+  }
+  const auto lines = elementsWithTag(TAG_PageLine);
+  ASSERT_EQ(lines.size(), 3u);
+  EXPECT_EQ(lines[1].yPos, lines[0].yPos + 16 + 5);
+  EXPECT_EQ(lines[2].yPos, lines[1].yPos + 16 + 2);  // the margin already covered 2 px of the padding
+}
 
 TEST_F(ChapterBlockDecorationTest, RepeatedSectionBreaksEachAddOneLine) {
   for (int breaks = 1; breaks <= 3; ++breaks) {
@@ -2897,4 +3154,78 @@ TEST_F(ChapterHtmlSlimParserTest, EntityGrowthFailureFailsWithoutReplacingTheRea
   parser.abortParse();
   EXPECT_EQ(xp_test_live_allocations(), 0u);
   std::filesystem::remove(filepath);
+}
+
+TEST(FocusReading, PreservesLetterOrderAndRunPlacement) {
+  std::filesystem::path directory;
+  for (size_t suffix = 0;; ++suffix) {
+    directory = std::filesystem::temp_directory_path() / ("crosspoint-rtl-focus-" + std::to_string(suffix));
+    if (std::filesystem::create_directory(directory)) break;
+  }
+  const auto path = directory / "page.bin";
+  for (const bool rtlParagraph : {false, true}) {
+    for (const int8_t tracking : {0, 2}) {
+      for (const bool focus : {false, true}) {
+        for (const auto style : {EpdFontFamily::REGULAR, EpdFontFamily::ITALIC, EpdFontFamily::BOLD}) {
+          for (const char* word : {"שלום", "בראשית", "התלמידים", "reading", "١٢٣٤"}) {
+            SCOPED_TRACE(word);
+            GfxRenderer renderer;
+            renderer.boldGlyphAdvance = 11;
+            renderer.observeText = true;
+            BlockStyle blockStyle;
+            blockStyle.isRtl = rtlParagraph;
+            blockStyle.directionDefined = true;
+            blockStyle.characterSpacing = tracking;
+            Paragraph text(false, focus, blockStyle, 0);
+            text.addWord(word, style);
+            text.layoutAndExtractLines(
+                renderer, 0, 400,
+                [&](auto block, auto) {
+                  {
+                    HalFile output;
+                    ASSERT_TRUE(output.open(path.c_str(), "wb"));
+                    const uint8_t prefix[] = {1, 0, TAG_PageLine, 0, 0, 0, 0};
+                    const uint8_t footer[4]{};
+                    ASSERT_EQ(output.write(prefix, sizeof(prefix)), sizeof(prefix));
+                    ASSERT_TRUE(block->serialize(output));
+                    ASSERT_EQ(output.write(footer, sizeof(footer)), sizeof(footer));
+                  }
+                  HalFile input;
+                  ASSERT_TRUE(input.open(path.c_str(), "rb"));
+                  auto page = Page::load(input, input.size());
+                  std::filesystem::remove(path);
+                  ASSERT_NE(page, nullptr);
+                  page->render(renderer, 0, 0, 0);
+                },
+                true, tracking);
+            ASSERT_FALSE(renderer.textDraws.empty());
+            std::sort(renderer.textDraws.begin(), renderer.textDraws.end(),
+                      [](const auto& a, const auto& b) { return a.x < b.x; });
+            std::string actual;
+            int nextX = renderer.textDraws.front().x;
+            for (const auto& draw : renderer.textDraws) {
+              EXPECT_EQ(draw.x, nextX);
+              nextX += renderer.getTextAdvanceX(0, draw.text.c_str(), draw.style, tracking) + tracking;
+              std::string visual;
+              ASSERT_TRUE(BidiUtils::applyBidiVisual(draw.text.c_str(), visual, static_cast<int>(draw.direction)));
+              actual += visual;
+            }
+            std::string expected;
+            ASSERT_TRUE(BidiUtils::applyBidiVisual(word, expected));
+            EXPECT_EQ(actual, expected);
+            if (focus && style != EpdFontFamily::BOLD) {
+              ASSERT_EQ(renderer.textDraws.size(), 2u);
+              const bool rtlWord = BidiUtils::startsWithRtl(word);
+              EXPECT_TRUE(renderer.textDraws[rtlWord ? 1 : 0].style & EpdFontFamily::BOLD);
+              EXPECT_FALSE(renderer.textDraws[rtlWord ? 0 : 1].style & EpdFontFamily::BOLD);
+              if (style == EpdFontFamily::ITALIC) {
+                for (const auto& draw : renderer.textDraws) EXPECT_TRUE(draw.style & EpdFontFamily::ITALIC);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  std::filesystem::remove(directory);
 }

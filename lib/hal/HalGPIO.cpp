@@ -124,7 +124,9 @@ bool HalGPIO::wasAnyReleased() const { return inputMgr.wasAnyReleased(); }
 
 bool HalGPIO::rawInputActive() {
 #if FREEINK_DEVICE_LILYGO
-  if (BoardConfig::ACTIVE.board == BoardConfig::Board::LilyGoT5S3 && BoardT5S3::readButton()) return true;
+  if (BoardConfig::ACTIVE.board == BoardConfig::Board::LilyGoT5S3) {
+    return inputMgr.isPowerButtonPhysicallyPressed() || BoardT5S3::readButton();
+  }
 #endif
   const auto sample = rawInputSample();
   return sample.power || xp_hal_input_adc(sample.first, sample.second);

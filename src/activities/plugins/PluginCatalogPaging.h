@@ -6,9 +6,11 @@ namespace plugincatalogpaging {
 enum class Paging : uint8_t { Static, Offset, PageNumber, SizedPages };
 
 template <typename Headers>
-inline Paging pagingOf(std::string_view url, std::string_view body, const Headers& headers) {
+inline Paging pagingOf(std::string_view url, std::string_view body, const Headers& headers,
+                       std::string_view origin = {}) {
   const auto variables = [](std::string_view text) { return xp_ui_catalog_page_template(text.data(), text.size()); };
   uint8_t flags = variables(url) | variables(body);
+  if (!origin.empty()) flags |= variables(origin);
   for (const auto& header : headers) flags |= variables(header.second);
   if (flags & XP_UI_CATALOG_TEMPLATE_OFFSET) return Paging::Offset;
   if (!(flags & XP_UI_CATALOG_TEMPLATE_PAGE)) return Paging::Static;
@@ -25,7 +27,8 @@ class PageWindow {
   PageWindow(size_t start, size_t limit) : window{start, limit, 0, 0} {}
   bool take(bool eligible = true) { return xp_ui_catalog_window_take(&window, eligible); }
   bool hasMore(Paging paging) const {
-    return window.more || (paging == Paging::SizedPages && window.seen >= window.limit);
+    return window.more ||
+           (paging == Paging::SizedPages && window.seen >= window.start && window.seen - window.start >= window.limit);
   }
 
  private:

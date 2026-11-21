@@ -40,6 +40,11 @@ bool nextPageAfter(const Paging paging, const int rows, const int pageSize = 8) 
 }
 
 TEST(PluginCatalogPaging, SizedPagesContinueAfterAFullPage) {
+  PageWindow second(8, 8);
+  for (int i = 0; i < 8; ++i) second.take();
+  EXPECT_FALSE(second.hasMore(Paging::SizedPages));
+  for (int i = 0; i < 8; ++i) second.take();
+  EXPECT_TRUE(second.hasMore(Paging::SizedPages));
   EXPECT_TRUE(nextPageAfter(Paging::SizedPages, 8));
   EXPECT_FALSE(nextPageAfter(Paging::SizedPages, 7));
   EXPECT_FALSE(nextPageAfter(Paging::SizedPages, 0));

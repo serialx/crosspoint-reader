@@ -1,7 +1,7 @@
 #pragma once
 
-#include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -14,7 +14,7 @@ inline constexpr size_t MAX_REQUEST_BYTES = 16 * 1024;
 
 inline bool needsUrlEscape(unsigned char c) { return c <= 0x20 || c >= 0x7f; }
 
-// Record the raw origin before wire escaping, so a selected rooted list can substitute it again.
+// Stop after the raw authority when a rooted details URL needs the browse origin.
 struct Origin {
   size_t size = 0;
   unsigned marker = 0;
@@ -85,7 +85,7 @@ class Template {
   void removeLast() { --extraCount; }
 
  private:
-  static constexpr char HEX[] = "0123456789ABCDEF";
+  static constexpr char HEX_DIGITS[] = "0123456789ABCDEF";
   const Config* config = nullptr;
   struct Binding {
     std::string_view key;
@@ -146,8 +146,8 @@ class Template {
       if (output) {
         if (encoded) {
           output->push_back('%');
-          output->push_back(HEX[c >> 4]);
-          output->push_back(HEX[c & 15]);
+          output->push_back(HEX_DIGITS[c >> 4]);
+          output->push_back(HEX_DIGITS[c & 15]);
         } else {
           output->push_back(c);
         }
@@ -236,7 +236,7 @@ class Template {
           if (emittingRule.encode) {
             const unsigned digit = pos % 3;
             if (encodedByte(byte)) {
-              byte = digit == 0 ? '%' : HEX[digit == 1 ? byte >> 4 : byte & 15];
+              byte = digit == 0 ? '%' : HEX_DIGITS[digit == 1 ? byte >> 4 : byte & 15];
               ++after.emitting;
             } else {
               after.emitting += 3;

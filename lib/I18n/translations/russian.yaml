@@ -305,6 +305,7 @@ STR_PLUGIN_HUB_INSTALL_DESCRIPTION: "Официальные плагины и п
 STR_PLUGIN_HUB_INSTALLED: "Каталог плагинов установлен"
 STR_PLUGIN_HUB_INSTALLED_HINT: "Откройте «Плагины», чтобы начать."
 STR_NO_PLUGINS_INSTALLED: "Нет установленных плагинов"
+STR_PLUGIN_NOT_SIGNED_IN: "Вход не выполнен. Откройте веб-страницу настроек и сначала войдите через плагин."
 STR_PLUGIN_MANIFEST_INVALID: "Манифест плагина отсутствует или повреждён"
 STR_PLUGIN_SIGN_IN: "Войти"
 STR_PLUGIN_SIGN_IN_HINT: "Вход ещё не выполнен"

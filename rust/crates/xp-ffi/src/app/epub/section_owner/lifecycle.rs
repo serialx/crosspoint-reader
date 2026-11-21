@@ -30,7 +30,7 @@ pub(super) fn header(spec: &XpEpubRenderSpec, pages: u16) -> [u32; 20] {
         spec.height.into(),
         u32::from(spec.hyphenation != 0),
         u32::from(spec.embedded_style != 0),
-        spec.images.into(),
+        spec.layout_images().into(),
         u32::from(spec.focus_reading != 0),
         spec.character_spacing as u8 as u32,
         spec.word_spacing_percent.into(),
@@ -47,7 +47,7 @@ fn options(spec: &XpEpubRenderSpec) -> Options {
     Options {
         alignment: spec.alignment,
         embedded: u8::from(spec.embedded_style != 0),
-        images: spec.images,
+        images: spec.layout_images(),
         css_enabled: u8::from(spec.embedded_style != 0),
         assembly: assembly::Options {
             font: spec.font,

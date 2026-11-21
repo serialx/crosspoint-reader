@@ -127,6 +127,7 @@ struct Physical<'a> {
     file: Pin<&'a mut File>,
     cache: *const u8,
     initialized: bool,
+    dither_images: bool,
 }
 impl Physical<'_> {
     fn scalar(&mut self, op: FileOp, value: usize) -> usize {
@@ -209,6 +210,7 @@ unsafe fn cache_valid(path: &[u8], width: i32, height: i32) -> bool {
         file: file.as_mut(),
         cache: c"".as_ptr().cast(),
         initialized: false,
+        dither_images: false,
     };
     physical.scalar(FileOp::Init, 0);
     physical.initialized = true;
@@ -269,7 +271,7 @@ unsafe impl Services for Physical<'_> {
             rows: t.rows,
             width: t.width,
             height: t.height,
-            mode: t.plane,
+            mode: if self.dither_images { xp_core::image::frame::MODE_DITHER_BW } else { t.plane },
             orientation: t.orientation,
             absolute: t.absolute,
         }
@@ -342,7 +344,7 @@ unsafe impl Services for Physical<'_> {
         width: usize,
         row: &[u8],
     ) -> bool {
-        if !cfg!(feature = "reader-strips") {
+        if self.dither_images || !cfg!(feature = "reader-strips") {
             return false;
         }
         unsafe {
@@ -431,7 +433,11 @@ pub(super) unsafe fn paint(
     width: i32,
     height: i32,
     placeholders: bool,
+    dither_images: bool,
 ) {
+    if dither_images && target.glyphs.plane != 0 {
+        return;
+    }
     if placeholders {
         placeholder(target, x, y, width, height);
         return;
@@ -458,6 +464,7 @@ pub(super) unsafe fn paint(
         file: file.as_mut(),
         cache: c"".as_ptr().cast(),
         initialized: false,
+        dither_images,
     };
     physical.scalar(FileOp::Init, 0);
     physical.initialized = true;
@@ -503,6 +510,7 @@ unsafe extern "C" fn xp_page_image_test_decode(
         file: file.as_mut(),
         cache,
         initialized: false,
+        dither_images: false,
     };
     physical.scalar(FileOp::Init, 0);
     physical.initialized = true;
@@ -524,6 +532,7 @@ unsafe extern "C" fn xp_page_image_test_paint(target: &Target, image: &Image) {
         image.y,
         image.width,
         image.height,
+        false,
         false,
     );
 }
@@ -573,6 +582,7 @@ pub(crate) unsafe fn dimensions(path: &[u8], width: &mut u16, height: &mut u16) 
         file: file.as_mut(),
         cache: c"".as_ptr().cast(),
         initialized: false,
+        dither_images: false,
     };
     physical.scalar(FileOp::Init, 0);
     physical.initialized = true;

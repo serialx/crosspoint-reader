@@ -14,7 +14,10 @@ pub struct Target {
     pub absolute: u8,
 }
 
+pub const MODE_DITHER_BW: u8 = 3;
+
 pub struct Writer {
+    logical_y: i32,
     target: Target,
     x_base: i32,
     y_base: i32,
@@ -38,6 +41,7 @@ impl Writer {
         };
         Self {
             target,
+            logical_y: 0,
             x_base,
             y_base,
             xx,
@@ -50,6 +54,7 @@ impl Writer {
     }
 
     pub fn begin_row(&mut self, y: i32) {
+        self.logical_y = y;
         self.row_x = self.x_base + y * self.xy;
         self.row_y = self.y_base + y * self.yy;
     }
@@ -80,6 +85,11 @@ impl Writer {
     pub fn pixel(&self, x: i32, level: u8, white: bool) {
         let t = &self.target;
         let (draw, black) = match t.mode {
+            MODE_DITHER_BW => {
+                let threshold = [0, 2, 3, 1][((self.logical_y & 1) * 2 + (x & 1)) as usize];
+                let black = level == 0 || (level == 1 && threshold < 3) || (level == 2 && threshold == 0);
+                (white || black, black)
+            }
             0 => (white || level < 3, level < 3),
             1 | 2 if t.absolute != 0 => (
                 true,
@@ -136,6 +146,25 @@ pub fn dither(gray: u8, x: i32, y: i32) -> u8 {
 mod tests {
     extern crate alloc;
     use super::*;
+    #[test]
+    fn monochrome_images_use_logical_two_by_two_bayer_cell() {
+        for (level, expected) in [(0, [0x3f, 0x3f]), (1, [0x3f, 0xbf]), (2, [0x7f, 0xff]), (3, [0xff, 0xff])] {
+            let mut bytes = [255; 2];
+            let target = Target {
+                data: bytes.as_mut_ptr(), len: 2, stride: 1, origin: 0, rows: 2,
+                width: 2, height: 2, mode: MODE_DITHER_BW, orientation: 3, absolute: 0,
+            };
+            let mut writer = unsafe { Writer::new(target) };
+            for y in 0..2 {
+                writer.begin_row(y);
+                for x in 0..2 {
+                    writer.pixel(x, level, false);
+                }
+            }
+            assert_eq!(bytes, expected);
+        }
+    }
+
     #[test]
     fn wide_panel_retains_legacy_offset() {
         let mut bytes = alloc::vec![255u8; 160 * 720];

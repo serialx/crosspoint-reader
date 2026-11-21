@@ -21,6 +21,7 @@ typedef struct {
   XpPageRowBounds* bounds;
   size_t count;
   uint8_t prepare;
+  uint8_t dither_images;
 } XpPagePaint;
 uint32_t xp_page_paint(const uint8_t* arena, size_t, const XpPageTarget*, const XpPagePaint*);
 // Lends UI clear/text services when requested; returns whether a font cache is bound.

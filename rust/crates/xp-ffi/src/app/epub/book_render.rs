@@ -608,6 +608,7 @@ impl EpubSession {
             access,
             page,
             viewport.spec.font,
+            viewport.spec.dither_images(),
             viewport.margins,
             cfg!(feature = "reader-strips"),
         );

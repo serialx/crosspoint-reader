@@ -13,7 +13,8 @@
 
 extern "C" void xp_epub_test_section_spec(const XpEpubRenderSpec*, uint32_t (*)[20], uint8_t (*)[6]);
 static void check(const XpEpubRenderSpec& raw, unsigned field, unsigned value) {
-  const auto native = renderSpec(raw);
+  auto native = renderSpec(raw);
+  if (native.imageRendering == 3) native.imageRendering = 0;  // #4160 shares Display layout.
   const auto expected = headerFields(native, 3);
   uint32_t fields[20]{};
   uint8_t flags[6]{};
@@ -40,7 +41,7 @@ int main() {
   unsigned cases = 0;
   for (unsigned field = 0; field < 4; ++field) {
     for (unsigned value = 0; value <= 255; ++value) {
-      for (uint8_t image : {0, 1, 2}) {
+      for (uint8_t image : {0, 1, 2, 3}) {
         XpEpubRenderSpec raw{16, 1.0f, 240, 320, 1, 2, -3, 110, 2, 0, 1, image, 1};
         uint8_t* flags[]{&raw.paragraph_spacing, &raw.hyphenation, &raw.embedded_style, &raw.focus_reading};
         *flags[field] = value;
@@ -54,6 +55,6 @@ int main() {
     check(raw, 4, value);
     ++cases;
   }
-  printf("PASS %u parent-matched header bytes and Chapter options; every boolean byte and unchanged image mode\n",
+  printf("PASS %u parent-matched header bytes and Chapter options; every boolean byte and image layout mode\n",
          cases);
 }

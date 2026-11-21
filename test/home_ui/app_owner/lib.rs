@@ -81,6 +81,7 @@ mod page_render {
             pub bounds: *mut c_void,
             pub count: usize,
             pub prepare: u8,
+            pub dither_images: u8,
         }
         type Paint = fn(&[u8]);
         thread_local! { static OBSERVER: Cell<Option<Paint>> = const { Cell::new(None) }; }
@@ -100,6 +101,7 @@ mod page_render {
                     bounds: core::ptr::null_mut(),
                     count: 0,
                     prepare: 0,
+                    dither_images: 0,
                 },
             )
         }

@@ -632,7 +632,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
                     .alignment = spec.paragraphAlignment,
                     .hyphenation = spec.hyphenationEnabled,
                     .embedded_style = spec.embeddedStyle,
-                    .images = spec.imageRendering,
+                    .images = SETTINGS.imageRendering,
                     .focus_reading = spec.focusReadingEnabled};
 #else
             const auto& settings = SETTINGS;

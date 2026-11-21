@@ -12,7 +12,7 @@ class BmpViewerActivity final : public BootUiActivity {
 
   void onEnter() override;
   void onExit() override;
-  void loop() override { RustActivityAdapter::loop(); }
+  void loop() override;
   void render(RenderLock&&) override {
     if (rustSceneRejected()) paintImageView();
   }
@@ -31,5 +31,6 @@ class BmpViewerActivity final : public BootUiActivity {
 
   std::string filePath;
   std::vector<std::string> siblingImages;
+  bool longPress = false;
   XpUiImageState state{-1, 0, 0, {}};
 };

@@ -60,6 +60,10 @@ class HalFile {
     hal_fake::requireImpl(impl_, "available", path_.c_str());
     return file_ ? static_cast<int>(size() - position()) : 0;
   }
+  int read() {
+    uint8_t byte;
+    return read(&byte, 1) == 1 ? byte : -1;
+  }
   size_t read(void* buffer, size_t count) {
     hal_fake::requireImpl(impl_, "read", path_.c_str());
     if (HalFileTest::readLimit) count = HalFileTest::readLimit(path_.c_str(), position(), count);

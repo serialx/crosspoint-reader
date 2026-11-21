@@ -17,6 +17,7 @@ class SleepActivity final : public BootUiActivity {
   void renderSleepRoute(uint8_t route);
   void renderDefaultSleepScreen();
   void renderCustomSleepScreen();
+  bool renderCustomSleepBmp(const std::string& path);
   void renderCoverSleepScreen();
   void renderBitmapSleepScreen(const Bitmap& bitmap, bool preserveBackground = false);
   bool renderSleepOverlayFile(HalFile& file, const char* pathForLog);

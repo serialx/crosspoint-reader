@@ -226,7 +226,7 @@ Settings are grouped into **System**, **Display**, **Reader**, **Controls**, **L
   - "Fit" (default) - Scale the image to fit centered on the screen, padding with white borders as necessary
   - "Crop" - Scale the image and crop as necessary to try to fill the screen
 
-- **Sleep Screen Cover Filter**: What filter will be applied to the book cover when "Cover" sleep screen is selected:
+- **Sleep Screen Cover Filter**: What filter will be applied to a book cover or custom sleep image:
   
   - "None" (default) - The cover image will be converted to a grayscale image and displayed as it is
   - "Contrast" - The image will be displayed as a black & white image without grayscale conversion

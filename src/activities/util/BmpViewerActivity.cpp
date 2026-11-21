@@ -403,9 +403,27 @@ void BmpViewerActivity::doSetSleepCover() {
   onEnter();
 }
 
-XpUiInterest BmpViewerActivity::rustInterest(uint32_t) const { return xp_ui_boot_interest(false); }
+void BmpViewerActivity::loop() {
+  if (consumeRejectedInput()) return;
+  int x, y;
+  longPress = mappedInput.wasScreenLongPress(x, y);
+  RustActivityAdapter::loop();
+}
 
-XpUiEffect BmpViewerActivity::updateRust(const XpUiInput& input) { return xp_ui_image_update(&state, &input); }
+XpUiInterest BmpViewerActivity::rustInterest(uint32_t now) const {
+  auto interest = xp_ui_boot_interest(false);
+  if (longPress) {
+    interest.deadline_enabled = 1;
+    interest.deadline_ms = now;
+  }
+  return interest;
+}
+
+XpUiEffect BmpViewerActivity::updateRust(const XpUiInput& input) {
+  auto event = input;
+  if (longPress) event.action = 1;
+  return xp_ui_image_update(&state, &event);
+}
 
 void BmpViewerActivity::applyRustEffect(const XpUiEffect& effect) {
   switch (static_cast<XpUiEffectKind>(effect.kind)) {

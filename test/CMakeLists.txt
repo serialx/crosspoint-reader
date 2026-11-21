@@ -135,6 +135,7 @@ add_subdirectory(txt_to_html)
 add_subdirectory(absolute_grayscale)
 
 add_subdirectory(gif_support)
+add_subdirectory(bmp_to_bmp)
 
 add_subdirectory(sd_card_font)
 add_subdirectory(sdfont_diff)

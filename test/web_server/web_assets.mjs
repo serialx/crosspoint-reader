@@ -37,11 +37,34 @@ const runner = read('RunnerPage.html');
 assert.match(runner, /<script src="\/js\/plugin-host.js"><\/script>/);
 const code = runner.match(/<script>([\s\S]*?)<\/script>/)[1];
 let mounted, delay, status = {};
-vm.runInNewContext(code, {loadPlugins: mount => mounted = mount});
+await vm.runInNewContext(code, {loadPlugins: mount => { mounted = mount; return true; }});
 assert.equal(mounted, null);
-vm.runInNewContext(code, {
+await vm.runInNewContext(code, {
   document: {getElementById: () => status},
   setTimeout: (_, ms) => delay = ms,
 });
 assert.match(status.textContent, /failed to load/i);
 assert.equal(delay, 10000);
+
+const plugins = read('PluginsPage.html').match(/<script>([\s\S]*?)<\/script>/)[1];
+for (const [success, count] of [[true, 1], [true, 0], [false, 0]]) {
+  const empty = {hidden: true}, message = {textContent: 'empty'};
+  await vm.runInNewContext(plugins, {
+    loadPlugins: async mount => { assert.equal(mount, 'settings'); return success; },
+    document: {
+      getElementById: id => id === 'empty-state' ? empty : {children: Array(count)},
+      querySelector: () => message,
+    },
+  });
+  assert.equal(empty.hidden, count > 0);
+  assert.equal(message.textContent === 'empty', success);
+}
+const header = read('shared/Header.html.inc').match(/<script>([\s\S]*?)<\/script>/)[1];
+for (const enabled of [false, true]) {
+  let removed = 0;
+  vm.runInNewContext(header, {document: {
+    cookie: 'other=1; cpPlugins=' + Number(enabled),
+    querySelectorAll: () => Array.from({length: 2}, () => ({remove() {++removed;}})),
+  }});
+  assert.equal(removed, enabled ? 0 : 2);
+}

@@ -53,6 +53,7 @@
 #include "html/assets/webCss.generated.h"
 #include "html/js/epub_optimizerJs.generated.h"
 #include "html/js/plugin_hostJs.generated.h"
+#include "html/PluginsPageHtml.generated.h"
 #include "html/js/jszip_minJs.generated.h"
 #include "util/BookCacheUtils.h"
 #include "util/DictionaryRegistry.h"
@@ -764,6 +765,7 @@ void CrossPointWebServer::registerRoutes() {
   // Browser-side plugins (JS on the SD card) + their generic capabilities.
   server->on("/api/plugins", HTTP_GET, [this] { handlePluginList(); });
   server->on("/plugin", HTTP_GET, [this] { handlePluginFile(); });
+  server->on("/plugins", HTTP_GET, [this] { WebFileBridge::page(*this, XP_WEB_PAGE_PLUGINS); });
   server->on("/plugins-run", HTTP_GET, [this] { handlePluginRunnerPage(); });
   server->on("/api/plugin-jobs", HTTP_POST, [this] { handlePluginJobSubmit(); });
   server->on("/api/plugin-jobs/claim", HTTP_GET, [this] { handlePluginJobClaim(); });
@@ -854,6 +856,11 @@ void WebFileBridge::page(const CrossPointWebServer& owner, XpWebPage page) {
        {reinterpret_cast<const uint8_t*>(plugin_hostJs), sizeof(plugin_hostJs)},
        {reinterpret_cast<const uint8_t*>(plugin_hostJsETag), strlen(plugin_hostJsETag)},
        "application/javascript"},
+      {requestHeader,
+       sendAsset,
+       {reinterpret_cast<const uint8_t*>(PluginsPageHtml), sizeof(PluginsPageHtml)},
+       {reinterpret_cast<const uint8_t*>(PluginsPageHtmlETag), strlen(PluginsPageHtmlETag)},
+       "text/html"},
   };
   WebFileBridge bridge(owner);
   xp_web_page(&bridge, &services, assets, sizeof(assets) / sizeof(assets[0]), page);

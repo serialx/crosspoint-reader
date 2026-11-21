@@ -135,6 +135,13 @@ pub struct Asset {
 }
 impl Request<'_> {
     pub(super) fn page(&self, page: &Asset) {
+        if unsafe { core::ffi::CStr::from_ptr(page.content_type) } == c"text/html" {
+            self.header(b"Set-Cookie\0", if self.flags() & 32 != 0 {
+                b"cpPlugins=1; Path=/; SameSite=Strict"
+            } else {
+                b"cpPlugins=0; Path=/; SameSite=Strict"
+            });
+        }
         let etag = unsafe { (page.request_header)(self.ctx, c"If-None-Match".as_ptr()) };
         // Arduino String == const char* compares through the first NUL.
         let cached = unsafe {

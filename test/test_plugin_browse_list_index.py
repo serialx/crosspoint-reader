@@ -21,6 +21,8 @@ policy += "\nnamespace UrlUtils {\n" + url_utils[start:url_utils.rindex("}  // n
 plugin_http = (ROOT / "src/util/PluginHttp.cpp").read_text()
 start = plugin_http.index("std::string escapeUrl(")
 policy += "\nnamespace pluginhttp {\n" + plugin_http[start:plugin_http.index("\n}", start) + 2] + "\n}\n"
+start = plugin_http.index("freeink::SecureHttpClient* openClient(")
+open_client = plugin_http[start:plugin_http.index("\n}", start) + 2]
 
 def method(name):
     start = source.index(name)
@@ -62,6 +64,10 @@ bool requireSession = false;
 // an origin copy would consume the only block that can fit the receive buffer.
 int indexBlocks = -1;
 int blocksAtIndexGet = -1;
+// Model two large blocks during details transport. The SDK's parsed target
+// occupies one. The other must be free again when the response grows.
+bool constrainDetails = false;
+void* detailsBlocks[2]{};
 void* operator new(size_t bytes) {
   if (observeAllocations) {
     ++allAllocations;
@@ -69,11 +75,21 @@ void* operator new(size_t bytes) {
   }
   if (watchedSession && *watchedSession && bytes > connectedLimit) throw std::bad_alloc();
   if (indexBlocks >= 0 && bytes > 4104 && indexBlocks-- == 0) throw std::bad_alloc();
+  if (constrainDetails && bytes > 4096) {
+    auto slot = std::find(std::begin(detailsBlocks), std::end(detailsBlocks), nullptr);
+    if (slot == std::end(detailsBlocks)) throw std::bad_alloc();
+    if (void* p = std::malloc(bytes)) return *slot = p;
+    throw std::bad_alloc();
+  }
   if (void* p = std::malloc(bytes)) return p;
   throw std::bad_alloc();
 }
-void operator delete(void* p) noexcept {std::free(p);}
-void operator delete(void* p, size_t) noexcept {std::free(p);}
+void operator delete(void* p) noexcept {
+  for (auto& block : detailsBlocks)
+    if (block == p) block = nullptr;
+  std::free(p);
+}
+void operator delete(void* p, size_t) noexcept {::operator delete(p);}
 
 struct String : std::string {
   using std::string::operator=;
@@ -84,11 +100,27 @@ struct String : std::string {
 };
 #define LOG_ERR(...) ((void)0)
 
+namespace freeink {
+struct SecureHttpClient {
+  std::string path;
+  void setUserAgent(const char*) {}
+  void setInsecure() {}
+  void setTimeout(int) {}
+  void addHeader(const std::string&, const std::string&) {}
+  bool begin(const std::string& wire) { path = wire; return true; }
+};
+}
 namespace pluginhttp {
 using Headers = std::vector<std::pair<std::string, std::string>>;
+}
+freeink::SecureHttpClient* openClient(freeink::SecureHttpClient*, freeink::SecureHttpClient&,
+                                    const std::string&, const pluginhttp::Headers&);
+
+namespace pluginhttp {
 struct RequestSpec { std::string url, method, body; Headers headers; };
 std::string escapeUrl(const std::string&);
 std::string body;
+std::string expectedDetailsRaw, expectedDetailsWire;
 std::vector<std::string> pageUrls;
 int requestToFile(int* session, const std::string& url, const std::string&, const std::string&, const Headers&,
                   const char*, size_t) {
@@ -106,7 +138,7 @@ bool mintPasswordToken(int*, const std::string&, const std::string&, const std::
   out = minted;
   return true;
 }
-int request(int* session, const std::string&, const std::string&, const std::string&, const Headers& headers,
+int request(int* session, const std::string& url, const std::string&, const std::string&, const Headers& headers,
             String& response, size_t maxSize) {
   if (requireSession) assert(session);
   if (indexBlocks >= 0) {
@@ -118,7 +150,17 @@ int request(int* session, const std::string&, const std::string&, const std::str
   assert(body.size() <= maxSize);
   ++calls;
   sent = headers;
-  response = body;
+  if (constrainDetails) {
+    assert(session);
+    freeink::SecureHttpClient client;
+    assert(openClient(&client, client, url, headers) == &client);
+    assert(client.path == expectedDetailsWire);
+    response = body;
+    assert(url == expectedDetailsRaw && url.capacity() < 4096);
+    constrainDetails = false;
+  } else {
+    response = body;
+  }
   if (constrainAfterResponse) connectedLimit = 6143;
   return std::exchange(nextStatus, replayStatus);
 }
@@ -519,6 +561,27 @@ int main() {
     assert(details.failed == (delta > 0) && pluginhttp::calls == calls + (delta <= 0));
     assert(details.confirmations == screens + (delta <= 0));
   }
+  {
+    PluginCatalogActivity book;
+    book.manifest.browseReq.url = "https://{cfg.host}/browse";
+    book.config = {{"host", "details.example"}, {"root", "/"}};
+    book.items = {item};
+    book.remote.detailsUrl = "{cfg.root}";
+    pluginhttp::expectedDetailsRaw = "https://details.example/";
+    pluginhttp::expectedDetailsWire = pluginhttp::expectedDetailsRaw;
+    for (int i = 0; i < 1000; ++i) {
+      book.remote.detailsUrl += "\xC3\xA9";
+      pluginhttp::expectedDetailsRaw += "\xC3\xA9";
+      pluginhttp::expectedDetailsWire += "%C3%A9";
+    }
+    book.session = std::make_unique<int>(1);
+    pluginhttp::body.assign(6144, 'd');
+    const int calls = pluginhttp::calls;
+    constrainDetails = true;
+    book.showItemDetails(0);
+    assert(!constrainDetails && !detailsBlocks[0] && !detailsBlocks[1]);
+    assert(!book.failed && book.confirmations == 1 && pluginhttp::calls == calls + 1 && book.session);
+  }
   for (int delta : {-1, 0, 1}) {
     PluginCatalogActivity book;
     book.manifest.dlUrlPath = "url";
@@ -700,6 +763,6 @@ int main() {
 with tempfile.TemporaryDirectory() as directory:
     unit = Path(directory) / "browse_list_index.cpp"
     executable = unit.with_suffix("")
-    unit.write_text("\n".join([stub, *limits, policy, pick, variables, requests, loader, cases]))
+    unit.write_text("\n".join([stub, *limits, policy, open_client, pick, variables, requests, loader, cases]))
     subprocess.run([sys.argv[1], "-std=c++20", "-DXP_SD_FONT_CATALOG", "-I", str(ROOT / "lib/Memory"), "-I", sys.argv[2], "-I", str(ROOT / "src"), "-I", str(ROOT / "rust/crates/xp-ffi/include"), str(unit), str(ROOT / "test/cmake/xp_ffi_host.cpp"), sys.argv[3], "-o", str(executable)], check=True)
     subprocess.run([str(executable)], check=True)

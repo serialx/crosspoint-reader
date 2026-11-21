@@ -527,24 +527,27 @@ bool PluginCatalogActivity::detailsRequest(std::string& url, std::string_view pa
   size_t remaining = plugincatalog::MAX_REQUEST_BYTES;
   bool rooted = false;
   if (!vars.expand({}, path, true, remaining, nullptr, nullptr, &rooted)) return false;
+  size_t rawSpare = plugincatalog::MAX_REQUEST_BYTES;
+  if (!vars.expand({}, path, false, rawSpare)) return false;
+  size_t pathBytes = plugincatalog::MAX_REQUEST_BYTES - rawSpare;
   if (rooted) {
     Variables browse(*this, nullptr);
     plugincatalog::Origin origin;
     size_t bytes = SIZE_MAX;
     browse.expand(activeBrowseOrigin(), activeBrowseUrl(), true, bytes, nullptr, &origin);
-    if (origin.length()) {
-      const size_t count = SIZE_MAX - bytes;
-      if (count > remaining) return false;
-      remaining -= count;
-      url.reserve(plugincatalog::MAX_REQUEST_BYTES - remaining);
+    const size_t originBytes = origin.length();
+    if (originBytes) {
+      if (SIZE_MAX - bytes > remaining) return false;
+      // Keep only the raw URL during the request. The transport escapes it for begin().
+      url.reserve(originBytes + pathBytes);
       origin = {};
-      bytes = count;
-      browse.expand(activeBrowseOrigin(), activeBrowseUrl(), true, bytes, &url, &origin);
+      bytes = originBytes;
+      browse.expand(activeBrowseOrigin(), activeBrowseUrl(), false, bytes, &url, &origin);
+      return vars.expand({}, path, false, pathBytes, &url);
     }
   }
-  url.reserve(plugincatalog::MAX_REQUEST_BYTES - remaining);
-  size_t bytes = plugincatalog::MAX_REQUEST_BYTES - remaining - url.size();
-  return vars.expand({}, path, true, bytes, &url);
+  url.reserve(pathBytes);
+  return vars.expand({}, path, false, pathBytes, &url);
 }
 
 bool PluginCatalogActivity::substituted(const std::string& tpl, std::string& out, const Item* item, size_t limit,

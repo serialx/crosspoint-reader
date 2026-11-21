@@ -70,6 +70,21 @@ for (const enabled of [false, true]) {
 }
 
 const hostCode = read('js/plugin-host.js');
+for (const fetch of [
+  async () => new Response('{"error":"out of memory"}', {status: 503}),
+  async () => new Response('internal error', {status: 500}),
+  async () => { throw new Error('connection lost'); },
+]) {
+  const empty = {hidden: true}, message = {};
+  const page = vm.createContext({window: {}, fetch, document: {
+    getElementById: id => id === 'empty-state' ? empty : {children: []},
+    querySelector: () => message,
+  }});
+  vm.runInContext(hostCode, page);
+  await vm.runInContext(plugins, page);
+  assert.equal(empty.hidden, false);
+  assert.match(message.textContent, /could not load plugins/i);
+}
 
 function section(source, from, until) {
   const a = source.indexOf(from), b = source.indexOf(until, a + 1);
@@ -122,6 +137,26 @@ vm.runInContext(files.slice(start, end) + section(files, 'async function showIma
 await picker.showImagePicker(epub);
 assert.match(alerts[0], /upload button to continue/);
 assert.ok(cleared);
+
+const settings = read('SettingsPage.html');
+const edit = vm.createContext({escapeHtml: s => s});
+vm.runInContext(section(settings, 'function enableItemSave', 'function renderWifiSection') +
+                section(settings, 'const OPDS_MAX_CUSTOM_HEADERS', 'function renderOpdsSection'), edit);
+for (const row of [edit.renderWifiNetwork({ssid: 'saved'}, 1),
+                   edit.renderOpdsServer({name: 'saved', url: 'https://example.test'}, 1)]) {
+  assert.match(row, /value="saved"/);
+  const save = {disabled: /<button [^>]*btn-save-server[^>]* disabled>/.test(row)};
+  assert.ok(save.disabled);
+  edit.box = {querySelector(selector) { assert.equal(selector, '.btn-save-server'); return save; }};
+  vm.runInContext('(function(){' + row.match(/oninput="([^"]+)"/)[1] + '}).call(box)', edit);
+  assert.equal(save.disabled, false);
+}
+
+const descriptors = readFileSync(new URL('../../src/SettingsList.cpp', import.meta.url), 'utf8').split('emit(');
+for (const key of ['clockUtcOffsetQ', 'clockTimezone']) {
+  const entry = descriptors.find(d => d.split(';')[0].includes('"' + key + '"'));
+  assert.match(entry?.split(';')[0] ?? '', /\.withWebHidden\(\)/);
+}
 
 let uploaded;
 Object.assign(picker, {

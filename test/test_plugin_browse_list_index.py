@@ -14,6 +14,9 @@ loader = source[start:source.index("\n}", start) + 2]
 policy = source[source.index("std::string_view trimCsvToken"):source.index("bool matchesCsvRestriction")]
 start = source.index("bool matchesListRequirements")
 policy += source[start:source.index("\n}", start) + 2]
+url_utils = (ROOT / "src/util/UrlUtils.cpp").read_text()
+start = url_utils.index("bool resolveServerPath")
+policy += "\nnamespace UrlUtils {\n" + url_utils[start:url_utils.index("\n}", start) + 2] + "\n}\n"
 
 stub = r"""
 #include <ArduinoJson.h>
@@ -67,7 +70,7 @@ struct PluginCatalogActivity {
     struct BrowseList {
       std::string title, url, body, id, noticeTitle, noticeMessage, noticeConfirm, noticeCancel;
     };
-    std::string browseListsUrl = "index";
+    std::string browseListsUrl = "https://example.org:8443/api/index";
     std::vector<BrowseList> browseLists;
     size_t fixedListCount = 0;
     pluginhttp::Headers listsHeaders;
@@ -128,11 +131,12 @@ int main() {
   assert(!combined.loadBrowseListIndex(status));
   assert(combined.manifest.browseLists.size() == 1);
   assert(combined.manifest.browseLists.front().title == "Fixed");
-  pluginhttp::body = R"({"lists":[{"title":"Dynamic","url":"dynamic"}]})";
+  pluginhttp::body = R"({"lists":[{"title":"Dynamic","url":"/dynamic"}]})";
   assert(combined.loadBrowseListIndex(status));
   assert(combined.manifest.browseLists.size() == 2);
   assert(combined.manifest.browseLists.front().title == "Fixed");
   assert(combined.manifest.browseLists.back().title == "Dynamic");
+  assert(combined.manifest.browseLists.back().url == "https://example.org:8443/dynamic");
 
   for (const int rejected : {401, 403}) {
     PluginCatalogActivity mapped;

@@ -56,7 +56,10 @@ freeink::SecureHttpClient* openClient(freeink::SecureHttpClient* session, freein
   // with the transport, so verification is skipped; traffic stays encrypted.
   http.setInsecure();
   http.setTimeout(30000);
-  if (!http.begin(url)) return nullptr;
+  {
+    const std::string escaped = pluginhttp::escapeUrl(url);
+    if (!http.begin(escaped.empty() ? url : escaped)) return nullptr;
+  }
   for (const auto& h : headers) http.addHeader(h.first, h.second);
   return &http;
 }
@@ -146,6 +149,25 @@ std::string urlEncodeQuery(const std::string& s) {
   xp_plugin_encode(span(s), &out, [](void* ctx, XpPluginSpan part) {
     static_cast<std::string*>(ctx)->append(reinterpret_cast<const char*>(part.data), part.len);
   });
+  return out;
+}
+
+std::string escapeUrl(const std::string& url) {
+  const auto kept = [](unsigned char c) { return c > 0x20 && c < 0x7F; };
+  const auto escaped = std::count_if(url.begin(), url.end(), [&](unsigned char c) { return !kept(c); });
+  if (escaped == 0) return {};
+  constexpr char HEX_DIGITS[] = "0123456789ABCDEF";
+  std::string out;
+  out.reserve(url.size() + 2 * escaped);
+  for (const unsigned char c : url) {
+    if (kept(c)) {
+      out += static_cast<char>(c);
+    } else {
+      out += '%';
+      out += HEX_DIGITS[c >> 4];
+      out += HEX_DIGITS[c & 0x0F];
+    }
+  }
   return out;
 }
 

@@ -21,3 +21,7 @@ add_test(NAME plugin_policy_token_paths COMMAND ${Python3_EXECUTABLE} ${CMAKE_CU
 add_test(NAME plugin_reader_events COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/reader_events.py
   --build ${CMAKE_CURRENT_BINARY_DIR}/reader-events --archive ${XP_FFI_HOST_ARCHIVE}
   --json-include ${XP_TEST_ARDUINOJSON_SRC})
+
+add_test(NAME plugin_url_encoding COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py
+  --build ${CMAKE_CURRENT_BINARY_DIR}/encoding --archive ${XP_FFI_HOST_ARCHIVE} --encoding
+  --json-include ${XP_TEST_ARDUINOJSON_SRC})

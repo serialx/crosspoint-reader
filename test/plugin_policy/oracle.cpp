@@ -3,6 +3,8 @@
 #include <SecureHttpClient.h>
 #include <components/UITheme.h>
 
+#include <cassert>
+
 #include "util/PluginEvents.h"
 #include "util/PluginHttp.h"
 #include "util/PluginLocations.h"
@@ -34,6 +36,34 @@ int main(int argc, char** argv) {
 #endif
   oracle::dirs = {"/plugins", "/plugins/demo"};
   const std::string dir = "/plugins/demo", queue = dir + "/events.jsonl";
+  if (c == 50) {
+    const std::string raw = "a b/%20?x=#&é\x7f\r\n";
+    assert(pluginhttp::urlEncodeQuery(raw) == "a%20b%2F%2520%3Fx%3D%23%26%C3%A9%7F%0D%0A");
+    for (unsigned byte = 0; byte <= 255; ++byte) {
+      const std::string input(1, static_cast<char>(byte));
+      const std::string url = pluginhttp::escapeUrl(input);
+      const std::string encoded = pluginhttp::urlEncodeQuery(input);
+      if (byte <= 0x20 || byte >= 0x7f) {
+        assert(url == encoded);
+      } else {
+        assert(url.empty());
+        const bool unreserved = (byte >= '0' && byte <= '9') || (byte >= 'A' && byte <= 'Z') ||
+                                (byte >= 'a' && byte <= 'z') || std::string("-_.~").find(input) != std::string::npos;
+        assert(unreserved ? encoded == input : encoded.starts_with('%') && encoded.size() == 3);
+      }
+    }
+    String out;
+    response(200);
+    assert(pluginhttp::request(nullptr, "https://example/" + raw, "POST", raw, {{"X-Test", raw}}, out, 16) == 200);
+    const auto seen = [](const std::string& line) {
+      return std::find(oracle::trace.begin(), oracle::trace.end(), line) != oracle::trace.end();
+    };
+    assert(seen("begin https://example/a%20b/%20?x=#&%C3%A9%7F%0D%0A"));
+    assert(seen("header X-Test " + raw));
+    assert(seen("request POST " + std::to_string(raw.size()) + " " +
+                std::to_string(oracle::hash(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()))));
+    return 0;
+  }
   std::string manifest =
       R"({"token":{"file":"token.json","path":"auth.token"},"config":{"file":"config.json"},"auth":{"type":"password","token_path":"access_token","request":{"url":"https://auth","body":"{cfg.secret}:{event.book}","headers":{"Auth":"{token}"}}},"events":{"unknown":{},"reader.exit":{"connect":true,"request":{"url":"https://send/{event.id}","headers":{"Auth":"{token}"},"body":"{event.book}|{event.percent}|{event.ts}|{cfg.secret}|{meta.id}"},"toast":"Sent {event.book}"},"sleep.enter":{"download":{"url":"https://image","dest":"/sleep.bmp"}}}})";
 #ifdef PLUGIN_TOKEN_LIFETIME

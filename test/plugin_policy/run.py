@@ -22,6 +22,7 @@ p.add_argument('--token-lifetime', action='store_true')
 p.add_argument('--memory-baseline', type=pathlib.Path)
 p.add_argument('--contract', action='store_true')
 p.add_argument('--token-paths', action='store_true')
+p.add_argument("--encoding", action="store_true")
 a = p.parse_args()
 if not (a.json_include/'ArduinoJson.h').is_file():
     p.error(f"--json-include {a.json_include} has no ArduinoJson.h")
@@ -47,6 +48,9 @@ if a.token_paths:
 if a.contract:
     subprocess.run([str(a.build/'oracle')], check=True)
     print('plugin contract: event IDs/names/masks, implied connect, limits and rollback passed')
+    raise SystemExit(0)
+if a.encoding:
+    subprocess.run([str(a.build / 'oracle'), '50'], check=True)
     raise SystemExit(0)
 cases = [(i, 0) for i in range(48)]
 if a.json_faults:

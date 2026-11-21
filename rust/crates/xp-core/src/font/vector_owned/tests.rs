@@ -476,3 +476,19 @@ fn render_pressure_clears_active_metadata_after_returning_the_raster_loan() {
     drop(family);
     assert_eq!(heap.live.get(), 0);
 }
+
+#[test]
+fn missing_replacement_caches_notdef_but_other_missing_characters_fall_back() {
+    let heap = Heap::default();
+    let mut font = family(&heap);
+    let mut pressure = Evict::default();
+    assert!(font.as_mut().load(14, true, 4096, 3));
+    assert!(font.as_mut().glyph(0, 0x2603, &mut pressure).is_none());
+    for _ in 0..2 {
+        let mut pin = font.as_mut();
+        let replacement = pin.as_mut().glyph(0, 0xfffd, &mut pressure).unwrap();
+        assert_eq!(replacement.glyph.advance_x, 32);
+        assert_eq!(replacement.bitmap, [0x05, 0xaf]);
+    }
+    assert_eq!(font.faces[0].ft.rasters, 1);
+}

@@ -375,7 +375,7 @@ impl<'a, P: Rasterizer, M: Memory> Family<'a, P, M> {
         if gid == 0 && (0xfb00..=0xfb04).contains(&cp) {
             gid = face.lig_gids[(cp - 0xfb00) as usize];
         }
-        if gid == 0 {
+        if gid == 0 && cp != 0xfffd {
             return None;
         }
         // The raster loan excludes FT mutation; pressure can only touch other families.

@@ -136,9 +136,10 @@ def main():
     if args.review_check:
         if not args.archive:
             raise SystemExit("--review-check requires --archive")
-        subprocess.run([str(args.build / "oracle")], env={**os.environ, "WEB_UPLOAD_CLOSE_CHECK": "1"},
-                       stdout=subprocess.DEVNULL, check=True)
-        print("upload close failure: rejected after a successful flush, without updating the library")
+        for mode in ["detail", "drop-error"]:
+            subprocess.run([str(args.build / "oracle")], env={**os.environ, "WEB_UPLOAD_CLOSE_CHECK": mode},
+                           stdout=subprocess.DEVNULL, check=True)
+        print("upload close failure: rejected with and without error text, without updating the library")
         for kind in ["valid", "invalid"]:
             subprocess.run([str(args.build / "oracle")],
                            env={**os.environ, "WEB_FONT_UPLOAD_CLOSE_CHECK": kind},

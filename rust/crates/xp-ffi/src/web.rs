@@ -1120,7 +1120,7 @@ impl Transfer<'_> {
                     if !flushed || !closed {
                         self.set(Field::UploadError, b"Failed to write final data to SD card");
                     }
-                    if !self.get(Field::UploadError).is_empty() {
+                    if !flushed || !closed || !self.get(Field::UploadError).is_empty() {
                         self.remove_upload(false);
                     } else {
                         state.success = true;

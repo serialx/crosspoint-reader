@@ -197,8 +197,10 @@ static void text(CrossPointWebServer& app, uint8_t client, const std::string& by
 int main() {
 #ifdef XP_FFI_HOST_FAULT_INJECTION
 
-  if (std::getenv("WEB_UPLOAD_CLOSE_CHECK")) {
-    record("upload-close-failure", [](auto& app) {
+  if (const char* check = std::getenv("WEB_UPLOAD_CLOSE_CHECK")) {
+    record("upload-close-failure", [&](auto& app) {
+      constexpr std::string_view error = "Failed to write final data to SD card";
+      const bool dropError = std::string_view(check) == "drop-error";
       const std::string path = "/books/new.epub";
       app.server->args["path"] = "/books";
       app.server->part.filename = "new.epub";
@@ -208,11 +210,17 @@ int main() {
       if (!file->bytes.empty()) std::abort();
       host::failOperation = "close";
       host::failAfter = 0;
+      const size_t failedAllocations = String::failedAllocations;
+      if (dropError) String::failAllocationSize = error.size();
       upload(app, UPLOAD_FILE_END);
+      if (dropError && (String::failedAllocations != failedAllocations + 1 || !app.upload.error.isEmpty())) {
+        std::abort();
+      }
       app.handleUploadPost(app.upload);
       if (file->bytes != "buffered" || host::failAfter != -1 || host::files.contains(path)) std::abort();
-      if (std::find(host::trace.begin(), host::trace.end(),
-                    "response:400:text/plain:Failed to write final data to SD card") == host::trace.end() ||
+      const std::string response =
+          "response:400:text/plain:" + std::string(dropError ? "Unknown error during upload" : error);
+      if (std::find(host::trace.begin(), host::trace.end(), response) == host::trace.end() ||
           std::any_of(host::trace.begin(), host::trace.end(),
                       [](const auto& event) { return event == "library-dirty" || event.starts_with("cache:"); })) {
         std::abort();

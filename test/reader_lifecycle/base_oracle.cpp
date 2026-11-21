@@ -171,6 +171,13 @@ static bool anySubscriber(Event e) {
   return subscribed;
 }
 static void emit(Event e, const Var* v, int n) {
+#ifndef XP_BASE_OWNER
+  if (e == Event::ReaderExit) {
+    assert(n == 3 && std::string_view(v[2].name) == "end_percent" && std::string_view(v[2].value) == "21");
+    // The historic lifecycle trace predates this field.
+    --n;
+  }
+#endif
   event("emit", int(e), n);
   for (int i = 0; i < n; ++i) std::printf("%s=%s\n", v[i].name, v[i].value);
 }
@@ -349,10 +356,11 @@ struct ReaderActivity : Activity {
   bool atEnd = false, format = false, back = false, changed = true, load = true, failureHandled = false;
   struct Info {
     int progressPercent;
+    int endProgressPercent;
   };
   Info getScreenshotInfo() {
     event("screenshot-info");
-    return {12};
+    return {12, 21};
   }
   int getProgressBasisPoints() {
     event("basis-points");

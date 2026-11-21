@@ -35,6 +35,7 @@ class GfxRenderer;
 // drain() later replays queued events through the
 // declared requests whenever the device is already online. Substitution in
 // url/body/headers/toast: {token}, {cfg.KEY}, and the event's {event.*} vars.
+// reader.exit and sleep.enter include percent and end_percent when a book is open.
 //
 // sleep.enter exists to act before the chip powers down (a fresh sleep image,
 // a pre-sleep progress push), so subscribing implies "connect": true: the

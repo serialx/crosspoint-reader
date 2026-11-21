@@ -168,8 +168,11 @@ impl EpubSession {
         self.log_memory(false);
         self.flush_session();
         if unsafe { self.leaves.has_exit_subscriber() } != 0 {
-            let percent = self.base_exit_percent();
-            unsafe { self.leaves.emit_exit(self.path().wire(), percent) };
+            let (percent, end_percent) = self.base_exit_progress();
+            unsafe {
+                self.leaves
+                    .emit_exit(self.path().wire(), percent, end_percent)
+            };
         }
         unsafe {
             (self.leaves.render_orientation)(0);
@@ -180,12 +183,13 @@ impl EpubSession {
         self.model(|state| state.base.end_ready = false);
     }
 
-    fn base_exit_percent(&self) -> i32 {
+    fn base_exit_progress(&self) -> (i32, i32) {
         #[cfg(feature = "app-test")]
         if let Some(hook) = self.base_hooks {
-            return unsafe { (hook.percent)(hook.context) };
+            return (unsafe { (hook.percent)(hook.context) }, 0);
         }
-        self.screenshot_info().progress_percent
+        let info = self.screenshot_info();
+        (info.progress_percent, info.end_progress_percent)
     }
 
     fn base_session_snapshot(&self) -> (super::state::SessionAccounting, bool) {
@@ -486,5 +490,5 @@ impl EpubSession {
 
 #[cfg(all(feature = "chapter-test", not(feature = "app-test")))]
 pub(super) unsafe fn xp_epub_test_exit_percent(owner: &EpubSession) -> i32 {
-    owner.base_exit_percent()
+    owner.base_exit_progress().0
 }

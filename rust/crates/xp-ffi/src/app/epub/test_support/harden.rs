@@ -210,7 +210,18 @@ pub unsafe extern "C" fn xp_epub_test_harden_boundary(
         });
     });
     if known != 0 {
-        assert_eq!(owner.screenshot_info().progress_percent, 33);
+        owner.model(|state| {
+            state.current.spine = 99;
+            state.facts.section.as_mut().unwrap().partial = true;
+        });
+        assert_eq!(owner.screenshot_info().end_progress_percent, 99);
+        owner.model(|state| state.facts.section.as_mut().unwrap().partial = false);
+        assert_eq!(owner.screenshot_info().end_progress_percent, 100);
+        owner.model(|state| state.current.spine = 100);
+        assert_eq!(owner.screenshot_info().end_progress_percent, 100);
+        owner.model(|state| state.current.spine = 32);
+        let info = owner.screenshot_info();
+        assert_eq!((info.progress_percent, info.end_progress_percent), (33, 33));
     }
     owner.model(|state| state.current.spine = 64);
     unsafe { fault() };

@@ -90,6 +90,7 @@ void screenshot(const ScreenshotInfo& info, XpAppScreenshotSink sink, void* cont
   view.current_page = info.currentPage;
   view.total_pages = info.totalPages;
   view.progress_percent = info.progressPercent;
+  view.end_progress_percent = info.endProgressPercent;
   sink(context, &view);
 }
 }  // namespace
@@ -437,6 +438,7 @@ ScreenshotInfo ActivityManager::getScreenshotInfo() const {
           info.currentPage = view->current_page;
           info.totalPages = view->total_pages;
           info.progressPercent = view->progress_percent;
+          info.endProgressPercent = view->end_progress_percent;
         },
         &info);
   return info;

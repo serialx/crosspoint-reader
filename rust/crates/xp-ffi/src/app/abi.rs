@@ -310,6 +310,7 @@ pub struct Screenshot {
     pub current_page: i32,
     pub total_pages: i32,
     pub progress_percent: i32,
+    pub end_progress_percent: i32,
 }
 
 pub type ScreenshotSink = unsafe extern "C" fn(*mut core::ffi::c_void, *const Screenshot);

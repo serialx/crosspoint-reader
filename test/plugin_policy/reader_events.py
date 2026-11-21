@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Compare whole outboxes and file traces from native and mixed Rust/native events."""
 import argparse
+import json
 from pathlib import Path
 import subprocess
 
@@ -24,11 +25,15 @@ for mode, source in [('native', a.baseline_source), ('mixed', ROOT)]:
     if mode == 'native':
         cmd.append('-DPLUGIN_READER_NATIVE_ONLY')
     subprocess.run(cmd, check=True)
-for scenario in range(8):
+for scenario in range(9):
     outputs = []
     for mode in ['native', 'mixed']:
         output = subprocess.check_output([str(a.build/mode), str(scenario)])
         (a.build/f'{mode}-{scenario}.txt').write_bytes(output)
         outputs.append(output)
     assert outputs[0] == outputs[1], f'outbox/file trace changed in scenario {scenario}'
-print('reader events: 8 native/mixed pairs, exact outbox bytes and file traces passed')
+    if scenario == 8:
+        line = next(line for line in outputs[1].splitlines() if line.startswith(b'FILE /plugins/p0/events.jsonl '))
+        events = [json.loads(item)['e'] for item in bytes.fromhex(line.split()[-1].decode()).splitlines()]
+        assert events == ['reader.exit', 'sleep.enter'] * 2
+print('reader events: 9 native/mixed pairs, exact outbox bytes and file traces passed')

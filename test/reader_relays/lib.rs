@@ -320,10 +320,11 @@ mod events {
         assert_eq!(path.data, b"book");
         super::record("open");
     }
-    pub unsafe fn exit(p: &Ports, path: app_abi::Text, percent: i32) {
+    pub unsafe fn exit(p: &Ports, path: app_abi::Text, percent: i32, end_percent: i32) {
         resources(p);
         assert_eq!(path.data, b"book");
         assert_eq!(percent, 67);
+        assert_eq!(end_percent, 82);
         super::record("exit");
     }
     pub unsafe fn session(
@@ -357,7 +358,7 @@ fn reader_events_dispatch_to_rust_with_the_two_resource_ports() {
                 duration_seconds: 10,
             },
         );
-        leaves().emit_exit(path(), 67);
+        leaves().emit_exit(path(), 67, 82);
     }
     assert_eq!(take(), ["open", "session", "exit"]);
 }

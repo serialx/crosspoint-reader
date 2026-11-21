@@ -998,6 +998,7 @@ unsafe extern "C" fn screenshot_info(sink: abi::ScreenshotSink, context: *mut c_
         current_page: 0,
         total_pages: 0,
         progress_percent: 0,
+        end_progress_percent: 0,
     };
     unsafe { sink(context, &empty) };
 }

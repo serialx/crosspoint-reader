@@ -219,7 +219,7 @@ typedef struct {
   uint8_t reader_type;
   char title[64];
   // progress_percent is 0-100; EPUB uses last known session percent on read failure, initially 0.
-  int32_t spine, current_page, total_pages, progress_percent;
+  int32_t spine, current_page, total_pages, progress_percent, end_progress_percent;
 } XpAppScreenshot;
 typedef void (*XpAppScreenshotSink)(void* context, const XpAppScreenshot* info);
 typedef struct {

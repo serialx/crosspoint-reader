@@ -153,6 +153,7 @@ impl EpubSession {
             current_page: 0,
             total_pages: 0,
             progress_percent: 0,
+            end_progress_percent: 0,
         };
         let book = self.loop_book();
         if let Some(book) = book {
@@ -168,25 +169,53 @@ impl EpubSession {
             });
             result.spine = self.model(|state| state.current.spine);
         }
-        if let Some((position, count)) = self.section_position() {
-            result.current_page = position.page.wrapping_add(1);
-            result.total_pages = count;
-            if let Some(book) = book {
-                if unsafe { (super::session_book::size)(book.as_ptr()) } > 0
-                    && result.total_pages > 0
-                {
-                    let progress = unsafe {
-                        (super::session_book::progress)(
-                            book.as_ptr(),
-                            position.spine,
-                            position.page as f32 / count as f32,
-                        )
-                    };
-                    result.progress_percent = self.export_percent(
-                        progress.map(|value| progress_integer(value * 100.0 + 0.5)),
-                    );
-                }
+        let section = self.section_position();
+        let position = section.map_or_else(
+            || {
+                self.model(|state| ChapterPosition {
+                    page: state.next_page,
+                    count: state.cached.pages,
+                })
+            },
+            |(position, count)| ChapterPosition {
+                page: position.page,
+                count,
+            },
+        );
+        if section.is_some() || position.has_total() {
+            result.current_page = position.display_page();
+            result.total_pages = position.count;
+            if let Some(book) = book.filter(|book| {
+                position.has_total() && unsafe { (super::session_book::size)(book.as_ptr()) } > 0
+            }) {
+                let progress = |fraction| unsafe {
+                    (super::session_book::progress)(book.as_ptr(), result.spine, fraction)
+                };
+                result.progress_percent = self.export_percent(
+                    progress(position.fraction())
+                        .map(|value| progress_integer(value * 100.0 + 0.5)),
+                );
+
+                let spine_count = unsafe { (super::session_book::spine_count)(book.as_ptr()) };
+                let last_page = result.spine == spine_count - 1
+                    && position.display_page() >= position.count
+                    && self.model(|state| {
+                        state
+                            .facts
+                            .section
+                            .is_some_and(|s| !s.building && !s.partial)
+                    });
+                result.end_progress_percent = if last_page {
+                    100
+                } else {
+                    let chapter_end = position.display_page() as f32 / position.count as f32;
+                    progress(chapter_end)
+                        .map_or(0, |value| progress_integer(value * 100.0).clamp(0, 99))
+                };
             }
+        }
+        if self.is_at_end() {
+            result.end_progress_percent = 100;
         }
         result
     }

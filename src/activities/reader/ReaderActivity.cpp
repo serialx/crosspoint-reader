@@ -125,10 +125,13 @@ uint8_t ReaderActivity::runBase(uint8_t operation, uint8_t a, uint8_t b) {
       pluginevents::emit(pluginevents::Event::ReaderSession, vars, 8);
     }
     __attribute__((noinline)) void emitExit() {
-      char percent[8];
-      snprintf(percent, sizeof(percent), "%d", o.getScreenshotInfo().progressPercent);
-      const pluginevents::Var vars[] = {{"book", o.bookPath.c_str()}, {"percent", percent}};
-      pluginevents::emit(pluginevents::Event::ReaderExit, vars, 2);
+      const auto info = o.getScreenshotInfo();
+      char percent[8], endPercent[8];
+      snprintf(percent, sizeof(percent), "%d", info.progressPercent);
+      snprintf(endPercent, sizeof(endPercent), "%d", info.endProgressPercent);
+      const pluginevents::Var vars[] = {
+          {"book", o.bookPath.c_str()}, {"percent", percent}, {"end_percent", endPercent}};
+      pluginevents::emit(pluginevents::Event::ReaderExit, vars, std::size(vars));
     }
     // Metadata temporaries must not enlarge the nested page-render dispatcher.
     [[gnu::noinline]] void addRecentBook() {

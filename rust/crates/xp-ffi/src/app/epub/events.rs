@@ -139,14 +139,16 @@ pub(super) unsafe fn open(ports: &Ports, path: XpAppText) {
 }
 // percent comes from export_percent and is in 0–100.
 #[inline(never)]
-pub(super) unsafe fn exit(ports: &Ports, path: XpAppText, percent: i32) {
+pub(super) unsafe fn exit(ports: &Ports, path: XpAppText, percent: i32, end_percent: i32) {
     let percent = decimal::<8>(percent.into());
+    let end_percent = decimal::<8>(end_percent.into());
     emit(
         ports,
         Event::ReaderExit,
         &[
             var(c"book", terminated(path)),
             var(c"percent", percent.as_ptr().cast()),
+            var(c"end_percent", end_percent.as_ptr().cast()),
         ],
     );
 }

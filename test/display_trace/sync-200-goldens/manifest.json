@@ -452,6 +452,4042 @@
         "suffix_lines": 1361,
         "fragment": "uc8279-ptl-3.xz"
       }
+    ],
+    "a4-uc8279c-dual-fail--1": [
+      {
+        "index": 0,
+        "step": "display-trace-v1 controller=uc8279c",
+        "baseline_sha256": "6d5d1369f371f56d503871a55d815fdd20f1350c991648826bcefd658cda7dbe",
+        "prefix_lines": 2,
+        "suffix_lines": 8,
+        "fragment": "a4-01.xz"
+      },
+      {
+        "index": 1,
+        "step": "step raw begin",
+        "baseline_sha256": "ff200d4ed05e9abd67c51ac01e87cf58904da089027291fadc75c3173d783095",
+        "prefix_lines": 44,
+        "suffix_lines": 1255,
+        "fragment": "a4-02.xz"
+      },
+      {
+        "index": 2,
+        "step": "step raw display 0",
+        "baseline_sha256": "207ff2716f937253ca728316973a7b5633daedaf55e9b0bcaa0a868ad3f33879",
+        "prefix_lines": 2483,
+        "suffix_lines": 3735,
+        "fragment": "a4-03.xz"
+      },
+      {
+        "index": 5,
+        "step": "step raw gray 0 2",
+        "baseline_sha256": "3ee96d46c7cbf5f381ccc2b2114285e4419c72ddcd9aefdf9b783d557c250a5c",
+        "prefix_lines": 2492,
+        "suffix_lines": 0,
+        "fragment": "a4-04.xz"
+      },
+      {
+        "index": 6,
+        "step": "step raw gray 0 1",
+        "baseline_sha256": "fd6fbbdcb511ffd198b85dfd8fe6586ed7910dbba3b6599bdb56a47bb7e02a7c",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-05.xz"
+      },
+      {
+        "index": 7,
+        "step": "step raw gray 0 0",
+        "baseline_sha256": "0191f920cc1a2382ffab8018ba89235f3ef01177fbcdc8c75aab46dd47ff9a2e",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-05.xz"
+      },
+      {
+        "index": 8,
+        "step": "step raw gray 1 2",
+        "baseline_sha256": "07d8aeffa409b0b823bb17ff3177c1a4db2cdf378b4e6feb3203a0be9f0a52b2",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 9,
+        "step": "step raw gray 1 1",
+        "baseline_sha256": "5695307143074a4a73a3e983c1ee18c5fa54bdc6aef56a57e8f92e2da6059d72",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 10,
+        "step": "step raw gray 1 0",
+        "baseline_sha256": "bfa6c75d9f967a09ce7b214bd339e4dbf73f2fee402792d316acb560c5b41e69",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 11,
+        "step": "step raw gray 2 2",
+        "baseline_sha256": "f8c421535e53e3fecb24d1f20c81fe574d6e41471df16a341888bcefce5ad0b6",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 12,
+        "step": "step raw gray 2 1",
+        "baseline_sha256": "b8775fa3a587ae3a435d473096cf26c603565bdce6aa53a87d05a5aa308a09e9",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 13,
+        "step": "step raw gray 2 0",
+        "baseline_sha256": "941de37ae04284d5ac16a76daa40f05355365572181d15ce6e833876de7e7986",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 14,
+        "step": "step raw strip errors and recovery",
+        "baseline_sha256": "a1c2289b83d9ed19fed108b681609b7f65f9a7f723e51163d73a246808ba0d33",
+        "prefix_lines": 44,
+        "suffix_lines": 3789,
+        "fragment": "a4-07.xz"
+      },
+      {
+        "index": 15,
+        "step": "step raw sparse overlay",
+        "baseline_sha256": "5dee104412223af849be9c5f281ab71eb572cdc2b83b9f8759ecb58e86b3dd1e",
+        "prefix_lines": 2491,
+        "suffix_lines": 8,
+        "fragment": "a4-08.xz"
+      }
+    ],
+    "a4-uc8279c-dual-fail--2": [
+      {
+        "index": 0,
+        "step": "display-trace-v1 controller=uc8279c",
+        "baseline_sha256": "6d5d1369f371f56d503871a55d815fdd20f1350c991648826bcefd658cda7dbe",
+        "prefix_lines": 2,
+        "suffix_lines": 8,
+        "fragment": "a4-01.xz"
+      },
+      {
+        "index": 1,
+        "step": "step raw begin",
+        "baseline_sha256": "ff200d4ed05e9abd67c51ac01e87cf58904da089027291fadc75c3173d783095",
+        "prefix_lines": 44,
+        "suffix_lines": 1255,
+        "fragment": "a4-02.xz"
+      },
+      {
+        "index": 2,
+        "step": "step raw display 0",
+        "baseline_sha256": "f2a96f27a494d4c13fc93b5cb2872a4c2be09303ff6da0c1ac12bc6b0cd287f9",
+        "prefix_lines": 2483,
+        "suffix_lines": 3736,
+        "fragment": "a4-03.xz"
+      },
+      {
+        "index": 5,
+        "step": "step raw gray 0 2",
+        "baseline_sha256": "8dc9d951707a5a78284723149e5332ab4c60db8e5e18e22ac438facf92b44b5b",
+        "prefix_lines": 2493,
+        "suffix_lines": 0,
+        "fragment": "a4-09.xz"
+      },
+      {
+        "index": 6,
+        "step": "step raw gray 0 1",
+        "baseline_sha256": "fd6fbbdcb511ffd198b85dfd8fe6586ed7910dbba3b6599bdb56a47bb7e02a7c",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-05.xz"
+      },
+      {
+        "index": 7,
+        "step": "step raw gray 0 0",
+        "baseline_sha256": "0191f920cc1a2382ffab8018ba89235f3ef01177fbcdc8c75aab46dd47ff9a2e",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-05.xz"
+      },
+      {
+        "index": 8,
+        "step": "step raw gray 1 2",
+        "baseline_sha256": "07d8aeffa409b0b823bb17ff3177c1a4db2cdf378b4e6feb3203a0be9f0a52b2",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 9,
+        "step": "step raw gray 1 1",
+        "baseline_sha256": "5695307143074a4a73a3e983c1ee18c5fa54bdc6aef56a57e8f92e2da6059d72",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 10,
+        "step": "step raw gray 1 0",
+        "baseline_sha256": "bfa6c75d9f967a09ce7b214bd339e4dbf73f2fee402792d316acb560c5b41e69",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 11,
+        "step": "step raw gray 2 2",
+        "baseline_sha256": "f8c421535e53e3fecb24d1f20c81fe574d6e41471df16a341888bcefce5ad0b6",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 12,
+        "step": "step raw gray 2 1",
+        "baseline_sha256": "b8775fa3a587ae3a435d473096cf26c603565bdce6aa53a87d05a5aa308a09e9",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 13,
+        "step": "step raw gray 2 0",
+        "baseline_sha256": "941de37ae04284d5ac16a76daa40f05355365572181d15ce6e833876de7e7986",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 14,
+        "step": "step raw strip errors and recovery",
+        "baseline_sha256": "a1c2289b83d9ed19fed108b681609b7f65f9a7f723e51163d73a246808ba0d33",
+        "prefix_lines": 44,
+        "suffix_lines": 3789,
+        "fragment": "a4-07.xz"
+      },
+      {
+        "index": 15,
+        "step": "step raw sparse overlay",
+        "baseline_sha256": "5dee104412223af849be9c5f281ab71eb572cdc2b83b9f8759ecb58e86b3dd1e",
+        "prefix_lines": 2491,
+        "suffix_lines": 8,
+        "fragment": "a4-08.xz"
+      }
+    ],
+    "a4-uc8279c-dual-fail-0": [
+      {
+        "index": 0,
+        "step": "display-trace-v1 controller=uc8279c",
+        "baseline_sha256": "6d5d1369f371f56d503871a55d815fdd20f1350c991648826bcefd658cda7dbe",
+        "prefix_lines": 2,
+        "suffix_lines": 8,
+        "fragment": "a4-01.xz"
+      },
+      {
+        "index": 1,
+        "step": "step raw begin",
+        "baseline_sha256": "ff200d4ed05e9abd67c51ac01e87cf58904da089027291fadc75c3173d783095",
+        "prefix_lines": 44,
+        "suffix_lines": 1255,
+        "fragment": "a4-02.xz"
+      },
+      {
+        "index": 2,
+        "step": "step raw display 0",
+        "baseline_sha256": "1093efe0cd2f5f6dadefb1d378c9cb98bdbf5f60a714d49133b873803c35b690",
+        "prefix_lines": 2483,
+        "suffix_lines": 3738,
+        "fragment": "a4-03.xz"
+      },
+      {
+        "index": 5,
+        "step": "step raw gray 0 2",
+        "baseline_sha256": "b92736102a6a36916085405d18983b297a9cac7aa3484cdb0ecff4a41a3104a7",
+        "prefix_lines": 2499,
+        "suffix_lines": 2,
+        "fragment": "a4-10.xz"
+      },
+      {
+        "index": 6,
+        "step": "step raw gray 0 1",
+        "baseline_sha256": "474ba3117e7923aa426423b00de74bad939fde1faae003d7717498beec29ed34",
+        "prefix_lines": 10,
+        "suffix_lines": 2,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 7,
+        "step": "step raw gray 0 0",
+        "baseline_sha256": "671dd49295642f9b3a48d660c9e4f6ef4d09fdedf66f73c823d0a4ae6ef3c350",
+        "prefix_lines": 10,
+        "suffix_lines": 2,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 8,
+        "step": "step raw gray 1 2",
+        "baseline_sha256": "f8b80592200b840fa9639d29151662b039b25ad0b205e98131e92b23afb0326f",
+        "prefix_lines": 8,
+        "suffix_lines": 2,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 9,
+        "step": "step raw gray 1 1",
+        "baseline_sha256": "36f1d44a25bce71ceeb295b141f63152095d61101974d04e7d3d024ed1b84c5f",
+        "prefix_lines": 8,
+        "suffix_lines": 2,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 10,
+        "step": "step raw gray 1 0",
+        "baseline_sha256": "196ec92554502a4a53194c026a2442fda8f5b4c4de0c47f94e3ee188d802dcbd",
+        "prefix_lines": 8,
+        "suffix_lines": 2,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 11,
+        "step": "step raw gray 2 2",
+        "baseline_sha256": "9bc422007ea35fc78fba551aaa5103b890b5829ccf85dab3d7a72662058aef9a",
+        "prefix_lines": 8,
+        "suffix_lines": 2,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 12,
+        "step": "step raw gray 2 1",
+        "baseline_sha256": "e6804b30208e2771b53e3ed3e345c7cc0774c1cea464d97852c655254b362e61",
+        "prefix_lines": 8,
+        "suffix_lines": 2,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 13,
+        "step": "step raw gray 2 0",
+        "baseline_sha256": "7160c476ddee6f3acd3fd979f810050ff6338f1ea3faeff1662fbf0e01f8dda8",
+        "prefix_lines": 8,
+        "suffix_lines": 2,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 14,
+        "step": "step raw strip errors and recovery",
+        "baseline_sha256": "28e1f88ade899fc9d8f851152a63e9bdcb676b2f67eafbe94f15167adea11e68",
+        "prefix_lines": 44,
+        "suffix_lines": 3789,
+        "fragment": "a4-12.xz"
+      },
+      {
+        "index": 15,
+        "step": "step raw sparse overlay",
+        "baseline_sha256": "5dee104412223af849be9c5f281ab71eb572cdc2b83b9f8759ecb58e86b3dd1e",
+        "prefix_lines": 2491,
+        "suffix_lines": 8,
+        "fragment": "a4-08.xz"
+      }
+    ],
+    "a4-uc8279c-dual-fail-1": [
+      {
+        "index": 0,
+        "step": "display-trace-v1 controller=uc8279c",
+        "baseline_sha256": "6d5d1369f371f56d503871a55d815fdd20f1350c991648826bcefd658cda7dbe",
+        "prefix_lines": 2,
+        "suffix_lines": 8,
+        "fragment": "a4-01.xz"
+      },
+      {
+        "index": 1,
+        "step": "step raw begin",
+        "baseline_sha256": "ff200d4ed05e9abd67c51ac01e87cf58904da089027291fadc75c3173d783095",
+        "prefix_lines": 44,
+        "suffix_lines": 1255,
+        "fragment": "a4-02.xz"
+      },
+      {
+        "index": 2,
+        "step": "step raw display 0",
+        "baseline_sha256": "207ff2716f937253ca728316973a7b5633daedaf55e9b0bcaa0a868ad3f33879",
+        "prefix_lines": 2483,
+        "suffix_lines": 3735,
+        "fragment": "a4-03.xz"
+      },
+      {
+        "index": 5,
+        "step": "step raw gray 0 2",
+        "baseline_sha256": "b8156aad749db16e50744a098026cae0c16d06c48ad68e002aec79bfa20e459a",
+        "prefix_lines": 2493,
+        "suffix_lines": 0,
+        "fragment": "a4-13.xz"
+      },
+      {
+        "index": 6,
+        "step": "step raw gray 0 1",
+        "baseline_sha256": "cac9a1290efb06d9b3a130eac421bd903fc96851a52645c0822b3aecc319c75f",
+        "prefix_lines": 4,
+        "suffix_lines": 0,
+        "fragment": "a4-14.xz"
+      },
+      {
+        "index": 7,
+        "step": "step raw gray 0 0",
+        "baseline_sha256": "e48123540f254314da59a54643c4cee61991ab316ae7230c8a18d4588bac5445",
+        "prefix_lines": 4,
+        "suffix_lines": 0,
+        "fragment": "a4-14.xz"
+      },
+      {
+        "index": 8,
+        "step": "step raw gray 1 2",
+        "baseline_sha256": "fe7226291f3cff2654ce84e1113324a266cc67cce4561d6f5de148fc8af02fc3",
+        "prefix_lines": 8,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 9,
+        "step": "step raw gray 1 1",
+        "baseline_sha256": "27b129e04823f7a13673b439c6417b0f1669d53ed9374c6e3cb510ba339a4843",
+        "prefix_lines": 8,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 10,
+        "step": "step raw gray 1 0",
+        "baseline_sha256": "a87f2313bf841b036b47628bcade6ac795061861b8dda271c025f737519398bf",
+        "prefix_lines": 8,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 11,
+        "step": "step raw gray 2 2",
+        "baseline_sha256": "9f402b900baa98d8ec43f3ee78db9dd7024d6939cfff279a1c864d6c875c2680",
+        "prefix_lines": 8,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 12,
+        "step": "step raw gray 2 1",
+        "baseline_sha256": "e00760a79139d0bbee7eaed0ca166ad4bcd081d21a505fe624a02d79d33c136d",
+        "prefix_lines": 8,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 13,
+        "step": "step raw gray 2 0",
+        "baseline_sha256": "80c9edb1f44112e4633afb2bf44574f7510f1dfa5cf36cc79cc58fb3649c4393",
+        "prefix_lines": 8,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 14,
+        "step": "step raw strip errors and recovery",
+        "baseline_sha256": "daafa99acac662b252d29c3eb755a7ae4451b0eb72ee7f722095bfdd7a0d8f59",
+        "prefix_lines": 44,
+        "suffix_lines": 3789,
+        "fragment": "a4-15.xz"
+      },
+      {
+        "index": 15,
+        "step": "step raw sparse overlay",
+        "baseline_sha256": "5dee104412223af849be9c5f281ab71eb572cdc2b83b9f8759ecb58e86b3dd1e",
+        "prefix_lines": 2491,
+        "suffix_lines": 8,
+        "fragment": "a4-08.xz"
+      }
+    ],
+    "a4-uc8279c-dual-fail-2": [
+      {
+        "index": 0,
+        "step": "display-trace-v1 controller=uc8279c",
+        "baseline_sha256": "6d5d1369f371f56d503871a55d815fdd20f1350c991648826bcefd658cda7dbe",
+        "prefix_lines": 2,
+        "suffix_lines": 8,
+        "fragment": "a4-01.xz"
+      },
+      {
+        "index": 1,
+        "step": "step raw begin",
+        "baseline_sha256": "ff200d4ed05e9abd67c51ac01e87cf58904da089027291fadc75c3173d783095",
+        "prefix_lines": 44,
+        "suffix_lines": 1255,
+        "fragment": "a4-02.xz"
+      },
+      {
+        "index": 2,
+        "step": "step raw display 0",
+        "baseline_sha256": "207ff2716f937253ca728316973a7b5633daedaf55e9b0bcaa0a868ad3f33879",
+        "prefix_lines": 2483,
+        "suffix_lines": 3735,
+        "fragment": "a4-03.xz"
+      },
+      {
+        "index": 5,
+        "step": "step raw gray 0 2",
+        "baseline_sha256": "d793761277bf90be70d2e271070f68e2a07908ed33f68c1e94310212986194d4",
+        "prefix_lines": 2492,
+        "suffix_lines": 0,
+        "fragment": "a4-16.xz"
+      },
+      {
+        "index": 6,
+        "step": "step raw gray 0 1",
+        "baseline_sha256": "5144ef1008658e4fb9fd724228c7987f89df73b6a48437f0ebae3d7a88e7616e",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-17.xz"
+      },
+      {
+        "index": 7,
+        "step": "step raw gray 0 0",
+        "baseline_sha256": "408558d8cba4d671c25275507c238aba3a73c0e91bfd155053da35a076f37b00",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-17.xz"
+      },
+      {
+        "index": 8,
+        "step": "step raw gray 1 2",
+        "baseline_sha256": "df64ff39fd8406624f3101031a6995e96ef0371abceebe0eef67351a328c2f7d",
+        "prefix_lines": 4,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 9,
+        "step": "step raw gray 1 1",
+        "baseline_sha256": "d28caab1f93fd8593ff313c9a54304447f3321398cd864dfb901c66839e1f2a5",
+        "prefix_lines": 4,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 10,
+        "step": "step raw gray 1 0",
+        "baseline_sha256": "3705778eecb0e474dc8ad5c41f04fe6be3619d701e50a4536ee1700a659f27b5",
+        "prefix_lines": 4,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 11,
+        "step": "step raw gray 2 2",
+        "baseline_sha256": "9c99145728f820d19c2a3048e048248ee510ab0e31e3b716a727c094aa2d07d0",
+        "prefix_lines": 4,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 12,
+        "step": "step raw gray 2 1",
+        "baseline_sha256": "bfb41b82701e60c4beff1f90024f150a4b46d704a17e04c52df6632de55082c1",
+        "prefix_lines": 4,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 13,
+        "step": "step raw gray 2 0",
+        "baseline_sha256": "cb24bbd71984cc2908fdd16c730ca00a49317c866faa4fbc9c2f1830ef4eaef6",
+        "prefix_lines": 4,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 14,
+        "step": "step raw strip errors and recovery",
+        "baseline_sha256": "4c1f53a1e35e4abe743e3668722bb018b491a6fda1d91659f3b5e299d5648461",
+        "prefix_lines": 44,
+        "suffix_lines": 3789,
+        "fragment": "a4-18.xz"
+      },
+      {
+        "index": 15,
+        "step": "step raw sparse overlay",
+        "baseline_sha256": "5dee104412223af849be9c5f281ab71eb572cdc2b83b9f8759ecb58e86b3dd1e",
+        "prefix_lines": 2491,
+        "suffix_lines": 8,
+        "fragment": "a4-08.xz"
+      }
+    ],
+    "a4-uc8279c-dual-fail-3": [
+      {
+        "index": 0,
+        "step": "display-trace-v1 controller=uc8279c",
+        "baseline_sha256": "6d5d1369f371f56d503871a55d815fdd20f1350c991648826bcefd658cda7dbe",
+        "prefix_lines": 2,
+        "suffix_lines": 8,
+        "fragment": "a4-01.xz"
+      },
+      {
+        "index": 1,
+        "step": "step raw begin",
+        "baseline_sha256": "ff200d4ed05e9abd67c51ac01e87cf58904da089027291fadc75c3173d783095",
+        "prefix_lines": 44,
+        "suffix_lines": 1255,
+        "fragment": "a4-02.xz"
+      },
+      {
+        "index": 2,
+        "step": "step raw display 0",
+        "baseline_sha256": "207ff2716f937253ca728316973a7b5633daedaf55e9b0bcaa0a868ad3f33879",
+        "prefix_lines": 2483,
+        "suffix_lines": 3735,
+        "fragment": "a4-03.xz"
+      },
+      {
+        "index": 5,
+        "step": "step raw gray 0 2",
+        "baseline_sha256": "032846e4a8c1ddcf184ceaa55234f3e786aac00206593fa8790912ad8ae8fc7e",
+        "prefix_lines": 2492,
+        "suffix_lines": 0,
+        "fragment": "a4-19.xz"
+      },
+      {
+        "index": 6,
+        "step": "step raw gray 0 1",
+        "baseline_sha256": "24bec31a71fb277d9300dd2557078c1b0668ebf572f4d4e1f7a2be4ebee0a73d",
+        "prefix_lines": 6,
+        "suffix_lines": 0,
+        "fragment": "a4-14.xz"
+      },
+      {
+        "index": 7,
+        "step": "step raw gray 0 0",
+        "baseline_sha256": "d3a67a764a71097df4612f00a2bdd63c79dec53847da7f44f873de03179b326b",
+        "prefix_lines": 6,
+        "suffix_lines": 0,
+        "fragment": "a4-14.xz"
+      },
+      {
+        "index": 8,
+        "step": "step raw gray 1 2",
+        "baseline_sha256": "11d8a85d07548f2cb7ffe2d9c0a221e041f72ad409a99a3b7ebbb000d8ee2f8d",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-20.xz"
+      },
+      {
+        "index": 9,
+        "step": "step raw gray 1 1",
+        "baseline_sha256": "7066867e5d0277a17927b5db38cbd310c87e4d47b640c2ac62aefd82e758fef8",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-20.xz"
+      },
+      {
+        "index": 10,
+        "step": "step raw gray 1 0",
+        "baseline_sha256": "27f998a1b76d4c3040d70500b5f4344f3550235af99102aaef61a2d1dbc9b718",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-20.xz"
+      },
+      {
+        "index": 11,
+        "step": "step raw gray 2 2",
+        "baseline_sha256": "6adfc095ccdfb0245cc6112f4b1a6199e527401e3f140764285fa8210898c98b",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-20.xz"
+      },
+      {
+        "index": 12,
+        "step": "step raw gray 2 1",
+        "baseline_sha256": "23f58055c47fea46eea52889e86eff92727f31894dddb0be22ec1085f839e986",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-20.xz"
+      },
+      {
+        "index": 13,
+        "step": "step raw gray 2 0",
+        "baseline_sha256": "0abc0a7e8245b15c4c71fa5ab44ba54cb420e94e16545a0d9bbb602e3d3dda7e",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-20.xz"
+      },
+      {
+        "index": 14,
+        "step": "step raw strip errors and recovery",
+        "baseline_sha256": "668e542698acfc7ecebb07f961dd96f499fa0dcdd53db76ac30b802c63f08fd5",
+        "prefix_lines": 44,
+        "suffix_lines": 3789,
+        "fragment": "a4-21.xz"
+      },
+      {
+        "index": 15,
+        "step": "step raw sparse overlay",
+        "baseline_sha256": "5dee104412223af849be9c5f281ab71eb572cdc2b83b9f8759ecb58e86b3dd1e",
+        "prefix_lines": 2491,
+        "suffix_lines": 8,
+        "fragment": "a4-08.xz"
+      }
+    ],
+    "a4-uc8279c-dual-fail-4": [
+      {
+        "index": 0,
+        "step": "display-trace-v1 controller=uc8279c",
+        "baseline_sha256": "6d5d1369f371f56d503871a55d815fdd20f1350c991648826bcefd658cda7dbe",
+        "prefix_lines": 2,
+        "suffix_lines": 8,
+        "fragment": "a4-01.xz"
+      },
+      {
+        "index": 1,
+        "step": "step raw begin",
+        "baseline_sha256": "ff200d4ed05e9abd67c51ac01e87cf58904da089027291fadc75c3173d783095",
+        "prefix_lines": 44,
+        "suffix_lines": 1255,
+        "fragment": "a4-02.xz"
+      },
+      {
+        "index": 2,
+        "step": "step raw display 0",
+        "baseline_sha256": "207ff2716f937253ca728316973a7b5633daedaf55e9b0bcaa0a868ad3f33879",
+        "prefix_lines": 2483,
+        "suffix_lines": 3735,
+        "fragment": "a4-03.xz"
+      },
+      {
+        "index": 5,
+        "step": "step raw gray 0 2",
+        "baseline_sha256": "bca24a6ae6f2b94851f3a30c365606cb2a07228aa8500d87476acd3af360bcb9",
+        "prefix_lines": 2492,
+        "suffix_lines": 0,
+        "fragment": "a4-22.xz"
+      },
+      {
+        "index": 6,
+        "step": "step raw gray 0 1",
+        "baseline_sha256": "7543f49e9822c5fc6afc78d35dacb73302c2909ffb6651c63ed4f7813982b2a0",
+        "prefix_lines": 4,
+        "suffix_lines": 0,
+        "fragment": "a4-17.xz"
+      },
+      {
+        "index": 7,
+        "step": "step raw gray 0 0",
+        "baseline_sha256": "cb9815753f0927b84ac8f754d69fb8f58fa2baea9ed9f1e3059281ed0bfa713c",
+        "prefix_lines": 4,
+        "suffix_lines": 0,
+        "fragment": "a4-17.xz"
+      },
+      {
+        "index": 8,
+        "step": "step raw gray 1 2",
+        "baseline_sha256": "5d065bec1e978cb611997dc9386b435d12257f88650ac4382e7ee9e28939b303",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-23.xz"
+      },
+      {
+        "index": 9,
+        "step": "step raw gray 1 1",
+        "baseline_sha256": "f41214ce0cf34feea1cdd7c3f1ce49d454095fbebdb13b6bdc6f6c060970455a",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-23.xz"
+      },
+      {
+        "index": 10,
+        "step": "step raw gray 1 0",
+        "baseline_sha256": "e97d8514ea9dede0d47903c95b865d28c19fdc50be4f3ca614f14d19ffe3ba0a",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-23.xz"
+      },
+      {
+        "index": 11,
+        "step": "step raw gray 2 2",
+        "baseline_sha256": "59885c9d0fa0cfc735a4de873780173b2726ac8a0faa9feaa24206a5934af9bc",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-23.xz"
+      },
+      {
+        "index": 12,
+        "step": "step raw gray 2 1",
+        "baseline_sha256": "58ea26de3b4e307f1033995c11c90b0fcf99da70848f9688b0124f6c8342783e",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-23.xz"
+      },
+      {
+        "index": 13,
+        "step": "step raw gray 2 0",
+        "baseline_sha256": "a98a65fd1f6a931a78bdccbe8a5c4e17180b912c8d577851f2e33cda5becbc70",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-23.xz"
+      },
+      {
+        "index": 14,
+        "step": "step raw strip errors and recovery",
+        "baseline_sha256": "a074dfac8e1c24e071f4f6f1318b60ab064e9792f17f4f56ec7bd7b6849008c4",
+        "prefix_lines": 44,
+        "suffix_lines": 3789,
+        "fragment": "a4-24.xz"
+      },
+      {
+        "index": 15,
+        "step": "step raw sparse overlay",
+        "baseline_sha256": "5dee104412223af849be9c5f281ab71eb572cdc2b83b9f8759ecb58e86b3dd1e",
+        "prefix_lines": 2491,
+        "suffix_lines": 8,
+        "fragment": "a4-08.xz"
+      }
+    ],
+    "a4-uc8279c-dual-fail-5": [
+      {
+        "index": 0,
+        "step": "display-trace-v1 controller=uc8279c",
+        "baseline_sha256": "6d5d1369f371f56d503871a55d815fdd20f1350c991648826bcefd658cda7dbe",
+        "prefix_lines": 2,
+        "suffix_lines": 8,
+        "fragment": "a4-01.xz"
+      },
+      {
+        "index": 1,
+        "step": "step raw begin",
+        "baseline_sha256": "ff200d4ed05e9abd67c51ac01e87cf58904da089027291fadc75c3173d783095",
+        "prefix_lines": 44,
+        "suffix_lines": 1255,
+        "fragment": "a4-02.xz"
+      },
+      {
+        "index": 2,
+        "step": "step raw display 0",
+        "baseline_sha256": "207ff2716f937253ca728316973a7b5633daedaf55e9b0bcaa0a868ad3f33879",
+        "prefix_lines": 2483,
+        "suffix_lines": 3735,
+        "fragment": "a4-03.xz"
+      },
+      {
+        "index": 5,
+        "step": "step raw gray 0 2",
+        "baseline_sha256": "3ee96d46c7cbf5f381ccc2b2114285e4419c72ddcd9aefdf9b783d557c250a5c",
+        "prefix_lines": 2492,
+        "suffix_lines": 0,
+        "fragment": "a4-04.xz"
+      },
+      {
+        "index": 6,
+        "step": "step raw gray 0 1",
+        "baseline_sha256": "fd6fbbdcb511ffd198b85dfd8fe6586ed7910dbba3b6599bdb56a47bb7e02a7c",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-05.xz"
+      },
+      {
+        "index": 7,
+        "step": "step raw gray 0 0",
+        "baseline_sha256": "0191f920cc1a2382ffab8018ba89235f3ef01177fbcdc8c75aab46dd47ff9a2e",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-05.xz"
+      },
+      {
+        "index": 8,
+        "step": "step raw gray 1 2",
+        "baseline_sha256": "07d8aeffa409b0b823bb17ff3177c1a4db2cdf378b4e6feb3203a0be9f0a52b2",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 9,
+        "step": "step raw gray 1 1",
+        "baseline_sha256": "5695307143074a4a73a3e983c1ee18c5fa54bdc6aef56a57e8f92e2da6059d72",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 10,
+        "step": "step raw gray 1 0",
+        "baseline_sha256": "bfa6c75d9f967a09ce7b214bd339e4dbf73f2fee402792d316acb560c5b41e69",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 11,
+        "step": "step raw gray 2 2",
+        "baseline_sha256": "f8c421535e53e3fecb24d1f20c81fe574d6e41471df16a341888bcefce5ad0b6",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 12,
+        "step": "step raw gray 2 1",
+        "baseline_sha256": "b8775fa3a587ae3a435d473096cf26c603565bdce6aa53a87d05a5aa308a09e9",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 13,
+        "step": "step raw gray 2 0",
+        "baseline_sha256": "941de37ae04284d5ac16a76daa40f05355365572181d15ce6e833876de7e7986",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 14,
+        "step": "step raw strip errors and recovery",
+        "baseline_sha256": "a1c2289b83d9ed19fed108b681609b7f65f9a7f723e51163d73a246808ba0d33",
+        "prefix_lines": 44,
+        "suffix_lines": 3789,
+        "fragment": "a4-07.xz"
+      },
+      {
+        "index": 15,
+        "step": "step raw sparse overlay",
+        "baseline_sha256": "5dee104412223af849be9c5f281ab71eb572cdc2b83b9f8759ecb58e86b3dd1e",
+        "prefix_lines": 2491,
+        "suffix_lines": 8,
+        "fragment": "a4-08.xz"
+      }
+    ],
+    "a4-uc8279c-dual": [
+      {
+        "index": 1,
+        "step": "step begin",
+        "baseline_sha256": "2576585b3c2e595a8141112e29fbdbb5a5757a81f57055c9e1b2d999cf7882c2",
+        "prefix_lines": 2,
+        "suffix_lines": 1256,
+        "fragment": "a4-25.xz"
+      },
+      {
+        "index": 3,
+        "step": "step display 0",
+        "baseline_sha256": "fa37bd46ce5eb15d369b92db6c759bc1f9a432e01a493bcd7783eeef254f0e58",
+        "prefix_lines": 2483,
+        "suffix_lines": 0,
+        "fragment": "a4-26.xz"
+      },
+      {
+        "index": 5,
+        "step": "step display 1",
+        "baseline_sha256": "7913efd78f49f1b4b63a27fb170323fcadb6f9185613145148d2d4e75256eaaa",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-27.xz"
+      },
+      {
+        "index": 7,
+        "step": "step display 2",
+        "baseline_sha256": "9609df934d0034add2612317340acffd6a08c57bace77390decc454d0bf15fc9",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-28.xz"
+      },
+      {
+        "index": 9,
+        "step": "step trigger 0",
+        "baseline_sha256": "b3d1082e041636afcb8d214dfaf73dcd70b0950ef99fceb0da358bfb6307f5f1",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-29.xz"
+      },
+      {
+        "index": 11,
+        "step": "step trigger 1",
+        "baseline_sha256": "cd1eb1f1ae2152bd2281e00aa44b14adccd55914cb91bf26f5e63d4c8a1e61e8",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-30.xz"
+      },
+      {
+        "index": 13,
+        "step": "step trigger 2",
+        "baseline_sha256": "37958e28c44aaf113d76a05b51bbdc2338849312d6ae1fad6289d44f4e4a21aa",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-31.xz"
+      },
+      {
+        "index": 15,
+        "step": "step trigger-async 0",
+        "baseline_sha256": "46ff7132aae0985a5e12d6fd53e2a7c76bdf50d0e0aabb11b34c530917207f0a",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-30.xz"
+      },
+      {
+        "index": 17,
+        "step": "step trigger-async 1",
+        "baseline_sha256": "92c43dc8282c03ddaec3a7a1ae1209d2683522037c100fcb685b3ce7f5c6c387",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-29.xz"
+      },
+      {
+        "index": 19,
+        "step": "step trigger-async 2",
+        "baseline_sha256": "71ca1c8b962d3de7104bcc7cd3ff738498e29e9d582921299012717d8e2f25d7",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-28.xz"
+      },
+      {
+        "index": 22,
+        "step": "step async 2",
+        "baseline_sha256": "1a8a790114e49307afc6095d03f2e0a3a2df285e5f9d244fde8c9edcb322eede",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-31.xz"
+      },
+      {
+        "index": 25,
+        "step": "step async 2",
+        "baseline_sha256": "c3c0ada8f49ce96a0b39920d79e91abb7db689453e7e826a8195ed39b16a693f",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-28.xz"
+      },
+      {
+        "index": 27,
+        "step": "step async-no-shadow 2",
+        "baseline_sha256": "ebdbf17edfb57d2ead200ad113cc57271734e3d96ab7108278a01c01218b057b",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-31.xz"
+      },
+      {
+        "index": 31,
+        "step": "step window 0",
+        "baseline_sha256": "07b8c42ab45defda39350b6d3190f029a96e7e6a4cefdcf3b54ebf0f157289a8",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-31.xz"
+      },
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "0d14e65eaca9ce9232e3512091437d66445555dfd8f7249564b152c95f32acd9",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-28.xz"
+      },
+      {
+        "index": 36,
+        "step": "step display 2",
+        "baseline_sha256": "5b4ae2aaf70cf18291e2ee56b3e5acd845cf372ca47ccb1f82dfc3f6f5624d8a",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-31.xz"
+      },
+      {
+        "index": 40,
+        "step": "step gray-show",
+        "baseline_sha256": "a58f1d209ab98299594308975a31e1da39e3a943292a95506060cb1ba99b150e",
+        "prefix_lines": 2,
+        "suffix_lines": 4,
+        "fragment": "a4-32.xz"
+      },
+      {
+        "index": 45,
+        "step": "step gray-show",
+        "baseline_sha256": "d6d5cc5087df610227f7516299244ce26d185fd8808506af41988c28af5ffa8f",
+        "prefix_lines": 4,
+        "suffix_lines": 4,
+        "fragment": "a4-33.xz"
+      },
+      {
+        "index": 49,
+        "step": "step gray-show",
+        "baseline_sha256": "ddc23ff3366e29a0416f05e10cf50687c87c37150a529a2497738f913ca26095",
+        "prefix_lines": 28,
+        "suffix_lines": 4,
+        "fragment": "a4-34.xz"
+      },
+      {
+        "index": 53,
+        "step": "step gray-show",
+        "baseline_sha256": "ddc23ff3366e29a0416f05e10cf50687c87c37150a529a2497738f913ca26095",
+        "prefix_lines": 28,
+        "suffix_lines": 4,
+        "fragment": "a4-34.xz"
+      },
+      {
+        "index": 57,
+        "step": "step display 2",
+        "baseline_sha256": "93a87780bb6a883724608774306293e22b9e7067d67e386f74219bc8550da7da",
+        "prefix_lines": 44,
+        "suffix_lines": 0,
+        "fragment": "a4-35.xz"
+      },
+      {
+        "index": 59,
+        "step": "step window 0",
+        "baseline_sha256": "ac3aff160375c0f37466c0cae5a828eb9a89580e1519b5437dc83e2ce2683691",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-28.xz"
+      },
+      {
+        "index": 61,
+        "step": "step window 1",
+        "baseline_sha256": "7e0a81bce6a137fb3cc6bb14b268f702f28345c4768a4d3d3bc6bc6f67eb0d17",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-31.xz"
+      },
+      {
+        "index": 63,
+        "step": "step display 2",
+        "baseline_sha256": "012645f0c40927a02eb622ed9156c841583e4056e8c6786a8068418e9f9e71fd",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-29.xz"
+      },
+      {
+        "index": 65,
+        "step": "step async 2",
+        "baseline_sha256": "c3c0ada8f49ce96a0b39920d79e91abb7db689453e7e826a8195ed39b16a693f",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-28.xz"
+      },
+      {
+        "index": 69,
+        "step": "step display 2",
+        "baseline_sha256": "9609df934d0034add2612317340acffd6a08c57bace77390decc454d0bf15fc9",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-28.xz"
+      },
+      {
+        "index": 73,
+        "step": "step display 2",
+        "baseline_sha256": "5b4ae2aaf70cf18291e2ee56b3e5acd845cf372ca47ccb1f82dfc3f6f5624d8a",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-31.xz"
+      },
+      {
+        "index": 75,
+        "step": "step async 2",
+        "baseline_sha256": "1a8a790114e49307afc6095d03f2e0a3a2df285e5f9d244fde8c9edcb322eede",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-31.xz"
+      },
+      {
+        "index": 79,
+        "step": "step display 1",
+        "baseline_sha256": "2864e3ee1b7ca76f0b9d46b550f6ba32c9db10e467e4e2ef0480e11030d707f0",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-29.xz"
+      },
+      {
+        "index": 81,
+        "step": "step display 2",
+        "baseline_sha256": "0449fe76cc9db80872a08b58d1eb1397faccf083e0a664a8fd336fdd1b75b9f8",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-36.xz"
+      },
+      {
+        "index": 83,
+        "step": "step display-off 2",
+        "baseline_sha256": "8d9bacd0b9d52dfaaae428353f7a7180045ca9e8b8c59982d7650c053b9c43e5",
+        "prefix_lines": 2,
+        "suffix_lines": 2489,
+        "fragment": "a4-37.xz"
+      },
+      {
+        "index": 85,
+        "step": "step wake",
+        "baseline_sha256": "b21458c9da1806647a349517b7cdba1f60995471f5c9c1a0e40878da6d504138",
+        "prefix_lines": 1,
+        "suffix_lines": 1256,
+        "fragment": "a4-25.xz"
+      },
+      {
+        "index": 87,
+        "step": "step display 0",
+        "baseline_sha256": "6a1bded9c8b8946d372cb26bbdf4443220275dd978de5b80c2a6de9284e50a70",
+        "prefix_lines": 2483,
+        "suffix_lines": 0,
+        "fragment": "a4-38.xz"
+      }
+    ],
+    "a4-uc8279c-single-fail--1": [
+      {
+        "index": 0,
+        "step": "display-trace-v1 controller=uc8279c",
+        "baseline_sha256": "6d5d1369f371f56d503871a55d815fdd20f1350c991648826bcefd658cda7dbe",
+        "prefix_lines": 2,
+        "suffix_lines": 8,
+        "fragment": "a4-01.xz"
+      },
+      {
+        "index": 1,
+        "step": "step raw begin",
+        "baseline_sha256": "ff200d4ed05e9abd67c51ac01e87cf58904da089027291fadc75c3173d783095",
+        "prefix_lines": 44,
+        "suffix_lines": 1255,
+        "fragment": "a4-02.xz"
+      },
+      {
+        "index": 2,
+        "step": "step raw display 0",
+        "baseline_sha256": "207ff2716f937253ca728316973a7b5633daedaf55e9b0bcaa0a868ad3f33879",
+        "prefix_lines": 2483,
+        "suffix_lines": 3735,
+        "fragment": "a4-03.xz"
+      },
+      {
+        "index": 5,
+        "step": "step raw gray 0 2",
+        "baseline_sha256": "3ee96d46c7cbf5f381ccc2b2114285e4419c72ddcd9aefdf9b783d557c250a5c",
+        "prefix_lines": 2492,
+        "suffix_lines": 0,
+        "fragment": "a4-04.xz"
+      },
+      {
+        "index": 6,
+        "step": "step raw gray 0 1",
+        "baseline_sha256": "fd6fbbdcb511ffd198b85dfd8fe6586ed7910dbba3b6599bdb56a47bb7e02a7c",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-05.xz"
+      },
+      {
+        "index": 7,
+        "step": "step raw gray 0 0",
+        "baseline_sha256": "0191f920cc1a2382ffab8018ba89235f3ef01177fbcdc8c75aab46dd47ff9a2e",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-05.xz"
+      },
+      {
+        "index": 8,
+        "step": "step raw gray 1 2",
+        "baseline_sha256": "07d8aeffa409b0b823bb17ff3177c1a4db2cdf378b4e6feb3203a0be9f0a52b2",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 9,
+        "step": "step raw gray 1 1",
+        "baseline_sha256": "5695307143074a4a73a3e983c1ee18c5fa54bdc6aef56a57e8f92e2da6059d72",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 10,
+        "step": "step raw gray 1 0",
+        "baseline_sha256": "bfa6c75d9f967a09ce7b214bd339e4dbf73f2fee402792d316acb560c5b41e69",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 11,
+        "step": "step raw gray 2 2",
+        "baseline_sha256": "f8c421535e53e3fecb24d1f20c81fe574d6e41471df16a341888bcefce5ad0b6",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 12,
+        "step": "step raw gray 2 1",
+        "baseline_sha256": "b8775fa3a587ae3a435d473096cf26c603565bdce6aa53a87d05a5aa308a09e9",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 13,
+        "step": "step raw gray 2 0",
+        "baseline_sha256": "941de37ae04284d5ac16a76daa40f05355365572181d15ce6e833876de7e7986",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 14,
+        "step": "step raw strip errors and recovery",
+        "baseline_sha256": "a1c2289b83d9ed19fed108b681609b7f65f9a7f723e51163d73a246808ba0d33",
+        "prefix_lines": 44,
+        "suffix_lines": 3789,
+        "fragment": "a4-07.xz"
+      },
+      {
+        "index": 15,
+        "step": "step raw sparse overlay",
+        "baseline_sha256": "5dee104412223af849be9c5f281ab71eb572cdc2b83b9f8759ecb58e86b3dd1e",
+        "prefix_lines": 2491,
+        "suffix_lines": 8,
+        "fragment": "a4-08.xz"
+      }
+    ],
+    "a4-uc8279c-single-fail--2": [
+      {
+        "index": 0,
+        "step": "display-trace-v1 controller=uc8279c",
+        "baseline_sha256": "6d5d1369f371f56d503871a55d815fdd20f1350c991648826bcefd658cda7dbe",
+        "prefix_lines": 2,
+        "suffix_lines": 8,
+        "fragment": "a4-01.xz"
+      },
+      {
+        "index": 1,
+        "step": "step raw begin",
+        "baseline_sha256": "ff200d4ed05e9abd67c51ac01e87cf58904da089027291fadc75c3173d783095",
+        "prefix_lines": 44,
+        "suffix_lines": 1255,
+        "fragment": "a4-02.xz"
+      },
+      {
+        "index": 2,
+        "step": "step raw display 0",
+        "baseline_sha256": "f2a96f27a494d4c13fc93b5cb2872a4c2be09303ff6da0c1ac12bc6b0cd287f9",
+        "prefix_lines": 2483,
+        "suffix_lines": 3736,
+        "fragment": "a4-03.xz"
+      },
+      {
+        "index": 5,
+        "step": "step raw gray 0 2",
+        "baseline_sha256": "8dc9d951707a5a78284723149e5332ab4c60db8e5e18e22ac438facf92b44b5b",
+        "prefix_lines": 2493,
+        "suffix_lines": 0,
+        "fragment": "a4-09.xz"
+      },
+      {
+        "index": 6,
+        "step": "step raw gray 0 1",
+        "baseline_sha256": "fd6fbbdcb511ffd198b85dfd8fe6586ed7910dbba3b6599bdb56a47bb7e02a7c",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-05.xz"
+      },
+      {
+        "index": 7,
+        "step": "step raw gray 0 0",
+        "baseline_sha256": "0191f920cc1a2382ffab8018ba89235f3ef01177fbcdc8c75aab46dd47ff9a2e",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-05.xz"
+      },
+      {
+        "index": 8,
+        "step": "step raw gray 1 2",
+        "baseline_sha256": "07d8aeffa409b0b823bb17ff3177c1a4db2cdf378b4e6feb3203a0be9f0a52b2",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 9,
+        "step": "step raw gray 1 1",
+        "baseline_sha256": "5695307143074a4a73a3e983c1ee18c5fa54bdc6aef56a57e8f92e2da6059d72",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 10,
+        "step": "step raw gray 1 0",
+        "baseline_sha256": "bfa6c75d9f967a09ce7b214bd339e4dbf73f2fee402792d316acb560c5b41e69",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 11,
+        "step": "step raw gray 2 2",
+        "baseline_sha256": "f8c421535e53e3fecb24d1f20c81fe574d6e41471df16a341888bcefce5ad0b6",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 12,
+        "step": "step raw gray 2 1",
+        "baseline_sha256": "b8775fa3a587ae3a435d473096cf26c603565bdce6aa53a87d05a5aa308a09e9",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 13,
+        "step": "step raw gray 2 0",
+        "baseline_sha256": "941de37ae04284d5ac16a76daa40f05355365572181d15ce6e833876de7e7986",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 14,
+        "step": "step raw strip errors and recovery",
+        "baseline_sha256": "a1c2289b83d9ed19fed108b681609b7f65f9a7f723e51163d73a246808ba0d33",
+        "prefix_lines": 44,
+        "suffix_lines": 3789,
+        "fragment": "a4-07.xz"
+      },
+      {
+        "index": 15,
+        "step": "step raw sparse overlay",
+        "baseline_sha256": "5dee104412223af849be9c5f281ab71eb572cdc2b83b9f8759ecb58e86b3dd1e",
+        "prefix_lines": 2491,
+        "suffix_lines": 8,
+        "fragment": "a4-08.xz"
+      }
+    ],
+    "a4-uc8279c-single-fail-0": [
+      {
+        "index": 0,
+        "step": "display-trace-v1 controller=uc8279c",
+        "baseline_sha256": "6d5d1369f371f56d503871a55d815fdd20f1350c991648826bcefd658cda7dbe",
+        "prefix_lines": 2,
+        "suffix_lines": 8,
+        "fragment": "a4-01.xz"
+      },
+      {
+        "index": 1,
+        "step": "step raw begin",
+        "baseline_sha256": "ff200d4ed05e9abd67c51ac01e87cf58904da089027291fadc75c3173d783095",
+        "prefix_lines": 44,
+        "suffix_lines": 1255,
+        "fragment": "a4-02.xz"
+      },
+      {
+        "index": 2,
+        "step": "step raw display 0",
+        "baseline_sha256": "1093efe0cd2f5f6dadefb1d378c9cb98bdbf5f60a714d49133b873803c35b690",
+        "prefix_lines": 2483,
+        "suffix_lines": 3738,
+        "fragment": "a4-03.xz"
+      },
+      {
+        "index": 5,
+        "step": "step raw gray 0 2",
+        "baseline_sha256": "b92736102a6a36916085405d18983b297a9cac7aa3484cdb0ecff4a41a3104a7",
+        "prefix_lines": 2499,
+        "suffix_lines": 2,
+        "fragment": "a4-10.xz"
+      },
+      {
+        "index": 6,
+        "step": "step raw gray 0 1",
+        "baseline_sha256": "474ba3117e7923aa426423b00de74bad939fde1faae003d7717498beec29ed34",
+        "prefix_lines": 10,
+        "suffix_lines": 2,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 7,
+        "step": "step raw gray 0 0",
+        "baseline_sha256": "671dd49295642f9b3a48d660c9e4f6ef4d09fdedf66f73c823d0a4ae6ef3c350",
+        "prefix_lines": 10,
+        "suffix_lines": 2,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 8,
+        "step": "step raw gray 1 2",
+        "baseline_sha256": "f8b80592200b840fa9639d29151662b039b25ad0b205e98131e92b23afb0326f",
+        "prefix_lines": 8,
+        "suffix_lines": 2,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 9,
+        "step": "step raw gray 1 1",
+        "baseline_sha256": "36f1d44a25bce71ceeb295b141f63152095d61101974d04e7d3d024ed1b84c5f",
+        "prefix_lines": 8,
+        "suffix_lines": 2,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 10,
+        "step": "step raw gray 1 0",
+        "baseline_sha256": "196ec92554502a4a53194c026a2442fda8f5b4c4de0c47f94e3ee188d802dcbd",
+        "prefix_lines": 8,
+        "suffix_lines": 2,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 11,
+        "step": "step raw gray 2 2",
+        "baseline_sha256": "9bc422007ea35fc78fba551aaa5103b890b5829ccf85dab3d7a72662058aef9a",
+        "prefix_lines": 8,
+        "suffix_lines": 2,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 12,
+        "step": "step raw gray 2 1",
+        "baseline_sha256": "e6804b30208e2771b53e3ed3e345c7cc0774c1cea464d97852c655254b362e61",
+        "prefix_lines": 8,
+        "suffix_lines": 2,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 13,
+        "step": "step raw gray 2 0",
+        "baseline_sha256": "7160c476ddee6f3acd3fd979f810050ff6338f1ea3faeff1662fbf0e01f8dda8",
+        "prefix_lines": 8,
+        "suffix_lines": 2,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 14,
+        "step": "step raw strip errors and recovery",
+        "baseline_sha256": "28e1f88ade899fc9d8f851152a63e9bdcb676b2f67eafbe94f15167adea11e68",
+        "prefix_lines": 44,
+        "suffix_lines": 3789,
+        "fragment": "a4-12.xz"
+      },
+      {
+        "index": 15,
+        "step": "step raw sparse overlay",
+        "baseline_sha256": "5dee104412223af849be9c5f281ab71eb572cdc2b83b9f8759ecb58e86b3dd1e",
+        "prefix_lines": 2491,
+        "suffix_lines": 8,
+        "fragment": "a4-08.xz"
+      }
+    ],
+    "a4-uc8279c-single-fail-1": [
+      {
+        "index": 0,
+        "step": "display-trace-v1 controller=uc8279c",
+        "baseline_sha256": "6d5d1369f371f56d503871a55d815fdd20f1350c991648826bcefd658cda7dbe",
+        "prefix_lines": 2,
+        "suffix_lines": 8,
+        "fragment": "a4-01.xz"
+      },
+      {
+        "index": 1,
+        "step": "step raw begin",
+        "baseline_sha256": "ff200d4ed05e9abd67c51ac01e87cf58904da089027291fadc75c3173d783095",
+        "prefix_lines": 44,
+        "suffix_lines": 1255,
+        "fragment": "a4-02.xz"
+      },
+      {
+        "index": 2,
+        "step": "step raw display 0",
+        "baseline_sha256": "207ff2716f937253ca728316973a7b5633daedaf55e9b0bcaa0a868ad3f33879",
+        "prefix_lines": 2483,
+        "suffix_lines": 3735,
+        "fragment": "a4-03.xz"
+      },
+      {
+        "index": 5,
+        "step": "step raw gray 0 2",
+        "baseline_sha256": "b8156aad749db16e50744a098026cae0c16d06c48ad68e002aec79bfa20e459a",
+        "prefix_lines": 2493,
+        "suffix_lines": 0,
+        "fragment": "a4-13.xz"
+      },
+      {
+        "index": 6,
+        "step": "step raw gray 0 1",
+        "baseline_sha256": "cac9a1290efb06d9b3a130eac421bd903fc96851a52645c0822b3aecc319c75f",
+        "prefix_lines": 4,
+        "suffix_lines": 0,
+        "fragment": "a4-14.xz"
+      },
+      {
+        "index": 7,
+        "step": "step raw gray 0 0",
+        "baseline_sha256": "e48123540f254314da59a54643c4cee61991ab316ae7230c8a18d4588bac5445",
+        "prefix_lines": 4,
+        "suffix_lines": 0,
+        "fragment": "a4-14.xz"
+      },
+      {
+        "index": 8,
+        "step": "step raw gray 1 2",
+        "baseline_sha256": "fe7226291f3cff2654ce84e1113324a266cc67cce4561d6f5de148fc8af02fc3",
+        "prefix_lines": 8,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 9,
+        "step": "step raw gray 1 1",
+        "baseline_sha256": "27b129e04823f7a13673b439c6417b0f1669d53ed9374c6e3cb510ba339a4843",
+        "prefix_lines": 8,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 10,
+        "step": "step raw gray 1 0",
+        "baseline_sha256": "a87f2313bf841b036b47628bcade6ac795061861b8dda271c025f737519398bf",
+        "prefix_lines": 8,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 11,
+        "step": "step raw gray 2 2",
+        "baseline_sha256": "9f402b900baa98d8ec43f3ee78db9dd7024d6939cfff279a1c864d6c875c2680",
+        "prefix_lines": 8,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 12,
+        "step": "step raw gray 2 1",
+        "baseline_sha256": "e00760a79139d0bbee7eaed0ca166ad4bcd081d21a505fe624a02d79d33c136d",
+        "prefix_lines": 8,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 13,
+        "step": "step raw gray 2 0",
+        "baseline_sha256": "80c9edb1f44112e4633afb2bf44574f7510f1dfa5cf36cc79cc58fb3649c4393",
+        "prefix_lines": 8,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 14,
+        "step": "step raw strip errors and recovery",
+        "baseline_sha256": "daafa99acac662b252d29c3eb755a7ae4451b0eb72ee7f722095bfdd7a0d8f59",
+        "prefix_lines": 44,
+        "suffix_lines": 3789,
+        "fragment": "a4-15.xz"
+      },
+      {
+        "index": 15,
+        "step": "step raw sparse overlay",
+        "baseline_sha256": "5dee104412223af849be9c5f281ab71eb572cdc2b83b9f8759ecb58e86b3dd1e",
+        "prefix_lines": 2491,
+        "suffix_lines": 8,
+        "fragment": "a4-08.xz"
+      }
+    ],
+    "a4-uc8279c-single-fail-2": [
+      {
+        "index": 0,
+        "step": "display-trace-v1 controller=uc8279c",
+        "baseline_sha256": "6d5d1369f371f56d503871a55d815fdd20f1350c991648826bcefd658cda7dbe",
+        "prefix_lines": 2,
+        "suffix_lines": 8,
+        "fragment": "a4-01.xz"
+      },
+      {
+        "index": 1,
+        "step": "step raw begin",
+        "baseline_sha256": "ff200d4ed05e9abd67c51ac01e87cf58904da089027291fadc75c3173d783095",
+        "prefix_lines": 44,
+        "suffix_lines": 1255,
+        "fragment": "a4-02.xz"
+      },
+      {
+        "index": 2,
+        "step": "step raw display 0",
+        "baseline_sha256": "207ff2716f937253ca728316973a7b5633daedaf55e9b0bcaa0a868ad3f33879",
+        "prefix_lines": 2483,
+        "suffix_lines": 3735,
+        "fragment": "a4-03.xz"
+      },
+      {
+        "index": 5,
+        "step": "step raw gray 0 2",
+        "baseline_sha256": "d793761277bf90be70d2e271070f68e2a07908ed33f68c1e94310212986194d4",
+        "prefix_lines": 2492,
+        "suffix_lines": 0,
+        "fragment": "a4-16.xz"
+      },
+      {
+        "index": 6,
+        "step": "step raw gray 0 1",
+        "baseline_sha256": "5144ef1008658e4fb9fd724228c7987f89df73b6a48437f0ebae3d7a88e7616e",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-17.xz"
+      },
+      {
+        "index": 7,
+        "step": "step raw gray 0 0",
+        "baseline_sha256": "408558d8cba4d671c25275507c238aba3a73c0e91bfd155053da35a076f37b00",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-17.xz"
+      },
+      {
+        "index": 8,
+        "step": "step raw gray 1 2",
+        "baseline_sha256": "df64ff39fd8406624f3101031a6995e96ef0371abceebe0eef67351a328c2f7d",
+        "prefix_lines": 4,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 9,
+        "step": "step raw gray 1 1",
+        "baseline_sha256": "d28caab1f93fd8593ff313c9a54304447f3321398cd864dfb901c66839e1f2a5",
+        "prefix_lines": 4,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 10,
+        "step": "step raw gray 1 0",
+        "baseline_sha256": "3705778eecb0e474dc8ad5c41f04fe6be3619d701e50a4536ee1700a659f27b5",
+        "prefix_lines": 4,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 11,
+        "step": "step raw gray 2 2",
+        "baseline_sha256": "9c99145728f820d19c2a3048e048248ee510ab0e31e3b716a727c094aa2d07d0",
+        "prefix_lines": 4,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 12,
+        "step": "step raw gray 2 1",
+        "baseline_sha256": "bfb41b82701e60c4beff1f90024f150a4b46d704a17e04c52df6632de55082c1",
+        "prefix_lines": 4,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 13,
+        "step": "step raw gray 2 0",
+        "baseline_sha256": "cb24bbd71984cc2908fdd16c730ca00a49317c866faa4fbc9c2f1830ef4eaef6",
+        "prefix_lines": 4,
+        "suffix_lines": 0,
+        "fragment": "a4-11.xz"
+      },
+      {
+        "index": 14,
+        "step": "step raw strip errors and recovery",
+        "baseline_sha256": "4c1f53a1e35e4abe743e3668722bb018b491a6fda1d91659f3b5e299d5648461",
+        "prefix_lines": 44,
+        "suffix_lines": 3789,
+        "fragment": "a4-18.xz"
+      },
+      {
+        "index": 15,
+        "step": "step raw sparse overlay",
+        "baseline_sha256": "5dee104412223af849be9c5f281ab71eb572cdc2b83b9f8759ecb58e86b3dd1e",
+        "prefix_lines": 2491,
+        "suffix_lines": 8,
+        "fragment": "a4-08.xz"
+      }
+    ],
+    "a4-uc8279c-single-fail-3": [
+      {
+        "index": 0,
+        "step": "display-trace-v1 controller=uc8279c",
+        "baseline_sha256": "6d5d1369f371f56d503871a55d815fdd20f1350c991648826bcefd658cda7dbe",
+        "prefix_lines": 2,
+        "suffix_lines": 8,
+        "fragment": "a4-01.xz"
+      },
+      {
+        "index": 1,
+        "step": "step raw begin",
+        "baseline_sha256": "ff200d4ed05e9abd67c51ac01e87cf58904da089027291fadc75c3173d783095",
+        "prefix_lines": 44,
+        "suffix_lines": 1255,
+        "fragment": "a4-02.xz"
+      },
+      {
+        "index": 2,
+        "step": "step raw display 0",
+        "baseline_sha256": "207ff2716f937253ca728316973a7b5633daedaf55e9b0bcaa0a868ad3f33879",
+        "prefix_lines": 2483,
+        "suffix_lines": 3735,
+        "fragment": "a4-03.xz"
+      },
+      {
+        "index": 5,
+        "step": "step raw gray 0 2",
+        "baseline_sha256": "032846e4a8c1ddcf184ceaa55234f3e786aac00206593fa8790912ad8ae8fc7e",
+        "prefix_lines": 2492,
+        "suffix_lines": 0,
+        "fragment": "a4-19.xz"
+      },
+      {
+        "index": 6,
+        "step": "step raw gray 0 1",
+        "baseline_sha256": "24bec31a71fb277d9300dd2557078c1b0668ebf572f4d4e1f7a2be4ebee0a73d",
+        "prefix_lines": 6,
+        "suffix_lines": 0,
+        "fragment": "a4-14.xz"
+      },
+      {
+        "index": 7,
+        "step": "step raw gray 0 0",
+        "baseline_sha256": "d3a67a764a71097df4612f00a2bdd63c79dec53847da7f44f873de03179b326b",
+        "prefix_lines": 6,
+        "suffix_lines": 0,
+        "fragment": "a4-14.xz"
+      },
+      {
+        "index": 8,
+        "step": "step raw gray 1 2",
+        "baseline_sha256": "11d8a85d07548f2cb7ffe2d9c0a221e041f72ad409a99a3b7ebbb000d8ee2f8d",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-20.xz"
+      },
+      {
+        "index": 9,
+        "step": "step raw gray 1 1",
+        "baseline_sha256": "7066867e5d0277a17927b5db38cbd310c87e4d47b640c2ac62aefd82e758fef8",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-20.xz"
+      },
+      {
+        "index": 10,
+        "step": "step raw gray 1 0",
+        "baseline_sha256": "27f998a1b76d4c3040d70500b5f4344f3550235af99102aaef61a2d1dbc9b718",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-20.xz"
+      },
+      {
+        "index": 11,
+        "step": "step raw gray 2 2",
+        "baseline_sha256": "6adfc095ccdfb0245cc6112f4b1a6199e527401e3f140764285fa8210898c98b",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-20.xz"
+      },
+      {
+        "index": 12,
+        "step": "step raw gray 2 1",
+        "baseline_sha256": "23f58055c47fea46eea52889e86eff92727f31894dddb0be22ec1085f839e986",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-20.xz"
+      },
+      {
+        "index": 13,
+        "step": "step raw gray 2 0",
+        "baseline_sha256": "0abc0a7e8245b15c4c71fa5ab44ba54cb420e94e16545a0d9bbb602e3d3dda7e",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-20.xz"
+      },
+      {
+        "index": 14,
+        "step": "step raw strip errors and recovery",
+        "baseline_sha256": "668e542698acfc7ecebb07f961dd96f499fa0dcdd53db76ac30b802c63f08fd5",
+        "prefix_lines": 44,
+        "suffix_lines": 3789,
+        "fragment": "a4-21.xz"
+      },
+      {
+        "index": 15,
+        "step": "step raw sparse overlay",
+        "baseline_sha256": "5dee104412223af849be9c5f281ab71eb572cdc2b83b9f8759ecb58e86b3dd1e",
+        "prefix_lines": 2491,
+        "suffix_lines": 8,
+        "fragment": "a4-08.xz"
+      }
+    ],
+    "a4-uc8279c-single-fail-4": [
+      {
+        "index": 0,
+        "step": "display-trace-v1 controller=uc8279c",
+        "baseline_sha256": "6d5d1369f371f56d503871a55d815fdd20f1350c991648826bcefd658cda7dbe",
+        "prefix_lines": 2,
+        "suffix_lines": 8,
+        "fragment": "a4-01.xz"
+      },
+      {
+        "index": 1,
+        "step": "step raw begin",
+        "baseline_sha256": "ff200d4ed05e9abd67c51ac01e87cf58904da089027291fadc75c3173d783095",
+        "prefix_lines": 44,
+        "suffix_lines": 1255,
+        "fragment": "a4-02.xz"
+      },
+      {
+        "index": 2,
+        "step": "step raw display 0",
+        "baseline_sha256": "207ff2716f937253ca728316973a7b5633daedaf55e9b0bcaa0a868ad3f33879",
+        "prefix_lines": 2483,
+        "suffix_lines": 3735,
+        "fragment": "a4-03.xz"
+      },
+      {
+        "index": 5,
+        "step": "step raw gray 0 2",
+        "baseline_sha256": "bca24a6ae6f2b94851f3a30c365606cb2a07228aa8500d87476acd3af360bcb9",
+        "prefix_lines": 2492,
+        "suffix_lines": 0,
+        "fragment": "a4-22.xz"
+      },
+      {
+        "index": 6,
+        "step": "step raw gray 0 1",
+        "baseline_sha256": "7543f49e9822c5fc6afc78d35dacb73302c2909ffb6651c63ed4f7813982b2a0",
+        "prefix_lines": 4,
+        "suffix_lines": 0,
+        "fragment": "a4-17.xz"
+      },
+      {
+        "index": 7,
+        "step": "step raw gray 0 0",
+        "baseline_sha256": "cb9815753f0927b84ac8f754d69fb8f58fa2baea9ed9f1e3059281ed0bfa713c",
+        "prefix_lines": 4,
+        "suffix_lines": 0,
+        "fragment": "a4-17.xz"
+      },
+      {
+        "index": 8,
+        "step": "step raw gray 1 2",
+        "baseline_sha256": "5d065bec1e978cb611997dc9386b435d12257f88650ac4382e7ee9e28939b303",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-23.xz"
+      },
+      {
+        "index": 9,
+        "step": "step raw gray 1 1",
+        "baseline_sha256": "f41214ce0cf34feea1cdd7c3f1ce49d454095fbebdb13b6bdc6f6c060970455a",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-23.xz"
+      },
+      {
+        "index": 10,
+        "step": "step raw gray 1 0",
+        "baseline_sha256": "e97d8514ea9dede0d47903c95b865d28c19fdc50be4f3ca614f14d19ffe3ba0a",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-23.xz"
+      },
+      {
+        "index": 11,
+        "step": "step raw gray 2 2",
+        "baseline_sha256": "59885c9d0fa0cfc735a4de873780173b2726ac8a0faa9feaa24206a5934af9bc",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-23.xz"
+      },
+      {
+        "index": 12,
+        "step": "step raw gray 2 1",
+        "baseline_sha256": "58ea26de3b4e307f1033995c11c90b0fcf99da70848f9688b0124f6c8342783e",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-23.xz"
+      },
+      {
+        "index": 13,
+        "step": "step raw gray 2 0",
+        "baseline_sha256": "a98a65fd1f6a931a78bdccbe8a5c4e17180b912c8d577851f2e33cda5becbc70",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-23.xz"
+      },
+      {
+        "index": 14,
+        "step": "step raw strip errors and recovery",
+        "baseline_sha256": "a074dfac8e1c24e071f4f6f1318b60ab064e9792f17f4f56ec7bd7b6849008c4",
+        "prefix_lines": 44,
+        "suffix_lines": 3789,
+        "fragment": "a4-24.xz"
+      },
+      {
+        "index": 15,
+        "step": "step raw sparse overlay",
+        "baseline_sha256": "5dee104412223af849be9c5f281ab71eb572cdc2b83b9f8759ecb58e86b3dd1e",
+        "prefix_lines": 2491,
+        "suffix_lines": 8,
+        "fragment": "a4-08.xz"
+      }
+    ],
+    "a4-uc8279c-single-fail-5": [
+      {
+        "index": 0,
+        "step": "display-trace-v1 controller=uc8279c",
+        "baseline_sha256": "6d5d1369f371f56d503871a55d815fdd20f1350c991648826bcefd658cda7dbe",
+        "prefix_lines": 2,
+        "suffix_lines": 8,
+        "fragment": "a4-01.xz"
+      },
+      {
+        "index": 1,
+        "step": "step raw begin",
+        "baseline_sha256": "ff200d4ed05e9abd67c51ac01e87cf58904da089027291fadc75c3173d783095",
+        "prefix_lines": 44,
+        "suffix_lines": 1255,
+        "fragment": "a4-02.xz"
+      },
+      {
+        "index": 2,
+        "step": "step raw display 0",
+        "baseline_sha256": "207ff2716f937253ca728316973a7b5633daedaf55e9b0bcaa0a868ad3f33879",
+        "prefix_lines": 2483,
+        "suffix_lines": 3735,
+        "fragment": "a4-03.xz"
+      },
+      {
+        "index": 5,
+        "step": "step raw gray 0 2",
+        "baseline_sha256": "3ee96d46c7cbf5f381ccc2b2114285e4419c72ddcd9aefdf9b783d557c250a5c",
+        "prefix_lines": 2492,
+        "suffix_lines": 0,
+        "fragment": "a4-04.xz"
+      },
+      {
+        "index": 6,
+        "step": "step raw gray 0 1",
+        "baseline_sha256": "fd6fbbdcb511ffd198b85dfd8fe6586ed7910dbba3b6599bdb56a47bb7e02a7c",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-05.xz"
+      },
+      {
+        "index": 7,
+        "step": "step raw gray 0 0",
+        "baseline_sha256": "0191f920cc1a2382ffab8018ba89235f3ef01177fbcdc8c75aab46dd47ff9a2e",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-05.xz"
+      },
+      {
+        "index": 8,
+        "step": "step raw gray 1 2",
+        "baseline_sha256": "07d8aeffa409b0b823bb17ff3177c1a4db2cdf378b4e6feb3203a0be9f0a52b2",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 9,
+        "step": "step raw gray 1 1",
+        "baseline_sha256": "5695307143074a4a73a3e983c1ee18c5fa54bdc6aef56a57e8f92e2da6059d72",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 10,
+        "step": "step raw gray 1 0",
+        "baseline_sha256": "bfa6c75d9f967a09ce7b214bd339e4dbf73f2fee402792d316acb560c5b41e69",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 11,
+        "step": "step raw gray 2 2",
+        "baseline_sha256": "f8c421535e53e3fecb24d1f20c81fe574d6e41471df16a341888bcefce5ad0b6",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 12,
+        "step": "step raw gray 2 1",
+        "baseline_sha256": "b8775fa3a587ae3a435d473096cf26c603565bdce6aa53a87d05a5aa308a09e9",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 13,
+        "step": "step raw gray 2 0",
+        "baseline_sha256": "941de37ae04284d5ac16a76daa40f05355365572181d15ce6e833876de7e7986",
+        "prefix_lines": 1,
+        "suffix_lines": 0,
+        "fragment": "a4-06.xz"
+      },
+      {
+        "index": 14,
+        "step": "step raw strip errors and recovery",
+        "baseline_sha256": "a1c2289b83d9ed19fed108b681609b7f65f9a7f723e51163d73a246808ba0d33",
+        "prefix_lines": 44,
+        "suffix_lines": 3789,
+        "fragment": "a4-07.xz"
+      },
+      {
+        "index": 15,
+        "step": "step raw sparse overlay",
+        "baseline_sha256": "5dee104412223af849be9c5f281ab71eb572cdc2b83b9f8759ecb58e86b3dd1e",
+        "prefix_lines": 2491,
+        "suffix_lines": 8,
+        "fragment": "a4-08.xz"
+      }
+    ],
+    "a4-uc8279c-single": [
+      {
+        "index": 1,
+        "step": "step begin",
+        "baseline_sha256": "2576585b3c2e595a8141112e29fbdbb5a5757a81f57055c9e1b2d999cf7882c2",
+        "prefix_lines": 2,
+        "suffix_lines": 1256,
+        "fragment": "a4-25.xz"
+      },
+      {
+        "index": 3,
+        "step": "step display 0",
+        "baseline_sha256": "fa37bd46ce5eb15d369b92db6c759bc1f9a432e01a493bcd7783eeef254f0e58",
+        "prefix_lines": 2483,
+        "suffix_lines": 0,
+        "fragment": "a4-26.xz"
+      },
+      {
+        "index": 5,
+        "step": "step display 1",
+        "baseline_sha256": "7913efd78f49f1b4b63a27fb170323fcadb6f9185613145148d2d4e75256eaaa",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-27.xz"
+      },
+      {
+        "index": 7,
+        "step": "step display 2",
+        "baseline_sha256": "9609df934d0034add2612317340acffd6a08c57bace77390decc454d0bf15fc9",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-28.xz"
+      },
+      {
+        "index": 9,
+        "step": "step trigger 0",
+        "baseline_sha256": "b3d1082e041636afcb8d214dfaf73dcd70b0950ef99fceb0da358bfb6307f5f1",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-29.xz"
+      },
+      {
+        "index": 11,
+        "step": "step trigger 1",
+        "baseline_sha256": "87307132dd157b4a036e26e3f48110b1bbd6a5c1d0d2e7502b0dabf1347636bb",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-29.xz"
+      },
+      {
+        "index": 13,
+        "step": "step trigger 2",
+        "baseline_sha256": "37958e28c44aaf113d76a05b51bbdc2338849312d6ae1fad6289d44f4e4a21aa",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-31.xz"
+      },
+      {
+        "index": 15,
+        "step": "step trigger-async 0",
+        "baseline_sha256": "e9c03d1bd767287887b706ca6f0229d5b60c3fbc8c6b8e2edecbfa1f46257b00",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-29.xz"
+      },
+      {
+        "index": 17,
+        "step": "step trigger-async 1",
+        "baseline_sha256": "92c43dc8282c03ddaec3a7a1ae1209d2683522037c100fcb685b3ce7f5c6c387",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-29.xz"
+      },
+      {
+        "index": 19,
+        "step": "step trigger-async 2",
+        "baseline_sha256": "f916cf1df039433a7e4999964c5fecf9864cb1001496aac1cedfea98bc33c60f",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-31.xz"
+      },
+      {
+        "index": 22,
+        "step": "step async 2",
+        "baseline_sha256": "1a8a790114e49307afc6095d03f2e0a3a2df285e5f9d244fde8c9edcb322eede",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-31.xz"
+      },
+      {
+        "index": 25,
+        "step": "step async 2",
+        "baseline_sha256": "c3c0ada8f49ce96a0b39920d79e91abb7db689453e7e826a8195ed39b16a693f",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-28.xz"
+      },
+      {
+        "index": 27,
+        "step": "step async-no-shadow 2",
+        "baseline_sha256": "e1ca97b2d67038807a7caddb2e45457aaa7bb5aed6de751e19cf610c62c4b9f7",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-28.xz"
+      },
+      {
+        "index": 31,
+        "step": "step window 0",
+        "baseline_sha256": "07b8c42ab45defda39350b6d3190f029a96e7e6a4cefdcf3b54ebf0f157289a8",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-31.xz"
+      },
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "0d14e65eaca9ce9232e3512091437d66445555dfd8f7249564b152c95f32acd9",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-28.xz"
+      },
+      {
+        "index": 36,
+        "step": "step display 2",
+        "baseline_sha256": "5b4ae2aaf70cf18291e2ee56b3e5acd845cf372ca47ccb1f82dfc3f6f5624d8a",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-31.xz"
+      },
+      {
+        "index": 40,
+        "step": "step gray-show",
+        "baseline_sha256": "a58f1d209ab98299594308975a31e1da39e3a943292a95506060cb1ba99b150e",
+        "prefix_lines": 2,
+        "suffix_lines": 4,
+        "fragment": "a4-32.xz"
+      },
+      {
+        "index": 45,
+        "step": "step gray-show",
+        "baseline_sha256": "d6d5cc5087df610227f7516299244ce26d185fd8808506af41988c28af5ffa8f",
+        "prefix_lines": 4,
+        "suffix_lines": 4,
+        "fragment": "a4-33.xz"
+      },
+      {
+        "index": 49,
+        "step": "step gray-show",
+        "baseline_sha256": "ddc23ff3366e29a0416f05e10cf50687c87c37150a529a2497738f913ca26095",
+        "prefix_lines": 28,
+        "suffix_lines": 4,
+        "fragment": "a4-34.xz"
+      },
+      {
+        "index": 53,
+        "step": "step gray-show",
+        "baseline_sha256": "ddc23ff3366e29a0416f05e10cf50687c87c37150a529a2497738f913ca26095",
+        "prefix_lines": 28,
+        "suffix_lines": 4,
+        "fragment": "a4-34.xz"
+      },
+      {
+        "index": 57,
+        "step": "step display 2",
+        "baseline_sha256": "93a87780bb6a883724608774306293e22b9e7067d67e386f74219bc8550da7da",
+        "prefix_lines": 44,
+        "suffix_lines": 0,
+        "fragment": "a4-35.xz"
+      },
+      {
+        "index": 59,
+        "step": "step window 0",
+        "baseline_sha256": "ac3aff160375c0f37466c0cae5a828eb9a89580e1519b5437dc83e2ce2683691",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-28.xz"
+      },
+      {
+        "index": 61,
+        "step": "step window 1",
+        "baseline_sha256": "7e0a81bce6a137fb3cc6bb14b268f702f28345c4768a4d3d3bc6bc6f67eb0d17",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-31.xz"
+      },
+      {
+        "index": 63,
+        "step": "step display 2",
+        "baseline_sha256": "5ba07e48165ba05684238954d90f8729417eafbe89b58248e9d016d7cf48fef6",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-30.xz"
+      },
+      {
+        "index": 65,
+        "step": "step async 2",
+        "baseline_sha256": "c3c0ada8f49ce96a0b39920d79e91abb7db689453e7e826a8195ed39b16a693f",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-28.xz"
+      },
+      {
+        "index": 69,
+        "step": "step display 2",
+        "baseline_sha256": "9609df934d0034add2612317340acffd6a08c57bace77390decc454d0bf15fc9",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-28.xz"
+      },
+      {
+        "index": 73,
+        "step": "step display 2",
+        "baseline_sha256": "5b4ae2aaf70cf18291e2ee56b3e5acd845cf372ca47ccb1f82dfc3f6f5624d8a",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-31.xz"
+      },
+      {
+        "index": 75,
+        "step": "step async 2",
+        "baseline_sha256": "1a8a790114e49307afc6095d03f2e0a3a2df285e5f9d244fde8c9edcb322eede",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-31.xz"
+      },
+      {
+        "index": 79,
+        "step": "step display 1",
+        "baseline_sha256": "2864e3ee1b7ca76f0b9d46b550f6ba32c9db10e467e4e2ef0480e11030d707f0",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-29.xz"
+      },
+      {
+        "index": 81,
+        "step": "step display 2",
+        "baseline_sha256": "0449fe76cc9db80872a08b58d1eb1397faccf083e0a664a8fd336fdd1b75b9f8",
+        "prefix_lines": 2,
+        "suffix_lines": 0,
+        "fragment": "a4-36.xz"
+      },
+      {
+        "index": 83,
+        "step": "step display-off 2",
+        "baseline_sha256": "c3e008e2dd41117d5c467697097d55c4c01aef687e8c1f583832e5adaf5e1132",
+        "prefix_lines": 2,
+        "suffix_lines": 2489,
+        "fragment": "a4-37.xz"
+      },
+      {
+        "index": 85,
+        "step": "step wake",
+        "baseline_sha256": "b21458c9da1806647a349517b7cdba1f60995471f5c9c1a0e40878da6d504138",
+        "prefix_lines": 1,
+        "suffix_lines": 1256,
+        "fragment": "a4-25.xz"
+      },
+      {
+        "index": 87,
+        "step": "step display 0",
+        "baseline_sha256": "6a1bded9c8b8946d372cb26bbdf4443220275dd978de5b80c2a6de9284e50a70",
+        "prefix_lines": 2483,
+        "suffix_lines": 0,
+        "fragment": "a4-38.xz"
+      }
+    ],
+    "picco-fail--1": [
+      {
+        "index": 1,
+        "step": "step begin-failure--1",
+        "baseline_sha256": "31eac15654603cfc9c95fbd27b74ee1a482569fd83827d3f8301cfe1fdaedec8",
+        "prefix_lines": 405,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-01.xz"
+      },
+      {
+        "index": 2,
+        "step": "step recover",
+        "baseline_sha256": "f74bfdf7f84edf5320a4f96e17b74646ea625bc098197d045a88fbc78d534c79",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 3,
+        "step": "step gray-without-planes",
+        "baseline_sha256": "0de2384d660e74ef4bdd19346fc09549846f9a2147bb1edfbac1702997515acf",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-03.xz"
+      },
+      {
+        "index": 4,
+        "step": "step partial-gray",
+        "baseline_sha256": "e768d5e625d58b8a35110b87bc4b9b286710a3566d92183ca519e8d2d962505d",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-04.xz"
+      },
+      {
+        "index": 5,
+        "step": "step cancel-gray",
+        "baseline_sha256": "d996ae47598e79376c1add8ecf115d2f9fcffde7826affaf2a2be9a5703a83e9",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-04.xz"
+      },
+      {
+        "index": 6,
+        "step": "step complete-gray",
+        "baseline_sha256": "08a74a6bd98e0f135046886c9d8a4c87bb6b260d91a7f3d38514f2febb5dec52",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-04.xz"
+      },
+      {
+        "index": 7,
+        "step": "step stale-gray-new-work",
+        "baseline_sha256": "b0fe1c01d1ab0eabe45c54b9ecccba42b273b16eaea92bc88a262f82953560fe",
+        "prefix_lines": 215,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 8,
+        "step": "step window-and-idle",
+        "baseline_sha256": "8ea3c2d8410ef380dc50dd9b864336066c268ffe390c186dc1f9e02155b89c18",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-05.xz"
+      }
+    ],
+    "picco-fail-0": [
+      {
+        "index": 1,
+        "step": "step begin-failure-0",
+        "baseline_sha256": "775a129a0ec3bb7463ea695d184e55e0259b5381491d27d4db182ea21a0c30bf",
+        "prefix_lines": 405,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-01.xz"
+      },
+      {
+        "index": 2,
+        "step": "step recover",
+        "baseline_sha256": "b019af68490533f7f4b6674e1cb16ee9cf8cc09c2a0594126be80829c68164aa",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 3,
+        "step": "step gray-without-planes",
+        "baseline_sha256": "f67fb064a05ae3f99e88d33f77e1a4979287dc915041dd2bc90be4589123ecb3",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-06.xz"
+      },
+      {
+        "index": 4,
+        "step": "step partial-gray",
+        "baseline_sha256": "de59b17d3f962e68ce99fc4a3bc1b01ece76cceef12d83192d48272ce09a16ee",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-07.xz"
+      },
+      {
+        "index": 5,
+        "step": "step cancel-gray",
+        "baseline_sha256": "5fff7fc61e3cc895f5c6055cdf4279295b8d7a2521e5b026288ad8758a68420d",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-08.xz"
+      },
+      {
+        "index": 6,
+        "step": "step complete-gray",
+        "baseline_sha256": "b24ac7f0645f8a6ef2cdf0bf4f4a6d334adc3afaf3c10f0825ef8739b410f370",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-09.xz"
+      },
+      {
+        "index": 7,
+        "step": "step stale-gray-new-work",
+        "baseline_sha256": "6a6ecb7ee934520f18d5be2d6b5b391f62bd2b04f3a287252e5951b42fc26cc6",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 8,
+        "step": "step window-and-idle",
+        "baseline_sha256": "25b46759874d63d2bb2209ae106e407d8b0f70605be4ece6cc112d85d3ad4f46",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-10.xz"
+      }
+    ],
+    "picco-fail-1": [
+      {
+        "index": 1,
+        "step": "step begin-failure-1",
+        "baseline_sha256": "aca6a9aa1e9754936fa4d8d882efe25d0c074e28f112dad6176567b4f61bc814",
+        "prefix_lines": 405,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-01.xz"
+      },
+      {
+        "index": 2,
+        "step": "step recover",
+        "baseline_sha256": "f74bfdf7f84edf5320a4f96e17b74646ea625bc098197d045a88fbc78d534c79",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 3,
+        "step": "step gray-without-planes",
+        "baseline_sha256": "0de2384d660e74ef4bdd19346fc09549846f9a2147bb1edfbac1702997515acf",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-03.xz"
+      },
+      {
+        "index": 4,
+        "step": "step partial-gray",
+        "baseline_sha256": "45a3a78c92e326ffb7bb6016fa72f41135105808e16b0d64b7d4d01c2402bfd7",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-07.xz"
+      },
+      {
+        "index": 5,
+        "step": "step cancel-gray",
+        "baseline_sha256": "cda45594b2a6e85ac77918a03c888512b1010ac24d5e144c2169fbbf52040652",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-08.xz"
+      },
+      {
+        "index": 6,
+        "step": "step complete-gray",
+        "baseline_sha256": "857958a9102cf14bb17536cf3c7e3dd8b69514e840c5bad809d8d71f59a2ce9d",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-09.xz"
+      },
+      {
+        "index": 7,
+        "step": "step stale-gray-new-work",
+        "baseline_sha256": "6a6ecb7ee934520f18d5be2d6b5b391f62bd2b04f3a287252e5951b42fc26cc6",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 8,
+        "step": "step window-and-idle",
+        "baseline_sha256": "8ea3c2d8410ef380dc50dd9b864336066c268ffe390c186dc1f9e02155b89c18",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-05.xz"
+      }
+    ],
+    "picco-fail-2": [
+      {
+        "index": 1,
+        "step": "step begin-failure-2",
+        "baseline_sha256": "8605b2e0916f284fa0b5a9f50cc413a36a93ff730fc90a8d4f1652d035cde340",
+        "prefix_lines": 405,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-01.xz"
+      },
+      {
+        "index": 2,
+        "step": "step recover",
+        "baseline_sha256": "b019af68490533f7f4b6674e1cb16ee9cf8cc09c2a0594126be80829c68164aa",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 3,
+        "step": "step gray-without-planes",
+        "baseline_sha256": "f67fb064a05ae3f99e88d33f77e1a4979287dc915041dd2bc90be4589123ecb3",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-06.xz"
+      },
+      {
+        "index": 4,
+        "step": "step partial-gray",
+        "baseline_sha256": "79ddfe37827e5d22ed822d34b29a5e5dc1eed893d4dd37c95d2987379557ea18",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-11.xz"
+      },
+      {
+        "index": 5,
+        "step": "step cancel-gray",
+        "baseline_sha256": "2b3ff9abf594ecc2f4302760eb3820f133e18737b9b18213eb66a8dab933e5cc",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-07.xz"
+      },
+      {
+        "index": 6,
+        "step": "step complete-gray",
+        "baseline_sha256": "b24ac7f0645f8a6ef2cdf0bf4f4a6d334adc3afaf3c10f0825ef8739b410f370",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-09.xz"
+      },
+      {
+        "index": 7,
+        "step": "step stale-gray-new-work",
+        "baseline_sha256": "6a6ecb7ee934520f18d5be2d6b5b391f62bd2b04f3a287252e5951b42fc26cc6",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 8,
+        "step": "step window-and-idle",
+        "baseline_sha256": "25b46759874d63d2bb2209ae106e407d8b0f70605be4ece6cc112d85d3ad4f46",
+        "prefix_lines": 214,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-10.xz"
+      }
+    ],
+    "picco-ssd2677-dual": [
+      {
+        "index": 3,
+        "step": "step display 0",
+        "baseline_sha256": "3d953680aa9d6e2b49747e0df88c2c4ad3242332fb180698d32005b3658ff651",
+        "prefix_lines": 243,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-01.xz"
+      },
+      {
+        "index": 5,
+        "step": "step display 1",
+        "baseline_sha256": "033fec9c09a1e50246ab965fef2e75ae8ea66e6c9e3a3236c3e279be5666ff71",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 7,
+        "step": "step display 2",
+        "baseline_sha256": "b46c542e96fdd40d88cb228bc7ccc6a8d44d99a5e7898e57700eba01a62c3691",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 9,
+        "step": "step trigger 0",
+        "baseline_sha256": "332c2b99589b4465324ff4df03e91e6688eac4d3b522a48c1d21c77129d8837f",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 11,
+        "step": "step trigger 1",
+        "baseline_sha256": "05cc9c1d5e20fd30564fac32983a33bc37766737c21808ccb4d11bdbe2cea62f",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 13,
+        "step": "step trigger 2",
+        "baseline_sha256": "de40c5631e3f80b15d120d7df705d7116a4dbdb5480193dca334091f1a6c4283",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 15,
+        "step": "step trigger-async 0",
+        "baseline_sha256": "a6362135066a90c16374d586ed79cdb487a5650442585b6e56fb0438fc42943a",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 17,
+        "step": "step trigger-async 1",
+        "baseline_sha256": "28ab68770b2807e23ed90564f16cde345ca78f138c10d65a11dc59939640fc8e",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 19,
+        "step": "step trigger-async 2",
+        "baseline_sha256": "b1bf4ac9aeed08dec70cc8c4f0d83f12e0782e70d18e7ecb988baf7e66f5d16a",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 22,
+        "step": "step async 2",
+        "baseline_sha256": "ba55e6e3a71b08169ad61733117afcb8a0fb48bdcc99b5c6a812de633a0bba9c",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 25,
+        "step": "step async 2",
+        "baseline_sha256": "9da1a77a415e8c2954c615f1327156a7aeeb76bd2ec9337b9710b6e770a9b4af",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 27,
+        "step": "step async-no-shadow 2",
+        "baseline_sha256": "f56be96f8cc0c6045c793874db8b6bde84dbdb48ba7562d7f3285325dccde52f",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 31,
+        "step": "step window 0",
+        "baseline_sha256": "b71396d973cc7dd51d4faa61abaf6b12b9037a5259297ec9fdd63f242df58fa7",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "669936f2c4ea2eda1b398dff7f2df658cfa11d93277894427f91a95bcbf51716",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 36,
+        "step": "step display 2",
+        "baseline_sha256": "3cb74ae4be4d447814ec85055ece2a81007df50ffffdb19d5396f3854721b011",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 37,
+        "step": "step gray-base 0",
+        "baseline_sha256": "ba280cc1139078a11cb006f33f954176c499f6057c836f5493446d2225c2b3e6",
+        "prefix_lines": 215,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 40,
+        "step": "step gray-show",
+        "baseline_sha256": "a292f879b5de95608a5225e6649b27f880339965c04d498d36679e3b40a5ee0e",
+        "prefix_lines": 16,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 43,
+        "step": "step gray-base 0",
+        "baseline_sha256": "f595219710e7ee2cedaafb70edf4e142c46161c50fd6cc8a74f167ceed43e69d",
+        "prefix_lines": 215,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 45,
+        "step": "step gray-show",
+        "baseline_sha256": "a292f879b5de95608a5225e6649b27f880339965c04d498d36679e3b40a5ee0e",
+        "prefix_lines": 16,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 49,
+        "step": "step gray-show",
+        "baseline_sha256": "a292f879b5de95608a5225e6649b27f880339965c04d498d36679e3b40a5ee0e",
+        "prefix_lines": 16,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 53,
+        "step": "step gray-show",
+        "baseline_sha256": "a292f879b5de95608a5225e6649b27f880339965c04d498d36679e3b40a5ee0e",
+        "prefix_lines": 16,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 57,
+        "step": "step display 2",
+        "baseline_sha256": "c3b7c8bba1ef79f277638df8b5b51fa400e35322e7ab648264b9a52815839edb",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 59,
+        "step": "step window 0",
+        "baseline_sha256": "9ba13ab7538c4ac56f22b64fac938d59db0fed0e3ac224e73cdec4a57e4ed9cd",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 61,
+        "step": "step window 1",
+        "baseline_sha256": "6baf93b67f775e1026cb3c5f4d05bf6151b126a57dd7be145e9b6f7ac3573ab0",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 63,
+        "step": "step display 2",
+        "baseline_sha256": "6094b6af265894ad0b311e731a1ed842a3881385a0729e6fb0a5a4a8f464c63d",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 65,
+        "step": "step async 2",
+        "baseline_sha256": "9da1a77a415e8c2954c615f1327156a7aeeb76bd2ec9337b9710b6e770a9b4af",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 69,
+        "step": "step display 2",
+        "baseline_sha256": "610797f953cf9d13f349577390c7907b2af2eb8c632bb23544bbfbd656572b02",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 73,
+        "step": "step display 2",
+        "baseline_sha256": "3cb74ae4be4d447814ec85055ece2a81007df50ffffdb19d5396f3854721b011",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 75,
+        "step": "step async 2",
+        "baseline_sha256": "3037d602af654e6a0a283bfd0326138a6ca3fcfa14da9bba9ff43cb07077506c",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 79,
+        "step": "step display 1",
+        "baseline_sha256": "661daf6feaca5c67ba7c04d2b5b950163f58d98391fc9da73bc5fb78dfc30840",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 81,
+        "step": "step display 2",
+        "baseline_sha256": "c5bb5ca8de744e81ef7c96f3e41919a2e5dd02240f58d9e589f962b951776dda",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 83,
+        "step": "step display-off 2",
+        "baseline_sha256": "038c00b340f1f1f070510c64341b51f98a5b857419d36317bdf7f18a8b61baaa",
+        "prefix_lines": 214,
+        "suffix_lines": 35,
+        "fragment": "ssd2677-12.xz"
+      },
+      {
+        "index": 87,
+        "step": "step display 0",
+        "baseline_sha256": "6bd9fc1c7ad35ec571e0bca1a87a85259f311474157bd6ee7f6caa9a11c22839",
+        "prefix_lines": 243,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-01.xz"
+      }
+    ],
+    "picco-ssd2677-single": [
+      {
+        "index": 3,
+        "step": "step display 0",
+        "baseline_sha256": "3d953680aa9d6e2b49747e0df88c2c4ad3242332fb180698d32005b3658ff651",
+        "prefix_lines": 243,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-01.xz"
+      },
+      {
+        "index": 5,
+        "step": "step display 1",
+        "baseline_sha256": "033fec9c09a1e50246ab965fef2e75ae8ea66e6c9e3a3236c3e279be5666ff71",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 7,
+        "step": "step display 2",
+        "baseline_sha256": "b46c542e96fdd40d88cb228bc7ccc6a8d44d99a5e7898e57700eba01a62c3691",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 9,
+        "step": "step trigger 0",
+        "baseline_sha256": "332c2b99589b4465324ff4df03e91e6688eac4d3b522a48c1d21c77129d8837f",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 11,
+        "step": "step trigger 1",
+        "baseline_sha256": "fe715dfdfc49cddad694d040806767029cde8debfed1f1bfc044586ae8844be2",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 13,
+        "step": "step trigger 2",
+        "baseline_sha256": "8d2474d2f0e1d68af67459c89c6ac0d02167f6fba8a78e3b3764185633d382f0",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 15,
+        "step": "step trigger-async 0",
+        "baseline_sha256": "71cffa3c8b5c472e3cf06c9eef42dbdde8e30e92c58ed8349fd7107c9555dec8",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 17,
+        "step": "step trigger-async 1",
+        "baseline_sha256": "001db44ba7a067ef2723b6055a8f8a98af3325ca793ad7b3684bae5a28498810",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 19,
+        "step": "step trigger-async 2",
+        "baseline_sha256": "1f2d10e5b47c02d76fd866d6af9a805466650db5423a463e857f8bcde8ec009b",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 22,
+        "step": "step async 2",
+        "baseline_sha256": "3037d602af654e6a0a283bfd0326138a6ca3fcfa14da9bba9ff43cb07077506c",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 25,
+        "step": "step async 2",
+        "baseline_sha256": "9da1a77a415e8c2954c615f1327156a7aeeb76bd2ec9337b9710b6e770a9b4af",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 27,
+        "step": "step async-no-shadow 2",
+        "baseline_sha256": "f6fe89426658481992d9e0a7c6d7b1a49eb70a5ce55d77313d9fa8384fcd3eed",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 31,
+        "step": "step window 0",
+        "baseline_sha256": "938a1ebe91266ac0ebff9bafff8a0698df2e6eab648d2ef1e0756499d9e71304",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "669936f2c4ea2eda1b398dff7f2df658cfa11d93277894427f91a95bcbf51716",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 36,
+        "step": "step display 2",
+        "baseline_sha256": "3cb74ae4be4d447814ec85055ece2a81007df50ffffdb19d5396f3854721b011",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 37,
+        "step": "step gray-base 0",
+        "baseline_sha256": "ba280cc1139078a11cb006f33f954176c499f6057c836f5493446d2225c2b3e6",
+        "prefix_lines": 215,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 40,
+        "step": "step gray-show",
+        "baseline_sha256": "a292f879b5de95608a5225e6649b27f880339965c04d498d36679e3b40a5ee0e",
+        "prefix_lines": 16,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 43,
+        "step": "step gray-base 0",
+        "baseline_sha256": "f595219710e7ee2cedaafb70edf4e142c46161c50fd6cc8a74f167ceed43e69d",
+        "prefix_lines": 215,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 45,
+        "step": "step gray-show",
+        "baseline_sha256": "a292f879b5de95608a5225e6649b27f880339965c04d498d36679e3b40a5ee0e",
+        "prefix_lines": 16,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 49,
+        "step": "step gray-show",
+        "baseline_sha256": "a292f879b5de95608a5225e6649b27f880339965c04d498d36679e3b40a5ee0e",
+        "prefix_lines": 16,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 53,
+        "step": "step gray-show",
+        "baseline_sha256": "a292f879b5de95608a5225e6649b27f880339965c04d498d36679e3b40a5ee0e",
+        "prefix_lines": 16,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 57,
+        "step": "step display 2",
+        "baseline_sha256": "c3b7c8bba1ef79f277638df8b5b51fa400e35322e7ab648264b9a52815839edb",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 59,
+        "step": "step window 0",
+        "baseline_sha256": "9ba13ab7538c4ac56f22b64fac938d59db0fed0e3ac224e73cdec4a57e4ed9cd",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 61,
+        "step": "step window 1",
+        "baseline_sha256": "6baf93b67f775e1026cb3c5f4d05bf6151b126a57dd7be145e9b6f7ac3573ab0",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 63,
+        "step": "step display 2",
+        "baseline_sha256": "e59eee56b4179b5754c8512b5546b84e67bdc7757f873fe988887758ae8bb218",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 65,
+        "step": "step async 2",
+        "baseline_sha256": "bf338c241eca87c1454f08365bc519d314a96befa373d30fef33c626b8a3c753",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 69,
+        "step": "step display 2",
+        "baseline_sha256": "610797f953cf9d13f349577390c7907b2af2eb8c632bb23544bbfbd656572b02",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 73,
+        "step": "step display 2",
+        "baseline_sha256": "3cb74ae4be4d447814ec85055ece2a81007df50ffffdb19d5396f3854721b011",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 75,
+        "step": "step async 2",
+        "baseline_sha256": "3037d602af654e6a0a283bfd0326138a6ca3fcfa14da9bba9ff43cb07077506c",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 79,
+        "step": "step display 1",
+        "baseline_sha256": "661daf6feaca5c67ba7c04d2b5b950163f58d98391fc9da73bc5fb78dfc30840",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 81,
+        "step": "step display 2",
+        "baseline_sha256": "c5bb5ca8de744e81ef7c96f3e41919a2e5dd02240f58d9e589f962b951776dda",
+        "prefix_lines": 214,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-02.xz"
+      },
+      {
+        "index": 83,
+        "step": "step display-off 2",
+        "baseline_sha256": "818d2b7fde1f345419ee8983c024a6be11d2e067a720a26ff4c7aa0c16babe6a",
+        "prefix_lines": 214,
+        "suffix_lines": 35,
+        "fragment": "ssd2677-12.xz"
+      },
+      {
+        "index": 87,
+        "step": "step display 0",
+        "baseline_sha256": "6bd9fc1c7ad35ec571e0bca1a87a85259f311474157bd6ee7f6caa9a11c22839",
+        "prefix_lines": 243,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-01.xz"
+      }
+    ],
+    "sticky-fail--1": [
+      {
+        "index": 1,
+        "step": "step begin-failure--1",
+        "baseline_sha256": "fb3648a421cd0e3cdd142dc2a3b00a8c3bf5a6b39cc410a04d6fc395f7b1b13d",
+        "prefix_lines": 5,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-13.xz"
+      },
+      {
+        "index": 2,
+        "step": "step recover",
+        "baseline_sha256": "1e9e6f1b49099408b719d36d4f980cb44cd50f613f6c634ce85f0c9e789e4468",
+        "prefix_lines": 31,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-14.xz"
+      },
+      {
+        "index": 3,
+        "step": "step gray-without-planes",
+        "baseline_sha256": "92b4888901b4c2c9007566a37fbbdb225cdddee27b156d4e71f46949ca004643",
+        "prefix_lines": 31,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-14.xz"
+      },
+      {
+        "index": 4,
+        "step": "step partial-gray",
+        "baseline_sha256": "512bf0439d5796dd64ac0746ee709aa4d77539865a5a38611da23cdca09e8c33",
+        "prefix_lines": 31,
+        "suffix_lines": 2,
+        "fragment": "ssd2677-14.xz"
+      },
+      {
+        "index": 5,
+        "step": "step cancel-gray",
+        "baseline_sha256": "ddc11016e6aa8c30917cc9f775416e976338c6052952abc9c58be14e68080823",
+        "prefix_lines": 31,
+        "suffix_lines": 2,
+        "fragment": "ssd2677-14.xz"
+      },
+      {
+        "index": 6,
+        "step": "step complete-gray",
+        "baseline_sha256": "2125d1a102c50758da2d1f2a8da63d9d14dee3416a2b73f8c89c7b82103f0dae",
+        "prefix_lines": 31,
+        "suffix_lines": 2,
+        "fragment": "ssd2677-14.xz"
+      },
+      {
+        "index": 8,
+        "step": "step window-and-idle",
+        "baseline_sha256": "fdb6d83f97b1339e6a520619065de2bbc20ab09a2b20ce6cd03a84d6b4d214ab",
+        "prefix_lines": 31,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-15.xz"
+      },
+      {
+        "index": 9,
+        "step": "step sleep-wake",
+        "baseline_sha256": "58818513c9266c19f6ab15db02053b2a708df3cad5568ee91e71a76625917af0",
+        "prefix_lines": 4,
+        "suffix_lines": 2,
+        "fragment": "ssd2677-16.xz"
+      }
+    ],
+    "sticky-fail-0": [
+      {
+        "index": 1,
+        "step": "step begin-failure-0",
+        "baseline_sha256": "fb4e398fc00a659f13b71130ce841f8794b755bbe8bc1d5ba5e3d0f849fb654f",
+        "prefix_lines": 5,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-17.xz"
+      },
+      {
+        "index": 2,
+        "step": "step recover",
+        "baseline_sha256": "1e9e6f1b49099408b719d36d4f980cb44cd50f613f6c634ce85f0c9e789e4468",
+        "prefix_lines": 31,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-14.xz"
+      },
+      {
+        "index": 3,
+        "step": "step gray-without-planes",
+        "baseline_sha256": "92b4888901b4c2c9007566a37fbbdb225cdddee27b156d4e71f46949ca004643",
+        "prefix_lines": 31,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-14.xz"
+      },
+      {
+        "index": 4,
+        "step": "step partial-gray",
+        "baseline_sha256": "32b88041ac817137bf0e36cc2b1f7f2a96a182cf4df84c43872174464dcc2021",
+        "prefix_lines": 31,
+        "suffix_lines": 9,
+        "fragment": "ssd2677-18.xz"
+      },
+      {
+        "index": 5,
+        "step": "step cancel-gray",
+        "baseline_sha256": "2da9835d74f4bf9911fe339161e5b0fdda92838cf71809e78fb5e32b58bfaf31",
+        "prefix_lines": 5,
+        "suffix_lines": 9,
+        "fragment": "ssd2677-19.xz"
+      },
+      {
+        "index": 6,
+        "step": "step complete-gray",
+        "baseline_sha256": "99e85379dd75ff35cc2142a2a418f8b12799ae089734fcf7a0926628a61d5807",
+        "prefix_lines": 5,
+        "suffix_lines": 9,
+        "fragment": "ssd2677-20.xz"
+      },
+      {
+        "index": 7,
+        "step": "step stale-gray-new-work",
+        "baseline_sha256": "b333710491f69dab5a22b6a3fc8d4064e8ed9e044f271fa42bd969be4c9d22c4",
+        "prefix_lines": 5,
+        "suffix_lines": 9,
+        "fragment": "ssd2677-21.xz"
+      },
+      {
+        "index": 8,
+        "step": "step window-and-idle",
+        "baseline_sha256": "8b4098bff9e7318e76d18bc45b26b08b27967c6e9bce97a9b90b0b0de5e74439",
+        "prefix_lines": 5,
+        "suffix_lines": 9,
+        "fragment": "ssd2677-22.xz"
+      },
+      {
+        "index": 9,
+        "step": "step sleep-wake",
+        "baseline_sha256": "4672dc7deecdf202591b435c3b61c1df41d68759abfcecc4d46bb86c76233953",
+        "prefix_lines": 13,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-23.xz"
+      }
+    ],
+    "sticky-fail-1": [
+      {
+        "index": 1,
+        "step": "step begin-failure-1",
+        "baseline_sha256": "77a5d8a79f0306fe3a473ee4f5d86128aded4fc7f9f4829117de7bd7b7677802",
+        "prefix_lines": 5,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-13.xz"
+      },
+      {
+        "index": 2,
+        "step": "step recover",
+        "baseline_sha256": "1e9e6f1b49099408b719d36d4f980cb44cd50f613f6c634ce85f0c9e789e4468",
+        "prefix_lines": 31,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-14.xz"
+      },
+      {
+        "index": 3,
+        "step": "step gray-without-planes",
+        "baseline_sha256": "92b4888901b4c2c9007566a37fbbdb225cdddee27b156d4e71f46949ca004643",
+        "prefix_lines": 31,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-14.xz"
+      },
+      {
+        "index": 4,
+        "step": "step partial-gray",
+        "baseline_sha256": "32b88041ac817137bf0e36cc2b1f7f2a96a182cf4df84c43872174464dcc2021",
+        "prefix_lines": 31,
+        "suffix_lines": 9,
+        "fragment": "ssd2677-18.xz"
+      },
+      {
+        "index": 5,
+        "step": "step cancel-gray",
+        "baseline_sha256": "2da9835d74f4bf9911fe339161e5b0fdda92838cf71809e78fb5e32b58bfaf31",
+        "prefix_lines": 5,
+        "suffix_lines": 9,
+        "fragment": "ssd2677-19.xz"
+      },
+      {
+        "index": 6,
+        "step": "step complete-gray",
+        "baseline_sha256": "99e85379dd75ff35cc2142a2a418f8b12799ae089734fcf7a0926628a61d5807",
+        "prefix_lines": 5,
+        "suffix_lines": 9,
+        "fragment": "ssd2677-20.xz"
+      },
+      {
+        "index": 7,
+        "step": "step stale-gray-new-work",
+        "baseline_sha256": "b333710491f69dab5a22b6a3fc8d4064e8ed9e044f271fa42bd969be4c9d22c4",
+        "prefix_lines": 5,
+        "suffix_lines": 9,
+        "fragment": "ssd2677-21.xz"
+      },
+      {
+        "index": 8,
+        "step": "step window-and-idle",
+        "baseline_sha256": "483ad774f7eede1c8f6b233d23d193211194cf41c0fc58e9d4a305583ee5abcf",
+        "prefix_lines": 5,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-24.xz"
+      },
+      {
+        "index": 9,
+        "step": "step sleep-wake",
+        "baseline_sha256": "26b2402bb96706438574d4c06004b9ad709f5ed666e5b46778b7eea6ca42eb0b",
+        "prefix_lines": 4,
+        "suffix_lines": 2,
+        "fragment": "ssd2677-16.xz"
+      }
+    ],
+    "sticky-fail-2": [
+      {
+        "index": 1,
+        "step": "step begin-failure-2",
+        "baseline_sha256": "46db8c0a78a8d2b8fb36ed55fc89e5563f3450326b61686cad91f6b2b0632a6e",
+        "prefix_lines": 5,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-17.xz"
+      },
+      {
+        "index": 2,
+        "step": "step recover",
+        "baseline_sha256": "1e9e6f1b49099408b719d36d4f980cb44cd50f613f6c634ce85f0c9e789e4468",
+        "prefix_lines": 31,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-14.xz"
+      },
+      {
+        "index": 3,
+        "step": "step gray-without-planes",
+        "baseline_sha256": "92b4888901b4c2c9007566a37fbbdb225cdddee27b156d4e71f46949ca004643",
+        "prefix_lines": 31,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-14.xz"
+      },
+      {
+        "index": 4,
+        "step": "step partial-gray",
+        "baseline_sha256": "512bf0439d5796dd64ac0746ee709aa4d77539865a5a38611da23cdca09e8c33",
+        "prefix_lines": 31,
+        "suffix_lines": 2,
+        "fragment": "ssd2677-14.xz"
+      },
+      {
+        "index": 5,
+        "step": "step cancel-gray",
+        "baseline_sha256": "429a29f347cae0acb721696df3ee3cbbdf5d7fc55bea3a14fb66fb1fa25ce7bb",
+        "prefix_lines": 31,
+        "suffix_lines": 9,
+        "fragment": "ssd2677-18.xz"
+      },
+      {
+        "index": 6,
+        "step": "step complete-gray",
+        "baseline_sha256": "99e85379dd75ff35cc2142a2a418f8b12799ae089734fcf7a0926628a61d5807",
+        "prefix_lines": 5,
+        "suffix_lines": 9,
+        "fragment": "ssd2677-20.xz"
+      },
+      {
+        "index": 7,
+        "step": "step stale-gray-new-work",
+        "baseline_sha256": "b333710491f69dab5a22b6a3fc8d4064e8ed9e044f271fa42bd969be4c9d22c4",
+        "prefix_lines": 5,
+        "suffix_lines": 9,
+        "fragment": "ssd2677-21.xz"
+      },
+      {
+        "index": 8,
+        "step": "step window-and-idle",
+        "baseline_sha256": "8b4098bff9e7318e76d18bc45b26b08b27967c6e9bce97a9b90b0b0de5e74439",
+        "prefix_lines": 5,
+        "suffix_lines": 9,
+        "fragment": "ssd2677-22.xz"
+      },
+      {
+        "index": 9,
+        "step": "step sleep-wake",
+        "baseline_sha256": "4672dc7deecdf202591b435c3b61c1df41d68759abfcecc4d46bb86c76233953",
+        "prefix_lines": 13,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-23.xz"
+      }
+    ],
+    "sticky-ssd2677-dual": [
+      {
+        "index": 1,
+        "step": "step begin",
+        "baseline_sha256": "fc0584b693b1065fdb872bc7761b128ccf3e64b3470f14809069a24fb76886d0",
+        "prefix_lines": 134,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-25.xz"
+      },
+      {
+        "index": 3,
+        "step": "step display 0",
+        "baseline_sha256": "e67ae810cb8e2c7a7fbf2c4051754c7a74da7e6e977ca2c2267b6d02260e9417",
+        "prefix_lines": 31,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-26.xz"
+      },
+      {
+        "index": 5,
+        "step": "step display 1",
+        "baseline_sha256": "7d2e0cc3c0a1f96a08de1bc9451438799c62745cb9213ed97203004bacf6e8dc",
+        "prefix_lines": 31,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-27.xz"
+      },
+      {
+        "index": 7,
+        "step": "step display 2",
+        "baseline_sha256": "ceb1b4101c6116ffd81fe91e3103ebafb4de696099c9e4b233ab103eb8aa3a9c",
+        "prefix_lines": 5,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-28.xz"
+      },
+      {
+        "index": 9,
+        "step": "step trigger 0",
+        "baseline_sha256": "e238255a777ab0448e68682f4ff718e73c2617b965253c0050b1a91f01c473c8",
+        "prefix_lines": 5,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-29.xz"
+      },
+      {
+        "index": 11,
+        "step": "step trigger 1",
+        "baseline_sha256": "53f07829ad2dc334e1fa669b3b870daa60439802127373bfb213810d053d75b6",
+        "prefix_lines": 31,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-14.xz"
+      },
+      {
+        "index": 13,
+        "step": "step trigger 2",
+        "baseline_sha256": "fe3b9527e94f0d3e3fa27b122c7747c7259cb544bf7ae7141fd0865e6a53d8ea",
+        "prefix_lines": 5,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-30.xz"
+      },
+      {
+        "index": 15,
+        "step": "step trigger-async 0",
+        "baseline_sha256": "d0b1c37b62bc16f6e31be522f479534464418636c5f66de35735cf8aeebe4ac4",
+        "prefix_lines": 5,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-31.xz"
+      },
+      {
+        "index": 17,
+        "step": "step trigger-async 1",
+        "baseline_sha256": "42a813f0c6b99f16ebfcbfe1926d6f604248e788b20cc20c728a6fe32ad027ce",
+        "prefix_lines": 31,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-32.xz"
+      },
+      {
+        "index": 19,
+        "step": "step trigger-async 2",
+        "baseline_sha256": "1b93daa14aa530c7d2e372981db427edd2a5020fd35865f978b90e6c59a07145",
+        "prefix_lines": 5,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-33.xz"
+      },
+      {
+        "index": 22,
+        "step": "step async 2",
+        "baseline_sha256": "9b8edb09e55593ae84bbb97931e8da9371a3b86fd07522be3c444ae589fbea3a",
+        "prefix_lines": 31,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-34.xz"
+      },
+      {
+        "index": 25,
+        "step": "step async 2",
+        "baseline_sha256": "9920dc53920824a9a78cf3321038a5b79bdf3b6bf2f90258291fa1dc5f21dbd4",
+        "prefix_lines": 31,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-35.xz"
+      },
+      {
+        "index": 27,
+        "step": "step async-no-shadow 2",
+        "baseline_sha256": "ad05dacfb6b3be947883fecebf1f53705378104015780bf815d319544e08c8cf",
+        "prefix_lines": 31,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-34.xz"
+      },
+      {
+        "index": 31,
+        "step": "step window 0",
+        "baseline_sha256": "ca093791a295d69d762fccce72169270916eee11770f081babc233fecf10f410",
+        "prefix_lines": 31,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-36.xz"
+      },
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "fe2a3ab8f67ed991f76bca8f87c2fd91da4e1b084208a1c4fb8a588cdd3e87f5",
+        "prefix_lines": 31,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-35.xz"
+      },
+      {
+        "index": 36,
+        "step": "step display 2",
+        "baseline_sha256": "059fa1de79f013653298bc2abd6ca8918f7354f5267259ddf5f9cc4fbe98a084",
+        "prefix_lines": 31,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-34.xz"
+      },
+      {
+        "index": 37,
+        "step": "step gray-base 0",
+        "baseline_sha256": "2a9509df52ec8875cc83a05fa815d6f11800006b1495914e076f09c4c64cbf48",
+        "prefix_lines": 6,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-29.xz"
+      },
+      {
+        "index": 39,
+        "step": "step gray-full",
+        "baseline_sha256": "1f939c9fdd514d3458912cd04d9668f2a58cdf3ea1e0cf1799a08150fc21e0af",
+        "prefix_lines": 5,
+        "suffix_lines": 198,
+        "fragment": "ssd2677-25.xz"
+      },
+      {
+        "index": 40,
+        "step": "step gray-show",
+        "baseline_sha256": "09adb73c0b2c1a0c864a881ee10c4491d36664b413b7f77780c88af7c5c120ef",
+        "prefix_lines": 19,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-37.xz"
+      },
+      {
+        "index": 43,
+        "step": "step gray-base 0",
+        "baseline_sha256": "081a691918caa1741f02cf2bc0bd3dcf88f9cc336beae9f610d594331129c51d",
+        "prefix_lines": 6,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-31.xz"
+      },
+      {
+        "index": 45,
+        "step": "step gray-show",
+        "baseline_sha256": "09adb73c0b2c1a0c864a881ee10c4491d36664b413b7f77780c88af7c5c120ef",
+        "prefix_lines": 19,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-37.xz"
+      },
+      {
+        "index": 48,
+        "step": "step gray-full",
+        "baseline_sha256": "b6ac95468d9f01cd2210c277de75e00e75e5b4597ddb7cde638e85f9f10fd7a9",
+        "prefix_lines": 5,
+        "suffix_lines": 199,
+        "fragment": "ssd2677-38.xz"
+      },
+      {
+        "index": 49,
+        "step": "step gray-show",
+        "baseline_sha256": "857f0e507f9bf38efb3d6d4bb5372e7a417ea73591c788007989e7802a6ade93",
+        "prefix_lines": 7,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-39.xz"
+      },
+      {
+        "index": 53,
+        "step": "step gray-show",
+        "baseline_sha256": "857f0e507f9bf38efb3d6d4bb5372e7a417ea73591c788007989e7802a6ade93",
+        "prefix_lines": 7,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-39.xz"
+      },
+      {
+        "index": 57,
+        "step": "step display 2",
+        "baseline_sha256": "c7f1ce549243c15e3732524be66ee15a252057448e3f303d92dd17a19c30b613",
+        "prefix_lines": 5,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-29.xz"
+      },
+      {
+        "index": 59,
+        "step": "step window 0",
+        "baseline_sha256": "75ba59bad93170c8aa4650d7902cc3f2b9346e05f9763ec25628cf44a9de5d25",
+        "prefix_lines": 5,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-33.xz"
+      },
+      {
+        "index": 61,
+        "step": "step window 1",
+        "baseline_sha256": "2562394243ac75769db5fdf93afa222b11c0f00f8287f594cfffe260ee319f2e",
+        "prefix_lines": 31,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-34.xz"
+      },
+      {
+        "index": 63,
+        "step": "step display 2",
+        "baseline_sha256": "c7f1ce549243c15e3732524be66ee15a252057448e3f303d92dd17a19c30b613",
+        "prefix_lines": 5,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-29.xz"
+      },
+      {
+        "index": 65,
+        "step": "step async 2",
+        "baseline_sha256": "a15155062d85a1deafb103a0a2dbfaa26d2ace4e6be116e2e7261ab76fe28e2a",
+        "prefix_lines": 5,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-33.xz"
+      },
+      {
+        "index": 69,
+        "step": "step display 2",
+        "baseline_sha256": "15fd3899ba37c04ccffc92920c365ba4c5b5eded5b7c63b2e0c1a1982b6b8684",
+        "prefix_lines": 31,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-40.xz"
+      },
+      {
+        "index": 73,
+        "step": "step display 2",
+        "baseline_sha256": "059fa1de79f013653298bc2abd6ca8918f7354f5267259ddf5f9cc4fbe98a084",
+        "prefix_lines": 31,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-34.xz"
+      },
+      {
+        "index": 75,
+        "step": "step async 2",
+        "baseline_sha256": "b69c0621dc89339c44c2e2ee1670edf70650efb9b0c5ef5601cd5c2ff3157427",
+        "prefix_lines": 31,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-36.xz"
+      },
+      {
+        "index": 79,
+        "step": "step display 1",
+        "baseline_sha256": "88e90447c80faea3558ff217e399eadb3c86df0d69b51aba04285a5e426e6311",
+        "prefix_lines": 5,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-29.xz"
+      },
+      {
+        "index": 81,
+        "step": "step display 2",
+        "baseline_sha256": "3ccb5b3bdfb065bbd74c4c312dc9807d0ac95b9001565f56bf236b2be6757318",
+        "prefix_lines": 5,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-41.xz"
+      },
+      {
+        "index": 83,
+        "step": "step display-off 2",
+        "baseline_sha256": "d1b7f2608894975fb8b0ec8e5dc9c3caccbf1f3e679a8e33bd0b85263bac9f60",
+        "prefix_lines": 31,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-42.xz"
+      },
+      {
+        "index": 85,
+        "step": "step wake",
+        "baseline_sha256": "012467158737bb77250c145650edee7d8241b52f20c7f18f1e3fdb43b1bff1d8",
+        "prefix_lines": 17,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-25.xz"
+      },
+      {
+        "index": 87,
+        "step": "step display 0",
+        "baseline_sha256": "16c6d22a51b54bd789585af540bb0461a22468d691078df7e2211a373bd07bed",
+        "prefix_lines": 31,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-14.xz"
+      }
+    ],
+    "sticky-ssd2677-single": [
+      {
+        "index": 1,
+        "step": "step begin",
+        "baseline_sha256": "fc0584b693b1065fdb872bc7761b128ccf3e64b3470f14809069a24fb76886d0",
+        "prefix_lines": 134,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-25.xz"
+      },
+      {
+        "index": 3,
+        "step": "step display 0",
+        "baseline_sha256": "e67ae810cb8e2c7a7fbf2c4051754c7a74da7e6e977ca2c2267b6d02260e9417",
+        "prefix_lines": 31,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-26.xz"
+      },
+      {
+        "index": 5,
+        "step": "step display 1",
+        "baseline_sha256": "7d2e0cc3c0a1f96a08de1bc9451438799c62745cb9213ed97203004bacf6e8dc",
+        "prefix_lines": 31,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-27.xz"
+      },
+      {
+        "index": 7,
+        "step": "step display 2",
+        "baseline_sha256": "ceb1b4101c6116ffd81fe91e3103ebafb4de696099c9e4b233ab103eb8aa3a9c",
+        "prefix_lines": 5,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-28.xz"
+      },
+      {
+        "index": 9,
+        "step": "step trigger 0",
+        "baseline_sha256": "e238255a777ab0448e68682f4ff718e73c2617b965253c0050b1a91f01c473c8",
+        "prefix_lines": 5,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-29.xz"
+      },
+      {
+        "index": 11,
+        "step": "step trigger 1",
+        "baseline_sha256": "1413a51d64e235a6b8cdd4e06469f246db23d30cfa189078d62979c8dba02f55",
+        "prefix_lines": 31,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-32.xz"
+      },
+      {
+        "index": 13,
+        "step": "step trigger 2",
+        "baseline_sha256": "fc8af41afc111af1f51b049b2bc4747075bc723c1e285734c6a1c40f143526e0",
+        "prefix_lines": 5,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-43.xz"
+      },
+      {
+        "index": 15,
+        "step": "step trigger-async 0",
+        "baseline_sha256": "14bae26c0dc6f8539eaba39ed1116d3591a950f0e2fcc3af33a544b97f853045",
+        "prefix_lines": 5,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-29.xz"
+      },
+      {
+        "index": 17,
+        "step": "step trigger-async 1",
+        "baseline_sha256": "42a813f0c6b99f16ebfcbfe1926d6f604248e788b20cc20c728a6fe32ad027ce",
+        "prefix_lines": 31,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-32.xz"
+      },
+      {
+        "index": 19,
+        "step": "step trigger-async 2",
+        "baseline_sha256": "86c0b7e8c8bf83f1f42c5685afd7d8e2ff39d225c78cbd57b9637c32d68c9048",
+        "prefix_lines": 5,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-43.xz"
+      },
+      {
+        "index": 22,
+        "step": "step async 2",
+        "baseline_sha256": "b69c0621dc89339c44c2e2ee1670edf70650efb9b0c5ef5601cd5c2ff3157427",
+        "prefix_lines": 31,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-36.xz"
+      },
+      {
+        "index": 25,
+        "step": "step async 2",
+        "baseline_sha256": "9920dc53920824a9a78cf3321038a5b79bdf3b6bf2f90258291fa1dc5f21dbd4",
+        "prefix_lines": 31,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-35.xz"
+      },
+      {
+        "index": 27,
+        "step": "step async-no-shadow 2",
+        "baseline_sha256": "f7be4f77abd64250354c3765705c61c0a691609605dcfab8b7c812fd2904f04c",
+        "prefix_lines": 31,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-40.xz"
+      },
+      {
+        "index": 31,
+        "step": "step window 0",
+        "baseline_sha256": "d95971b989a578f27eaa4860b42024842a2089851d46c78a54c0ee9bb36d4140",
+        "prefix_lines": 31,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-34.xz"
+      },
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "fe2a3ab8f67ed991f76bca8f87c2fd91da4e1b084208a1c4fb8a588cdd3e87f5",
+        "prefix_lines": 31,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-35.xz"
+      },
+      {
+        "index": 36,
+        "step": "step display 2",
+        "baseline_sha256": "059fa1de79f013653298bc2abd6ca8918f7354f5267259ddf5f9cc4fbe98a084",
+        "prefix_lines": 31,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-34.xz"
+      },
+      {
+        "index": 37,
+        "step": "step gray-base 0",
+        "baseline_sha256": "2a9509df52ec8875cc83a05fa815d6f11800006b1495914e076f09c4c64cbf48",
+        "prefix_lines": 6,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-29.xz"
+      },
+      {
+        "index": 39,
+        "step": "step gray-full",
+        "baseline_sha256": "1f939c9fdd514d3458912cd04d9668f2a58cdf3ea1e0cf1799a08150fc21e0af",
+        "prefix_lines": 5,
+        "suffix_lines": 198,
+        "fragment": "ssd2677-25.xz"
+      },
+      {
+        "index": 40,
+        "step": "step gray-show",
+        "baseline_sha256": "09adb73c0b2c1a0c864a881ee10c4491d36664b413b7f77780c88af7c5c120ef",
+        "prefix_lines": 19,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-37.xz"
+      },
+      {
+        "index": 43,
+        "step": "step gray-base 0",
+        "baseline_sha256": "081a691918caa1741f02cf2bc0bd3dcf88f9cc336beae9f610d594331129c51d",
+        "prefix_lines": 6,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-31.xz"
+      },
+      {
+        "index": 45,
+        "step": "step gray-show",
+        "baseline_sha256": "09adb73c0b2c1a0c864a881ee10c4491d36664b413b7f77780c88af7c5c120ef",
+        "prefix_lines": 19,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-37.xz"
+      },
+      {
+        "index": 48,
+        "step": "step gray-full",
+        "baseline_sha256": "b6ac95468d9f01cd2210c277de75e00e75e5b4597ddb7cde638e85f9f10fd7a9",
+        "prefix_lines": 5,
+        "suffix_lines": 199,
+        "fragment": "ssd2677-38.xz"
+      },
+      {
+        "index": 49,
+        "step": "step gray-show",
+        "baseline_sha256": "857f0e507f9bf38efb3d6d4bb5372e7a417ea73591c788007989e7802a6ade93",
+        "prefix_lines": 7,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-39.xz"
+      },
+      {
+        "index": 53,
+        "step": "step gray-show",
+        "baseline_sha256": "857f0e507f9bf38efb3d6d4bb5372e7a417ea73591c788007989e7802a6ade93",
+        "prefix_lines": 7,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-39.xz"
+      },
+      {
+        "index": 57,
+        "step": "step display 2",
+        "baseline_sha256": "c7f1ce549243c15e3732524be66ee15a252057448e3f303d92dd17a19c30b613",
+        "prefix_lines": 5,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-29.xz"
+      },
+      {
+        "index": 59,
+        "step": "step window 0",
+        "baseline_sha256": "75ba59bad93170c8aa4650d7902cc3f2b9346e05f9763ec25628cf44a9de5d25",
+        "prefix_lines": 5,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-33.xz"
+      },
+      {
+        "index": 61,
+        "step": "step window 1",
+        "baseline_sha256": "2562394243ac75769db5fdf93afa222b11c0f00f8287f594cfffe260ee319f2e",
+        "prefix_lines": 31,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-34.xz"
+      },
+      {
+        "index": 63,
+        "step": "step display 2",
+        "baseline_sha256": "82bc29cc2e88b575b19b83a87951553f71730d72ee1dffc669a61959f7a72bb6",
+        "prefix_lines": 5,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-31.xz"
+      },
+      {
+        "index": 65,
+        "step": "step async 2",
+        "baseline_sha256": "c0f8056ded78c97f5bae2a2859472b620781e3de600bbc6a2db0b615202ad106",
+        "prefix_lines": 5,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-44.xz"
+      },
+      {
+        "index": 69,
+        "step": "step display 2",
+        "baseline_sha256": "15fd3899ba37c04ccffc92920c365ba4c5b5eded5b7c63b2e0c1a1982b6b8684",
+        "prefix_lines": 31,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-40.xz"
+      },
+      {
+        "index": 73,
+        "step": "step display 2",
+        "baseline_sha256": "059fa1de79f013653298bc2abd6ca8918f7354f5267259ddf5f9cc4fbe98a084",
+        "prefix_lines": 31,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-34.xz"
+      },
+      {
+        "index": 75,
+        "step": "step async 2",
+        "baseline_sha256": "b69c0621dc89339c44c2e2ee1670edf70650efb9b0c5ef5601cd5c2ff3157427",
+        "prefix_lines": 31,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-36.xz"
+      },
+      {
+        "index": 79,
+        "step": "step display 1",
+        "baseline_sha256": "88e90447c80faea3558ff217e399eadb3c86df0d69b51aba04285a5e426e6311",
+        "prefix_lines": 5,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-29.xz"
+      },
+      {
+        "index": 81,
+        "step": "step display 2",
+        "baseline_sha256": "3ccb5b3bdfb065bbd74c4c312dc9807d0ac95b9001565f56bf236b2be6757318",
+        "prefix_lines": 5,
+        "suffix_lines": 8,
+        "fragment": "ssd2677-41.xz"
+      },
+      {
+        "index": 83,
+        "step": "step display-off 2",
+        "baseline_sha256": "35e81674eef73d8ebde01aa493328c84e39d755a8e6cb828867c6ec7f4158e11",
+        "prefix_lines": 31,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-45.xz"
+      },
+      {
+        "index": 85,
+        "step": "step wake",
+        "baseline_sha256": "012467158737bb77250c145650edee7d8241b52f20c7f18f1e3fdb43b1bff1d8",
+        "prefix_lines": 17,
+        "suffix_lines": 1,
+        "fragment": "ssd2677-25.xz"
+      },
+      {
+        "index": 87,
+        "step": "step display 0",
+        "baseline_sha256": "16c6d22a51b54bd789585af540bb0461a22468d691078df7e2211a373bd07bed",
+        "prefix_lines": 31,
+        "suffix_lines": 0,
+        "fragment": "ssd2677-14.xz"
+      }
     ]
   }
 }

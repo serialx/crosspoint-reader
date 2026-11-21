@@ -93,7 +93,7 @@ impl DefinitionSession {
         let (mut x, mut y) = (0, 0);
         let long_press =
             !failed && lookup && unsafe { (leaves.input_screen_point)(0, &mut x, &mut y) } != 0;
-        // Native samples the recorded header target immediately after consuming the long press.
+        // Native samples the unpadded header target immediately after consuming the long press.
         let mut layout = Layout::default();
         let header_back_hit = unsafe {
             (self.physical.layout)(

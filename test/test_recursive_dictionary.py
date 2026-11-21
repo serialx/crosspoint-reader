@@ -592,6 +592,14 @@ int main() {
   assert(simultaneous.finished && simultaneous.result.isCancelled);
   // Header long-press exits independently of text-selection settings; body long-press still selects.
   HeaderBackTapTarget::set(4, 4, 32, 32);
+  const struct { int x, y; bool hold, tap; } targets[] = {
+    {10, 10, true, true}, {0, 10, false, true}, {10, 0, false, true},
+    {40, 10, false, true}, {10, 40, false, true}, {50, 0, false, false},
+  };
+  for (const auto& target : targets) {
+    assert(HeaderBackTapTarget::contains(target.x, target.y) == target.tap);
+    assert(HeaderBackTapTarget::containsUnpadded(target.x, target.y) == target.hold);
+  }
   for (const bool controlsEnabled : {false, true}) {
     SETTINGS.touchReaderControls = controlsEnabled;
     for (const bool onHeader : {false, true}) {

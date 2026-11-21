@@ -1116,7 +1116,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .child_definition_selection_release =
           [](XpDefinitionPayloadStorage* storage) { DefinitionPayload::get(storage).selectionPages.clear(); },
       .child_definition_layout = [](XpUiDefinitionLayout* out, int32_t x, int32_t y) -> uint8_t {
-        const bool headerBackHit = (x != -1 || y != -1) && HeaderBackTapTarget::contains(x, y);
+        const bool headerBackHit = (x != -1 || y != -1) && HeaderBackTapTarget::containsUnpadded(x, y);
         *out = dictionaryUiDefinitionLayout(*target);
         return headerBackHit;
       },

@@ -298,7 +298,9 @@ impl DefinitionSession {
         unsafe {
             (self.physical.payload_release)(self.payload.get(), PayloadSlot::Current as u8, 1);
             leaves.font_release(fonts);
-            Self::log_heap(leaves);
+            if (leaves.log_enabled)(0) != 0 {
+                Self::log_heap(leaves);
+            }
         }
         let nav = unsafe { &mut *self.navigation.get() };
         let depth = usize::from(state.history_depth);

@@ -483,6 +483,28 @@ unsafe extern "C" fn layout(out: *mut xp_ui::dictionary::definition::Layout, x: 
 }
 
 #[test]
+fn navigation_skips_heap_diagnostic_when_debug_is_disabled() {
+    unsafe extern "C" fn disabled(_: u8) -> u8 {
+        0
+    }
+
+    let mut leaves = leaves();
+    leaves.log_enabled = disabled;
+    let owner = owner();
+    unsafe { owner.enter(runtime(), &leaves) };
+    events();
+
+    unsafe {
+        (*owner.navigation.get()).pending.assign(b"next");
+        owner.navigate(false, runtime(), &leaves, abi::FontOwner::NONE);
+    }
+    let seen = events();
+    assert!(seen.contains(&"commit"));
+    assert!(!seen.contains(&"internal-heap"));
+    assert!(!seen.contains(&"log"));
+}
+
+#[test]
 fn history_depth_recovery_and_log_order_preserve_native_contract() {
     use xp_core::i18n::ids::*;
     let leaves = leaves();

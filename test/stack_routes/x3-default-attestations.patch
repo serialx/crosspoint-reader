@@ -1,9 +1,16 @@
 --- attestations-candidate.json
 +++ attestations-candidate.json
-@@ -9412,6 +9412,130 @@
+@@ -9412,6 +9412,137 @@
        "kind": "R4d1 synchronous decoder callback or tail",
        "source": "rust/crates/xp-ffi/src/page_render/images/{decode,jpeg}.rs; native JPEGDEC file callbacks; inherited allocator tail",
        "mechanism": "PNG read and GIF Input.read point to Decode::read; JPEG Services points to Probe::{operation,diagnostic}; diagnostic tail and physical file/allocator tails are charged conservatively."
++    },
++    {
++      "caller": "xp_ffi::app::epub::book_owner::protection::stream",
++      "callee": "freeink::content::readerProtectionStream(void*, void*, unsigned char, XpAppText, unsigned char (*)(void*, unsigned char const*, unsigned int), void*)",
++      "kind": "current typed callback",
++      "source": "book_owner/protection.rs:348-381 and ContentProtection.cpp:163-188",
++      "mechanism": "The same callback binding is emitted at the adjusted source or ABI boundary."
 +    },
 +    {
 +      "caller": "xp_dictionary_ifo",

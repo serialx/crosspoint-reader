@@ -9,10 +9,17 @@ pass the patched copies to the linked audit.
 | `x3-default.patch` | `routes-candidate.json` | `2e80d63347eeb9d8f34e543ab460563cd57ded96ed50540db7e9eb18e7df77a8` |
 | `x3-default-attestations.patch` | `attestations-candidate.json` | `ce3cb32b1e9a0f49bcaf842fddf025f19f4ca9977b6cc78f73da656d53a37342` |
 
-The X3 image uses the `font::loaded::ensure` closure form at the 20 font sites
-and calls `std::__throw_length_error` directly at the 20 HTTP reallocation sites.
-The bookmark input prologue uses `OUTLINED_FUNCTION_7` in the 112-byte
+The X3 image uses the `font::loaded::ensure` closure form on the 20 font routes
+and calls `std::__throw_length_error` directly on the 20 HTTP reallocation routes.
+The bookmark input prologue uses `OUTLINED_FUNCTION_22` in the 112-byte
 `Layout::hit` frame. The dictionary routes bind the bounded IFO scanner,
-grouped lookup, header input, and separate styled and plain viewer paths.
-See `sync-200/integrate-A` in the evidence directory for call-site instructions,
-callback targets, and route totals.
+grouped lookup, header input, and separate styled and plain viewer paths. The
+111 book file GET routes use the linked GET closure, transfer facade, and
+progress invoker.
+
+`x3-default-sleep-event.json` lists the sleep-entry emitter and metadata
+callback paths. The audit adds the linked physical continuation to the emitter
+prefix and checks its complete bound against the loop-task gate.
+
+See `sync-200/integrate-B` in the evidence directory for the call-site
+instructions, callback targets, and route totals.

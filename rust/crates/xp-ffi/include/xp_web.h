@@ -515,6 +515,7 @@ typedef struct {
   int32_t status;
   size_t total;
   bool complete;
+  XpWebText error_body;  // Borrowed from the native bridge until response serialization.
 } XpWebFetchResult;
 // Only run may invoke these callbacks; sink context and byte spans are borrowed
 // for that call. Callbacks are sequential and must not be retained or nested.
@@ -533,14 +534,15 @@ typedef struct {
   XpWebText (*path)(void*, uint32_t);
   void (*directory)(void*, XpWebText);
   void (*suspend)(void*, bool);
-  XpWebFetchResult (*run)(void*, size_t offset, void* sink_ctx, const XpWebFetchSink*);
+  XpWebFetchResult (*run)(void*, size_t offset, const char* method, XpWebText body, void* sink_ctx, const XpWebFetchSink*);
   void (*configure)(void*, void* http, const char* agent, uint32_t timeout, bool headers);
   uint32_t (*time)(void*);
-  XpWebText (*response)(void*, uint32_t, const char* error, int32_t, size_t, bool, size_t);
+  XpWebText (*response)(void*, uint32_t, const char* error, int32_t, size_t, bool, size_t, XpWebText);
   // Sends the prepared response (initially empty), without another String copy.
   void (*send)(void*, uint16_t);
   // Nullable; text is borrowed only for the diagnostic call.
   void (*diagnostic)(void*, uint32_t, size_t, uint32_t, const char*, bool);
+  bool (*field)(void*, const char*, XpWebText*);  // Null or string, borrowed until release.
 } XpWebFetch;
 void xp_web_fetch(void*, const XpWebFetch*);
 #ifdef __cplusplus

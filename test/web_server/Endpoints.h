@@ -358,7 +358,22 @@ inline int request(void*, const std::string& url, const std::string& method, con
 }
 }  // namespace pluginhttp
 namespace freeink {
+inline int singleStatus = 200;
+inline std::string singleResponse = "book";
 struct SecureHttpClient {
+  using AbortCallback = std::function<bool()>;
+  bool begin(const std::string& url) { return !url.empty(); }
+  int getStatus() const { return singleStatus; }
+  bool hasContentLength() const { return true; }
+  size_t getContentLength() const { return singleResponse.size(); }
+  bool responseComplete() const { return true; }
+  int sendRequest(const char* method, const uint8_t* body, size_t length,
+                  const std::function<bool(const uint8_t*, size_t)>& write, const AbortCallback& poll) {
+    host::trace.emplace_back(std::string("single:") + method + ":" + host::hex(body, length));
+    poll();
+    write(reinterpret_cast<const uint8_t*>(singleResponse.data()), singleResponse.size());
+    return singleStatus;
+  }
   bool connected = false;
   bool connect(const std::function<bool()>&) { return connected = true; }
   void setUserAgent(const char* value) { host::trace.push_back(std::string("fetch-agent:") + value); }

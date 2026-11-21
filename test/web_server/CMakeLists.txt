@@ -21,3 +21,7 @@ add_test(NAME web_server_catalog_shipping
 add_test(NAME plugin_http_connect_before_headers
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/plugin_connect.py
     --build ${CMAKE_CURRENT_BINARY_DIR}/plugin-connect)
+
+add_test(NAME web_sdk_preconnected_retry
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/sdk_fetch_retry_contract.py
+    --build ${CMAKE_CURRENT_BINARY_DIR}/sdk-fetch-retry)

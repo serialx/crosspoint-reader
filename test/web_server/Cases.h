@@ -197,6 +197,35 @@ static void text(CrossPointWebServer& app, uint8_t client, const std::string& by
 int main() {
 #ifdef XP_FFI_HOST_FAULT_INJECTION
 
+  if (std::getenv("WEB_FETCH_METHOD_CHECK")) {
+    auto request = [&](std::string fields, std::string expected) {
+      record("fetch-method", [&](auto& app) {
+        app.server->args["plain"] = R"({"url":"https://example.test/book","dest":"/books/new.epub",)" + fields + "}";
+        app.handleFetch();
+        if (std::none_of(host::trace.begin(), host::trace.end(), [&](const auto& line) {
+              return line.find(expected) != std::string::npos;
+            })) {
+          std::cerr << "missing fetch event " << expected << '\n';
+          std::abort();
+        }
+      });
+    };
+    for (auto method : {"POST", "PUT", "PATCH", "DELETE", "GET"}) {
+      request(std::string(R"("method":")") + method + R"(","body":"a\u0000b")", std::string("single:") + method + ":610062");
+    }
+    request(R"("method":"post","body":"")", "single:POST:");
+    request(R"("method":false)", "method must be a string");
+    request(R"("method":"HEAD")", "unsupported method");
+    request(R"("body":false)", "body must be a string");
+    request(R"("method":"PATCH","offset":1)", "offset and maxBytes need a GET without a body");
+    request(R"("body":"x","maxBytes":1)", "offset and maxBytes need a GET without a body");
+    request("\"body\":\"" + std::string(4096, 'a') + "\"", "single:GET:6161");
+    request("\"body\":\"" + std::string(4097, 'a') + "\"", "body over 4KB");
+    freeink::singleStatus = 400;
+    freeink::singleResponse = std::string(511, 'e') + "€";
+    request(R"("method":"POST")", "\"body\":\"" + std::string(511, 'e') + "\"");
+    return 0;
+  }
   if (std::getenv("WEB_CAPTIVE_PORTAL_CHECK")) {
     record("captive-portal", [&](auto& app) {
       app.apMode = true;

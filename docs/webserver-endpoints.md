@@ -629,8 +629,11 @@ browser. Body: `{"plugin":"<name>","url":"...","dest":"/abs/path","headers":{...
 plus optional `"method"` (`GET`, `POST`, `PUT`, `PATCH`, or `DELETE`; default
 `GET`) and `"body"` (a string, at most 4KB).
 
-- A request with a method other than GET, or with a non-empty body, is sent once: it is
-  never replayed, and `offset`/`maxBytes` must be 0. A 3xx answer is not
+- For a method other than GET, or a GET with a non-empty body, the endpoint
+  starts one transfer. Set `offset` and `maxBytes` to 0. When the request
+  includes headers, the SDK opens the connection early and may send the request
+  a second time if the write fails or the response status line never arrives.
+  The server may already have processed the first request. A 3xx answer is not
   followed; it fails with `error:"http status"`. Use it for APIs that answer a
   POST with a large file. Such a request is not split into segments, so if the
   browser connection drops on a very large answer, check whether `dest` was

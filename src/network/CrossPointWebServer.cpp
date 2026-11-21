@@ -1745,6 +1745,26 @@ struct WebFetchBridge : WebRpcBridge {
   pluginhttp::Headers headers;
   std::optional<WifiPowerSaveGuard> powerSave;
   String response;
+  String errorBody;
+  template <typename Configure>
+  static XpWebFetchResult single(WebFetchBridge& b, const char* method, XpWebText body,
+                                 const freeink::FetchSink& sink,
+                                 const freeink::SecureHttpClient::AbortCallback& poll,
+                                 const Configure& configure) {
+    freeink::SecureHttpClient http;
+    if (!http.begin(b.url)) return {-1, 0, false, {nullptr, 0}};
+    configure(http, true);
+    const int status = http.sendRequest(method, body.data, body.len, [&](const uint8_t* data, size_t n) {
+      if (http.getStatus() >= 200 && http.getStatus() < 300) return sink.write(data, n);
+      constexpr size_t limit = 512;
+      const auto count = std::min(n, limit - b.errorBody.length());
+      if (!b.errorBody.concat(reinterpret_cast<const char*>(data), count)) return false;
+      resetTaskWatchdogIfSubscribed();
+      return b.errorBody.length() < limit;
+    }, poll);
+    return {status, http.hasContentLength() ? http.getContentLength() : 0,
+            status >= 200 && status < 300 && http.responseComplete(), span(b.errorBody)};
+  }
   static WebFetchBridge& fetch(void* ctx) { return static_cast<WebFetchBridge&>(self(ctx)); }
   static const XpWebFetch services;
 };
@@ -1782,7 +1802,7 @@ const XpWebFetch WebFetchBridge::services = {
             b.mutableOwner.resumeTransferServices();
           }
         },
-    .run = [](void* ctx, size_t offset, void* sinkCtx, const XpWebFetchSink* callbacks) -> XpWebFetchResult {
+    .run = [](void* ctx, size_t offset, const char* method, XpWebText body, void* sinkCtx, const XpWebFetchSink* callbacks) -> XpWebFetchResult {
       auto& b = fetch(ctx);
       freeink::FetchOptions options;
       options.startOffset = offset;
@@ -1790,17 +1810,16 @@ const XpWebFetch WebFetchBridge::services = {
       sink.write = [&](const uint8_t* data, size_t len) { return callbacks->write(sinkCtx, {data, len}); };
       sink.rewind = [&] { return callbacks->rewind(sinkCtx); };
       const auto poll = [&] { return callbacks->poll(sinkCtx); };
-      const auto result = freeink::fetchResumable(
-          b.url, options,
-          [&](freeink::SecureHttpClient& http, bool sameOrigin) {
-            callbacks->configure(sinkCtx, &http, sameOrigin);
-            if (sameOrigin && !b.headers.empty()) {
-              http.connect(poll);
-              for (const auto& header : b.headers) http.addHeader(header.first, header.second);
-            }
-          },
-          sink, poll);
-      return {result.status, result.total, result.complete};
+      const auto configure = [&](freeink::SecureHttpClient& http, bool sameOrigin) {
+        callbacks->configure(sinkCtx, &http, sameOrigin);
+        if (sameOrigin && !b.headers.empty()) {
+          http.connect(poll);
+          for (const auto& header : b.headers) http.addHeader(header.first, header.second);
+        }
+      };
+      if (strcmp(method, "GET") != 0 || body.len != 0) return single(b, method, body, sink, poll, configure);
+      const auto result = freeink::fetchResumable(b.url, options, configure, sink, poll);
+      return {result.status, result.total, result.complete, {nullptr, 0}};
     },
     .configure =
         [](void*, void* client, const char* agent, uint32_t timeout, bool) {
@@ -1812,7 +1831,7 @@ const XpWebFetch WebFetchBridge::services = {
         },
     .time = WebFileBridge::transfers.time,
     .response = [](void* ctx, uint32_t kind, const char* error, int32_t status, size_t bytes, bool complete,
-                   size_t total) -> XpWebText {
+                   size_t total, XpWebText detail) -> XpWebText {
       auto& out = fetch(ctx).response;
       switch (static_cast<XpWebFetchResponse>(kind)) {
         case XP_WEB_FETCH_OFFSET: {
@@ -1830,6 +1849,7 @@ const XpWebFetch WebFetchBridge::services = {
         case XP_WEB_FETCH_RESULT: {
           JsonDocument response;
           if (error) response["error"] = error;
+          if (detail.len) response["body"] = JsonString(reinterpret_cast<const char*>(detail.data), detail.len);
           response["status"] = status;
           response["bytes"] = bytes;
           response["complete"] = complete;
@@ -1859,6 +1879,12 @@ const XpWebFetch WebFetchBridge::services = {
               break;
           }
         },
+    .field = [](void* ctx, const char* key, XpWebText* out) {
+      const JsonVariantConst value = self(ctx).paths[key];
+      const JsonString text = value.as<JsonString>();
+      *out = {reinterpret_cast<const uint8_t*>(text.c_str()), text.size()};
+      return value.isNull() || !text.isNull();
+    },
 };
 
 void CrossPointWebServer::handleFetch() {

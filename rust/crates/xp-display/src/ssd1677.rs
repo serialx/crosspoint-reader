@@ -546,19 +546,22 @@ impl Ssd1677 {
         bus.busy_wait(0, TAG_SSD_GRAY_POWER_ON);
         self.set(STATE_SCREEN_ON, true);
     }
-    fn power_off(&mut self, bus: &mut impl Bus) {
+    fn power_off(&mut self, bus: &mut impl Bus, settle_ms: u32) {
         if !self.has(STATE_SCREEN_ON) {
             return;
         }
         Self::reg(bus, 0x3c, self.cfg.border_init);
         Self::reg(bus, 0x22, 3);
         bus.cmd(0x20);
-        bus.delay_ms(200);
+        bus.delay_ms(settle_ms);
         bus.busy_wait(0, TAG_SSD_POWER_DOWN);
         self.set(STATE_SCREEN_ON, false);
     }
+    pub fn power_off_between_frames(&mut self, bus: &mut impl Bus) {
+        self.power_off(bus, 1);
+    }
     pub fn sleep(&mut self, bus: &mut impl Bus) {
-        self.power_off(bus);
+        self.power_off(bus, 200);
         Self::reg(bus, 0x10, 3);
     }
     fn clean_mode(&self) -> Refresh {
@@ -659,7 +662,7 @@ impl Ssd1677 {
     fn finish_power_off(&mut self, bus: &mut impl Bus) {
         if self.has(STATE_PENDING_OFF) {
             self.set(STATE_PENDING_OFF, false);
-            self.power_off(bus);
+            self.power_off(bus, 200);
         }
     }
     pub fn finish(&mut self, bus: &mut impl Bus, frame: Option<&[u8]>) {
@@ -823,7 +826,7 @@ impl Ssd1677 {
             bus.refresh_wait(66);
             self.set(STATE_SCREEN_ON, true);
             if turn_off {
-                self.power_off(bus);
+                self.power_off(bus, 200);
             }
             self.set(STATE_NEEDS_GRAY_CLEAR, true);
         } else {

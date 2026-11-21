@@ -11,6 +11,10 @@ pub const TAG_ON: u32 = 93;
 pub const TAG_OFF: u32 = 94;
 pub const TAG_REFRESH: u32 = 95;
 
+// BusyPolarity values consumed by the SDK's EpdBus::waitBusy.
+const ACTIVE_LOW: u32 = 1;
+const ACTIVE_LOW_READY: u32 = 4;
+
 // Picco build 2912 DROM 0x3c8246b4; Sticky v1.2.0 DROM 0x3c292494.
 const PICCO_INIT: &[(u8, &[u8])] = &[
     (0x00, &[0x27, 0x09]),
@@ -79,6 +83,14 @@ impl Ssd2677 {
             _ => 0,
         }
     }
+    fn wait(&self, bus: &mut impl Bus, tag: u32) {
+        let polarity = if self.sticky {
+            ACTIVE_LOW_READY
+        } else {
+            ACTIVE_LOW
+        };
+        bus.busy_wait(polarity, tag);
+    }
     fn init(&mut self, bus: &mut impl Bus) {
         if self.sticky {
             bus.reset_level(0);
@@ -88,7 +100,7 @@ impl Ssd2677 {
         } else {
             bus.reset(0);
         }
-        bus.busy_wait(1, TAG_RESET);
+        self.wait(bus, TAG_RESET);
         for &(command, data) in if self.sticky { STICKY_INIT } else { PICCO_INIT } {
             bus.cmd(command);
             bus.data_span(data);
@@ -96,10 +108,12 @@ impl Ssd2677 {
                 bus.delay_ms(10);
             }
             if self.sticky && (command == 0 || command == 0xe9) {
-                bus.busy_wait(1, TAG_INIT);
+                self.wait(bus, TAG_INIT);
             }
         }
-        bus.busy_wait(1, TAG_INIT);
+        if !self.sticky {
+            self.wait(bus, TAG_INIT);
+        }
         self.needs_power_on = true;
         self.latched_waveform = 0;
     }
@@ -112,7 +126,7 @@ impl Ssd2677 {
         bus.cmd(0xe6);
         bus.data8(code);
         bus.cmd(0xa5);
-        bus.busy_wait(1, TAG_LATCH);
+        self.wait(bus, TAG_LATCH);
         bus.delay_ms(10);
         self.latched_waveform = code;
     }
@@ -158,17 +172,28 @@ impl Ssd2677 {
     fn refresh(&mut self, bus: &mut impl Bus, off: bool) {
         if self.needs_power_on {
             bus.cmd(4);
-            bus.busy_wait(1, TAG_ON);
+            self.wait(bus, TAG_ON);
             self.needs_power_on = false;
         }
         bus.cmd(0x12);
         bus.data8(0);
         bus.refresh_wait(TAG_REFRESH);
         if off {
-            bus.cmd(2);
-            bus.data8(0);
-            bus.busy_wait(1, TAG_OFF);
-            self.needs_power_on = true;
+            self.power_off(bus);
+        }
+    }
+    fn power_off(&mut self, bus: &mut impl Bus) {
+        if self.needs_power_on {
+            return;
+        }
+        bus.cmd(2);
+        bus.data8(0);
+        self.wait(bus, TAG_OFF);
+        self.needs_power_on = true;
+    }
+    pub fn power_off_between_frames(&mut self, bus: &mut impl Bus) {
+        if !self.sticky {
+            self.power_off(bus);
         }
     }
     fn refresh_lut(&mut self, bus: &mut impl Bus, lut: &[u8; 535], off: bool) {
@@ -188,13 +213,13 @@ impl Ssd2677 {
             mode = 0;
         }
         if self.sticky {
-            let fast = mode == 2;
+            let fast = mode == 2 && self.old.allocated();
             self.latch(bus, if fast { 0x19 } else { 0xee });
             self.packed(bus, if fast { self.old.bytes() } else { fb }, fb, chunk);
             self.refresh(bus, !fast || off);
         } else {
             self.packed(bus, self.old.bytes(), fb, chunk);
-            self.refresh_lut(bus, if mode == 2 { &lut::FAST } else { &lut::FULL }, off);
+            self.refresh_lut(bus, if mode == 2 { &lut::FAST } else { &lut::FULL }, true);
         }
         if self.old.allocated() {
             self.old.bytes_mut().copy_from_slice(fb);
@@ -260,13 +285,11 @@ impl Ssd2677 {
             self.display(bus, fb, 0, off, chunk);
             return;
         }
-        self.refresh_lut(bus, &lut::GRAY, off);
+        self.refresh_lut(bus, &lut::GRAY, true);
     }
     pub fn sleep(&mut self, bus: &mut impl Bus) {
-        if self.sticky && !self.needs_power_on {
-            bus.cmd(2);
-            bus.data8(0);
-            bus.busy_wait(1, TAG_OFF);
+        if self.sticky {
+            self.power_off(bus);
         }
         bus.cmd(7);
         bus.data8(0xa5);

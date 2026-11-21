@@ -31,6 +31,10 @@ int main() {
   app.server = std::make_unique<CrossPointHttpServer>(80);
   app.wsServer = std::make_unique<WebSocketsServer>();
   app.running = true;
+  app.handleStatus();
+  const auto status = response();
+  const std::string capabilities = "," + (status["pluginCapabilities"] | std::string{}) + ",";
+  assert(capabilities.find(",catalog.encoded_item_fields,") != std::string::npos);
   app.handleFontList();
   auto empty = response();
   assert(empty["families"].size() == 0 && empty["maxFamilies"] == 128 && !empty["vectorFonts"].as<bool>());

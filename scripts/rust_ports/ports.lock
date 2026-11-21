@@ -446,6 +446,7 @@ EPUB.child_definition_selection_build xp_text_hangul
 EPUB.child_definition_selection_build xp_utf8_safe_truncate
 EPUB.child_definition_selection_child XpAppCompatibility.home_action
 EPUB.child_definition_selection_child xp_app_event
+EPUB.child_definition_selection_child xp_dictionary_registry
 EPUB.child_definition_selection_child xp_display_abort
 EPUB.child_definition_selection_child xp_display_capabilities
 EPUB.child_definition_selection_child xp_display_drop
@@ -566,6 +567,7 @@ EPUB.child_qr_draw xp_assets_qr_plan
 EPUB.child_qr_draw xp_font_scanning
 EPUB.child_selection XpAppCompatibility.home_action
 EPUB.child_selection xp_app_event
+EPUB.child_selection xp_dictionary_registry
 EPUB.child_selection xp_display_abort
 EPUB.child_selection xp_display_capabilities
 EPUB.child_selection xp_display_drop

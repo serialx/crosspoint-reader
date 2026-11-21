@@ -66,6 +66,7 @@ class ClipSelectionActivity final : public RustActivityAdapter {
   const int initialX;
   const int initialY;
   const Mode mode;
+  bool lookupHidden = false;
   OptionPopup actionPopup;
   int fontId = 0;
   int lineHeight = 0;

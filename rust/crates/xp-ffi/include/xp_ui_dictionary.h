@@ -41,7 +41,7 @@ typedef struct {
   int16_t top, right, bottom, left;
   int16_t spacing, padding, top_padding, line_height, label_width, label_height;
   int32_t action_font;
-  uint8_t touch, radius, reserved[2];
+  uint8_t touch, radius, lookup_hidden, reserved;
 } XpUiSelectionLayout;
 typedef struct {
   int32_t selected, range_start, page, offset_x, offset_y;
@@ -187,7 +187,8 @@ static_assert(offsetof(XpUiSelectionLayout, label_height) == 34);
 static_assert(offsetof(XpUiSelectionLayout, action_font) == 36);
 static_assert(offsetof(XpUiSelectionLayout, touch) == 40);
 static_assert(offsetof(XpUiSelectionLayout, radius) == 41);
-static_assert(offsetof(XpUiSelectionLayout, reserved) == 42);
+static_assert(offsetof(XpUiSelectionLayout, lookup_hidden) == 42);
+static_assert(offsetof(XpUiSelectionLayout, reserved) == 43);
 static_assert(sizeof(XpUiSelectionPainted) == 24);
 static_assert(alignof(XpUiSelectionPainted) == 4);
 static_assert(offsetof(XpUiSelectionPainted, selected) == 0);

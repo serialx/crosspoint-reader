@@ -65,7 +65,8 @@ pub struct Layout {
     pub action_font: i32,
     pub touch: u8,
     pub radius: u8,
-    pub reserved: [u8; 2],
+    pub lookup_hidden: u8,
+    pub reserved: u8,
 }
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
@@ -260,6 +261,14 @@ impl State {
             size,
         )
     }
+    pub(super) fn action_span(&self, layout: &Layout) -> (i32, i32) {
+        if self.mode == 2 {
+            (0, 1)
+        } else {
+            let first = i32::from(layout.lookup_hidden != 0);
+            (first, 3 - first)
+        }
+    }
     pub fn actions(&self, words: &[Word], l: &Layout) -> Rect {
         let right = (i32::from(l.safe.x) + i32::from(l.safe.w))
             .min(i32::from(l.screen.w) - i32::from(l.right));
@@ -269,7 +278,7 @@ impl State {
         let y = i32::from(l.safe.y).max(l.top.into()) + i32::from(l.top_padding.max(l.spacing));
         let safe_width = right - x;
         let _safe_height = bottom - y;
-        let count = if self.mode == 2 { 1 } else { 3 };
+        let (_, count) = self.action_span(l);
         let padding = i32::from(l.padding);
         let width = safe_width
             .min(count * (i32::from(l.label_width) + padding * 2) + padding * (count + 1));
@@ -304,11 +313,11 @@ impl State {
         )
     }
     pub fn action_at(&self, words: &[Word], layout: &Layout, x: i32, y: i32) -> Option<u8> {
-        let count = if self.mode == 2 { 1 } else { 3 };
+        let (first, count) = self.action_span(layout);
         let r = self.actions(words, layout);
         (0..count)
             .find(|&i| contains(action_button(r, layout.padding, count, i), x, y))
-            .map(|v| v as u8)
+            .map(|v| (first + v) as u8)
     }
     pub fn contains(&self, words: &[Word], l: &Layout, x: i32, y: i32) -> bool {
         let mut previous: Option<&Word> = None;

@@ -50,6 +50,7 @@ deferred EPUB.child_definition_draw_body R6 # Deferred dictionary/selection/chap
 deferred EPUB.child_definition_payload_find R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_definition_payload_prepare R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_definition_selection_build R6 # Deferred dictionary/selection/chapter child bridge.
+physical EPUB.child_definition_selection_child xp_dictionary_registry # 6b863e485: Constructor retains the onEnter vtable address; DefinitionLookup mode always bypasses the registry.
 deferred EPUB.child_definition_selection_child R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_list_help R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_list_icon R6 # Deferred dictionary/selection/chapter child bridge.
@@ -58,6 +59,7 @@ deferred EPUB.child_lookup_find R6 # Deferred dictionary/selection/chapter child
 deferred EPUB.child_lookup_index R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_lookup_open R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_qr_draw R6 # Deferred dictionary/selection/chapter child bridge.
+physical EPUB.child_selection xp_dictionary_registry # 6b863e485: Constructor retains the onEnter vtable address; the enter callback checks the selected dictionary on SD before extracting words.
 deferred EPUB.child_selection R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_sync R6 # Deferred dictionary/selection/chapter child bridge.
 deferred EPUB.child_text_settings R5 # Deferred preview/popup/end-of-book path.

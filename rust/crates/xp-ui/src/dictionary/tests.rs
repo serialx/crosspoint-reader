@@ -288,6 +288,8 @@ fn lookup_errors_and_timer_match_old_dispositions() {
         assert_eq!((s.message, s.popup), (message, popup_kind));
         assert!(!s.expired(1398));
         assert!(s.expired(1399));
+        assert_eq!(s.expired_result(1398), None);
+        assert_eq!(s.expired_result(1399), Some(popup_kind == 3));
     }
 }
 #[test]
@@ -551,5 +553,70 @@ fn long_selection_view_has_a_fixed_nineteen_command_bound() {
         };
         assert_eq!(result, if capacity == 20 { 1 } else { 2 });
         assert_eq!(scene.command_count, 19);
+    }
+}
+
+#[test]
+fn touch_selection_draws_and_routes_only_available_actions() {
+    use super::{selection::CONFIRMED, view};
+    use crate::scene::{Arena, Command, Kind};
+
+    let words = [word(40, 4, 0, 0)];
+    let screen = Rect {
+        x: 0,
+        y: 0,
+        w: 300,
+        h: 180,
+    };
+    for (mode, hidden, expected) in [
+        (0, 0, &[0_u8, 1, 2][..]),
+        (0, 1, &[1, 2][..]),
+        (2, 1, &[0][..]),
+    ] {
+        let mut state = State::init(&words, mode, 300, 0, 0);
+        let mut layout = Layout {
+            screen,
+            safe: screen,
+            spacing: 4,
+            padding: 4,
+            label_width: 40,
+            label_height: 18,
+            touch: 1,
+            ..Layout::default()
+        };
+        layout.lookup_hidden = hidden;
+        let mut commands = [Command::default(); 20];
+        let mut arena = Arena::new(&mut commands, &mut [], &mut []).unwrap();
+        view::selection(&state, &words, &layout, &Painted::default(), &mut arena).unwrap();
+        let scene = arena.finish(crate::scene::Refresh::None, 1).unwrap();
+        let buttons = scene
+            .commands
+            .iter()
+            .filter(|c| c.kind == Kind::TextHandle as u8);
+        assert_eq!(
+            buttons.clone().count(),
+            expected.len(),
+            "mode={mode}, hidden={hidden}"
+        );
+        for (button, &action) in buttons.zip(expected) {
+            assert_eq!(button.resource, view::LOOKUP + u32::from(action));
+            let result = state.update(
+                &words,
+                &layout,
+                Input {
+                    input: model::Input {
+                        touch_x: button.rect.x + button.rect.w / 2,
+                        touch_y: button.rect.y + button.rect.h / 2,
+                        ..model::Input::default()
+                    },
+                    tap: 1,
+                    ..Input::default()
+                },
+            );
+            assert_eq!(
+                (result.kind, result.action),
+                (CONFIRMED, [1, 0, 2][usize::from(action)])
+            );
+        }
     }
 }

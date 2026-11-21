@@ -30,3 +30,5 @@ add_test(NAME ui_updates_extended_effects COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_extended_effects.py ${XP_FFI_HOST_ARCHIVE})
 add_test(NAME ui_updates_touch_publication COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_touch_publication.py ${XP_FFI_HOST_ARCHIVE})
+
+add_test(NAME ui_font_retry_cache_lock COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_font_cache.py)

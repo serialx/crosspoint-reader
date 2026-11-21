@@ -139,15 +139,21 @@ bool FontDownloadActivity::internString(const char* text, StrRef& outRef) {
   return true;
 }
 
+void FontDownloadActivity::refreshFontRegistry() {
+  RenderLock lock(*this);
+  fontInstaller_.refreshRegistry();
+}
+
 bool FontDownloadActivity::fetchAndParseManifest() {
   if (auto* fcm = renderer.getFontCacheManager()) {
+    RenderLock lock(*this);
     fcm->releaseSdFontCaches();
   }
   // Rescan installed families before any TLS or JSON buffers exist. The rescan
   // frees and reallocates every registry entry, which fragments the heap if it
   // runs while the manifest DOM and the catalog arena are live.
   clearManifest();
-  fontInstaller_.refreshRegistry();
+  refreshFontRegistry();
 
   // Download manifest to a temp file on SD card to avoid holding both
   // TLS buffers and the full JSON string in RAM simultaneously.
@@ -521,6 +527,7 @@ void FontDownloadActivity::downloadFamily(ManifestFamily& family) {
   // hold tens of KB the TLS session needs; release them up front rather than
   // starving the transfer. They repopulate on demand after the download.
   if (auto* fcm = renderer.getFontCacheManager()) {
+    RenderLock lock(*this);
     fcm->releaseSdFontCaches();
     LOG_DBG("FONT", "Free heap after SD font cache release: %d bytes", ESP.getFreeHeap());
   }
@@ -631,7 +638,7 @@ void FontDownloadActivity::downloadFamily(ManifestFamily& family) {
     notify(XP_UI_UPDATE_FONT_FILE_DONE);
   }
 
-  fontInstaller_.refreshRegistry();
+  refreshFontRegistry();
   setFamilyStatus(family, true, false);
 
   {
@@ -671,7 +678,7 @@ void FontDownloadActivity::onDeleteConfirmationResult(const ActivityResult& resu
     notify(XP_UI_UPDATE_FONT_ERROR);
     errorMessage_ = "Failed to delete font";
   } else {
-    fontInstaller_.refreshRegistry();
+    refreshFontRegistry();
     setFamilyStatus(family, false, false);
     // Unlike the other family_ mutations, this one stays in FAMILY_LIST (no
     // phase() transition to hang the rebuild off), so it must set the flag

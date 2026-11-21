@@ -14,7 +14,7 @@ from prepare_native import prepare
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 BASELINE = 'deafbe1070b58ecfee66fc03e888aeb0bfd7b098'
-SDK = '6a573acd0562e45e4ce96837e0c2aebada219760'
+SDK = '50ba72b70d7556563bb869f2b1cf0714b244c8f6'
 
 BOOK_A = b'/books/alpha.epub'
 BOOK_B = b'/books/beta.epub'

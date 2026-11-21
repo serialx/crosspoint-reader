@@ -2,6 +2,81 @@ extern crate std;
 use super::*;
 use crate::{model::*, scene::Interaction};
 use std::{format, string::String};
+
+struct UtilityTestResources {
+    description: bool,
+}
+
+impl Texts for UtilityTestResources {
+    fn present(&self, handle: u32) -> Result<bool, crate::scene::Error> {
+        Ok(match handle {
+            DESCRIPTION => self.description,
+            TITLE | ACTION_LABEL | MORE_LABEL => true,
+            _ => false,
+        })
+    }
+
+    fn height(&self, _: u32, _: i32, _: i16, _: u8, _: u8) -> Result<i16, crate::scene::Error> {
+        Ok(20)
+    }
+}
+
+impl Metrics for UtilityTestResources {
+    fn width(&mut self, _: i32, _: &[u8], _: u8) -> i32 {
+        20
+    }
+    fn line_height(&mut self, _: i32) -> i32 {
+        20
+    }
+}
+
+fn utility_test_layout() -> Layout {
+    let screen = crate::scene::Rect {
+        x: 0,
+        y: 0,
+        w: 480,
+        h: 800,
+    };
+    Layout {
+        screen,
+        safe: screen,
+        touch: 1,
+        control_radius: 12,
+        ..Layout::default()
+    }
+}
+
+#[test]
+fn details_offers_more_only_when_description_has_content() {
+    use crate::scene::{Arena, Command, Refresh};
+    let layout = utility_test_layout();
+    let state = State {
+        kind: Screen::Details as u8,
+        ..State::default()
+    };
+    let mut commands = [Command::default(); 23];
+    let mut hits = [Interaction::default(); 2];
+    let mut metrics = UtilityTestResources { description: false };
+    for description in [true, false] {
+        let mut arena = Arena::new(&mut commands, &mut [], &mut hits).unwrap();
+        view(
+            &mut arena,
+            &state,
+            &layout,
+            &mut metrics,
+            &UtilityTestResources { description },
+            Feedback::default(),
+        )
+        .unwrap();
+        let scene = arena.finish(Refresh::Fast, 1).unwrap();
+        assert!(scene.interactions.iter().any(|h| h.action == PRIMARY));
+        assert_eq!(
+            scene.interactions.iter().any(|h| h.action == MORE),
+            description
+        );
+    }
+}
+
 #[test]
 fn frozen_application_traces() {
     let mut actual = String::new();

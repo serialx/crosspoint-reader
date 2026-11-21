@@ -17,6 +17,62 @@ def method(source, name):
     return source[start:end]
 
 class Adapter(unittest.TestCase):
+    def test_download_releases_font_cache_under_render_lock_only(self):
+        path = ROOT/'src/activities/CatalogActivity.cpp'
+        source = method(path.read_text(), '::downloadFile(')
+        fixture = r"""
+#include <cassert>
+#include <string>
+#include <vector>
+#define LOG_ERR(...) ((void)0)
+bool rendering = false;
+int releases = 0;
+struct RenderLock {
+  RenderLock() { assert(!rendering); rendering = true; }
+  ~RenderLock() { rendering = false; }
+};
+struct FontCache {
+  void releaseSdFontCaches() { assert(rendering); ++releases; }
+};
+struct Renderer {
+  FontCache cache;
+  FontCache* getFontCacheManager() { return &cache; }
+};
+struct {
+  unsigned getFreeHeap() { assert(!rendering); return 100; }
+  unsigned getMaxAllocHeap() { return 100; }
+} ESP;
+struct HttpDownloader {
+  enum DownloadError { OK, HTTP_ERROR };
+  struct Header {};
+  static constexpr unsigned MIN_TLS_FREE_HEAP = 20, MIN_TLS_MAX_ALLOC = 10;
+  template<class... Args> static DownloadError postToFile(Args&&...) { assert(!rendering); return OK; }
+  template<class... Args> static DownloadError downloadToFile(Args&&...) { assert(!rendering); return OK; }
+};
+struct ModelLock { template<class T> ModelLock(T&) { assert(!rendering); } };
+constexpr int XP_UI_CATALOG_DOWNLOADING = 0;
+void xp_ui_catalog_mode(int*, int) {}
+struct CatalogActivity {
+  Renderer renderer;
+  int ui = 0;
+  size_t downloadProgress = 0, downloadTotal = 0;
+  bool cancelDownload = false;
+  void onDownloadProgress(size_t, size_t) {}
+  HttpDownloader::DownloadError downloadFile(const std::string&, const std::string&, const std::string&,
+                                            const std::string&, const std::vector<HttpDownloader::Header>&,
+                                            const std::string*, const char*);
+};
+""" + source + r"""
+int main() {
+  CatalogActivity activity;
+  const std::string body = "request";
+  assert(activity.downloadFile("url", "dest", "", "", {}, nullptr, nullptr) == HttpDownloader::OK);
+  assert(activity.downloadFile("url", "dest", "", "", {}, &body, nullptr) == HttpDownloader::OK);
+  assert(releases == 2);
+}
+"""
+        self.compile_run(fixture)
+
     def test_progress_polls_before_panel_finishes(self):
         path = ROOT/'src/activities/CatalogActivity.cpp'
         source = method(path.read_text(), '::onDownloadProgress(')

@@ -56,6 +56,8 @@ bool BmpToBmpConverter::bmpFileToBmpStream(HalFile& bmpFile, Print& bmpOut, cons
     return false;
   }
 
+  if (!src.hasCompletePixelData()) return false;
+
   // Display dimensions swapped for portrait, as for book covers.
   GifCommon::ImageLayout layout;
   if (!GifCommon::calculateLayout(src.getWidth(), src.getHeight(), display.getDisplayHeight(),

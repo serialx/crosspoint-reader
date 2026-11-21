@@ -19,12 +19,12 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
-#include <functional>
 #include <limits>
 #include <string>
 
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
+#include "SleepCoverCache.h"
 #include "activities/reader/ReaderUtils.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -536,7 +536,8 @@ void SleepActivity::renderSleepRoute(const uint8_t route) {
     case XP_UI_SLEEP_CUSTOM:
       return renderCustomSleepScreen();
     case XP_UI_SLEEP_COVER:
-      return renderCoverSleepScreen();
+      if (renderCoverSleepScreen()) return;
+      return renderSleepRoute(sleepPlan.fallback);
     case XP_UI_SLEEP_OVERLAY:
       return renderTransparentCustomSleepScreen();
     case XP_UI_SLEEP_BLANK:
@@ -547,18 +548,35 @@ void SleepActivity::renderSleepRoute(const uint8_t route) {
   LOG_ERR("RUI", "Invalid sleep route: %u", route);
 }
 
+SleepActivity::BmpProbe SleepActivity::renderScreenReadyBmp(HalFile& file) {
+  Bitmap source(file);
+  if (source.parseHeaders() != BmpReaderError::Ok) return BmpProbe::Invalid;
+  if (source.getWidth() != renderer.getScreenWidth() || source.getHeight() != renderer.getScreenHeight() ||
+      source.getBpp() > 2)
+    return BmpProbe::NeedsConversion;
+  renderBitmapSleepScreen(source);
+  return BmpProbe::Rendered;
+}
+
+bool SleepActivity::renderBmpFile(HalFile& file, const BmpSource source, const bool originalThresholds) {
+  Bitmap bitmap(file, source == BmpSource::Original, originalThresholds);
+  if (bitmap.parseHeaders() != BmpReaderError::Ok) return false;
+  if (source == BmpSource::Cache && !bitmap.hasCompletePixelData()) return false;
+  renderBitmapSleepScreen(bitmap);
+  return true;
+}
+
 bool SleepActivity::renderCustomSleepBmp(const std::string& path) {
   HalFile file;
   if (!Storage.openFileForRead("SLP", path, file)) return false;
-  {
-    Bitmap source(file);
-    if (source.parseHeaders() != BmpReaderError::Ok) return false;
-    LOG_DBG("SLP", "Loading: %s", path.c_str());
-    if (source.getWidth() == renderer.getScreenWidth() && source.getHeight() == renderer.getScreenHeight() &&
-        source.getBpp() <= 2) {
-      renderBitmapSleepScreen(source);
+  LOG_DBG("SLP", "Loading: %s", path.c_str());
+  switch (renderScreenReadyBmp(file)) {
+    case BmpProbe::Invalid:
+      return false;
+    case BmpProbe::Rendered:
       return true;
-    }
+    case BmpProbe::NeedsConversion:
+      break;
   }
 
   const bool thresholds = useOriginalCoverThresholds(renderer);
@@ -566,37 +584,28 @@ bool SleepActivity::renderCustomSleepBmp(const std::string& path) {
     // Like book covers: scale and dither once into a cached screen-sized BMP, then draw it without dithering.
     const bool crop = SETTINGS.sleepScreenCoverMode == CrossPointSettings::SLEEP_SCREEN_COVER_MODE::CROP;
     // Same-sized BMPs share a byte count, so the key also needs the modification time.
-    const std::string key = path + '|' + std::to_string(file.size()) + '|' + std::to_string(file.modificationTime()) +
-                            '|' + std::to_string(renderer.getScreenWidth()) + 'x' +
-                            std::to_string(renderer.getScreenHeight()) + (crop ? "|c" : "|f") +
-                            (thresholds ? "|t" : "");
-    const std::string cachePath = "/.crosspoint/sleep_" + std::to_string(std::hash<std::string>{}(key)) + ".bmp";
-    if (!Storage.exists(cachePath.c_str())) {
-      const std::string tmpPath = cachePath + ".tmp";
-      HalFile out;
-      bool ok = Storage.openFileForWrite("SLP", tmpPath, out) &&
-                BmpToBmpConverter::bmpFileToBmpStream(file, out, crop, thresholds);
-      if (out.isOpen()) ok = out.close() && ok;
-      ok = ok && Storage.rename(tmpPath.c_str(), cachePath.c_str());
-      if (!ok) Storage.remove(tmpPath.c_str());
-    }
-    HalFile cached;
-    if (Storage.openFileForRead("SLP", cachePath, cached)) {
-      Bitmap bitmap(cached);
-      if (bitmap.parseHeaders() == BmpReaderError::Ok) {
-        renderBitmapSleepScreen(bitmap);
-        return true;
+    SleepCoverCache::Paths paths;
+    if (SleepCoverCache::makePaths(paths, path, file.size(), file.modificationTime(), renderer.getScreenWidth(),
+                                   renderer.getScreenHeight(), crop, thresholds)) {
+      if (!Storage.exists(paths.final)) {
+        HalFile out;
+        bool ok = Storage.openFileForWrite("SLP", paths.temp, out) &&
+                  BmpToBmpConverter::bmpFileToBmpStream(file, out, crop, thresholds);
+        if (out.isOpen()) ok = out.close() && ok;
+        ok = ok && Storage.rename(paths.temp, paths.final);
+        if (!ok) Storage.remove(paths.temp);
       }
-      cached.close();
-      Storage.remove(cachePath.c_str());
+      HalFile cached;
+      if (Storage.openFileForRead("SLP", paths.final, cached)) {
+        if (renderBmpFile(cached, BmpSource::Cache)) return true;
+        cached.close();
+        Storage.remove(paths.final);
+      }
     }
     LOG_ERR("SLP", "Sleep image conversion failed; drawing %s directly", path.c_str());
   }
 
-  Bitmap bitmap(file, true, thresholds);
-  if (bitmap.parseHeaders() != BmpReaderError::Ok) return false;
-  renderBitmapSleepScreen(bitmap);
-  return true;
+  return renderBmpFile(file, BmpSource::Original, thresholds);
 }
 
 void SleepActivity::renderCustomSleepScreen() {
@@ -813,14 +822,13 @@ void SleepActivity::renderTransparentCustomSleepScreen() {
   renderDefaultSleepScreen();
 }
 
-void SleepActivity::renderCoverSleepScreen() {
+namespace {
+[[gnu::noinline]] bool findBookCover(std::string& coverBmpPath, const bool originalThresholds) {
   if (APP_STATE.openEpubPath.empty()) {
-    return renderSleepRoute(sleepPlan.fallback);
+    return false;
   }
 
-  const bool originalThresholds = useOriginalCoverThresholds(renderer);
-  std::string coverBmpPath;
-  bool cropped = SETTINGS.sleepScreenCoverMode == CrossPointSettings::SLEEP_SCREEN_COVER_MODE::CROP;
+  const bool cropped = SETTINGS.sleepScreenCoverMode == CrossPointSettings::SLEEP_SCREEN_COVER_MODE::CROP;
 
   // Check if the current book is XTC, TXT, or EPUB
   if (FsHelpers::hasXtcExtension(APP_STATE.openEpubPath)) {
@@ -828,12 +836,12 @@ void SleepActivity::renderCoverSleepScreen() {
     Xtc lastXtc(APP_STATE.openEpubPath, "/.crosspoint");
     if (!lastXtc.load()) {
       LOG_ERR("SLP", "Failed to load last XTC");
-      return renderSleepRoute(sleepPlan.fallback);
+      return false;
     }
 
     if (!lastXtc.generateCoverBmp()) {
       LOG_ERR("SLP", "Failed to generate XTC cover bmp");
-      return renderSleepRoute(sleepPlan.fallback);
+      return false;
     }
 
     coverBmpPath = lastXtc.getCoverBmpPath();
@@ -843,19 +851,30 @@ void SleepActivity::renderCoverSleepScreen() {
     // Skip loading css since we only need metadata here
     if (!lastEpub.load(true, true)) {
       LOG_ERR("SLP", "Failed to load last book");
-      return renderSleepRoute(sleepPlan.fallback);
+      return false;
     }
 
     if (!lastEpub.generateCoverBmp(cropped, originalThresholds)) {
       LOG_ERR("SLP", "Failed to generate cover bmp");
-      return renderSleepRoute(sleepPlan.fallback);
+      return false;
     }
 
     coverBmpPath = lastEpub.getCoverBmpPath(cropped, originalThresholds);
   } else {
-    return renderSleepRoute(sleepPlan.fallback);
+    return false;
   }
 
+  return true;
+}
+}  // namespace
+
+// An overlay can save state during drawing. Keep book decoding and bitmap drawing in separate stack frames.
+bool SleepActivity::renderCoverSleepScreen() {
+  std::string coverBmpPath;
+  return findBookCover(coverBmpPath, useOriginalCoverThresholds(renderer)) && renderBookCoverFile(coverBmpPath);
+}
+
+[[gnu::noinline]] bool SleepActivity::renderBookCoverFile(const std::string& coverBmpPath) {
   HalFile file;
   if (Storage.openFileForRead("SLP", coverBmpPath, file)) {
     Bitmap bitmap(file);
@@ -864,11 +883,11 @@ void SleepActivity::renderCoverSleepScreen() {
       if (sleepPlan.overlay_cover) overlayCover = &bitmap;
       renderBitmapSleepScreen(bitmap);
       overlayCover = nullptr;
-      return;
+      return true;
     }
   }
 
-  return renderSleepRoute(sleepPlan.fallback);
+  return false;
 }
 
 void SleepActivity::renderLastScreenSleepScreen() {

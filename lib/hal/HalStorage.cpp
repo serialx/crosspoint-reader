@@ -257,8 +257,8 @@ bool HalStorage::openFileForRead(const char* moduleName, const char* path, HalFi
   StorageLock lock;  // ensure thread safety for the duration of this function
   FsFile fsFile;
   bool ok = SDCard.openFileForRead(moduleName, path, fsFile);
-  file = HalFile(std::make_unique<HalFile::Impl>(std::move(fsFile)));
-  return ok;
+  file.impl.reset(new (std::nothrow) HalFile::Impl(std::move(fsFile)));
+  return ok && file.impl != nullptr;
 }
 
 bool HalStorage::openFileForRead(const char* moduleName, const std::string& path, HalFile& file) {
@@ -273,8 +273,8 @@ bool HalStorage::openFileForWrite(const char* moduleName, const char* path, HalF
   StorageLock lock;  // ensure thread safety for the duration of this function
   FsFile fsFile;
   bool ok = SDCard.openFileForWrite(moduleName, path, fsFile);
-  file = HalFile(std::make_unique<HalFile::Impl>(std::move(fsFile)));
-  return ok;
+  file.impl.reset(new (std::nothrow) HalFile::Impl(std::move(fsFile)));
+  return ok && file.impl != nullptr;
 }
 
 bool HalStorage::openFileForWrite(const char* moduleName, const std::string& path, HalFile& file) {

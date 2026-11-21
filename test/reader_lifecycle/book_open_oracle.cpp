@@ -24,8 +24,16 @@ struct SerialPort {
   }
 } Serial;
 constexpr int O_RDONLY = 1, O_RDWR = 2, O_CREAT = 4, O_TRUNC = 8;
+static bool sdkOpenOk = false;
+static bool failHandleAllocation = false;
+
+void* operator new(size_t bytes, const std::nothrow_t&) noexcept {
+  if (std::exchange(failHandleAllocation, false)) return nullptr;
+  return ::operator new(bytes);
+}
+
 struct FsFile {
-  explicit operator bool() const { return false; }
+  explicit operator bool() const { return sdkOpenOk; }
 };
 struct Volume {
   FsFile open(const char*, int flags) {
@@ -88,6 +96,15 @@ static const XpAppResources resources = [] {
 extern "C" void xp_epub_test_book_open(const XpAppResources*, const XpEpubLeaves*, uint8_t, uint8_t);
 extern "C" size_t xp_test_live_allocations();
 int main() {
+  sdkOpenOk = true;
+  for (const bool write : {false, true}) {
+    HalFile file;
+    failHandleAllocation = true;
+    const bool opened = write ? Storage.openFileForWrite("SLP", "/cache.tmp", file)
+                              : Storage.openFileForRead("SLP", "/cache.bmp", file);
+    assert(!opened && !file.impl && !failHandleAllocation && depth == 0);
+  }
+  sdkOpenOk = false;
   const char* tags[] = {"ERS", "BMC", "COF", "BMC", "CSS", "ZIP", "TXT", "EBP"};
   for (bool connected : {false, true}) {
     Serial.connected = connected;

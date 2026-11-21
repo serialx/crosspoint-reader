@@ -93,6 +93,8 @@ class HalFile {
     return (!HalFileTest::allowSeek || HalFileTest::allowSeek(path_.c_str(), pos)) && file_ &&
            std::fseek(file_, static_cast<long>(pos), SEEK_SET) == 0;
   }
+  uint64_t fileSize64() const { return size(); }
+  bool seek64(uint64_t pos) { return pos <= SIZE_MAX && seek(static_cast<size_t>(pos)); }
   bool seekCur(size_t offset) {
     hal_fake::requireImpl(impl_, "seekCur", path_.c_str());
     return file_ && std::fseek(file_, static_cast<long>(offset), SEEK_CUR) == 0;

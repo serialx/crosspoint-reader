@@ -11,3 +11,4 @@ target_include_directories(BmpToBmpTest PRIVATE
   ${REPO_ROOT}/lib/Memory)
 target_link_libraries(BmpToBmpTest PRIVATE crosspoint_test_common GTest::gtest_main)
 gtest_discover_tests(BmpToBmpTest)
+add_test(NAME SleepCoverCacheFlow COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/cache_flow.py)

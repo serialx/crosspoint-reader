@@ -298,9 +298,14 @@ BmpReaderError Bitmap::readNextRow(uint8_t* data, uint8_t* rowBuffer) const {
   return BmpReaderError::Ok;
 }
 
+bool Bitmap::hasCompletePixelData() const {
+  return bfOffBits + static_cast<uint64_t>(rowBytes) * height <= file.fileSize64();
+}
+
 BmpReaderError Bitmap::readRowGray(const int y, uint8_t* gray, uint8_t* rowBuffer) const {
-  const uint32_t fileRow = topDown ? y : height - 1 - y;
-  if (!file.seek(bfOffBits + fileRow * rowBytes)) return BmpReaderError::SeekPixelDataFailed;
+  if (y < 0 || y >= height) return BmpReaderError::SeekPixelDataFailed;
+  const uint64_t fileRow = topDown ? y : height - 1 - y;
+  if (!file.seek64(bfOffBits + fileRow * rowBytes)) return BmpReaderError::SeekPixelDataFailed;
   if (static_cast<int>(file.read(rowBuffer, rowBytes)) != rowBytes) return BmpReaderError::ShortReadRow;
 
   switch (bpp) {

@@ -18,8 +18,23 @@ def synthetic():
 
 def fingerprint(result):
     digest = lambda data: hashlib.sha256(data).hexdigest()
-    return {'status': result['status'], 'trace': digest(result['trace'].encode()),
-            'files': {name: digest(base64.b64decode(data)) for name, data in result['files'].items()}}
+    files = {}
+    for name, data in result['files'].items():
+        raw = base64.b64decode(data)
+        if name.startswith('cache/sections/') and raw:
+            # Compare the payload against the original v68 capture, including interrupted writes.
+            offset = 0
+            if raw[0] == 0 and re.search(
+                    r'seek cache/sections/0\.bin\.part 0 0 FAIL\nio \d+ write cache/sections/0\.bin\.part 44 1\n',
+                    result['trace']):
+                # A failed rewind can leave the commit stamp just after the 44-byte header.
+                offset = 44
+            if raw[offset] in (68, 214):
+                raise ValueError(f'Legacy section stamp still written to {name}')
+            stamp = {73: 68, 209: 214}.get(raw[offset], raw[offset])
+            raw = raw[:offset] + bytes([stamp]) + raw[offset + 1:]
+        files[name] = digest(raw)
+    return {'status': result['status'], 'trace': digest(result['trace'].encode()), 'files': files}
 
 
 def main():

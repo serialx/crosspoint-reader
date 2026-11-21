@@ -13,7 +13,7 @@ XpSecRecord sectionRecord(const std::vector<uint8_t>& bytes, uint32_t kind, size
 }
 std::vector<uint8_t> childSectionBytes() {
   std::vector<uint8_t> bytes;
-  const uint32_t header[] = {68, 1, 0x3f800000, 0, 0, 0, 528, 792, 0, 0, 0, 0, 0, 100,
+  const uint32_t header[] = {73, 1, 0x3f800000, 0, 0, 0, 528, 792, 0, 0, 0, 0, 0, 100,
                              readerSectionPages, 0, 0, 0, 0, 0};
   const unsigned widths[] = {1, 4, 4, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 2, 4, 4, 4, 4, 4};
   for (unsigned i = 0; i < 20; ++i) number(bytes, header[i], widths[i]);

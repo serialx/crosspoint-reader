@@ -43,6 +43,11 @@ if a.action == 'capture':
         out.write(json.dumps(result, sort_keys=True).encode())
 else:
     expected = json.loads(gzip.decompress(a.golden.read_bytes()))
+    if a.golden == pathlib.Path(__file__).with_name('golden.json.gz'):
+        updates = json.loads(gzip.decompress(a.golden.with_name('rich-pages-v73.json.gz').read_bytes()))
+        expected['frames'].update(updates['frames'])
+        for index, record in updates['geometry'].items():
+            expected['geometry'][int(index)] = record
     if result != expected:
         differences = [k for k in frames if frames[k] != expected['frames'].get(k)]
         raise SystemExit(f'Oracle mismatch: {len(differences)} frames, geometry={records != expected["geometry"]}; {differences[:5]}')

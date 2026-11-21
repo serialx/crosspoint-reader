@@ -234,19 +234,44 @@ def main():
                   if args.layout and manifest.get("trace_format") == "sampled-v1" else sections)
         expected = read_archive(archive)
         expected_inventory = manifest["sections"]
-        if args.ops:
+        if not args.layout and not args.ops:
+            changed = read_archive(args.goldens / "sections-v73-changes.tar.gz")
             for entry in expected_inventory:
-                data = expected[entry["section"]]
+                name = entry["section"]
+                data = expected[name]
+                if data[0] != 68 or hashlib.sha256(data).hexdigest() != entry["sha256"]:
+                    raise ValueError(f"Unexpected historical section: {name}")
+                expected[name] = changed.pop(name, bytes([73]) + data[1:])
+                entry["pages"] = struct.unpack_from("<H", expected[name], 22)[0]
+                entry["bytes"] = len(expected[name])
+                entry["sha256"] = hashlib.sha256(expected[name]).hexdigest()
+            if changed:
+                raise ValueError(f"Unknown v73 reference sections: {sorted(changed)}")
+        if args.ops:
+            references = {name: (digest, int(pages)) for digest, pages, name in
+                          (line.split() for line in (args.goldens / "ops-v73.sha256").read_text().splitlines())}
+            if references.keys() != actual.keys() or expected.keys() != actual.keys():
+                raise ValueError("Operation reference sections changed")
+            actual_inventory = {entry["section"]: entry for entry in inventory}
+            def nested_replies(lines):
+                return [(lines[i - 1], line) for i, line in enumerate(lines) if line.startswith(b"Reply\t")]
+            for entry in expected_inventory:
+                name = entry["section"]
+                data = expected[name]
                 if len(data) != entry["bytes"] or hashlib.sha256(data).hexdigest() != entry["sha256"]:
                     raise ValueError("Operation baseline manifest changed")
-            expected = {name: filter_paragraph_ops(data) for name, data in expected.items()}
-            actual = {name: filter_paragraph_ops(data) for name, data in actual.items()}
-            def filtered_inventory(entries, records):
-                return [{**entry, "bytes": len(records[entry["section"]]),
-                         "sha256": hashlib.sha256(records[entry["section"]]).hexdigest()}
-                        for entry in entries]
-            expected_inventory = filtered_inventory(expected_inventory, expected)
-            inventory = filtered_inventory(inventory, actual)
+                historical = filter_paragraph_ops(data).splitlines(keepends=True)
+                current = filter_paragraph_ops(actual[name]).splitlines(keepends=True)
+                if nested_replies(current) != nested_replies(historical):
+                    raise ValueError(f"Nested platform replies changed: {name}")
+                native = b"".join(line for line in current if not line.startswith(b"Reply\t"))
+                digest, pages = references[name]
+                if hashlib.sha256(native).hexdigest() != digest:
+                    raise ValueError(f"Operation trace differs from upstream v73: {name}")
+                if actual_inventory[name]["pages"] != pages or actual_inventory[name]["spine"] != entry["spine"]:
+                    raise ValueError(f"Operation inventory changed: {name}")
+            print(f"PASS: {len(actual)} upstream operation traces and nested reply streams")
+            return
         compare(expected, actual)
         if inventory != expected_inventory:
             raise ValueError("Section inventory changed")

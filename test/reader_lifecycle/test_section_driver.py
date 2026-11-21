@@ -65,7 +65,10 @@ def main():
         if name in cases:
             case_cache, frozen = cases[name]
             data = (case_cache / 'sections/0.bin').read_bytes()
-            actual = dict(bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
+            partial = '-partial-' in name
+            assert data[0] == (209 if partial else 73), (name, data[0])
+            historical = bytes([214 if partial else 68]) + data[1:]
+            actual = dict(bytes=len(data), sha256=hashlib.sha256(historical).hexdigest())
             check['cache'] = actual
             assert actual == frozen, (name, actual, frozen)
     # The retired native null-popup mutation remains in the historical oracle.

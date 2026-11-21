@@ -15,6 +15,18 @@ sections, 2,584,934 raw bytes, and 680,100 compressed bytes.
 `goldens/inventory.json` records the full baseline revision, each EPUB's SHA-256,
 and each section's source path, page count, byte count, and SHA-256.
 
+For version 73, the native C++ section producer included the upstream 2.0.0
+chapter, paragraph and text-block changes with the same public inputs and font
+metrics. Of the 312 sections, 294 changed only in the version byte. The other
+18 complete native outputs are in `sections-v73-changes.tar.gz`. Reader and
+corruption tests still use the historical version-68 archive.
+
+`ops-v73.sha256` records each native chapter operation stream and its page
+count. The test also checks the ordered nested platform requests and replies
+against the earlier C++ adapter capture. Those replies were emitted by the
+adapter between chapter and paragraph code and do not exist in upstream's
+single C++ parser.
+
 ## Run
 
 From the repository root, with the existing host test dependencies installed:

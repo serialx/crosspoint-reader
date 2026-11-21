@@ -108,6 +108,46 @@ if (parsedSize != fileSize) {
 
 ## `section.bin`
 
+This branch applies the upstream invalidations for versions 69 through 73 together.
+
+### Version 73
+
+Version 73 keeps the binary layout and rebuilds completed and partial sections.
+TrueType vector fonts now render and advance the .notdef glyph for missing
+characters instead of omitting them. Cached line breaks and word positions change
+for text containing glyph fallbacks. Book metadata and saved progress are kept.
+
+### Version 72
+
+Version 72 makes ruby layout closer to how Chromium browser render text with
+ruby characters by default (`ruby-align: space-around; ruby-overhang: auto;`)
+Ruby annotation can overhang neighboring base text by at most the smaller of
+half the ruby edge-character width and 1/4 of the neighboring word width. When
+the ruby annotation is wider than its base text, spacing is inserted between
+every character in the base text as well as at the start and the end of the
+base text so that it becomes the same length as the ruby annotation.
+
+### Version 71
+
+Version 71 keeps the binary layout and rebuilds completed and partial sections.
+Focus split offsets now locate the bold prefix in RTL words and the regular
+suffix in LTR words. Book metadata and saved progress are kept.
+
+### Version 70
+
+Version 70 preserves the binary layout but rebuilds completed and partial
+sections because SD-font layout now rounds each scaled glyph advance to pixels,
+matching unkerned drawing. Cached line breaks and word positions change.
+Book metadata and saved progress are kept.
+
+### Version 69
+
+Version 69 preserves the binary layout but rebuilds completed and partial
+sections because line spacing now multiplies font size instead of the font's
+newline distance (`advanceY`). Clipping layout signatures also distinguish the
+new calculation so old page-local word ranges are not reused for a new layout.
+Book metadata and saved progress are kept.
+
 ### Version 68
 
 Version 68 preserves the binary layout but rebuilds completed and partial
@@ -125,8 +165,8 @@ bytes, seeks to the start and passes only the bounded span to the page decoder.
 `visibleTextOffset` lives in its separate table, not in the page body.
 
 A build starts with version 0. Committing patches the page count and table
-offsets, then writes version 68 last. A suspended build uses
-`0xFE - (68 - 28) = 214` instead. It has the same layout plus two `u32` values,
+offsets, then writes version 73 last. A suspended build uses
+`0xFE - (73 - 28) = 209` instead. It has the same layout plus two `u32` values,
 `bytesConsumed` and `totalBytes`, immediately after the visible-offset table.
 The ImHex example below describes finalized sections only.
 
@@ -392,7 +432,7 @@ import std.mem;
 import std.string;
 import std.core;
 
-#define EXPECTED_VERSION 68
+#define EXPECTED_VERSION 73
 #define MAX_STRING_LENGTH 65535
 #define FOOTNOTE_NUMBER_LEN 32
 #define FOOTNOTE_HREF_LEN 256

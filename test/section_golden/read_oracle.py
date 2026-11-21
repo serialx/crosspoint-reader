@@ -261,7 +261,7 @@ def mutations(data):
 
 
 def partial_mutations(data):
-    partial = bytes([214]) + data[1:] + struct.pack('<II', 100, 200)
+    partial = bytes([0xfe - (data[0] - 28)]) + data[1:] + struct.pack('<II', 100, 200)
     yield 'partial-valid', partial
     yield 'partial-short-watermark', partial[:-1]
     empty = bytearray(partial)
@@ -275,7 +275,7 @@ HEADER_FIELDS = {'page-count': (22, 'H'), 'page-lut': (24, 'I'), 'anchors': (28,
 
 def header_mutations(data):
     """Mutate every table offset and the u16 page count in final/partial headers."""
-    for kind, source in (('final', data), ('partial', bytes([214]) + data[1:] + struct.pack('<II', 100, 200))):
+    for kind, source in (('final', data), ('partial', bytes([0xfe - (data[0] - 28)]) + data[1:] + struct.pack('<II', 100, 200))):
         for field, (pos, fmt) in HEADER_FIELDS.items():
             old = struct.unpack_from('<' + fmt, source, pos)[0]
             mask = 0xffff if fmt == 'H' else 0xffffffff
@@ -493,6 +493,10 @@ def main():
             members = members[:args.limit]
         for member in members:
             data = archive.extractfile(member).read()
+            if args.verify:
+                # Replay v68 page bodies with the current header for decoder coverage.
+                assert data[0] == 68
+                data = bytes([73]) + data[1:]
             pages = struct.unpack_from('<H', data, 22)[0]
             if args.mutations or args.partial or args.header_mutations:
                 def check(case):

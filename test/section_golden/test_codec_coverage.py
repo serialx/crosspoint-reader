@@ -12,7 +12,7 @@ import unittest
 from read_oracle import HERE, Fields
 
 
-def fixture(partial=False, spacing=0):
+def fixture(partial=False, spacing=0, version=68):
     with tarfile.open(HERE / 'goldens/sections.tar.gz') as archive:
         member = next(m for m in archive if m.isfile() and '/0/' in m.name)
         header = bytearray(archive.extractfile(member).read()[:44])
@@ -38,7 +38,7 @@ def fixture(partial=False, spacing=0):
     data += struct.pack('<' + 'H' * len(bodies), *[0, 0, 2, 5][:len(bodies)])
     visible = len(data)
     data += struct.pack('<' + 'I' * len(bodies), *[0, 10, 10, 30][:len(bodies)])
-    data[0] = 214 if partial else 68
+    data[0] = 0xfe - (version - 28) if partial else version
     data[20] = spacing & 255
     struct.pack_into('<HIIIII', data, 22, len(bodies), lut, anchors, paragraphs, items, visible)
     if partial:
@@ -55,13 +55,13 @@ def invoke(exe, data, mode, setting=0):
         return result.stdout.splitlines()
 
 
-def observations(exe):
+def observations(exe, version):
     return {
-        'drop-cap': invoke(exe, fixture()[0], '--read'),
-        'negative-spacing': invoke(exe, fixture(spacing=-3)[0], '--read', 3),
-        'spacing-mismatch': invoke(exe, fixture(spacing=-3)[0], '--read'),
-        'final-lookups': invoke(exe, fixture()[0], '--lookups'),
-        'partial-lookups': invoke(exe, fixture(partial=True)[0], '--lookups'),
+        'drop-cap': invoke(exe, fixture(version=version)[0], '--read'),
+        'negative-spacing': invoke(exe, fixture(spacing=-3, version=version)[0], '--read', 3),
+        'spacing-mismatch': invoke(exe, fixture(spacing=-3, version=version)[0], '--read'),
+        'final-lookups': invoke(exe, fixture(version=version)[0], '--lookups'),
+        'partial-lookups': invoke(exe, fixture(partial=True, version=version)[0], '--lookups'),
     }
 
 
@@ -100,7 +100,12 @@ if __name__ == '__main__':
     parser.add_argument('--baseline', type=Path, default=HERE / 'goldens/codec-coverage.json')
     parser.add_argument('--capture', action='store_true')
     args = parser.parse_args()
-    ACTUAL = observations(args.dump.resolve())
+    ACTUAL = observations(args.dump.resolve(), 68 if args.capture else 73)
+    if not args.capture:
+        for partial in (False, True):
+            obsolete, _ = fixture(partial=partial, version=68)
+            lines = invoke(args.dump.resolve(), obsolete, '--header')
+            assert lines[0] == 'section\t0\t0' and lines[-1] == 'retained\t0', lines
     if args.capture:
         with args.baseline.open('x') as output:
             json.dump(ACTUAL, output, indent=2)

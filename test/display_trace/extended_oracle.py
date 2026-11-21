@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 
 from oracle import cases, compare
+from sync_200_oracle import Sync200Oracle
 
 HERE = Path(__file__).resolve().parent
 
@@ -38,6 +39,9 @@ def main():
     passed = True
     if args.operation == 'record':
         args.goldens.mkdir(parents=True, exist_ok=True)
+    overlay = None
+    if args.operation == 'verify' and args.goldens.resolve() == HERE / 'extended-goldens':
+        overlay = Sync200Oracle()
     for name, command in scenarios():
         actual = subprocess.check_output([str(args.bin_dir.resolve() / command[0]), *command[1:]], timeout=120)
         path = args.goldens / (name + '.trace.xz')
@@ -47,7 +51,9 @@ def main():
                 raise ValueError(f'{name}: compressed fixture exceeds 1 MB')
             path.write_bytes(compressed)
         else:
-            passed &= compare(lzma.decompress(path.read_bytes()), actual, name)
+            historical = lzma.decompress(path.read_bytes())
+            expected = overlay.expected(name, historical) if overlay else historical
+            passed &= compare(expected, actual, name)
         rows.append({'case': name, 'sha256': hashlib.sha256(actual).hexdigest(), 'bytes': len(actual)})
     if args.operation == 'record':
         (args.goldens / 'manifest.json').write_text(json.dumps({

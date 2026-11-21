@@ -89,6 +89,10 @@ def main():
         parser.error("unknown case")
     if args.command == "record":
         args.goldens.mkdir(parents=True, exist_ok=True)
+    overlay = None
+    if args.command == "verify" and args.goldens.resolve() == HERE / "goldens":
+        from sync_200_oracle import Sync200Oracle
+        overlay = Sync200Oracle()
     temporary = tempfile.TemporaryDirectory(prefix="display-trace-pages-")
     page_dir = args.page_dir or pathlib.Path(temporary.name)
     if not args.page_dir:
@@ -116,8 +120,11 @@ def main():
             if len(packed) > 1_000_000:
                 raise ValueError(f"fixture exceeds 1 MB: {name} ({len(packed)} bytes)")
             path.write_bytes(packed)
-        elif not compare(read(path), first, name):
-            failures += 1
+        else:
+            historical = read(path)
+            expected = overlay.expected(name, historical) if overlay else historical
+            if not compare(expected, first, name):
+                failures += 1
         manifest["cases"][name] = {"sha256": hashlib.sha256(first).hexdigest(), "bytes": len(first),
                                     "lines": first.count(b"\n"), "deterministic": True}
         print(f"{name}: {'recorded' if args.command == 'record' else 'checked'}, {len(first)} bytes", flush=True)

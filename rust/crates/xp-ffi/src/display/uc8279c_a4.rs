@@ -61,7 +61,6 @@ pub(super) unsafe fn dispatch(action: Action<'_>) -> u32 {
                 Ok(d) => d,
                 Err(e) => return e,
             };
-            let off = r.flags & FLAG_TURN_OFF != 0;
             match r.operation {
                 OP_BEGIN => p.begin(bus),
                 OP_SLEEP => p.sleep(bus),
@@ -81,7 +80,6 @@ pub(super) unsafe fn dispatch(action: Action<'_>) -> u32 {
                         } else {
                             r.mode
                         },
-                        off,
                     );
                 }
                 OP_GRAY_BEGIN => {
@@ -98,8 +96,7 @@ pub(super) unsafe fn dispatch(action: Action<'_>) -> u32 {
                     }
                     p.copy(&mut memory, d, r.mode, r.y, r.height);
                 }
-                OP_GRAY_DISPLAY => p.gray(bus, &mut memory, off),
-                OP_GRAY_CALIBRATE => p.gray(bus, &mut memory, false),
+                OP_GRAY_DISPLAY | OP_GRAY_CALIBRATE => p.gray(bus, &mut memory),
                 OP_GRAY_CLEANUP => p.cleanup(bus, &mut memory),
                 OP_DISPLAY_FINISH
                 | OP_SEED_PREVIOUS

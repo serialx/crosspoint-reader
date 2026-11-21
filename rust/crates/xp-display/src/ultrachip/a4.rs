@@ -1,5 +1,5 @@
 use super::tags::*;
-use super::{a4_luts::*, fill, Memory, Plane};
+use super::{a4_luts::*, Memory, Plane};
 use crate::{constants::*, Bus};
 
 const SCREEN_ON: u16 = 1 << 0;
@@ -81,15 +81,14 @@ impl Uc8279cA4 {
             },
         );
         bus.cmd_data(6, &[0x25, 0x25, 0x3c]);
-        bus.cmd_data(0x82, &[if gray { 0x32 } else { 0x24 }]);
+        bus.cmd_data(0x82, &[if gray { 0x32 } else { 0x26 }]);
         bus.cmd_data(0x30, &[0x0f]);
         bus.cmd_data(0x61, &[3, 0, 2, 0x58]);
         bus.cmd_data(0x65, &[0, 0, 0, 0]);
         bus.cmd_data(0xe1, &[2]);
-        fill(bus, 0x10, 600, 96);
-        bus.cmd(4);
-        bus.busy_wait(1, TAG_A4_POWER_ON);
-        self.set(SCREEN_ON, true);
+        Self::fill(bus, 0x10, 0xff);
+        self.set(SCREEN_ON, false);
+        self.on(bus);
         self.set(GRAY_CONTROLLER, gray);
     }
     fn on(&mut self, bus: &mut impl Bus) {
@@ -119,17 +118,31 @@ impl Uc8279cA4 {
         }
         bus.txn_end();
     }
-    fn refresh(&mut self, bus: &mut impl Bus, off: bool, baseline: Option<&[u8]>) {
+    fn fill(bus: &mut impl Bus, cmd: u8, value: u8) {
+        let row = [value; 96];
+        bus.cmd(cmd);
+        bus.txn_begin();
+        for _ in 0..600 {
+            bus.txn_write(&row);
+        }
+        bus.txn_end();
+    }
+    fn trigger(bus: &mut impl Bus) {
         bus.cmd(0x12);
         bus.busy_wait(1, TAG_A4_REFRESH);
+    }
+    fn power_off(&mut self, bus: &mut impl Bus) {
+        bus.cmd(2);
+        bus.busy_wait(1, TAG_A4_POWER_OFF);
+        self.set(SCREEN_ON, false);
+    }
+    fn refresh(&mut self, bus: &mut impl Bus, baseline: Option<&[u8]>) {
+        self.on(bus);
+        Self::trigger(bus);
         if let Some(data) = baseline {
             Self::frame(bus, 0x10, data, false);
         }
-        if off {
-            bus.cmd(2);
-            bus.busy_wait(1, TAG_A4_POWER_OFF);
-            self.set(SCREEN_ON, false);
-        }
+        self.power_off(bus);
     }
     pub fn begin(&mut self, bus: &mut impl Bus) {
         self.set(REDRIVE, false);
@@ -146,7 +159,6 @@ impl Uc8279cA4 {
         memory: &mut impl Memory,
         data: &[u8],
         mode: u32,
-        off: bool,
     ) {
         self.set(HISTORY_VALID, false);
         self.set(SESSION, false);
@@ -164,14 +176,14 @@ impl Uc8279cA4 {
         if self.has(FIRST) {
             Self::frame(bus, 0x10, data, false);
             Self::frame(bus, 0x13, data, true);
-            self.refresh(bus, false, None);
+            self.refresh(bus, None);
         }
         if self.has(FIRST) || self.has(REDRIVE) {
             Self::frame(bus, 0x10, data, true);
             self.set(FIRST, false);
         }
         Self::frame(bus, 0x13, data, false);
-        self.refresh(bus, off, Some(data));
+        self.refresh(bus, Some(data));
         let n = self.size();
         self.base.ensure(memory, n, false);
         if data.as_ptr() != self.base.0 {
@@ -182,7 +194,7 @@ impl Uc8279cA4 {
         self.set(REDRIVE, false);
     }
     // Internal baseline rendering borrows one owned plane while mutating state.
-    fn display_base(&mut self, bus: &mut impl Bus, memory: &mut impl Memory, off: bool) {
+    fn display_base(&mut self, bus: &mut impl Bus, memory: &mut impl Memory) {
         if self.base.present() {
             let ptr = self.base.0;
             let data = unsafe { core::slice::from_raw_parts(ptr, self.size()) };
@@ -191,7 +203,6 @@ impl Uc8279cA4 {
                 memory,
                 data,
                 if self.has(CLEANUP_PAGE) { 1 } else { 2 },
-                off,
             );
         }
     }
@@ -274,7 +285,7 @@ impl Uc8279cA4 {
         bus.txn_end();
         (black_present, clear_present)
     }
-    fn show_gray3(&mut self, bus: &mut impl Bus, off: bool) {
+    fn show_gray3(&mut self, bus: &mut impl Bus) {
         if !self.has(SESSION) {
             Self::reset(bus);
             self.init(bus, true);
@@ -298,7 +309,7 @@ impl Uc8279cA4 {
             }
             bus.cmd_data(0x20 + i as u8, &record);
         }
-        self.refresh(bus, off, None);
+        self.refresh(bus, None);
         let n = self.size();
         if let (Some(dst), Some(src)) = (self.white.bytes_mut(n), self.lsb.bytes(n)) {
             dst.copy_from_slice(src);
@@ -311,7 +322,7 @@ impl Uc8279cA4 {
         self.set(FIRST, false);
         self.set(REDRIVE, true);
     }
-    pub fn gray(&mut self, bus: &mut impl Bus, memory: &mut impl Memory, off: bool) {
+    pub fn gray(&mut self, bus: &mut impl Bus, memory: &mut impl Memory) {
         let overlay = self.has(OVERLAY);
         self.set(OVERLAY, true);
         let n = self.size();
@@ -327,13 +338,13 @@ impl Uc8279cA4 {
                 || !self.middle.present()
             {
                 if self.has(BASE_PENDING) {
-                    self.display_base(bus, memory, off);
+                    self.display_base(bus, memory);
                 }
                 return;
             }
             if !self.has(HISTORY_VALID) {
                 if self.has(BASE_PENDING) {
-                    self.display_base(bus, memory, false);
+                    self.display_base(bus, memory);
                 }
                 self.set(CLEANUP_PAGE, false);
                 if let (Some(dst), Some(src)) = (self.white.bytes_mut(n), self.base.bytes(n)) {
@@ -353,10 +364,10 @@ impl Uc8279cA4 {
             }
             if self.has(CLEANUP_PAGE) {
                 self.invert_gray3();
-                self.show_gray3(bus, false);
+                self.show_gray3(bus);
                 self.invert_gray3();
             }
-            self.show_gray3(bus, off);
+            self.show_gray3(bus);
             self.set(BASE_PENDING, false);
             self.set(CLEANUP_PAGE, false);
             return;
@@ -366,6 +377,7 @@ impl Uc8279cA4 {
         }
         self.set(HISTORY_VALID, false);
         self.set(SESSION, false);
+        self.preclear_four_gray(bus);
         Self::reset(bus);
         self.init(bus, true);
         if let Some(data) = self.msb.bytes(n) {
@@ -378,8 +390,31 @@ impl Uc8279cA4 {
         for (i, row) in GRAY.iter().enumerate() {
             bus.cmd_data(0x20 + i as u8, row);
         }
-        self.refresh(bus, off, None);
+        Self::trigger(bus);
+        Self::fill(bus, 0x10, 0xff);
+        self.power_off(bus);
         self.set(REDRIVE, true);
+    }
+    fn preclear_four_gray(&mut self, bus: &mut impl Bus) {
+        if self.has(GRAY_CONTROLLER) {
+            Self::reset(bus);
+            self.init(bus, false);
+        }
+        self.on(bus);
+        bus.cmd_data(0x50, &[0x97]);
+        for (i, source) in FULL.iter().enumerate() {
+            let mut record = *source;
+            for group in record.chunks_exact_mut(7) {
+                for count in &mut group[1..=4] {
+                    *count = (*count & 0xc0) | ((*count & 0x3f).div_ceil(2));
+                }
+            }
+            bus.cmd_data(0x20 + i as u8, &record);
+        }
+        Self::fill(bus, 0x13, 0);
+        // The pre-clear pair shares one power-on interval and one DTM2 upload.
+        Self::trigger(bus);
+        self.refresh(bus, None);
     }
     fn invert_gray3(&mut self) {
         let n = self.size();
@@ -391,15 +426,13 @@ impl Uc8279cA4 {
     }
     pub fn cleanup(&mut self, bus: &mut impl Bus, memory: &mut impl Memory) {
         if self.has(BASE_PENDING) && self.base.present() {
-            self.display_base(bus, memory, false);
+            self.display_base(bus, memory);
         }
         self.set(BASE_PENDING, false);
     }
     pub fn sleep(&mut self, bus: &mut impl Bus) {
         if self.has(SCREEN_ON) {
-            bus.cmd(2);
-            bus.busy_wait(1, TAG_A4_POWER_OFF);
-            self.set(SCREEN_ON, false);
+            self.power_off(bus);
         }
         bus.cmd_data(7, &[0xa5]);
     }

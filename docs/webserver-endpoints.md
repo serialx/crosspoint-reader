@@ -144,20 +144,23 @@ Notes:
   request fails with `400` "File already exists: <name>".
 - With `overwrite`, the upload is written to `<name>.part` and replaces the
   existing file after all data has been written and closed. A write or close
-  failure leaves the old file in place. If replacement fails while the old
-  file still exists, the server removes the staged copy. If the card removed
-  the old file before the rename failed, the server returns `400`, keeps the
-  new data at `<name>.part` for recovery, and invalidates the missing book's
-  cache and library entry.
+  failure leaves the old file in place. If replacement fails, the server returns
+  `400` and leaves any recovery copy at `<name>.part` in the destination directory.
+  If the card reports an error after renaming the file, check the destination name too.
+  A failed replacement invalidates the book's cached data and Library entry.
   The card needs free space for both copies while the upload runs. A file
-  already named `<name>.part` is replaced. If a folder has the name, the
-  request fails with `400` "A folder with this name already exists: <name>".
+  already named `<name>.part` is preserved. Move or rename it before retrying.
+  If a folder has the destination name, the request fails with `400`
+  "A folder with this name already exists: <name>".
 - EPUB cache data for the uploaded path is cleared after a successful upload.
 - Uploading a book file (`.epub`, `.txt`, `.md`, `.xtc`), here or through the
   WebSocket upload, marks the Library index stale, so the book appears the next
   time the Library opens. Hidden files and folders (names that start with `.`)
   don't mark it.
 - HTTP upload uses a 4 KB write buffer before flushing to the SD card.
+- The upload parser accepts up to 32 query arguments and 8 KiB per request line,
+  header line or text field. File contents stream separately.
+- The server commits each file part separately, so a failed response can follow earlier committed parts.
 
 ### `POST /mkdir`
 

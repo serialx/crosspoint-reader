@@ -1,5 +1,7 @@
 #pragma once
 
+#include "src/network/UploadIngress.h"
+
 #ifdef XP_FFI_HOST_FAULT_INJECTION
 extern "C" void xp_test_fail_allocation_after(size_t);
 extern "C" size_t xp_test_live_allocations();
@@ -324,12 +326,129 @@ int main() {
       if (mode != "refuse") app.server->args["overwrite"] = mode == "success" ? "1" : "true";
       // WebServer decodes true%00x to six bytes.
       if (mode == "nul") app.server->args["overwrite"] = std::string("true\0x", 6);
+      const bool priorPart = std::getenv("WEB_UPLOAD_PRIOR_PART") != nullptr;
+      if (priorPart) {
+        app.server->part.filename = "first.txt";
+        upload(app, UPLOAD_FILE_START);
+        upload(app, UPLOAD_FILE_WRITE, "first payload");
+        upload(app, UPLOAD_FILE_END);
+        if (!app.upload.policy.success) std::abort();
+        host::trace.clear();
+      }
       auto response = [&](const std::string& expected) {
         app.handleUploadPost(app.upload);
         if (host::trace.back() != "response:" + expected) std::abort();
+        if (priorPart && host::files.at("/books/first.txt")->bytes != "first payload") std::abort();
       };
       app.server->part.filename = "a.epub";
+      if (mode == "ingress-lines") {
+        auto line = [](const std::string& bytes, upload_ingress::LineKind kind, String& value) {
+          size_t cursor = 0;
+          return upload_ingress::readHeaderLine(value, [&] {
+            return cursor == bytes.size() ? -1 : static_cast<int>(static_cast<unsigned char>(bytes[cursor++]));
+          }, kind);
+        };
+        using upload_ingress::LineKind;
+        String value;
+        if (!line("POST /upload?path=/books HTTP/1.1\r\n", LineKind::Request, value) ||
+            line("unterminated", LineKind::Upload, value) || line("bad\n", LineKind::Upload, value) ||
+            line(std::string("name\0x\r\n", 8), LineKind::Upload, value)) std::abort();
+        std::string target("POST /upload?");
+        target.resize(upload_ingress::MAX_METADATA_BYTES, 'a');
+        if (!line(target + "\r\n", LineKind::Request, value) || line(target + "a\r\n", LineKind::Request, value)) std::abort();
+        String::failAllocationSize = 5;
+        if (line("filename\r\n", LineKind::Upload, value) || String::failedAllocations != 1) std::abort();
+        return;
+      }
+      if (mode == "aliases") {
+        for (const char* component : {".", "..", " a.epub", "a.epub.", "a.epub ", "a/b", "a\\b"}) {
+          app.server->part.filename = component;
+          upload(app, UPLOAD_FILE_START);
+          upload(app, UPLOAD_FILE_END);
+          response("400:text/plain:Invalid file name");
+        }
+        for (const char* parent : {"/books/../books", "/books.", "/books ", "/ books", "/books\\other"}) {
+          app.server->args["path"] = parent;
+          app.server->part.filename = "a.epub";
+          upload(app, UPLOAD_FILE_START);
+          upload(app, UPLOAD_FILE_END);
+          response("400:text/plain:Invalid upload directory");
+        }
+        if (host::files.at(dest)->bytes != "original" || host::files.contains(part)) std::abort();
+        return;
+      }
+      if (mode == "abort-start" || mode == "disconnect-end") {
+        upload(app, UPLOAD_FILE_START);
+        if (mode == "disconnect-end") {
+          upload(app, UPLOAD_FILE_WRITE, "new");
+          host::connected = false;
+          upload(app, UPLOAD_FILE_END);
+        }
+        upload(app, UPLOAD_FILE_ABORTED);
+        if (app.upload.policy.success || host::files.at(dest)->bytes != "original" || host::files.contains(part) ||
+            (priorPart && host::files.at("/books/first.txt")->bytes != "first payload")) std::abort();
+        return;
+      }
+      if (mode == "ingress-oom") {
+        struct Argument {
+          String key;
+          String value;
+        };
+        Argument* args = nullptr;
+        int count = 0;
+        const String directory = "/books/nested/long-directory";
+        const String query = "overwrite=true&path=" + directory;
+        host::add(directory + "/a.epub", "requested");
+        host::add("/a.epub", "root");
+        String::failAllocationSize = directory.length();
+        const bool parsed = upload_ingress::parseUploadArguments(query, args, count);
+        delete[] args;
+        if (parsed || String::failedAllocations != 1 || host::files.at("/a.epub")->bytes != "root" ||
+            host::files.at(directory + "/a.epub")->bytes != "requested" ||
+            std::any_of(host::trace.begin(), host::trace.end(),
+                        [](const auto& event) { return event.starts_with("create:"); }))
+          std::abort();
+        return;
+      }
+      if (mode == "first-part-fails" || mode == "second-part-fails") {
+        const bool firstFails = mode == "first-part-fails";
+        for (bool fail : {firstFails, !firstFails}) {
+          app.server->part.filename = fail ? ".." : "a.epub";
+          upload(app, UPLOAD_FILE_START);
+          upload(app, UPLOAD_FILE_WRITE, "complete");
+          upload(app, UPLOAD_FILE_END);
+        }
+        response(firstFails ? "400:text/plain:An earlier file in this upload failed"
+                            : "400:text/plain:Invalid file name");
+        if (host::files.at(dest)->bytes != "complete" || host::files.contains(part)) std::abort();
+        return;
+      }
+      if (mode == "occupied-stage" || mode == "nul-name" || mode == "nul-directory") {
+        host::add(part, "recovery");
+        if (mode == "nul-name") app.server->part.filename = std::string("a.epub\0x", 8);
+        if (mode == "nul-directory") app.server->args["path"] = std::string("/books\0x", 8);
+        upload(app, UPLOAD_FILE_START);
+        upload(app, UPLOAD_FILE_WRITE, "new");
+        upload(app, UPLOAD_FILE_END);
+        if (mode == "occupied-stage")
+          response("400:text/plain:Upload stage already exists; move or rename the .part file");
+        else
+          response(mode == "nul-name" ? "400:text/plain:Invalid file name" : "400:text/plain:Invalid upload directory");
+        if (host::files.at(dest)->bytes != "original" || host::files.at(part)->bytes != "recovery") std::abort();
+        return;
+      }
       if (mode == "directory") host::add(dest, "", true);
+      if (mode == "create" || mode == "buffer-oom") {
+        host::failOperation = mode == "create" ? "create" : "alloc";
+        host::failAfter = 0;
+        upload(app, UPLOAD_FILE_START);
+        upload(app, UPLOAD_FILE_WRITE, "new");
+        upload(app, UPLOAD_FILE_END);
+        response(mode == "create" ? "400:text/plain:Failed to create file on SD card" : "400:text/plain:Memory error");
+        if (host::failAfter != -1 || host::files.contains(part) || host::files.at(dest)->bytes != "original")
+          std::abort();
+        return;
+      }
       if (mode == "directory-oom" || mode == "name-oom" || mode == "argument-oom") {
         const std::string parent = "/a-long-requested-directory/subdirectory";
         app.server->args["path"] = parent;
@@ -360,23 +479,46 @@ int main() {
         return;
       }
       if (!host::files.contains(part) || host::files.at(dest)->bytes != "original") std::abort();
+      if (mode == "short-write" || mode == "short-flush" || mode == "cleanup-fails") {
+        host::writeLimit = 1;
+        if (mode == "cleanup-fails") {
+          host::failOperation = "remove";
+          host::failAfter = 0;
+        }
+        upload(app, UPLOAD_FILE_WRITE, mode == "short-write" ? std::string(4096, 'x') : "xyz");
+        upload(app, UPLOAD_FILE_END);
+        response(mode == "short-write" ? "400:text/plain:Failed to write to SD card - disk may be full"
+                                       : "400:text/plain:Failed to write final data to SD card");
+        if (host::files.at(dest)->bytes != "original" || host::files.contains(part) != (mode == "cleanup-fails"))
+          std::abort();
+        return;
+      }
       upload(app, UPLOAD_FILE_WRITE, "new");
-      if (mode == "close" || mode == "replace" || mode == "rename") {
+      if (mode == "close" || mode == "replace" || mode == "rename" || mode == "rename-sync") {
         host::failOperation = mode;
         host::failAfter = 0;
       }
       upload(app, mode == "cancel" ? UPLOAD_FILE_ABORTED : UPLOAD_FILE_END);
-      const bool installed = mode == "success" || mode == "nul", recovered = mode == "rename";
+      const bool installed = mode == "success" || mode == "nul";
+      const bool recovered = mode == "rename" || mode == "replace";
       if (app.upload.policy.success != installed || host::files.contains(part) != recovered) std::abort();
       if (installed) response("200:text/plain:File uploaded successfully: a.epub");
+      if (mode == "cancel") response("400:text/plain:Upload aborted");
+      if (mode == "close") response("400:text/plain:Failed to write final data to SD card");
       if (recovered) {
         response("400:text/plain:Replace failed; the new file is kept as a.epub.part");
-        if (host::files.contains(dest) || host::files.at(part)->bytes != "new") std::abort();
+        if (host::files.at(part)->bytes != "new") std::abort();
+        if (mode == "rename" ? host::files.contains(dest) : host::files.at(dest)->bytes != "original") std::abort();
+      } else if (mode == "rename-sync") {
+        response("400:text/plain:Replace failed; check the destination on the SD card");
+        if (host::files.at(dest)->bytes != "new") std::abort();
       } else if (host::files.at(dest)->bytes != (installed ? "new" : "original")) {
         std::abort();
       }
       for (const std::string event : {"cache:/books/a.epub", "library-dirty"}) {
-        if (std::count(host::trace.begin(), host::trace.end(), event) != int(installed || recovered)) std::abort();
+        if (std::count(host::trace.begin(), host::trace.end(), event) !=
+            int(installed || recovered || mode == "rename-sync"))
+          std::abort();
       }
     });
     return 0;

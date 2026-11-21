@@ -262,6 +262,12 @@ struct StorageStub {
     file = HalFile(p, host::files[p]);
     return true;
   }
+  HalFile createExclusive(const char* p) const {
+    if (host::files.contains(p)) return HalFile(p, nullptr);
+    HalFile file;
+    openFileForWrite("WEB", p, file);
+    return file;
+  }
   HalFile open(const char* p, int flags) const {
     auto file = open(p);
     if (flags & 2) file.pos = file.size();
@@ -304,7 +310,7 @@ struct StorageStub {
     }
     host::files[to] = host::files[from];
     host::files.erase(from);
-    return true;
+    return !host::fail("rename-sync");
   }
 };
 inline StorageStub Storage;

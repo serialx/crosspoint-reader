@@ -72,6 +72,7 @@ class String : public std::string {
     return true;
   }
   bool isEmpty() const { return empty(); }
+  void remove(size_t from) { erase(from); }
   bool equals(const String& s) const { return size() == s.size() && std::strcmp(c_str(), s.c_str()) == 0; }
   bool equals(const char* s) const { return s ? std::strcmp(c_str(), s) == 0 : empty() || (*this)[0] == 0; }
   friend bool operator==(const String& s, const char* text) { return s.equals(text); }

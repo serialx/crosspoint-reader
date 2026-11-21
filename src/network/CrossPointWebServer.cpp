@@ -291,6 +291,10 @@ const XpWebServices WebFileBridge::services = {
           b.client.clear();
           return 0;
         case XP_WEB_CREATE:
+          if (b.uploadState) {
+            file = Storage.createExclusive(path);
+            return static_cast<bool>(file);
+          }
           return Storage.openFileForWrite(b.pluginState ? "PLG" : b.websocket ? "WS" : "WEB", path, file);
         case XP_WEB_AVAILABLE:
           return file.available();
@@ -527,6 +531,9 @@ const XpWebLifeServices WebLifeBridge::services = {
           break;
         }
         case XP_WEB_LIFE_HTTP_PUMP: {
+          // WebServer parses all parts and sends the POST response within one pump.
+          o.upload.requestFailed = false;
+          o.upload.policy.success = false;
           static_cast<CrossPointHttpServer*>(o.server.get())->pump();
           releaseRequestArguments(o.server.get());
           break;
@@ -1127,15 +1134,19 @@ void WebFileBridge::ws(const CrossPointWebServer& owner, uint8_t client, uint32_
   xp_web_ws(&bridge, &transfers, &wsPolicy, client, event, payload, length);
 }
 
-// Drop a partially written upload so a truncated book never lands in the library.
-// The file is new: uploads refuse to overwrite an existing name.
-
 void CrossPointWebServer::handleUpload(UploadState& state) const {
   const uint32_t event = running && server ? static_cast<uint32_t>(server->upload().status) : 0;
   WebFileBridge::http(*this, state, event);
+  if ((event == UPLOAD_FILE_END && !state.policy.success) || event == UPLOAD_FILE_ABORTED) state.requestFailed = true;
 }
 
-void CrossPointWebServer::handleUploadPost(UploadState& state) const { WebFileBridge::http(*this, state, 4); }
+void CrossPointWebServer::handleUploadPost(UploadState& state) const {
+  if (state.requestFailed && state.policy.success) {
+    server->send(400, "text/plain", "An earlier file in this upload failed");
+    return;
+  }
+  WebFileBridge::http(*this, state, 4);
+}
 
 void CrossPointWebServer::handleCreateFolder() const { WebFileBridge::route(*this, XP_WEB_MKDIR_ROUTE); }
 

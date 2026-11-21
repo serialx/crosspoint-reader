@@ -57,6 +57,7 @@ class HalStorage {
   bool ensureDirectoryExists(const char* path);
 
   HalFile open(const char* path, const oflag_t oflag = O_RDONLY);
+  HalFile createExclusive(const char* path);
   bool mkdir(const char* path, const bool pFlag = true);
   bool exists(const char* path);
   bool isDirectory(const char* path);

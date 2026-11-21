@@ -2,6 +2,7 @@
 
 #include <FS.h>  // need to be included before SdFat.h for compatibility with FS.h's File class
 #include <Logging.h>
+#include <Memory.h>
 #include <SDCardManager.h>
 #include <esp_heap_caps.h>
 #include <xp_hal.h>
@@ -213,6 +214,7 @@ bool HalStorage::ensureDirectoryExists(const char* path) { HAL_STORAGE_WRAPPED_C
 
 class HalFile::Impl {
  public:
+  Impl() = default;
   Impl(FsFile&& fsFile) : file(std::move(fsFile)) {}
   // SdFat is not thread-safe; FsFile::close() touches SD/SPI and must run
   // under StorageLock or it races SdSpiCard::m_spiActive across tasks and
@@ -236,6 +238,14 @@ HalFile& HalFile::operator=(HalFile&&) = default;
 HalFile HalStorage::open(const char* path, const oflag_t oflag) {
   StorageLock lock;  // ensure thread safety for the duration of this function
   return HalFile(std::make_unique<HalFile::Impl>(SDCard.open(path, oflag)));
+}
+
+HalFile HalStorage::createExclusive(const char* path) {
+  auto impl = makeUniqueNoThrow<HalFile::Impl>();
+  if (!impl) return {};
+  StorageLock lock;
+  impl->file = SDCard.open(path, O_RDWR | O_CREAT | O_EXCL);
+  return HalFile(std::move(impl));
 }
 
 bool HalStorage::mkdir(const char* path, const bool pFlag) { HAL_STORAGE_WRAPPED_CALL(mkdir, path, pFlag); }

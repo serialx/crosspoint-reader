@@ -734,6 +734,15 @@ fn epub(name: &[u8]) -> bool {
     name.get(name.len().saturating_sub(5)..)
         .is_some_and(|tail| tail.eq_ignore_ascii_case(b".epub"))
 }
+
+// SdFat discards leading spaces and trailing spaces or dots during path lookup.
+fn upload_component(name: &[u8]) -> bool {
+    safe(name)
+        && !name.contains(&0)
+        && !name.starts_with(b" ")
+        && !name.ends_with(b" ")
+        && !name.ends_with(b".")
+}
 struct Output<'a> {
     data: &'a mut [u8],
     stream: Option<&'a Request<'a>>,
@@ -1038,12 +1047,21 @@ impl Transfer<'_> {
                 state.write_time = 0;
                 state.writes = 0;
                 self.free_buffer(state);
-                if !safe(name) {
+                if !upload_component(name) {
                     self.set(Field::UploadError, b"Invalid file name");
                     self.diagnostic(TransferEvent::UploadUnsafe, name, b"", 0, 0, 0);
                     return Ok(());
                 }
-                let path = self.r.arg(b"path\0")?.ok_or(())?.normalized()?;
+                let path = self.r.arg(b"path\0")?.ok_or(())?;
+                if !path
+                    .bytes()
+                    .split(|&b| b == b'/')
+                    .all(|part| part.is_empty() || upload_component(part))
+                {
+                    self.set(Field::UploadError, b"Invalid upload directory");
+                    return Ok(());
+                }
+                let path = path.normalized()?;
                 self.set(Field::UploadPath, path.bytes());
                 if self.get(Field::UploadName) != name
                     || self.get(Field::UploadPath) != path.bytes()
@@ -1090,7 +1108,14 @@ impl Transfer<'_> {
                 }
                 self.r.watchdog();
                 if self.r.fs(Io::Create, 0, &path) == 0 {
-                    self.set(Field::UploadError, b"Failed to create file on SD card");
+                    let error: &[u8] = if !self.get(Field::UploadStage).is_empty()
+                        && self.r.fs(Io::Exists, 0, &path) != 0
+                    {
+                        b"Upload stage already exists; move or rename the .part file"
+                    } else {
+                        b"Failed to create file on SD card"
+                    };
+                    self.set(Field::UploadError, error);
                     self.diagnostic(
                         TransferEvent::UploadCreateFailed,
                         path.bytes(),
@@ -1180,30 +1205,30 @@ impl Transfer<'_> {
                                 0,
                             ) == 0
                             {
-                                if self.r.fs(Io::Exists, 0, &dest) != 0 {
-                                    self.r.io(
-                                        Io::Remove,
-                                        0,
-                                        part.data.cast(),
-                                        core::ptr::null_mut(),
-                                        0,
-                                    );
-                                    self.set(
-                                        Field::UploadError,
-                                        b"Failed to replace the existing file",
-                                    );
-                                } else {
-                                    self.r.book(0, &dest, None);
-                                    self.r.book(3, &dest, None);
-                                    self.free_buffer(state);
+                                // A failed FAT metadata sync can follow a directory entry change.
+                                // Keep any surviving stage even when the destination also exists.
+                                self.r.book(0, &dest, None);
+                                self.r.book(3, &dest, None);
+                                self.free_buffer(state);
+                                if self.r.io(
+                                    Io::Exists,
+                                    0,
+                                    part.data.cast(),
+                                    core::ptr::null_mut(),
+                                    0,
+                                ) != 0
+                                {
                                     let mut error =
                                         Text::new(b"Replace failed; the new file is kept as ")?;
                                     error.append(self.get(Field::UploadName))?;
                                     error.append(b".part")?;
                                     self.set(Field::UploadError, error.bytes());
-                                    return Ok(());
+                                } else {
+                                    self.set(
+                                        Field::UploadError,
+                                        b"Replace failed; check the destination on the SD card",
+                                    );
                                 }
-                                self.free_buffer(state);
                                 return Ok(());
                             }
                         }

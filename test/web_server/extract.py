@@ -139,9 +139,16 @@ def main():
     if args.review_check:
         if not args.archive:
             raise SystemExit("--review-check requires --archive")
-        for mode in ["refuse", "directory", "directory-oom", "argument-oom", "name-oom", "success", "nul", "cancel", "close", "replace", "rename"]:
+        for mode in ["refuse", "directory", "directory-oom", "argument-oom", "name-oom", "success", "nul",
+                     "cancel", "close", "replace", "rename", "occupied-stage", "nul-name", "nul-directory",
+                     "first-part-fails", "second-part-fails", "rename-sync", "ingress-oom",
+                     "short-write", "short-flush", "cleanup-fails", "create", "buffer-oom", "aliases",
+                     "abort-start", "disconnect-end", "ingress-lines"]:
             subprocess.run([str(args.build / "oracle")], env={**os.environ, "WEB_UPLOAD_OVERWRITE_CHECK": mode},
                            stdout=subprocess.DEVNULL, check=True)
+            if mode not in {"ingress-oom", "ingress-lines", "first-part-fails", "second-part-fails"}:
+                subprocess.run([str(args.build / "oracle")], env={**os.environ, "WEB_UPLOAD_OVERWRITE_CHECK": mode,
+                               "WEB_UPLOAD_PRIOR_PART": "1"}, stdout=subprocess.DEVNULL, check=True)
         for mode in ["detail", "drop-error"]:
             subprocess.run([str(args.build / "oracle")], env={**os.environ, "WEB_UPLOAD_CLOSE_CHECK": mode},
                            stdout=subprocess.DEVNULL, check=True)

@@ -11,7 +11,7 @@ ESP-IDF allocator, and panic handler. Its public header is
 The panel ABI is in [xp_display.h](../../rust/crates/xp-display/include/xp_display.h).
 SDK board policy selects the controller features. The SDK display facade and bus
 own hardware selection and transport; Rust owns controller policy. The SDK adapter
-`RustPanelDriver.cpp` formats driver diagnostics.
+`RustPanelDriver.cpp` formats driver diagnostics. Follow the [SDK display merge checklist](sdk-display-merge.md) when updating the firmware gitlink.
 
 Rust owns the EPUB parsers and layout, page records, build/load codecs, page
 rendering, PNG/GIF decoding and image row processing, text measurement, glyph

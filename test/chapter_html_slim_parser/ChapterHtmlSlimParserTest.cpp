@@ -3157,6 +3157,12 @@ TEST_F(ChapterHtmlSlimParserTest, EntityGrowthFailureFailsWithoutReplacingTheRea
 }
 
 TEST(FocusReading, PreservesLetterOrderAndRunPlacement) {
+  std::filesystem::path directory;
+  for (size_t suffix = 0;; ++suffix) {
+    directory = std::filesystem::temp_directory_path() / ("crosspoint-rtl-focus-" + std::to_string(suffix));
+    if (std::filesystem::create_directory(directory)) break;
+  }
+  const auto path = directory / "page.bin";
   for (const bool rtlParagraph : {false, true}) {
     for (const int8_t tracking : {0, 2}) {
       for (const bool focus : {false, true}) {
@@ -3175,7 +3181,6 @@ TEST(FocusReading, PreservesLetterOrderAndRunPlacement) {
             text.layoutAndExtractLines(
                 renderer, 0, 400,
                 [&](auto block, auto) {
-                  const auto path = std::filesystem::temp_directory_path() / "crosspoint-rtl-focus-page.bin";
                   {
                     HalFile output;
                     ASSERT_TRUE(output.open(path.c_str(), "wb"));
@@ -3222,4 +3227,5 @@ TEST(FocusReading, PreservesLetterOrderAndRunPlacement) {
       }
     }
   }
+  std::filesystem::remove(directory);
 }

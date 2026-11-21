@@ -71,6 +71,72 @@ for (const enabled of [false, true]) {
 
 const hostCode = read('js/plugin-host.js');
 
+function section(source, from, until) {
+  const a = source.indexOf(from), b = source.indexOf(until, a + 1);
+  assert.ok(a >= 0 && b > a);
+  return source.slice(a, b);
+}
+for (const hostAvailable of [false, true]) {
+  const elements = new Map(), loads = [];
+  const element = () => ({appendChild() {}, replaceChildren() {}, remove() {}});
+  const page = vm.createContext({
+    currentPath: '/', setTimeout, clearTimeout, escapeHtml: s => s,
+    document: {
+      createElement: element, querySelectorAll: () => [],
+      getElementById(id) {
+        if (!elements.has(id)) elements.set(id, element());
+        return elements.get(id);
+      },
+      head: {appendChild(script) { loads.push(script.src); page.JSZip = {}; script.onload(); }},
+      body: {appendChild(script) { loads.push(script.src); script.onload(); }},
+    },
+    fetch: async url => {
+      if (url === '/api/plugins') return Response.json([{mount: 'settings'}, {mount: 'files', name: 'one'},
+                                                        {mount: 'files', name: 'two'}]);
+      assert.match(url, /^\/api\/files\?path=%2F/);
+      return Response.json([{name: 'Books', isDirectory: true, size: 0}]);
+    },
+  });
+  page.window = page;
+  for (const name of ['fetchVersion', 'closeUploadModal', 'closeFolderModal', 'closeDeleteModal',
+                      'closeRenameModal', 'closeMoveModal', 'closeImagePreview']) page[name] = () => {};
+  vm.runInContext(files.slice(start, end), page);
+  if (hostAvailable) vm.runInContext(hostCode, page);
+  vm.runInContext(section(files, 'async function hydrate()', '// Image preview'), page);
+  await page.hydrate();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.match(elements.get('file-table').innerHTML, /href="\/files\?path=%2FBooks"/);
+  assert.deepEqual(loads, hostAvailable ? ['/js/jszip.min.js', '/plugin?name=one&file=plugin.js',
+                                            '/plugin?name=two&file=plugin.js'] : []);
+}
+
+const epub = new File([readFileSync(new URL('../epubs/test_br_section_break.epub', import.meta.url))],
+                      'book.epub', {type: 'application/epub+zip'});
+const alerts = [];
+let cleared = false;
+const picker = vm.createContext({setTimeout, clearTimeout,
+  document: {createElement: () => ({remove() {}}), head: {appendChild: s => s.onerror()}},
+  showWebAlert: msg => alerts.push(msg), clearImagePicker: () => cleared = true,
+});
+vm.runInContext(files.slice(start, end) + section(files, 'async function showImagePicker', 'function renderImageGrid'), picker);
+await picker.showImagePicker(epub);
+assert.match(alerts[0], /upload button to continue/);
+assert.ok(cleared);
+
+let uploaded;
+Object.assign(picker, {
+  currentIndex: 0, files: [epub], failedFiles: [], convertEnabled: true,
+  useBatchLog: false, useWebSocket: false, operationCancelled: false, exportLogCheckbox: null,
+  progressFill: {style: {}, classList: {add() {}, remove() {}}}, progressText: {style: {}},
+  setTimeout() {}, clearLog() {}, showLog() {}, logError() {}, log() {},
+  reserveAvailableUploadFilename: name => name, usedFileNames: new Set(),
+  uploadFileHTTP: async file => { uploaded = file; },
+});
+picker.document.getElementById = () => ({checked: false});
+vm.runInContext(section(files, 'async function uploadNextFile()', '\n  uploadNextFile();\n}'), picker);
+await picker.uploadNextFile();
+assert.equal(uploaded, epub);
+
 const sent = [];
 const fetchPage = vm.createContext({window: {}, fetch: async (path, request) => {
   assert.equal(path, '/api/fetch');

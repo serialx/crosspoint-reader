@@ -1,0 +1,43 @@
+{
+  "fields": 141,
+  "retired_exports": [
+    "xp_native_page_image_extract",
+    "xp_native_page_image_decode",
+    "xp_assets_image_valid",
+    "xp_assets_image_render"
+  ],
+  "forbidden_symbol_patterns": [
+    "xp_epub_render_stack_probe",
+    "xp_epub_overlay_stack_probe",
+    "XP_EPUB_PROBE_OWNER",
+    "xp_app_test_",
+    "xp_epub_test_",
+    "LegacyPageServices",
+    "LegacyBookServices",
+    "LegacySectionServices",
+    "NativeResources",
+    "NativeRenderFrame",
+    "RenderCall",
+    "FontDecompressor::",
+    "GfxRenderer::glyphMiss",
+    "GfxRenderer::getGlyphBitmap",
+    "font_runtime::CURRENT",
+    "xp_native_sd_font_load",
+    "SdCardFontManager::",
+    "SdCardFontSystem::(unloadCpfonts|loadCpfontVariant|setupUiFallbacks)",
+    "SdCardFontRegistry::(discover|findFamily|scanRoot|refineVectorStyles)"
+  ],
+  "leaf_macro": "XP_EPUB_LEAF_OFFSET",
+  "probe_tokens": [
+    "rustEpubResources",
+    "xp_app_render",
+    "xp_ffi::app::APP"
+  ],
+  "physical_tables": {
+    "clipping_physical": {
+      "header": "rust/crates/xp-ffi/include/xp_clippings.h",
+      "type": "XpClippingPhysical",
+      "symbol": "CLIPPING_PHYSICAL"
+    }
+  }
+}

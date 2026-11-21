@@ -1,31 +1,23 @@
-# SYNC-200 linked X3 stack routes
+# Linked X3 stack audit
 
-The qualification harness reads its routes and callback attestations from the
-external evidence directory. Apply each patch to its corresponding input and
-pass the patched copies to the linked audit.
+Build the X3 `default` firmware with its pinned SDK and audit the resulting ELF. The audit reads RISC-V instructions, DWARF call-frame information, linked callback tables and checked route specifications. It writes the protected-route table and all changed totals to `summary.json` under the output directory.
 
-| Patch | Input under `layout-split/` | Input SHA-256 |
-| --- | --- | --- |
-| `x3-default.patch` | `routes-candidate.json` | `2e80d63347eeb9d8f34e543ab460563cd57ded96ed50540db7e9eb18e7df77a8` |
-| `x3-default-attestations.patch` | `attestations-candidate.json` | `ce3cb32b1e9a0f49bcaf842fddf025f19f4ca9977b6cc78f73da656d53a37342` |
+From the firmware checkout, with PlatformIO, Python 3.11 or later, and `patch` installed, run:
 
-The X3 image uses the `font::loaded::ensure` closure form on the 20 font routes
-and calls `std::__throw_length_error` directly on the 20 HTTP reallocation routes.
-The bookmark input prologue uses `OUTLINED_FUNCTION_7` in the 112-byte
-`Layout::hit` frame. The dictionary routes bind the bounded IFO scanner,
-grouped lookup, header input, and separate styled and plain viewer paths. The
-111 book file GET routes use the linked GET closure, transfer facade, and
-progress invoker. The Control Center launch routes include the shared
-`open_control_center` helper. The former definition-only frontlight-availability
-probe was removed for the lightless Control Center. The rename, move, and delete
-routes follow the POST handlers at their new linked closure ordinals. The
-linked inflater inlines `decompress_with_limit` into `step_with_limit`, which
-now calls the Huffman tree initializer directly. Cache scratch drop routes use
-the emitted vector destructor and its tail call to `heap_caps_free`.
+```sh
+git submodule update --init --recursive
+pio run -e default
+export PATH="$HOME/.platformio/packages/toolchain-riscv32-esp/bin:$PATH"
+python3 test/stack_routes/audit.py --elf .pio/build/default/firmware.elf --out build/stack-audit
+```
 
-`x3-default-sleep-event.json` lists the sleep-entry emitter and metadata
-callback paths. The audit adds the linked physical continuation to the emitter
-prefix and checks its complete bound against the loop-task gate.
+An existing ordinary X3 default ELF can be supplied with `--elf`. Use `--tool-prefix /path/to/riscv32-esp-elf-` for a different toolchain installation. A successful run covers 3,838 routes and 585 sleep continuations. The integrated reference ELF is identified in `data/totals.json`. Compare the input ELF hash and route deltas recorded in the new summary. Only the qualification inputs in this directory and the firmware sources are needed.
 
-See `sync-200/integrate-D` in the evidence directory for the call-site
-instructions, callback targets, and route totals.
+## Maintaining the inputs
+
+- The two compressed inputs in `data/` preserve the original route identities and callback attestations. Their uncompressed SHA-256 values are `2e80d63347eeb9d8f34e543ab460563cd57ded96ed50540db7e9eb18e7df77a8` for routes and `ce3cb32b1e9a0f49bcaf842fddf025f19f4ca9977b6cc78f73da656d53a37342` for attestations. The runner verifies both, generates the current routes from the ELF, and compares them with the replay of `x3-default.patch` and `x3-default-attestations.patch`.
+- `data/sync-bindings.json` names the callback callers and targets. `bindings.py` checks the instruction or initializer that selects each one. The audit also resolves the font and bookmark prologues, dictionary leaves, download GET and progress callback, Control Center, clipping, inflater and cache cleanup. Keep the caller, call site, all legal targets, frames and before/after totals with any rebinding. A relink can change the instructions used to establish a binding.
+- `x3-default-sleep-event.json` specifies the emitter and callback paths. The audit checks the linked tables and sums the emitter prefix and physical fatal continuation. The separate sleep route model follows returning and fatal paths through file I/O, image decoding and cache operations. `data/rom.json` and the two bounds files carry the qualified X3 ROM and exception limits. Requalify these when the silicon or toolchain assumptions change.
+- `data/wifi.json` records the qualified physical suffix's member frames and outgoing call inventories. A difference requires a new bound. Each tracked route also has a reference total and task ceiling. A growing route with less than 800 B remaining fails the audit. Review any change to the protected family ceilings in `report.py`.
+
+The output directory retains the disassembly, edge proofs, selected chains, sleep continuations and ELF digest for review. These are static bounds for the named routes. Measure device task watermarks separately.

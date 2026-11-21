@@ -1,0 +1,161 @@
+{
+  "caller": {
+    "name": "<xp_ui::reader_chrome::hits::Layout>::hit",
+    "address": "422fe046",
+    "frame": 112,
+    "method": "DWARF CFA maximum",
+    "adjustments": [
+      112
+    ],
+    "calls": [
+      {
+        "pc": "422fe04c",
+        "op": "jalr",
+        "target": "0x42312e16",
+        "name": "OUTLINED_FUNCTION_7",
+        "frame": 0
+      },
+      {
+        "pc": "422fe0a4",
+        "op": "jalr",
+        "target": "0x422fa5b2",
+        "name": "<core::ops::range::RangeInclusive<i32>>::contains::<i32>",
+        "frame": 0
+      },
+      {
+        "pc": "422fe0d2",
+        "op": "jalr",
+        "target": "0x422fda60",
+        "name": "<[i16; 24] as core::ops::index::Index<core::ops::range::RangeTo<usize>>>::index",
+        "frame": 0
+      },
+      {
+        "pc": "422fe0f4",
+        "op": "jalr",
+        "target": "0x422fda60",
+        "name": "<[i16; 24] as core::ops::index::Index<core::ops::range::RangeTo<usize>>>::index",
+        "frame": 0
+      },
+      {
+        "pc": "422fe114",
+        "op": "jalr",
+        "target": "0x422fe2ca",
+        "name": "<[xp_ui::reader_chrome::hits::Control; 7] as core::ops::index::Index<core::ops::range::RangeTo<usize>>>::index",
+        "frame": 0
+      },
+      {
+        "pc": "422fe134",
+        "op": "jalr",
+        "target": "0x422fe2de",
+        "name": "<core::ops::range::RangeInclusive<u8>>::contains::<u8>",
+        "frame": 0
+      },
+      {
+        "pc": "422fe148",
+        "op": "jalr",
+        "target": "0x42312d82",
+        "name": "OUTLINED_FUNCTION_1",
+        "frame": 0
+      },
+      {
+        "pc": "422fe166",
+        "op": "jalr",
+        "target": "0x422fe27c",
+        "name": "<xp_ui::reader_chrome::hits::Layout as xp_ui::reader_chrome::hits::Hits>::get",
+        "frame": 0
+      },
+      {
+        "pc": "422fe192",
+        "op": "jalr",
+        "target": "0x42302d20",
+        "name": "<xp_ui::scene::Rect>::contains",
+        "frame": 0
+      },
+      {
+        "pc": "422fe1e2",
+        "op": "jalr",
+        "target": "0x422fd984",
+        "name": "<xp_ui::reader_chrome::hits::Layout>::row",
+        "frame": 16
+      },
+      {
+        "pc": "422fe20c",
+        "op": "jalr",
+        "target": "0x42302d20",
+        "name": "<xp_ui::scene::Rect>::contains",
+        "frame": 0
+      },
+      {
+        "pc": "422fe242",
+        "op": "jalr",
+        "target": "0x422fd984",
+        "name": "<xp_ui::reader_chrome::hits::Layout>::row",
+        "frame": 16
+      },
+      {
+        "pc": "422fe254",
+        "op": "jalr",
+        "target": "0x42302d20",
+        "name": "<xp_ui::scene::Rect>::contains",
+        "frame": 0
+      },
+      {
+        "pc": "422fe270",
+        "op": "jalr",
+        "target": "0x40000358",
+        "name": "memcpy",
+        "frame": null
+      }
+    ]
+  },
+  "helper": {
+    "pc": "422fe04c",
+    "op": "jalr",
+    "target": "0x42312e16",
+    "name": "OUTLINED_FUNCTION_7",
+    "frame": 0
+  },
+  "saves": [
+    "d686",
+    "d4a2",
+    "d2a6",
+    "d0ca",
+    "cece",
+    "ccd2",
+    "cad6",
+    "c8da",
+    "c6de",
+    "c4e2",
+    "c2e6"
+  ],
+  "helper_opcodes": [
+    "d686",
+    "d4a2",
+    "d2a6",
+    "d0ca",
+    "cece",
+    "ccd2",
+    "cad6",
+    "c8da",
+    "c6de",
+    "c4e2",
+    "c2e6",
+    "8282"
+  ],
+  "caller_start": [
+    "7159",
+    "00015297",
+    "dce282e7",
+    "c0ea",
+    "de6e",
+    "84ae",
+    "00e5cd83",
+    "45e1",
+    "8a2a",
+    "0fb5e163",
+    "0b44ca83",
+    "451d",
+    "0d556c63",
+    "0b54cb83"
+  ]
+}

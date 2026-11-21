@@ -1,0 +1,161 @@
+[
+  {
+    "caller": "xp_dictionary_ifo",
+    "callee": "dictionaryFile(HalFile&)::{lambda(void*, unsigned char*, unsigned int)#1}::_FUN(void*, unsigned char*, unsigned int)",
+    "kind": "current typed callback",
+    "source": "src/util/Dictionary.cpp:43-48 and src/util/DictionaryIo.h:5-10; rust/crates/xp-ffi/src/dictionary/engine.rs",
+    "mechanism": "The full IFO scanner uses the XpDictionaryFile read callback, whose native body forwards to HalFile::read."
+  },
+  {
+    "caller": "xp_ffi::dictionary::lookup::xp_dictionary_lookup::combine",
+    "callee": "Dictionary::lookup(char const*, DictionaryBuffer&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&, Dictionary::LookupResult*)::{lambda(void*, unsigned int, bool, unsigned int*)#1}::_FUN(void*, unsigned int, bool, unsigned int*)",
+    "kind": "current typed callback",
+    "source": "rust/crates/xp-ffi/src/dictionary/lookup.rs:148-242; src/util/Dictionary.cpp",
+    "mechanism": "The multi-entry lookup dispatches the same immutable Definition read callback inside combine. Charge that frame for the longer path."
+  },
+  {
+    "caller": "xp_dictionary_definition",
+    "callee": "Dictionary::readDefinition(DictLocation const&, DictionaryBuffer&, Dictionary::LookupResult*, bool, bool*)::{lambda(void*, unsigned char)#1}::_FUN(void*, unsigned char)",
+    "kind": "current typed callback",
+    "source": [
+      {
+        "path": "src/util/Dictionary.cpp",
+        "sha256": "ff54630a0e693d055fcd647086ef3ab5909f631077c4b6cdb40f11432814eef1"
+      },
+      {
+        "path": "rust/crates/xp-ffi/src/dictionary/definition.rs",
+        "sha256": "1f41a446fac98e4c8d4322749c80ea73462bcc19c4508acde64a209ac2171883"
+      }
+    ],
+    "mechanism": "The same callback binding is emitted at the adjusted source or ABI boundary."
+  },
+  {
+    "caller": "xp_dictionary_definition",
+    "callee": "Dictionary::readDefinition(DictLocation const&, DictionaryBuffer&, Dictionary::LookupResult*, bool, bool*)::{lambda(void*, unsigned long, unsigned long)#1}::_FUN(void*, unsigned long, unsigned long)",
+    "kind": "current typed callback",
+    "source": [
+      {
+        "path": "src/util/Dictionary.cpp",
+        "sha256": "ff54630a0e693d055fcd647086ef3ab5909f631077c4b6cdb40f11432814eef1"
+      },
+      {
+        "path": "rust/crates/xp-ffi/src/dictionary/definition.rs",
+        "sha256": "1f41a446fac98e4c8d4322749c80ea73462bcc19c4508acde64a209ac2171883"
+      }
+    ],
+    "mechanism": "The same callback binding is emitted at the adjusted source or ABI boundary."
+  },
+  {
+    "caller": "ChapterPageAssembler::completeBytes(unsigned long, XpChapterSpan, XpChapterPosition)",
+    "callee": "std::_Function_handler<void (std::unique_ptr<Page, std::default_delete<Page> >, unsigned short, unsigned short, unsigned long), buildDictionaryHtmlPages(GfxRenderer&, std::basic_string_view<char, std::char_traits<char> >, unsigned short, unsigned short, std::vector<std::unique_ptr<Page, std::default_delete<Page> >, std::allocator<std::unique_ptr<Page, std::default_delete<Page> > > >&)::{lambda(std::unique_ptr<Page, std::default_delete<Page> >, unsigned short, unsigned short, unsigned long)#1}>::_M_invoke(std::_Any_data const&, std::unique_ptr<Page, std::default_delete<Page> >&&, unsigned short&&, unsigned short&&, unsigned long&&)",
+    "kind": "current typed callback",
+    "source": [
+      {
+        "path": "lib/Epub/Epub/parsers/ChapterPlatform.cpp",
+        "sha256": "bf65b28136d6ff3f52f269877ec1a0146f2faa69fdf8c8f8d07bc90c5c6fb11c"
+      },
+      {
+        "path": "src/util/DictHtmlPages.cpp",
+        "sha256": "0c79bbabd6593b9542973a20e2e4adecc2462481c1183089b3fb37eee90ce01a"
+      }
+    ],
+    "mechanism": "The same callback binding is emitted at the adjusted source or ABI boundary."
+  },
+  {
+    "caller": "<xp_ffi::dictionary::html::Writer>::append",
+    "callee": "(anonymous namespace)::writeNormalizedXhtml(std::basic_string_view<char, std::char_traits<char> >, HalFile&)::{lambda(void*, unsigned char const*, unsigned int)#1}::_FUN(void*, unsigned char const*, unsigned int)",
+    "kind": "current typed callback",
+    "source": [
+      {
+        "path": "rust/crates/xp-ffi/src/dictionary/html.rs",
+        "sha256": "781ef0069e49d516319aebf7c18cf443151a2e85bd76daf11d321b4528eb0664"
+      },
+      {
+        "path": "src/util/DictHtmlPages.cpp",
+        "sha256": "0c79bbabd6593b9542973a20e2e4adecc2462481c1183089b3fb37eee90ce01a"
+      }
+    ],
+    "mechanism": "The same callback binding is emitted at the adjusted source or ABI boundary."
+  },
+  {
+    "caller": "(anonymous namespace)::writeNormalizedXhtml(std::basic_string_view<char, std::char_traits<char> >, HalFile&)::{lambda(void*, unsigned char const*, unsigned int)#1}::_FUN(void*, unsigned char const*, unsigned int)",
+    "callee": "HalFile::write(unsigned char const*, unsigned int)",
+    "kind": "current typed callback",
+    "source": [
+      {
+        "path": "src/util/DictHtmlPages.cpp",
+        "sha256": "0c79bbabd6593b9542973a20e2e4adecc2462481c1183089b3fb37eee90ce01a"
+      },
+      {
+        "path": "src/util/DictHtmlPages.cpp",
+        "sha256": "0c79bbabd6593b9542973a20e2e4adecc2462481c1183089b3fb37eee90ce01a"
+      }
+    ],
+    "mechanism": "The same callback binding is emitted at the adjusted source or ABI boundary."
+  },
+  {
+    "caller": "xp_dictionary_html",
+    "callee": "(anonymous namespace)::writeNormalizedXhtml(std::basic_string_view<char, std::char_traits<char> >, HalFile&)::{lambda(void*, unsigned char const*, unsigned int)#1}::_FUN(void*, unsigned char const*, unsigned int)",
+    "kind": "current typed callback",
+    "source": [
+      {
+        "path": "rust/crates/xp-ffi/src/dictionary/html.rs",
+        "sha256": "781ef0069e49d516319aebf7c18cf443151a2e85bd76daf11d321b4528eb0664"
+      },
+      {
+        "path": "src/util/DictHtmlPages.cpp",
+        "sha256": "0c79bbabd6593b9542973a20e2e4adecc2462481c1183089b3fb37eee90ce01a"
+      }
+    ],
+    "mechanism": "The same callback binding is emitted at the adjusted source or ABI boundary."
+  },
+  {
+    "caller": "core::ptr::drop_glue::<xp_ffi::app::epub::children::definition_owned::DefinitionOwner>",
+    "callee": "rustEpubResources(GfxRenderer&, MappedInputManager&)::{lambda(XpDefinitionPayloadStorage*)#1}::_FUN(XpDefinitionPayloadStorage*)",
+    "kind": "current typed callback",
+    "source": "rust/crates/xp-ffi/src/app/epub/children/definition_owned.rs:74,206; source byte-identical to58ff4e0b",
+    "mechanism": "The same callback binding is emitted at the adjusted source or ABI boundary."
+  },
+  {
+    "caller": "<xp_ffi::app::epub::children::definition_owned::DefinitionSession>::input_header",
+    "callee": "rustEpubResources(GfxRenderer&, MappedInputManager&)::{lambda(XpUiDefinitionLayout*, long, long)#1}::_FUN(XpUiDefinitionLayout*, long, long)",
+    "kind": "current typed callback",
+    "source": "rust/crates/xp-ffi/src/app/epub/children/definition_input.rs:10-16; src/activities/reader/RustEpubResources.cpp",
+    "mechanism": "The header sampler makes the same DefinitionPhysical layout call. Charge the sampler and native layout frames."
+  },
+  {
+    "caller": "FunctionRequestHandler::handle(WebServer&, http_method, String const&)",
+    "callee": "std::_Function_handler<void (), CrossPointWebServer::registerRoutes()::{lambda()#16}>::_M_invoke(std::_Any_data const&)",
+    "kind": "source-selected WebServer route",
+    "source": "CrossPointWebServer::registerRoutes handler registration",
+    "mechanism": "POST /move selects its own FunctionRequestHandler. Its nonempty std::function starts at object offset 24 and tail-dispatches its sole invoker at offset 12 before the original handler."
+  },
+  {
+    "caller": "FunctionRequestHandler::handle(WebServer&, http_method, String const&)",
+    "callee": "std::_Function_handler<void (), CrossPointWebServer::registerRoutes()::{lambda()#15}>::_M_invoke(std::_Any_data const&)",
+    "kind": "source-selected WebServer route",
+    "source": "CrossPointWebServer::registerRoutes handler registration",
+    "mechanism": "POST /rename selects its own FunctionRequestHandler. Its nonempty std::function starts at object offset 24 and tail-dispatches its sole invoker at offset 12 before the original handler."
+  },
+  {
+    "caller": "FunctionRequestHandler::handle(WebServer&, http_method, String const&)",
+    "callee": "std::_Function_handler<void (), CrossPointWebServer::registerRoutes()::{lambda()#17}>::_M_invoke(std::_Any_data const&)",
+    "kind": "source-selected WebServer route",
+    "source": "CrossPointWebServer::registerRoutes handler registration",
+    "mechanism": "POST /delete selects its own FunctionRequestHandler. Its nonempty std::function starts at object offset 24 and tail-dispatches its sole invoker at offset 12 before the original handler."
+  },
+  {
+    "caller": "<xp_ffi::app::epub::book_owner::Protection>::stream",
+    "callee": "freeink::content::readerProtectionStream(void*, void*, unsigned char, XpAppText, unsigned char (*)(void*, unsigned char const*, unsigned int), void*)",
+    "kind": "R3b prepared stream callback",
+    "source": "book_owner/protection.rs:348-381 and ContentProtection.cpp:163-188",
+    "mechanism": "Protection::stream invokes the prepared Read operation through the unchanged typed leaf; the source-selected R4 extraction prefix is charged in full."
+  },
+  {
+    "caller": "(anonymous namespace)::progress(void*, unsigned int, unsigned int)",
+    "callee": "std::_Function_handler<void (unsigned int, unsigned int), CatalogActivity::downloadFile(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const*, char const*)::{lambda(unsigned int, unsigned int)#2}>::_M_invoke(std::_Any_data const&, unsigned int&&, unsigned int&&)",
+    "kind": "typed synchronous callback; full frames charged",
+    "source": "src/activities/CatalogActivity.cpp; src/activities/settings/FontDownloadActivity.cpp; src/network/HttpDownloader.cpp:23",
+    "mechanism": "Original by-value public progress target; input pumping/update does not retain chunk or recursively invoke a transfer. Inherited source-selected binding; PT2 and N2w patches composed without source conflict. Fresh direct calls are preferred. No new source callback inferred from a numeric sum."
+  }
+]

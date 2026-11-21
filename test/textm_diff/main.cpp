@@ -65,6 +65,14 @@ int main(int argc, char** argv) {
   auto reg = registry(renderer);
   for (int warm = 0; warm < 3; ++warm) {
     if (warm == 1) sd.buildAdvanceTable("AV fi \u0301\u0327\u2588");
+    if (warm == 1 && argc == 1) {
+      Callback callback{&renderer.fontMap.at(3), &sd};
+      auto face = callback.face();
+      const auto cps = codepoints("AA\u0301AA");
+      // Each 6.4375 px advance snaps to 6 px; the combining accent overlays its base.
+      require(xp_textm_advance(&face, cps.data(), cps.size(), 0, 2, true) == 30,
+              "scaled SD advances round individually and combining marks take no tracking");
+    }
     if (warm == 2)
       for (auto& s : strings) sd.buildAdvanceTable(s.c_str());
     for (int font : {1, 2, 3, 99})
@@ -148,6 +156,6 @@ int main(int argc, char** argv) {
   if (!extended) checkSdEffects(strings);
   checkEdges();
   require(xp_test_allocation_attempts() == 0, "measurement allocated Rust storage");
-  if (argc == 1) require(checksum == 0x0fb1ef2d6653c9b2ULL, "public baseline digest drift");
+  if (argc == 1) require(checksum == 0x8349bfab427da932ULL, "public baseline digest drift");
   std::cout << "cases=" << cases << " checksum=" << std::hex << checksum << '\n';
 }

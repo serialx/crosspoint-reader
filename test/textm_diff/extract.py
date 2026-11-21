@@ -9,15 +9,21 @@ source = subprocess.check_output(
 )
 
 
+advance_source = subprocess.check_output(
+    ["git", "show", "a790b1449:lib/GfxRenderer/GfxRenderer.cpp"], cwd=root, text=True
+)
+
+
 def function(signature):
-    start = source.index(signature)
-    brace = source.index("{", start)
+    body = advance_source if signature == "int GfxRenderer::getTextAdvanceX(" else source
+    start = body.index(signature)
+    brace = body.index("{", start)
     depth = 1
     end = brace + 1
     while depth:
-        depth += (source[end] == "{") - (source[end] == "}")
+        depth += (body[end] == "{") - (body[end] == "}")
         end += 1
-    return source[start:end] + "\n"
+    return body[start:end] + "\n"
 
 
 names = [

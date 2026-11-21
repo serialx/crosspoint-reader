@@ -199,12 +199,11 @@ pub fn advance_stream(
     if mode == MeasureMode::Layout && face.has_advance_table() {
         let resolved = face.resolve_style(style);
         let mut width = 0i32;
-        let mut spacing = 0i32;
         for cp in visual {
             if cp == 0 {
                 break;
             }
-            if transparent(cp) {
+            if transparent(cp) || (cp >= 0x300 && combining(cp)) {
                 continue;
             }
             let mapped = if style & SMALL_CAPS != 0 {
@@ -213,17 +212,15 @@ pub fn advance_stream(
                 cp
             };
             let mut advance = i32::from(face.advance(mapped, resolved));
-            if mapped < 0x300 || !combining(mapped) {
-                if advance == 0 || (solid(mapped) && !face.has_codepoint(mapped, style)) {
-                    advance =
-                        glyph_metrics(face, mapped, style).map_or(0, |g| i32::from(g.advance));
-                }
-                spacing = spacing.wrapping_add(tracking_between(prev, mapped, tracking));
-                prev = mapped;
+            if advance == 0 || (solid(mapped) && !face.has_codepoint(mapped, style)) {
+                advance = glyph_metrics(face, mapped, style).map_or(0, |g| i32::from(g.advance));
             }
-            width = width.wrapping_add(scaled(advance, style, mapped != cp));
+            width = width
+                .wrapping_add(tracking_between(prev, mapped, tracking))
+                .wrapping_add(to_pixel(scaled(advance, style, mapped != cp)));
+            prev = mapped;
         }
-        return to_pixel(width).wrapping_add(spacing);
+        return width;
     }
     let mut width = 0i32;
     let mut previous_advance = 0;

@@ -19,8 +19,9 @@ enum class BidiBaseDir : signed char { AUTO = -1, LTR = 0, RTL = 1 };
 enum Color : uint8_t { Clear = 0x00, White = 0x01, LightGray = 0x05, DarkGray = 0x0A, Black = 0x10 };
 
 extern "C" void xp_page_render_rects(const uint8_t*, size_t, void*,
-                                     void (*)(void*, int32_t, int32_t, int32_t, int32_t, uint8_t), int32_t, int32_t,
-                                     uint8_t);
+                                     void (*)(void*, int32_t, int32_t, int32_t, int32_t, uint8_t),
+                                     void (*)(void*, int32_t, const uint8_t*, size_t, uint8_t, int32_t), int32_t,
+                                     int32_t, uint8_t);
 
 class GfxRenderer {
  public:
@@ -63,9 +64,24 @@ class GfxRenderer {
           else
             self.fillRect(x, y, w, h);
         },
+        [](void* raw, int32_t x, const uint8_t* bytes, size_t len, uint8_t style, int32_t direction) {
+          auto& self = *static_cast<GfxRenderer*>(raw);
+          if (self.observeText)
+            self.textDraws.push_back({x, std::string(reinterpret_cast<const char*>(bytes), len),
+                                      static_cast<EpdFontFamily::Style>(style), direction});
+        },
         request->x, request->y, request->mode);
     return 0;
   }
+  struct TextDraw {
+    int x;
+    std::string text;
+    EpdFontFamily::Style style;
+    int direction;
+  };
+  bool observeText = false;
+  int boldGlyphAdvance = 8;
+  mutable std::vector<TextDraw> textDraws;
   mutable int lastLineY = -1;
   mutable int drawnLineCount = 0;
   void drawLine(int, int y, int, int, int, bool) const {
@@ -136,7 +152,7 @@ class GfxRenderer {
       if (utf8IsCombiningMark(cp)) continue;
       const uint32_t measured = (style & EpdFontFamily::SMALL_CAPS) ? utf8SmallCapsUpper(cp) : cp;
       if (sdFont && !preparedAdvances.count({fontId, static_cast<uint8_t>(style) & 3, measured})) ++coldMeasurements;
-      width += 8 + trackingBetween(previous, cp, tracking);
+      width += ((style & EpdFontFamily::BOLD) ? boldGlyphAdvance : 8) + trackingBetween(previous, cp, tracking);
       previous = cp;
     }
     return width;

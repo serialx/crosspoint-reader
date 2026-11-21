@@ -368,14 +368,17 @@ pub fn line(line: Line<'_>, c: &mut impl Canvas, section: i32, x: i32, y: i32) -
             let n = usize::from(word.focus_boundary)
                 .min(word.text.len())
                 .min(39);
+            let rtl = bidi::starts_with_rtl(word.text, 5);
+            let split = i32::from(word.focus_suffix);
             c.text(Text {
                 bytes: &word.text[..n],
+                x: if rtl { t.x + split } else { t.x },
                 style: word.style | 1,
                 ..t
             });
             c.text(Text {
                 bytes: &word.text[n..],
-                x: t.x + i32::from(word.focus_suffix),
+                x: if rtl { t.x } else { t.x + split },
                 ..t
             });
         } else {

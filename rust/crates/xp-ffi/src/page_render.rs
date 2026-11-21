@@ -398,12 +398,14 @@ pub unsafe extern "C" fn xp_page_render_rects(
     len: usize,
     context: *mut c_void,
     rect: unsafe extern "C" fn(*mut c_void, i32, i32, i32, i32, u8),
+    text: unsafe extern "C" fn(*mut c_void, i32, *const u8, usize, u8, i32),
     x: i32,
     y: i32,
     mode: u8,
 ) {
     struct Observer {
         context: *mut c_void,
+        text: unsafe extern "C" fn(*mut c_void, i32, *const u8, usize, u8, i32),
         rect: unsafe extern "C" fn(*mut c_void, i32, i32, i32, i32, u8),
     }
     impl Canvas for Observer {
@@ -435,7 +437,18 @@ pub unsafe extern "C" fn xp_page_render_rects(
         fn top(&self, _: i32, _: u32, _: u8) -> Option<i32> {
             Some(10)
         }
-        fn text(&mut self, _: Text<'_>) {}
+        fn text(&mut self, text: Text<'_>) {
+            unsafe {
+                (self.text)(
+                    self.context,
+                    text.x,
+                    text.bytes.as_ptr(),
+                    text.bytes.len(),
+                    text.style,
+                    text.direction,
+                )
+            }
+        }
         fn end_line(&mut self) {}
         fn rect(&mut self, x: i32, y: i32, w: i32, h: i32, shade: bool) {
             unsafe {
@@ -446,7 +459,11 @@ pub unsafe extern "C" fn xp_page_render_rects(
         fn image(&mut self, _: u16, _: i32, _: i32, _: bool) {}
     }
     if let Ok(page) = page::Page::open(slice::from_raw_parts(arena, len)) {
-        let mut observer = Observer { context, rect };
+        let mut observer = Observer {
+            context,
+            rect,
+            text,
+        };
         let mode = match mode {
             1 => Mode::Images,
             2 => Mode::Placeholders,

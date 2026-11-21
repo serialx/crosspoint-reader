@@ -1,7 +1,9 @@
 #include <Epub.h>
 #include <Epub/Page.h>
+#include <Epub/Paragraph.h>
 #include <Epub/converters/ImageDimsProbe.h>
 #include <GfxRenderer.h>
+#include <MiniBidi/BidiUtils.h>
 #include <gtest/gtest.h>
 
 #include <array>
@@ -3152,4 +3154,72 @@ TEST_F(ChapterHtmlSlimParserTest, EntityGrowthFailureFailsWithoutReplacingTheRea
   parser.abortParse();
   EXPECT_EQ(xp_test_live_allocations(), 0u);
   std::filesystem::remove(filepath);
+}
+
+TEST(FocusReading, PreservesLetterOrderAndRunPlacement) {
+  for (const bool rtlParagraph : {false, true}) {
+    for (const int8_t tracking : {0, 2}) {
+      for (const bool focus : {false, true}) {
+        for (const auto style : {EpdFontFamily::REGULAR, EpdFontFamily::ITALIC, EpdFontFamily::BOLD}) {
+          for (const char* word : {"שלום", "בראשית", "התלמידים", "reading", "١٢٣٤"}) {
+            SCOPED_TRACE(word);
+            GfxRenderer renderer;
+            renderer.boldGlyphAdvance = 11;
+            renderer.observeText = true;
+            BlockStyle blockStyle;
+            blockStyle.isRtl = rtlParagraph;
+            blockStyle.directionDefined = true;
+            blockStyle.characterSpacing = tracking;
+            Paragraph text(false, focus, blockStyle, 0);
+            text.addWord(word, style);
+            text.layoutAndExtractLines(
+                renderer, 0, 400,
+                [&](auto block, auto) {
+                  const auto path = std::filesystem::temp_directory_path() / "crosspoint-rtl-focus-page.bin";
+                  {
+                    HalFile output;
+                    ASSERT_TRUE(output.open(path.c_str(), "wb"));
+                    const uint8_t prefix[] = {1, 0, TAG_PageLine, 0, 0, 0, 0};
+                    const uint8_t footer[4]{};
+                    ASSERT_EQ(output.write(prefix, sizeof(prefix)), sizeof(prefix));
+                    ASSERT_TRUE(block->serialize(output));
+                    ASSERT_EQ(output.write(footer, sizeof(footer)), sizeof(footer));
+                  }
+                  HalFile input;
+                  ASSERT_TRUE(input.open(path.c_str(), "rb"));
+                  auto page = Page::load(input, input.size());
+                  std::filesystem::remove(path);
+                  ASSERT_NE(page, nullptr);
+                  page->render(renderer, 0, 0, 0);
+                },
+                true, tracking);
+            ASSERT_FALSE(renderer.textDraws.empty());
+            std::sort(renderer.textDraws.begin(), renderer.textDraws.end(),
+                      [](const auto& a, const auto& b) { return a.x < b.x; });
+            std::string actual;
+            int nextX = renderer.textDraws.front().x;
+            for (const auto& draw : renderer.textDraws) {
+              EXPECT_EQ(draw.x, nextX);
+              nextX += renderer.getTextAdvanceX(0, draw.text.c_str(), draw.style, tracking) + tracking;
+              std::string visual;
+              ASSERT_TRUE(BidiUtils::applyBidiVisual(draw.text.c_str(), visual, static_cast<int>(draw.direction)));
+              actual += visual;
+            }
+            std::string expected;
+            ASSERT_TRUE(BidiUtils::applyBidiVisual(word, expected));
+            EXPECT_EQ(actual, expected);
+            if (focus && style != EpdFontFamily::BOLD) {
+              ASSERT_EQ(renderer.textDraws.size(), 2u);
+              const bool rtlWord = BidiUtils::startsWithRtl(word);
+              EXPECT_TRUE(renderer.textDraws[rtlWord ? 1 : 0].style & EpdFontFamily::BOLD);
+              EXPECT_FALSE(renderer.textDraws[rtlWord ? 0 : 1].style & EpdFontFamily::BOLD);
+              if (style == EpdFontFamily::ITALIC) {
+                for (const auto& draw : renderer.textDraws) EXPECT_TRUE(draw.style & EpdFontFamily::ITALIC);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }

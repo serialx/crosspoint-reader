@@ -113,21 +113,43 @@ impl Metrics {
         }
     }
     pub fn prefix(&self, font: i32, word: &[u8], style: u8, focus: u8, tracking: i8) -> u16 {
-        let mut buffer = [0; 40];
-        let len = usize::from(focus).min(39).min(word.len());
-        buffer[..len].copy_from_slice(&word[..len]);
+        let prefix = &word[..usize::from(focus).min(39).min(word.len())];
         let bold = style | 1;
         let mut pos = usize::from(focus).min(word.len());
         let next = crate::utf8::next(word, &mut pos).unwrap_or(0);
-        let kern = self.kern(font, last(&buffer[..len]), next, bold, tracking);
-        // The zero-filled buffer retains a NUL after the copied prefix.
-        (unsafe { self.advance(font, &buffer[..=len], bold, tracking) } + kern) as u16
+        let last = last(prefix);
+        let kern = if crate::bidi::starts_with_rtl(prefix, 5) {
+            self.kern(font, next, last, style, tracking)
+        } else {
+            self.kern(font, last, next, bold, tracking)
+        };
+        let width = if let Some(engine) = unsafe { self.engine.as_ref() } {
+            engine.advance(
+                font,
+                prefix,
+                bold,
+                tracking,
+                -1,
+                crate::textm::MeasureMode::Layout,
+            )
+        } else {
+            self.callback_prefix_width(font, prefix, bold, tracking)
+        };
+        (width + kern) as u16
+    }
+
+    #[inline(never)]
+    fn callback_prefix_width(&self, font: i32, prefix: &[u8], style: u8, tracking: i8) -> i32 {
+        // Only the native callback adapter needs a NUL after the measured prefix.
+        let mut buffer = [0; 40];
+        buffer[..prefix.len()].copy_from_slice(prefix);
+        unsafe { self.advance(font, &buffer[..=prefix.len()], style, tracking) }
     }
     #[allow(clippy::too_many_arguments)] // Preserves the existing token/metric operation.
     /// # Safety
     /// When terminated is true, storage includes its trailing NUL.
     /// Suffix views retain that byte; other views use the existing copying path.
-    unsafe fn width(
+    pub(super) unsafe fn width(
         &self,
         font: i32,
         storage: &[u8],

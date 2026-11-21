@@ -348,6 +348,21 @@ unsafe fn extract(
                 .unwrap_or(remaining.len());
             suffixes.add(i).write(if token.focus == 0 {
                 0
+            } else if crate::bidi::starts_with_rtl(&remaining[..len], 5) {
+                let boundary = usize::from(token.focus).min(len);
+                let font = (*p).font(logical, o.font);
+                let style = (*p).style(logical);
+                let tracking = (*p).block.character_spacing;
+                let suffix = &remaining[boundary..=len];
+                let kern = m.kern(
+                    font,
+                    super::paragraph::first(suffix),
+                    super::paragraph::last(&remaining[..boundary]),
+                    style,
+                    tracking,
+                );
+                m.width(font, suffix, style, 0, tracking, 100, false, true)?
+                    .wrapping_add(kern as u16)
             } else {
                 m.prefix(
                     (*p).font(logical, o.font),

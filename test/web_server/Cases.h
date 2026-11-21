@@ -197,6 +197,34 @@ static void text(CrossPointWebServer& app, uint8_t client, const std::string& by
 int main() {
 #ifdef XP_FFI_HOST_FAULT_INJECTION
 
+  if (std::getenv("WEB_FONT_STREAM_CHECK")) {
+    record("large-font-lists", [](auto& app) {
+      auto collect = [](size_t maxChunk) {
+        std::string json;
+        for (const auto& event : host::trace) {
+          if (!event.starts_with("chunk:")) continue;
+          if (event.size() - 6 > maxChunk) std::abort();
+          json += event.substr(6);
+        }
+        JsonDocument parsed;
+        if (json.size() <= 512 || deserializeJson(parsed, json)) std::abort();
+        return parsed;
+      };
+      auto& families = sdFontSystem.fonts.families;
+      families.resize(64);
+      for (size_t i = 0; i < families.size(); ++i) families[i].name = "Family" + std::to_string(i);
+      app.handleFontList();
+      const auto listed = collect(192);
+      if (listed["families"].size() != 64 || listed["families"][63]["name"] != "Family63") std::abort();
+      host::trace.clear();
+      extendedSettings = true;
+      app.handleGetSettings();
+      const auto settings = collect(512);
+      const auto last = settings[settings.size() - 1];
+      if (last["key"] != "oversized" || last["options"][0].template as<std::string>() != std::string(600, 'x')) std::abort();
+    });
+    return 0;
+  }
   if (std::getenv("WEB_FETCH_METHOD_CHECK")) {
     auto request = [&](std::string fields, std::string expected) {
       record("fetch-method", [&](auto& app) {
@@ -1351,12 +1379,12 @@ int main() {
   }
   record("fonts-list-response-allocation", [](auto& app) {
     app.handleFontList();
-    const std::string prefix = "response:200:application/json:";
-    const auto response = std::find_if(host::trace.begin(), host::trace.end(),
-                                       [&](const auto& event) { return event.starts_with(prefix); });
-    // Rust allocation sweeps may fail before the transport is reached.
-    if (response == host::trace.end()) return;
-    String::failAllocationSize = response->size() - prefix.size();
+    size_t documentBytes = 0;
+    for (const auto& event : host::trace) {
+      if (event.starts_with("chunk:")) documentBytes += event.size() - 6;
+    }
+    if (documentBytes == 0) std::abort();
+    String::failAllocationSize = documentBytes;
     app.handleFontList();
     host::trace.push_back("string-allocation-failures:" + std::to_string(String::failedAllocations));
     String::failAllocationSize = SIZE_MAX;

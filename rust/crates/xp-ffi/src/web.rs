@@ -133,12 +133,6 @@ impl Text {
     }
 }
 impl Text {
-    fn number(&mut self, n: usize) -> Result<()> {
-        let mut bytes = [0; 24];
-        let mut out = Output::new(&mut bytes);
-        out.number(n);
-        self.append(out.bytes())
-    }
     fn quoted(&mut self, bytes: &[u8]) -> Result<()> {
         self.append(b"\"")?;
         // Reuse the shared escaping rules with a bounded scratch loan.
@@ -742,15 +736,38 @@ fn epub(name: &[u8]) -> bool {
 }
 struct Output<'a> {
     data: &'a mut [u8],
+    stream: Option<&'a Request<'a>>,
     len: usize,
 }
 impl<'a> Output<'a> {
     fn new(data: &'a mut [u8]) -> Self {
-        Self { data, len: 0 }
+        Self {
+            data,
+            len: 0,
+            stream: None,
+        }
+    }
+    fn streaming(data: &'a mut [u8], request: &'a Request<'a>) -> Self {
+        Self {
+            data,
+            len: 0,
+            stream: Some(request),
+        }
+    }
+    fn flush(&mut self) {
+        if self.len != 0 {
+            if let Some(request) = self.stream {
+                request.chunk(self.bytes());
+                self.len = 0;
+            }
+        }
     }
     #[inline(never)]
     fn add(&mut self, bytes: &[u8]) {
         for &b in bytes {
+            if self.len == self.data.len() && self.stream.is_some() {
+                self.flush();
+            }
             if let Some(out) = self.data.get_mut(self.len) {
                 *out = b;
             }

@@ -176,6 +176,7 @@ impl Sink for MockSink {
             x: model::left(line.style),
             words: line.words,
             base_height: 10,
+            glyph_height: 10,
             ruby_shift: 0,
         }
     }

@@ -54,6 +54,9 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         if i32::from(scope.right) - i32::from(scope.left) < 8 {
             return Ok(());
         }
+        let raise =
+            self.last_glyph_bottom(sink) - i32::from(self.next_y) - i32::from(own.margin_top);
+        self.next_y = (i32::from(self.next_y) + raise.max(0)) as i16;
         for (padding, side) in [
             &mut own.padding_top,
             &mut own.padding_right,
@@ -122,6 +125,17 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             scope.bottom = scope.top;
             self.next_y = (top + height + below) as i16;
             self.note_content(top, top + height);
+        }
+        let bottom = (i32::from(scope.bottom) + i32::from(scope.pad_bottom))
+            .min(i32::from(self.options.height));
+        let raise = bottom - i32::from(self.next_y);
+        if scope.top >= 0 && raise > 0 {
+            self.next_y = bottom as i16;
+            if let Some(p) = self.paragraph.as_mut().filter(|p| p.size() == 0) {
+                let mut style = p.style();
+                style.padding_bottom -= style.padding_bottom.min(raise as i16);
+                p.set_style(style);
+            }
         }
         self.emit_box(scope, true, sink)
     }
@@ -215,14 +229,17 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             ((i32::from(self.options.width) - i32::from(horizontal(style))) as i16).max(1);
         let width = (available / 4).max(1);
         let x = left(style).wrapping_add((available - width) / 2);
-        let total = top_gap.wrapping_add(2).wrapping_add(bottom_gap);
+        let clear =
+            i32::from(top_gap).max(self.last_glyph_bottom(sink) - i32::from(self.next_y)) as i16;
+        let total = clear.wrapping_add(2).wrapping_add(bottom_gap);
         if self.nonempty_page()
             && i32::from(self.next_y) + i32::from(total) > i32::from(self.options.height)
         {
             self.set_visible(flow.position.visible, sink);
             self.complete_page(flow, sink)?;
         }
-        self.next_y = self.next_y.wrapping_add(top_gap);
+        self.next_y =
+            (i32::from(self.next_y) + i32::from(top_gap)).max(self.last_glyph_bottom(sink)) as i16;
         self.add_element(
             Element {
                 x,
@@ -282,9 +299,10 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         }
         width = width.min(i32::from(layout.width / 2));
         self.ensure_page();
+        let content_height = i32::from(cap.lines) * line_height
+            + (sink.raw_line_height(layout.font) - line_height).max(0);
         if self.nonempty_page()
-            && i32::from(self.next_y) + i32::from(cap.lines) * line_height
-                > i32::from(self.options.height)
+            && i32::from(self.next_y) + content_height > i32::from(self.options.height)
         {
             self.break_carrying(self.heading_carry(), 0, flow.position.visible, flow, sink)?;
         }
@@ -304,7 +322,7 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             Diagnostic::DropCap,
             sink,
         )?;
-        self.note_content(top, top + i32::from(cap.lines) * line_height);
+        self.note_content(top, top + content_height);
         paragraph.suppress_indent();
         block.text_indent = 0;
         block.text_indent_defined = 1;

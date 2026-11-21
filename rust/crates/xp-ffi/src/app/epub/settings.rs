@@ -7,12 +7,7 @@ use core::{ffi::c_void, mem::MaybeUninit};
 use xp_core::i18n::ids;
 
 const PAGE_TURN_RATES: [u32; 5] = [1, 1, 3, 6, 12];
-const SPACING_IDS: [u16; 4] = [
-    ids::STR_TIGHT,
-    ids::STR_NORMAL,
-    ids::STR_WIDE,
-    ids::STR_EXTRA_WIDE,
-];
+use xp_ui::text_settings::LINE_SPACING_LABELS as SPACING_IDS;
 const ALIGNMENT_IDS: [u16; 5] = [
     ids::STR_JUSTIFY,
     ids::STR_ALIGN_LEFT,

@@ -132,6 +132,8 @@ fn sanitized_len(word: &[u8]) -> usize {
     word.len() - 2 * word.windows(2).filter(|pair| *pair == b"\xc2\xad").count()
 }
 
+// Line output scratch is only needed after break selection finishes.
+#[inline(never)]
 unsafe fn extract(
     p: *mut Paragraph,
     m: &Metrics,

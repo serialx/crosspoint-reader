@@ -332,7 +332,7 @@ static_assert(static_cast<uint32_t>(CrossPointSettings::LP_MENU_FOOTNOTES) == 6)
 static_assert(static_cast<uint32_t>(CrossPointSettings::SHORT_PWRBTN::FOOTNOTES) == 4);
 static_assert(static_cast<uint32_t>(CrossPointSettings::SHORT_PWRBTN::CREATE_CLIPPING) == 6);
 // Cardinalities and toolbar setting consumed by Rust label/selection tables.
-static_assert(CrossPointSettings::LINE_COMPRESSION_COUNT == 4);
+static_assert(CrossPointSettings::LINE_COMPRESSION_COUNT == 7);
 static_assert(CrossPointSettings::PARAGRAPH_ALIGNMENT_COUNT == 5);
 static_assert(CrossPointSettings::ORIENTATION_COUNT == 4);
 static_assert(CrossPointSettings::FONT_FAMILY_COUNT == 1);
@@ -987,7 +987,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
 #endif
 #ifdef XP_APP_TEST
       .font_line_height = [](int32_t font, float compression) -> int32_t {
-        return target->getLineHeight(font, compression);
+        return compression == 0.0f ? target->getLineHeight(font) : target->getLineHeight(font, compression);
       },
 #endif
 #if defined(XP_APP_TEST) || !defined(XP_SD_FONT_CATALOG)

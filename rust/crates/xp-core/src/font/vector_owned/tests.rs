@@ -394,10 +394,10 @@ fn registered_cells_survive_table_relocation_and_invalidate_before_drop() {
             Evict::default(),
         );
         assert!(R::load(owner, 14, 4096, 64));
-        assert!(registry.insert(R::entry(owner, 20)));
+        assert!(registry.insert(R::entry(owner, 20, 14)));
         let slot = registry.slot(20, 0);
         // Insertion shifts the real registry entries; the face-owned slot stays fixed.
-        assert!(registry.insert(R::entry(owner, 10)));
+        assert!(registry.insert(R::entry(owner, 10, 14)));
         assert_eq!(registry.slot(20, 0), slot);
         registry.remove(10);
         for style in 0..4 {

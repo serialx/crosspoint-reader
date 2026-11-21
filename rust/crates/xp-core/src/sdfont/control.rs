@@ -210,6 +210,7 @@ impl<'a> Control<'a> {
         // Native insertFont also ignores a rejected normal-less registration.
         let _ = (*registry).insert(Entry {
             id,
+            points: u16::from(file.size),
             slots,
             fallback: 0,
         });

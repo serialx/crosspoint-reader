@@ -64,8 +64,9 @@ class FontRegistry {
     return entry.id;
   }
   static EpdFontFamily family(const XpRegisteredFont& e) {
-    return EpdFontFamily(reinterpret_cast<const EpdFont*>(e.slots[0]), reinterpret_cast<const EpdFont*>(e.slots[1]),
-                         reinterpret_cast<const EpdFont*>(e.slots[2]), reinterpret_cast<const EpdFont*>(e.slots[3]));
+    return EpdFontFamily(e.points, reinterpret_cast<const EpdFont*>(e.slots[0]),
+                         reinterpret_cast<const EpdFont*>(e.slots[1]), reinterpret_cast<const EpdFont*>(e.slots[2]),
+                         reinterpret_cast<const EpdFont*>(e.slots[3]));
   }
   uint32_t size() const { return xp_font_registry_query(raw(), XP_FONT_COUNT, 0, 0, nullptr).value; }
   Iterator begin() const { return Iterator(this, 0); }

@@ -5,6 +5,30 @@ struct RowLines<B> {
     offsets: Vec<u32>,
 }
 
+impl<B> RowLines<B> {
+    #[inline(never)]
+    fn heights<S: Sink<Payload = B>>(
+        &self,
+        index: usize,
+        columns: usize,
+        minimum: i16,
+        options: Options,
+        sink: &mut S,
+    ) -> (i16, i32) {
+        let mut spacing = minimum;
+        let mut content = i32::from(minimum);
+        for line in self.lines[..columns]
+            .iter()
+            .filter_map(|lines| lines.get(index)?.as_ref())
+        {
+            let metrics = sink.row_line_metrics(line, options);
+            spacing = spacing.max(metrics.height() as i16);
+            content = content.max(metrics.content_height());
+        }
+        (spacing, content)
+    }
+}
+
 impl<P: Paragraph<B>, B> Assembly<P, B> {
     pub fn clear_cells(&mut self) {
         self.cells.clear();
@@ -74,17 +98,18 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         }
         Ok(())
     }
-    pub fn row_separator<S: Sink<Payload = B>>(&mut self, sink: &S) -> Result {
+    pub fn row_separator<S: Sink<Payload = B>>(&mut self, sink: &mut S) -> Result {
+        let top = i32::from(self.next_y).max(self.last_glyph_bottom(sink));
         if !self.nonempty_page()
             || self.options.width == 0
-            || i32::from(self.next_y) + 4 > i32::from(self.options.height)
+            || top + 4 > i32::from(self.options.height)
         {
             return Ok(());
         }
         self.add_element(
             Element {
                 x: 0,
-                y: self.next_y.wrapping_add(1),
+                y: (top + 1) as i16,
                 content: Content::Rule {
                     width: self.options.width,
                     thickness: 1,
@@ -93,7 +118,7 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             Diagnostic::RowSeparator,
             sink,
         )?;
-        self.next_y = self.next_y.wrapping_add(4);
+        self.next_y = (top + 4) as i16;
         Ok(())
     }
     pub fn finish_row<S: Sink<Payload = B>>(&mut self, flow: &mut Flow, sink: &mut S) -> Result {
@@ -163,9 +188,8 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         sink: &mut S,
         row: &mut RowLines<B>,
     ) -> Result {
-        let line_height = ((sink.table_line_height(self.options.font) as f32
-            * self.options.compression) as i16)
-            .max(1);
+        let line_height =
+            (sink.line_height(self.options.font, self.options.compression) as i16).max(1);
         let columns = self.cells.len();
         let planned = usize::from(flow.columns) == columns;
         let mut widths = [0u16; MAX_COLUMNS];
@@ -246,30 +270,29 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             0
         };
         let mut slice_top = -1;
+        let mut last_overhang = 0;
         for index in 0..max_lines {
             let offset = row
                 .offsets
                 .get(index)
                 .copied()
                 .unwrap_or(flow.position.visible);
-            let mut row_height = line_height;
-            for lines in row.lines.iter().take(columns) {
-                if let Some(Some(line)) = lines.get(index) {
-                    row_height =
-                        row_height.max(sink.row_line_metrics(line, self.options).height() as i16);
-                }
+            let (row_height, content_height) =
+                row.heights(index, columns, line_height, self.options, sink);
+            if slice_top < 0 && bordered {
+                self.next_y = i32::from(self.next_y).max(self.last_glyph_bottom(sink)) as i16;
             }
             let top_gap = if slice_top < 0 { max_top + gap } else { 0 };
             let bottom_gap = max_bottom + gap;
             let page_full = self.nonempty_page()
-                && i32::from(self.next_y) + top_gap + i32::from(row_height) + bottom_gap
+                && i32::from(self.next_y) + top_gap + content_height + bottom_gap
                     > i32::from(self.options.height);
             if self.page.is_none() || page_full {
                 if page_full {
                     if bordered && slice_top >= 0 {
                         self.frame_cells(
                             slice_top,
-                            i32::from(self.next_y) + bottom_gap,
+                            i32::from(self.next_y) + last_overhang + bottom_gap,
                             &widths[..columns],
                             border,
                             sink,
@@ -313,10 +336,11 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
                 self.next_y = (i32::from(row_y) - max_top + i32::from(*padding)) as i16;
                 self.add_line(line, flow, sink)?;
             }
+            last_overhang = content_height - i32::from(row_height);
             self.next_y = row_y.wrapping_add(row_height);
         }
-        self.next_y =
-            (i32::from(self.next_y) + max_bottom).min(i32::from(self.options.height)) as i16;
+        self.next_y = (i32::from(self.next_y) + last_overhang + max_bottom)
+            .min(i32::from(self.options.height)) as i16;
         self.keep_lines = 0;
         if bordered && slice_top >= 0 && self.page.is_some() {
             self.next_y = (i32::from(self.next_y) + gap).min(i32::from(self.options.height)) as i16;

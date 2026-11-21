@@ -1094,7 +1094,7 @@ uint32_t xp_font_apply_ligatures(const void* data, uint32_t cp, const uint8_t* t
 typedef struct {
   XpFontSdView styles[4];
   int32_t fallback;
-  uint8_t hasFallback, sd, advanceTable, resolved[4];
+  uint8_t hasFallback, sd, advanceTable, resolved[4], points;
 } XpNativeFamily;
 // Failure-only synchronous diagnostics: MissingFont (1): a is the signed font ID
 // bit pattern; BidiLimit (2): a=128; MissingGlyph (3): a=codepoint. b/c/d are zero.

@@ -1772,7 +1772,9 @@ int GfxRenderer::getLineHeight(const int fontId) const {
 }
 
 int GfxRenderer::getLineHeight(const int fontId, const float compression) const {
-  return static_cast<int>(getLineHeight(fontId) * compression + 0.5f);
+  const auto points = xp_font_registry_query(fontMap.raw(), XP_FONT_POINTS, fontId, 0, nullptr).value;
+  const float pixels = points ? static_cast<float>(points * FONT_RASTER_DPI) / 72.0f : getLineHeight(fontId);
+  return static_cast<int>(pixels * compression + 0.5f);
 }
 
 int GfxRenderer::getTextHeight(const int fontId) const {

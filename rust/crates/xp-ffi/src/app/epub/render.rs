@@ -149,7 +149,11 @@ impl EpubSession {
         #[cfg(feature = "app-test")]
         assert!(self.legacy_pages.get().is_none() && self.render_hooks.is_none());
         let view = page.borrow();
-        let context = RenderContext { access, page: view, dither_images };
+        let context = RenderContext {
+            access,
+            page: view,
+            dither_images,
+        };
         let geometry = PageGeometry {
             font,
             left: margins[3],

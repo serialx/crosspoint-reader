@@ -427,6 +427,7 @@ fn typed_chapter_receiver_keeps_sd_failures_out_of_the_native_fallback() {
             id: extra,
             slots: [ptr::null(); 4],
             fallback: 0,
+            points: 0,
         };
         assert_eq!(font_registry::xp_font_registry_update(owner, 4, &entry), 1);
         assert_eq!(

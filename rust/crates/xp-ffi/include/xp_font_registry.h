@@ -11,18 +11,19 @@ extern "C" {
 typedef struct {
 #ifdef XP_SD_FONT_CATALOG
 #if defined(BOARD_HAS_PSRAM) && !defined(XP_APP_TEST)
-  uintptr_t words[sizeof(void*) == 8 ? 686 : 1133];
+  uintptr_t words[sizeof(void*) == 8 ? 686 : 1149];
 #else
-  uintptr_t words[sizeof(void*) == 8 ? 621 : 1068];
+  uintptr_t words[sizeof(void*) == 8 ? 621 : 1084];
 #endif
 #else
-  uintptr_t words[sizeof(void*) == 8 ? 616 : 1063];
+  uintptr_t words[sizeof(void*) == 8 ? 616 : 1079];
 #endif
 } XpLoadedFonts;
 typedef struct {
   int32_t id;
   const void* const* slots[4];
   int32_t fallback;
+  uint16_t points;
 } XpRegisteredFont;
 typedef enum {
   XP_FONT_REGISTER,
@@ -41,7 +42,8 @@ typedef enum {
   XP_FONT_SLOT,
   XP_FONT_EXISTS,
   XP_FONT_FALLBACK_ID,
-  XP_FONT_SD
+  XP_FONT_SD,
+  XP_FONT_POINTS
 } XpFontQuery;
 typedef union {
   uintptr_t value;

@@ -149,11 +149,15 @@ pub struct LineMetrics {
     pub x: i16,
     pub words: u32,
     pub base_height: i32,
+    pub glyph_height: i32,
     pub ruby_shift: i32,
 }
 impl LineMetrics {
     pub fn height(self) -> i32 {
         self.base_height + self.ruby_shift
+    }
+    pub fn content_height(self) -> i32 {
+        self.height().max(self.glyph_height)
     }
 }
 
@@ -261,13 +265,16 @@ pub trait Sink {
     fn record_anchor(&mut self, page: u16) -> Result;
     fn font_variant(&mut self, font: i32, scale: f32) -> i32;
     fn line_height(&mut self, font: i32, compression: f32) -> i32;
-    fn table_line_height(&mut self, font: i32) -> i32 {
+    fn raw_line_height(&mut self, font: i32) -> i32 {
         self.line_height(font, 1.0)
     }
     fn ascender(&mut self, font: i32) -> i32;
     fn space_width(&mut self, font: i32) -> i32;
     fn codepoint(&mut self, font: i32, cp: u32, style: u8) -> Option<(i32, i32)>;
     fn line_metrics(&mut self, line: &Self::Payload, options: Options) -> LineMetrics;
+    fn line_glyph_height(&mut self, line: &Self::Payload, options: Options) -> i32 {
+        self.line_metrics(line, options).glyph_height
+    }
     fn row_line_metrics(&mut self, line: &Self::Payload, options: Options) -> LineMetrics {
         self.line_metrics(line, options)
     }

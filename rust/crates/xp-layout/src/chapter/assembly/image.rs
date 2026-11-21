@@ -234,8 +234,10 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             }
         }
         self.apply_page_break(flow, sink)?;
+        let clear =
+            i32::from(top_margin).max(self.last_glyph_bottom(sink) - i32::from(self.next_y));
         if self.nonempty_page()
-            && i32::from(self.next_y) + i32::from(top_margin) + height + i32::from(bottom_margin)
+            && i32::from(self.next_y) + clear + height + i32::from(bottom_margin)
                 > i32::from(self.options.height)
         {
             let mut carry = self.heading_carry();
@@ -243,9 +245,7 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
                 if let Some(page) = &self.page {
                     let carried_height = i32::from(self.next_y)
                         - i32::from(page.elements[page.elements.len() - carry].y);
-                    if carried_height + i32::from(top_margin) + height
-                        > i32::from(self.options.height)
-                    {
+                    if carried_height + clear + height > i32::from(self.options.height) {
                         carry = 0;
                     }
                 }
@@ -259,7 +259,8 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             top_margin =
                 (i32::from(self.options.height) - height - i32::from(self.next_y)).max(0) as i16;
         }
-        self.next_y = self.next_y.wrapping_add(top_margin);
+        self.next_y = (i32::from(self.next_y) + i32::from(top_margin))
+            .max(self.last_glyph_bottom(sink)) as i16;
         let result = sink.create_image(resource, width, height);
         if result.is_err() {
             sink.diagnostic(Diagnostic::ImageBlock, 0, 0, 0, &[]);

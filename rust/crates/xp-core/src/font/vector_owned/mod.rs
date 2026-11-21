@@ -303,7 +303,7 @@ impl<'a, P: Rasterizer, M: Memory> Family<'a, P, M> {
         if matches!(this.sources[0], Source::Missing) {
             return false;
         }
-        this.size = (u32::from(points) * 150 * 64 + 36) / 72;
+        this.size = (u32::from(points) * crate::textm::FONT_RASTER_DPI * 64 + 36) / 72;
         this.pixels = ((this.size + 32) >> 6) as u16;
         this.cap = cap;
         this.maximum = maximum;

@@ -385,7 +385,10 @@ unsafe fn create(
         Font::prewarm(face, Some(b" "), true);
     }
     let id = id();
-    if !(*owner.cast_mut()).registry.insert(Font::entry(face, id)) {
+    if !(*owner.cast_mut())
+        .registry
+        .insert(Font::entry(face, id, points.into()))
+    {
         ptr::drop_in_place(face);
         xp_native_sd_free(face.cast(), false);
         return None;
@@ -421,10 +424,11 @@ pub(crate) unsafe fn load(
         if Font::load(reader.face.cast(), u16::from(points), cap, maximum) {
             Font::prewarm(reader.face.cast(), Some(b" "), true);
             let id = font_id(name, points, false);
-            if (*owner.cast_mut())
-                .registry
-                .insert(Font::entry(reader.face.cast(), id))
-            {
+            if (*owner.cast_mut()).registry.insert(Font::entry(
+                reader.face.cast(),
+                id,
+                points.into(),
+            )) {
                 (*s).reader.id = id;
                 (*s).points = points;
                 return true;

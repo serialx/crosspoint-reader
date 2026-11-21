@@ -99,6 +99,20 @@ def main():
                 if result != expected[kind][i]:
                     raise AssertionError(f'{kind} case {i}: {corpus()[kind][i]!r}\nexpected {expected[kind][i]}\nactual {result}')
     print(f'{sum(map(len, actual.values()))} cases passed', flush=True)
+    layout = [({}, 2), *[({'lineSpacing': n}, n + 1 if n < 6 else 2) for n in range(8)],
+              ({'lineSpacing': 255}, 2), ({'lineSpacing': -1}, 2), ({'lineSpacing': '2'}, 2),
+              ({'lineHeight': None, 'lineSpacing': 0}, 1),
+              *[({'lineHeight': n, 'lineSpacing': 2}, n) for n in range(7)]]
+    rows = subprocess.run([str(args.build/'oracle'), 'reader-layout'],
+                          input=''.join(json.dumps(doc) + '\n' for doc, _ in layout),
+                          text=True, capture_output=True, check=True).stdout.splitlines()
+    assert len(rows) == len(layout)
+    for row, (doc, expected) in zip(rows, layout):
+        result = json.loads(row)
+        state = json.loads(result['state'])
+        assert state['lineHeight'] == expected and 'lineSpacing' not in state, (doc, state)
+        assert abs(result['multiplier'] - [1, 1.1, 1.2, 1.3, 1.45, 1.6, 1.75][expected]) < 0.00001
+    print(f'{len(rows)} reader line-height migration cases passed', flush=True)
     borrowed = subprocess.run([str(args.build/'oracle'), 'wifi-borrowed'],
                               input='3\n7\n1024\n', text=True, capture_output=True, check=True)
     assert all(json.loads(line)['valid'] for line in borrowed.stdout.splitlines())

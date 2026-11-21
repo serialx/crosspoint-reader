@@ -8,14 +8,12 @@ use xp_core::i18n::ids::STR_CENTER as CENTER;
 use xp_core::i18n::ids::STR_CHARACTER_SPACING as CHARACTER_SPACING;
 use xp_core::i18n::ids::STR_EMBEDDED_STYLE_NO_PREVIEW as EMBEDDED_STYLE_NO_PREVIEW;
 use xp_core::i18n::ids::STR_EXTRA_SPACING as EXTRA_SPACING;
-use xp_core::i18n::ids::STR_EXTRA_WIDE as EXTRA_WIDE;
 use xp_core::i18n::ids::STR_FOCUS_READING as FOCUS_READING;
 use xp_core::i18n::ids::STR_FONT as FONT;
 use xp_core::i18n::ids::STR_HYPHENATION_NO_PREVIEW as HYPHENATION_NO_PREVIEW;
 use xp_core::i18n::ids::STR_JUSTIFY as JUSTIFY;
 use xp_core::i18n::ids::STR_LAYOUT as LAYOUT;
 use xp_core::i18n::ids::STR_LINE_SPACING as LINE_SPACING;
-use xp_core::i18n::ids::STR_NORMAL as NORMAL;
 use xp_core::i18n::ids::STR_PARAGRAPH_INDENTATION as PARAGRAPH_INDENTATION;
 use xp_core::i18n::ids::STR_SCREEN_MARGIN as SCREEN_MARGIN;
 use xp_core::i18n::ids::STR_SELECT as SELECT;
@@ -35,9 +33,7 @@ use xp_core::i18n::ids::STR_SPACING_ZERO as SPACING_ZERO;
 use xp_core::i18n::ids::STR_STATE_OFF as STATE_OFF;
 use xp_core::i18n::ids::STR_STYLE as STYLE;
 use xp_core::i18n::ids::STR_TEXT_AA_NO_PREVIEW as TEXT_AA_NO_PREVIEW;
-use xp_core::i18n::ids::STR_TIGHT as TIGHT;
 use xp_core::i18n::ids::STR_TOGGLE as TOGGLE;
-use xp_core::i18n::ids::STR_WIDE as WIDE;
 use xp_core::i18n::ids::STR_WORD_SPACING as WORD_SPACING;
 
 const TABS: [u16; 4] = [FONT, SIZE, LAYOUT, STYLE];
@@ -56,7 +52,15 @@ const STYLES: [u16; 4] = [
     EMBEDDED_STYLE_NO_PREVIEW,
     TEXT_AA_NO_PREVIEW,
 ];
-const LINES: [u16; 4] = [TIGHT, NORMAL, WIDE, EXTRA_WIDE];
+pub const LINE_SPACING_LABELS: [u16; 7] = [
+    xp_core::i18n::ids::STR_SPACING_0_PERCENT,
+    xp_core::i18n::ids::STR_SPACING_PLUS_10_PERCENT,
+    xp_core::i18n::ids::STR_SPACING_PLUS_20_PERCENT_DEFAULT,
+    xp_core::i18n::ids::STR_SPACING_PLUS_30_PERCENT,
+    xp_core::i18n::ids::STR_SPACING_PLUS_45_PERCENT,
+    xp_core::i18n::ids::STR_SPACING_PLUS_60_PERCENT,
+    xp_core::i18n::ids::STR_SPACING_PLUS_75_PERCENT,
+];
 const WORDS: [u16; 7] = [
     SPACING_50_PERCENT,
     SPACING_75_PERCENT,
@@ -106,7 +110,11 @@ pub fn label(language: u8, kind: u8, index: u8, value: u8, scratch: &mut [u8]) -
         1 => ROWS.get(idx).copied(),
         2 => STYLES.get(idx).copied(),
         3 => match index {
-            0 => Some(*LINES.get(v).unwrap_or(&NORMAL)),
+            0 => Some(
+                *LINE_SPACING_LABELS
+                    .get(v)
+                    .unwrap_or(&LINE_SPACING_LABELS[2]),
+            ),
             1 => return number(value, true, scratch),
             2 => Some(*CHARS.get(v).unwrap_or(&SPACING_ZERO)),
             3 => return c"".as_ptr(),
@@ -122,7 +130,7 @@ pub fn label(language: u8, kind: u8, index: u8, value: u8, scratch: &mut [u8]) -
             _ => None,
         },
         4 => match index {
-            0 => LINES.get(v).copied(),
+            0 => LINE_SPACING_LABELS.get(v).copied(),
             1 => WORDS.get(v).copied(),
             2 => CHARS.get(v).copied(),
             4 => {

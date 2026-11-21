@@ -469,7 +469,8 @@ const XpChapterSink ChapterPageAssembler::sink_ = {
     },
 #endif
     [](void* ctx, int32_t font, float compression) -> int32_t {
-      return static_cast<ChapterPageAssembler*>(ctx)->renderer.getLineHeight(font, compression);
+      return compression == 0.0f ? static_cast<ChapterPageAssembler*>(ctx)->renderer.getLineHeight(font)
+                                 : static_cast<ChapterPageAssembler*>(ctx)->renderer.getLineHeight(font, compression);
     },
 #ifdef XP_NATIVE_TEXT_MEASUREMENT
     nullptr,

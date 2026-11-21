@@ -2,6 +2,7 @@
 mod abi;
 pub mod ffi;
 mod labels;
+pub use labels::LINE_SPACING_LABELS;
 pub mod preview;
 #[cfg(test)]
 mod tests;
@@ -241,7 +242,7 @@ impl State {
             };
         }
         let (count, selected) = match field {
-            0 => (4, value),
+            0 => (LINE_SPACING_LABELS.len() as u8, value),
             1 => (7, (value.clamp(50, 200) - 50) / 25),
             2 => (5, value),
             4 => (6, value),

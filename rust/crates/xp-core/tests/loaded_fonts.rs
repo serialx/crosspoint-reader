@@ -15,6 +15,7 @@ fn entry(id: i32, regular: *const *const FontData) -> Entry {
         id,
         slots: [regular, ptr::null(), ptr::null(), ptr::null()],
         fallback: 0,
+        points: 0,
     }
 }
 

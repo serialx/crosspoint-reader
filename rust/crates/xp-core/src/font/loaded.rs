@@ -13,6 +13,7 @@ pub struct Entry {
     pub id: i32,
     pub slots: [*const *const FontData; 4],
     pub fallback: i32,
+    pub points: u16,
 }
 
 impl Entry {
@@ -47,6 +48,7 @@ impl Registry {
                     id: 0,
                     slots: [ptr::null(); 4],
                     fallback: 0,
+                    points: 0,
                 });
         }
         ptr::addr_of_mut!((*out).count).write(0);

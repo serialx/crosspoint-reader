@@ -29,6 +29,21 @@ int main() {
                                  std::string(4097, 'z'),
                                  "中文 한글 カナ abc",
                                  std::string(12000, 'x')};
+  {
+    DefinitionPayload payload;
+    auto& slot = payload.slots[0];
+    slot.text = "first\nsecond\nthird";
+    assert(payload.prepareDefinition(renderer, slot, false, false, {0, 0, 100, 25}));
+    assert(renderer.lastSpacing == 2.0f && slot.linesPerPage == 2 && slot.totalPages == 2);
+    renderer.lastSpacing = 0;
+    assert(payload.buildPlainSelectionPages(renderer, 0));
+    assert(renderer.lastSpacing == 2.0f);
+    const auto& lines = payload.selectionPages[0]->elements;
+    assert(lines.size() == 2 && static_cast<PageLine*>(lines[1].get())->y == 10);
+    renderer.lastSpacing = 0;
+    payload.drawBody(renderer, 0, 0, 7, 0);
+    assert(renderer.lastSpacing == 2.0f && renderer.paintedRows == std::vector<int>({7, 17}));
+  }
   unsigned cases = 0;
   for (uint8_t orientation = 0; orientation < 4; ++orientation)
     for (bool styled : {false, true})

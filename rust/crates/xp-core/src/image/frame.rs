@@ -87,7 +87,8 @@ impl Writer {
         let (draw, black) = match t.mode {
             MODE_DITHER_BW => {
                 let threshold = [0, 2, 3, 1][((self.logical_y & 1) * 2 + (x & 1)) as usize];
-                let black = level == 0 || (level == 1 && threshold < 3) || (level == 2 && threshold == 0);
+                let black =
+                    level == 0 || (level == 1 && threshold < 3) || (level == 2 && threshold == 0);
                 (white || black, black)
             }
             0 => (white || level < 3, level < 3),
@@ -148,11 +149,24 @@ mod tests {
     use super::*;
     #[test]
     fn monochrome_images_use_logical_two_by_two_bayer_cell() {
-        for (level, expected) in [(0, [0x3f, 0x3f]), (1, [0x3f, 0xbf]), (2, [0x7f, 0xff]), (3, [0xff, 0xff])] {
+        for (level, expected) in [
+            (0, [0x3f, 0x3f]),
+            (1, [0x3f, 0xbf]),
+            (2, [0x7f, 0xff]),
+            (3, [0xff, 0xff]),
+        ] {
             let mut bytes = [255; 2];
             let target = Target {
-                data: bytes.as_mut_ptr(), len: 2, stride: 1, origin: 0, rows: 2,
-                width: 2, height: 2, mode: MODE_DITHER_BW, orientation: 3, absolute: 0,
+                data: bytes.as_mut_ptr(),
+                len: 2,
+                stride: 1,
+                origin: 0,
+                rows: 2,
+                width: 2,
+                height: 2,
+                mode: MODE_DITHER_BW,
+                orientation: 3,
+                absolute: 0,
             };
             let mut writer = unsafe { Writer::new(target) };
             for y in 0..2 {

@@ -77,10 +77,13 @@ impl XpEpubRenderSpec {
     }
 
     pub(super) fn layout_images(&self) -> u8 {
-        if self.dither_images() { 0 } else { self.images }
+        if self.dither_images() {
+            0
+        } else {
+            self.images
+        }
     }
 }
-
 
 #[repr(C)]
 #[derive(Clone, Copy)]

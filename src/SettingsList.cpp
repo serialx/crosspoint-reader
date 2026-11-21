@@ -78,9 +78,16 @@ void forEachBaseSetting(SettingVisitor visit, void* context) {
   // UI callers replace this entry with buildFontSizeSetting(). It only
   // fixes the setting's position in the Reader category.
   emit(SettingInfo::Enum(StrId::STR_FONT_SIZE, nullptr, {}, "fontSize", StrId::STR_CAT_READER).withTextSettings());
-  emit(SettingInfo::Enum(StrId::STR_LINE_SPACING, &CrossPointSettings::lineSpacing,
-                         {StrId::STR_TIGHT, StrId::STR_NORMAL, StrId::STR_WIDE, StrId::STR_EXTRA_WIDE}, "lineSpacing",
-                         StrId::STR_CAT_READER)
+  static constexpr StrId lineSpacingLabels[] = {StrId::STR_SPACING_0_PERCENT,
+                                                StrId::STR_SPACING_PLUS_10_PERCENT,
+                                                StrId::STR_SPACING_PLUS_20_PERCENT_DEFAULT,
+                                                StrId::STR_SPACING_PLUS_30_PERCENT,
+                                                StrId::STR_SPACING_PLUS_45_PERCENT,
+                                                StrId::STR_SPACING_PLUS_60_PERCENT,
+                                                StrId::STR_SPACING_PLUS_75_PERCENT};
+  static_assert(std::size(lineSpacingLabels) == CrossPointSettings::LINE_COMPRESSION_COUNT);
+  emit(SettingInfo::StaticEnum(StrId::STR_LINE_SPACING, &CrossPointSettings::lineSpacing, lineSpacingLabels,
+                               "lineHeight", StrId::STR_CAT_READER)
            .withTextSettings());
   emit(SettingInfo::Value(StrId::STR_WORD_SPACING, &CrossPointSettings::wordSpacing,
                           {CrossPointSettings::WORD_SPACING_MIN, CrossPointSettings::WORD_SPACING_MAX,
@@ -125,7 +132,8 @@ void forEachBaseSetting(SettingVisitor visit, void* context) {
                            StrId::STR_CAT_READER)
            .withTextSettings());
   emit(SettingInfo::Enum(StrId::STR_IMAGES, &CrossPointSettings::imageRendering,
-                         {StrId::STR_IMAGES_DISPLAY, StrId::STR_IMAGES_PLACEHOLDER, StrId::STR_IMAGES_SUPPRESS, StrId::STR_IMAGES_DISPLAY_BW},
+                         {StrId::STR_IMAGES_DISPLAY, StrId::STR_IMAGES_PLACEHOLDER, StrId::STR_IMAGES_SUPPRESS,
+                          StrId::STR_IMAGES_DISPLAY_BW},
                          "imageRendering", StrId::STR_CAT_READER));
   emit(SettingInfo::Enum(StrId::STR_READER_MENU_STYLE, &CrossPointSettings::readerMenuStyle,
                          {StrId::STR_MENU_STYLE_LIST, StrId::STR_MENU_STYLE_TOOLBAR}, "readerMenuStyle",

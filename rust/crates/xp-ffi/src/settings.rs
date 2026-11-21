@@ -1244,22 +1244,11 @@ pub unsafe extern "C" fn xp_settings_tail(
 }
 
 #[no_mangle]
-pub extern "C" fn xp_setting_line_compression(sd: bool, spacing: u8) -> f32 {
-    if sd {
-        match spacing {
-            0 => 0.95,
-            2 => 1.1,
-            3 => 1.2,
-            _ => 1.0,
-        }
-    } else {
-        match spacing {
-            0 => 0.90,
-            2 => 1.0,
-            3 => 1.05,
-            _ => 0.95,
-        }
-    }
+pub extern "C" fn xp_setting_line_compression(_sd: bool, spacing: u8) -> f32 {
+    [1.0, 1.1, 1.2, 1.3, 1.45, 1.6, 1.75]
+        .get(usize::from(spacing))
+        .copied()
+        .unwrap_or(1.2)
 }
 #[no_mangle]
 pub extern "C" fn xp_setting_sleep_ms(minutes: u8) -> u32 {

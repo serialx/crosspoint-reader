@@ -5,7 +5,8 @@
 #include "CrossPointSettings.h"
 namespace store_test {
 inline bool hasHome = false;
-}
+inline bool readerLayout = false;
+}  // namespace store_test
 struct BoardConfig {
   static bool hasHomeKey() { return store_test::hasHome; }
 };
@@ -41,4 +42,9 @@ void forEachBaseSetting(F& visit) {
        64, false, SettingType::STRING},
   };
   for (const auto& entry : entries) visit(entry);
+  if (store_test::readerLayout) {
+    const SettingInfo height{"lineHeight", &CrossPointSettings::lineSpacing,          0, 0, false, SettingType::ENUM,
+                             {},           CrossPointSettings::LINE_COMPRESSION_COUNT};
+    visit(height);
+  }
 }

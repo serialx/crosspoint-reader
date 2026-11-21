@@ -82,6 +82,11 @@ def project(raw):
     assert counts == dict(discard=544, popup_labels=64, popup_ids=256)
     projected = b''.join(output)
     assert len(projected.splitlines()) == 34760 and len(projected) == 432408
+    # Fixture title 1 is Line Spacing; stored index 7 wraps to the first choice.
+    old_choices = b'popup-ids 1 3\nid 3 0\nid 4 0\nid 5 0\nid 6 0\n'
+    new_choices = b'popup-ids 1 0\nid 12 0\nid 3 0\nid 4 0\nid 5 0\nid 6 0\nid 13 0\nid 14 0\n'
+    assert projected.count(old_choices) == 128
+    projected = projected.replace(old_choices, new_choices)
     return projected, counts
 
 

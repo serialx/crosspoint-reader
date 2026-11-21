@@ -271,7 +271,11 @@ unsafe impl Services for Physical<'_> {
             rows: t.rows,
             width: t.width,
             height: t.height,
-            mode: if self.dither_images { xp_core::image::frame::MODE_DITHER_BW } else { t.plane },
+            mode: if self.dither_images {
+                xp_core::image::frame::MODE_DITHER_BW
+            } else {
+                t.plane
+            },
             orientation: t.orientation,
             absolute: t.absolute,
         }

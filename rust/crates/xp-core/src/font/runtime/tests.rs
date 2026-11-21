@@ -161,7 +161,8 @@ fn register(r: &mut Registry, id: i32, slot: &*const FontData) {
     assert!(r.insert(Entry {
         id,
         slots: [slot, ptr::null(), ptr::null(), ptr::null()],
-        fallback: 0
+        fallback: 0,
+        points: 0,
     }));
 }
 #[derive(Debug, PartialEq)]
@@ -526,7 +527,8 @@ fn builtin_aliases_share_a_batch_and_prewarm_high_styles_first() {
     assert!(r.insert(Entry {
         id: 7,
         slots: [&regular_slot, &bold_slot, &regular_slot, ptr::null()],
-        fallback: 0
+        fallback: 0,
+        points: 0,
     }));
     let o = owner();
     let io = physical();

@@ -4,6 +4,8 @@
 //! streams and any SD prewarming; no measurement function retains a borrow.
 use crate::text::{combining, small_caps_upper};
 
+pub const FONT_RASTER_DPI: u32 = 150;
+
 pub const SUP: u8 = 16;
 pub const SUB: u8 = 32;
 pub const SMALL_CAPS: u8 = 128;
@@ -47,6 +49,9 @@ pub trait FontFace {
     fn ascender(&self, style: u8) -> i32;
     /// The regular face's advanceY, no I/O.
     fn line_height(&self) -> u8;
+    fn size_in_pixels(&self) -> f32 {
+        f32::from(self.line_height())
+    }
 }
 
 /// Registration and coverage are read-only and never trigger glyph loads.
@@ -295,7 +300,7 @@ pub fn line_height(face: &impl FontFace) -> i32 {
     i32::from(face.line_height())
 }
 pub fn compressed_line_height(face: &impl FontFace, compression: f32) -> i32 {
-    (line_height(face) as f32 * compression + 0.5) as i32
+    (face.size_in_pixels() * compression + 0.5) as i32
 }
 
 /// Ink bounds, matching EpdFont::getTextDimensions. Decorations, small caps,

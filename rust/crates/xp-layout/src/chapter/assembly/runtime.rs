@@ -166,19 +166,19 @@ impl PageSink {
                 0
             }
         };
-        let base_height = |s: &mut Self| {
-            s.line_height(font, options.compression) + s.extra_ascent(font, fonts, options.font)
-        };
-        let (base_height, ruby_shift) = if row {
-            (base_height(self), ruby_height(self))
+        let spaced_height = |s: &mut Self| s.line_height(font, options.compression);
+        let (spaced, ruby_shift) = if row {
+            (spaced_height(self), ruby_height(self))
         } else {
             let ruby = ruby_height(self);
-            (base_height(self), ruby)
+            (spaced_height(self), ruby)
         };
+        let extra = self.extra_ascent(font, fonts, options.font);
         LineMetrics {
             x,
             words,
-            base_height,
+            base_height: spaced + extra,
+            glyph_height: self.raw_line_height(font) + extra + ruby_shift,
             ruby_shift,
         }
     }
@@ -255,11 +255,11 @@ impl Sink for PageSink {
         observe!(self, "getLineHeight", font, compression, value);
         value
     }
-    fn table_line_height(&mut self, font: i32) -> i32 {
+    fn raw_line_height(&mut self, font: i32) -> i32 {
         let value = if let Some(e) = self.native_engine() {
-            crate::textm::compressed_line_height(&e.face(font), 1.0)
+            crate::textm::line_height(&e.face(font))
         } else {
-            self.backend.line_height(font, 1.0)
+            self.backend.line_height(font, 0.0)
         };
         observe!(self, "getLineHeight", font, value);
         value
@@ -293,6 +293,14 @@ impl Sink for PageSink {
 
     fn line_metrics(&mut self, line: &Payload, options: Options) -> LineMetrics {
         self.placed_metrics(line, options, false)
+    }
+    fn line_glyph_height(&mut self, line: &Payload, options: Options) -> i32 {
+        let (font, fonts, _, ruby, _) = unsafe { (*self.storage).font_data(line) };
+        let font = if font == 0 { options.font } else { font };
+        let raw = self.raw_line_height(font);
+        let extra = self.extra_ascent(font, fonts, options.font);
+        let ascent = self.ascender(font);
+        raw + extra + if ruby { ascent / 2 } else { 0 }
     }
     fn row_line_metrics(&mut self, line: &Payload, options: Options) -> LineMetrics {
         self.placed_metrics(line, options, true)

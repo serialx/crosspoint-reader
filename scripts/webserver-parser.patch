@@ -34,8 +34,8 @@
 +      if (!upload_ingress::appendHeaderLine(req, read)) return badUpload();
 +      break;
 +    }
-+    if (c != uploadPrefix[pos]) {
-+      req += client.readStringUntil('\r');
++    if (pos == sizeof(uploadPrefix) - 1 || c != uploadPrefix[pos]) {
++      while ((c = read()) >= 0 && c != '\r') req += static_cast<char>(c);
 +      break;
 +    }
 +  }

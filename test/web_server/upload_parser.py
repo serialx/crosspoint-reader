@@ -110,9 +110,11 @@ void checkRouting(bool reverse, bool blob, bool replace, bool trailing = false, 
   auto field = [&](const std::string& key, const std::string& value) {
     body += "--b\r\nContent-Disposition: form-data; name=\"" + key + "\"\r\n\r\n" + value + "\r\n";
   };
-  field("path", "/other");
-  field("overwrite", replace ? "0" : "1");
-  field("filename", "other.epub");
+  if (!trailing) {
+    field("path", "/other");
+    field("overwrite", replace ? "0" : "1");
+    field("filename", "other.epub");
+  }
   std::string filename = blob ? "blob" : "a.epub";
   std::string params = "filename=\"" + filename + "\"";
   if (reverse) params += "; name=\"file\"";

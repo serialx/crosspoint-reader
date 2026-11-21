@@ -365,6 +365,16 @@ add_test(NAME reader_book_css_files
   COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
     ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_book_css_files.py)
 
+option(XP_TEST_REQUIRE_ESP_COMPILERS "Require the C3 and S3 compilers for the CSS order test" OFF)
+if(XP_TEST_REQUIRE_ESP_COMPILERS)
+  set(css_target_order_flag --require-target-order)
+else()
+  set(css_target_order_flag --target-order)
+endif()
+add_test(NAME reader_book_css_target_order
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_book_css_files.py ${css_target_order_flag})
+set_tests_properties(reader_book_css_target_order PROPERTIES LABELS esp-toolchains SKIP_RETURN_CODE 77)
+
 add_test(NAME reader_book_load
   COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
     ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_book_load.py --success-only)

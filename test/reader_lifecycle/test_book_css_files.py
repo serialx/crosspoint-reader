@@ -1,4 +1,5 @@
 """Pair native CSS file loading with Rust owners; tied keys use approved target ordering."""
+import argparse
 import hashlib
 import json
 import os
@@ -20,6 +21,7 @@ from rust_host import rust_link_flags
 
 # Order of the tied-18 case in the C3 and S3 libstdc++ std::sort implementations.
 TIED_18_TARGET_ORDER = [9, 17, 16, 15, 14, 13, 12, 11, 10, 0, 8, 7, 6, 5, 4, 3, 2, 1]
+TIED_18_PATHS = ['b.css' if index == 1 else 'a.css' for index in range(18)]
 
 
 def fnv(path):
@@ -28,35 +30,48 @@ def fnv(path):
     return value
 
 
-def target_checks(case, paths, permutation):
-    entries = ','.join('{' + str(fnv(path)) + 'ull,' + str(index) + '}' for index, path in enumerate(paths))
-    expected = ','.join(map(str, permutation))
+def target_checks(output, require_compilers):
+    entries = ','.join(f'{{{fnv(path)}ull,{index}}}' for index, path in enumerate(TIED_18_PATHS))
+    expected = ','.join(map(str, TIED_18_TARGET_ORDER))
     source = f'''#include <algorithm>
 #include <array>
 #include <cstdint>
 struct Entry {{ uint64_t hash; unsigned index; }};
-constexpr auto sorted() {{ std::array<Entry,{len(paths)}> values{{{{{entries}}}}};
+constexpr auto sorted() {{ std::array<Entry,{len(TIED_18_PATHS)}> values{{{{{entries}}}}};
  std::sort(values.begin(),values.end(),[](const auto& a,const auto& b){{return a.hash<b.hash;}});return values; }}
-constexpr std::array<unsigned,{len(paths)}> expected{{{expected}}};
+constexpr std::array<unsigned,{len(TIED_18_PATHS)}> expected{{{expected}}};
 static_assert([]{{auto values=sorted();for(unsigned i=0;i<values.size();++i)if(values[i].index!=expected[i])return false;return true;}}());
 '''
-    cpp = case / 'target-sort.cpp'; cpp.write_text(source)
-    checks = []
+    cpp = output / 'target-sort.cpp'
+    cpp.write_text(source)
+    missing = []
     for name, executable in [('c3', 'riscv32-esp-elf-g++'), ('s3', 'xtensa-esp32s3-elf-g++')]:
         compiler = shutil.which(executable)
         if compiler is None:
+            missing.append(executable)
             continue
         command = [compiler, '-std=c++20', '-fsyntax-only', str(cpp)]
         ran = subprocess.run(command, capture_output=True)
-        (case / (name + '.log')).write_bytes(ran.stdout + ran.stderr)
+        (output / (name + '.log')).write_bytes(ran.stdout + ran.stderr)
         assert ran.returncode == 0, ran.stderr.decode()
-        checks.append(dict(name=name, command=command, returncode=ran.returncode))
-    return checks
+        print(f'{name} tied-key order checked with {compiler}.')
+    if missing:
+        status = 'Required' if require_compilers else 'Skipped'
+        print(f'{status} ESP compilers unavailable on PATH: {", ".join(missing)}')
+        return 1 if require_compilers else 77
+    return 0
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--target-order', action='store_true')
+    mode.add_argument('--require-target-order', action='store_true')
+    args = parser.parse_args()
     output = Path(os.environ.get('XP_BOOK_CSS_FILES_EVIDENCE_DIR') or tempfile.mkdtemp(prefix='book-css-files-'))
     output.mkdir(parents=True, exist_ok=True)
+    if args.target_order or args.require_target_order:
+        return target_checks(output, args.require_target_order)
     stubs = output / 'stubs'; stubs.mkdir()
     storage = (ROOT / 'test/book_io/epub-stubs/HalStorage.h').read_text()
     storage = replace_once(storage, 'size_t read(void* buffer, size_t count)', 'int read(void* buffer, size_t count)')
@@ -103,7 +118,6 @@ def main():
              'large.css': b' ' * 131073}
     with zipfile.ZipFile(output / 'book.epub', 'w', compression=zipfile.ZIP_DEFLATED) as archive:
         for path, data in files.items(): archive.writestr(path, data)
-    tied = ['a.css' if i != 1 else 'b.css' for i in range(18)]
     cases = [('empty', [], False, False, 100000), ('one', ['a.css'], False, False, 100000),
              ('identical-content', ['a.css', 'b.css'], False, False, 100000),
              ('two', ['a.css', 'other.css'], False, False, 100000),
@@ -113,20 +127,18 @@ def main():
              ('partial', ['large.css', 'a.css'], False, True, 100000),
              ('old-cache-error', ['missing.css'], False, False, 100000),
              ('dedup-oom', ['a.css', 'b.css'], False, False, 100000),
-             ('tied-18', tied, False, False, 100000)]
+             ('tied-18', TIED_18_PATHS, False, False, 100000)]
     results = []
     for name, paths, discover, partial, heap in cases:
         case = output / name; case.mkdir()
         args = ['book.epub', 'cache', '0', str(int(discover)), str(int(partial)), 'OPS/', str(heap), *paths]
         tied_keys = len(set(map(fnv, paths))) != len(paths)
         options = {'CSS_DEDUP_FAIL': '1'} if name == 'dedup-oom' else {}
-        checks = []
         if tied_keys:
             sorted_result = subprocess.run([str(binary), 'sort', *args], cwd=output, capture_output=True, check=True)
             permutation = [int(value) for value in sorted_result.stdout.split()]
             assert name == 'tied-18'
             assert permutation == TIED_18_TARGET_ORDER, permutation
-            checks = target_checks(case, paths, TIED_18_TARGET_ORDER)
             permutation_path = case / 'permutation.txt'
             permutation_path.write_text(' '.join(map(str, TIED_18_TARGET_ORDER)))
             options['CSS_TARGET_PERMUTATION'] = str(permutation_path)
@@ -172,12 +184,11 @@ def main():
             assert 'Parsing CSS file: b.css' in trace
             tied_reads = [int(v) for v in re.findall(r'io (\d+) read book.epub .*', trace)]
             assert tied_reads and any('Could not read CSS file: b.css' in (case / f'rust-{fault}.log').read_text() for fault in range(1, steps + 1))
-        results.append(dict(name=name, host_only_target_sort_adaptation=tied_keys, target_checks=checks, physical_faults=steps, rejected_discovery_faults=required_discovery_steps))
+        results.append(dict(name=name, host_only_target_sort_adaptation=tied_keys, physical_faults=steps, rejected_discovery_faults=required_discovery_steps))
     (output / 'results.json').write_text(json.dumps(dict(command=command, cases=results,
         generated_source_sha256=hashlib.sha256(source.encode()).hexdigest()), indent=2) + '\n')
-    checked_targets = ', '.join(check['name'] for result in results for check in result['target_checks'])
     print(f'{len(results)} composed CSS cases with every reached storage fault pass.')
-    print(f'Tied-key order matches the recorded C3/S3 order. Cross-compilers checked: {checked_targets or "none"}.')
+    print('Tied-key order matches the recorded C3/S3 order.')
 
 
-if __name__ == '__main__': main()
+if __name__ == '__main__': sys.exit(main())

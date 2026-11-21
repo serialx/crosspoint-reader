@@ -48,7 +48,9 @@ class UtilityActivity : public RustActivityAdapter {
     Moon,
     RefreshIcon,
     OrientationIcon,
-    TouchIcon
+    TouchIcon,
+    BluetoothIcon,
+    BluetoothOffIcon
   };
   XpUiUtilityState state{};
   XpUiUtilityState renderingState{};

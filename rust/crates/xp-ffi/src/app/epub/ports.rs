@@ -142,17 +142,10 @@ impl XpEpubLeaves {
     }
 
     pub(super) unsafe fn has_session_subscriber(&self) -> u8 {
-        #[cfg(feature = "app-test")]
-        {
-            (self.has_session_subscriber)()
-        }
-        #[cfg(not(feature = "app-test"))]
-        {
-            u8::from(crate::plugin::xp_plugin_any(
-                (self.subscribers)().cast(),
-                crate::plugin::Event::ReaderSession as u32,
-            ))
-        }
+        u8::from(crate::plugin::xp_plugin_any(
+            (self.subscribers)().cast(),
+            crate::plugin::Event::ReaderSession as u32,
+        ))
     }
 
     pub(super) unsafe fn settings_render_spec(

@@ -158,6 +158,8 @@ pub struct XpEpubInputFacts {
     pub board_touch: u8,
     pub home_action: u8,
     pub slide_owns_light: u8,
+    pub ble_paired: u8,
+    pub slide_owns_night: u8,
 }
 
 const _: () = {
@@ -167,6 +169,8 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubInputFacts, board_touch) == 11);
     assert!(core::mem::offset_of!(XpEpubInputFacts, home_action) == 12);
     assert!(core::mem::offset_of!(XpEpubInputFacts, slide_owns_light) == 13);
+    assert!(core::mem::offset_of!(XpEpubInputFacts, ble_paired) == 14);
+    assert!(core::mem::offset_of!(XpEpubInputFacts, slide_owns_night) == 15);
 };
 
 #[repr(C)]
@@ -570,12 +574,9 @@ pub struct XpEpubLeaves {
         *mut crate::settings::State,
     ),
     pub has_sync_credentials: unsafe extern "C" fn() -> u8,
-    #[cfg(not(feature = "app-test"))]
-    pub subscribers: unsafe extern "C" fn() -> *const crate::plugin::Subscriber,
     #[cfg(feature = "app-test")]
     pub has_exit_subscriber: unsafe extern "C" fn() -> u8,
-    #[cfg(feature = "app-test")]
-    pub has_session_subscriber: unsafe extern "C" fn() -> u8,
+    pub subscribers: unsafe extern "C" fn() -> *const crate::plugin::Subscriber,
     #[cfg(feature = "app-test")]
     pub document_id: unsafe extern "C" fn(
         path: XpAppText,
@@ -1000,9 +1001,7 @@ const _: () = {
     #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, has_exit_subscriber) == leaf_index(95) * pointer);
     #[cfg(feature = "app-test")]
-    assert!(
-        core::mem::offset_of!(XpEpubLeaves, has_session_subscriber) == leaf_index(96) * pointer
-    );
+    assert!(core::mem::offset_of!(XpEpubLeaves, subscribers) == leaf_index(96) * pointer);
     #[cfg(feature = "app-test")]
     assert!(core::mem::offset_of!(XpEpubLeaves, document_id) == leaf_index(97) * pointer);
     #[cfg(not(feature = "app-test"))]

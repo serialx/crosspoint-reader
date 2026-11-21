@@ -16,7 +16,8 @@ typedef enum {
   XP_UI_UTILITY_WARMTH = 2,
   XP_UI_UTILITY_LIGHT = 4,
   XP_UI_UTILITY_SETTINGS = 8,
-  XP_UI_UTILITY_CLEAN_PARENT = 16
+  XP_UI_UTILITY_CLEAN_PARENT = 16,
+  XP_UI_UTILITY_BLE = 32
 } XpUiUtilityWrites;
 typedef struct {
   int32_t value, minimum, maximum, small_step, large_step;
@@ -29,6 +30,7 @@ typedef struct {
   uint8_t edge_buttons, switch_owns_light, contact_held, flash_pending;
   int16_t last_drag_x;
   uint16_t touch_revision;
+  uint8_t light_unavailable, ble_compiled, ble_enabled;
 } XpUiUtilityState;
 typedef struct {
   XpUiEffect navigation;
@@ -44,7 +46,7 @@ typedef struct {
   uint8_t popup_radius, popup_border, row_radius, selection;
   uint8_t control_radius, capsule_radius, sheet_radius, body_bold;
   uint8_t touch, light_present, has_warmth, show_cover;
-  uint8_t html_description, reserved[3];
+  uint8_t html_description, switch_owns_night, switch_owns_touch, reserved;
 } XpUiUtilityLayout;
 // Text pointers are borrowed by the synchronous view only; Rust does not retain them.
 // Height uses the existing font/text-box service.

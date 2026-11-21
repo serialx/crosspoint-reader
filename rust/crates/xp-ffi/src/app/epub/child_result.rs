@@ -50,10 +50,14 @@ impl EpubSession {
                 ChildIntent::Menu,
                 ReaderChildResult::Menu {
                     action,
+                    selected,
                     orientation,
                     page_turn,
                 },
             ) => {
+                if selected.is_some() {
+                    self.model(|state| state.selected_menu_action = selected);
+                }
                 self.menu_result(action.map(|action| action as i32), orientation, page_turn);
             }
             (ChildIntent::Chapter, ReaderChildResult::Chapter(Some(chapter))) => {

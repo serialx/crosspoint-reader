@@ -500,6 +500,29 @@ impl App {
         }
     }
 
+    #[inline(never)]
+    fn open_control_center(&self, swipe: bool, status_tap: bool, kind: Option<u8>) -> bool {
+        if kind == Some(abi::FRONTLIGHT_PANEL) {
+            return false;
+        }
+        let status_screen = matches!(
+            kind,
+            None | Some(abi::FILES | abi::SETTINGS | abi::NETWORK_MODE)
+        );
+        if !(swipe || status_tap && status_screen) {
+            return false;
+        }
+        unsafe { (self.runtime.touch_feedback)(0) };
+        if let Some(panel) = self.create(&abi::Launch::new(
+            abi::FRONTLIGHT_PANEL,
+            LaunchPayload::None,
+        )) {
+            self.input.borrow_mut().reset();
+            self.navigation.queue(Transition::Push(panel));
+        }
+        true
+    }
+
     fn activity_loop(&self) {
         let full_buttons = match self.navigation.current() {
             Some(
@@ -580,22 +603,11 @@ impl App {
                     Target::Home(_) => {}
                 }
             }
-            let status_screen = matches!(target, Target::Home(_))
-                || facts.is_some_and(|f| {
-                    matches!(f.kind, abi::FILES | abi::SETTINGS | abi::NETWORK_MODE)
-                });
-            if unsafe { (self.runtime.frontlight_present)() } != 0
-                && !facts.is_some_and(|f| f.kind == abi::FRONTLIGHT_PANEL)
-                && (frame.light_panel_gesture != 0 || status_screen && frame.status_bar_tap != 0)
+            let swipe = frame.light_panel_gesture != 0;
+            let status_tap = frame.status_bar_tap != 0;
+            if (swipe || status_tap)
+                && self.open_control_center(swipe, status_tap, facts.map(|f| f.kind))
             {
-                unsafe { (self.runtime.touch_feedback)(0) };
-                if let Some(panel) = self.create(&abi::Launch::new(
-                    abi::FRONTLIGHT_PANEL,
-                    LaunchPayload::None,
-                )) {
-                    self.input.borrow_mut().reset();
-                    self.navigation.queue(Transition::Push(panel));
-                }
                 return;
             }
             match target {

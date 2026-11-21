@@ -10,6 +10,7 @@
 #include "CrossPointSettings.h"
 #include "I18nKeys.h"
 #include "MappedInputManager.h"
+#include "activities/ActivityManager.h"
 #include "components/UITheme.h"
 
 namespace fui = freeink::ui;
@@ -24,6 +25,7 @@ constexpr StrId MAP_LABELS[] = {StrId::STR_NEXT_PAGE,       StrId::STR_PREV_PAGE
 void BleSettingsActivity::onEnter() {
   SettingsUiActivity::onEnter();
   if (!hasUiStorage()) return;
+  radioVisit = activityManager.visit();
   // A saved opt-in brings the radio up here, so scanning and pairing work at once.
   if (SETTINGS.ble.enabled) bleturner::switchOn();
   refresh();
@@ -31,6 +33,11 @@ void BleSettingsActivity::onEnter() {
 }
 
 void BleSettingsActivity::loop() {
+  const auto visit = activityManager.visit();
+  if (radioVisit != visit && hasUiStorage()) {
+    radioVisit = visit;
+    if (SETTINGS.ble.enabled) bleturner::switchOn();
+  }
   const bool blocked = consumeRejectedInput();
   if (!blocked && state.view == XP_UI_SETTINGS_BLE_VIEW_MAPPING &&
       mappedInput.wasLongPressed(MappedInputManager::Button::Confirm, 700)) {

@@ -151,9 +151,9 @@ typedef struct {
   bool usb;
 } XpHalInputPoll;
 void xp_hal_input_update(XpHalInput*, uint8_t buttons, bool usb);
-// Raw ADC samples; both are zero and unused when the physical power button is asserted.
+// Raw contacts and ADC samples. ADC values are unused when either contact is asserted.
 typedef struct {
-  uint8_t power;
+  uint8_t power, auxiliary;
   int32_t first, second;
 } XpHalRawInput;
 bool xp_hal_input_adc(int32_t first, int32_t second);

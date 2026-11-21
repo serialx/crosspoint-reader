@@ -376,6 +376,11 @@ void bind() {
     assert(f().renderDepth == 1 && f().extractor);
     f().physical("fonts-release", f().extractor->generation);
   };
+  leaves.has_sync_credentials = []() -> uint8_t { return 0; };
+  leaves.subscribers = []() -> const XpPluginSubscriber* {
+    static constexpr XpPluginSubscriber empty[XP_PLUGIN_MAX_EVENT_PLUGINS]{};
+    return empty;
+  };
   leaves.has_exit_subscriber = []() -> uint8_t {
     assert(f().renderDepth == 1);
     f().physical("exit-subscriber");

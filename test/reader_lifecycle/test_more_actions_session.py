@@ -17,7 +17,7 @@ from extract import definition
 sys.path.insert(0, str(ROOT / 'test'))
 from rust_host import rust_link_flags
 
-PRODUCTION = Path('crates/xp-ffi/src/app/epub/overlay_actions.rs')
+PRODUCTION = Path('crates/xp-ffi/src/app/epub/children/menu.rs')
 NATIVE = Path('src/activities/reader/EpubReaderMenuActivity.cpp')
 HEADER = Path('src/activities/reader/EpubReaderMenuActivity.h')
 
@@ -49,8 +49,8 @@ def main():
         fixture = replace_once(fixture, '// ' + marker, value)
     production_file = ROOT / 'rust' / PRODUCTION
     production = production_file.read_bytes()
-    before = b'        if footnotes {\n            add(Action::Footnotes);\n        }'
-    after = b'        if true {\n            add(Action::Footnotes);\n        }'
+    before = b'(flags.footnotes, Action::Footnotes)'
+    after = b'(true, Action::Footnotes)'
     changed = replace_once(production, before, after)
     fixture_hashes = {path.name: digest(path.read_bytes()) for path in (
         fixture_path, Path(__file__), HERE / 'overlay_actions_session_fixture.h',
@@ -71,8 +71,8 @@ def main():
 
             baseline = run('more-actions')
             assert baseline.returncode == 0, baseline.stderr.decode(errors='replace')
-            assert baseline.stdout == (b'more actions: 128 native-order cases; two publication-gate '
-                                       b'interleavings; lazy input facts; recovery\n')
+            assert baseline.stdout == (b'more actions: 2048 native-order cases; two publication-gate '
+                                       b'interleavings; configuration facts; recovery\n')
             copied_repo = work / 'source'
             copied_rust = copied_repo / 'rust'
             shutil.copytree(ROOT / 'rust', copied_rust, ignore=shutil.ignore_patterns('target', '__pycache__'))
@@ -90,12 +90,22 @@ def main():
             assert mutant.returncode != 0, 'actual Rust footnotes mutant survived'
             stderr = mutant.stderr.decode(errors='replace')
             assert 'assertActions' in stderr and 'actual.count == expected.size()' in stderr, stderr
+            copied_source.write_bytes(production)
+            plugin = copied_rust / 'crates/xp-ffi/src/plugin.rs'
+            plugin.write_bytes(replace_once(plugin.read_bytes(), b'(0..EVENTS.len() as u32).any',
+                                            b'(1..=2).any'))
+            subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
+                            '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
+                            '--features', 'app-test,sd-font-catalog'], cwd=copied_rust, check=True)
+            restricted = run('exit-session-only', target / 'release/libxp_ffi.a')
+            assert restricted.returncode != 0 and b'actual.count == expected.size()' in restricted.stderr
             print(json.dumps({
-                'test_name': 'reader_more_actions_session', 'flag_combinations': 128,
+                'test_name': 'reader_more_actions_session', 'flag_combinations': 2048,
                 'publication_gate_cases': 2, 'recovery_cases': 1,
-                'scope': 'real build_more_actions without policy hooks; native buildMenuItems excluding Chapter/Text',
+                'exit_session_only_mutant_returncode': restricted.returncode,
+                'scope': 'real build_more_actions against the frozen native order with upstream configuration filters',
                 'resource_contract': 'footnotes under first lock; ordinary physical probes outside ModelLock; '
-                    'second acquisition gates publication; input_facts only when frontlight is present',
+                    'second acquisition gates publication; radio status queried only for a paired remote',
                 'fixture_sha256': fixture_hashes, 'native_source_sha256': digest(native),
                 'native_header_sha256': digest(header), 'native_method_sha256': digest(method.encode()),
                 'native_enum_sha256': digest(action_enum.encode()), 'candidate_source_sha256': digest(production),

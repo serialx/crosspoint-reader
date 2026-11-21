@@ -448,31 +448,39 @@ fn long_press_uses_recorded_header_hit_after_sampling_and_clear_removes_cancel()
     leaves.input_snapshot = snapshot;
     leaves.input_screen_point = long_press;
     leaves.input_screen_tap = tap;
+    let header = Some((4, 4, 32, 32));
     for (point, target, cancel) in [
-        ((15, 25), Some((10, 20, 40, 40)), true),
-        ((70, 25), Some((10, 20, 40, 40)), false),
-        ((15, 25), None, false),
+        ((10, 10), header, true),
+        ((0, 10), header, false),
+        ((10, 0), header, false),
+        ((40, 10), header, false),
+        ((10, 40), header, false),
+        ((50, 0), header, false),
+        ((10, 10), None, false),
     ] {
-        let owner = unsafe {
-            DefinitionOwner::try_lookup(
-                runtime(),
-                &INPUT_PHYSICAL,
-                ptr::NonNull::<LookupStorage>::dangling().as_ptr(),
-            )
+        for touch_controls in [false, true] {
+            let owner = unsafe {
+                DefinitionOwner::try_lookup(
+                    runtime(),
+                    &INPUT_PHYSICAL,
+                    ptr::NonNull::<LookupStorage>::dangling().as_ptr(),
+                )
+            }
+            .unwrap();
+            owner.model.with(|m| m.styled = true);
+            HEADER_RECT.with(|v| v.set(target));
+            LONG_POINT.with(|v| v.set(Some(point)));
+            events();
+            let child =
+                unsafe { owner.input(runtime(), &leaves, touch_controls, abi::FontOwner::NONE) };
+            let seen = events();
+            assert_eq!(&seen[..4], &["long", "header-hit", "snapshot", "tap"]);
+            assert_eq!(child.is_null(), cancel || !touch_controls);
+            assert_eq!(
+                unsafe { *owner.result.get() },
+                if cancel { Some(true) } else { None }
+            );
         }
-        .unwrap();
-        owner.model.with(|m| m.styled = true);
-        HEADER_RECT.with(|v| v.set(target));
-        LONG_POINT.with(|v| v.set(Some(point)));
-        events();
-        let child = unsafe { owner.input(runtime(), &leaves, true, abi::FontOwner::NONE) };
-        let seen = events();
-        assert_eq!(&seen[..4], &["long", "header-hit", "snapshot", "tap"]);
-        assert_eq!(child.is_null(), cancel);
-        assert_eq!(
-            unsafe { *owner.result.get() },
-            if cancel { Some(true) } else { None }
-        );
     }
 }
 

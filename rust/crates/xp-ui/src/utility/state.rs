@@ -54,6 +54,9 @@ pub struct State {
     pub flash_pending: u8,
     pub last_drag_x: i16,
     pub touch_revision: u16,
+    pub light_unavailable: u8,
+    pub ble_compiled: u8,
+    pub ble_enabled: u8,
 }
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
@@ -66,6 +69,7 @@ pub const WRITE_WARMTH: u32 = 2;
 pub const WRITE_LIGHT: u32 = 4;
 pub const WRITE_SETTINGS: u32 = 8;
 pub const CLEAN_PARENT: u32 = 16;
+pub const WRITE_BLE: u32 = 32;
 pub const CHROME: u32 = 100;
 pub const OPTION: u32 = 101;
 pub const SLIDER: u32 = 102;
@@ -227,6 +231,10 @@ impl State {
                     self.touch_mode = self.touch_restore
                 }
             }
+            4 if self.ble_compiled != 0 => {
+                self.ble_enabled = u8::from(self.ble_enabled == 0);
+                e.writes = WRITE_BLE;
+            }
             _ => return Update::default(),
         }
         e
@@ -380,7 +388,7 @@ impl State {
                     self.dragging = 1
                 }
                 let mut e = self.event(h.action, h.value, p);
-                if screen != Screen::Confirmation {
+                if screen != Screen::Confirmation && e.writes & CLEAN_PARENT == 0 {
                     e.navigation.invalidate = 1;
                     if p.is_none() && e.navigation.kind == 0 {
                         self.flash_pending = flash_code(h.action, h.value);
@@ -453,7 +461,7 @@ impl State {
         if input.released & model::CONFIRM != 0 {
             return match screen {
                 Screen::Frontlight => {
-                    if self.switch_owns_light == 0 {
+                    if self.light_unavailable == 0 && self.switch_owns_light == 0 {
                         self.toggle()
                     } else {
                         Update::default()
@@ -469,6 +477,9 @@ impl State {
             } else {
                 Update::default()
             };
+        }
+        if screen == Screen::Frontlight && self.light_unavailable != 0 {
+            return Update::default();
         }
         let up = if self.edge_buttons != 0 {
             -self.large_step

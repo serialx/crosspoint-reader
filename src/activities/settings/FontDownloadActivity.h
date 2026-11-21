@@ -121,6 +121,7 @@ class FontDownloadActivity final : public UpdateUiActivity {
   void activateFamilyRow(int index);
 
   void onWifiSelectionComplete(bool success);
+  void refreshFontRegistry();
   bool fetchAndParseManifest();
   // cppcheck-suppress arithOperationsOnVoidPointer // unique_ptr<char[]>::get() is char*, not void*
   const char* str(StrRef ref) const { return stringArena_ ? stringArena_.get() + ref : ""; }

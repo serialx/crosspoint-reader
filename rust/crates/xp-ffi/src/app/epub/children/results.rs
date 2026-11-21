@@ -15,6 +15,7 @@ pub(crate) struct ClippingPosition {
 pub(crate) enum ReaderChildResult {
     Menu {
         action: Option<Action>,
+        selected: Option<Action>,
         orientation: u8,
         page_turn: u8,
     },

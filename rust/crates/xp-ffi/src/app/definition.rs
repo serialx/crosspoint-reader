@@ -37,15 +37,8 @@ impl App {
             self.go_home(0, false);
             return;
         }
-        if unsafe { (self.runtime.frontlight_present)() } != 0 && light_panel_gesture {
-            unsafe { (self.runtime.touch_feedback)(0) };
-            if let Some(panel) = self.create(&abi::Launch::new(
-                abi::FRONTLIGHT_PANEL,
-                abi::LaunchPayload::None,
-            )) {
-                self.input.borrow_mut().reset();
-                self.navigation.queue(Transition::Push(panel));
-            }
+        if light_panel_gesture {
+            self.open_control_center(true, false, Some(facts().kind));
             return;
         }
         let mut settings = MaybeUninit::<XpEpubSettings>::uninit();

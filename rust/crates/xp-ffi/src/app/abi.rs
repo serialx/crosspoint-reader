@@ -617,12 +617,14 @@ const _: () = assert!(
 #[repr(C)]
 pub struct RawInput {
     pub power: u8,
+    pub auxiliary: u8,
     pub first: i32,
     pub second: i32,
 }
 #[cfg(not(feature = "app-test"))]
 const _: () = {
     assert!(core::mem::size_of::<RawInput>() == 12);
+    assert!(core::mem::offset_of!(RawInput, auxiliary) == 1);
     assert!(core::mem::offset_of!(RawInput, first) == 4);
     assert!(core::mem::offset_of!(RawInput, second) == 8);
 };

@@ -35,6 +35,9 @@ def run(source, library, extra_cases=None, expected=None, host=None):
     labels = sorted(set(re.findall(r'tr\((STR_\w+)\)', bodies)))
     defines = '\n'.join(f'#define {s} "{s}"' for s in labels)+'\n#define tr(x) x\n'
     cases = (HERE/'effects_cases.inc').read_text() if extra_cases is None else extra_cases
+    # Compare the same result-screen actions using the release edges they now accept.
+    cases = '\n'.join(line.replace('i.pressed=', 'i.released=') if 'reset("font-input")' in line else line
+                      for line in cases.split('\n'))
     cases = re.sub(r'fui::ListNav& FontDownloadActivity::activeNav\(\).*?\n', '', cases)
     cases = cases.replace('void FontDownloadActivity::buildScreen(UiScreen&){}','void FontDownloadActivity::prepareRows(){}\nbool FontDownloadActivity::row(uint16_t,XpUiSettingsRow&)const{return false;}')
     for old,new in [('nav.selected','model.list.selected'),('state_','model.phase'),('state','model.phase'),('currentFileTotal_','model.file_count'),('currentFileIndex_','model.file_index'),('cancelRequested_','model.cancel_requested'),('goHomeRequested_','model.home_requested'),('fileProgress_','model.processed'),('fileTotal_','model.total'),('lastUpdaterPercentage','model.last_percent'),('lastRenderedPercent','model.last_percent'),('writtenBytes','model.processed'),('confirmPopup.selected','model.popup_selected')]:

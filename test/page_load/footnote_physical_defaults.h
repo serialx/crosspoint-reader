@@ -121,7 +121,7 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.state_save = &AppFixtureUnexpected<decltype(value.state_save), 169>::call;
   value.has_sync_credentials = &AppFixtureUnexpected<decltype(value.has_sync_credentials), 170>::call;
   value.has_exit_subscriber = &AppFixtureUnexpected<decltype(value.has_exit_subscriber), 171>::call;
-  value.has_session_subscriber = &AppFixtureUnexpected<decltype(value.has_session_subscriber), 172>::call;
+  value.subscribers = &AppFixtureUnexpected<decltype(value.subscribers), 172>::call;
   value.document_id = &AppFixtureUnexpected<decltype(value.document_id), 173>::call;
   value.emit_open = &AppFixtureUnexpected<decltype(value.emit_open), 174>::call;
   value.emit_exit = &AppFixtureUnexpected<decltype(value.emit_exit), 175>::call;

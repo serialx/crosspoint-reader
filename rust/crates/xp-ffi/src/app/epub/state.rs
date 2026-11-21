@@ -177,6 +177,7 @@ pub(super) struct State {
     pub(super) failure: LoadFailure,
     pub(super) facts: ResourceFacts,
     pub(super) child: ChildIntent,
+    pub(super) selected_menu_action: Option<xp_ui::reader::menu_parent::Action>,
     pub(super) popup: PopupIntent,
     pub(super) scene_gate: SceneGate,
 }

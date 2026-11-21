@@ -253,6 +253,10 @@ int main() {
     XpUiInput dismiss{};
     dismiss.pressed = XP_UI_CONFIRM;
     a.input(dismiss);
+    assert(a.model.phase == 5);
+    dismiss.pressed = 0;
+    dismiss.released = XP_UI_CONFIRM;
+    a.input(dismiss);
     assert(a.model.phase == 3);
     a.painting = a.model;
     a.prepareRows();

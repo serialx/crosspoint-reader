@@ -76,14 +76,14 @@ Alternatively, while reading a book, press the **Confirm** button to open the re
 
 The Control Center is available on all touch devices. Devices with a frontlight also show light controls. The X4 Pro has adjustable brightness and warmth; the Paper Mono has adjustable brightness only.
 
-* **Open the panel:** Swipe down from the top edge of the screen, from almost any screen (Home, Browse Files, Reading Mode, etc.). You can also tap the status bar on Home, Browse Files, or Settings. On devices with a frontlight, drag the brightness slider (and the warmth slider, where available) to adjust the light live, or tap the sun icon to turn it on or off.
+* **Open the panel:** Swipe down from the top edge of the screen, from almost any screen (Home, Browse Files, Reading Mode, etc.). You can also tap the status bar on Home, Browse Files, or Settings. On devices with a frontlight, drag the brightness slider (and the warmth slider, where available) to adjust the light live. Tap the sun icon to turn the light on or off. On Picco with the slide switch assigned to Frontlight, use the switch for on/off and the slider for brightness.
 * **Quick controls:** The panel has one row of icons: moon for night mode, circular arrows to refresh the screen, an underlined **T** to cycle reading direction, and the Settings Controls pointer to toggle reader touch controls. On builds with Bluetooth support, a fifth button enables or disables the Bluetooth page turner. Its crossed-out icon means disabled. The **T** rotates with the selected direction. A filled toggle means enabled; an outlined toggle means disabled. Refresh and direction always have outlines. Turning reader touch controls off leaves the panel usable. Bluetooth reconnection follows the normal rules after you close the panel; enabling it does not pair a new remote.
 * **Quick toggle (X4 Pro only):** Double-click the **Power** button to turn the frontlight on or off instantly, without opening the panel.
 
 > [!NOTE]
 > Frontlight brightness and warmth are intentionally not listed in **[Display Settings](#361-display)** — the swipe panel is the only place to adjust them. On the X4 Pro, the on/off state can also be toggled with the Power-button double-click above.
 
-If the frontlight doesn't come back on after the device wakes from sleep, check **Restore Light on Wake** in **[Display Settings](#361-display)** (on by default). Turning it off is intentional if you'd rather have the light stay off on wake and switch it on yourself each time — but it's easy to forget you changed it.
+**Restore Light on Wake** in **[Display Settings](#361-display)** is on by default. Turn it off to start with the frontlight off. On the Picco, assigning the slide switch to Frontlight hides this setting. The switch position determines whether the light comes on at wake.
 
 ---
 
@@ -307,6 +307,8 @@ Settings are grouped into **System**, **Display**, **Reader**, **Controls**, **L
 - **Focus Reading**: Bolds the first part of each word to create visual fixation points, similar to Bionic Reading. This can help improve reading speed and focus; options are "ON" or "OFF" (default).
 
 #### 3.6.3 Controls
+
+- On the BOOX Picco, use **Slide Switch** to assign the physical switch to Frontlight, Night Mode, or Reader Touch Controls. The switch sets the feature's state when the device wakes. When it controls the frontlight, you can still adjust brightness. A Night Mode or Reader Touch Controls tile assigned to the switch shows the current state and ignores taps.
 
 - **Remap Front Buttons**: A menu for customising the function of each bottom edge button.
 

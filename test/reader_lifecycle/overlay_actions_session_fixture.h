@@ -245,7 +245,7 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.state_save = &OverlayUnexpected<decltype(table.state_save)>::call;
   table.has_sync_credentials = &OverlayUnexpected<decltype(table.has_sync_credentials)>::call;
   table.has_exit_subscriber = &OverlayUnexpected<decltype(table.has_exit_subscriber)>::call;
-  table.has_session_subscriber = &OverlayUnexpected<decltype(table.has_session_subscriber)>::call;
+  table.subscribers = &OverlayUnexpected<decltype(table.subscribers)>::call;
   table.document_id = &OverlayUnexpected<decltype(table.document_id)>::call;
   table.emit_open = &OverlayUnexpected<decltype(table.emit_open)>::call;
   table.emit_exit = &OverlayUnexpected<decltype(table.emit_exit)>::call;

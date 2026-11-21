@@ -246,7 +246,7 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(state_save);
   UNUSED_LEAF(has_sync_credentials);
   UNUSED_LEAF(has_exit_subscriber);
-  UNUSED_LEAF(has_session_subscriber);
+  UNUSED_LEAF(subscribers);
   UNUSED_LEAF(document_id);
   UNUSED_LEAF(emit_open);
   UNUSED_LEAF(emit_exit);

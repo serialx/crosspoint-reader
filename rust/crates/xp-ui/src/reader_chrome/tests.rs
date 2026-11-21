@@ -298,7 +298,7 @@ fn toolbar_matches_frozen_sdk() {
                         title_font: 2,
                         row_min: 48,
                         row_gap: 0,
-                        row_padding: 8,
+                        row_padding: 0, // The frozen toolbar used no list-side padding.
                         scroll_width: 3,
                         space_sm: 4,
                         space_md: 8,
@@ -355,6 +355,66 @@ fn toolbar_matches_frozen_sdk() {
     }
     let expected = golden("toolbar.golden.gz");
     same(&actual, expected.split("route ").next().unwrap());
+}
+#[test]
+fn toolbar_panel_insets_labels_and_values_by_theme_padding() {
+    let panel_text = |row_padding| {
+        let mut commands = [Command::default(); 64];
+        let mut hits = [Interaction::default(); 16];
+        let mut arena = Arena::new(&mut commands, &mut [], &mut hits).unwrap();
+        let screen = Rect {
+            x: 0,
+            y: 0,
+            w: 480,
+            h: 800,
+        };
+        let theme = Theme {
+            screen,
+            safe: screen,
+            row_padding,
+            row_radius: 12,
+            row_min: 48,
+            space_sm: 4,
+            space_md: 8,
+            space_lg: 16,
+            ..Theme::default()
+        };
+        let mut data = Data {
+            kind: 0,
+            panel: true,
+            page: String::new(),
+            windows: std::vec::Vec::new(),
+            long_label: String::new(),
+        };
+        toolbar::view(
+            &mut arena,
+            ListState::new(0),
+            toolbar::Model {
+                panel: 1,
+                ..Default::default()
+            },
+            theme,
+            &mut data,
+            1,
+            1,
+            1,
+        )
+        .unwrap();
+        let scene = arena.finish(Refresh::None, 1).unwrap();
+        let text = |resource| {
+            scene
+                .commands
+                .iter()
+                .find(|c| c.kind == Kind::TextHandle as u8 && c.resource == resource)
+                .unwrap()
+                .rect
+        };
+        (text(1), text(3))
+    };
+    let (label, value) = panel_text(0);
+    let (inset_label, inset_value) = panel_text(12);
+    assert_eq!(inset_label.x, label.x + 12);
+    assert_eq!(inset_value.x + inset_value.w, value.x + value.w - 12);
 }
 #[test]
 fn toolbar_materializes_only_the_cpp_visible_window() {

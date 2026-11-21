@@ -3,7 +3,7 @@ use xp_ui::reader::menu_parent::Action;
 
 #[test]
 fn all_menu_presence_combinations_preserve_the_native_order() {
-    for bits in 0..64 {
+    for bits in 0..256 {
         let flags = Flags {
             footnotes: bits & 1 != 0,
             bookmarks: bits & 2 != 0,
@@ -11,6 +11,8 @@ fn all_menu_presence_combinations_preserve_the_native_order() {
             frontlight: bits & 8 != 0,
             bluetooth: bits & 16 != 0,
             dictionary: bits & 32 != 0,
+            sync: bits & 64 != 0,
+            switch_owns_night: bits & 128 != 0,
         };
         let items = Items::new(flags);
         let mut expected = vec![Action::Chapter as u8];
@@ -20,7 +22,7 @@ fn all_menu_presence_combinations_preserve_the_native_order() {
             (true, Action::ToggleBookmark),
             (true, Action::SaveClipping),
             (flags.clippings, Action::ViewClippings),
-            (true, Action::Night),
+            (!flags.switch_owns_night, Action::Night),
             (flags.frontlight, Action::Frontlight),
             (flags.bluetooth, Action::Bluetooth),
             (flags.dictionary, Action::Dictionary),
@@ -30,7 +32,7 @@ fn all_menu_presence_combinations_preserve_the_native_order() {
             (true, Action::Screenshot),
             (true, Action::Qr),
             (true, Action::Home),
-            (true, Action::Sync),
+            (flags.sync, Action::Sync),
             (true, Action::DeleteCache),
             (true, Action::Text),
         ] {

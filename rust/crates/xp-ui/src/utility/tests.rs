@@ -2,6 +2,231 @@ extern crate std;
 use super::*;
 use crate::{model::*, scene::Interaction};
 use std::{format, string::String};
+
+struct UtilityTestResources {
+    description: bool,
+}
+
+impl Texts for UtilityTestResources {
+    fn present(&self, handle: u32) -> Result<bool, crate::scene::Error> {
+        Ok(match handle {
+            DESCRIPTION => self.description,
+            TITLE | ACTION_LABEL | MORE_LABEL => true,
+            _ => false,
+        })
+    }
+
+    fn height(&self, _: u32, _: i32, _: i16, _: u8, _: u8) -> Result<i16, crate::scene::Error> {
+        Ok(20)
+    }
+}
+
+impl Metrics for UtilityTestResources {
+    fn width(&mut self, _: i32, _: &[u8], _: u8) -> i32 {
+        20
+    }
+    fn line_height(&mut self, _: i32) -> i32 {
+        20
+    }
+}
+
+fn utility_test_layout() -> Layout {
+    let screen = crate::scene::Rect {
+        x: 0,
+        y: 0,
+        w: 480,
+        h: 800,
+    };
+    Layout {
+        screen,
+        safe: screen,
+        touch: 1,
+        control_radius: 12,
+        ..Layout::default()
+    }
+}
+
+#[test]
+fn details_offers_more_only_when_description_has_content() {
+    use crate::scene::{Arena, Command, Refresh};
+    let layout = utility_test_layout();
+    let state = State {
+        kind: Screen::Details as u8,
+        ..State::default()
+    };
+    let mut commands = [Command::default(); 23];
+    let mut hits = [Interaction::default(); 2];
+    let mut metrics = UtilityTestResources { description: false };
+    for description in [true, false] {
+        let mut arena = Arena::new(&mut commands, &mut [], &mut hits).unwrap();
+        view(
+            &mut arena,
+            &state,
+            &layout,
+            &mut metrics,
+            &UtilityTestResources { description },
+            Feedback::default(),
+        )
+        .unwrap();
+        let scene = arena.finish(Refresh::Fast, 1).unwrap();
+        assert!(scene.interactions.iter().any(|h| h.action == PRIMARY));
+        assert_eq!(
+            scene.interactions.iter().any(|h| h.action == MORE),
+            description
+        );
+    }
+}
+
+#[test]
+fn lightless_control_center_shows_and_toggles_bluetooth_when_compiled() {
+    use crate::scene::{Arena, Command, Kind, Refresh};
+    let layout = utility_test_layout();
+    let mut commands = [Command::default(); 43];
+    let mut hits = [Interaction::default(); 11];
+    let resources = UtilityTestResources { description: false };
+    let mut metrics = UtilityTestResources { description: false };
+    for compiled in [0, 1] {
+        let mut state = State {
+            kind: Screen::Frontlight as u8,
+            light_unavailable: 1,
+            ble_compiled: compiled,
+            ..State::default()
+        };
+        for enabled in [0, 1] {
+            state.ble_enabled = enabled;
+            let mut arena = Arena::new(&mut commands, &mut [], &mut hits).unwrap();
+            let (feedback, _) = frontlight_view(
+                &mut arena,
+                &state,
+                &layout,
+                &mut metrics,
+                &resources,
+                Feedback::default(),
+            )
+            .unwrap();
+            let scene = arena.finish(Refresh::Fast, 1).unwrap();
+            assert_eq!(scene.interactions.len(), 4 + compiled as usize);
+            let expected_icon = if enabled != 0 {
+                BLUETOOTH
+            } else {
+                BLUETOOTH_OFF
+            };
+            assert_eq!(
+                scene
+                    .commands
+                    .iter()
+                    .any(|c| c.kind == Kind::Bitmap as u8 && c.resource == expected_icon),
+                compiled != 0
+            );
+            assert_eq!(
+                state
+                    .update(
+                        &Input {
+                            released: crate::model::CONFIRM,
+                            ..Input::default()
+                        },
+                        Some(scene.interactions),
+                        &feedback
+                    )
+                    .writes,
+                0
+            );
+            if let Some(tile) = scene
+                .interactions
+                .iter()
+                .find(|h| h.action == TILE && h.value == 4)
+            {
+                let effect = state.update(
+                    &Input {
+                        touch_flags: TOUCH_RELEASED,
+                        touch_x: tile.rect.x + 1,
+                        touch_y: tile.rect.y + 1,
+                        ..Input::default()
+                    },
+                    Some(scene.interactions),
+                    &feedback,
+                );
+                assert_eq!(effect.writes, WRITE_BLE);
+                assert_eq!(state.ble_enabled, 1 - enabled);
+            }
+        }
+    }
+}
+
+#[test]
+fn two_sliders_and_five_tiles_fit_the_full_control_center_budget() {
+    use crate::scene::{Arena, Command, Refresh};
+    let layout = Layout {
+        light_present: 1,
+        has_warmth: 1,
+        ..utility_test_layout()
+    };
+    let state = State {
+        kind: Screen::Frontlight as u8,
+        ble_compiled: 1,
+        brightness: 60,
+        warmth: 50,
+        ..State::default()
+    };
+    let mut commands = [Command::default(); 44];
+    let mut hits = [Interaction::default(); 12];
+    let mut metrics = UtilityTestResources { description: false };
+    let texts = UtilityTestResources { description: false };
+    let mut arena = Arena::new(&mut commands, &mut [], &mut hits).unwrap();
+    frontlight_view(
+        &mut arena,
+        &state,
+        &layout,
+        &mut metrics,
+        &texts,
+        Feedback::default(),
+    )
+    .unwrap();
+    let scene = arena.finish(Refresh::Fast, 1).unwrap();
+    assert_eq!(scene.commands.len(), 44);
+    assert_eq!(scene.interactions.len(), 12);
+}
+
+#[test]
+fn slide_owned_tiles_show_state_without_accepting_taps() {
+    use crate::scene::{Arena, Command, Kind, Refresh};
+    let layout = Layout {
+        switch_owns_night: 1,
+        switch_owns_touch: 1,
+        ..utility_test_layout()
+    };
+    let state = State {
+        kind: Screen::Frontlight as u8,
+        inverted: 1,
+        touch_mode: 1,
+        ..State::default()
+    };
+    let mut commands = [Command::default(); 43];
+    let mut hits = [Interaction::default(); 11];
+    let mut arena = Arena::new(&mut commands, &mut [], &mut hits).unwrap();
+    let resources = UtilityTestResources { description: false };
+    let mut metrics = UtilityTestResources { description: false };
+    frontlight_view(
+        &mut arena,
+        &state,
+        &layout,
+        &mut metrics,
+        &resources,
+        Feedback::default(),
+    )
+    .unwrap();
+    let scene = arena.finish(Refresh::Fast, 1).unwrap();
+    for (resource, value) in [(MOON, 0), (TOUCH_ICON, 3)] {
+        assert!(scene
+            .commands
+            .iter()
+            .any(|c| c.kind == Kind::Bitmap as u8 && c.resource == resource && c.paint == 1));
+        assert!(!scene
+            .interactions
+            .iter()
+            .any(|h| h.action == TILE && h.value == value));
+    }
+}
 #[test]
 fn frozen_application_traces() {
     let mut actual = String::new();
@@ -129,10 +354,6 @@ fn frozen_application_traces() {
             done += i32::from(e.navigation.kind != 0);
             saves += i32::from(e.writes & WRITE_SETTINGS != 0);
             promoted += i32::from(e.writes & CLEAN_PARENT != 0);
-            // These frozen cases call runTile directly, before the app's tap invalidation.
-            if tile == 1 {
-                paints -= 1;
-            }
             actual += &format!(
                 "tile {} {} {} {} {} {} {} {} {} {} {}\n",
                 tile,
@@ -235,8 +456,11 @@ fn layout_wire_contract() {
             offset_of!(State, kind),
             offset_of!(State, last_drag_x)
         ),
-        (56, 4, 36, 52)
+        (60, 4, 36, 52)
     );
+    assert_eq!(offset_of!(State, light_unavailable), 56);
+    assert_eq!(offset_of!(State, ble_compiled), 57);
+    assert_eq!(offset_of!(State, ble_enabled), 58);
     assert_eq!(
         (
             size_of::<Update>(),
@@ -253,6 +477,8 @@ fn layout_wire_contract() {
         ),
         (80, 4, 62)
     );
+    assert_eq!(offset_of!(Layout, switch_owns_night), 75);
+    assert_eq!(offset_of!(Layout, switch_owns_touch), 76);
     assert_eq!(
         (
             size_of::<Feedback>(),

@@ -15,6 +15,7 @@ struct OwnedChildDrawing {
 void* xp_app_test_current_child(uint8_t*);
 void xp_app_test_activity_loop();
 const uint8_t* xp_epub_test_child_result_anchor(const void*);
+bool xp_epub_test_menu_has_sync(const void*);
 void xp_epub_test_chapter_state(const void*, XpUiReaderListState*);
 }
 static void* watchedChild;
@@ -25,6 +26,7 @@ static bool captureAnchor;
 static XpAppMappedSnapshot childInput;
 static std::vector<std::string> ownedOrder;
 static bool childDebugEnabled;
+static bool menuDownloadSubscriber, menuCredentials;
 static std::string activeChildMarker;
 static unsigned childMarkerEntries;
 static uint32_t chapterClock, chapterDisplayUntil;
@@ -113,6 +115,12 @@ static void bindOwnedChildren() {
   };
   leaves.render_restore_bw = [](uint8_t) { physical("toolbar-restore", 1); };
   leaves.input_facts = [](XpEpubInputFacts* out) { *out = {}; };
+  leaves.subscribers = []() -> const XpPluginSubscriber* {
+    static XpPluginSubscriber plugins[XP_PLUGIN_MAX_EVENT_PLUGINS]{};
+    plugins[0].name[0] = 'p';
+    plugins[0].mask = menuDownloadSubscriber ? xp_plugin_event_mask(3) : 0;
+    return plugins;
+  };
   leaves.input_snapshot = [](XpUiInput* out) { *out = childInput.input; };
   resources.translate = [](uint16_t) -> XpAppText { return literal("translation"); };
   resources.text_width = [](XpAppText text, int32_t, uint8_t) -> int32_t { physical("child-width", 1); return int(text.len * 8); };
@@ -262,6 +270,12 @@ int main(int argc, char** argv) {
   Fixture state; fixture = &state;
   bind(); bindResultsLifecycle(); bindResultsPhysical(); bindProductionChildren();
   bindReaderBook(); bindReaderResults(); BookStoreAdapters::bind(); bindOwnedChildren();
+  if (mode == "menu") {
+    // The runner exercises all four combinations for each menu mode.
+    menuDownloadSubscriber = cancelled;
+    menuCredentials = childDebugEnabled;
+    leaves.has_sync_credentials = []() -> uint8_t { return menuCredentials; };
+  }
   if (mode.starts_with("clippings")) bindOwnedClippings();
   if (mode.starts_with("bookmarks")) bindOwnedBookmarks();
   if (mode.starts_with("bookmarks-return-")) state.path = "/return.epub";
@@ -304,6 +318,9 @@ int main(int argc, char** argv) {
   const char* names[] = {"", "EpubReaderMenu", "EpubReaderChapterSelection", "EpubReaderPercentSelection", "QrDisplay"};
   assert(activeChildMarker == (childDebugEnabled ? names[childKind()] : ""));
   paintChild();
+  if (mode == "menu") {
+    assert(xp_epub_test_menu_has_sync(xp_app_test_current_child(nullptr)) == (menuDownloadSubscriber || menuCredentials));
+  }
   if (longChapterFixture) timedChapters();
   if (mode == "percent" && !cancelled) {
     // The actual Percent input policy clamps repeated decrements at zero.

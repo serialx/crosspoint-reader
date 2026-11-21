@@ -147,6 +147,8 @@ typedef struct {
   uint8_t board_touch;  // Board capability used by the confirm threshold.
   uint8_t home_action;
   uint8_t slide_owns_light;
+  uint8_t ble_paired;
+  uint8_t slide_owns_night;
 } XpEpubInputFacts;
 
 typedef struct {
@@ -521,11 +523,9 @@ typedef struct XpEpubLeaves {
   // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   uint8_t (*has_exit_subscriber)(void);
-  uint8_t (*has_session_subscriber)(void);
-#else
+#endif
   // Borrowed until the synchronous query returns; subscription refresh stays on the app task.
   const XpPluginSubscriber* (*subscribers)(void);
-#endif
 // Fixture-only field/signature (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   uint8_t (*document_id)(XpAppText path, XpAppTextSink sink, void* context);
@@ -700,6 +700,8 @@ XP_EPUB_ASSERT(offsetof(XpEpubInputFacts, touch) == 10, "XpEpubInputFacts.touch"
 XP_EPUB_ASSERT(offsetof(XpEpubInputFacts, board_touch) == 11, "XpEpubInputFacts.board_touch");
 XP_EPUB_ASSERT(offsetof(XpEpubInputFacts, home_action) == 12, "XpEpubInputFacts.home_action");
 XP_EPUB_ASSERT(offsetof(XpEpubInputFacts, slide_owns_light) == 13, "XpEpubInputFacts.slide_owns_light");
+XP_EPUB_ASSERT(offsetof(XpEpubInputFacts, ble_paired) == 14, "XpEpubInputFacts.ble_paired");
+XP_EPUB_ASSERT(offsetof(XpEpubInputFacts, slide_owns_night) == 15, "XpEpubInputFacts.slide_owns_night");
 XP_EPUB_ASSERT(offsetof(XpEpubSettings, orientation) == 4, "XpEpubSettings.orientation");
 XP_EPUB_ASSERT(offsetof(XpEpubSettings, dictionary_available) == 26, "XpEpubSettings.dictionary_available");
 XP_EPUB_ASSERT(offsetof(XpEpubSettings, font_family) == (sizeof(void*) == 8 ? 32 : 28), "XpEpubSettings.font_family");
@@ -888,7 +890,7 @@ XP_EPUB_LEAF_OFFSET(store_document, 89);
 XP_EPUB_LEAF_OFFSET(has_sync_credentials, 90);
 #ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(has_exit_subscriber, 91);
-XP_EPUB_LEAF_OFFSET(has_session_subscriber, 92);
+XP_EPUB_LEAF_OFFSET(subscribers, 92);
 #else
 XP_EPUB_LEAF_OFFSET(subscribers, 91);
 #endif

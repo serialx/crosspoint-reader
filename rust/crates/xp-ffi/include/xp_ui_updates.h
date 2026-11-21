@@ -48,6 +48,7 @@ typedef enum {
   XP_UI_UPDATE_CLEAR = 12,          // value: 0.
   XP_UI_UPDATE_RESTART = 13,        // value: 0.
   XP_UI_UPDATE_HOME = 14,           // value: 0.
+  XP_UI_UPDATE_FONT_MANIFEST_RETRY = 15,
 } XpUiUpdateAction;
 typedef struct {
   XpUiListState list, groups;

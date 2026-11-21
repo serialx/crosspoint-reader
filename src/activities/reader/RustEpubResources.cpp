@@ -676,6 +676,8 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
             out->board_touch = BoardConfig::hasTouch();
             out->home_action = home;
             out->slide_owns_light = slideSwitchOwnsLight();
+            out->ble_paired = SETTINGS.ble.peerAddr[0] != '\0';
+            out->slide_owns_night = slideSwitchOwns(CrossPointSettings::SLIDE_SWITCH_NIGHT_MODE);
           },
       .input_pressed = [](uint32_t button) -> uint8_t { return mapped->isPressed(inputButton(button)); },
       .input_screen_point = [](uint8_t kind, int32_t* x, int32_t* y) -> uint8_t {
@@ -894,12 +896,8 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .has_sync_credentials = []() -> uint8_t { return KOREADER_STORE.hasCredentials(); },
 #ifdef XP_APP_TEST
       .has_exit_subscriber = []() -> uint8_t { return pluginevents::anySubscriber(pluginevents::Event::ReaderExit); },
-      .has_session_subscriber = []() -> uint8_t {
-        return pluginevents::anySubscriber(pluginevents::Event::ReaderSession);
-      },
-#else
-      .subscribers = pluginevents::subscriptionView,
 #endif
+      .subscribers = pluginevents::subscriptionView,
 #ifdef XP_APP_TEST
       .document_id = [](XpAppText path, XpAppTextSink sink, void* context) -> uint8_t {
         const auto document = KOReaderDocumentId::calculate(owned(path));
@@ -1114,7 +1112,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .child_definition_selection_release =
           [](XpDefinitionPayloadStorage* storage) { DefinitionPayload::get(storage).selectionPages.clear(); },
       .child_definition_layout = [](XpUiDefinitionLayout* out, int32_t x, int32_t y) -> uint8_t {
-        const bool headerBackHit = (x != -1 || y != -1) && HeaderBackTapTarget::contains(x, y);
+        const bool headerBackHit = (x != -1 || y != -1) && HeaderBackTapTarget::containsUnpadded(x, y);
         *out = dictionaryUiDefinitionLayout(*target);
         return headerBackHit;
       },

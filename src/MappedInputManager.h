@@ -113,8 +113,7 @@ class MappedInputManager {
   // key and the bottom edge is free; elsewhere the same swipe is the Home
   // gesture and this returns false.
   bool wasReaderMenuSwipeUp() const;
-  // Top-edge down-swipe opens the light panel when the active board actually
-  // has a frontlight. ActivityManager consumes it before activity input.
+  // Top-edge down-swipe opens the Control Center before activity input.
   bool wasLightPanelGesture() const;
   unsigned long getHeldTime() const;
   unsigned long getHeldTime(HomeButtonAction home) const;

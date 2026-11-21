@@ -5,6 +5,7 @@ mod abi {
     #[repr(C)]
     pub struct RawInput {
         pub power: u8,
+        pub auxiliary: u8,
         pub first: i32,
         pub second: i32,
     }
@@ -73,7 +74,7 @@ mod tests {
         wifi: bool,
         frequency_ok: bool,
         now: u32,
-        samples: Vec<(u8, i32, i32)>,
+        samples: Vec<(u8, u8, i32, i32)>,
         trace: Vec<String>,
     }
     impl Default for State {
@@ -112,13 +113,14 @@ mod tests {
     unsafe extern "C" fn sample(out: *mut RawInput) {
         with(|s| {
             s.trace.push("sample".into());
-            let (power, first, second) = if s.samples.is_empty() {
-                (0, 4095, 4095)
+            let (power, auxiliary, first, second) = if s.samples.is_empty() {
+                (0, 0, 4095, 4095)
             } else {
                 s.samples.remove(0)
             };
             out.write(RawInput {
                 power,
+                auxiliary,
                 first,
                 second,
             });
@@ -311,15 +313,22 @@ mod tests {
             assert_eq!(s.now, 14);
             assert_eq!(s.trace, ["delay:10", "sample", "delay:10", "sample"]);
             s.trace.clear();
-            s.samples = vec![(1, 4095, 4095)];
+            s.samples = vec![(1, 0, 4095, 4095)];
         });
         unsafe { r.idle_wait(50, 10) };
         with(|s| {
             assert_eq!(s.trace, ["delay:10", "sample"]);
             s.trace.clear();
-            s.samples = vec![(0, 4000, -1), (0, -1, 3999)];
+            s.samples = vec![(0, 0, 4000, -1), (0, 0, -1, 3999)];
         });
         unsafe { r.idle_wait(50, 10) };
         with(|s| assert_eq!(s.trace, ["delay:10", "sample", "delay:10", "sample"]));
+    }
+
+    #[test]
+    fn idle_wait_stops_for_raw_auxiliary_contact() {
+        with(|s| s.samples = vec![(0, 1, -1, -1)]);
+        unsafe { runtime().idle_wait(50, 10) };
+        with(|s| assert_eq!(s.trace, ["delay:10", "sample"]));
     }
 }

@@ -17,6 +17,7 @@ pub unsafe extern "C" fn xp_epub_test_section_driver(
     cache: abi::Text,
     partial: u8,
     with_popup: u8,
+    upgrade: u8,
     native: unsafe extern "C" fn(
         *mut c_void,
         *const super::super::abi::XpEpubPageView,
@@ -65,6 +66,13 @@ pub unsafe extern "C" fn xp_epub_test_section_driver(
         call: popup,
         context: (&mut popups as *mut u32).cast(),
     });
+    if upgrade != 0 {
+        assert!(
+            !unsafe { ReaderSection::load_cache(section, &spec) },
+            "accepted obsolete section"
+        );
+        assert!(!unsafe { ReaderSection::partial(section) });
+    }
     assert!(unsafe { ReaderSection::start(section, &spec, callback, runtime) });
     let total = unsafe { (*section.as_ptr()).progress.total };
     assert_eq!(popups, u32::from(with_popup != 0 && total >= 10 * 1024));

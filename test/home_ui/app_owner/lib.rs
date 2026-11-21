@@ -35,6 +35,19 @@ pub unsafe extern "C" fn xp_crc32(data: *const u8, len: usize) -> u32 {
 mod display_source;
 #[path = "../../../rust/crates/xp-ffi/src/page_plan/storage.rs"]
 mod page_plan_storage;
+mod plugin {
+    // This fixture traps plugin queries; the reader-menu composition supplies the live table.
+    pub enum Subscriber {}
+    pub enum Event {
+        ReaderSession = 2,
+    }
+    pub unsafe fn has_event_subscriber(_: *const [Subscriber; 8]) -> bool {
+        panic!("unexpected reader menu subscription query")
+    }
+    pub unsafe fn xp_plugin_any(_: *const [Subscriber; 8], _: u32) -> bool {
+        panic!("unexpected reader session subscription query")
+    }
+}
 mod font_runtime {
     pub(crate) unsafe fn scanning(_: *const core::ffi::c_void) -> u8 {
         panic!("owner fixture must use its scene observer");

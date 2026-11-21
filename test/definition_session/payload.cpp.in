@@ -34,7 +34,7 @@ int main() {
     auto& slot = payload.slots[0];
     slot.text = "first\nsecond\nthird";
     assert(payload.prepareDefinition(renderer, slot, false, false, {0, 0, 100, 25}));
-    assert(renderer.lastSpacing == 2.0f && slot.linesPerPage == 2 && slot.totalPages == 2);
+    assert(renderer.lastSpacing == 2.0f && slot.linesPerPage == 2 && slot.totalPages() == 2);
     renderer.lastSpacing = 0;
     assert(payload.buildPlainSelectionPages(renderer, 0));
     assert(renderer.lastSpacing == 2.0f);

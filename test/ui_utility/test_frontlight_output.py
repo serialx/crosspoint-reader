@@ -17,7 +17,7 @@ class FrontlightOutput(unittest.TestCase):
             path = Path(directory) / 'output.cpp'
             binary = path.with_suffix('')
             path.write_text('#include <cassert>\n#include <cstdint>\n#include <vector>\n' + source)
-            subprocess.run(['c++', '-std=c++20', str(path), '-o', str(binary)], check=True)
+            subprocess.run(['c++', '-std=c++20', '-I', str(ROOT / 'rust/crates/xp-ffi/include'), str(path), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True)
 
     def test_grayscale_consumes_refresh_promotion_once(self):
@@ -65,6 +65,70 @@ int main() {
   assert(renderer.displayGrayscaleBase(H::GrayscaleMode::Absolute, H::FAST_REFRESH));
   assert(renderer.displayGrayscaleBase(H::GrayscaleMode::Absolute, H::FAST_REFRESH));
   assert((renderer.display.modes == std::vector{H::FULL_REFRESH, H::FULL_REFRESH, H::FAST_REFRESH}));
+}
+''')
+
+    def test_panel_exit_refresh_and_ble_persistence(self):
+        panel = (ROOT / 'src/activities/util/FrontlightPanelActivity.cpp').read_text()
+        gfx = (ROOT / 'lib/GfxRenderer/GfxRenderer.cpp').read_text()
+        self.compile_run(r'''
+#include <xp_ui_utility.h>
+struct HalDisplay { enum RefreshMode { FAST_REFRESH, FULL_REFRESH }; };
+struct GfxRenderer {
+  mutable bool promotedRefreshPending_ = false;
+  mutable HalDisplay::RefreshMode promotedRefresh_ = HalDisplay::FAST_REFRESH;
+  void promoteNextRefresh(HalDisplay::RefreshMode mode) {
+    promotedRefreshPending_ = true;
+    promotedRefresh_ = mode;
+  }
+  HalDisplay::RefreshMode applyPromotedRefresh(HalDisplay::RefreshMode) const;
+};
+struct {
+  bool present() const { return false; }
+  void setBrightness(int) {}
+  void setWarmth(int) {}
+  void setOn(bool) {}
+} Frontlight;
+struct {
+  struct { bool enabled = false; } ble;
+  int screenInverted = 0, orientation = 0, touchReaderControls = 0;
+  int frontlightBrightness = 0, frontlightWarmth = 0, frontlightOn = 0;
+  std::vector<bool> saved;
+  void saveToFile() { saved.push_back(ble.enabled); }
+} SETTINGS;
+namespace bleturner { static int stops = 0; void switchOff() { ++stops; } }
+struct UtilityActivity {
+  void applyUtilityEffect(const XpUiUtilityEffect&) {}
+  void onExit() {}
+};
+struct FrontlightPanelActivity : UtilityActivity {
+  GfxRenderer renderer;
+  XpUiUtilityState state{};
+  bool refreshParent = false;
+  void applyUtilityEffect(const XpUiUtilityEffect&);
+  void onExit();
+};
+''' + definition(gfx, 'HalDisplay::RefreshMode GfxRenderer::applyPromotedRefresh(')
+            + definition(panel, 'void FrontlightPanelActivity::applyUtilityEffect(')
+            + definition(panel, 'void FrontlightPanelActivity::onExit(') + r'''
+int main() {
+  FrontlightPanelActivity panel;
+  XpUiUtilityEffect effect{};
+  effect.writes = XP_UI_UTILITY_BLE;
+  for (bool enabled : {true, false}) {
+    panel.state.ble_enabled = enabled;
+    panel.applyUtilityEffect(effect);
+    assert(SETTINGS.ble.enabled == enabled);
+    assert(bleturner::stops == (enabled ? 0 : 1));
+  }
+  assert((SETTINGS.saved == std::vector<bool>{true, false}));
+  effect.writes = XP_UI_UTILITY_CLEAN_PARENT;
+  panel.applyUtilityEffect(effect);
+  auto paint = [&] { return panel.renderer.applyPromotedRefresh(HalDisplay::FAST_REFRESH); };
+  assert(paint() == HalDisplay::FAST_REFRESH);  // previously queued panel paint
+  panel.onExit();
+  assert(paint() == HalDisplay::FULL_REFRESH);  // reader
+  assert(paint() == HalDisplay::FAST_REFRESH);
 }
 ''')
 

@@ -388,7 +388,7 @@ impl State {
                     self.dragging = 1
                 }
                 let mut e = self.event(h.action, h.value, p);
-                if screen != Screen::Confirmation {
+                if screen != Screen::Confirmation && e.writes & CLEAN_PARENT == 0 {
                     e.navigation.invalidate = 1;
                     if p.is_none() && e.navigation.kind == 0 {
                         self.flash_pending = flash_code(h.action, h.value);

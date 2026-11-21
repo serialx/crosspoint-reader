@@ -354,10 +354,6 @@ fn frozen_application_traces() {
             done += i32::from(e.navigation.kind != 0);
             saves += i32::from(e.writes & WRITE_SETTINGS != 0);
             promoted += i32::from(e.writes & CLEAN_PARENT != 0);
-            // These frozen cases call runTile directly, before the app's tap invalidation.
-            if tile == 1 {
-                paints -= 1;
-            }
             actual += &format!(
                 "tile {} {} {} {} {} {} {} {} {} {} {}\n",
                 tile,

@@ -38,6 +38,7 @@ void FrontlightPanelActivity::onExit() {
     if (state.light_changed) SETTINGS.frontlightOn = state.light_on;
     SETTINGS.saveToFile();
   }
+  if (refreshParent) renderer.promoteNextRefresh(HalDisplay::FULL_REFRESH);
   UtilityActivity::onExit();
 }
 void FrontlightPanelActivity::prepareUtilityView() {
@@ -81,7 +82,7 @@ void FrontlightPanelActivity::applyUtilityEffect(const XpUiUtilityEffect& e) {
     if (!state.ble_enabled) bleturner::switchOff();
     SETTINGS.saveToFile();
   }
-  if (e.writes & XP_UI_UTILITY_CLEAN_PARENT) renderer.promoteNextRefresh(HalDisplay::FULL_REFRESH);
+  if (e.writes & XP_UI_UTILITY_CLEAN_PARENT) refreshParent = true;
   UtilityActivity::applyUtilityEffect(e);
 }
 

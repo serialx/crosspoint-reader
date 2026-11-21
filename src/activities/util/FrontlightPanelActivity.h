@@ -3,6 +3,7 @@
 class FrontlightPanelActivity final : public UtilityActivity {
   static constexpr uint16_t BaseCommands = 43;
   static constexpr uint16_t BaseHits = 11;
+  bool refreshParent = false;
   char brightnessText[8]{}, warmthText[8]{};
   const char* utilityText(uint32_t) const override;
   UtilityView utilityView() const override { return xp_ui_utility_frontlight_view; }

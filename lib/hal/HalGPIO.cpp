@@ -123,20 +123,20 @@ bool HalGPIO::wasReleased(uint8_t buttonIndex) const { return inputMgr.wasReleas
 bool HalGPIO::wasAnyReleased() const { return inputMgr.wasAnyReleased(); }
 
 bool HalGPIO::rawInputActive() {
-#if FREEINK_DEVICE_LILYGO
-  if (BoardConfig::ACTIVE.board == BoardConfig::Board::LilyGoT5S3) {
-    return inputMgr.isPowerButtonPhysicallyPressed() || BoardT5S3::readButton();
-  }
-#endif
   const auto sample = rawInputSample();
-  return sample.power || xp_hal_input_adc(sample.first, sample.second);
+  return sample.power || sample.auxiliary || xp_hal_input_adc(sample.first, sample.second);
 }
 
 XpHalRawInput HalGPIO::rawInputSample() {
-  if (inputMgr.isPowerButtonPhysicallyPressed()) return {1, 0, 0};
+  if (inputMgr.isPowerButtonPhysicallyPressed()) return {1, 0, 0, 0};
+#if FREEINK_DEVICE_LILYGO
+  if (BoardConfig::ACTIVE.board == BoardConfig::Board::LilyGoT5S3) {
+    return {0, static_cast<uint8_t>(BoardT5S3::readButton()), -1, -1};
+  }
+#endif
   InputManager::ButtonAdcSample g1{}, g2{};
   inputMgr.readButtonAdc(g1, g2);
-  return {0, g1.raw, g2.raw};
+  return {0, 0, g1.raw, g2.raw};
 }
 
 unsigned long HalGPIO::getHeldTime() const { return inputMgr.getHeldTime(); }

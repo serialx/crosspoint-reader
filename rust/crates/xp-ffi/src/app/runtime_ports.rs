@@ -13,6 +13,7 @@ impl Runtime {
                 (self.raw_input_sample)(sample.as_mut_ptr());
                 let sample = sample.assume_init();
                 if sample.power != 0
+                    || sample.auxiliary != 0
                     || crate::hal::gpio::xp_hal_input_adc(sample.first, sample.second)
                 {
                     break;

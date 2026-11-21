@@ -489,6 +489,7 @@ static_assert(sizeof(XpAppResources) == 47 * sizeof(void*));
 static_assert(sizeof(XpAppResources) == 43 * sizeof(void*));
 #endif
 static_assert(sizeof(XpHalRawInput) == 12);
+static_assert(offsetof(XpHalRawInput, auxiliary) == 1);
 static_assert(offsetof(XpHalRawInput, first) == 4);
 static_assert(offsetof(XpHalRawInput, second) == 8);
 static_assert(sizeof(XpHalPowerContext) == sizeof(void*) + sizeof(XpHalPowerServices));

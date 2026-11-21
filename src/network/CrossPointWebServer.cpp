@@ -234,8 +234,7 @@ const XpWebServices WebFileBridge::services = {
           file = Storage.open(path);
           return static_cast<bool>(file);
         case XP_WEB_CLOSE:
-          file.close();
-          return 0;
+          return file.close();
         case XP_WEB_IS_OPEN:
           return static_cast<bool>(file);
         case XP_WEB_IS_DIR:

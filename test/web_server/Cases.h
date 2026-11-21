@@ -197,6 +197,30 @@ static void text(CrossPointWebServer& app, uint8_t client, const std::string& by
 int main() {
 #ifdef XP_FFI_HOST_FAULT_INJECTION
 
+  if (std::getenv("WEB_UPLOAD_CLOSE_CHECK")) {
+    record("upload-close-failure", [](auto& app) {
+      const std::string path = "/books/new.epub";
+      app.server->args["path"] = "/books";
+      app.server->part.filename = "new.epub";
+      upload(app, UPLOAD_FILE_START);
+      upload(app, UPLOAD_FILE_WRITE, "buffered");
+      auto file = host::files.at(path);
+      if (!file->bytes.empty()) std::abort();
+      host::failOperation = "close";
+      host::failAfter = 0;
+      upload(app, UPLOAD_FILE_END);
+      app.handleUploadPost(app.upload);
+      if (file->bytes != "buffered" || host::failAfter != -1 || host::files.contains(path)) std::abort();
+      if (std::find(host::trace.begin(), host::trace.end(),
+                    "response:400:text/plain:Failed to write final data to SD card") == host::trace.end() ||
+          std::any_of(host::trace.begin(), host::trace.end(),
+                      [](const auto& event) { return event == "library-dirty" || event.starts_with("cache:"); })) {
+        std::abort();
+      }
+    });
+    return 0;
+  }
+
   if (const char* check = std::getenv("WEB_FONT_UPLOAD_CLOSE_CHECK")) {
     record(check, [&](auto& app) {
       const bool valid = std::string_view(check) == "valid";

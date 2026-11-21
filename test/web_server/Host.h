@@ -174,10 +174,11 @@ class HalFile {
     hal_fake::requireImpl(hasImpl, "isDirectory", path.c_str());
     return node && node->directory;
   }
-  void close() {
+  bool close() {
     hal_fake::requireImpl(hasImpl, "close", path.c_str());
     if (node) host::trace.push_back("close:" + path);
     node.reset();
+    return !host::fail("close");
   }
   size_t size() const {
     hal_fake::requireImpl(hasImpl, "size", path.c_str());

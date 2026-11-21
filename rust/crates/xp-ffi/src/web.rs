@@ -1115,10 +1115,11 @@ impl Transfer<'_> {
                     return Ok(());
                 }
                 if self.r.file(Io::IsOpen, 0) != 0 {
-                    if !self.flush(state) {
+                    let flushed = self.flush(state);
+                    let closed = self.r.file(Io::Close, 0) != 0;
+                    if !flushed || !closed {
                         self.set(Field::UploadError, b"Failed to write final data to SD card");
                     }
-                    self.r.file(Io::Close, 0);
                     if !self.get(Field::UploadError).is_empty() {
                         self.remove_upload(false);
                     } else {

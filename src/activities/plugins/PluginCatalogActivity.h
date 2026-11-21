@@ -221,7 +221,7 @@ class PluginCatalogActivity final : public CatalogActivity {
   HttpDownloader::DownloadError downloadBook(const Item& item);
   void beginAuth();
   void pollAuth();
-  bool refreshCredentialToken(int& status, bool* pending = nullptr);  // password grant: mint a token from config creds
+  bool refreshCredentialToken(int& status);  // password grant: mint a token from config creds
   // Load credentials and stream a JSON/XML browse response to the SD temp file.
   // Retries a password grant once on 401/403; displays failures and returns false.
   bool fetchBrowseResponse();
@@ -235,8 +235,8 @@ class PluginCatalogActivity final : public CatalogActivity {
                     const pluginhttp::Headers& headers, const Item* item = nullptr, std::string_view prefix = {},
                     bool poll = false, bool literalUrl = false, DownloadCredentials* credentials = nullptr,
                     std::string* origin = nullptr) const;
-  bool substituted(const std::string& tpl, std::string& out, const Item* item = nullptr, std::string_view md5 = {},
-                   std::string_view dest = {}) const;
+  bool substituted(const std::string& tpl, std::string& out, const Item* item = nullptr, size_t limit = SIZE_MAX,
+                   std::string_view md5 = {}, std::string_view dest = {}) const;
   // Where downloads land: a "dest_dir" in the plugin's config.json (its web
   // card can offer the setting), else the manifest's download.dest_dir.
   std::string downloadDir() const;

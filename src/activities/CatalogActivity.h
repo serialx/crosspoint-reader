@@ -71,8 +71,7 @@ class CatalogActivity : public CatalogUiActivity {
                                              const std::string& user = {}, const std::string& password = {},
                                              const std::vector<HttpDownloader::Header>& headers = {},
                                              const std::string* postBody = nullptr,
-                                             const char* postContentType = nullptr,
-                                             HttpDownloader::FileOpen fileOpen = HttpDownloader::FileOpen::Immediate);
+                                             const char* postContentType = nullptr);
 
  private:
   void onDownloadProgress(size_t downloaded, size_t total);

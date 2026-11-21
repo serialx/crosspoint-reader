@@ -370,6 +370,8 @@ bool PluginCatalogActivity::loadBrowseListIndex(int& status) {
     status = pluginhttp::request(session.get(), url, "GET", "", req.headers, response, MAX_BROWSE_LIST_INDEX_RESPONSE);
     if (status < 200 || status >= 300) {
       LOG_ERR("PCAT", "browse list index fetch failed: status=%d %s", status, url.c_str());
+      std::string().swap(url);
+      std::string().swap(origin);
       return false;
     }
     if (deserializeJson(doc, response) != DeserializationError::Ok) {
@@ -390,7 +392,7 @@ bool PluginCatalogActivity::loadBrowseListIndex(int& status) {
   }
 
   ResourceLock resources(*this);
-  manifest.listOrigin = std::move(origin);
+  std::string().swap(manifest.listOrigin);
   manifest.browseLists.resize(manifest.fixedListCount);
   manifest.browseLists.reserve(manifest.fixedListCount + std::min(lists.size(), MAX_BROWSE_LISTS));
   for (JsonVariantConst l : lists) {
@@ -409,8 +411,10 @@ bool PluginCatalogActivity::loadBrowseListIndex(int& status) {
     entry.noticeMessage = notice["message"] | "";
     entry.noticeConfirm = notice["confirm"] | "";
     entry.noticeCancel = notice["cancel"] | "";
-    if (!entry.title.empty() && (!entry.url.empty() || !entry.id.empty()))
+    if (!entry.title.empty() && (!entry.url.empty() || !entry.id.empty())) {
+      if (!origin.empty() && UrlUtils::isServerPath(entry.url)) manifest.listOrigin.swap(origin);
       manifest.browseLists.push_back(std::move(entry));
+    }
   }
   if (manifest.browseLists.size() == manifest.fixedListCount) {
     LOG_ERR("PCAT", "browse list index has no valid lists: %s", url.c_str());
@@ -491,27 +495,28 @@ bool PluginCatalogActivity::buildRequest(pluginhttp::RequestSpec& out, std::stri
     sizes[index] = before - remaining;
     return true;
   };
+  size_t user = 0, password = 0, basic = 0;
+  if (credentials) {
+    // A zero-byte probe stops on the first emitted byte. The transfer omits an incomplete pair.
+    size_t probe = 0;
+    if (!vars.expand({}, manifest.dlUser, false, probe) && !vars.expand({}, manifest.dlPass, false, probe)) {
+      constexpr size_t overhead = sizeof("AuthorizationBasic ") - 1;
+      constexpr size_t rawLimit = 3 * ((plugincatalog::MAX_REQUEST_BYTES - overhead) / 4) - 1;  // colon
+      size_t raw = rawLimit;
+      if (!vars.expand({}, manifest.dlUser, false, raw)) return false;
+      user = rawLimit - raw;
+      if (!vars.expand({}, manifest.dlPass, false, raw)) return false;
+      password = rawLimit - raw - user;
+      basic = overhead + 4 * ((user + password + 3) / 3);
+    }
+  }
   for (bool write : {false, true}) {
-    remaining = plugincatalog::MAX_REQUEST_BYTES;
-    if (credentials) {
-      size_t user = SIZE_MAX, password = SIZE_MAX;
-      // An incomplete Basic pair is omitted by the HTTP transfer owner.
-      if (!vars.expand({}, manifest.dlUser, false, user) || !vars.expand({}, manifest.dlPass, false, password))
-        return false;
-      user = SIZE_MAX - user;
-      password = SIZE_MAX - password;
-      if (user && password) {
-        if (user > remaining || password > remaining) return false;
-        const size_t auth = sizeof("AuthorizationBasic ") - 1 + 4 * ((user + password + 3) / 3);
-        if (auth > remaining) return false;
-        remaining -= auth;
-        if (write) {
-          credentials->user.reserve(user);
-          credentials->password.reserve(password);
-          vars.expand({}, manifest.dlUser, false, user, &credentials->user);
-          vars.expand({}, manifest.dlPass, false, password, &credentials->password);
-        }
-      }
+    remaining = plugincatalog::MAX_REQUEST_BYTES - basic;
+    if (write && basic) {
+      credentials->user.reserve(user);
+      credentials->password.reserve(password);
+      vars.expand({}, manifest.dlUser, false, user, &credentials->user);
+      vars.expand({}, manifest.dlPass, false, password, &credentials->password);
     }
     if (write && origin) origin->reserve(rawOrigin.length());
     if (write) out.headers.reserve(headers.size());
@@ -558,7 +563,7 @@ bool PluginCatalogActivity::detailsRequest(std::string& url, std::string_view pa
   return vars.expand({}, path, true, bytes, &url);
 }
 
-bool PluginCatalogActivity::substituted(const std::string& tpl, std::string& out, const Item* item,
+bool PluginCatalogActivity::substituted(const std::string& tpl, std::string& out, const Item* item, size_t limit,
                                         std::string_view md5, std::string_view dest) const {
   Variables vars(*this, item, md5.empty() ? 0 : 2);
   if (!vars.allocated()) return false;
@@ -566,9 +571,9 @@ bool PluginCatalogActivity::substituted(const std::string& tpl, std::string& out
     vars.add("{md5}", md5);
     vars.add("{dest}", dest);
   }
-  size_t remaining = plugincatalog::MAX_REQUEST_BYTES;
+  size_t remaining = limit;
   if (!vars.expand({}, tpl, false, remaining)) return false;
-  size_t size = plugincatalog::MAX_REQUEST_BYTES - remaining;
+  size_t size = limit - remaining;
   out.clear();
   out.reserve(size);
   return vars.expand({}, tpl, false, size, &out);
@@ -885,7 +890,7 @@ void PluginCatalogActivity::performSearch(const std::string& query) {
   fetchPage(1);
 }
 
-bool PluginCatalogActivity::refreshCredentialToken(int& status, bool* pending) {
+bool PluginCatalogActivity::refreshCredentialToken(int& status) {
   loadConfig();
   std::string minted;
   pluginhttp::RequestSpec req;
@@ -897,10 +902,7 @@ bool PluginCatalogActivity::refreshCredentialToken(int& status, bool* pending) {
                                      manifest.authTokenPath, minted)) {
     return false;
   }
-  if (pending)
-    *pending = true;
-  else if (!saveToken(minted))
-    return false;
+  if (!saveToken(minted)) return false;
   token = std::move(minted);  // usable immediately, without re-reading the file
   return true;
 }
@@ -922,7 +924,8 @@ bool PluginCatalogActivity::fetchBrowseResponse() {
       fail(StrId::STR_PLUGIN_MANIFEST_INVALID);
       return false;
     }
-    if (browseCurrentUrl.empty() && !substituted(manifest.browseReq.url, browseCurrentUrl)) {
+    if (browseCurrentUrl.empty() &&
+        !substituted(manifest.browseReq.url, browseCurrentUrl, nullptr, plugincatalog::MAX_REQUEST_BYTES)) {
       fail(StrId::STR_FETCH_FEED_FAILED);
       return false;
     }
@@ -1308,20 +1311,6 @@ HttpDownloader::DownloadError PluginCatalogActivity::downloadBundle(const Item& 
     const auto first = path.find_first_not_of('/');
     return first == path.npos ? std::string_view{} : path.substr(first);
   };
-  size_t baseRemaining = plugincatalog::MAX_REQUEST_BYTES - separator;
-  if (!literal.expand({}, item.base, true, baseRemaining)) return HttpDownloader::HTTP_ERROR;
-  size_t longest = 0;
-  for (const auto& entry : item.files) {
-    size_t remaining = baseRemaining;
-    if (!literal.expand({}, relative(entry), true, remaining)) return HttpDownloader::HTTP_ERROR;
-    longest = std::max(longest, plugincatalog::MAX_REQUEST_BYTES - remaining);
-  }
-  std::string url;
-  url.reserve(longest);
-  size_t space = longest;
-  literal.expand({}, item.base, true, space, &url);
-  if (separator) url += '/';
-  const size_t baseLength = url.size();
   if (Storage.exists(dir.c_str())) {
     HalFile target = Storage.open(dir.c_str());
     if (!target || !target.isDirectory()) {
@@ -1347,6 +1336,9 @@ HttpDownloader::DownloadError PluginCatalogActivity::downloadBundle(const Item& 
   }};
   for (size_t i = 0; i < total; i++) {
     const auto rel = relative(item.files[i]);
+    size_t remaining = plugincatalog::MAX_REQUEST_BYTES - separator;
+    if (!literal.expand({}, item.base, true, remaining) || !literal.expand({}, rel, true, remaining))
+      return HttpDownloader::REQUEST_TOO_LARGE;
     std::string dest = dir + "/";
     dest.append(rel);
     if (rel.empty() || !protectedpaths::isPluginPath(dest)) {
@@ -1361,8 +1353,11 @@ HttpDownloader::DownloadError PluginCatalogActivity::downloadBundle(const Item& 
       const std::string parent = dest.substr(0, slash);
       if (!Storage.exists(parent.c_str())) Storage.mkdir(parent.c_str());
     }
-    url.resize(baseLength);
-    space = longest - baseLength;
+    size_t space = plugincatalog::MAX_REQUEST_BYTES - remaining;
+    std::string url;
+    url.reserve(space);
+    literal.expand({}, item.base, true, space, &url);
+    if (separator) url += '/';
     literal.expand({}, rel, true, space, &url);
     const auto result = downloadFile(url, dest + ".new");
     if (result != HttpDownloader::OK) return result;
@@ -1393,94 +1388,86 @@ HttpDownloader::DownloadError PluginCatalogActivity::downloadBook(const Item& it
   const pluginhttp::Headers none;
   bool sendHeaders = true;
   int status = 0;
-  bool pendingToken = false;
   const auto prepare = [&](std::string_view url, std::string_view prefix, bool literal) {
-    file = {};
-    credentials = {};
     return buildRequest(file, url, "", sendHeaders ? manifest.downloadReq.headers : none, &item, prefix, false, literal,
                         &credentials);
   };
   if (manifest.dlUrlPath.empty()) {
-    if (!prepare(manifest.downloadReq.url, {}, false)) return HttpDownloader::HTTP_ERROR;
+    if (!prepare(manifest.downloadReq.url, {}, false)) return HttpDownloader::REQUEST_TOO_LARGE;
   } else {
-    String response;
+    JsonDocument doc;
     std::string apiUrl;
     const auto resolve = [&] {
       pluginhttp::RequestSpec req;
       if (!buildRequest(req, manifest.downloadReq.url, manifest.downloadReq.body, manifest.downloadReq.headers, &item))
         return REQUEST_REFUSED;
-      apiUrl = std::move(req.url);
-      return pluginhttp::request(session.get(), apiUrl, manifest.downloadReq.method, req.body, req.headers, response,
-                                 MAX_API_RESPONSE);
+      String response;
+      const int code = pluginhttp::request(session.get(), req.url, manifest.downloadReq.method, req.body, req.headers,
+                                           response, MAX_API_RESPONSE);
+      if (code >= 200 && code < 300) {
+        if (deserializeJson(doc, response) != DeserializationError::Ok) return -1;
+        apiUrl = std::move(req.url);
+      }
+      return code;
     };
     status = resolve();
-    if ((status == 401 || status == 403) && manifest.hasPasswordGrant() &&
-        refreshCredentialToken(status, &pendingToken))
+    if ((status == 401 || status == 403) && manifest.hasPasswordGrant() && refreshCredentialToken(status))
       status = resolve();
+    if (status == REQUEST_REFUSED) return HttpDownloader::REQUEST_TOO_LARGE;
     if (status < 200 || status >= 300) return HttpDownloader::HTTP_ERROR;
-    JsonDocument doc;
-    if (deserializeJson(doc, response) != DeserializationError::Ok) return HttpDownloader::HTTP_ERROR;
     const auto value = resolvePath(doc.as<JsonVariantConst>(), manifest.dlUrlPath);
     const char* borrowed = value.as<const char*>();
     const std::string scalar = borrowed ? std::string{} : variantToString(value);
     const std::string_view returned = borrowed ? std::string_view(borrowed) : std::string_view(scalar);
     const auto origin = UrlUtils::origin(apiUrl);
     sendHeaders = UrlUtils::isServerPath(returned) && !origin.empty();
-    if (!prepare(returned, sendHeaders ? origin : std::string_view{}, true)) return HttpDownloader::HTTP_ERROR;
+    if (!prepare(returned, sendHeaders ? origin : std::string_view{}, true)) return HttpDownloader::REQUEST_TOO_LARGE;
   }
   if (file.url.empty()) return HttpDownloader::FILE_ERROR;
 
-  std::string filename;
-  if (!substituted(manifest.filenameTpl, filename, &item)) return HttpDownloader::HTTP_ERROR;
-  filename = StringUtils::sanitizeFilenamePreservingExtension(filename);
-  if (filename.empty() || filename.find("..") != std::string::npos || filename.find('/') != std::string::npos)
-    return HttpDownloader::FILE_ERROR;
-  const std::string folder = downloadDir();
-  std::string dest = folder + "/" + filename;
-  std::string path, body;
-  const auto prepareSidecar = [&] {
-    path.clear();
-    body.clear();
-    if (manifest.sidecarPath.empty() || manifest.sidecarBody.empty()) return true;
-    const std::string md5 = md5Hex(dest);
-    if (!substituted(manifest.sidecarPath, path, &item, md5, dest)) return false;
-    if (!protectedpaths::isPluginPath(path)) {
-      path.clear();
-      return true;
-    }
-    return substituted(manifest.sidecarBody, body, &item, md5, dest);
-  };
-  const auto fetch = [&] {
-    if (!protectedpaths::isPluginPath(dest)) return HttpDownloader::FILE_ERROR;
-    bool allowed = prepareSidecar();
-    if (allowed && !folder.empty() && dest.size() > filename.size() + 1 && !Storage.exists(folder.c_str()) &&
-        !Storage.mkdir(folder.c_str())) {
-      dest = "/" + filename;
-      if (!protectedpaths::isPluginPath(dest)) return HttpDownloader::FILE_ERROR;
-      allowed = prepareSidecar();
-    }
-    if (allowed && pendingToken) {
-      if (!saveToken(token)) return HttpDownloader::HTTP_ERROR;
-      pendingToken = false;
-    }
-    if (!allowed && !(sendHeaders && manifest.hasPasswordGrant())) return HttpDownloader::HTTP_ERROR;
-    // A 401 can replace a token that made this attempt's sidecar too large.
-    const auto open = allowed ? HttpDownloader::FileOpen::AfterSuccess : HttpDownloader::FileOpen::RefuseOnSuccess;
-    return downloadFile(file.url, dest, credentials.user, credentials.password, file.headers, nullptr, nullptr, open);
-  };
+  std::string dest = downloadDir();
+  if (!dest.empty() && !Storage.exists(dest.c_str()) && !Storage.mkdir(dest.c_str())) {
+    LOG_ERR("PCAT", "mkdir failed for %s, using SD root", dest.c_str());
+    std::string().swap(dest);
+  }
+  {
+    std::string filename;
+    if (!substituted(manifest.filenameTpl, filename, &item)) return HttpDownloader::FILE_ERROR;
+    filename = StringUtils::sanitizeFilenamePreservingExtension(filename);
+    if (filename.empty() || filename.find("..") != std::string::npos || filename.find('/') != std::string::npos)
+      return HttpDownloader::FILE_ERROR;
+    dest.reserve(dest.size() + 1 + filename.size());
+    dest += '/';
+    dest += filename;
+  }
+  if (!protectedpaths::isPluginPath(dest)) return HttpDownloader::FILE_ERROR;
+  const auto fetch = [&] { return downloadFile(file.url, dest, credentials.user, credentials.password, file.headers); };
   session.reset();
   auto result = fetch();
-  if (result == HttpDownloader::UNAUTHORIZED && sendHeaders && manifest.hasPasswordGrant() &&
-      refreshCredentialToken(status, &pendingToken)) {
-    std::string frozen = std::move(file.url);
-    if (!prepare(frozen, {}, true)) return HttpDownloader::HTTP_ERROR;
+  if (result == HttpDownloader::UNAUTHORIZED && sendHeaders && manifest.hasPasswordGrant()) {
+    {
+      std::string frozen = std::move(file.url);
+      pluginhttp::Headers().swap(file.headers);
+      std::string().swap(credentials.user);
+      std::string().swap(credentials.password);
+      if (!refreshCredentialToken(status))
+        return status == REQUEST_REFUSED ? HttpDownloader::REQUEST_TOO_LARGE : result;
+      if (!prepare(frozen, {}, true)) return HttpDownloader::REQUEST_TOO_LARGE;
+    }
     result = fetch();
   }
   if (result != HttpDownloader::OK) return result;
   clearBookCache(dest);
   if (library::isLibraryBookFile(dest)) library::markLibraryIndexDirty();
-  if (!path.empty() && !Storage.writeFile(path.c_str(), String(body.c_str())))
-    LOG_ERR("PCAT", "Sidecar write failed: %s", path.c_str());
+  if (!manifest.sidecarPath.empty() && !manifest.sidecarBody.empty()) {
+    const std::string md5 = md5Hex(dest);
+    std::string path, body;
+    if (!substituted(manifest.sidecarPath, path, &item, plugincatalog::MAX_REQUEST_BYTES, md5, dest) ||
+        !protectedpaths::isPluginPath(path) ||
+        !substituted(manifest.sidecarBody, body, &item, plugincatalog::MAX_REQUEST_BYTES, md5, dest) ||
+        !Storage.writeFile(path.c_str(), String(body.c_str())))
+      LOG_ERR("PCAT", "Sidecar write failed: %s", path.c_str());
+  }
 
   emitBookDownloaded(manifestPath, dest, item.title);
   return HttpDownloader::OK;

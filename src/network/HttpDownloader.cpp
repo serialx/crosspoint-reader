@@ -87,16 +87,13 @@ bool HttpDownloader::postForm(const std::string& url, const std::string& body, s
 HttpDownloader::DownloadError HttpDownloader::downloadToFile(const std::string& url, const std::string& path,
                                                              ProgressCallback callback, const bool* cancel,
                                                              const std::string& user, const std::string& pass,
-                                                             const std::vector<Header>& headers, bool downgrade,
-                                                             FileOpen fileOpen) {
+                                                             const std::vector<Header>& headers, bool downgrade) {
   Call c(url, XP_HTTP_TRANSFER_DOWNLOAD);
   c.context.progress = &callback;
   c.auth(user, pass, headers);
   c.request.destination = httptransfer::nativeText(path);
   c.request.cancel_flag = cancel;
   c.request.downgrade_redirects = downgrade;
-  c.request.defer_open = fileOpen != FileOpen::Immediate;
-  c.request.refuse_write = fileOpen == FileOpen::RefuseOnSuccess;
   return static_cast<DownloadError>(c.run());
 }
 HttpDownloader::DownloadError HttpDownloader::postToFile(const std::string& url, const std::string& body,

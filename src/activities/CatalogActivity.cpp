@@ -157,8 +157,7 @@ void CatalogActivity::onDownloadProgress(const size_t downloaded, const size_t t
 HttpDownloader::DownloadError CatalogActivity::downloadFile(const std::string& url, const std::string& dest,
                                                             const std::string& user, const std::string& password,
                                                             const std::vector<HttpDownloader::Header>& headers,
-                                                            const std::string* postBody, const char* postContentType,
-                                                            HttpDownloader::FileOpen fileOpen) {
+                                                            const std::string* postBody, const char* postContentType) {
   downloadProgress = downloadTotal = 0;
   {
     ModelLock lock(*this);
@@ -181,7 +180,7 @@ HttpDownloader::DownloadError CatalogActivity::downloadFile(const std::string& u
   }
   return HttpDownloader::downloadToFile(
       url, dest, [this](size_t downloaded, size_t total) { onDownloadProgress(downloaded, total); }, &cancelDownload,
-      user, password, headers, false, fileOpen);
+      user, password, headers);
 }
 
 void CatalogActivity::finishDownload(const HttpDownloader::DownloadError result) {
@@ -191,6 +190,6 @@ void CatalogActivity::finishDownload(const HttpDownloader::DownloadError result)
     downloadFinished(result == HttpDownloader::ABORTED);
   } else {
     LOG_ERR("CAT", "Download failed: %d", static_cast<int>(result));
-    fail(StrId::STR_DOWNLOAD_FAILED);
+    fail(result == HttpDownloader::REQUEST_TOO_LARGE ? StrId::STR_FETCH_FEED_FAILED : StrId::STR_DOWNLOAD_FAILED);
   }
 }

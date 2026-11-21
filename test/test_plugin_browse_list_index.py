@@ -76,7 +76,7 @@ int requestToFile(int*, const std::string& url, const std::string&, const std::s
   return 200;
 }
 Headers sent;
-int nextStatus = 200, calls = 0, mints = 0;
+int nextStatus = 200, replayStatus = 200, calls = 0, mints = 0;
 std::string minted = "fresh";
 bool mintPasswordToken(int*, const std::string&, const std::string&, const std::string&, const Headers&,
                        const std::string&, std::string& out) {
@@ -90,7 +90,7 @@ int request(int*, const std::string&, const std::string&, const std::string&, co
   ++calls;
   sent = headers;
   response = body;
-  return std::exchange(nextStatus, 200);
+  return std::exchange(nextStatus, replayStatus);
 }
 }
 
@@ -137,8 +137,8 @@ struct {
   void remove(const char*) {}
 } Storage;
 namespace HttpDownloader {
-enum DownloadError { OK, HTTP_ERROR, FILE_ERROR, UNAUTHORIZED };
-enum class FileOpen { Immediate, AfterSuccess, RefuseOnSuccess };
+enum DownloadError { OK, HTTP_ERROR, FILE_ERROR, UNAUTHORIZED, REQUEST_TOO_LARGE, ABORTED };
+
 }
 namespace protectedpaths { bool isPluginPath(const std::string& path) { return path.starts_with("/"); } }
 namespace StringUtils { std::string sanitizeFilenamePreservingExtension(const std::string& s) {return s;} }
@@ -150,7 +150,15 @@ void markLibraryIndexDirty() {++changes;}
 void clearBookCache(const std::string&) {}
 std::string md5Hex(const std::string&) {return "abc";}
 
-enum class StrId { STR_PLUGIN_MANIFEST_INVALID, STR_FETCH_FEED_FAILED };
+enum class StrId { STR_PLUGIN_MANIFEST_INVALID, STR_FETCH_FEED_FAILED, STR_DOWNLOAD_FAILED };
+struct CatalogActivity {
+  bool goHomeAfterCancel = false;
+  StrId error{};
+  void onGoHome() {}
+  void downloadFinished(bool) {}
+  void fail(StrId value) { error = value; }
+  void finishDownload(HttpDownloader::DownloadError);
+};
 struct PluginCatalogActivity {
   struct ModelLock { explicit ModelLock(PluginCatalogActivity&) {} };
   enum class State { BROWSING, NO_TOKEN, LIST_PICKER };
@@ -209,7 +217,7 @@ struct PluginCatalogActivity {
   template<class F>void startActivityForResult(std::unique_ptr<DetailsActivity>, F) {++confirmations;}
   pluginhttp::Headers config;
   struct Variables;
-  bool substituted(const std::string&, std::string&, const Item* = nullptr, std::string_view = {}, std::string_view = {}) const;
+  bool substituted(const std::string&, std::string&, const Item* = nullptr, size_t = SIZE_MAX, std::string_view = {}, std::string_view = {}) const;
   struct DownloadCredentials { std::string user, password; };
   bool detailsRequest(std::string&, std::string_view, const Item&) const;
   bool buildRequest(pluginhttp::RequestSpec&, std::string_view, const std::string&, const pluginhttp::Headers&,
@@ -219,21 +227,22 @@ struct PluginCatalogActivity {
   const std::string& activeBrowseBody() const;
   plugincatalogpaging::Paging browsePaging() const;
   std::string manifestPath, directory;
-  bool growTokenAfterSave = false;
+  bool saveWorks = true;
+  std::string savedToken;
+  size_t largeAllocationsAtGet = 0;
   int events = 0, files = 0, attempts = 0, unauthorized = 0, tokenSaves = 0;
   std::vector<std::string> urls;
   std::vector<pluginhttp::Headers> fileHeaders;
   std::string downloadDir() {return directory;}
-  bool saveToken(const std::string&) {++tokenSaves; return true;}
+  bool saveToken(const std::string& value) {++tokenSaves; if (saveWorks) savedToken=value; return saveWorks;}
   void emitBookDownloaded(const std::string&, const std::string&, const std::string&) {++events;}
   HttpDownloader::DownloadError downloadFile(const std::string& url, const std::string&, const std::string&,
-          const std::string&, const pluginhttp::Headers& headers, const void*, const void*, HttpDownloader::FileOpen open) {
+          const std::string&, const pluginhttp::Headers& headers) {
     urls.push_back(url);
+    largeAllocationsAtGet = largeAllocations;
     fileHeaders.push_back(headers);
     if (attempts++ < unauthorized) return HttpDownloader::UNAUTHORIZED;
-    if (open == HttpDownloader::FileOpen::RefuseOnSuccess) return HttpDownloader::HTTP_ERROR;
     ++files;
-    if (growTokenAfterSave) token.assign(16385, 'x');
     return HttpDownloader::OK;
   }
   HttpDownloader::DownloadError downloadBook(const Item&);
@@ -241,13 +250,22 @@ struct PluginCatalogActivity {
     urls.push_back(url); ++files; return HttpDownloader::OK;
   }
   HttpDownloader::DownloadError downloadBundle(const Item&);
-  bool refreshCredentialToken(int&, bool* = nullptr);
+  bool refreshCredentialToken(int&);
   bool loadBrowseListIndex(int&);
 };
 """
 
+catalog = (ROOT / "src/activities/CatalogActivity.cpp").read_text()
+start = catalog.index("void CatalogActivity::finishDownload(")
+requests += "\n" + catalog[start:catalog.index("\n}", start) + 2]
+
 cases = r"""
 int main() {
+  CatalogActivity screen;
+  for (auto result : {HttpDownloader::REQUEST_TOO_LARGE, HttpDownloader::HTTP_ERROR, HttpDownloader::FILE_ERROR}) {
+    screen.finishDownload(result);
+    assert(screen.error == (result == HttpDownloader::REQUEST_TOO_LARGE ? StrId::STR_FETCH_FEED_FAILED : StrId::STR_DOWNLOAD_FAILED));
+  }
   int status = 0;
   PluginCatalogActivity empty;
   pluginhttp::body = R"({"lists":[{})";
@@ -327,6 +345,7 @@ int main() {
   idOnly.manifest.listsIdPath = "key";
   pluginhttp::body = R"({"lists":[{"title":"Mapped","key":"a b/+"}]})";
   assert(idOnly.loadBrowseListIndex(status));
+  assert(idOnly.manifest.listOrigin.empty());
   idOnly.ui.current_list = 0;
   idOnly.fetchPage(1);
   idOnly.fetchPage(2);
@@ -399,9 +418,33 @@ int main() {
     book.manifest.downloadReq.headers = {{"X", "1"}};
     std::string path = "/" + std::string(16384 + delta - 12, 'a');
     pluginhttp::body = "{\"url\":\"" + path + "\\u0000" + std::string(17000, 'b') + "\"}";
-    assert(book.downloadBook(item) == (delta > 0 ? HttpDownloader::HTTP_ERROR : HttpDownloader::OK));
+    assert(book.downloadBook(item) == (delta > 0 ? HttpDownloader::REQUEST_TOO_LARGE : HttpDownloader::OK));
     if (delta <= 0) assert(book.urls.at(0) == "https://h" + path);
     assert(book.events == int(delta <= 0) && book.files == book.events);
+  }
+  {
+    PluginCatalogActivity book;
+    book.manifest.downloadReq.url = "https://h/book";
+    book.manifest.sidecarPath = "/sidecar";
+    book.manifest.sidecarBody.assign(16384, 'b');
+    largeAllocations = 0;
+    observeAllocations = true;
+    assert(book.downloadBook(item) == HttpDownloader::OK);
+    observeAllocations = false;
+    assert(book.largeAllocationsAtGet == 0 && largeAllocations > 0);
+    assert(Storage.contents == book.manifest.sidecarBody);
+    std::string notice;
+    assert(book.substituted(std::string(16385, 'n'), notice) && notice.size() == 16385);
+  }
+  {
+    PluginCatalogActivity book;
+    book.manifest.downloadReq.url = "https://h/book";
+    book.manifest.downloadReq.headers = {{"X", "{token}{token}{token}"}};
+    book.manifest.password = true;
+    book.unauthorized = 1;
+    pluginhttp::minted.assign(5462, 't');
+    assert(book.downloadBook(item) == HttpDownloader::REQUEST_TOO_LARGE);
+    assert(book.attempts == 1 && book.savedToken == pluginhttp::minted && book.events == 0);
   }
   for (bool fitsAfterRefresh : {false, true}) {
     PluginCatalogActivity book;
@@ -415,21 +458,39 @@ int main() {
     const std::string url = "https://h/" + book.token;
     book.unauthorized = 1;
     int initial = library::changes, writes = Storage.sidecars;
-    assert(book.downloadBook(item) == (fitsAfterRefresh ? HttpDownloader::OK : HttpDownloader::HTTP_ERROR));
+    assert(book.downloadBook(item) == HttpDownloader::OK);
     assert(book.attempts == 2 && book.urls[0] == url && book.urls[1] == url);
     assert(book.fileHeaders[0][0].second != book.fileHeaders[1][0].second);
-    assert(book.files == fitsAfterRefresh && book.events == book.files);
-    assert(library::changes == initial + book.files && Storage.sidecars == writes + book.files);
-    assert(book.tokenSaves == book.files);
+    assert(book.files == 1 && book.events == 1);
+    assert(library::changes == initial + book.files && Storage.sidecars == writes + fitsAfterRefresh);
+    assert(book.tokenSaves == 1 && book.savedToken == pluginhttp::minted);
     if (fitsAfterRefresh) assert(Storage.contents == std::string(16383, 'b') + "x");
   }
-  PluginCatalogActivity saved;
-  saved.growTokenAfterSave = true;
-  saved.manifest.downloadReq.url = "https://h/book";
-  saved.manifest.sidecarPath = "/sidecar";
-  saved.manifest.sidecarBody = "{token}";
-  assert(saved.downloadBook(item) == HttpDownloader::OK && saved.files == 1 && saved.events == 1);
-  assert(Storage.contents == "old");
+  for (bool canSave : {true, false}) {
+    PluginCatalogActivity book;
+    book.manifest.password = true;
+    book.manifest.downloadReq.url = "https://h/api";
+    book.manifest.downloadReq.method = "POST";
+    book.manifest.dlUrlPath = "url";
+    book.saveWorks = canSave;
+    pluginhttp::nextStatus = 401;
+    pluginhttp::replayStatus = 500;
+    int calls = pluginhttp::calls;
+    assert(book.downloadBook(item) == HttpDownloader::HTTP_ERROR);
+    assert(pluginhttp::calls == calls + 1 + canSave && book.attempts == 0 && book.tokenSaves == 1);
+    assert(book.savedToken == (canSave ? pluginhttp::minted : ""));
+    pluginhttp::nextStatus = pluginhttp::replayStatus = 200;
+  }
+  for (bool present : {true, false}) {
+    PluginCatalogActivity basic;
+    basic.token.assign(4096, 'x');
+    basic.manifest.dlUser = "{token}{token}{token}{token}";
+    basic.manifest.dlPass = present ? "pass" : "{query_raw}";
+    PluginCatalogActivity::DownloadCredentials credentials;
+    pluginhttp::RequestSpec req;
+    assert(basic.buildRequest(req, "url", "", {}, nullptr, {}, false, false, &credentials) == !present);
+    assert(credentials.user.empty() && credentials.password.empty());
+  }
   PluginCatalogActivity emptyBook;
   emptyBook.directory = "/books";
   emptyBook.manifest.downloadReq.url = "{url}";
@@ -441,11 +502,11 @@ int main() {
     entry.base = "https://h";
     entry.files = {"manifest.json", "///" + std::string(16384 + delta - 10, 'x')};
     Storage.directories = Storage.renames = 0;
-    assert(bundle.downloadBundle(entry) == (delta <= 0 ? HttpDownloader::OK : HttpDownloader::HTTP_ERROR));
+    assert(bundle.downloadBundle(entry) == (delta <= 0 ? HttpDownloader::OK : HttpDownloader::REQUEST_TOO_LARGE));
     if (delta <= 0) {
       assert(bundle.urls.at(1) == "https://h/" + entry.files[1].substr(3));
       assert(bundle.files == 2 && Storage.renames == 2 && bundle.events == 1);
-    } else assert(bundle.files == 0 && Storage.renames == 0 && Storage.directories == 0 && bundle.events == 0);
+    } else assert(bundle.files == 1 && Storage.renames == 0 && Storage.directories == 1 && bundle.events == 0);
     PluginCatalogActivity auth;
     auth.tokenPresent = false;
     auth.manifest.password = true;
@@ -478,12 +539,14 @@ int main() {
     book.directory = "/Books";
     book.manifest.downloadReq.url = "https://h/book";
     book.manifest.sidecarPath = "/safe";
-    book.manifest.sidecarBody = std::string(16384 + delta - 16, 'b') + "{dest}";
+    book.manifest.sidecarBody = std::string(16384 + delta - 10, 'b') + "{dest}";
     Storage.directories = 0;
     Storage.canMkdir = false;
-    assert(book.downloadBook(item) == (delta <= 0 ? HttpDownloader::OK : HttpDownloader::HTTP_ERROR));
+    const int writes = Storage.sidecars;
+    assert(book.downloadBook(item) == HttpDownloader::OK && book.events == 1);
+    assert(Storage.sidecars == writes + (delta <= 0));
     if (delta <= 0) assert(Storage.contents.ends_with("/book.epub") && !Storage.contents.ends_with("/Books/book.epub"));
-    else assert(book.attempts == 0 && book.events == 0);
+
   }
   std::string shortWire = "https://example/book";
   for (int i = 0; i < 4096; ++i) shortWire += "{query}";

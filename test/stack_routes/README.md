@@ -18,11 +18,14 @@ grouped lookup, header input, and separate styled and plain viewer paths. The
 progress invoker. The Control Center launch routes include the shared
 `open_control_center` helper. The former definition-only frontlight-availability
 probe was removed for the lightless Control Center. The rename, move, and delete
-routes follow the POST handlers at their new linked closure ordinals.
+routes follow the POST handlers at their new linked closure ordinals. The
+linked inflater inlines `decompress_with_limit` into `step_with_limit`, which
+now calls the Huffman tree initializer directly. Cache scratch drop routes use
+the emitted vector destructor and its tail call to `heap_caps_free`.
 
 `x3-default-sleep-event.json` lists the sleep-entry emitter and metadata
 callback paths. The audit adds the linked physical continuation to the emitter
 prefix and checks its complete bound against the loop-task gate.
 
-See `sync-200/integrate-C` in the evidence directory for the call-site
+See `sync-200/integrate-D` in the evidence directory for the call-site
 instructions, callback targets, and route totals.

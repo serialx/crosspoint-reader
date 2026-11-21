@@ -61,6 +61,7 @@ class BmpViewerActivity:public Probe {
  public:
   using Probe::Probe;
   XpUiImageState state{0,3,1,{}};
+  bool longPress=false;
   XpUiEffect updateRust(const XpUiInput&) override;
   XpUiInterest rustInterest(uint32_t) const override;
 };
@@ -179,7 +180,9 @@ template<class Family> void exercise(int kind=-1) {
       family.loop();
       input.pressed=input.held=0;input.released=1u<<unsigned(button);family.loop();
     }
+    if constexpr(std::is_same_v<Family,BmpViewerActivity>) family.longPress=true;
     input={};input.touchFlags=XP_UI_TOUCH_PRESSED|XP_UI_TOUCH_HELD;family.loop();
+    if constexpr(std::is_same_v<Family,BmpViewerActivity>) family.longPress=false;
     input.touchFlags=XP_UI_TOUCH_RELEASED;family.loop();
     assert(family.updates==before && family.effects==effects && family.writes==writes);
     input={};input.released=1u<<unsigned(MappedInputManager::Button::Back);family.loop();
@@ -187,6 +190,15 @@ template<class Family> void exercise(int kind=-1) {
     input={};family.buildOk=renderer.paintOk=true;paint();
     input.released=1u<<unsigned(MappedInputManager::Button::Confirm);family.loop();
     assert(family.updates==before+1);
+    if constexpr(std::is_same_v<Family,BmpViewerActivity>) {
+      input={};
+      family.longPress=true;
+      family.loop();
+      assert(family.updates==before+2 && family.lastEffect.kind==XP_UI_ACTIVATE);
+      family.longPress=false;
+      family.loop();
+      assert(family.updates==before+2);
+    }
   }
 }
 void backPolicies() {

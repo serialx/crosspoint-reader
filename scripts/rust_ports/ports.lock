@@ -1307,8 +1307,6 @@ Legacy.create xp_store_load
 Legacy.create xp_store_mutate
 Legacy.create xp_store_prefix
 Legacy.create xp_store_prune
-Legacy.create xp_store_recent_contains
-Legacy.create xp_store_recent_push
 Legacy.create xp_store_rows_load
 Legacy.create xp_store_rows_save
 Legacy.create xp_store_state_save

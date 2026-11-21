@@ -14,6 +14,6 @@ end = source.index(',\n#endif', start)
 (a.build/'store_document.inc').write_text('const auto document = ' + source[start:end] + ';\n')
 flags = ['-std=c++20', '-O2', '-UNDEBUG', '-DARDUINOJSON_ENABLE_ARDUINO_STRING=0', '-DARDUINOJSON_ENABLE_ARDUINO_STREAM=0', '-DARDUINOJSON_ENABLE_ARDUINO_PRINT=0']
 includes = [HERE/'stubs', ROOT/'test/settings_store/stubs', ROOT/'src', ROOT/'lib/Serialization', ROOT/'rust/crates/xp-ffi/include', a.arduinojson, a.build]
-sources = [HERE/'Stores.cpp', ROOT/'src/RecentBooksStore.cpp', ROOT/'src/CrossPointState.cpp', ROOT/'lib/Serialization/PersistableStore.cpp', a.build/'rust/debug/libreader_store_tests.a']
+sources = [HERE/'Stores.cpp', ROOT/'src/RecentBooksStore.cpp', ROOT/'src/CrossPointState.cpp', ROOT/'src/SleepImageCycle.cpp', ROOT/'lib/Serialization/PersistableStore.cpp', a.build/'rust/debug/libreader_store_tests.a']
 subprocess.run(['c++', *flags, *[f'-I{x}' for x in includes], *map(str, sources), '-o', str(a.build/'stores')], check=True)
-subprocess.run([str(a.build/'stores')], check=True)
+subprocess.run([str(a.build/'stores'), str(HERE/'upstream-sleep-state.json')], check=True)

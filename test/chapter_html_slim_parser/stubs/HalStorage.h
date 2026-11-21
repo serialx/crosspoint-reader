@@ -60,6 +60,10 @@ class HalFile {
     hal_fake::requireImpl(impl_, "available", path_.c_str());
     return file_ ? static_cast<int>(size() - position()) : 0;
   }
+  int read() {
+    uint8_t byte;
+    return read(&byte, 1) == 1 ? byte : -1;
+  }
   size_t read(void* buffer, size_t count) {
     hal_fake::requireImpl(impl_, "read", path_.c_str());
     if (HalFileTest::readLimit) count = HalFileTest::readLimit(path_.c_str(), position(), count);
@@ -89,6 +93,8 @@ class HalFile {
     return (!HalFileTest::allowSeek || HalFileTest::allowSeek(path_.c_str(), pos)) && file_ &&
            std::fseek(file_, static_cast<long>(pos), SEEK_SET) == 0;
   }
+  uint64_t fileSize64() const { return size(); }
+  bool seek64(uint64_t pos) { return pos <= SIZE_MAX && seek(static_cast<size_t>(pos)); }
   bool seekCur(size_t offset) {
     hal_fake::requireImpl(impl_, "seekCur", path_.c_str());
     return file_ && std::fseek(file_, static_cast<long>(offset), SEEK_CUR) == 0;

@@ -590,3 +590,26 @@ fn xtc_outside_diagnostics_preserve_order_and_clip_silence() {
         }
     }
 }
+
+#[test]
+fn image_long_press_requests_confirmation_only_for_eligible_images() {
+    let mut state = ImageState::default();
+    let mut input = Input {
+        action: 1,
+        ..Input::default()
+    };
+    assert_eq!(
+        image_update(&mut state, &input).kind,
+        EffectKind::None as u8
+    );
+    state.can_set_cover = 1;
+    assert_eq!(
+        image_update(&mut state, &input).kind,
+        EffectKind::Activate as u8
+    );
+    input.released = BACK;
+    assert_eq!(
+        image_update(&mut state, &input).kind,
+        EffectKind::Cancel as u8
+    );
+}

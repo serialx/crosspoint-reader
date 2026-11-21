@@ -106,7 +106,7 @@ pub fn image_update(s: &mut ImageState, i: &Input) -> Effect {
         SWIPE_LEFT => 1,
         SWIPE_RIGHT => -1,
         _ => {
-            if i.released & CONFIRM != 0 {
+            if i.released & CONFIRM != 0 || i.action == 1 {
                 return Effect {
                     kind: if s.can_set_cover != 0 {
                         EffectKind::Activate as u8

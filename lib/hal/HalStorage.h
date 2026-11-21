@@ -65,6 +65,7 @@ class HalStorage {
   bool replaceFile(const char* tmpPath, const char* path);
   bool rmdir(const char* path);
 
+  // Read/write opens return false and leave a default handle if the handle allocation fails.
   bool openFileForRead(const char* moduleName, const char* path, HalFile& file);
   bool openFileForRead(const char* moduleName, const std::string& path, HalFile& file);
   bool openFileForRead(const char* moduleName, const String& path, HalFile& file);

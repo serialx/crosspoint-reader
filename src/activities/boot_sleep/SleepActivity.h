@@ -17,7 +17,13 @@ class SleepActivity final : public BootUiActivity {
   void renderSleepRoute(uint8_t route);
   void renderDefaultSleepScreen();
   void renderCustomSleepScreen();
-  void renderCoverSleepScreen();
+  enum class BmpProbe { Invalid, Rendered, NeedsConversion };
+  BmpProbe renderScreenReadyBmp(HalFile& file);
+  enum class BmpSource { Cache, Original };
+  bool renderBmpFile(HalFile& file, BmpSource source, bool originalThresholds = false);
+  bool renderCustomSleepBmp(const std::string& path);
+  bool renderCoverSleepScreen();
+  bool renderBookCoverFile(const std::string& path);
   void renderBitmapSleepScreen(const Bitmap& bitmap, bool preserveBackground = false);
   bool renderSleepOverlayFile(HalFile& file, const char* pathForLog);
   bool renderTransparentOverlayPng(const std::string& path);

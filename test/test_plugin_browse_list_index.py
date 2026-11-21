@@ -18,6 +18,10 @@ url_utils = (ROOT / "src/util/UrlUtils.cpp").read_text()
 start = url_utils.index("bool isServerPath")
 policy += "\nnamespace UrlUtils {\n" + url_utils[start:url_utils.rindex("}  // namespace UrlUtils")] + "\n}\n"
 
+plugin_http = (ROOT / "src/util/PluginHttp.cpp").read_text()
+start = plugin_http.index("std::string escapeUrl(")
+policy += "\nnamespace pluginhttp {\n" + plugin_http[start:plugin_http.index("\n}", start) + 2] + "\n}\n"
+
 def method(name):
     start = source.index(name)
     return source[start:source.index("\n}", start) + 2]
@@ -68,11 +72,13 @@ struct String : std::string {
 namespace pluginhttp {
 using Headers = std::vector<std::pair<std::string, std::string>>;
 struct RequestSpec { std::string url, method, body; Headers headers; };
+std::string escapeUrl(const std::string&);
 std::string body;
 std::vector<std::string> pageUrls;
 int requestToFile(int*, const std::string& url, const std::string&, const std::string&, const Headers&,
                   const char*, size_t) {
-  pageUrls.push_back(url);
+  auto escaped = escapeUrl(url);
+  pageUrls.push_back(escaped.empty() ? url : escaped);
   return 200;
 }
 Headers sent;
@@ -357,7 +363,7 @@ int main() {
   pluginhttp::RequestSpec aliases;
   assert(idOnly.buildRequest(aliases, "/{title}?id={id_enc}&title={title_enc}&url={url_enc}", "{title}",
                              {{"Title", "{title}"}}, &item));
-  assert(aliases.url == "/A%20/%20Caf%C3%A9?id=a%2B%2F1&title=A%20%2F%20Caf%C3%A9&url=http%3A%2F%2Fx%2Fy%3Fz%3D2");
+  assert(pluginhttp::escapeUrl(aliases.url) == "/A%20/%20Caf%C3%A9?id=a%2B%2F1&title=A%20%2F%20Caf%C3%A9&url=http%3A%2F%2Fx%2Fy%3Fz%3D2");
   assert(aliases.body == item.title && aliases.headers.at(0).second == item.title);
 
   pluginhttp::body = R"({"lists":[{"title":"Mapped","key":")" + std::string(4096, ' ') + R"("}]})";
@@ -370,7 +376,7 @@ int main() {
     bool fits = idOnly.buildRequest(out, "/{list_id_enc} ", body, {{"X", "v"}});
     assert(fits == (delta <= 0));
     if (fits) {
-      assert(out.url == escaped);
+      assert(pluginhttp::escapeUrl(out.url) == escaped);
       assert(out.body == body && out.headers.size() == 1);
     } else assert(out.url.empty() && out.body.empty() && out.headers.empty());
   }
@@ -446,16 +452,26 @@ int main() {
     assert(book.downloadBook(item) == HttpDownloader::REQUEST_TOO_LARGE);
     assert(book.attempts == 1 && book.savedToken == pluginhttp::minted && book.events == 0);
   }
+  {
+    PluginCatalogActivity book;
+    pluginhttp::RequestSpec req;
+    PluginCatalogActivity::DownloadCredentials credentials;
+    book.token.assign(4096, ' ');
+    assert(book.buildRequest(req, "https://h/{token}", "", {}, &item, {}, false, false, &credentials));
+    assert(req.url == "https://h/" + book.token);
+    assert(req.url.capacity() < 2 * req.url.size());
+    assert(pluginhttp::escapeUrl(req.url).size() == 10 + 3 * book.token.size());
+  }
   for (bool fitsAfterRefresh : {false, true}) {
     PluginCatalogActivity book;
     book.manifest.password = true;
-    book.manifest.downloadReq.url = "https://h/{token}";
+    book.manifest.downloadReq.url = "https://h/with space/{token}";
     book.manifest.downloadReq.headers = {{"X", "{token}"}};
     book.manifest.sidecarPath = "{dest}.json";
     book.manifest.sidecarBody = std::string(16383, 'b') + "{token}";
     book.token = fitsAfterRefresh ? "xx" : "x";
     pluginhttp::minted = fitsAfterRefresh ? "x" : "xx";
-    const std::string url = "https://h/" + book.token;
+    const std::string url = "https://h/with%20space/" + book.token;
     book.unauthorized = 1;
     int initial = library::changes, writes = Storage.sidecars;
     assert(book.downloadBook(item) == HttpDownloader::OK);

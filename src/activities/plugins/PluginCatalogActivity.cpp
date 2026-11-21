@@ -489,8 +489,17 @@ bool PluginCatalogActivity::buildRequest(pluginhttp::RequestSpec& out, std::stri
   const auto field = [&](size_t index, std::string_view lead, std::string_view text, bool escape, std::string* dest) {
     auto& resolver = escape && literalUrl ? literal : vars;
     size_t before = remaining;
-    if (dest) dest->reserve(sizes[index]);
-    if (!resolver.expand(lead, text, escape, remaining, dest, escape && origin ? &rawOrigin : nullptr, origin))
+    if (dest) {
+      size_t rawSize = sizes[index];
+      if (escape) {
+        // Keep the substituted URL across retries. Transport escapes it for each send.
+        size_t spare = rawSize;
+        if (!resolver.expand(lead, text, false, spare)) return false;
+        rawSize -= spare;
+      }
+      dest->reserve(rawSize);
+    }
+    if (!resolver.expand(lead, text, escape && !dest, remaining, dest, escape && origin ? &rawOrigin : nullptr, origin))
       return false;
     sizes[index] = before - remaining;
     return true;
@@ -1441,7 +1450,11 @@ HttpDownloader::DownloadError PluginCatalogActivity::downloadBook(const Item& it
     dest += filename;
   }
   if (!protectedpaths::isPluginPath(dest)) return HttpDownloader::FILE_ERROR;
-  const auto fetch = [&] { return downloadFile(file.url, dest, credentials.user, credentials.password, file.headers); };
+  const auto fetch = [&] {
+    const std::string escaped = pluginhttp::escapeUrl(file.url);
+    return downloadFile(escaped.empty() ? file.url : escaped, dest, credentials.user, credentials.password,
+                        file.headers);
+  };
   session.reset();
   auto result = fetch();
   if (result == HttpDownloader::UNAUTHORIZED && sendHeaders && manifest.hasPasswordGrant()) {

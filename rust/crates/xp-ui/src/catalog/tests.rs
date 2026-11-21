@@ -301,10 +301,10 @@ fn frozen_plugin_input_and_paging() {
         }
     }
     for text in [b"{page}".as_slice(), b"{page}{page}", b"a{page}b"] {
-        assert!(page_template(text));
+        assert_eq!(page_template(text), 1);
     }
     for text in [b"".as_slice(), b"{PAGE}", b"{page", b"page}", b"{pa\0ge}"] {
-        assert!(!page_template(text));
+        assert_eq!(page_template(text), 0);
     }
     for count in [0, 1, 16] {
         for page in [1, 2, 32768, i32::MAX] {

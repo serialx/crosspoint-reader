@@ -25,7 +25,6 @@
 
 #include "CrossPointSettings.h"
 #include "MappedInputManager.h"
-#include "PluginCatalogPaging.h"
 #include "activities/reader/DefinitionPayload.h"
 #include "activities/settings/PluginHubInstallActivity.h"
 #include "activities/util/ConfirmationActivity.h"
@@ -412,8 +411,11 @@ std::string PluginCatalogActivity::substituted(std::string tpl, const Item* item
   substituteAll(tpl, "{plugin_api}", num);
   snprintf(num, sizeof(num), "%d", static_cast<int>(ui.page));
   substituteAll(tpl, "{page}", num);
-  snprintf(num, sizeof(num), "%d", manifest.pageSize + 1);
+  snprintf(num, sizeof(num), "%d", plugincatalogpaging::limitFor(browsePaging(), manifest.pageSize));
   substituteAll(tpl, "{limit}", num);
+  const auto offset = static_cast<unsigned long long>(std::max<int32_t>(1, ui.page) - 1) * manifest.pageSize;
+  snprintf(num, sizeof(num), "%llu", offset);
+  substituteAll(tpl, "{offset}", num);
   substituteAll(tpl, "{query}", urlEncodeQuery(searchQuery));
   substituteAll(tpl, "{query_raw}", searchQuery);
   if (item) {
@@ -846,6 +848,10 @@ const std::string& PluginCatalogActivity::activeBrowseBody() const {
   return pick(manifest.browseLists[ui.current_list].body, manifest.browseReq.body);
 }
 
+plugincatalogpaging::Paging PluginCatalogActivity::browsePaging() const {
+  return plugincatalogpaging::pagingOf(activeBrowseUrl(), activeBrowseBody(), manifest.browseReq.headers);
+}
+
 void PluginCatalogActivity::fetchPage(const int newPage) {
   if (!manifest.isXmlList()) {
     ModelLock lock(*this);
@@ -861,10 +867,8 @@ bool PluginCatalogActivity::parseBrowseResponse() {
   ResourceLock resources(*this);
   if (manifest.isXmlList()) return parseXmlList();
 
-  // Requests with {page} are already sliced server-side. Static JSON files
-  // need a bounded client-side page window into the streamed response.
-  const bool localPaging =
-      plugincatalogpaging::isStaticFeed(activeBrowseUrl(), activeBrowseBody(), manifest.browseReq.headers);
+  const auto paging = browsePaging();
+  const bool localPaging = paging == plugincatalogpaging::Paging::Static;
   const size_t pageOffset =
       localPaging ? static_cast<size_t>(std::max<int32_t>(0, ui.page - 1)) * static_cast<size_t>(manifest.pageSize) : 0;
 
@@ -903,7 +907,7 @@ bool PluginCatalogActivity::parseBrowseResponse() {
       fail(StrId::STR_PARSE_FEED_FAILED);
       return false;
     }
-    rawHasMore = localPaging ? filteredWindow.hasMore() : serverWindow.hasMore();
+    rawHasMore = localPaging ? filteredWindow.hasMore(paging) : serverWindow.hasMore(paging);
   }
 
   releaseRows();
@@ -942,7 +946,7 @@ bool PluginCatalogActivity::parseBrowseResponse() {
     fail(StrId::STR_PARSE_FEED_FAILED);
     return false;
   }
-  const bool more = manifest.filtersCompatibility() ? rawHasMore : visibleWindow.hasMore();
+  const bool more = manifest.filtersCompatibility() ? rawHasMore : visibleWindow.hasMore(paging);
   {
     ModelLock lock(*this);
     ui.plugin_flags = (ui.plugin_flags & ~XP_UI_CATALOG_MORE) | (more ? XP_UI_CATALOG_MORE : 0);

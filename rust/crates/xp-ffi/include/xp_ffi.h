@@ -1583,6 +1583,9 @@ int32_t xp_inflate_small_init(void* state, size_t state_bytes, uint8_t zlib_wrap
 int32_t xp_inflate_small_step(void* state, const uint8_t* input, size_t in_len, uint8_t more_input, uint8_t* output,
                               size_t out_len, size_t* out_pos, uint8_t wrapping_window, size_t* consumed,
                               size_t* produced, size_t out_max);
+int32_t xp_inflate_small_step_segmented(void* state, const uint8_t* input, size_t in_len, uint8_t more_input,
+                                        uint8_t* const* segments, size_t* out_pos, size_t* consumed, size_t* produced,
+                                        size_t out_max);
 
 // Library CLX1. All descriptors and buffers are borrowed for the call only.
 // Build status preserves the terminal summary in C++ before dirty-marker cleanup.

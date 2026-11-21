@@ -113,6 +113,7 @@ add_subdirectory(home_button)
 add_subdirectory(button_press_navigation)
 
 add_subdirectory(inflate_stream)
+add_subdirectory(inflate_reader)
 add_subdirectory(zip_file)
 add_subdirectory(fs_helpers)
 add_subdirectory(http_header)

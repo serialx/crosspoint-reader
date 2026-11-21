@@ -35,15 +35,21 @@ bool extractChunkSlice(HalFile& file, uint32_t compressedOffset, uint32_t compre
     return false;
   };
   if (extractSize == 0) return true;
-  auto window = makeUniqueNoThrow<uint8_t[]>(InflateReader::RING_BYTES);
-  if (!window) return fail(ExtractError::LowMemory);
+  // Claim large runs before allocating the smaller chunk buffers.
+  std::unique_ptr<uint8_t[]> window[InflateReader::RING_SEGMENTS];
+  uint8_t* segments[InflateReader::RING_SEGMENTS];
+  for (size_t i = 0; i < InflateReader::RING_SEGMENTS; ++i) {
+    window[i] = makeUniqueNoThrow<uint8_t[]>(InflateReader::RING_SEGMENT_BYTES);
+    if (!window[i]) return fail(ExtractError::LowMemory);
+    segments[i] = window[i].get();
+  }
 
   auto src = makeUniqueNoThrow<ChunkSource>();
   if (!src) return fail(ExtractError::LowMemory);
   src->file = &file;
   src->remaining = compressedSize;
   if (!file.seekSet(compressedOffset)) return fail(ExtractError::ReadError);
-  if (!src->reader.initWithRing(window.get())) return fail(ExtractError::LowMemory);
+  if (!src->reader.initWithSegments(segments)) return fail(ExtractError::LowMemory);
   src->reader.setFill(&chunkReadCb, src.get());
 
   auto buf = makeUniqueNoThrow<uint8_t[]>(XP_DICTIONARY_ZIP_OUTPUT_BYTES);

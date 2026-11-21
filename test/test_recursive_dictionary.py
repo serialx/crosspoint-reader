@@ -71,6 +71,11 @@ constants = re.sub(r"^constexpr ", "[[maybe_unused]] constexpr ", constants, fla
 navigation = block(viewer, "void DictionaryDefinitionActivity::applyNavigation")
 loop = block(viewer, "void DictionaryDefinitionActivity::loop()")
 input_prefix = loop[loop.index("  int x = 0, y = 0;"):loop.index("  XpUiEffect effect;")]
+physical = (ROOT / "src/activities/reader/RustEpubResources.cpp").read_text()
+layout_callback = block(physical, ".child_definition_layout = ").split(" = ", 1)[1]
+if '--mutate-hold-padding' in sys.argv:
+    layout_callback = layout_callback.replace('containsUnpadded(', 'contains(')
+input_prefix = input_prefix.replace('HeaderBackTapTarget::contains(x, y)', 'nativeHeaderHold(x, y)')
 if '--mutate-input-order' in sys.argv:
     input_prefix = input_prefix.replace('  auto input = dictionaryUiInput(mappedInput);\n', '')
     input_prefix = input_prefix.replace('  input.touch_x', '  auto input = dictionaryUiInput(mappedInput);\n  input.touch_x', 1)
@@ -284,6 +289,13 @@ bool buildDictionaryHtmlPages(Renderer& renderer, const std::string&, uint16_t, 
 }
 std::string htmlToPlainText(const std::string& text, char) { return text; }
 using GfxRenderer = Renderer;
+static GfxRenderer layoutRenderer;
+static GfxRenderer* target = &layoutRenderer;
+static XpUiDefinitionLayout dictionaryUiDefinitionLayout(GfxRenderer&) { return {}; }
+static bool nativeHeaderHold(int x, int y) {
+  XpUiDefinitionLayout layout{};
+  return (''' + layout_callback + r''')(&layout, x, y);
+}
 struct RustActivityAdapter {
   RustActivityAdapter() = default;
   RustActivityAdapter(const char*, GfxRenderer&, MappedInputManager&) {}
@@ -598,18 +610,18 @@ int main() {
   };
   for (const auto& target : targets) {
     assert(HeaderBackTapTarget::contains(target.x, target.y) == target.tap);
-    assert(HeaderBackTapTarget::containsUnpadded(target.x, target.y) == target.hold);
   }
   for (const bool controlsEnabled : {false, true}) {
     SETTINGS.touchReaderControls = controlsEnabled;
-    for (const bool onHeader : {false, true}) {
+    for (const auto& target : targets) {
+      const bool onHeader = target.hold;
       DictionaryDefinitionActivity touchView;
       touchView.lookup = std::make_unique<DictionaryDefinitionActivity::LookupState>(dictionary);
       touchView.content.text = dictionary.entries.at(10);
       assert(touchView.prepareDefinition(touchView.content));
       touchView.mappedInput.longPress = true;
-      touchView.mappedInput.touchX = onHeader ? 10 : 50;
-      touchView.mappedInput.touchY = onHeader ? 10 : 0;
+      touchView.mappedInput.touchX = target.x;
+      touchView.mappedInput.touchY = target.y;
       const unsigned readsBeforeTouch = dictionary.reads;
       touchView.handleBack();
       assert(touchView.mappedInput.contactSuppressed && dictionary.reads == readsBeforeTouch);
@@ -734,6 +746,7 @@ owner_sources = [
     ROOT / 'rust/crates/xp-ffi/src/app/epub/child.rs',
     ROOT / 'rust/crates/xp-ffi/src/app/epub/child_result.rs',
     ROOT / 'src/activities/reader/RustReaderLookup.cpp',
+    ROOT / "src/activities/reader/RustEpubResources.cpp",
     parent_adapter, Path(__file__),
 ]
 owner_hashes = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in owner_sources}

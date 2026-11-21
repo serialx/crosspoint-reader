@@ -133,7 +133,7 @@
      while (1) {
        String argName;
        String argValue;
-@@ -434,70 +469,81 @@
+@@ -434,70 +469,83 @@
        String argFilename;
        bool argIsFile = false;
 
@@ -160,6 +160,7 @@
 -            //use GET to set the filename if uploading using blob
 -            if (argFilename == F("blob") && hasArg(FPSTR(filename))) {
 -              argFilename = arg(FPSTR(filename));
+-            }
 +            argName = line.substring(nameStart + 2);
 +            if (argName.length() != line.length() - nameStart - 2) return false;
 +            nameStart = argName.indexOf('=');
@@ -171,13 +172,13 @@
 +              if (argFilename.length() + nameStart + 3 != argName.length()) return false;
 +              argName.remove(argName.indexOf('"'));
 +              argIsFile = true;
-             }
-           }
++            }
++          }
 +          if (argIsFile && argFilename == F("blob") && hasArg(FPSTR(filename))) {
 +            String overrideName = arg(FPSTR(filename));
 +            if (!overrideName.c_str() || !overrideName.length()) return false;
 +            argFilename = std::move(overrideName);
-+          }
+           }
            log_v("PostArg Name: %s", argName.c_str());
            using namespace mime;
            argType = FPSTR(mimeTable[txt].mimeType);
@@ -201,7 +202,9 @@
 -              line = client.readStringUntil('\r');
 -              client.readStringUntil('\n');
 -              if (line.startsWith("--" + boundary)) {
-+              if (!upload_ingress::readHeaderLine(line, read, kind, true)) return false;
++              bool endedAtEof = false;
++              if (!upload_ingress::readHeaderLine(line, read, kind, true, &endedAtEof) &&
++                  !(endedAtEof && len && consumed == len && delimiter(true))) return false;
 +              if (delimiter(false) || delimiter(true)) {
                  break;
                }
@@ -218,14 +221,15 @@
 -            RequestArgument &arg = _postArgs[_postArgsLen++];
 -            arg.key = argName;
 -            arg.value = argValue;
+-
+-            if (line == ("--" + boundary + "--")) {
 +            // Upload routing uses only the query table, including at file START.
 +            if (!fileUpload) {
 +              RequestArgument &arg = _postArgs[_postArgsLen++];
 +              arg.key = std::move(argName);
 +              arg.value = std::move(argValue);
 +            }
-
--            if (line == ("--" + boundary + "--")) {
++
 +            ++textFields;
 +            if (delimiter(true)) {
                log_v("Done Parsing POST");
@@ -249,7 +253,7 @@
              _currentUpload->totalSize = 0;
              _currentUpload->currentSize = 0;
              log_v("Start File: %s Type: %s", _currentUpload->filename.c_str(), _currentUpload->type.c_str());
-@@ -511,7 +557,7 @@
+@@ -511,7 +559,7 @@
              snprintf(fastBoundary, fastBoundaryLen, "\r\n--%s", boundary.c_str());
              int boundaryPtr = 0;
              while (true) {
@@ -258,7 +262,7 @@
                if (ret < 0) {
                  // Unexpected, we should have had data available per above
                  return _parseFormUploadAborted();
-@@ -539,6 +585,17 @@
+@@ -539,6 +587,17 @@
                  }
                }
              }
@@ -276,7 +280,7 @@
              // Found the boundary string, finish processing this file upload
              if (_currentHandler && _currentHandler->canUpload(*this, _currentUri)) {
                _currentHandler->upload(*this, _currentUri, *_currentUpload);
-@@ -552,9 +609,7 @@
+@@ -552,9 +611,7 @@
              if (!client.connected()) {
                return _parseFormUploadAborted();
              }
@@ -287,7 +291,7 @@
                log_v("Done Parsing POST");
                break;
              }
-@@ -564,6 +619,7 @@
+@@ -564,6 +621,7 @@
        }
      }
 
@@ -295,7 +299,7 @@
      int iarg;
      int totalArgs = ((WEBSERVER_MAX_POST_ARGS - _postArgsLen) < _currentArgCount) ? (WEBSERVER_MAX_POST_ARGS - _postArgsLen) : _currentArgCount;
      for (iarg = 0; iarg < totalArgs; iarg++) {
-@@ -574,7 +630,11 @@
+@@ -574,7 +632,11 @@
      if (_currentArgs) {
        delete[] _currentArgs;
      }

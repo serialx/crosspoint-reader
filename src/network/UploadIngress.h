@@ -13,10 +13,11 @@ constexpr size_t MAX_ARGUMENTS = 32;
 enum class LineKind { Request, Upload, Other };
 
 template <typename Read>
-bool readHeaderLine(String& out, Read read, LineKind kind, bool allowNul = false) {
+bool readHeaderLine(String& out, Read read, LineKind kind, bool allowNul = false, bool* endedAtEof = nullptr) {
   out.remove(0);
   for (;;) {
     int c = read();
+    if (c < 0 && endedAtEof) *endedAtEof = true;
     if (c < 0 || (!allowNul && c == 0) || c == '\n') return false;
     if (c == '\r') return read() == '\n';
     if (kind == LineKind::Request && out.length() == 12) {
@@ -96,9 +97,9 @@ bool parseUploadArguments(const String& query, RequestArgument*& args, int& coun
     unsigned int end = separator < 0 ? query.length() : (unsigned int)separator;
     int equal = query.indexOf('=', first);
     if (equal >= 0 && (unsigned int)equal < end) {
-      RequestArgument &arg = args[count];
-      if (!decodeArgument(query, first, equal, arg.key) ||
-          !decodeArgument(query, equal + 1, end, arg.value)) return false;
+      RequestArgument& arg = args[count];
+      if (!decodeArgument(query, first, equal, arg.key) || !decodeArgument(query, equal + 1, end, arg.value))
+        return false;
       ++count;
     }
     first = end + 1;

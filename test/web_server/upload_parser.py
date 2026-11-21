@@ -95,7 +95,7 @@ void RequestHandler::upload(WebServer& web,const String&,HTTPUpload& p){
     if(p.status==UPLOAD_FILE_WRITE)pending.append((const char*)p.buf,p.currentSize);
     if(p.status==UPLOAD_FILE_END)committed.push_back(pending);
   }
-void checkRouting(bool reverse, bool blob, bool replace) {
+void checkRouting(bool reverse, bool blob, bool replace, bool trailing = false, bool crlf = true) {
   WebServer web;
   NetworkClient client;
   std::string body;
@@ -109,7 +109,9 @@ void checkRouting(bool reverse, bool blob, bool replace) {
   std::string params = "filename=\"" + filename + "\"";
   if (reverse) params += "; name=\"file\"";
   else params = "name=\"file\"; " + params;
-  body += "--b\r\nContent-Disposition: form-data; " + params + "\r\n\r\ncomplete\r\n--b--\r\n";
+  body += "--b\r\nContent-Disposition: form-data; " + params + "\r\n\r\ncomplete\r\n";
+  if (trailing) field("comment", "after");
+  body += crlf ? "--b--\r\n" : "--b--";
   std::string query = "path=/books";
   if (blob) query += "&filename=a.epub";
   if (replace) query += "&overwrite=1";
@@ -127,6 +129,8 @@ int main() {
   for (bool reverse : {false, true})
     for (bool blob : {false, true})
       for (bool replace : {false, true}) checkRouting(reverse, blob, replace);
+  for (bool trailing : {false, true})
+    for (bool crlf : {false, true}) checkRouting(false, false, true, trailing, crlf);
   const std::string dir(24,'a');
   const std::string fileStart="Content-Disposition: form-data; name=\"file\"; filename=\"a.txt\"\r\n\r\n";
   const std::string closed="--b\r\n"+fileStart+"first\r\n--b--\r\n";
@@ -175,4 +179,4 @@ int main() {
         env = dict(os.environ, WEB_PARSER_REPLACE=replace, WEB_PARSER_PATH=directory, WEB_PARSER_NAME=filename,
                    WEB_PARSER_OVERWRITE=overwrite, WEB_PARSER_PAYLOAD=payload)
         subprocess.run([handler], env=env, stdout=subprocess.DEVNULL, check=True)
-    print('8 parser-to-handler routing cases passed')
+    print('12 parser-to-handler routing cases passed')

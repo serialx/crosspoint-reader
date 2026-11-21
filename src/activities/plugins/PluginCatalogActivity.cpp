@@ -281,6 +281,7 @@ bool PluginCatalogActivity::loadManifest() {
     entry.noticeCancel = notice["cancel"] | "";
     if (!entry.title.empty()) manifest.browseLists.push_back(std::move(entry));
   }
+  manifest.fixedListCount = manifest.browseLists.size();
   manifest.searchUrl = browse["search"]["url"] | "";
   manifest.searchBody = browse["search"]["body"] | "";
   manifest.xmlItem = browse["item"] | "";
@@ -352,10 +353,10 @@ bool PluginCatalogActivity::loadBrowseListIndex() {
   }
 
   ResourceLock resources(*this);
-  manifest.browseLists.clear();
-  manifest.browseLists.reserve(std::min(lists.size(), MAX_BROWSE_LISTS));
+  manifest.browseLists.resize(manifest.fixedListCount);
+  manifest.browseLists.reserve(manifest.fixedListCount + std::min(lists.size(), MAX_BROWSE_LISTS));
   for (JsonVariantConst l : lists) {
-    if (manifest.browseLists.size() >= MAX_BROWSE_LISTS) {
+    if (manifest.browseLists.size() - manifest.fixedListCount >= MAX_BROWSE_LISTS) {
       LOG_ERR("PCAT", "browse list index truncated to %u lists", static_cast<unsigned>(MAX_BROWSE_LISTS));
       break;
     }
@@ -370,7 +371,7 @@ bool PluginCatalogActivity::loadBrowseListIndex() {
     entry.noticeCancel = notice["cancel"] | "";
     if (!entry.title.empty() && !entry.url.empty()) manifest.browseLists.push_back(std::move(entry));
   }
-  if (manifest.browseLists.empty()) {
+  if (manifest.browseLists.size() == manifest.fixedListCount) {
     LOG_ERR("PCAT", "browse list index has no valid lists: %s", url.c_str());
     return false;
   }
@@ -580,6 +581,7 @@ void PluginCatalogActivity::enterCatalog() {
     session.reset(new (std::nothrow) freeink::SecureHttpClient());
     if (session) session->setReuse(true);
 
+    listIndexLoaded = false;
     if (!loadManifest()) {
       fail(StrId::STR_PLUGIN_MANIFEST_INVALID);
       return;
@@ -662,7 +664,8 @@ void PluginCatalogActivity::onExit() {
 }
 
 void PluginCatalogActivity::startBrowse() {
-  const bool needsListAuth = (!manifest.browseListsUrl.empty() && manifest.browseLists.empty()) || wantsListPicker();
+  const bool needsListIndex = !manifest.browseListsUrl.empty() && !listIndexLoaded;
+  const bool needsListAuth = needsListIndex || wantsListPicker();
   if (needsListAuth) {
     // Dynamic list indexes and list pickers may both use {token}/{cfg.KEY}, so
     // resolve credentials before either path. Token-less catalogs skip the gate.
@@ -677,11 +680,12 @@ void PluginCatalogActivity::startBrowse() {
       return;
     }
   }
-  if (!manifest.browseListsUrl.empty() && manifest.browseLists.empty()) {
-    if (!loadBrowseListIndex()) {
+  if (needsListIndex) {
+    if (!loadBrowseListIndex() && manifest.fixedListCount == 0) {
       fail(StrId::STR_FETCH_FEED_FAILED);
       return;
     }
+    listIndexLoaded = true;
   }
   // Browse lists apply to JSON catalogs; XML lists navigate by folder instead.
   if (wantsListPicker()) {
@@ -1322,7 +1326,7 @@ void PluginCatalogActivity::catalogEffect(const XpUiEffect& effect) {
 void PluginCatalogActivity::retryBrowse() {
   if (getState() == State::NO_TOKEN && manifest.hasDeviceCode()) {
     beginAuth();
-  } else if ((!manifest.browseListsUrl.empty() && manifest.browseLists.empty()) || wantsListPicker()) {
+  } else if ((!manifest.browseListsUrl.empty() && !listIndexLoaded) || wantsListPicker()) {
     startBrowse();
   } else {
     beginLoading();

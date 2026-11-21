@@ -45,6 +45,7 @@ struct PluginCatalogActivity {
     };
     std::string browseListsUrl = "index";
     std::vector<BrowseList> browseLists;
+    size_t fixedListCount = 0;
   } manifest;
   struct ResourceLock {
     explicit ResourceLock(PluginCatalogActivity&) { assert(String::live == 0); }
@@ -78,6 +79,19 @@ int main() {
     assert(valid.manifest.browseLists.at(i).title == "List " + std::to_string(i));
     assert(valid.manifest.browseLists.at(i).url == "page");
   }
+
+  PluginCatalogActivity combined;
+  combined.manifest.browseLists.push_back({"Fixed", "fixed"});
+  combined.manifest.fixedListCount = 1;
+  pluginhttp::body = "invalid JSON";
+  assert(!combined.loadBrowseListIndex());
+  assert(combined.manifest.browseLists.size() == 1);
+  assert(combined.manifest.browseLists.front().title == "Fixed");
+  pluginhttp::body = R"({"lists":[{"title":"Dynamic","url":"dynamic"}]})";
+  assert(combined.loadBrowseListIndex());
+  assert(combined.manifest.browseLists.size() == 2);
+  assert(combined.manifest.browseLists.front().title == "Fixed");
+  assert(combined.manifest.browseLists.back().title == "Dynamic");
 }
 """
 

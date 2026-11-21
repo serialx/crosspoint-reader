@@ -86,6 +86,7 @@ class PluginCatalogActivity final : public CatalogActivity {
     std::vector<BrowseList> browseLists;
     // Optional remote index that supplies the named JSON views dynamically.
     std::string browseListsUrl;
+    size_t fixedListCount = 0;
     // JSON search overrides URL/body independently; empty fields reuse browse.
     std::string searchUrl, searchBody;
     bool hasSearch() const { return (!searchUrl.empty() || !searchBody.empty()) && browseFormat != "xml"; }
@@ -149,6 +150,7 @@ class PluginCatalogActivity final : public CatalogActivity {
   pluginhttp::Headers config;  // {cfg.KEY} values
   std::string searchQuery;
   bool searchActive = false;
+  bool listIndexLoaded = false;
   // Reuse browse TLS; release in the picker and before a single-file download.
   std::unique_ptr<freeink::SecureHttpClient> session;
   // XML-list folder navigation: current container URL and the trail back out.

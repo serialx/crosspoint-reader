@@ -34,7 +34,7 @@ set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
 set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-set(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
+get_filename_component(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
 
 set(XP_FFI_HOST_FEATURES "chapter-test,chapter-trace,package-trace,display-panel,app-test,section-test,sd-font-catalog" CACHE STRING "Cargo features for host tests")
 if(NOT XP_FFI_HOST_FEATURES MATCHES "(^|,)display-panel(,|$)")

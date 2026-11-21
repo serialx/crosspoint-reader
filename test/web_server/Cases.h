@@ -378,7 +378,7 @@ int main() {
 
   if (std::getenv("WEB_STATIC_SCRATCH_CHECK")) {
     for (const char* path : {"/", "/files", "/js/jszip.min.js", "/assets/web.css", "/assets/icons.svg",
-                             "/assets/crosspoint-icon.svg", "/settings", "/fonts", "/plugins-run"}) {
+                             "/assets/crosspoint-icon.svg", "/settings", "/fonts", "/plugins-run", "/js/epub-optimizer.js", "/js/plugin-host.js"}) {
       record(path, [&](auto& app) {
         app.running = false;
         app.begin();
@@ -407,7 +407,7 @@ int main() {
         }
       });
     }
-    std::cerr << "static scratch: 63 cases released before all header/send callbacks\n";
+    std::cerr << "static scratch released before all header/send callbacks\n";
     return 0;
   }
   if (const char* check = std::getenv("WEB_STRING_LIFETIME_CHECK")) {
@@ -2014,7 +2014,7 @@ int main() {
     });
   }
   for (const char* path : {"/", "/files", "/js/jszip.min.js", "/assets/web.css", "/assets/icons.svg",
-                           "/assets/crosspoint-icon.svg", "/settings", "/fonts", "/plugins-run"}) {
+                           "/assets/crosspoint-icon.svg", "/settings", "/fonts", "/plugins-run", "/js/epub-optimizer.js", "/js/plugin-host.js"}) {
     record((std::string("life-static:") + path).c_str(), [&](auto& app) {
       app.running = false;
       app.begin();
@@ -2046,7 +2046,7 @@ int main() {
     });
   }
   for (const char* path : {"/", "/files", "/js/jszip.min.js", "/assets/web.css", "/assets/icons.svg",
-                           "/assets/crosspoint-icon.svg", "/settings", "/fonts", "/plugins-run"}) {
+                           "/assets/crosspoint-icon.svg", "/settings", "/fonts", "/plugins-run", "/js/epub-optimizer.js", "/js/plugin-host.js"}) {
     record((std::string("life-static-cstring:") + path).c_str(), [&](auto& app) {
       host::chunkStaticBodies = true;
       app.running = false;

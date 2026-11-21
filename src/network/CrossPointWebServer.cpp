@@ -51,6 +51,8 @@
 #include "html/assets/crosspoint_iconSvg.generated.h"
 #include "html/assets/iconsSvg.generated.h"
 #include "html/assets/webCss.generated.h"
+#include "html/js/epub_optimizerJs.generated.h"
+#include "html/js/plugin_hostJs.generated.h"
 #include "html/js/jszip_minJs.generated.h"
 #include "util/BookCacheUtils.h"
 #include "util/DictionaryRegistry.h"
@@ -718,6 +720,8 @@ void CrossPointWebServer::registerRoutes() {
   server->on("/files", HTTP_GET, [this] { handleFileList(); });
   server->on("/js/jszip.min.js", HTTP_GET, [this] { handleJszip(); });
 
+  server->on("/js/epub-optimizer.js", HTTP_GET, [this] { WebFileBridge::page(*this, XP_WEB_PAGE_EPUB_OPTIMIZER); });
+  server->on("/js/plugin-host.js", HTTP_GET, [this] { WebFileBridge::page(*this, XP_WEB_PAGE_PLUGIN_HOST); });
   server->on("/assets/web.css", HTTP_GET, [this] { WebFileBridge::page(*this, XP_WEB_PAGE_CSS); });
   server->on("/assets/icons.svg", HTTP_GET, [this] { WebFileBridge::page(*this, XP_WEB_PAGE_ICONS); });
   server->on("/assets/crosspoint-icon.svg", HTTP_GET, [this] { WebFileBridge::page(*this, XP_WEB_PAGE_ICON); });
@@ -840,6 +844,16 @@ void WebFileBridge::page(const CrossPointWebServer& owner, XpWebPage page) {
        {reinterpret_cast<const uint8_t*>(crosspoint_iconSvg), sizeof(crosspoint_iconSvg)},
        {reinterpret_cast<const uint8_t*>(crosspoint_iconSvgETag), strlen(crosspoint_iconSvgETag)},
        "image/svg+xml"},
+      {requestHeader,
+       sendAsset,
+       {reinterpret_cast<const uint8_t*>(epub_optimizerJs), sizeof(epub_optimizerJs)},
+       {reinterpret_cast<const uint8_t*>(epub_optimizerJsETag), strlen(epub_optimizerJsETag)},
+       "application/javascript"},
+      {requestHeader,
+       sendAsset,
+       {reinterpret_cast<const uint8_t*>(plugin_hostJs), sizeof(plugin_hostJs)},
+       {reinterpret_cast<const uint8_t*>(plugin_hostJsETag), strlen(plugin_hostJsETag)},
+       "application/javascript"},
   };
   WebFileBridge bridge(owner);
   xp_web_page(&bridge, &services, assets, sizeof(assets) / sizeof(assets[0]), page);

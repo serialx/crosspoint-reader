@@ -247,7 +247,9 @@ typedef enum {
   XP_WEB_PAGE_JSZIP,
   XP_WEB_PAGE_CSS,
   XP_WEB_PAGE_ICONS,
-  XP_WEB_PAGE_ICON
+  XP_WEB_PAGE_ICON,
+  XP_WEB_PAGE_EPUB_OPTIMIZER,
+  XP_WEB_PAGE_PLUGIN_HOST
 } XpWebPage;
 void xp_web_page(void*, const XpWebServices*, const XpWebAsset*, size_t, XpWebPage);
 #ifdef XP_SD_FONT_CATALOG

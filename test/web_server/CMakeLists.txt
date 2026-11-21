@@ -25,3 +25,5 @@ add_test(NAME plugin_http_connect_before_headers
 add_test(NAME web_sdk_preconnected_retry
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/sdk_fetch_retry_contract.py
     --build ${CMAKE_CURRENT_BINARY_DIR}/sdk-fetch-retry)
+
+add_test(NAME web_asset_loading COMMAND node ${CMAKE_CURRENT_SOURCE_DIR}/web_assets.mjs)

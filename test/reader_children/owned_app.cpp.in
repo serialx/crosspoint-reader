@@ -279,8 +279,16 @@ int main(int argc, char** argv) {
   if (mode.starts_with("clippings")) bindOwnedClippings();
   if (mode.starts_with("bookmarks")) bindOwnedBookmarks();
   if (mode.starts_with("bookmarks-return-")) state.path = "/return.epub";
+  if (mode == "refresh") refresh_fixture::bind();
   initialize();
   enterCompositionReader();
+  if (mode == "refresh") {
+    refresh_fixture::exercise();
+    closeToSleep();
+    assert(readerFiles.empty() && readerBooks.empty() && readerBuffers.empty());
+    std::puts("Refresh App pop: panel FAST, first reader FULL, second reader FAST");
+    return 0;
+  }
   xp_epub_test_legacy_children(results.owner, nullptr);
   if (mode.starts_with("clippings")) return runOwnedClippings(mode, cancelled);
   if (mode.starts_with("bookmarks")) return runOwnedBookmarks(mode, cancelled);

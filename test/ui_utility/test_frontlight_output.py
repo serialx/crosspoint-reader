@@ -68,21 +68,10 @@ int main() {
 }
 ''')
 
-    def test_panel_exit_refresh_and_ble_persistence(self):
+    def test_ble_persistence(self):
         panel = (ROOT / 'src/activities/util/FrontlightPanelActivity.cpp').read_text()
-        gfx = (ROOT / 'lib/GfxRenderer/GfxRenderer.cpp').read_text()
         self.compile_run(r'''
 #include <xp_ui_utility.h>
-struct HalDisplay { enum RefreshMode { FAST_REFRESH, FULL_REFRESH }; };
-struct GfxRenderer {
-  mutable bool promotedRefreshPending_ = false;
-  mutable HalDisplay::RefreshMode promotedRefresh_ = HalDisplay::FAST_REFRESH;
-  void promoteNextRefresh(HalDisplay::RefreshMode mode) {
-    promotedRefreshPending_ = true;
-    promotedRefresh_ = mode;
-  }
-  HalDisplay::RefreshMode applyPromotedRefresh(HalDisplay::RefreshMode) const;
-};
 struct {
   bool present() const { return false; }
   void setBrightness(int) {}
@@ -99,18 +88,13 @@ struct {
 namespace bleturner { static int stops = 0; void switchOff() { ++stops; } }
 struct UtilityActivity {
   void applyUtilityEffect(const XpUiUtilityEffect&) {}
-  void onExit() {}
 };
 struct FrontlightPanelActivity : UtilityActivity {
-  GfxRenderer renderer;
   XpUiUtilityState state{};
   bool refreshParent = false;
   void applyUtilityEffect(const XpUiUtilityEffect&);
-  void onExit();
 };
-''' + definition(gfx, 'HalDisplay::RefreshMode GfxRenderer::applyPromotedRefresh(')
-            + definition(panel, 'void FrontlightPanelActivity::applyUtilityEffect(')
-            + definition(panel, 'void FrontlightPanelActivity::onExit(') + r'''
+''' + definition(panel, 'void FrontlightPanelActivity::applyUtilityEffect(') + r'''
 int main() {
   FrontlightPanelActivity panel;
   XpUiUtilityEffect effect{};
@@ -122,13 +106,6 @@ int main() {
     assert(bleturner::stops == (enabled ? 0 : 1));
   }
   assert((SETTINGS.saved == std::vector<bool>{true, false}));
-  effect.writes = XP_UI_UTILITY_CLEAN_PARENT;
-  panel.applyUtilityEffect(effect);
-  auto paint = [&] { return panel.renderer.applyPromotedRefresh(HalDisplay::FAST_REFRESH); };
-  assert(paint() == HalDisplay::FAST_REFRESH);  // previously queued panel paint
-  panel.onExit();
-  assert(paint() == HalDisplay::FULL_REFRESH);  // reader
-  assert(paint() == HalDisplay::FAST_REFRESH);
 }
 ''')
 

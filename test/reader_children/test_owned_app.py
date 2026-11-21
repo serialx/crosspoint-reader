@@ -10,6 +10,7 @@ ROOT = HERE.parents[1]
 sys.path.insert(0, str(ROOT / 'test/reader_lifecycle'))
 from test_child_handle_composition import fixture, NATIVE, OWNER, MANAGER
 from oracle_sources import native_text
+from extract import definition
 from legacy_page_native import source as legacy_page_source
 from book_facade_composition import facade_bridge_source, compile_command
 from test_popup_resource import replace_once
@@ -42,7 +43,19 @@ def main():
         source = replace_once(source, '      if (text(origin) == "CLIP") {\n        std::fprintf',
             '      if (text(origin) == "CLIP") {\n        if (observeOwnedClippingLog(level, origin, message)) return;\n        std::fprintf')
         owned = (HERE / 'owned_app.cpp.in').read_text()
-        owned = owned.replace('int main(int argc, char** argv)', (HERE / 'owned_clipping.cpp.inc').read_text() + (HERE / 'owned_bookmark.cpp.inc').read_text() + '\nint main(int argc, char** argv)', 1)
+        refresh = (HERE / "frontlight_refresh.cpp.inc").read_text()
+        refresh = refresh.replace("// PRODUCTION_REFRESH_METHODS", "\n".join(
+            definition((ROOT / path).read_text(), signature) for path, signature in (
+                ("lib/GfxRenderer/GfxRenderer.cpp", "HalDisplay::RefreshMode GfxRenderer::applyPromotedRefresh("),
+                ("src/activities/Activity.cpp", "void Activity::finish("),
+                ("src/activities/ActivityManager.cpp", "void ActivityManager::popActivity("),
+                ("src/activities/util/UtilityActivity.cpp", "void UtilityActivity::applyUtilityEffect("),
+                ("src/activities/util/FrontlightPanelActivity.cpp", "void FrontlightPanelActivity::applyUtilityEffect("),
+                ("src/activities/util/FrontlightPanelActivity.cpp", "void FrontlightPanelActivity::onExit("),
+            )
+        ))
+
+        owned = owned.replace('int main(int argc, char** argv)', (HERE / 'owned_clipping.cpp.inc').read_text() + (HERE / 'owned_bookmark.cpp.inc').read_text() + refresh + '\nint main(int argc, char** argv)', 1)
         source += owned
         candidate = out / 'candidate.cpp'
         candidate.write_text(source)
@@ -59,7 +72,7 @@ def main():
             'extern "C" void observeRustFree(void*);\nextern "C" void heap_caps_free(void* ptr) { observeRustFree(ptr);'))
         command = [str(allocator) if arg == str(ROOT / 'test/cmake/xp_ffi_host.cpp') else arg for arg in command]
         subprocess.run(command, check=True)
-        for mode in ('chapter-timed', 'menu', 'chapter', 'percent', 'qr', 'text', 'text-overlay', 'clippings', 'clippings-nav', 'clippings-delete', 'clippings-passage', 'clippings-detail', 'clippings-detail-oom', 'clippings-oom', 'bookmarks', 'bookmarks-empty', 'bookmarks-delete', 'bookmarks-delete-fail', 'bookmarks-oom', 'bookmarks-stack-oom', 'bookmarks-rename', 'bookmarks-rename-empty', 'bookmarks-rename-max', 'bookmarks-record-oom', 'bookmarks-rename-fail', 'bookmarks-swipe', 'bookmarks-swipe-absent', 'bookmarks-swipe-outside', 'bookmarks-touch-hold', 'bookmarks-command-oom', 'bookmarks-return-last', 'bookmarks-return-nonlast', 'bookmarks-return-jump', 'bookmarks-return-save', 'bookmarks-return-success'):
+        for mode in ('refresh', 'chapter-timed', 'menu', 'chapter', 'percent', 'qr', 'text', 'text-overlay', 'clippings', 'clippings-nav', 'clippings-delete', 'clippings-passage', 'clippings-detail', 'clippings-detail-oom', 'clippings-oom', 'bookmarks', 'bookmarks-empty', 'bookmarks-delete', 'bookmarks-delete-fail', 'bookmarks-oom', 'bookmarks-stack-oom', 'bookmarks-rename', 'bookmarks-rename-empty', 'bookmarks-rename-max', 'bookmarks-record-oom', 'bookmarks-rename-fail', 'bookmarks-swipe', 'bookmarks-swipe-absent', 'bookmarks-swipe-outside', 'bookmarks-touch-hold', 'bookmarks-command-oom', 'bookmarks-return-last', 'bookmarks-return-nonlast', 'bookmarks-return-jump', 'bookmarks-return-save', 'bookmarks-return-success'):
             if args.mode and mode not in args.mode:
                 continue
             for cancelled in ('0', '1'):

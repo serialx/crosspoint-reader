@@ -1,11 +1,11 @@
 #pragma once
 
-#include <Memory.h>
-
 #include <algorithm>
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace plugincatalog {
 
@@ -31,151 +31,258 @@ struct Origin {
   size_t length() const { return marker == 3 ? size : 0; }
 };
 
+struct Rule {
+  std::string_view key, value;
+  bool encode = false, config = false;
+
+  size_t keySize() const { return key.size() + (config ? 6 : 0); }
+  char keyByte(size_t i) const {
+    if (!config) return key[i];
+    if (i < 5) return "{cfg."[i];
+    return i == key.size() + 5 ? '}' : key[i - 5];
+  }
+  bool suffixIsPrefix(size_t start, size_t end) const {
+    for (size_t i = start; i < end; ++i)
+      if (keyByte(i) != keyByte(i - start)) return false;
+    return true;
+  }
+};
+
+// A stage holds just a matched prefix length and a one-based output cursor.
+// A mismatch stays at its producer until the pending prefix has been drained.
+template <typename T>
+struct Cursor {
+  T matched{}, emitting{};
+};
+
 class Template {
  public:
-  explicit Template(size_t capacity) : stages(capacity ? makeUniqueNoThrow<Stage[]>(capacity) : nullptr) {}
-  bool allocated() const { return stages != nullptr; }
-  void add(std::string_view key, std::string_view value, bool encode = false, bool config = false) {
-    auto& stage = stages[count++];
-    stage.key = key;
-    stage.value = value;
-    stage.encode = encode;
-    stage.config = config;
-  }
-  void removeLast() { --count; }
+  using Config = std::vector<std::pair<std::string, std::string>>;
+  Template() = default;
 
-  // Each stage sees the previous substitution's output, including matches across its boundaries.
-  // Matched prefixes borrow the rule key. No intermediate expanded string is stored.
-  bool expand(std::string_view prefix, std::string_view input, bool escapeUrl, size_t& remaining,
-              std::string* output = nullptr, Origin* origin = nullptr, std::string* rawOrigin = nullptr,
-              bool onlyOrigin = false, bool* rooted = nullptr) {
-    size_t leading = 0;
-    for (size_t i = 0; i < count; ++i) stages[i].reset();
-    size_t source = 0;
-    size_t next = count;
-    while (true) {
-      int byte;
-      if (next == 0) {
-        if (source < prefix.size()) {
-          byte = static_cast<unsigned char>(prefix[source++]);
-        } else if (source - prefix.size() < input.size()) {
-          byte = static_cast<unsigned char>(input[source++ - prefix.size()]);
-        } else {
-          byte = End;
-        }
-      } else {
-        byte = stages[next - 1].read();
-        if (byte == NeedInput) {
-          --next;
-          continue;
-        }
-      }
-      if (next < count) {
-        stages[next++].feed(byte);
-        continue;
-      }
-      if (byte == End) return true;
+  bool expand(std::string_view prefix, std::string_view input, bool escape, size_t& remaining,
+              std::string* output = nullptr, Origin* origin = nullptr, bool* rooted = nullptr) const {
+    Sink sink{remaining, output, origin, rooted, escape};
+    if (!config || (prefix.find('{') == prefix.npos && input.find('{') == input.npos)) {
+      for (auto part : {prefix, input})
+        for (unsigned char c : part)
+          if (!sink.put(c)) return sink.done;
+      return true;
+    }
+    return stream(prefix, input, sink);
+  }
+
+ protected:
+  struct Sources {
+    std::string_view token, family, version, capabilities, api, page, limit, offset, listId, query;
+    std::string_view id, title, author, url;
+  };
+  Template(const Config& fields, const Sources& values, bool hasItem)
+      : config(&fields), values(&values), count(hasItem ? std::size(bindings) : 12) {}
+
+ public:
+  void add(std::string_view key, std::string_view value) { extra[extraCount++] = {key, value}; }
+  void removeLast() { --extraCount; }
+
+ private:
+  static constexpr char HEX[] = "0123456789ABCDEF";
+  const Config* config = nullptr;
+  struct Binding {
+    std::string_view key;
+    std::string_view Sources::* value;
+    bool encode;
+  };
+  static constexpr Binding bindings[20] = {{"{token}", &Sources::token, false},
+                                           {"{firmware_family}", &Sources::family, false},
+                                           {"{firmware_version}", &Sources::version, false},
+                                           {"{plugin_capabilities}", &Sources::capabilities, false},
+                                           {"{plugin_api}", &Sources::api, false},
+                                           {"{page}", &Sources::page, false},
+                                           {"{limit}", &Sources::limit, false},
+                                           {"{offset}", &Sources::offset, false},
+                                           {"{list_id}", &Sources::listId, false},
+                                           {"{list_id_enc}", &Sources::listId, true},
+                                           {"{query}", &Sources::query, true},
+                                           {"{query_raw}", &Sources::query, false},
+                                           {"{id}", &Sources::id, false},
+                                           {"{title}", &Sources::title, false},
+                                           {"{author}", &Sources::author, false},
+                                           {"{url}", &Sources::url, false},
+                                           {"{id_enc}", &Sources::id, true},
+                                           {"{title_enc}", &Sources::title, true},
+                                           {"{author_enc}", &Sources::author, true},
+                                           {"{url_enc}", &Sources::url, true}};
+  const Sources* values = nullptr;
+  size_t count = 0, extraCount = 0;
+  Rule extra[2];
+
+  struct Sink {
+    size_t& remaining;
+    std::string* output;
+    Origin* origin;
+    bool* rooted;
+    bool escape;
+    unsigned leading = 0;
+    bool done = false;
+    bool put(unsigned char c) {
       if (rooted && leading < 2) {
         if (!leading)
-          *rooted = byte == '/';
-        else if (byte == '/')
+          *rooted = c == '/';
+        else if (c == '/')
           *rooted = false;
         ++leading;
       }
-      if (onlyOrigin) {
-        origin->count(byte);
-        if (origin->ended) return true;
-      } else if (origin) {
-        if (!output)
-          origin->count(byte);
-        else if (rawOrigin && rawOrigin->size() < origin->length())
-          rawOrigin->push_back(static_cast<char>(byte));
+      if (origin) {
+        origin->count(c);
+        if (origin->ended) {
+          done = true;
+          return false;
+        }
       }
-      const bool escaped = escapeUrl && needsUrlEscape(byte);
-      const size_t bytes = escaped ? 3 : 1;
+      const bool encoded = escape && needsUrlEscape(c);
+      const size_t bytes = encoded ? 3 : 1;
       if (bytes > remaining) return false;
       remaining -= bytes;
       if (output) {
-        if (escaped) {
+        if (encoded) {
           output->push_back('%');
-          output->push_back(HEX_DIGITS[byte >> 4]);
-          output->push_back(HEX_DIGITS[byte & 15]);
+          output->push_back(HEX[c >> 4]);
+          output->push_back(HEX[c & 15]);
         } else {
-          output->push_back(static_cast<char>(byte));
+          output->push_back(c);
         }
       }
-    }
-  }
-
- private:
-  static constexpr int End = -1, NeedInput = -2;
-  static constexpr char HEX_DIGITS[] = "0123456789ABCDEF";
-  struct Stage {
-    std::string_view key;
-    std::string_view value;
-    bool encode, config;
-    size_t keySize() const { return key.size() + (config ? 6 : 0); }
-    unsigned char keyByte(size_t i) const {
-      if (!config) return key[i];
-      if (i < 5) return "{cfg."[i];
-      return i == key.size() + 5 ? '}' : key[i - 5];
-    }
-    size_t matched = 0, literal = 0, literalEnd = 0, replacement = 0;
-    int pending = NeedInput;
-    unsigned escapeDigit = 0;
-    void reset() {
-      matched = literal = literalEnd = escapeDigit = 0;
-      pending = NeedInput;
-      replacement = value.size();
-    }
-    int read() {
-      if (literal < literalEnd) return keyByte(literal++);
-      if (replacement != value.size()) {
-        const unsigned char c = value[replacement];
-        if (encode && !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' ||
-                        c == '.' || c == '_' || c == '~')) {
-          if (++escapeDigit == 1) return '%';
-          if (escapeDigit == 2) return HEX_DIGITS[c >> 4];
-          escapeDigit = 0;
-          ++replacement;
-          return HEX_DIGITS[c & 15];
-        }
-        ++replacement;
-        return c;
-      }
-      return std::exchange(pending, NeedInput);
-    }
-    void feed(int byte) {
-      if (byte != End && byte == keyByte(matched)) {
-        if (++matched == keySize()) {
-          matched = 0;
-          replacement = 0;
-        }
-        return;
-      }
-      literal = 0;
-      literalEnd = matched;
-      pending = byte;
-      // Preserve a partial match beginning inside an unusual config key, or at this byte.
-      if (config && byte != End && key.find('{') != std::string_view::npos) {
-        for (size_t skip = 1; skip < literalEnd; ++skip) {
-          const size_t length = literalEnd - skip;
-          if (keyByte(skip) != '{' || keyByte(length) != byte) continue;
-          size_t i = 1;
-          while (i < length && keyByte(i) == keyByte(skip + i)) ++i;
-          if (i == length) {
-            literalEnd = skip;
-            matched = length + 1;
-            pending = NeedInput;
-            return;
-          }
-        }
-      }
-      matched = byte == '{' ? 1 : 0;
-      if (matched) pending = NeedInput;
+      return true;
     }
   };
-  std::unique_ptr<Stage[]> stages;
-  size_t count = 0;
+
+  static bool encodedByte(unsigned char c) {
+    return !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '.' ||
+             c == '_' || c == '~');
+  }
+
+  // Config JSON occupies at most 2048 bytes. Even an unquoted member needs
+  // key, colon, value and delimiter. At most eight fields exceed 240 bytes.
+  struct Cursors {
+    Cursor<uint8_t> small[512]{};
+    Cursor<uint16_t> large[8]{};
+    Cursor<size_t> builtin[22]{};
+
+    static bool wide(const Rule& rule) { return rule.key.size() > 240 || rule.value.size() > 240; }
+    template <typename T>
+    static Cursor<size_t> access(Cursor<T>& cursor, const Cursor<size_t>* update) {
+      if (update) cursor = {static_cast<T>(update->matched), static_cast<T>(update->emitting)};
+      return {cursor.matched, cursor.emitting};
+    }
+    Cursor<size_t> at(size_t stage, size_t fields, const Rule& rule, const Cursor<size_t>* update = nullptr) {
+      if (!rule.config) return access(builtin[stage ? stage - fields : 0], update);
+      auto& slot = small[stage - 1];
+      if (wide(rule)) return access(large[slot.matched], update);
+      return access(slot, update);
+    }
+  };
+
+  Rule ruleAt(size_t stage, size_t fields) const {
+    if (stage && stage <= fields) {
+      const auto& pair = (*config)[stage - 1];
+      return {pair.first, pair.second, false, true};
+    }
+    const size_t i = stage ? stage - fields : 0;
+    if (i >= count) return extra[i - count];
+    const auto& binding = bindings[i];
+    return {binding.key, values->*binding.value, binding.encode};
+  }
+
+  // This frame exists only during expansion, outside transport and storage calls.
+  __attribute__((noinline)) bool stream(std::string_view prefix, std::string_view input, Sink& sink) const {
+    Cursors cursors;
+    const size_t fields = config->size();
+    if (fields > std::size(cursors.small)) return false;
+    size_t wideCount = 0;
+    for (size_t i = 1; i <= fields; ++i) {
+      if (Cursors::wide(ruleAt(i, fields))) {
+        if (wideCount == std::size(cursors.large)) return false;
+        cursors.small[i - 1].matched = wideCount++;
+      }
+    }
+    size_t source = 0;
+    // Producer zero is the input; producer n is the output of rule n-1.
+    size_t producer = 0;
+    const size_t stages = fields + count + extraCount;
+    for (;;) {
+      int byte = -1;
+      Cursor<size_t> after{};
+      Rule emittingRule{};
+      if (!producer) {
+        if (source < prefix.size())
+          byte = static_cast<unsigned char>(prefix[source]);
+        else if (source - prefix.size() < input.size())
+          byte = static_cast<unsigned char>(input[source - prefix.size()]);
+      } else {
+        emittingRule = ruleAt(producer - 1, fields);
+        after = cursors.at(producer - 1, fields, emittingRule);
+        const size_t pos = after.emitting - 1;
+        if (after.matched) {
+          byte = static_cast<unsigned char>(emittingRule.keyByte(pos));
+          if (emittingRule.suffixIsPrefix(pos + 1, after.matched)) {
+            after.matched -= pos + 1;
+            after.emitting = 0;
+          } else {
+            ++after.emitting;
+          }
+        } else {
+          const size_t index = emittingRule.encode ? pos / 3 : pos;
+          byte = static_cast<unsigned char>(emittingRule.value[index]);
+          if (emittingRule.encode) {
+            const unsigned digit = pos % 3;
+            if (encodedByte(byte)) {
+              byte = digit == 0 ? '%' : HEX[digit == 1 ? byte >> 4 : byte & 15];
+              ++after.emitting;
+            } else {
+              after.emitting += 3;
+            }
+          } else {
+            ++after.emitting;
+          }
+          if ((emittingRule.encode ? (after.emitting - 1) / 3 : after.emitting - 1) == emittingRule.value.size())
+            after.emitting = 0;
+        }
+      }
+
+      bool consumed = true;
+      size_t next = producer;
+      size_t i = producer;
+      for (; i < stages; ++i) {
+        const Rule rule = ruleAt(i, fields);
+        auto current = cursors.at(i, fields, rule);
+        if (byte >= 0 && byte == static_cast<unsigned char>(rule.keyByte(current.matched))) {
+          if (++current.matched == rule.keySize()) {
+            current.matched = 0;
+            if (!rule.value.empty()) current.emitting = 1;
+          }
+        } else if (current.matched) {
+          current.emitting = 1;
+          consumed = false;
+        } else {
+          continue;
+        }
+        cursors.at(i, fields, rule, &current);
+        if (current.emitting) next = i + 1;
+        break;
+      }
+      if (i == stages) {
+        if (byte < 0) return true;
+        if (!sink.put(byte)) return sink.done;
+      }
+      if (consumed) {
+        if (producer)
+          cursors.at(producer - 1, fields, emittingRule, &after);
+        else
+          ++source;
+      }
+      producer = next;
+      while (producer && !cursors.at(producer - 1, fields, ruleAt(producer - 1, fields)).emitting) --producer;
+    }
+  }
 };
 }  // namespace plugincatalog

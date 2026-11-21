@@ -38,6 +38,7 @@ variables = source[source.index("struct PluginCatalogActivity::Variables"):sourc
 pick = method("const std::string& pick(")
 stub = r"""
 #include <ArduinoJson.h>
+#include <Memory.h>
 #include <algorithm>
 #include <cassert>
 #include <memory>
@@ -52,8 +53,22 @@ stub = r"""
 
 size_t largeAllocations = 0;
 bool observeAllocations = false;
+size_t allAllocations = 0;
+const std::unique_ptr<int>* watchedSession = nullptr;
+size_t connectedLimit = SIZE_MAX;
+bool constrainAfterResponse = false;
+bool requireSession = false;
+// Model separate request and TLS blocks. The raw index URL fits the first;
+// an origin copy would consume the only block that can fit the receive buffer.
+int indexBlocks = -1;
+int blocksAtIndexGet = -1;
 void* operator new(size_t bytes) {
-  if (observeAllocations && bytes >= 16000) ++largeAllocations;
+  if (observeAllocations) {
+    ++allAllocations;
+    if (bytes >= 16000) ++largeAllocations;
+  }
+  if (watchedSession && *watchedSession && bytes > connectedLimit) throw std::bad_alloc();
+  if (indexBlocks >= 0 && bytes > 4104 && indexBlocks-- == 0) throw std::bad_alloc();
   if (void* p = std::malloc(bytes)) return p;
   throw std::bad_alloc();
 }
@@ -75,8 +90,9 @@ struct RequestSpec { std::string url, method, body; Headers headers; };
 std::string escapeUrl(const std::string&);
 std::string body;
 std::vector<std::string> pageUrls;
-int requestToFile(int*, const std::string& url, const std::string&, const std::string&, const Headers&,
+int requestToFile(int* session, const std::string& url, const std::string&, const std::string&, const Headers&,
                   const char*, size_t) {
+  if (requireSession) assert(session);
   auto escaped = escapeUrl(url);
   pageUrls.push_back(escaped.empty() ? url : escaped);
   return 200;
@@ -90,12 +106,20 @@ bool mintPasswordToken(int*, const std::string&, const std::string&, const std::
   out = minted;
   return true;
 }
-int request(int*, const std::string&, const std::string&, const std::string&, const Headers& headers,
+int request(int* session, const std::string&, const std::string&, const std::string&, const Headers& headers,
             String& response, size_t maxSize) {
+  if (requireSession) assert(session);
+  if (indexBlocks >= 0) {
+    blocksAtIndexGet = indexBlocks;
+    auto receive = std::make_unique<char[]>(17 * 1024);
+    assert(receive && indexBlocks == 0);
+    indexBlocks = -1;
+  }
   assert(body.size() <= maxSize);
   ++calls;
   sent = headers;
   response = body;
+  if (constrainAfterResponse) connectedLimit = 6143;
   return std::exchange(nextStatus, replayStatus);
 }
 }
@@ -227,7 +251,7 @@ struct PluginCatalogActivity {
   struct DownloadCredentials { std::string user, password; };
   bool detailsRequest(std::string&, std::string_view, const Item&) const;
   bool buildRequest(pluginhttp::RequestSpec&, std::string_view, const std::string&, const pluginhttp::Headers&,
-                    const Item* = nullptr, std::string_view = {}, bool = false, bool = false, DownloadCredentials* = nullptr, std::string* = nullptr) const;
+                    const Item* = nullptr, std::string_view = {}, bool = false, bool = false, DownloadCredentials* = nullptr) const;
   const std::string& activeBrowseUrl() const;
   std::string_view activeBrowseOrigin() const;
   const std::string& activeBrowseBody() const;
@@ -303,10 +327,21 @@ int main() {
     pluginhttp::body += R"({"title":"List","url":"/p"})";
   }
   pluginhttp::body += "]}";
+  indexBlocks = 2;
   assert(shared.loadBrowseListIndex(status));
+  assert(blocksAtIndexGet == 1);
   assert(shared.manifest.listOrigin == "https://" + std::string(4096, 'a'));
   assert(shared.manifest.browseLists.size() == 64);
   for (const auto& list : shared.manifest.browseLists) assert(list.url == "/p");
+
+  for (const char* row : {R"({"title":"A","url":"https://other/book"})", R"({"title":"I","id":"123"})"}) {
+    PluginCatalogActivity index;
+    index.manifest.browseListsUrl = shared.manifest.browseListsUrl;
+    pluginhttp::body = std::string("{\"lists\":[") + row + "]}";
+    indexBlocks = 2;
+    assert(index.loadBrowseListIndex(status));
+    assert(blocksAtIndexGet == 1 && index.manifest.listOrigin.empty());
+  }
 
   PluginCatalogActivity combined;
   combined.manifest.browseLists.push_back({"Fixed", "fixed"});
@@ -360,6 +395,73 @@ int main() {
   assert(pluginhttp::pageUrls[1] == "https://example/a%20b/+?key=a%20b%2F%2B&offset=8&limit=9");
 
   PluginCatalogActivity::Item item{"a+/1", "A / Café", "", "http://x/y?z=2"};
+  {
+    PluginCatalogActivity dense;
+    dense.session = std::make_unique<int>(1);
+    for (int i = 100; i < 280; ++i) dense.config.emplace_back("k" + std::to_string(i), "");
+    watchedSession = &dense.session;
+    connectedLimit = 8500;
+    pluginhttp::RequestSpec req;
+    allAllocations = 0;
+    observeAllocations = true;
+    assert(dense.buildRequest(req, "/{id}", "", {}, &item));
+    observeAllocations = false;
+    assert(req.url == "/" + item.id && allAllocations == 0);
+    dense.manifest.browseReq.url = "/{token}";
+    requireSession = true;
+    dense.fetchPage(1);
+    dense.fetchPage(2);
+    assert(!dense.failed && dense.session);
+    dense.manifest.downloadReq.url = "/{id}";
+    requireSession = false;
+    assert(dense.downloadBook(item) == HttpDownloader::OK);
+    assert(!dense.session && dense.attempts == 1);
+    dense.session = std::make_unique<int>(1);
+    requireSession = true;
+    dense.manifest.dlUrlPath = "url";
+    pluginhttp::body = R"({"url":"/file"})";
+    assert(dense.downloadBook(item) == HttpDownloader::OK);
+    requireSession = false;
+    assert(!dense.session && dense.attempts == 2);
+    watchedSession = nullptr;
+  }
+  for (bool api : {false, true}) {
+    PluginCatalogActivity book;
+    book.session = std::make_unique<int>(1);
+    connectedLimit = api ? SIZE_MAX : 6143;
+    requireSession = constrainAfterResponse = api;
+    book.manifest.downloadReq.url = "https://host/{id}";
+    book.manifest.downloadReq.headers = {{"X", std::string(6144, 'h')}};
+    book.manifest.dlUser.assign(6144, 'u');
+    book.manifest.dlPass = "p";
+    if (api) {
+      book.manifest.dlUrlPath = "url";
+      pluginhttp::body = R"({"url":"/file"})";
+    }
+    watchedSession = &book.session;
+    assert(book.downloadBook(item) == HttpDownloader::OK);
+    assert(!book.session && book.fileHeaders.at(0) == book.manifest.downloadReq.headers);
+    requireSession = constrainAfterResponse = false;
+    watchedSession = nullptr;
+  }
+  {
+    PluginCatalogActivity c;
+    const std::string longKey(250, 'k');
+    const std::string longValue(410, 'v');
+    c.token = "{cfg.a}";
+    c.config = {{"a","{cfg."}, {"b","joined"}, {"{cfg.x","overlap"}, {longKey,longValue}};
+    const std::string tpl = "{token}b}/{cfg.{cfg.{cfg.x}/{cfg." + longKey + "}/{cfg.{cfg.";
+    std::string expected = tpl;
+    const auto replace = [&](const std::string& key, const std::string& value) {
+      for (size_t i = 0; (i = expected.find(key, i)) != expected.npos; i += value.size()) {
+        expected.replace(i, key.size(), value);
+      }
+    };
+    replace("{token}", c.token);
+    for (const auto& [key,value] : c.config) replace("{cfg." + key + "}", value);
+    std::string actual;
+    assert(c.substituted(tpl, actual) && actual == expected);
+  }
   pluginhttp::RequestSpec aliases;
   assert(idOnly.buildRequest(aliases, "/{title}?id={id_enc}&title={title_enc}&url={url_enc}", "{title}",
                              {{"Title", "{title}"}}, &item));

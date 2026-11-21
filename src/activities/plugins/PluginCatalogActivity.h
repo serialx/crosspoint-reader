@@ -233,8 +233,7 @@ class PluginCatalogActivity final : public CatalogActivity {
   bool detailsRequest(std::string& url, std::string_view path, const Item& item) const;
   bool buildRequest(pluginhttp::RequestSpec& out, std::string_view url, const std::string& body,
                     const pluginhttp::Headers& headers, const Item* item = nullptr, std::string_view prefix = {},
-                    bool poll = false, bool literalUrl = false, DownloadCredentials* credentials = nullptr,
-                    std::string* origin = nullptr) const;
+                    bool poll = false, bool literalUrl = false, DownloadCredentials* credentials = nullptr) const;
   bool substituted(const std::string& tpl, std::string& out, const Item* item = nullptr, size_t limit = SIZE_MAX,
                    std::string_view md5 = {}, std::string_view dest = {}) const;
   // Where downloads land: a "dest_dir" in the plugin's config.json (its web

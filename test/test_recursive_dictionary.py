@@ -75,7 +75,7 @@ physical = (ROOT / "src/activities/reader/RustEpubResources.cpp").read_text()
 layout_callback = block(physical, ".child_definition_layout = ").split(" = ", 1)[1]
 if '--mutate-hold-padding' in sys.argv:
     layout_callback = layout_callback.replace('containsUnpadded(', 'contains(')
-input_prefix = input_prefix.replace('HeaderBackTapTarget::contains(x, y)', 'nativeHeaderHold(x, y)')
+input_prefix = input_prefix.replace('HeaderBackTapTarget::contains(x, y)', 'holdFixture::nativeHeaderHold(x, y)')
 if '--mutate-input-order' in sys.argv:
     input_prefix = input_prefix.replace('  auto input = dictionaryUiInput(mappedInput);\n', '')
     input_prefix = input_prefix.replace('  input.touch_x', '  auto input = dictionaryUiInput(mappedInput);\n  input.touch_x', 1)
@@ -289,6 +289,7 @@ bool buildDictionaryHtmlPages(Renderer& renderer, const std::string&, uint16_t, 
 }
 std::string htmlToPlainText(const std::string& text, char) { return text; }
 using GfxRenderer = Renderer;
+namespace holdFixture {
 static GfxRenderer layoutRenderer;
 static GfxRenderer* target = &layoutRenderer;
 static XpUiDefinitionLayout dictionaryUiDefinitionLayout(GfxRenderer&) { return {}; }
@@ -296,6 +297,7 @@ static bool nativeHeaderHold(int x, int y) {
   XpUiDefinitionLayout layout{};
   return (''' + layout_callback + r''')(&layout, x, y);
 }
+}  // namespace holdFixture
 struct RustActivityAdapter {
   RustActivityAdapter() = default;
   RustActivityAdapter(const char*, GfxRenderer&, MappedInputManager&) {}

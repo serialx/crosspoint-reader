@@ -32,3 +32,24 @@ with tempfile.TemporaryDirectory()as directory:
  expected=filtered(subprocess.check_output([str(exe)],text=True))
 run(ROOT/'src/activities/settings',Path(sys.argv[1]),cases,expected)
 print('multi-family Download All/Update All and delete success/failure match frozen original')
+
+retry = cases.split('int main(){')[0] + r'''
+int main() {
+  GfxRenderer renderer;
+  MappedInputManager input;
+  for (bool touch : {false, true}) {
+    reset("font-manifest-retry");
+    FontDownloadActivity activity(renderer, input);
+    activity.model.phase = FontDownloadActivity::ERROR;
+    cfg.fileOpen = true;
+    input = {};
+    input.tap = touch;
+    input.released = touch ? 0 : XP_UI_CONFIRM;
+    activity.loop();
+    assert(activity.model.phase == FontDownloadActivity::FAMILY_LIST);
+  }
+}
+'''
+trace = run(ROOT/'src/activities/settings', Path(sys.argv[1]), retry, False)
+assert trace.count('manifest.fetch\n') == 2, trace
+print('Confirm release and tap retry the native manifest request when no family is available')

@@ -59,7 +59,7 @@ fn font_error_back_precedes_retry() {
     s.phase = 6;
     let e = s.input(
         Input {
-            pressed: BACK | CONFIRM,
+            released: BACK | CONFIRM,
             ..Input::default()
         },
         &Feedback::default(),
@@ -69,6 +69,62 @@ fn font_error_back_precedes_retry() {
     );
     assert_eq!(e.action, Action::None as u8);
     assert_eq!(s.phase, 3);
+}
+
+#[test]
+fn font_completion_ignores_press_and_returns_on_release() {
+    for button in [BACK, CONFIRM] {
+        let mut state = State::new(Kind::Fonts as u8, 0);
+        state.service(Event::FontDone, 0, 0);
+        let feedback = Feedback::default();
+        let press = Input {
+            pressed: button,
+            ..Input::default()
+        };
+        assert!(!state.interest(0).due(&press));
+        assert_eq!(
+            state.input(press, &feedback, false, 0, 0),
+            Effect::default()
+        );
+        let release = Input {
+            released: button,
+            ..Input::default()
+        };
+        assert!(state.interest(0).due(&release));
+        assert_eq!(state.input(release, &feedback, false, 0, 0).repaint, 1);
+        assert_eq!(state.phase, font::FAMILIES);
+    }
+}
+
+#[test]
+fn font_failure_retries_family_or_manifest_on_confirm_or_tap() {
+    let feedback = Feedback::default();
+    for input in [
+        Input {
+            released: CONFIRM,
+            ..Input::default()
+        },
+        Input {
+            touch_flags: crate::model::TOUCH_RELEASED,
+            touch_x: 10,
+            touch_y: 30,
+            ..Input::default()
+        },
+    ] {
+        for (index, expected) in [
+            (-1, Action::FontManifestRetry),
+            (0, Action::FontRetry),
+            (1, Action::FontManifestRetry),
+        ] {
+            let mut state = State::new(Kind::Fonts as u8, 0);
+            state.service(Event::FontBegin, index as u32, 0);
+            state.service(Event::FontError, 0, 0);
+            assert_eq!(
+                state.input(input, &feedback, false, 0, 1).action,
+                expected as u8
+            );
+        }
+    }
 }
 #[test]
 fn interest_wrap() {

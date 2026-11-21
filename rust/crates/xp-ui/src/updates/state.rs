@@ -117,6 +117,7 @@ pub enum Action {
     Clear = 12,
     Restart = 13,
     Home = 14,
+    FontManifestRetry = 15,
 }
 #[repr(C)]
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
@@ -442,8 +443,10 @@ impl State {
                 ..Interest::default()
             };
         }
+        let font_result = self.kind == FONTS && matches!(self.phase, font::COMPLETE | font::FAILED);
         Interest {
-            pressed: BACK | CONFIRM,
+            pressed: if font_result { 0 } else { BACK | CONFIRM },
+            released: if font_result { BACK | CONFIRM } else { 0 },
             touch_flags: TOUCH_RELEASED,
             deadline_enabled: u8::from(self.kind == OTA && self.phase == ota::SHUTDOWN),
             deadline_ms: now,
@@ -514,19 +517,23 @@ impl State {
                         Effect::action(Action::Finish)
                     }
                 }
-                (FONTS, font::COMPLETE) if back || confirm || tap => {
+                (FONTS, font::COMPLETE) if input.released & (BACK | CONFIRM) != 0 || tap => {
                     self.phase = font::FAMILIES;
                     Effect::repaint()
                 }
-                (FONTS, font::FAILED) if back || confirm || tap => {
-                    if !back && self.family_index >= 0 && self.family_index < family_count {
-                        return Effect {
-                            value: self.family_index,
-                            ..Effect::action(Action::FontRetry)
-                        };
-                    }
+                (FONTS, font::FAILED) if input.released & BACK != 0 => {
                     self.phase = font::FAMILIES;
                     Effect::repaint()
+                }
+                (FONTS, font::FAILED) if input.released & CONFIRM != 0 || tap => {
+                    if self.family_index >= 0 && self.family_index < family_count {
+                        Effect {
+                            value: self.family_index,
+                            ..Effect::action(Action::FontRetry)
+                        }
+                    } else {
+                        Effect::action(Action::FontManifestRetry)
+                    }
                 }
                 _ => Effect::default(),
             }

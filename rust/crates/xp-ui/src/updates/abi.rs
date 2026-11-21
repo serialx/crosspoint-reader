@@ -100,6 +100,10 @@ fn wire_values() {
         ("XP_UI_UPDATE_CLEAR", Action::Clear as u8),
         ("XP_UI_UPDATE_RESTART", Action::Restart as u8),
         ("XP_UI_UPDATE_HOME", Action::Home as u8),
+        (
+            "XP_UI_UPDATE_FONT_MANIFEST_RETRY",
+            Action::FontManifestRetry as u8,
+        ),
     ];
     assert_eq!(expected.lines().count(), values.len());
     for (line, (name, value)) in expected.lines().zip(values) {

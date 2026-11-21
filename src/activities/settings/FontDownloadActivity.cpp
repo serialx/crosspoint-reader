@@ -807,6 +807,10 @@ void FontDownloadActivity::performAction(XpUiUpdateAction action, int32_t value)
         requestUpdateAndWait();
       }
       break;
+    case XP_UI_UPDATE_FONT_MANIFEST_RETRY:
+      onWifiSelectionComplete(true);
+      requestUpdate();
+      break;
     default:
       break;
   }

@@ -67,7 +67,6 @@ with tempfile.TemporaryDirectory() as tmp:
     original = enum.read_text()
     body = re.search(r'enum class KeyboardLayoutId : uint8_t \{(.*?)\};', original, re.S)[1]
     names = re.findall(r'^\s*(\w+)\s*(?:=\s*\d+)?\s*,?', body, re.M)
-    assert len(names) == 10, names
     vendor = (sdk / 'src/FreeInkUI.cpp').read_text().replace('builtinKeyboardLayout(', 'sourceBuiltinKeyboardLayout(')
     (work/'vendor.cpp').write_text(vendor)
     subprocess.run(['c++','-std=c++20', '-DXP_SD_FONT_CATALOG','-O1','-I'+str(sdk/'include'),'-c',str(work/'vendor.cpp'),'-o',str(work/'vendor.o')],check=True)
@@ -76,15 +75,15 @@ namespace freeink::ui {
 const KeyboardLayout& sourceBuiltinKeyboardLayout(KeyboardLayoutId,bool,bool,bool,bool);
 const KeyboardLayout& builtinKeyboardLayout(KeyboardLayoutId id,bool sh,bool sy,bool controls,bool language) {
  const KeyboardLayoutId ids[]{'''+','.join('KeyboardLayoutId::'+n for n in names)+'''};
- for(uint8_t i=0;i<10;++i) if(ids[i]==id)
+ for(uint8_t i=0;i<sizeof(ids)/sizeof(ids[0]);++i) if(ids[i]==id)
   return sourceBuiltinKeyboardLayout(static_cast<KeyboardLayoutId>(i),sh,sy,controls,language);
  assert(false);return sourceBuiltinKeyboardLayout(KeyboardLayoutId(0),sh,sy,controls,language);
 }
 }
 '''
-    # Non-contiguous values ensure the test cannot accidentally rely on ordinals.
-    permutation = [17, 3, 29, 11, 5, 23, 7, 31, 13, 19]
-    changed = ',\n'.join(f'  {name} = {value}' for name, value in zip(names, permutation))
+    # Map every SDK ID while the firmware table above keeps the ten layouts shipped in 2.0.0.
+    permutation = [17, 3, 29, 11, 5, 23, 7, 31, 13, 19, 37]
+    changed = ',\n'.join(f'  {name} = {value}' for name, value in zip(names, permutation, strict=True))
     for label, text in [('pinned', original), ('permuted', original.replace(body, '\n'+changed+'\n'))]:
         enum.write_text(text)
         (work / 'mapping.cpp').write_text(source + shim)

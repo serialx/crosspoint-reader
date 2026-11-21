@@ -28,6 +28,6 @@ with tempfile.TemporaryDirectory(prefix='wifi-app-adoption-') as tmp:
     binary = directory / 'adoption'
     cpp.write_text(source)
     subprocess.run(['c++', '-std=c++20', '-Wall', '-Werror', '-UNDEBUG',
-                    '-I', str(ROOT / 'test/ui_runtime'), *rust_link_flags(sys.argv[1]),
-                    str(cpp), '-o', str(binary)], check=True)
+                    '-I', str(ROOT / 'test/ui_runtime'), str(cpp),
+                    *rust_link_flags(sys.argv[1]), '-o', str(binary)], check=True)
     subprocess.run([str(binary)], check=True)

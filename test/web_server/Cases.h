@@ -199,6 +199,31 @@ static void text(CrossPointWebServer& app, uint8_t client, const std::string& by
 int main() {
 #ifdef XP_FFI_HOST_FAULT_INJECTION
 
+  if (const char* replace = std::getenv("WEB_PARSER_REPLACE")) {
+    record("parsed upload", [&](auto& app) {
+      host::add("/other", "", true);
+      host::add("/other/a.epub", "other directory");
+      host::add("/books/file", "form name");
+      host::add("/books/other.epub", "other filename");
+      app.server->args["path"] = std::getenv("WEB_PARSER_PATH");
+      const char* overwrite = std::getenv("WEB_PARSER_OVERWRITE");
+      if (*overwrite) app.server->args["overwrite"] = overwrite;
+      app.server->part.filename = std::getenv("WEB_PARSER_NAME");
+      upload(app, UPLOAD_FILE_START);
+      upload(app, UPLOAD_FILE_WRITE, std::getenv("WEB_PARSER_PAYLOAD"));
+      upload(app, UPLOAD_FILE_END);
+      app.handleUploadPost(app.upload);
+      const bool replaced = std::string(replace) == "1";
+      if (!host::trace.back().starts_with(replaced ? "response:200:" : "response:400:") ||
+          host::files.at("/books/a.epub")->bytes != (replaced ? "complete" : "original") ||
+          host::files.at("/other/a.epub")->bytes != "other directory" ||
+          host::files.at("/books/file")->bytes != "form name" ||
+          host::files.at("/books/other.epub")->bytes != "other filename" || host::files.contains("/books/a.epub.part"))
+        std::abort();
+    });
+    return 0;
+  }
+
   if (std::getenv("WEB_FONT_STREAM_CHECK")) {
     record("large-font-lists", [](auto& app) {
       auto collect = [](size_t maxChunk) {

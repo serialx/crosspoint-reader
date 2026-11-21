@@ -1,6 +1,7 @@
 #pragma once
 
 #include <WString.h>
+#include <strings.h>
 
 #include <cstdlib>
 #include <new>
@@ -25,6 +26,39 @@ bool readHeaderLine(String& out, Read read, LineKind kind, bool allowNul = false
     char byte = static_cast<char>(c);
     if (!out.concat(&byte, 1)) return false;
   }
+}
+
+// The upload endpoint accepts quoted form-data parameters in either order.
+inline bool parseDisposition(const char* value, String& name, String& filename, bool& isFile) {
+  auto skipSpace = [&]() {
+    while (*value == ' ' || *value == '\t') ++value;
+  };
+  skipSpace();
+  if (strncasecmp(value, "form-data", 9) != 0) return false;
+  value += 9;
+  skipSpace();
+  bool hasName = false;
+  while (*value) {
+    if (*value++ != ';') return false;
+    skipSpace();
+    String* target;
+    if (!hasName && strncasecmp(value, "name=\"", 6) == 0) {
+      hasName = true;
+      target = &name;
+      value += 6;
+    } else if (!isFile && strncasecmp(value, "filename=\"", 10) == 0) {
+      isFile = true;
+      target = &filename;
+      value += 10;
+    } else {
+      return false;
+    }
+    const char* end = strchr(value, '"');
+    if (!end || !target->concat(value, end - value)) return false;
+    value = end + 1;
+    skipSpace();
+  }
+  return hasName;
 }
 
 inline bool decodeArgument(const String& input, unsigned int first, unsigned int end, String& out) {

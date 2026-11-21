@@ -279,7 +279,8 @@ static bool loadSleepFrameBuffer() {
 // drain (at-least-once). The caller's WiFi shutdown tears the radio down
 // either way. Deferrable events already queued (reader.exit) ride along in
 // the same drain.
-static void deliverSleepPluginEvents(const bool allowNetwork) {
+// Release event delivery's stack before drawing the sleep screen.
+[[gnu::noinline]] static void deliverSleepPluginEvents(const bool allowNetwork) {
   // Activity-owned state must be queued before sleep.enter and before this
   // same-sleep drain. The hook is idempotent with ordinary activity teardown.
   activityManager.prepareForSleep();

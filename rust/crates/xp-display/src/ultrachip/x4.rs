@@ -304,7 +304,35 @@ impl X4 {
         self.start(bus, data, mode, off);
         self.finish(bus, data);
     }
+    pub fn display_window(&mut self, bus: &mut impl Bus, data: &[u8], rect: [u16; 4], off: bool) {
+        let [x, y, w, h] = rect;
+        if self.is8179()
+            || !x.is_multiple_of(8)
+            || !w.is_multiple_of(8)
+            || w == 0
+            || h == 0
+            || u32::from(x) + u32::from(w) > u32::from(self.width)
+            || u32::from(y) + u32::from(h) > u32::from(self.height)
+            || !self.has(STATE_OLD_VALID)
+            || self.has(STATE_NEED_FULL | STATE_REDRIVE)
+        {
+            self.display(bus, data, 2, off);
+            return;
+        }
+        self.start_refresh(bus, data, 2, off, Some(rect));
+        self.finish(bus, data);
+    }
     pub fn start(&mut self, bus: &mut impl Bus, data: &[u8], mode: u32, off: bool) {
+        self.start_refresh(bus, data, mode, off, None);
+    }
+    fn start_refresh(
+        &mut self,
+        bus: &mut impl Bus,
+        data: &[u8],
+        mode: u32,
+        off: bool,
+        region: Option<[u16; 4]>,
+    ) {
         let paint = self.has(STATE_DIRECT_ON_PANEL);
         self.set(STATE_DIRECT_ON_PANEL, false);
         if self.is8179() {
@@ -321,7 +349,7 @@ impl X4 {
         if paint {
             self.stream(bus, 0x10, data, None, true);
             self.stream(bus, 0x13, data, None, false);
-            self.bw_refresh(bus, true);
+            self.bw_refresh(bus, true, region);
             bus.refresh_wait(self.tag(TAG_UC8179_BW_TARGET_DRF, TAG_UC8279_X4_BW_TARGET_DRF));
             bus.cmd(0x92);
         }
@@ -336,18 +364,19 @@ impl X4 {
             self.stream(bus, 0x10, data, None, true);
         }
         self.set(STATE_REDRIVE, false);
-        self.bw_refresh(bus, fast);
+        self.bw_refresh(bus, fast, region);
         self.set(STATE_PENDING_PARTIAL, fast);
         self.set(STATE_PENDING_OFF, off);
         self.set(STATE_PENDING, true);
     }
-    fn window(&self, bus: &mut impl Bus, span: bool) {
-        let xe = self.width - 1;
-        let ys = self.config.gate_offset;
-        let ye = ys + self.height - 1;
+    fn window(&self, bus: &mut impl Bus, span: bool, region: Option<[u16; 4]>) {
+        let [x, y, w, h] = region.unwrap_or([0, 0, self.width, self.height]);
+        let xe = x + w - 1;
+        let ys = self.config.gate_offset + y;
+        let ye = ys + h - 1;
         let data = [
-            0,
-            0,
+            (x >> 8) as u8,
+            (x & 0xf8) as u8,
             (xe >> 8) as u8,
             (xe | 7) as u8,
             (ys >> 8) as u8,
@@ -363,7 +392,7 @@ impl X4 {
             Self::bytes(bus, 0x90, &data);
         }
     }
-    fn bw_refresh(&mut self, bus: &mut impl Bus, fast: bool) {
+    fn bw_refresh(&mut self, bus: &mut impl Bus, fast: bool, region: Option<[u16; 4]>) {
         let c = self.config;
         if self.is8179() {
             Self::bytes(bus, 0x50, &[c.cdi_active, 7]);
@@ -384,7 +413,7 @@ impl X4 {
             if self.is8179() {
                 bus.cmd(0x91);
             } else {
-                self.window(bus, false);
+                self.window(bus, false, region);
             }
         }
         if !self.is8179() {
@@ -485,7 +514,7 @@ impl X4 {
             bus,
             self.tag(TAG_UC8179_GRAY_PRE_READY, TAG_UC8279_X4_GRAY_PRE_READY),
         );
-        self.window(bus, self.is8179());
+        self.window(bus, self.is8179(), None);
         let c = self.config;
         Self::bytes(bus, 0, &[c.psr0, c.psr1]);
         Self::bytes(bus, 3, &[c.pfs]);

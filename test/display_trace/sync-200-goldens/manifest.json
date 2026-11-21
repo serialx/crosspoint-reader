@@ -1,0 +1,457 @@
+{
+  "upstream_sdk": "5e94fe7480f019c89fbf691aef87523eb1b46704",
+  "cases": {
+    "c3-uc8253-dual": [
+      {
+        "index": 43,
+        "step": "step gray-base 0",
+        "baseline_sha256": "a5a7cea00734e4e4c7c1592cfd78159a7b3b8db1df07d21593e1ad77629607eb",
+        "prefix_lines": 3,
+        "suffix_lines": 1,
+        "fragment": "uc8253-half-1.xz"
+      },
+      {
+        "index": 47,
+        "step": "step gray-base 1",
+        "baseline_sha256": "110c51f5c1122aa16f45b9ef4faf06a87f47bdbcdde805f3889d715a63df9e76",
+        "prefix_lines": 3,
+        "suffix_lines": 1,
+        "fragment": "uc8253-half-1.xz"
+      },
+      {
+        "index": 51,
+        "step": "step gray-base 1",
+        "baseline_sha256": "110c51f5c1122aa16f45b9ef4faf06a87f47bdbcdde805f3889d715a63df9e76",
+        "prefix_lines": 3,
+        "suffix_lines": 1,
+        "fragment": "uc8253-half-1.xz"
+      }
+    ],
+    "c3-uc8253-single": [
+      {
+        "index": 43,
+        "step": "step gray-base 0",
+        "baseline_sha256": "a5a7cea00734e4e4c7c1592cfd78159a7b3b8db1df07d21593e1ad77629607eb",
+        "prefix_lines": 3,
+        "suffix_lines": 1,
+        "fragment": "uc8253-half-1.xz"
+      },
+      {
+        "index": 47,
+        "step": "step gray-base 1",
+        "baseline_sha256": "110c51f5c1122aa16f45b9ef4faf06a87f47bdbcdde805f3889d715a63df9e76",
+        "prefix_lines": 3,
+        "suffix_lines": 1,
+        "fragment": "uc8253-half-1.xz"
+      },
+      {
+        "index": 51,
+        "step": "step gray-base 1",
+        "baseline_sha256": "110c51f5c1122aa16f45b9ef4faf06a87f47bdbcdde805f3889d715a63df9e76",
+        "prefix_lines": 3,
+        "suffix_lines": 1,
+        "fragment": "uc8253-half-1.xz"
+      }
+    ],
+    "c3-uc8279-02-dual": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "ae97404a7a005c81a54936f299ee40ed4e409312f33fa54f11e557c3cb3d9f99",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-1.xz"
+      }
+    ],
+    "c3-uc8279-02-single": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "ae97404a7a005c81a54936f299ee40ed4e409312f33fa54f11e557c3cb3d9f99",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-1.xz"
+      }
+    ],
+    "c3-uc8279-03-dual": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "ae97404a7a005c81a54936f299ee40ed4e409312f33fa54f11e557c3cb3d9f99",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-1.xz"
+      }
+    ],
+    "c3-uc8279-03-single": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "ae97404a7a005c81a54936f299ee40ed4e409312f33fa54f11e557c3cb3d9f99",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-1.xz"
+      }
+    ],
+    "c3-uc8279-67-dual": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "ae97404a7a005c81a54936f299ee40ed4e409312f33fa54f11e557c3cb3d9f99",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-1.xz"
+      }
+    ],
+    "c3-uc8279-67-single": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "ae97404a7a005c81a54936f299ee40ed4e409312f33fa54f11e557c3cb3d9f99",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-1.xz"
+      }
+    ],
+    "c3-uc8279-68-dual": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "ae97404a7a005c81a54936f299ee40ed4e409312f33fa54f11e557c3cb3d9f99",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-1.xz"
+      }
+    ],
+    "c3-uc8279-68-single": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "ae97404a7a005c81a54936f299ee40ed4e409312f33fa54f11e557c3cb3d9f99",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-1.xz"
+      }
+    ],
+    "x3-dual-0": [
+      {
+        "index": 25,
+        "step": "step factory",
+        "baseline_sha256": "b921e47a8399949157d0e8b7281e4f502bae16b79b721c8a924471020992111a",
+        "prefix_lines": 2,
+        "suffix_lines": 2226,
+        "fragment": "uc8253-full-1.xz"
+      },
+      {
+        "index": 34,
+        "step": "step factory",
+        "baseline_sha256": "f83d74e78f917140c94acb6b4b78d2c986143f2df1a8fda1478e0e613330a103",
+        "prefix_lines": 2,
+        "suffix_lines": 2226,
+        "fragment": "uc8253-full-1.xz"
+      }
+    ],
+    "x3-dual-1": [
+      {
+        "index": 25,
+        "step": "step factory",
+        "baseline_sha256": "b921e47a8399949157d0e8b7281e4f502bae16b79b721c8a924471020992111a",
+        "prefix_lines": 2,
+        "suffix_lines": 2226,
+        "fragment": "uc8253-full-1.xz"
+      },
+      {
+        "index": 34,
+        "step": "step factory",
+        "baseline_sha256": "f83d74e78f917140c94acb6b4b78d2c986143f2df1a8fda1478e0e613330a103",
+        "prefix_lines": 2,
+        "suffix_lines": 2226,
+        "fragment": "uc8253-full-1.xz"
+      },
+      {
+        "index": 43,
+        "step": "step factory",
+        "baseline_sha256": "b921e47a8399949157d0e8b7281e4f502bae16b79b721c8a924471020992111a",
+        "prefix_lines": 2,
+        "suffix_lines": 2226,
+        "fragment": "uc8253-full-1.xz"
+      }
+    ],
+    "x3-dual-2": [
+      {
+        "index": 25,
+        "step": "step factory",
+        "baseline_sha256": "5ff0e5ec4e6506105d73b96af60db6d72653b471257ced62b95dacceecc6e7b1",
+        "prefix_lines": 2,
+        "suffix_lines": 2226,
+        "fragment": "uc8253-full-2.xz"
+      },
+      {
+        "index": 34,
+        "step": "step factory",
+        "baseline_sha256": "7c17796c96ecff7147ce4a171911efbcdf704d7c1eb40665b491d006b8d1e6eb",
+        "prefix_lines": 2,
+        "suffix_lines": 2226,
+        "fragment": "uc8253-full-2.xz"
+      }
+    ],
+    "x3-dual-3": [
+      {
+        "index": 25,
+        "step": "step factory",
+        "baseline_sha256": "7a876e7b55bd5e72bbd2a23c9e76263fa9a96faa3c429242bd6d9ad08efcd8be",
+        "prefix_lines": 2,
+        "suffix_lines": 2216,
+        "fragment": "uc8253-full-3.xz"
+      },
+      {
+        "index": 34,
+        "step": "step factory",
+        "baseline_sha256": "7a876e7b55bd5e72bbd2a23c9e76263fa9a96faa3c429242bd6d9ad08efcd8be",
+        "prefix_lines": 2,
+        "suffix_lines": 2216,
+        "fragment": "uc8253-full-3.xz"
+      }
+    ],
+    "x3-single-0": [
+      {
+        "index": 25,
+        "step": "step factory",
+        "baseline_sha256": "b921e47a8399949157d0e8b7281e4f502bae16b79b721c8a924471020992111a",
+        "prefix_lines": 2,
+        "suffix_lines": 2226,
+        "fragment": "uc8253-full-1.xz"
+      },
+      {
+        "index": 34,
+        "step": "step factory",
+        "baseline_sha256": "f83d74e78f917140c94acb6b4b78d2c986143f2df1a8fda1478e0e613330a103",
+        "prefix_lines": 2,
+        "suffix_lines": 2226,
+        "fragment": "uc8253-full-1.xz"
+      }
+    ],
+    "x3-single-1": [
+      {
+        "index": 25,
+        "step": "step factory",
+        "baseline_sha256": "b921e47a8399949157d0e8b7281e4f502bae16b79b721c8a924471020992111a",
+        "prefix_lines": 2,
+        "suffix_lines": 2226,
+        "fragment": "uc8253-full-1.xz"
+      },
+      {
+        "index": 34,
+        "step": "step factory",
+        "baseline_sha256": "f83d74e78f917140c94acb6b4b78d2c986143f2df1a8fda1478e0e613330a103",
+        "prefix_lines": 2,
+        "suffix_lines": 2226,
+        "fragment": "uc8253-full-1.xz"
+      },
+      {
+        "index": 43,
+        "step": "step factory",
+        "baseline_sha256": "b921e47a8399949157d0e8b7281e4f502bae16b79b721c8a924471020992111a",
+        "prefix_lines": 2,
+        "suffix_lines": 2226,
+        "fragment": "uc8253-full-1.xz"
+      }
+    ],
+    "x3-single-2": [
+      {
+        "index": 25,
+        "step": "step factory",
+        "baseline_sha256": "5ff0e5ec4e6506105d73b96af60db6d72653b471257ced62b95dacceecc6e7b1",
+        "prefix_lines": 2,
+        "suffix_lines": 2226,
+        "fragment": "uc8253-full-2.xz"
+      },
+      {
+        "index": 34,
+        "step": "step factory",
+        "baseline_sha256": "7c17796c96ecff7147ce4a171911efbcdf704d7c1eb40665b491d006b8d1e6eb",
+        "prefix_lines": 2,
+        "suffix_lines": 2226,
+        "fragment": "uc8253-full-2.xz"
+      }
+    ],
+    "x3-single-3": [
+      {
+        "index": 25,
+        "step": "step factory",
+        "baseline_sha256": "7a876e7b55bd5e72bbd2a23c9e76263fa9a96faa3c429242bd6d9ad08efcd8be",
+        "prefix_lines": 2,
+        "suffix_lines": 2216,
+        "fragment": "uc8253-full-3.xz"
+      },
+      {
+        "index": 34,
+        "step": "step factory",
+        "baseline_sha256": "7a876e7b55bd5e72bbd2a23c9e76263fa9a96faa3c429242bd6d9ad08efcd8be",
+        "prefix_lines": 2,
+        "suffix_lines": 2216,
+        "fragment": "uc8253-full-3.xz"
+      }
+    ],
+    "x4c-uc8279-02-dual": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "14609492b0bad8df922d140e83c9994676a3bfa2e49476ac1c3e79c589f2cba6",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-2.xz"
+      }
+    ],
+    "x4c-uc8279-02-single": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "14609492b0bad8df922d140e83c9994676a3bfa2e49476ac1c3e79c589f2cba6",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-2.xz"
+      }
+    ],
+    "x4c-uc8279-03-dual": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "14609492b0bad8df922d140e83c9994676a3bfa2e49476ac1c3e79c589f2cba6",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-2.xz"
+      }
+    ],
+    "x4c-uc8279-03-single": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "14609492b0bad8df922d140e83c9994676a3bfa2e49476ac1c3e79c589f2cba6",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-2.xz"
+      }
+    ],
+    "x4c-uc8279-67-dual": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "14609492b0bad8df922d140e83c9994676a3bfa2e49476ac1c3e79c589f2cba6",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-2.xz"
+      }
+    ],
+    "x4c-uc8279-67-single": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "14609492b0bad8df922d140e83c9994676a3bfa2e49476ac1c3e79c589f2cba6",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-2.xz"
+      }
+    ],
+    "x4c-uc8279-68-dual": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "14609492b0bad8df922d140e83c9994676a3bfa2e49476ac1c3e79c589f2cba6",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-2.xz"
+      }
+    ],
+    "x4c-uc8279-68-single": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "14609492b0bad8df922d140e83c9994676a3bfa2e49476ac1c3e79c589f2cba6",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-2.xz"
+      }
+    ],
+    "x4pro-uc8279-02-dual": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "167e67844a791d7ed7d3c8424b66ba482ea204529d589b81b060d4c80eb7fde8",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-3.xz"
+      }
+    ],
+    "x4pro-uc8279-02-single": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "167e67844a791d7ed7d3c8424b66ba482ea204529d589b81b060d4c80eb7fde8",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-3.xz"
+      }
+    ],
+    "x4pro-uc8279-03-dual": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "167e67844a791d7ed7d3c8424b66ba482ea204529d589b81b060d4c80eb7fde8",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-3.xz"
+      }
+    ],
+    "x4pro-uc8279-03-single": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "167e67844a791d7ed7d3c8424b66ba482ea204529d589b81b060d4c80eb7fde8",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-3.xz"
+      }
+    ],
+    "x4pro-uc8279-67-dual": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "167e67844a791d7ed7d3c8424b66ba482ea204529d589b81b060d4c80eb7fde8",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-3.xz"
+      }
+    ],
+    "x4pro-uc8279-67-single": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "167e67844a791d7ed7d3c8424b66ba482ea204529d589b81b060d4c80eb7fde8",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-3.xz"
+      }
+    ],
+    "x4pro-uc8279-68-dual": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "167e67844a791d7ed7d3c8424b66ba482ea204529d589b81b060d4c80eb7fde8",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-3.xz"
+      }
+    ],
+    "x4pro-uc8279-68-single": [
+      {
+        "index": 33,
+        "step": "step window 1",
+        "baseline_sha256": "167e67844a791d7ed7d3c8424b66ba482ea204529d589b81b060d4c80eb7fde8",
+        "prefix_lines": 1292,
+        "suffix_lines": 1361,
+        "fragment": "uc8279-ptl-3.xz"
+      }
+    ]
+  }
+}

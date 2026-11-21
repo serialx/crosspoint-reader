@@ -41,6 +41,7 @@ impl EpubSession {
             footnotes,
             bookmarks,
             clippings,
+            switch_owns_night: input.slide_owns_night != 0,
             frontlight: unsafe { (self.runtime.frontlight_present)() } != 0
                 && input.slide_owns_light == 0,
             bluetooth: input.ble_paired != 0 && self.radio_status().compiled_in != 0,

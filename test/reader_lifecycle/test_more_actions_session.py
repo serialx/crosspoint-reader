@@ -71,7 +71,7 @@ def main():
 
             baseline = run('more-actions')
             assert baseline.returncode == 0, baseline.stderr.decode(errors='replace')
-            assert baseline.stdout == (b'more actions: 1024 native-order cases; two publication-gate '
+            assert baseline.stdout == (b'more actions: 2048 native-order cases; two publication-gate '
                                        b'interleavings; configuration facts; recovery\n')
             copied_repo = work / 'source'
             copied_rust = copied_repo / 'rust'
@@ -91,7 +91,7 @@ def main():
             stderr = mutant.stderr.decode(errors='replace')
             assert 'assertActions' in stderr and 'actual.count == expected.size()' in stderr, stderr
             print(json.dumps({
-                'test_name': 'reader_more_actions_session', 'flag_combinations': 1024,
+                'test_name': 'reader_more_actions_session', 'flag_combinations': 2048,
                 'publication_gate_cases': 2, 'recovery_cases': 1,
                 'scope': 'real build_more_actions against the frozen native order with upstream configuration filters',
                 'resource_contract': 'footnotes under first lock; ordinary physical probes outside ModelLock; '

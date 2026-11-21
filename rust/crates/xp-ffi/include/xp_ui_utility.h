@@ -46,7 +46,7 @@ typedef struct {
   uint8_t popup_radius, popup_border, row_radius, selection;
   uint8_t control_radius, capsule_radius, sheet_radius, body_bold;
   uint8_t touch, light_present, has_warmth, show_cover;
-  uint8_t html_description, reserved[3];
+  uint8_t html_description, switch_owns_night, switch_owns_touch, reserved;
 } XpUiUtilityLayout;
 // Text pointers are borrowed by the synchronous view only; Rust does not retain them.
 // Height uses the existing font/text-box service.

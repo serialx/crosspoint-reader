@@ -41,6 +41,12 @@ void FrontlightPanelActivity::onExit() {
   UtilityActivity::onExit();
 }
 void FrontlightPanelActivity::prepareUtilityView() {
+  // A switch move can trigger a repaint without sending input to the panel.
+  if (slideSwitchOwnsLight()) renderingState.light_on = Frontlight.isOn();
+  if (slideSwitchOwns(CrossPointSettings::SLIDE_SWITCH_NIGHT_MODE)) renderingState.inverted = SETTINGS.screenInverted;
+  if (slideSwitchOwns(CrossPointSettings::SLIDE_SWITCH_TOUCH_CONTROLS)) {
+    renderingState.touch_mode = SETTINGS.touchReaderControls;
+  }
   snprintf(brightnessText, sizeof(brightnessText), "%u%%", renderingState.brightness);
   snprintf(warmthText, sizeof(warmthText), "%u%%", renderingState.warmth);
 }
@@ -57,6 +63,8 @@ const char* FrontlightPanelActivity::utilityText(const uint32_t h) const {
 void FrontlightPanelActivity::utilityLayout(XpUiUtilityLayout& l) const {
   l.light_present = Frontlight.present();
   l.has_warmth = Frontlight.hasColorTemperature();
+  l.switch_owns_night = slideSwitchOwns(CrossPointSettings::SLIDE_SWITCH_NIGHT_MODE);
+  l.switch_owns_touch = slideSwitchOwns(CrossPointSettings::SLIDE_SWITCH_TOUCH_CONTROLS);
 }
 void FrontlightPanelActivity::applyUtilityEffect(const XpUiUtilityEffect& e) {
   if (e.writes & XP_UI_UTILITY_BRIGHTNESS) Frontlight.setBrightness(state.brightness);

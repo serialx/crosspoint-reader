@@ -677,6 +677,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
             out->home_action = home;
             out->slide_owns_light = slideSwitchOwnsLight();
             out->ble_paired = SETTINGS.ble.peerAddr[0] != '\0';
+            out->slide_owns_night = slideSwitchOwns(CrossPointSettings::SLIDE_SWITCH_NIGHT_MODE);
           },
       .input_pressed = [](uint32_t button) -> uint8_t { return mapped->isPressed(inputButton(button)); },
       .input_screen_point = [](uint8_t kind, int32_t* x, int32_t* y) -> uint8_t {

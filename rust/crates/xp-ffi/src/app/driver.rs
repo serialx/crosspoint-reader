@@ -95,7 +95,8 @@ fn slide_switch(
         }
         _ => {
             if unsafe { (app.runtime.frontlight_present)() } == 0
-                || (unsafe { app.runtime.frontlight_state() } != 0) == on
+                || ((unsafe { app.runtime.frontlight_state() } != 0) == on
+                    && (settings.frontlight_on != 0) == on)
             {
                 return;
             }

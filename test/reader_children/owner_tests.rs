@@ -55,6 +55,7 @@ fn items() -> crate::menu::Items {
         bookmarks: true,
         clippings: true,
         frontlight: true,
+        switch_owns_night: false,
         bluetooth: true,
         dictionary: true,
         sync: true,

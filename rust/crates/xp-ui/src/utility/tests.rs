@@ -188,6 +188,46 @@ fn two_sliders_and_five_tiles_fit_the_full_control_center_budget() {
 }
 
 #[test]
+fn slide_owned_tiles_show_state_without_accepting_taps() {
+    use crate::scene::{Arena, Command, Kind, Refresh};
+    let layout = Layout {
+        switch_owns_night: 1,
+        switch_owns_touch: 1,
+        ..utility_test_layout()
+    };
+    let state = State {
+        kind: Screen::Frontlight as u8,
+        inverted: 1,
+        touch_mode: 1,
+        ..State::default()
+    };
+    let mut commands = [Command::default(); 43];
+    let mut hits = [Interaction::default(); 11];
+    let mut arena = Arena::new(&mut commands, &mut [], &mut hits).unwrap();
+    let resources = UtilityTestResources { description: false };
+    let mut metrics = UtilityTestResources { description: false };
+    frontlight_view(
+        &mut arena,
+        &state,
+        &layout,
+        &mut metrics,
+        &resources,
+        Feedback::default(),
+    )
+    .unwrap();
+    let scene = arena.finish(Refresh::Fast, 1).unwrap();
+    for (resource, value) in [(MOON, 0), (TOUCH_ICON, 3)] {
+        assert!(scene
+            .commands
+            .iter()
+            .any(|c| c.kind == Kind::Bitmap as u8 && c.resource == resource && c.paint == 1));
+        assert!(!scene
+            .interactions
+            .iter()
+            .any(|h| h.action == TILE && h.value == value));
+    }
+}
+#[test]
 fn frozen_application_traces() {
     let mut actual = String::new();
     for edge in [false, true] {
@@ -441,6 +481,8 @@ fn layout_wire_contract() {
         ),
         (80, 4, 62)
     );
+    assert_eq!(offset_of!(Layout, switch_owns_night), 75);
+    assert_eq!(offset_of!(Layout, switch_owns_touch), 76);
     assert_eq!(
         (
             size_of::<Feedback>(),

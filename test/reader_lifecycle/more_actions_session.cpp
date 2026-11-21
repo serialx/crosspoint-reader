@@ -106,6 +106,7 @@ static const LegacyEpubLeaves leaves = [] {
     *out = {};
     out->slide_owns_light = (flags & 16) != 0;
     out->ble_paired = (flags & 128) != 0;
+    out->slide_owns_night = (flags & 1024) != 0;
   };
   table.physical.radio_status = [](XpEpubRadio* out, XpEpubPeer* peer) {
     leaf(0);
@@ -209,6 +210,7 @@ static std::vector<uint8_t> reference() {
   for (const auto& item : items) {
     using Action = EpubReaderMenuActivity::MenuAction;
     if (item.action == Action::SYNC && !(flags & (256 | 512))) continue;
+    if (item.action == Action::NIGHT_MODE && (flags & 1024)) continue;
     if (item.action != Action::SELECT_CHAPTER && item.action != Action::TEXT_SETTINGS)
       result.push_back(static_cast<uint8_t>(item.action));
   }
@@ -221,7 +223,7 @@ static void assertActions(const candidate::Output& actual) {
   for (size_t i = 0; i < expected.size(); ++i) assert(actual.actions[i] == expected[i]);
 }
 int main() {
-  for (flags = 0; flags < 1024; ++flags) {
+  for (flags = 0; flags < 2048; ++flags) {
     candidate::create();
     const auto actual = candidate::build();
     assertActions(actual);
@@ -254,5 +256,5 @@ int main() {
   candidate::assertProbes();
   assert(recovered.count != previous.count);
   candidate::destroy();
-  std::puts("more actions: 1024 native-order cases; two publication-gate interleavings; configuration facts; recovery");
+  std::puts("more actions: 2048 native-order cases; two publication-gate interleavings; configuration facts; recovery");
 }

@@ -117,6 +117,97 @@ int main() {
 }
 ''')
 
+    def test_wake_sets_brightness_before_warmth(self):
+        source = (ROOT / 'lib/hal/HalFrontlight.cpp').read_text()
+        self.compile_run(r'''
+#define LOG_INF(...) ((void)0)
+struct Light { uint8_t brightness = 0; bool lit = false; };
+uint8_t xp_hal_percent(uint8_t input) { return input; }
+void xp_hal_light_brightness(Light* s, uint8_t input) { s->brightness = input; }
+void xp_hal_light_on(Light* s, bool input) { s->lit = input; }
+uint8_t xp_hal_light_output(const Light* s) { return s->lit ? s->brightness : 0; }
+struct Manager {
+  std::vector<int> writes;
+  void begin() { writes.push_back(-1); }
+  bool present() const { return true; }
+  void setBrightness(uint8_t level) { writes.push_back(level); }
+  void setColorTemperature(uint8_t warmth) { writes.push_back(100 + warmth); }
+};
+struct HalFrontlight {
+  Manager manager;
+  Light state;
+  void begin(uint8_t brightness, uint8_t warmth, bool on);
+};
+''' + definition(source, 'void HalFrontlight::begin(') + r'''
+int main() {
+  for (bool on : {false, true}) {
+    HalFrontlight light;
+    light.begin(60, 50, on);
+    assert((light.manager.writes == std::vector{-1, on ? 60 : 0, 150}));
+  }
+}
+''')
+
+    def test_physical_switch_controls_initial_wake_state(self):
+        source = (ROOT / 'src/main.cpp').read_text()
+        start = source.index('  const bool restoreLightOn =')
+        restore = source[start:source.index('  Frontlight.begin(', start)]
+        switch = definition(source, 'static void applySlideSwitchAtWake(')
+        self.assertLess(source.index('  applySlideSwitchAtWake();'), source.index('  setupDisplayAndFonts(resume'))
+        self.compile_run(r'''
+struct CrossPointSettings {
+  enum Action { SLIDE_SWITCH_FRONTLIGHT, SLIDE_SWITCH_NIGHT_MODE, SLIDE_SWITCH_TOUCH_CONTROLS };
+  enum { TOUCH_READER_OFF, TOUCH_READER_ON };
+  int slideSwitchAction = SLIDE_SWITCH_FRONTLIGHT;
+  uint8_t frontlightOn = 0, frontlightRestoreOnWake = 0, screenInverted = 0, touchReaderControls = 1;
+  int saves = 0;
+  void saveToFile() { ++saves; }
+} SETTINGS;
+struct {
+  bool present = true, on = false;
+  bool hasToggleSwitch() const { return present; }
+  bool isToggleSwitchOn() const { return on; }
+} gpio;
+struct {
+  bool on = false;
+  bool present() const { return true; }
+  bool isOn() const { return on; }
+  void setOn(bool enabled) { on = enabled; }
+} Frontlight;
+bool slideSwitchOwnsLight() { return gpio.present && SETTINGS.slideSwitchAction == CrossPointSettings::SLIDE_SWITCH_FRONTLIGHT; }
+bool initialLight(bool isSilentReboot, bool silentRebootLightOn) {
+''' + restore + r'''
+  return restoreLightOn;
+}
+''' + switch + r'''
+int main() {
+  gpio.on = true;
+  assert(initialLight(false, false));
+  assert(!initialLight(true, false));
+  Frontlight.on = initialLight(false, false);
+  applySlideSwitchAtWake();
+  assert(SETTINGS.frontlightOn && SETTINGS.saves == 1);
+  applySlideSwitchAtWake();
+  assert(SETTINGS.saves == 1);
+  gpio.on = false;
+  applySlideSwitchAtWake();
+  assert(!Frontlight.on && !SETTINGS.frontlightOn && SETTINGS.saves == 2);
+  SETTINGS.slideSwitchAction = CrossPointSettings::SLIDE_SWITCH_NIGHT_MODE;
+  gpio.on = true;
+  assert(!initialLight(false, false));
+  applySlideSwitchAtWake();
+  assert(SETTINGS.screenInverted && !Frontlight.on && SETTINGS.saves == 3);
+  SETTINGS.slideSwitchAction = CrossPointSettings::SLIDE_SWITCH_TOUCH_CONTROLS;
+  gpio.on = false;
+  applySlideSwitchAtWake();
+  assert(!SETTINGS.touchReaderControls && SETTINGS.saves == 4);
+  gpio.present = false;
+  gpio.on = true;
+  applySlideSwitchAtWake();
+  assert(!SETTINGS.touchReaderControls && SETTINGS.saves == 4);
+}
+''')
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -15,6 +15,8 @@ static_assert(sizeof(XpUiUtilityEffect) == 12 && alignof(XpUiUtilityEffect) == 4
               offsetof(XpUiUtilityEffect, writes) == 8);
 static_assert(sizeof(XpUiUtilityLayout) == 80 && alignof(XpUiUtilityLayout) == 4 &&
               offsetof(XpUiUtilityLayout, popup_radius) == 62);
+static_assert(offsetof(XpUiUtilityLayout, switch_owns_night) == 75 &&
+              offsetof(XpUiUtilityLayout, switch_owns_touch) == 76);
 static_assert(sizeof(XpUiUtilityTexts) == 3 * sizeof(void*) && alignof(XpUiUtilityTexts) == alignof(void*) &&
               offsetof(XpUiUtilityTexts, text_height) == 2 * sizeof(void*));
 static_assert(sizeof(XpUiUtilityFeedback) == 24 && alignof(XpUiUtilityFeedback) == 4 &&

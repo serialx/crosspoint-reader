@@ -13,9 +13,10 @@ void HalFrontlight::begin(const uint8_t brightness, const uint8_t warmth, const 
   if (!manager.present()) return;
 
   xp_hal_light_brightness(&state, brightness);
-  manager.setColorTemperature(xp_hal_percent(warmth));
   xp_hal_light_on(&state, on);
+  // A warmth write at zero brightness puts the Picco LED driver in standby.
   manager.setBrightness(xp_hal_light_output(&state));
+  manager.setColorTemperature(xp_hal_percent(warmth));
   LOG_INF("LIGHT", "Frontlight up: %u%% warm=%u%% %s", state.brightness, manager.colorTemperature(),
           state.lit ? "on" : "off");
 }

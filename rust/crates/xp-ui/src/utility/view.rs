@@ -81,7 +81,9 @@ pub struct Layout {
     pub has_warmth: u8,
     pub show_cover: u8,
     pub html_description: u8,
-    pub reserved: [u8; 3],
+    pub switch_owns_night: u8,
+    pub switch_owns_touch: u8,
+    pub reserved: u8,
 }
 pub trait Texts {
     fn present(&self, handle: u32) -> Result<bool, Error>;
@@ -440,7 +442,11 @@ impl View<'_, '_> {
                     };
                     self.fill(rect(icon.x + r.x, icon.y + r.y, r.w, r.h), 0, 0, 0)?;
                 }
-                self.hit(slot, TILE, i as i32, 1)?;
+                let switch_owned =
+                    (i == 0 && l.switch_owns_night != 0) || (i == 3 && l.switch_owns_touch != 0);
+                if !switch_owned {
+                    self.hit(slot, TILE, i as i32, 1)?;
+                }
             }
         }
         Ok(())

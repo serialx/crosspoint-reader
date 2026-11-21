@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <memory>
 #include <new>
+#include <type_traits>
 #include <vector>
 
 #include "DictZip.h"
@@ -103,6 +104,7 @@ TEST(InflateReader, SegmentedRingDecodesFullWindowBackReferences) {
   ctx->src = packed.data();
   ctx->remaining = packed.size();
   ASSERT_TRUE(ctx->reader.initWithSegments(segments));
+  std::fill_n(segments, InflateReader::RING_SEGMENTS, nullptr);
   ctx->reader.setFill(&feedCb, ctx.get());
 
   std::vector<uint8_t> out(plain.size());
@@ -113,10 +115,21 @@ TEST(InflateReader, SegmentedRingDecodesFullWindowBackReferences) {
   EXPECT_EQ(out, plain);
 }
 
+static_assert(!std::is_invocable_v<decltype(&InflateReader::initWithSegments), InflateReader&, uint8_t* (&)[3]>);
+
 TEST(InflateReader, InitWithSegmentsRejectsMissingSegment) {
-  uint8_t a[InflateReader::RING_SEGMENT_BYTES];
-  uint8_t* segments[InflateReader::RING_SEGMENTS] = {a, a, nullptr, a};
+  uint8_t buffer[InflateReader::RING_SEGMENTS][InflateReader::RING_SEGMENT_BYTES];
+  uint8_t* segments[] = {buffer[0], buffer[1], nullptr, buffer[3]};
   InflateReader reader;
+  EXPECT_FALSE(reader.initWithSegments(segments));
+}
+
+TEST(InflateReader, RejectsRepeatedAndOverlappingSegments) {
+  uint8_t buffer[InflateReader::RING_SEGMENTS][InflateReader::RING_SEGMENT_BYTES];
+  uint8_t* segments[] = {buffer[0], buffer[1], buffer[2], buffer[0]};
+  InflateReader reader;
+  EXPECT_FALSE(reader.initWithSegments(segments));
+  segments[3] = buffer[1] + InflateReader::RING_SEGMENT_BYTES - 1;
   EXPECT_FALSE(reader.initWithSegments(segments));
 }
 

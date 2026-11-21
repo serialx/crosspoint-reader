@@ -20,8 +20,8 @@ class InflateReader {
   InflateReader& operator=(const InflateReader&) = delete;
   bool init(bool streaming = false);
   bool initWithRing(uint8_t* ring);
-  // The pointer table and its four disjoint buffers outlive the reader.
-  bool initWithSegments(uint8_t** segments);
+  // Each buffer provides RING_SEGMENT_BYTES writable bytes and outlives the reader.
+  bool initWithSegments(uint8_t* const (&segments)[RING_SEGMENTS]);
   void deinit();
   void setSource(const uint8_t* src, size_t len);
   // Return bytes available until the next fill call, or zero at end of input.
@@ -33,7 +33,8 @@ class InflateReader {
   // Retain the original reader footprint and alignment: moving its global owner
   // shifts heap boundaries and can lower per-heap minimum-free counters.
   // Rust uses 1076 B on C3; init checks this fixed slot with no heap fallback.
-  alignas(void*) uint8_t state[1260] = {};
+  alignas(void*) uint8_t state[1260 - sizeof(void*) * RING_SEGMENTS] = {};
+  uint8_t* segmentTable[RING_SEGMENTS]{};
   enum class Window : uint8_t { None, Owned, Borrowed, Segmented };
   void* ringBuffer = nullptr;
   const uint8_t* input = nullptr;

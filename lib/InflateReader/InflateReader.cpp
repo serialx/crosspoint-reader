@@ -36,19 +36,23 @@ bool InflateReader::initWithRing(uint8_t* ring) {
   return true;
 }
 
-bool InflateReader::initWithSegments(uint8_t** segments) {
-  if (!init(false) || !segments) {
-    deinit();
-    return false;
-  }
+bool InflateReader::initWithSegments(uint8_t* const (&segments)[RING_SEGMENTS]) {
+  deinit();
   for (size_t i = 0; i < RING_SEGMENTS; ++i) {
-    if (!segments[i]) {
-      deinit();
-      return false;
+    if (!segments[i]) return false;
+    const auto address = reinterpret_cast<uintptr_t>(segments[i]);
+    for (size_t j = 0; j < i; ++j) {
+      const auto previous = reinterpret_cast<uintptr_t>(segments[j]);
+      const auto distance = address < previous ? previous - address : address - previous;
+      if (distance < RING_SEGMENT_BYTES) return false;
     }
   }
-  for (size_t i = 0; i < RING_SEGMENTS; ++i) memset(segments[i], 0, RING_SEGMENT_BYTES);
-  ringBuffer = segments;
+  if (!init(false)) return false;
+  for (size_t i = 0; i < RING_SEGMENTS; ++i) {
+    segmentTable[i] = segments[i];
+    memset(segmentTable[i], 0, RING_SEGMENT_BYTES);
+  }
+  ringBuffer = segmentTable;
   window = Window::Segmented;
   return true;
 }

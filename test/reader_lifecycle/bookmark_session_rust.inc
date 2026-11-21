@@ -312,7 +312,7 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(physical.state_save);
   UNUSED_LEAF(physical.has_sync_credentials);
   UNUSED_LEAF(physical.has_exit_subscriber);
-  UNUSED_LEAF(physical.has_session_subscriber);
+  UNUSED_LEAF(physical.subscribers);
   UNUSED_LEAF(physical.document_id);
   UNUSED_LEAF(physical.emit_open);
   UNUSED_LEAF(physical.emit_exit);

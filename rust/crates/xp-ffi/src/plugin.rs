@@ -371,7 +371,6 @@ pub unsafe extern "C" fn xp_plugin_any(
     (*table).iter().any(|s| s.name[0] != 0 && s.mask & bit != 0)
 }
 
-#[cfg(not(feature = "app-test"))]
 pub(crate) unsafe fn has_event_subscriber(table: *const [Subscriber; MAX_EVENT_PLUGINS]) -> bool {
     (0..EVENTS.len() as u32).any(|event| xp_plugin_any(table, event))
 }

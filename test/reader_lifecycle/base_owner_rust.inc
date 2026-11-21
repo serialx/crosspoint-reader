@@ -324,7 +324,7 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(physical.state_save);
   UNUSED_LEAF(physical.has_sync_credentials);
   UNUSED_LEAF(physical.has_exit_subscriber);
-  UNUSED_LEAF(physical.has_session_subscriber);
+  UNUSED_LEAF(physical.subscribers);
   UNUSED_LEAF(physical.document_id);
   UNUSED_LEAF(physical.emit_open);
   UNUSED_LEAF(physical.emit_exit);
@@ -424,7 +424,13 @@ static const LegacyEpubLeaves leaves = [] {
     pluginevents::emit(pluginevents::Event::ReaderOpen, vars, 1);
   };
   table.physical.has_exit_subscriber = []() -> uint8_t { unlocked(); return pluginevents::anySubscriber(pluginevents::Event::ReaderExit); };
-  table.physical.has_session_subscriber = []() -> uint8_t { unlocked(); return pluginevents::anySubscriber(pluginevents::Event::ReaderSession); };
+  table.physical.subscribers = []() -> const XpPluginSubscriber* {
+    unlocked();
+    static XpPluginSubscriber table[XP_PLUGIN_MAX_EVENT_PLUGINS]{};
+    table[0].name[0] = 'p';
+    table[0].mask = pluginevents::anySubscriber(pluginevents::Event::ReaderSession) ? xp_plugin_event_mask(2) : 0;
+    return table;
+  };
   table.physical.emit_exit = [](XpAppText value, int32_t percent) {
     unlocked(); path(value);
     char number[8]; std::snprintf(number, sizeof(number), "%d", percent);

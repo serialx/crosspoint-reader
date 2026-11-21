@@ -2,7 +2,7 @@
 extern crate alloc;
 use super::{
     chapter_book::GuardedBook,
-    owned::{Chapters, Percent, Toolbar},
+    owned::{Chapters, Menu, Percent, Toolbar},
     physical::Physical,
     toolbar_view::Content,
 };
@@ -14,6 +14,15 @@ use crate::app::{
 use alloc::boxed::Box;
 use core::ffi::c_void;
 use xp_ui::{reader_chrome::list, scene::Rect};
+
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_menu_has_sync(raw: *const c_void) -> bool {
+    let menu = unsafe { &*raw.cast::<Menu>() };
+    menu.items
+        .actions()
+        .iter()
+        .any(|action| matches!(action, xp_ui::reader::menu_parent::Action::Sync))
+}
 
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_chapter_state(

@@ -896,12 +896,8 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .has_sync_credentials = []() -> uint8_t { return KOREADER_STORE.hasCredentials(); },
 #ifdef XP_APP_TEST
       .has_exit_subscriber = []() -> uint8_t { return pluginevents::anySubscriber(pluginevents::Event::ReaderExit); },
-      .has_session_subscriber = []() -> uint8_t {
-        return pluginevents::anySubscriber(pluginevents::Event::ReaderSession);
-      },
-#else
-      .subscribers = pluginevents::subscriptionView,
 #endif
+      .subscribers = pluginevents::subscriptionView,
 #ifdef XP_APP_TEST
       .document_id = [](XpAppText path, XpAppTextSink sink, void* context) -> uint8_t {
         const auto document = KOReaderDocumentId::calculate(owned(path));

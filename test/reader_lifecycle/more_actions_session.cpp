@@ -52,8 +52,7 @@ enum Probe {
   Radio,
   Settings,
   Credentials,
-  ExitSubscriber,
-  SessionSubscriber
+  SubscriberTable
 };
 static void leaf(unsigned depth) { assert(modelDepth == 0 && renderDepth == depth); }
 static const XpAppResources resources = overlayUnexpectedResources();
@@ -127,15 +126,13 @@ static const LegacyEpubLeaves leaves = [] {
     probes.push_back(Credentials);
     return (flags & 256) != 0;
   };
-  table.physical.has_exit_subscriber = []() -> uint8_t {
+  table.physical.subscribers = []() -> const XpPluginSubscriber* {
     leaf(0);
-    probes.push_back(ExitSubscriber);
-    return (flags & 512) != 0;
-  };
-  table.physical.has_session_subscriber = []() -> uint8_t {
-    leaf(0);
-    probes.push_back(SessionSubscriber);
-    return 0;
+    probes.push_back(SubscriberTable);
+    static XpPluginSubscriber table[XP_PLUGIN_MAX_EVENT_PLUGINS]{};
+    table[3].name[0] = (flags & 512) ? 'p' : 0;
+    table[3].mask = xp_plugin_event_mask(3);  // book.downloaded only
+    return table;
   };
 
   return table;
@@ -190,8 +187,7 @@ static void assertProbes() {
   expected.push_back(Settings);
   expected.push_back(Credentials);
   if (!(flags & 256)) {
-    expected.push_back(ExitSubscriber);
-    if (!(flags & 512)) expected.push_back(SessionSubscriber);
+    expected.push_back(SubscriberTable);
   }
   assert(probes == expected);
 }

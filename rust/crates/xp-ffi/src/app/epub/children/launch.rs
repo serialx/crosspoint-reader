@@ -18,14 +18,7 @@ impl EpubSession {
         if unsafe { (self.leaves.has_sync_credentials)() } != 0 {
             return true;
         }
-        #[cfg(feature = "app-test")]
-        return unsafe {
-            self.leaves.has_exit_subscriber() != 0 || self.leaves.has_session_subscriber() != 0
-        };
-        #[cfg(not(feature = "app-test"))]
-        unsafe {
-            crate::plugin::has_event_subscriber((self.leaves.subscribers)().cast())
-        }
+        unsafe { crate::plugin::has_event_subscriber((self.leaves.subscribers)().cast()) }
     }
 
     pub(in crate::app::epub) fn reader_menu_items(

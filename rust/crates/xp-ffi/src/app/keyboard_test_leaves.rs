@@ -118,7 +118,7 @@ unused_leaves! {
     state_save() ;
     has_sync_credentials() -> u8;
     has_exit_subscriber() -> u8;
-    has_session_subscriber() -> u8;
+    subscribers() -> *const crate::plugin::Subscriber;
     document_id(_a0: XpAppText, _a1: XpAppTextSink, _a2: *mut core::ffi::c_void) -> u8;
     emit_open(_a0: XpAppText) ;
     emit_exit(_a0: XpAppText, _a1: i32) ;

@@ -523,11 +523,9 @@ typedef struct XpEpubLeaves {
   // Fixture-only fields/signatures (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   uint8_t (*has_exit_subscriber)(void);
-  uint8_t (*has_session_subscriber)(void);
-#else
+#endif
   // Borrowed until the synchronous query returns; subscription refresh stays on the app task.
   const XpPluginSubscriber* (*subscribers)(void);
-#endif
 // Fixture-only field/signature (HOST-RETIRE); absent from firmware.
 #ifdef XP_APP_TEST
   uint8_t (*document_id)(XpAppText path, XpAppTextSink sink, void* context);
@@ -892,7 +890,7 @@ XP_EPUB_LEAF_OFFSET(store_document, 89);
 XP_EPUB_LEAF_OFFSET(has_sync_credentials, 90);
 #ifdef XP_APP_TEST
 XP_EPUB_LEAF_OFFSET(has_exit_subscriber, 91);
-XP_EPUB_LEAF_OFFSET(has_session_subscriber, 92);
+XP_EPUB_LEAF_OFFSET(subscribers, 92);
 #else
 XP_EPUB_LEAF_OFFSET(subscribers, 91);
 #endif

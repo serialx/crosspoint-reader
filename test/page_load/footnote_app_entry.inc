@@ -377,9 +377,13 @@ void bind() {
     f().physical("fonts-release", f().extractor->generation);
   };
   leaves.has_sync_credentials = []() -> uint8_t { return 0; };
-  leaves.has_session_subscriber = []() -> uint8_t { return 0; };
+  leaves.subscribers = []() -> const XpPluginSubscriber* {
+    static constexpr XpPluginSubscriber empty[XP_PLUGIN_MAX_EVENT_PLUGINS]{};
+    return empty;
+  };
   leaves.has_exit_subscriber = []() -> uint8_t {
-    if (f().renderDepth == 1) f().physical("exit-subscriber");
+    assert(f().renderDepth == 1);
+    f().physical("exit-subscriber");
     return 0;
   };
   leaves.state_reset_reader_count = [] {

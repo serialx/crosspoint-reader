@@ -314,9 +314,9 @@ static_assert(std::is_pointer_v<decltype(XpEpubLeaves::has_sync_credentials)> &&
 static_assert(offsetof(XpEpubLeaves, has_exit_subscriber) == xpTestEpubLeafSlot(90) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::has_exit_subscriber)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::has_exit_subscriber)>>);
-static_assert(offsetof(XpEpubLeaves, has_session_subscriber) == xpTestEpubLeafSlot(91) * sizeof(void (*)()));
-static_assert(std::is_pointer_v<decltype(XpEpubLeaves::has_session_subscriber)> &&
-              std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::has_session_subscriber)>>);
+static_assert(offsetof(XpEpubLeaves, subscribers) == xpTestEpubLeafSlot(91) * sizeof(void (*)()));
+static_assert(std::is_pointer_v<decltype(XpEpubLeaves::subscribers)> &&
+              std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::subscribers)>>);
 static_assert(offsetof(XpEpubLeaves, document_id) == xpTestEpubLeafSlot(92) * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::document_id)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::document_id)>>);

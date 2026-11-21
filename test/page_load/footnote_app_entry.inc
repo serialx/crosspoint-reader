@@ -376,9 +376,10 @@ void bind() {
     assert(f().renderDepth == 1 && f().extractor);
     f().physical("fonts-release", f().extractor->generation);
   };
+  leaves.has_sync_credentials = []() -> uint8_t { return 0; };
+  leaves.has_session_subscriber = []() -> uint8_t { return 0; };
   leaves.has_exit_subscriber = []() -> uint8_t {
-    assert(f().renderDepth == 1);
-    f().physical("exit-subscriber");
+    if (f().renderDepth == 1) f().physical("exit-subscriber");
     return 0;
   };
   leaves.state_reset_reader_count = [] {

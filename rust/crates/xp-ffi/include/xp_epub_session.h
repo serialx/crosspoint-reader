@@ -147,6 +147,7 @@ typedef struct {
   uint8_t board_touch;  // Board capability used by the confirm threshold.
   uint8_t home_action;
   uint8_t slide_owns_light;
+  uint8_t ble_paired;
 } XpEpubInputFacts;
 
 typedef struct {
@@ -700,6 +701,7 @@ XP_EPUB_ASSERT(offsetof(XpEpubInputFacts, touch) == 10, "XpEpubInputFacts.touch"
 XP_EPUB_ASSERT(offsetof(XpEpubInputFacts, board_touch) == 11, "XpEpubInputFacts.board_touch");
 XP_EPUB_ASSERT(offsetof(XpEpubInputFacts, home_action) == 12, "XpEpubInputFacts.home_action");
 XP_EPUB_ASSERT(offsetof(XpEpubInputFacts, slide_owns_light) == 13, "XpEpubInputFacts.slide_owns_light");
+XP_EPUB_ASSERT(offsetof(XpEpubInputFacts, ble_paired) == 14, "XpEpubInputFacts.ble_paired");
 XP_EPUB_ASSERT(offsetof(XpEpubSettings, orientation) == 4, "XpEpubSettings.orientation");
 XP_EPUB_ASSERT(offsetof(XpEpubSettings, dictionary_available) == 26, "XpEpubSettings.dictionary_available");
 XP_EPUB_ASSERT(offsetof(XpEpubSettings, font_family) == (sizeof(void*) == 8 ? 32 : 28), "XpEpubSettings.font_family");

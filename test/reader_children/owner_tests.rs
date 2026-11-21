@@ -57,6 +57,7 @@ fn items() -> crate::menu::Items {
         frontlight: true,
         bluetooth: true,
         dictionary: true,
+        sync: true,
     })
 }
 
@@ -77,6 +78,7 @@ fn each_child_has_a_separate_stable_box_and_qr_moves_its_text() {
         Text::copy(b"Title").unwrap(),
         Text::copy(b"1/2").unwrap(),
         3,
+        0,
     )
     .unwrap();
     let chapters = owned::Chapters::try_new(runtime(), 700).unwrap();
@@ -117,7 +119,7 @@ fn owner_allocation_failure_is_fallible_for_every_screen() {
     let progress = Text::copy(b"1/2").unwrap();
     let items = items();
     FAIL_NEXT.with(|flag| flag.set(true));
-    assert!(owned::Menu::try_new(runtime, items, title, progress, 0).is_none());
+    assert!(owned::Menu::try_new(runtime, items, title, progress, 0, 0).is_none());
     FAIL_NEXT.with(|flag| flag.set(true));
     assert!(owned::Chapters::try_new(runtime, 0).is_none());
     FAIL_NEXT.with(|flag| flag.set(true));

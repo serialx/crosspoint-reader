@@ -14,6 +14,41 @@ use xp_core::i18n::ids;
 use xp_ui::app::Transition;
 
 impl EpubSession {
+    fn reader_menu_can_sync(&self) -> bool {
+        if unsafe { (self.leaves.has_sync_credentials)() } != 0 {
+            return true;
+        }
+        #[cfg(feature = "app-test")]
+        return unsafe {
+            self.leaves.has_exit_subscriber() != 0 || self.leaves.has_session_subscriber() != 0
+        };
+        #[cfg(not(feature = "app-test"))]
+        unsafe {
+            crate::plugin::has_event_subscriber((self.leaves.subscribers)().cast())
+        }
+    }
+
+    pub(in crate::app::epub) fn reader_menu_items(
+        &self,
+        footnotes: bool,
+        bookmarks: bool,
+        clippings: bool,
+    ) -> Items {
+        let mut input = core::mem::MaybeUninit::uninit();
+        unsafe { self.leaves.input_facts(input.as_mut_ptr()) };
+        let input = unsafe { input.assume_init() };
+        Items::new(Flags {
+            footnotes,
+            bookmarks,
+            clippings,
+            frontlight: unsafe { (self.runtime.frontlight_present)() } != 0
+                && input.slide_owns_light == 0,
+            bluetooth: input.ble_paired != 0 && self.radio_status().compiled_in != 0,
+            dictionary: self.settings(false).dictionary_available != 0,
+            sync: self.reader_menu_can_sync(),
+        })
+    }
+
     fn push_owned_child(&self, child: Option<ReaderChild>, intent: ChildIntent) {
         let Some(child) = child else {
             self.request_update();
@@ -79,19 +114,20 @@ impl EpubSession {
                     if known_percent { b"%" } else { b"" },
                 ])
                 .ok()?;
-            let mut input = core::mem::MaybeUninit::uninit();
-            unsafe { self.leaves.input_facts(input.as_mut_ptr()) };
-            let input = unsafe { input.assume_init() };
-            let items = Items::new(Flags {
-                footnotes: args.footnotes != 0,
-                bookmarks: args.bookmarks != 0,
-                clippings: args.clippings != 0,
-                frontlight: unsafe { (self.runtime.frontlight_present)() } != 0
-                    && input.slide_owns_light == 0,
-                bluetooth: self.radio_status().compiled_in != 0,
-                dictionary: self.settings(false).dictionary_available != 0,
-            });
-            Menu::try_new(self.runtime, items, title, progress, args.orientation)
+            let items = self.reader_menu_items(
+                args.footnotes != 0,
+                args.bookmarks != 0,
+                args.clippings != 0,
+            );
+            let selected = items.selected_index(self.model(|state| state.selected_menu_action));
+            Menu::try_new(
+                self.runtime,
+                items,
+                title,
+                progress,
+                args.orientation,
+                selected,
+            )
         })();
         self.push_owned_child(
             owner.map(StableOwner::from).map(ReaderChild::Menu),

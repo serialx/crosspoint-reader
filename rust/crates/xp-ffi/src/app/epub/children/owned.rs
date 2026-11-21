@@ -163,11 +163,12 @@ impl Menu {
         title: Text,
         progress: Text,
         orientation: u8,
+        selected: i32,
     ) -> Option<Box<Self>> {
         unsafe {
             allocate(|out: *mut Self| {
                 ModelCell::initialize(ptr::addr_of_mut!((*out).model), runtime, |model| {
-                    ListPublication::initialize(ptr::addr_of_mut!((*model).list), 0);
+                    ListPublication::initialize(ptr::addr_of_mut!((*model).list), selected);
                     ptr::addr_of_mut!((*model).menu).write(menu::State::new(orientation));
                 });
                 let frame = ptr::addr_of_mut!((*out).frame).cast::<MenuFrame>();

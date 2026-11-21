@@ -146,6 +146,9 @@ impl Menu {
                 unsafe {
                     *self.result.get() = Some(ReaderChildResult::Menu {
                         action,
+                        selected: self
+                            .items
+                            .selected_action(self.model.with(|m| m.list.state.list.selected)),
                         orientation: effect.orientation,
                         page_turn: effect.page_turn,
                     });

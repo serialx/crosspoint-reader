@@ -208,10 +208,13 @@ impl ChildTarget {
             Self::Bookmarks(owner) => unsafe { owner.as_ref().finish(None) },
             Self::Menu(owner) => {
                 let owner = unsafe { owner.as_ref() };
-                let state = owner.model.with(|model| model.menu);
+                let (state, index) = owner
+                    .model
+                    .with(|model| (model.menu, model.list.state.list.selected));
                 unsafe {
                     *owner.result.get() = Some(ReaderChildResult::Menu {
                         action: None,
+                        selected: owner.items.selected_action(index),
                         orientation: state.orientation,
                         page_turn: state.page_turn,
                     });

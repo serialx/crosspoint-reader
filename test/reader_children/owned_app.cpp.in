@@ -113,6 +113,13 @@ static void bindOwnedChildren() {
   };
   leaves.render_restore_bw = [](uint8_t) { physical("toolbar-restore", 1); };
   leaves.input_facts = [](XpEpubInputFacts* out) { *out = {}; };
+  static auto exitSubscriber = leaves.has_exit_subscriber;
+  leaves.has_exit_subscriber = []() -> uint8_t {
+    if (f().renderDepth != 0) return exitSubscriber();
+    assert(f().modelDepth == 0);
+    return 0;
+  };
+  leaves.has_session_subscriber = []() -> uint8_t { return 0; };
   leaves.input_snapshot = [](XpUiInput* out) { *out = childInput.input; };
   resources.translate = [](uint16_t) -> XpAppText { return literal("translation"); };
   resources.text_width = [](XpAppText text, int32_t, uint8_t) -> int32_t { physical("child-width", 1); return int(text.len * 8); };

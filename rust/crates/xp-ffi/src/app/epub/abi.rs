@@ -158,6 +158,7 @@ pub struct XpEpubInputFacts {
     pub board_touch: u8,
     pub home_action: u8,
     pub slide_owns_light: u8,
+    pub ble_paired: u8,
 }
 
 const _: () = {
@@ -167,6 +168,7 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubInputFacts, board_touch) == 11);
     assert!(core::mem::offset_of!(XpEpubInputFacts, home_action) == 12);
     assert!(core::mem::offset_of!(XpEpubInputFacts, slide_owns_light) == 13);
+    assert!(core::mem::offset_of!(XpEpubInputFacts, ble_paired) == 14);
 };
 
 #[repr(C)]

@@ -22,7 +22,7 @@ namespace bleturner {
 struct Status {
   bool compiledIn;
 };
-static Status status() { return {(flags & 32) != 0}; }
+static Status status() { return {(flags & 32) != 0 && (flags & 128) != 0}; }
 }  // namespace bleturner
 struct {
   char dictionaryName[2]{};
@@ -43,7 +43,18 @@ static void* owner;
 static int native, lockToken;
 static unsigned renderDepth, modelDepth, acquisitions, releases, rejectAt;
 static std::vector<unsigned> probes;
-enum Probe { Footnotes, Bookmarks, Clippings, FrontlightPresent, InputFacts, Radio, Settings };
+enum Probe {
+  Footnotes,
+  Bookmarks,
+  Clippings,
+  FrontlightPresent,
+  InputFacts,
+  Radio,
+  Settings,
+  Credentials,
+  ExitSubscriber,
+  SessionSubscriber
+};
 static void leaf(unsigned depth) { assert(modelDepth == 0 && renderDepth == depth); }
 static const XpAppResources resources = overlayUnexpectedResources();
 static const XpAppRuntime runtime = [] {
@@ -90,10 +101,11 @@ static const LegacyEpubLeaves leaves = [] {
   };
   table.physical.input_facts = [](XpEpubInputFacts* out) {
     leaf(0);
-    assert((flags & 8) && out);
+    assert(out);
     probes.push_back(InputFacts);
     *out = {};
     out->slide_owns_light = (flags & 16) != 0;
+    out->ble_paired = (flags & 128) != 0;
   };
   table.physical.radio_status = [](XpEpubRadio* out, XpEpubPeer* peer) {
     leaf(0);
@@ -108,6 +120,21 @@ static const LegacyEpubLeaves leaves = [] {
     probes.push_back(Settings);
     *out = {};
     out->dictionary_available = (flags & 64) != 0;
+  };
+  table.physical.has_sync_credentials = []() -> uint8_t {
+    leaf(0);
+    probes.push_back(Credentials);
+    return (flags & 256) != 0;
+  };
+  table.physical.has_exit_subscriber = []() -> uint8_t {
+    leaf(0);
+    probes.push_back(ExitSubscriber);
+    return (flags & 512) != 0;
+  };
+  table.physical.has_session_subscriber = []() -> uint8_t {
+    leaf(0);
+    probes.push_back(SessionSubscriber);
+    return 0;
   };
 
   return table;
@@ -157,10 +184,14 @@ static Output build(unsigned rejection = 0) {
   return out;
 }
 static void assertProbes() {
-  std::vector<unsigned> expected{Footnotes, Clippings, FrontlightPresent};
-  if (flags & 8) expected.push_back(InputFacts);
-  expected.push_back(Radio);
+  std::vector<unsigned> expected{Footnotes, Clippings, InputFacts, FrontlightPresent};
+  if (flags & 128) expected.push_back(Radio);
   expected.push_back(Settings);
+  expected.push_back(Credentials);
+  if (!(flags & 256)) {
+    expected.push_back(ExitSubscriber);
+    if (!(flags & 512)) expected.push_back(SessionSubscriber);
+  }
   assert(probes == expected);
 }
 static void destroy() {
@@ -177,6 +208,7 @@ static std::vector<uint8_t> reference() {
   std::vector<uint8_t> result;
   for (const auto& item : items) {
     using Action = EpubReaderMenuActivity::MenuAction;
+    if (item.action == Action::SYNC && !(flags & (256 | 512))) continue;
     if (item.action != Action::SELECT_CHAPTER && item.action != Action::TEXT_SETTINGS)
       result.push_back(static_cast<uint8_t>(item.action));
   }
@@ -189,7 +221,7 @@ static void assertActions(const candidate::Output& actual) {
   for (size_t i = 0; i < expected.size(); ++i) assert(actual.actions[i] == expected[i]);
 }
 int main() {
-  for (flags = 0; flags < 128; ++flags) {
+  for (flags = 0; flags < 1024; ++flags) {
     candidate::create();
     const auto actual = candidate::build();
     assertActions(actual);
@@ -222,5 +254,5 @@ int main() {
   candidate::assertProbes();
   assert(recovered.count != previous.count);
   candidate::destroy();
-  std::puts("more actions: 128 native-order cases; two publication-gate interleavings; lazy input facts; recovery");
+  std::puts("more actions: 1024 native-order cases; two publication-gate interleavings; configuration facts; recovery");
 }

@@ -202,9 +202,11 @@ fn menu() -> Box<Menu> {
             frontlight: true,
             bluetooth: true,
             dictionary: true,
+            sync: true,
         }),
         Text::copy(b"Book title").unwrap(),
         Text::copy(b"Chapter1/2 Book50%").unwrap(),
+        0,
         0,
     )
     .unwrap()

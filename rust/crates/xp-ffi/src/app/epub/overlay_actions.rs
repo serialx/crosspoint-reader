@@ -167,50 +167,12 @@ impl EpubSession {
             assert!(count <= 19);
             return (actions, usize::from(count));
         }
-        let mut actions = [0u8; 19];
-        let mut count = 0;
-        let mut add = |action: Action| {
-            actions[count] = action as u8;
-            count += 1;
-        };
-        if footnotes {
-            add(Action::Footnotes);
+        let items = self.reader_menu_items(footnotes, bookmarks, clippings);
+        let mut actions = [0; 19];
+        for (slot, action) in actions.iter_mut().zip(items.actions()) {
+            *slot = *action as u8;
         }
-        if bookmarks {
-            add(Action::Bookmarks);
-        }
-        add(Action::ToggleBookmark);
-        add(Action::SaveClipping);
-        if clippings {
-            add(Action::ViewClippings);
-        }
-        add(Action::Night);
-        if unsafe { (self.runtime.frontlight_present)() } != 0 {
-            let mut input = MaybeUninit::<abi::XpEpubInputFacts>::uninit();
-            unsafe { self.leaves.input_facts(input.as_mut_ptr()) };
-            if unsafe { input.assume_init() }.slide_owns_light == 0 {
-                add(Action::Frontlight);
-            }
-        }
-        if self.radio_status().compiled_in != 0 {
-            add(Action::Bluetooth);
-        }
-        if self.settings(false).dictionary_available != 0 {
-            add(Action::Dictionary);
-        }
-        for action in [
-            Action::Orientation,
-            Action::Auto,
-            Action::Percent,
-            Action::Screenshot,
-            Action::Qr,
-            Action::Home,
-            Action::Sync,
-            Action::DeleteCache,
-        ] {
-            add(action);
-        }
-        (actions, count)
+        (actions, items.actions().len())
     }
 
     pub(super) fn open_overlay(&self, target: Overlay) {

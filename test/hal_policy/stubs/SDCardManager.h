@@ -28,6 +28,7 @@ class FsFile {
     live = false;
     return true;
   }
+  explicit operator bool() const { return isOpen(); }
   bool isOpen() const {
     puts("file isOpen");
     return live;
@@ -106,7 +107,7 @@ struct SDCardManager {
     static int block = 0;
     return detachOk ? &block : nullptr;
   }
-  FsFile open(const char* path, oflag_t mode) {
+  FsFile open(const char* path, oflag_t mode = O_RDONLY) {
     printf("sd open %s %u\n", path, mode);
     return FsFile(fileOk);
   }

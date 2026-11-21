@@ -40,7 +40,9 @@ class CrossPointWebServer : private XpWebLifecycle {
     HalFile file;
     String fileName;
     String path = "/";
+    String stagedPath;  // Retained until close or abort so cleanup needs no allocation.
     mutable XpWebUpload policy{};
+    bool requestFailed = false;
     String error = "";
 
     // Upload write buffer - batches small writes into larger SD card operations

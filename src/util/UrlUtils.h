@@ -17,4 +17,6 @@ std::string_view origin(std::string_view requestUrl);
 // Adds the request origin to a single-slash server path. Returns true on change.
 bool resolveServerPath(std::string& path, const std::string& requestUrl);
 
+bool isForeignHost(const char* hostHeader);
+
 }  // namespace UrlUtils

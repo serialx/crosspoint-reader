@@ -251,14 +251,14 @@ fn activated_font_list_matches_native_response_and_file_operation_order() {
             argument: span,
             send,
             header,
-            chunk,
-            length,
+            chunk: append,
+            length: config_length,
             io,
             sensitive,
             book,
             buffer,
-            watchdog: task,
-            yield_task: task,
+            watchdog: config_task,
+            yield_task: config_task,
             flags,
             paths,
             path,
@@ -303,7 +303,7 @@ fn activated_font_list_matches_native_response_and_file_operation_order() {
         xp_web_fonts((&mut context as *mut Context).cast(), &fonts, 0);
         assert_eq!(
             String::from_utf8(context.response).unwrap(),
-            r#"{"families":[{"name":"ShortFont","sizes":[14,18],"files":[{"name":"ShortFont_14.cpfont","size":73},{"name":"ShortFont_18.cpfont","size":73}]}],"maxFamilies":128,"vectorFonts":false}"#
+            r#"{"maxFamilies":128,"vectorFonts":false,"families":[{"name":"ShortFont","sizes":[14,18],"files":[{"name":"ShortFont_14.cpfont","size":73},{"name":"ShortFont_18.cpfont","size":73}]}]}"#
         );
         assert_eq!(
             context.paths,

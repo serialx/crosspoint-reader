@@ -135,6 +135,16 @@ pub struct Asset {
 }
 impl Request<'_> {
     pub(super) fn page(&self, page: &Asset) {
+        if unsafe { core::ffi::CStr::from_ptr(page.content_type) } == c"text/html" {
+            self.header(
+                b"Set-Cookie\0",
+                if self.flags() & 32 != 0 {
+                    b"cpPlugins=1; Path=/; SameSite=Strict"
+                } else {
+                    b"cpPlugins=0; Path=/; SameSite=Strict"
+                },
+            );
+        }
         let etag = unsafe { (page.request_header)(self.ctx, c"If-None-Match".as_ptr()) };
         // Arduino String == const char* compares through the first NUL.
         let cached = unsafe {
@@ -161,8 +171,7 @@ impl Request<'_> {
 enum Event {
     Page,
     Settings,
-    Skipped,
-    Applied,
+    Applied = 3, // Native event 2 was the skipped oversized setting.
     OpdsList,
     OpdsUpdated,
     OpdsAdded,
@@ -272,7 +281,10 @@ impl ConfigRequest<'_> {
                 continue;
             }
             let mut bytes = [0u8; 512];
-            let mut out = Output::new(&mut bytes);
+            if seen {
+                self.r.chunk(b",");
+            }
+            let mut out = Output::streaming(&mut bytes, &self.r);
             out.field(b"{\"key\":", s.key);
             out.field(b",\"name\":", s.name);
             out.field(b",\"category\":", s.category);
@@ -316,12 +328,10 @@ impl ConfigRequest<'_> {
                 }
             }
             out.add(b"}");
-            if out.len >= 512 {
-                self.event(Event::Skipped, 0, s.key);
-            } else {
-                self.item(&out, seen);
-                seen = true;
-            }
+            out.flush();
+            seen = true;
+            unsafe { (self.r.services.yield_task)(self.r.ctx) };
+            self.r.watchdog();
         }
         self.end_array(Event::Settings, 0);
     }

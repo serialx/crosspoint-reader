@@ -41,7 +41,8 @@ typedef enum {
   XP_WEB_REPLACE,  // path is source; data is a NUL-terminated target path.
   XP_WEB_OPEN_APPEND,
   XP_WEB_FLUSH,
-  XP_WEB_CREATE_PLUGIN
+  XP_WEB_CREATE_PLUGIN,
+  XP_WEB_IS_DIRECTORY_PATH
 } XpWebIo;
 typedef enum { XP_WEB_CACHE, XP_WEB_REMOVE_BOOK, XP_WEB_MOVE_BOOK, XP_WEB_LIBRARY_BOOK } XpWebBook;
 typedef enum {
@@ -126,7 +127,8 @@ typedef enum {
   XP_WEB_FONT_FAMILY,
   XP_WEB_FONT_PATH,
   XP_WEB_PLUGIN_PATH,
-  XP_WEB_PLUGIN_TMP
+  XP_WEB_PLUGIN_TMP,
+  XP_WEB_UPLOAD_STAGE
 } XpWebStoredText;
 typedef enum {
   XP_WEB_UPLOAD_STOPPED,
@@ -245,7 +247,10 @@ typedef enum {
   XP_WEB_PAGE_JSZIP,
   XP_WEB_PAGE_CSS,
   XP_WEB_PAGE_ICONS,
-  XP_WEB_PAGE_ICON
+  XP_WEB_PAGE_ICON,
+  XP_WEB_PAGE_EPUB_OPTIMIZER,
+  XP_WEB_PAGE_PLUGIN_HOST,
+  XP_WEB_PAGE_PLUGINS
 } XpWebPage;
 void xp_web_page(void*, const XpWebServices*, const XpWebAsset*, size_t, XpWebPage);
 #ifdef XP_SD_FONT_CATALOG
@@ -401,6 +406,7 @@ typedef struct {
   bool (*store)(const char*, const uint8_t*, size_t, int64_t);
   XpWebAsset page;
   void (*diagnostic)(void*, uint32_t, XpWebText, XpWebText);
+  int32_t (*file_tag)(void*, char* etag);  // 35 bytes: quoted hex MD5 and NUL; -1 on I/O error, 1 on match.
 } XpWebPlugins;
 void xp_web_plugins(void*, const XpWebPlugins*, uint32_t route);
 // Status: start=0, write=1, end=2, aborted=3, response=4 (no upload-data loan).
@@ -512,6 +518,7 @@ typedef struct {
   int32_t status;
   size_t total;
   bool complete;
+  XpWebText error_body;  // Borrowed from the native bridge until response serialization.
 } XpWebFetchResult;
 // Only run may invoke these callbacks; sink context and byte spans are borrowed
 // for that call. Callbacks are sequential and must not be retained or nested.
@@ -530,14 +537,15 @@ typedef struct {
   XpWebText (*path)(void*, uint32_t);
   void (*directory)(void*, XpWebText);
   void (*suspend)(void*, bool);
-  XpWebFetchResult (*run)(void*, size_t offset, void* sink_ctx, const XpWebFetchSink*);
+  XpWebFetchResult (*run)(void*, size_t offset, const char* method, XpWebText body, void* sink_ctx, const XpWebFetchSink*);
   void (*configure)(void*, void* http, const char* agent, uint32_t timeout, bool headers);
   uint32_t (*time)(void*);
-  XpWebText (*response)(void*, uint32_t, const char* error, int32_t, size_t, bool, size_t);
+  XpWebText (*response)(void*, uint32_t, const char* error, int32_t, size_t, bool, size_t, XpWebText);
   // Sends the prepared response (initially empty), without another String copy.
   void (*send)(void*, uint16_t);
   // Nullable; text is borrowed only for the diagnostic call.
   void (*diagnostic)(void*, uint32_t, size_t, uint32_t, const char*, bool);
+  bool (*field)(void*, const char*, XpWebText*);  // Null or string, borrowed until release.
 } XpWebFetch;
 void xp_web_fetch(void*, const XpWebFetch*);
 #ifdef __cplusplus

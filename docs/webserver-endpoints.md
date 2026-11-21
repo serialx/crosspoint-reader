@@ -143,16 +143,24 @@ Notes:
 - Without `overwrite`, an existing file with the same name is kept and the
   request fails with `400` "File already exists: <name>".
 - With `overwrite`, the upload is written to `<name>.part` and replaces the
-  existing file only when it is complete, so a failed upload keeps the old file.
+  existing file after all data has been written and closed. A write or close
+  failure leaves the old file in place. If replacement fails, the server returns
+  `400` and leaves any recovery copy at `<name>.part` in the destination directory.
+  If the card reports an error after renaming the file, check the destination name too.
+  A failed replacement invalidates the book's cached data and Library entry.
   The card needs free space for both copies while the upload runs. A file
-  already named `<name>.part` is replaced. If a folder has the name, the
-  request fails with `400` "A folder with this name already exists: <name>".
+  already named `<name>.part` is preserved. Move or rename it before retrying.
+  If a folder has the destination name, the request fails with `400`
+  "A folder with this name already exists: <name>".
 - EPUB cache data for the uploaded path is cleared after a successful upload.
 - Uploading a book file (`.epub`, `.txt`, `.md`, `.xtc`), here or through the
   WebSocket upload, marks the Library index stale, so the book appears the next
   time the Library opens. Hidden files and folders (names that start with `.`)
   don't mark it.
 - HTTP upload uses a 4 KB write buffer before flushing to the SD card.
+- The upload parser accepts up to 32 query arguments and 8 KiB per request line,
+  header line or text field. File contents stream separately.
+- The server commits each file part separately, so a failed response can follow earlier committed parts.
 
 ### `POST /mkdir`
 
@@ -629,8 +637,11 @@ browser. Body: `{"plugin":"<name>","url":"...","dest":"/abs/path","headers":{...
 plus optional `"method"` (`GET`, `POST`, `PUT`, `PATCH`, or `DELETE`; default
 `GET`) and `"body"` (a string, at most 4KB).
 
-- A request with a method other than GET, or with a non-empty body, is sent once: it is
-  never replayed, and `offset`/`maxBytes` must be 0. A 3xx answer is not
+- For a method other than GET, or a GET with a non-empty body, the endpoint
+  starts one transfer. Set `offset` and `maxBytes` to 0. When the request
+  includes headers, the SDK opens the connection early and may send the request
+  a second time if the write fails or the response status line never arrives.
+  The server may already have processed the first request. A 3xx answer is not
   followed; it fails with `error:"http status"`. Use it for APIs that answer a
   POST with a large file. Such a request is not split into segments, so if the
   browser connection drops on a very large answer, check whether `dest` was
@@ -638,7 +649,8 @@ plus optional `"method"` (`GET`, `POST`, `PUT`, `PATCH`, or `DELETE`; default
 
 - `dest` must be absolute with no `..`; missing parent folders are created.
 - The transfer is staged in `<dest>.part` and replaces `dest` only when the
-  whole body has arrived, so a failed update keeps the previous file.
+  whole body has arrived. A failed rename removes the staged file. If the card
+  already removed the previous destination during replacement, both files are lost.
 - Installing a book file (`.epub`, `.txt`, `.md`, `.xtc`) marks the Library
   index stale, so the book appears the next time the Library opens. Requests
   that end with `complete:false`, failed transfers, other file types, and

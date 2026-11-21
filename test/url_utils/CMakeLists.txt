@@ -1,5 +1,6 @@
 add_executable(UrlUtilsTest
   UrlUtilsTest.cpp
+  IsForeignHostTest.cpp
   ${REPO_ROOT}/src/util/UrlUtils.cpp
   ${REPO_ROOT}/lib/HttpHeader/HttpText.cpp
 )

@@ -74,7 +74,6 @@ enum Event {
     Complete,
     Deleted,
     DeleteFailed,
-    JsonOom,
 }
 #[repr(u32)]
 enum Install {
@@ -215,11 +214,23 @@ impl FontRequest<'_> {
             )
         }
     }
-    fn list(&self) -> Result<()> {
+    fn list(&self) {
         let count = self.registry(0);
         let max = self.registry(1);
         let vectors = self.registry(2) != 0;
-        let mut out = Text::new(b"{\"families\":[")?;
+        let request = self.r();
+        unsafe { (request.services.length)(request.ctx, usize::MAX) };
+        self.json(200, b"");
+        let mut scratch = [0u8; 192];
+        let mut out = super::Output::streaming(&mut scratch, request);
+        out.add(b"{\"maxFamilies\":");
+        out.number(max);
+        out.add(if vectors {
+            b",\"vectorFonts\":true,\"families\":["
+        } else {
+            b",\"vectorFonts\":false,\"families\":["
+        });
+        out.flush();
         for index in 0..count {
             #[cfg(not(feature = "sd-font-catalog"))]
             let mut family = Family {
@@ -256,18 +267,18 @@ impl FontRequest<'_> {
                 }
             };
             if index != 0 {
-                out.append(b",")?;
+                out.add(b",");
             }
-            out.append(b"{\"name\":")?;
-            out.quoted(unsafe { family.name.bytes() })?;
-            out.append(b",\"sizes\":[")?;
+            out.add(b"{\"name\":");
+            out.quoted(unsafe { family.name.bytes() });
+            out.add(b",\"sizes\":[");
             for (i, &size) in unsafe { family.sizes.bytes() }.iter().enumerate() {
                 if i != 0 {
-                    out.append(b",")?;
+                    out.add(b",");
                 }
-                out.number(size as usize)?;
+                out.number(size as usize);
             }
-            out.append(b"],\"files\":[")?;
+            out.add(b"],\"files\":[");
             let mut comma = false;
             for i in 0..family.files {
                 #[cfg(not(feature = "sd-font-catalog"))]
@@ -290,16 +301,16 @@ impl FontRequest<'_> {
                     continue;
                 }
                 if comma {
-                    out.append(b",")?;
+                    out.add(b",");
                 }
                 comma = true;
-                out.append(b"{\"name\":")?;
+                out.add(b"{\"name\":");
                 let name = unsafe { path.bytes() }
                     .rsplit(|&b| b == b'/')
                     .next()
                     .unwrap_or(&[]);
-                out.quoted(name)?;
-                out.append(b",\"size\":")?;
+                out.quoted(name);
+                out.add(b",\"size\":");
                 let size =
                     if self
                         .r()
@@ -312,20 +323,16 @@ impl FontRequest<'_> {
                     } else {
                         0
                     };
-                out.number(size)?;
-                out.append(b"}")?;
+                out.number(size);
+                out.add(b"}");
             }
-            out.append(b"]}")?;
+            out.add(b"]}");
+            out.flush();
+            unsafe { (request.services.yield_task)(request.ctx) };
+            request.watchdog();
         }
-        out.append(b"],\"maxFamilies\":")?;
-        out.number(max)?;
-        out.append(if vectors {
-            b",\"vectorFonts\":true}"
-        } else {
-            b",\"vectorFonts\":false}"
-        })?;
-        self.json(200, out.bytes());
-        Ok(())
+        request.chunk(b"]}");
+        request.chunk(b"");
     }
     fn delete(&self) {
         let body = unsafe { (self.r().services.argument)(self.r().ctx, c"plain".as_ptr()) };
@@ -580,12 +587,7 @@ pub unsafe extern "C" fn xp_web_fonts(ctx: *mut c_void, fonts: *const Fonts, rou
         return;
     };
     match route {
-        0 => {
-            if r.list().is_err() {
-                r.event(Event::JsonOom, b"", b"", 0, false);
-                r.json(503, b"{\"error\":\"out of memory\"}");
-            }
-        }
+        0 => r.list(),
         1 => r.delete(),
         2 => {
             r.r().page(&r.fonts.page);

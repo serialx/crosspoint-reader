@@ -8,6 +8,7 @@ pub struct Result {
     status: i32,
     total: usize,
     complete: bool,
+    error_body: Span,
 }
 #[repr(C)]
 pub struct Sink {
@@ -24,13 +25,29 @@ pub struct Fetch {
     path: unsafe extern "C" fn(*mut c_void, u32) -> Span,
     directory: unsafe extern "C" fn(*mut c_void, Span),
     suspend: unsafe extern "C" fn(*mut c_void, bool),
-    run: unsafe extern "C" fn(*mut c_void, usize, *mut c_void, *const Sink) -> Result,
+    run: unsafe extern "C" fn(
+        *mut c_void,
+        usize,
+        *const c_char,
+        Span,
+        *mut c_void,
+        *const Sink,
+    ) -> Result,
     configure: unsafe extern "C" fn(*mut c_void, *mut c_void, *const c_char, u32, bool),
     time: unsafe extern "C" fn(*mut c_void) -> u32,
-    response:
-        unsafe extern "C" fn(*mut c_void, u32, *const c_char, i32, usize, bool, usize) -> Span,
+    response: unsafe extern "C" fn(
+        *mut c_void,
+        u32,
+        *const c_char,
+        i32,
+        usize,
+        bool,
+        usize,
+        Span,
+    ) -> Span,
     send: unsafe extern "C" fn(*mut c_void, u16),
     diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, usize, u32, *const c_char, bool)>,
+    field: unsafe extern "C" fn(*mut c_void, *const c_char, *mut Span) -> bool,
 }
 #[repr(u32)]
 enum Response {
@@ -228,6 +245,47 @@ pub unsafe extern "C" fn xp_web_fetch(ctx: *mut c_void, services: *const Fetch) 
         r.send(400, c"{\"error\":\"bad url/dest\"}");
         return;
     }
+    let mut method_input = Span::new(b"");
+    if !unsafe { (s.field)(ctx, c"method".as_ptr(), &mut method_input) } {
+        r.send(400, c"{\"error\":\"method must be a string\"}");
+        return;
+    }
+    let method = if method_input.data.is_null() {
+        c"GET"
+    } else {
+        let value = super::c_bytes(unsafe { method_input.bytes() });
+        let Some(method) = [c"GET", c"POST", c"PUT", c"PATCH", c"DELETE"]
+            .into_iter()
+            .find(|m| m.to_bytes().eq_ignore_ascii_case(value))
+        else {
+            r.send(400, c"{\"error\":\"unsupported method\"}");
+            return;
+        };
+        method
+    };
+    let mut input = Span::new(b"");
+    if !unsafe { (s.field)(ctx, c"body".as_ptr(), &mut input) } {
+        r.send(400, c"{\"error\":\"body must be a string\"}");
+        return;
+    }
+    if input.len > 4096 {
+        r.send(400, c"{\"error\":\"body over 4KB\"}");
+        return;
+    }
+    if (method != c"GET" || input.len != 0) && (offset != 0 || limit != 0) {
+        r.send(
+            400,
+            c"{\"error\":\"offset and maxBytes need a GET without a body\"}",
+        );
+        return;
+    }
+    // The JSON document is released before TLS. Empty bodies allocate nothing.
+    let mut body = super::Vec::new();
+    if body.try_reserve_exact(input.len).is_err() {
+        r.send(503, c"{\"error\":\"out of memory\"}");
+        return;
+    }
+    body.extend_from_slice(unsafe { input.bytes() });
     unsafe {
         (s.prepare)(ctx, core::ptr::null());
         (rpc.release)(ctx, true);
@@ -274,6 +332,7 @@ pub unsafe extern "C" fn xp_web_fetch(ctx: *mut c_void, services: *const Fetch) 
                     size,
                     false,
                     0,
+                    Span::new(b""),
                 )
             };
             t.send(409, body);
@@ -286,7 +345,16 @@ pub unsafe extern "C" fn xp_web_fetch(ctx: *mut c_void, services: *const Fetch) 
     t.started = unsafe { (s.time)(ctx) };
     t.heartbeat = t.started;
     // No Rust reference to t is held while the transport calls its sink.
-    let result = unsafe { (s.run)(ctx, offset, (&raw mut t).cast(), &SINK) };
+    let result = unsafe {
+        (s.run)(
+            ctx,
+            offset,
+            method.as_ptr(),
+            Span::new(&body),
+            (&raw mut t).cast(),
+            &SINK,
+        )
+    };
     if t.io(Io::IsOpen, 2) != 0 {
         t.io(Io::Flush, 2);
         t.io(Io::Close, 2);
@@ -313,6 +381,7 @@ pub unsafe extern "C" fn xp_web_fetch(ctx: *mut c_void, services: *const Fetch) 
                 t.written,
                 false,
                 0,
+                Span::new(b""),
             )
         };
         t.diagnostic(Diagnostic::Failed, c"", false);
@@ -357,6 +426,10 @@ pub unsafe extern "C" fn xp_web_fetch(ctx: *mut c_void, services: *const Fetch) 
                 t.written,
                 complete,
                 result.total,
+                {
+                    let bytes = result.error_body.bytes();
+                    Span::new(&bytes[..xp_core::utf8::safe_truncate(bytes)])
+                },
             )
         };
         t.diagnostic(

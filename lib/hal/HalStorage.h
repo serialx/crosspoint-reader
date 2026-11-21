@@ -57,8 +57,10 @@ class HalStorage {
   bool ensureDirectoryExists(const char* path);
 
   HalFile open(const char* path, const oflag_t oflag = O_RDONLY);
+  HalFile createExclusive(const char* path);
   bool mkdir(const char* path, const bool pFlag = true);
   bool exists(const char* path);
+  bool isDirectory(const char* path);
   bool remove(const char* path);
   bool rename(const char* oldPath, const char* newPath);
   // Move a fully written temp file over `path`, replacing any existing file.

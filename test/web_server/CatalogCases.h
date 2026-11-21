@@ -5,7 +5,14 @@ static JsonDocument response(const char* prefix = "response:200:application/json
   for (auto it = host::trace.rbegin(); it != host::trace.rend(); ++it) {
     if (!it->starts_with(prefix)) continue;
     JsonDocument result;
-    assert(!deserializeJson(result, it->substr(std::strlen(prefix))));
+    std::string body = it->substr(std::strlen(prefix));
+    if (body.empty()) {
+      for (auto next = it.base(); next != host::trace.end(); ++next) {
+        if (*next == "chunk:") break;
+        if (next->starts_with("chunk:")) body += next->substr(6);
+      }
+    }
+    assert(!deserializeJson(result, body));
     return result;
   }
   for (const auto& line : host::trace) std::cerr << line << '\n';

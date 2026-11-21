@@ -29,6 +29,10 @@ class SecureHttpClient {
     oracle::record("begin %s", url.c_str());
     return url.find("://") != std::string::npos;
   }
+  bool connect(const AbortCallback& abort = nullptr) {
+    cancelled = abort && abort();
+    return !cancelled;
+  }
   void setTimeout(unsigned n) { oracle::record("timeout %u", n); }
   void setInsecure() { oracle::record("insecure"); }
   void setUserAgent(const std::string& s) { oracle::record("agent %s", s.c_str()); }

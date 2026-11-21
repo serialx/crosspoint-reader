@@ -12,6 +12,7 @@
 #include <I18n.h>
 #include <LibraryBuilder.h>
 #include <Logging.h>
+#include <MD5Builder.h>
 #include <Memory.h>
 #include <ResumableFetch.h>
 #include <SecureHttpClient.h>
@@ -50,6 +51,9 @@
 #include "html/assets/crosspoint_iconSvg.generated.h"
 #include "html/assets/iconsSvg.generated.h"
 #include "html/assets/webCss.generated.h"
+#include "html/js/epub_optimizerJs.generated.h"
+#include "html/js/plugin_hostJs.generated.h"
+#include "html/PluginsPageHtml.generated.h"
 #include "html/js/jszip_minJs.generated.h"
 #include "util/BookCacheUtils.h"
 #include "util/DictionaryRegistry.h"
@@ -57,6 +61,7 @@
 #include "util/PluginHttp.h"
 #include "util/PluginLocations.h"
 #include "util/TaskWatchdog.h"
+#include "util/UrlUtils.h"
 
 namespace {
 // Arduino's WebServer retains parsed request arguments until the next request.
@@ -66,6 +71,21 @@ namespace {
 class CrossPointHttpServer final : public WebServer {
  public:
   explicit CrossPointHttpServer(uint16_t port) : WebServer(port) {}
+
+  bool matchesFileTag(const char* tag) const {
+    for (auto* field = _currentHeaders; field; field = field->next) {
+      if (field->key == "If-None-Match") return field->value == tag;
+    }
+    return false;
+  }
+
+  void pump() {
+    // The framework leaves the previous Host in place if the next request omits it.
+    _hostHeader = "";
+    handleClient();
+  }
+
+  bool foreignHost() const { return UrlUtils::isForeignHost(_hostHeader.c_str()); }
 
   void releaseRequestArguments() {
     if (_currentArgs) {
@@ -160,6 +180,8 @@ struct WebFileBridge {
         return uploadState->fileName;
       case XP_WEB_UPLOAD_PATH:
         return uploadState->path;
+      case XP_WEB_UPLOAD_STAGE:
+        return uploadState->stagedPath;
       case XP_WEB_UPLOAD_ERROR:
         return uploadState->error;
       case XP_WEB_WS_NAME:
@@ -197,7 +219,12 @@ const XpWebServices WebFileBridge::services = {
       }
       if (!*key)
         b.argument = b.owner.server->uri();
-      else if (b.owner.server->hasArg(key))
+      else if (b.uploadState && strcmp(key, "path") == 0) {
+        if (!b.owner.server->hasArg(key)) return {reinterpret_cast<const uint8_t*>("/"), 1};
+        String path = b.owner.server->arg(key);
+        if (!path.c_str()) return {nullptr, 0};
+        b.argument = std::move(path);
+      } else if (b.owner.server->hasArg(key))
         b.argument = b.owner.server->arg(key);
       else
         return {nullptr, 0};
@@ -228,6 +255,8 @@ const XpWebServices WebFileBridge::services = {
       if (slot >= 3) return 0;
       auto& file = slot == 0 && b.borrowed ? *b.borrowed : b.files[slot];
       switch (static_cast<XpWebIo>(operation)) {
+        case XP_WEB_IS_DIRECTORY_PATH:
+          return Storage.isDirectory(path);
         case XP_WEB_EXISTS:
           return Storage.exists(path);
         case XP_WEB_OPEN:
@@ -262,6 +291,10 @@ const XpWebServices WebFileBridge::services = {
           b.client.clear();
           return 0;
         case XP_WEB_CREATE:
+          if (b.uploadState) {
+            file = Storage.createExclusive(path);
+            return static_cast<bool>(file);
+          }
           return Storage.openFileForWrite(b.pluginState ? "PLG" : b.websocket ? "WS" : "WEB", path, file);
         case XP_WEB_AVAILABLE:
           return file.available();
@@ -498,7 +531,10 @@ const XpWebLifeServices WebLifeBridge::services = {
           break;
         }
         case XP_WEB_LIFE_HTTP_PUMP: {
-          o.server->handleClient();
+          // WebServer parses all parts and sends the POST response within one pump.
+          o.upload.requestFailed = false;
+          o.upload.policy.success = false;
+          static_cast<CrossPointHttpServer*>(o.server.get())->pump();
           releaseRequestArguments(o.server.get());
           break;
         }
@@ -679,6 +715,17 @@ void CrossPointWebServer::registerRoutes() {
   // and PWAs on other origins can use the HTTP API. Preflight OPTIONS requests
   // are answered in handleNotFound().
   server->enableCORS(true);
+  if (apMode) {
+    server->addMiddleware([](WebServer& request, Middleware::Callback next) {
+      if ((request.method() != HTTP_GET && request.method() != HTTP_HEAD) ||
+          !static_cast<CrossPointHttpServer&>(request).foreignHost()) {
+        return next();
+      }
+      request.sendHeader("Location", "http://" + WiFi.softAPIP().toString() + "/", true);
+      request.send(302, "text/plain", "");
+      return true;
+    });
+  }
 
   // Setup routes
   LOG_DBG("WEB", "Setting up routes...");
@@ -686,6 +733,8 @@ void CrossPointWebServer::registerRoutes() {
   server->on("/files", HTTP_GET, [this] { handleFileList(); });
   server->on("/js/jszip.min.js", HTTP_GET, [this] { handleJszip(); });
 
+  server->on("/js/epub-optimizer.js", HTTP_GET, [this] { WebFileBridge::page(*this, XP_WEB_PAGE_EPUB_OPTIMIZER); });
+  server->on("/js/plugin-host.js", HTTP_GET, [this] { WebFileBridge::page(*this, XP_WEB_PAGE_PLUGIN_HOST); });
   server->on("/assets/web.css", HTTP_GET, [this] { WebFileBridge::page(*this, XP_WEB_PAGE_CSS); });
   server->on("/assets/icons.svg", HTTP_GET, [this] { WebFileBridge::page(*this, XP_WEB_PAGE_ICONS); });
   server->on("/assets/crosspoint-icon.svg", HTTP_GET, [this] { WebFileBridge::page(*this, XP_WEB_PAGE_ICON); });
@@ -728,6 +777,7 @@ void CrossPointWebServer::registerRoutes() {
   // Browser-side plugins (JS on the SD card) + their generic capabilities.
   server->on("/api/plugins", HTTP_GET, [this] { handlePluginList(); });
   server->on("/plugin", HTTP_GET, [this] { handlePluginFile(); });
+  server->on("/plugins", HTTP_GET, [this] { WebFileBridge::page(*this, XP_WEB_PAGE_PLUGINS); });
   server->on("/plugins-run", HTTP_GET, [this] { handlePluginRunnerPage(); });
   server->on("/api/plugin-jobs", HTTP_POST, [this] { handlePluginJobSubmit(); });
   server->on("/api/plugin-jobs/claim", HTTP_GET, [this] { handlePluginJobClaim(); });
@@ -808,6 +858,21 @@ void WebFileBridge::page(const CrossPointWebServer& owner, XpWebPage page) {
        {reinterpret_cast<const uint8_t*>(crosspoint_iconSvg), sizeof(crosspoint_iconSvg)},
        {reinterpret_cast<const uint8_t*>(crosspoint_iconSvgETag), strlen(crosspoint_iconSvgETag)},
        "image/svg+xml"},
+      {requestHeader,
+       sendAsset,
+       {reinterpret_cast<const uint8_t*>(epub_optimizerJs), sizeof(epub_optimizerJs)},
+       {reinterpret_cast<const uint8_t*>(epub_optimizerJsETag), strlen(epub_optimizerJsETag)},
+       "application/javascript"},
+      {requestHeader,
+       sendAsset,
+       {reinterpret_cast<const uint8_t*>(plugin_hostJs), sizeof(plugin_hostJs)},
+       {reinterpret_cast<const uint8_t*>(plugin_hostJsETag), strlen(plugin_hostJsETag)},
+       "application/javascript"},
+      {requestHeader,
+       sendAsset,
+       {reinterpret_cast<const uint8_t*>(PluginsPageHtml), sizeof(PluginsPageHtml)},
+       {reinterpret_cast<const uint8_t*>(PluginsPageHtmlETag), strlen(PluginsPageHtmlETag)},
+       "text/html"},
   };
   WebFileBridge bridge(owner);
   xp_web_page(&bridge, &services, assets, sizeof(assets) / sizeof(assets[0]), page);
@@ -1058,6 +1123,7 @@ void WebFileBridge::http(const CrossPointWebServer& owner, CrossPointWebServer::
     length = part.currentSize;
   }
   xp_web_upload(&bridge, &transfers, &state.policy, event, name, bytes, length);
+  if (!state.file) state.stagedPath = static_cast<const char*>(nullptr);
 }
 
 void WebFileBridge::ws(const CrossPointWebServer& owner, uint8_t client, uint32_t event, uint8_t* payload,
@@ -1068,15 +1134,19 @@ void WebFileBridge::ws(const CrossPointWebServer& owner, uint8_t client, uint32_
   xp_web_ws(&bridge, &transfers, &wsPolicy, client, event, payload, length);
 }
 
-// Drop a partially written upload so a truncated book never lands in the library.
-// The file is new: uploads refuse to overwrite an existing name.
-
 void CrossPointWebServer::handleUpload(UploadState& state) const {
   const uint32_t event = running && server ? static_cast<uint32_t>(server->upload().status) : 0;
   WebFileBridge::http(*this, state, event);
+  if ((event == UPLOAD_FILE_END && !state.policy.success) || event == UPLOAD_FILE_ABORTED) state.requestFailed = true;
 }
 
-void CrossPointWebServer::handleUploadPost(UploadState& state) const { WebFileBridge::http(*this, state, 4); }
+void CrossPointWebServer::handleUploadPost(UploadState& state) const {
+  if (state.requestFailed && state.policy.success) {
+    server->send(400, "text/plain", "An earlier file in this upload failed");
+    return;
+  }
+  WebFileBridge::http(*this, state, 4);
+}
 
 void CrossPointWebServer::handleCreateFolder() const { WebFileBridge::route(*this, XP_WEB_MKDIR_ROUTE); }
 
@@ -1465,6 +1535,25 @@ const XpWebPlugins WebPluginBridge::services = {
               break;
           }
         },
+    .file_tag = [](void* ctx, char* etag) -> int32_t {
+      auto& b = plugins(ctx);
+      auto& file = b.files[0];
+      MD5Builder digest;
+      digest.begin();
+      uint8_t chunk[128];
+      int n;
+      while ((n = file.read(chunk, sizeof(chunk))) > 0) {
+        digest.add(chunk, n);
+        resetTaskWatchdogIfSubscribed();
+      }
+      if (n < 0 || !file.seek(0)) return -1;
+      digest.calculate();
+      etag[0] = '"';
+      digest.getChars(etag + 1);
+      etag[33] = '"';
+      etag[34] = 0;
+      return static_cast<CrossPointHttpServer*>(b.owner.server.get())->matchesFileTag(etag);
+    },
 };
 
 void CrossPointWebServer::handlePluginList() const { WebPluginBridge::route(*this, XP_WEB_PLUGIN_LIST); }
@@ -1693,6 +1782,26 @@ struct WebFetchBridge : WebRpcBridge {
   pluginhttp::Headers headers;
   std::optional<WifiPowerSaveGuard> powerSave;
   String response;
+  String errorBody;
+  template <typename Configure>
+  static XpWebFetchResult single(WebFetchBridge& b, const char* method, XpWebText body,
+                                 const freeink::FetchSink& sink,
+                                 const freeink::SecureHttpClient::AbortCallback& poll,
+                                 const Configure& configure) {
+    freeink::SecureHttpClient http;
+    if (!http.begin(b.url)) return {-1, 0, false, {nullptr, 0}};
+    configure(http, true);
+    const int status = http.sendRequest(method, body.data, body.len, [&](const uint8_t* data, size_t n) {
+      if (http.getStatus() >= 200 && http.getStatus() < 300) return sink.write(data, n);
+      constexpr size_t limit = 512;
+      const auto count = std::min(n, limit - b.errorBody.length());
+      if (!b.errorBody.concat(reinterpret_cast<const char*>(data), count)) return false;
+      resetTaskWatchdogIfSubscribed();
+      return b.errorBody.length() < limit;
+    }, poll);
+    return {status, http.hasContentLength() ? http.getContentLength() : 0,
+            status >= 200 && status < 300 && http.responseComplete(), span(b.errorBody)};
+  }
   static WebFetchBridge& fetch(void* ctx) { return static_cast<WebFetchBridge&>(self(ctx)); }
   static const XpWebFetch services;
 };
@@ -1730,33 +1839,36 @@ const XpWebFetch WebFetchBridge::services = {
             b.mutableOwner.resumeTransferServices();
           }
         },
-    .run = [](void* ctx, size_t offset, void* sinkCtx, const XpWebFetchSink* callbacks) -> XpWebFetchResult {
+    .run = [](void* ctx, size_t offset, const char* method, XpWebText body, void* sinkCtx, const XpWebFetchSink* callbacks) -> XpWebFetchResult {
       auto& b = fetch(ctx);
       freeink::FetchOptions options;
       options.startOffset = offset;
       freeink::FetchSink sink;
       sink.write = [&](const uint8_t* data, size_t len) { return callbacks->write(sinkCtx, {data, len}); };
       sink.rewind = [&] { return callbacks->rewind(sinkCtx); };
-      const auto result = freeink::fetchResumable(
-          b.url, options,
-          [&](freeink::SecureHttpClient& http, bool sameOrigin) { callbacks->configure(sinkCtx, &http, sameOrigin); },
-          sink, [&] { return callbacks->poll(sinkCtx); });
-      return {result.status, result.total, result.complete};
+      const auto poll = [&] { return callbacks->poll(sinkCtx); };
+      const auto configure = [&](freeink::SecureHttpClient& http, bool sameOrigin) {
+        callbacks->configure(sinkCtx, &http, sameOrigin);
+        if (sameOrigin && !b.headers.empty()) {
+          http.connect(poll);
+          for (const auto& header : b.headers) http.addHeader(header.first, header.second);
+        }
+      };
+      if (strcmp(method, "GET") != 0 || body.len != 0) return single(b, method, body, sink, poll, configure);
+      const auto result = freeink::fetchResumable(b.url, options, configure, sink, poll);
+      return {result.status, result.total, result.complete, {nullptr, 0}};
     },
     .configure =
-        [](void* ctx, void* client, const char* agent, uint32_t timeout, bool headers) {
+        [](void*, void* client, const char* agent, uint32_t timeout, bool) {
           auto& http = *static_cast<freeink::SecureHttpClient*>(client);
           http.setUserAgent(agent);
           // Preserve the SDK transport's existing trust mode (no CA bundle).
           http.setInsecure();
           http.setTimeout(timeout);
-          if (headers) {
-            for (const auto& header : fetch(ctx).headers) http.addHeader(header.first, header.second);
-          }
         },
     .time = WebFileBridge::transfers.time,
     .response = [](void* ctx, uint32_t kind, const char* error, int32_t status, size_t bytes, bool complete,
-                   size_t total) -> XpWebText {
+                   size_t total, XpWebText detail) -> XpWebText {
       auto& out = fetch(ctx).response;
       switch (static_cast<XpWebFetchResponse>(kind)) {
         case XP_WEB_FETCH_OFFSET: {
@@ -1774,6 +1886,7 @@ const XpWebFetch WebFetchBridge::services = {
         case XP_WEB_FETCH_RESULT: {
           JsonDocument response;
           if (error) response["error"] = error;
+          if (detail.len) response["body"] = JsonString(reinterpret_cast<const char*>(detail.data), detail.len);
           response["status"] = status;
           response["bytes"] = bytes;
           response["complete"] = complete;
@@ -1803,6 +1916,12 @@ const XpWebFetch WebFetchBridge::services = {
               break;
           }
         },
+    .field = [](void* ctx, const char* key, XpWebText* out) {
+      const JsonVariantConst value = self(ctx).paths[key];
+      const JsonString text = value.as<JsonString>();
+      *out = {reinterpret_cast<const uint8_t*>(text.c_str()), text.size()};
+      return value.isNull() || !text.isNull();
+    },
 };
 
 void CrossPointWebServer::handleFetch() {

@@ -180,6 +180,12 @@ class HalFile {
     node.reset();
     return !host::fail("close");
   }
+  bool seek(size_t offset) {
+    hal_fake::requireImpl(hasImpl, "seek", path.c_str());
+    if (!node || host::fail("seek") || offset > node->bytes.size()) return false;
+    pos = offset;
+    return true;
+  }
   size_t size() const {
     hal_fake::requireImpl(hasImpl, "size", path.c_str());
     return node ? node->bytes.size() : 0;
@@ -232,6 +238,10 @@ class HalFile {
 };
 
 struct StorageStub {
+  bool isDirectory(const char* p) const {
+    const auto file = open(p);
+    return file && file.isDirectory();
+  }
   bool exists(const char* p) const {
     host::trace.push_back(std::string("exists:") + p);
     return host::files.count(p);
@@ -251,6 +261,12 @@ struct StorageStub {
     host::add(p);
     file = HalFile(p, host::files[p]);
     return true;
+  }
+  HalFile createExclusive(const char* p) const {
+    if (host::files.contains(p)) return HalFile(p, nullptr);
+    HalFile file;
+    openFileForWrite("WEB", p, file);
+    return file;
   }
   HalFile open(const char* p, int flags) const {
     auto file = open(p);
@@ -288,9 +304,13 @@ struct StorageStub {
   bool replaceFile(const char* from, const char* to) const {
     host::trace.push_back(std::string("replace:") + from + ":" + to);
     if (host::fail("replace") || !host::files.count(from)) return false;
+    if (host::fail("rename")) {
+      host::files.erase(to);
+      return false;
+    }
     host::files[to] = host::files[from];
     host::files.erase(from);
-    return true;
+    return !host::fail("rename-sync");
   }
 };
 inline StorageStub Storage;
@@ -320,7 +340,9 @@ struct SettingsStub {
 };
 inline SettingsStub SETTINGS;
 
-enum HTTPMethod { HTTP_GET, HTTP_POST, HTTP_OPTIONS };
+enum HTTPMethod { HTTP_GET, HTTP_POST, HTTP_OPTIONS, HTTP_HEAD };
+class WebServer;
+struct Middleware { using Callback = std::function<bool()>; using Function = std::function<bool(WebServer&, Callback)>; };
 enum HTTPUploadStatus { UPLOAD_FILE_START, UPLOAD_FILE_WRITE, UPLOAD_FILE_END, UPLOAD_FILE_ABORTED };
 struct HTTPUpload {
   HTTPUploadStatus status = UPLOAD_FILE_START;
@@ -351,9 +373,15 @@ class WebServer {
   String* _postArgs = nullptr;
   int _currentArgCount = 0, _postArgsLen = 0;
   std::map<std::string, String> headers;
+  struct RequestArgument { String key; String& value; RequestArgument* next; };
+  RequestArgument conditional{"If-None-Match", headers["If-None-Match"], nullptr};
+  RequestArgument* _currentHeaders = &conditional;
   std::map<std::string, std::function<void()>> routes;
   std::map<std::string, String> args;
   String requestUri;
+  String _hostHeader;
+  Middleware::Function middleware;
+  void addMiddleware(Middleware::Function fn) { middleware = std::move(fn); }
   HTTPMethod requestMethod = HTTP_GET;
   HTTPUpload part;
   bool uploadAvailable = true;
@@ -385,6 +413,7 @@ class WebServer {
   }
   bool hasArg(const char* name) const { return args.count(name); }
   String arg(const char* name) const {
+    if (host::fail("copy-argument")) return String(nullptr);
     auto it = args.find(name);
     return it == args.end() ? String{} : it->second;
   }

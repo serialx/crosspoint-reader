@@ -1,5 +1,7 @@
 #pragma once
 
+#include "src/network/UploadIngress.h"
+
 #ifdef XP_FFI_HOST_FAULT_INJECTION
 extern "C" void xp_test_fail_allocation_after(size_t);
 extern "C" size_t xp_test_live_allocations();
@@ -197,6 +199,356 @@ static void text(CrossPointWebServer& app, uint8_t client, const std::string& by
 int main() {
 #ifdef XP_FFI_HOST_FAULT_INJECTION
 
+  if (const char* replace = std::getenv("WEB_PARSER_REPLACE")) {
+    record("parsed upload", [&](auto& app) {
+      host::add("/other", "", true);
+      host::add("/other/a.epub", "other directory");
+      host::add("/books/file", "form name");
+      host::add("/books/other.epub", "other filename");
+      app.server->args["path"] = std::getenv("WEB_PARSER_PATH");
+      const char* overwrite = std::getenv("WEB_PARSER_OVERWRITE");
+      if (*overwrite) app.server->args["overwrite"] = overwrite;
+      app.server->part.filename = std::getenv("WEB_PARSER_NAME");
+      upload(app, UPLOAD_FILE_START);
+      upload(app, UPLOAD_FILE_WRITE, std::getenv("WEB_PARSER_PAYLOAD"));
+      upload(app, UPLOAD_FILE_END);
+      app.handleUploadPost(app.upload);
+      const bool replaced = std::string(replace) == "1";
+      if (!host::trace.back().starts_with(replaced ? "response:200:" : "response:400:") ||
+          host::files.at("/books/a.epub")->bytes != (replaced ? "complete" : "original") ||
+          host::files.at("/other/a.epub")->bytes != "other directory" ||
+          host::files.at("/books/file")->bytes != "form name" ||
+          host::files.at("/books/other.epub")->bytes != "other filename" || host::files.contains("/books/a.epub.part"))
+        std::abort();
+    });
+    return 0;
+  }
+
+  if (std::getenv("WEB_FONT_STREAM_CHECK")) {
+    record("large-font-lists", [](auto& app) {
+      auto collect = [](size_t maxChunk) {
+        for (size_t i = 0; i < host::trace.size(); ++i) {
+          if (host::trace[i].starts_with("chunk:") && host::trace[i].size() == maxChunk + 6 &&
+              (host::trace.at(i + 1) != "watchdog" || host::trace.at(i + 2) != "yield"))
+            std::abort();
+        }
+        std::string json;
+        for (const auto& event : host::trace) {
+          if (!event.starts_with("chunk:")) continue;
+          if (event.size() - 6 > maxChunk) std::abort();
+          json += event.substr(6);
+        }
+        JsonDocument parsed;
+        if (json.size() <= 512 || deserializeJson(parsed, json)) std::abort();
+        return parsed;
+      };
+      auto& families = sdFontSystem.fonts.families;
+      families.resize(64);
+      for (size_t i = 0; i < families.size(); ++i) families[i].name = "Family" + std::to_string(i);
+      families.front().name.assign(700, 'F');
+      app.handleFontList();
+      const auto listed = collect(192);
+      if (listed["families"].size() != 64 || listed["families"][63]["name"] != "Family63") std::abort();
+      host::trace.clear();
+      extendedSettings = true;
+      app.handleGetSettings();
+      const auto settings = collect(512);
+      const auto last = settings[settings.size() - 1];
+      if (last["key"] != "oversized" || last["options"][0].template as<std::string>() != std::string(600, 'x')) std::abort();
+    });
+    return 0;
+  }
+  if (std::getenv("WEB_FETCH_METHOD_CHECK")) {
+    auto request = [&](std::string fields, std::string expected) {
+      record("fetch-method", [&](auto& app) {
+        app.server->args["plain"] = R"({"url":"https://example.test/book","dest":"/books/new.epub",)" + fields + "}";
+        app.handleFetch();
+        if (std::none_of(host::trace.begin(), host::trace.end(), [&](const auto& line) {
+              return line.find(expected) != std::string::npos;
+            })) {
+          std::cerr << "missing fetch event " << expected << '\n';
+          std::abort();
+        }
+      });
+    };
+    for (auto method : {"POST", "PUT", "PATCH", "DELETE", "GET"}) {
+      request(std::string(R"("method":")") + method + R"(","body":"a\u0000b")", std::string("single:") + method + ":610062");
+    }
+    request(R"("method":"post","body":"")", "single:POST:");
+    request(R"("method":false)", "method must be a string");
+    request(R"("method":"HEAD")", "unsupported method");
+    request(R"("body":false)", "body must be a string");
+    request(R"("method":"PATCH","offset":1)", "offset and maxBytes need a GET without a body");
+    request(R"("body":"x","maxBytes":1)", "offset and maxBytes need a GET without a body");
+    const std::string limitBody(4096, 'a');
+    request("\"body\":\"" + limitBody + "\"",
+            "single:GET:" + host::hex(reinterpret_cast<const uint8_t*>(limitBody.data()), limitBody.size()));
+    request("\"body\":\"" + std::string(4097, 'a') + "\"", "body over 4KB");
+    freeink::singleStatus = 400;
+    freeink::singleResponse = std::string(511, 'e') + "€";
+    request(R"("method":"POST")", "\"body\":\"" + std::string(511, 'e') + "\"");
+    return 0;
+  }
+  if (std::getenv("WEB_CAPTIVE_PORTAL_CHECK")) {
+    record("captive-portal", [&](auto& app) {
+      app.apMode = true;
+      app.registerRoutes();
+      auto& server = *app.server;
+      if (!server.middleware) std::abort();
+      for (auto method : {HTTP_GET, HTTP_HEAD, HTTP_POST, HTTP_OPTIONS}) {
+        for (const char* host : {"connectivitycheck.gstatic.com", "crosspoint.local", ""}) {
+          server.requestMethod = method;
+          server._hostHeader = host;
+          bool next = false;
+          host::trace.clear();
+          if (!server.middleware(server, [&] { next = true; return true; })) std::abort();
+          const bool redirect = (method == HTTP_GET || method == HTTP_HEAD) &&
+                                std::string_view(host) == "connectivitycheck.gstatic.com";
+          if (next == redirect) std::abort();
+          if (redirect && (host::trace.size() != 2 || host::trace[0] != "header:Location:http://192.0.2.2/" ||
+                           host::trace[1] != "response:302:text/plain:")) std::abort();
+        }
+      }
+      server._hostHeader = "example.com";
+      static_cast<CrossPointHttpServer&>(server).pump();
+      if (!server._hostHeader.isEmpty()) std::abort();
+    });
+    return 0;
+  }
+  if (std::getenv("WEB_PLUGIN_ETAG_CHECK")) {
+    record("plugin-file-etag", [&](auto& app) {
+      app.server->args["name"] = "test";
+      app.server->args["file"] = "index.js";
+      host::add("/plugins/test/index.js", "abc");
+      const char* tag = "\"900150983cd24fb0d6963f7d28e17f72\"";
+      auto seen = [&](const std::string& event) {
+        return std::find(host::trace.begin(), host::trace.end(), event) != host::trace.end();
+      };
+      app.handlePluginFile();
+      if (!seen(std::string("header:ETag:") + tag) || !seen("header:Cache-Control:no-cache")) std::abort();
+      app.server->headers["If-None-Match"] = tag;
+      host::trace.clear();
+      app.handlePluginFile();
+      if (!seen("response:304:text/html:") || seen("length:3")) std::abort();
+      host::add("/plugins/test/index.js", "abd");
+      host::trace.clear();
+      app.handlePluginFile();
+      if (!seen("length:3") || seen("response:304:text/html:")) std::abort();
+      for (const char* failure : {"read", "seek"}) {
+        host::trace.clear();
+        host::failOperation = failure;
+        host::failAfter = 0;
+        app.handlePluginFile();
+        if (!seen("response:500:text/plain:Failed to read file")) std::abort();
+      }
+    });
+    return 0;
+  }
+  if (const char* check = std::getenv("WEB_UPLOAD_OVERWRITE_CHECK")) {
+    record(check, [&](auto& app) {
+      const std::string mode(check), dest("/books/a.epub"), part(dest + ".part");
+      app.server->args["path"] = "/books";
+      if (mode != "refuse") app.server->args["overwrite"] = mode == "success" ? "1" : "true";
+      // WebServer decodes true%00x to six bytes.
+      if (mode == "nul") app.server->args["overwrite"] = std::string("true\0x", 6);
+      const bool priorPart = std::getenv("WEB_UPLOAD_PRIOR_PART") != nullptr;
+      if (priorPart) {
+        app.server->part.filename = "first.txt";
+        upload(app, UPLOAD_FILE_START);
+        upload(app, UPLOAD_FILE_WRITE, "first payload");
+        upload(app, UPLOAD_FILE_END);
+        if (!app.upload.policy.success) std::abort();
+        host::trace.clear();
+      }
+      auto response = [&](const std::string& expected) {
+        app.handleUploadPost(app.upload);
+        if (host::trace.back() != "response:" + expected) std::abort();
+        if (priorPart && host::files.at("/books/first.txt")->bytes != "first payload") std::abort();
+      };
+      app.server->part.filename = "a.epub";
+      if (mode == "ingress-lines") {
+        auto line = [](const std::string& bytes, upload_ingress::LineKind kind, String& value) {
+          size_t cursor = 0;
+          return upload_ingress::readHeaderLine(value, [&] {
+            return cursor == bytes.size() ? -1 : static_cast<int>(static_cast<unsigned char>(bytes[cursor++]));
+          }, kind);
+        };
+        using upload_ingress::LineKind;
+        String value;
+        if (!line("POST /upload?path=/books HTTP/1.1\r\n", LineKind::Request, value) ||
+            line("unterminated", LineKind::Upload, value) || line("bad\n", LineKind::Upload, value) ||
+            line(std::string("name\0x\r\n", 8), LineKind::Upload, value)) std::abort();
+        std::string target("POST /upload?");
+        target.resize(upload_ingress::MAX_METADATA_BYTES, 'a');
+        if (!line(target + "\r\n", LineKind::Request, value) || line(target + "a\r\n", LineKind::Request, value)) std::abort();
+        String::failAllocationSize = 5;
+        if (line("filename\r\n", LineKind::Upload, value) || String::failedAllocations != 1) std::abort();
+        return;
+      }
+      if (mode == "aliases") {
+        for (const char* component : {".", "..", " a.epub", "a.epub.", "a.epub ", "a/b", "a\\b"}) {
+          app.server->part.filename = component;
+          upload(app, UPLOAD_FILE_START);
+          upload(app, UPLOAD_FILE_END);
+          response("400:text/plain:Invalid file name");
+        }
+        for (const char* parent : {"/books/../books", "/books.", "/books ", "/ books", "/books\\other"}) {
+          app.server->args["path"] = parent;
+          app.server->part.filename = "a.epub";
+          upload(app, UPLOAD_FILE_START);
+          upload(app, UPLOAD_FILE_END);
+          response("400:text/plain:Invalid upload directory");
+        }
+        if (host::files.at(dest)->bytes != "original" || host::files.contains(part)) std::abort();
+        return;
+      }
+      if (mode == "abort-start" || mode == "disconnect-end") {
+        upload(app, UPLOAD_FILE_START);
+        if (mode == "disconnect-end") {
+          upload(app, UPLOAD_FILE_WRITE, "new");
+          host::connected = false;
+          upload(app, UPLOAD_FILE_END);
+        }
+        upload(app, UPLOAD_FILE_ABORTED);
+        if (app.upload.policy.success || host::files.at(dest)->bytes != "original" || host::files.contains(part) ||
+            (priorPart && host::files.at("/books/first.txt")->bytes != "first payload")) std::abort();
+        return;
+      }
+      if (mode == "ingress-oom") {
+        struct Argument {
+          String key;
+          String value;
+        };
+        Argument* args = nullptr;
+        int count = 0;
+        const String directory = "/books/nested/long-directory";
+        const String query = "overwrite=true&path=" + directory;
+        host::add(directory + "/a.epub", "requested");
+        host::add("/a.epub", "root");
+        String::failAllocationSize = directory.length();
+        const bool parsed = upload_ingress::parseUploadArguments(query, args, count);
+        delete[] args;
+        if (parsed || String::failedAllocations != 1 || host::files.at("/a.epub")->bytes != "root" ||
+            host::files.at(directory + "/a.epub")->bytes != "requested" ||
+            std::any_of(host::trace.begin(), host::trace.end(),
+                        [](const auto& event) { return event.starts_with("create:"); }))
+          std::abort();
+        return;
+      }
+      if (mode == "first-part-fails" || mode == "second-part-fails") {
+        const bool firstFails = mode == "first-part-fails";
+        for (bool fail : {firstFails, !firstFails}) {
+          app.server->part.filename = fail ? ".." : "a.epub";
+          upload(app, UPLOAD_FILE_START);
+          upload(app, UPLOAD_FILE_WRITE, "complete");
+          upload(app, UPLOAD_FILE_END);
+        }
+        response(firstFails ? "400:text/plain:An earlier file in this upload failed"
+                            : "400:text/plain:Invalid file name");
+        if (host::files.at(dest)->bytes != "complete" || host::files.contains(part)) std::abort();
+        return;
+      }
+      if (mode == "occupied-stage" || mode == "nul-name" || mode == "nul-directory") {
+        host::add(part, "recovery");
+        if (mode == "nul-name") app.server->part.filename = std::string("a.epub\0x", 8);
+        if (mode == "nul-directory") app.server->args["path"] = std::string("/books\0x", 8);
+        upload(app, UPLOAD_FILE_START);
+        upload(app, UPLOAD_FILE_WRITE, "new");
+        upload(app, UPLOAD_FILE_END);
+        if (mode == "occupied-stage")
+          response("400:text/plain:Upload stage already exists; move or rename the .part file");
+        else
+          response(mode == "nul-name" ? "400:text/plain:Invalid file name" : "400:text/plain:Invalid upload directory");
+        if (host::files.at(dest)->bytes != "original" || host::files.at(part)->bytes != "recovery") std::abort();
+        return;
+      }
+      if (mode == "directory") host::add(dest, "", true);
+      if (mode == "create" || mode == "buffer-oom") {
+        host::failOperation = mode == "create" ? "create" : "alloc";
+        host::failAfter = 0;
+        upload(app, UPLOAD_FILE_START);
+        upload(app, UPLOAD_FILE_WRITE, "new");
+        upload(app, UPLOAD_FILE_END);
+        response(mode == "create" ? "400:text/plain:Failed to create file on SD card" : "400:text/plain:Memory error");
+        if (host::failAfter != -1 || host::files.contains(part) || host::files.at(dest)->bytes != "original")
+          std::abort();
+        return;
+      }
+      if (mode == "directory-oom" || mode == "name-oom" || mode == "argument-oom") {
+        const std::string parent = "/a-long-requested-directory/subdirectory";
+        app.server->args["path"] = parent;
+        host::add(parent + "/a.epub", "requested");
+        host::add("/a.epub", "root");
+        if (mode == "argument-oom") {
+          host::failOperation = "copy-argument";
+          host::failAfter = 0;
+        } else {
+          String::failAllocationSize = mode == "directory-oom" ? parent.size() : strlen("a.epub");
+        }
+        upload(app, UPLOAD_FILE_START);
+        upload(app, UPLOAD_FILE_WRITE, "new");
+        upload(app, UPLOAD_FILE_END);
+        response("400:text/plain:Memory error");
+        if ((mode == "argument-oom" ? host::failAfter != -1 : String::failedAllocations != 1) ||
+            host::files.at("/a.epub")->bytes != "root" || host::files.at(parent + "/a.epub")->bytes != "requested" ||
+            std::any_of(host::trace.begin(), host::trace.end(),
+                        [](const auto& event) { return event.starts_with("create:"); }))
+          std::abort();
+        return;
+      }
+      upload(app, UPLOAD_FILE_START);
+      if (mode == "directory" || mode == "refuse") {
+        response(mode == "directory" ? "400:text/plain:A folder with this name already exists: a.epub"
+                                     : "400:text/plain:File already exists: a.epub");
+        if (host::files.contains(part)) std::abort();
+        return;
+      }
+      if (!host::files.contains(part) || host::files.at(dest)->bytes != "original") std::abort();
+      if (mode == "short-write" || mode == "short-flush" || mode == "cleanup-fails") {
+        host::writeLimit = 1;
+        if (mode == "cleanup-fails") {
+          host::failOperation = "remove";
+          host::failAfter = 0;
+        }
+        upload(app, UPLOAD_FILE_WRITE, mode == "short-write" ? std::string(4096, 'x') : "xyz");
+        upload(app, UPLOAD_FILE_END);
+        response(mode == "short-write" ? "400:text/plain:Failed to write to SD card - disk may be full"
+                                       : "400:text/plain:Failed to write final data to SD card");
+        if (host::files.at(dest)->bytes != "original" || host::files.contains(part) != (mode == "cleanup-fails"))
+          std::abort();
+        return;
+      }
+      upload(app, UPLOAD_FILE_WRITE, "new");
+      if (mode == "close" || mode == "replace" || mode == "rename" || mode == "rename-sync") {
+        host::failOperation = mode;
+        host::failAfter = 0;
+      }
+      upload(app, mode == "cancel" ? UPLOAD_FILE_ABORTED : UPLOAD_FILE_END);
+      const bool installed = mode == "success" || mode == "nul";
+      const bool recovered = mode == "rename" || mode == "replace";
+      if (app.upload.policy.success != installed || host::files.contains(part) != recovered) std::abort();
+      if (installed) response("200:text/plain:File uploaded successfully: a.epub");
+      if (mode == "cancel") response("400:text/plain:Upload aborted");
+      if (mode == "close") response("400:text/plain:Failed to write final data to SD card");
+      if (recovered) {
+        response("400:text/plain:Replace failed; the new file is kept as a.epub.part");
+        if (host::files.at(part)->bytes != "new") std::abort();
+        if (mode == "rename" ? host::files.contains(dest) : host::files.at(dest)->bytes != "original") std::abort();
+      } else if (mode == "rename-sync") {
+        response("400:text/plain:Replace failed; check the destination on the SD card");
+        if (host::files.at(dest)->bytes != "new") std::abort();
+      } else if (host::files.at(dest)->bytes != (installed ? "new" : "original")) {
+        std::abort();
+      }
+      for (const std::string event : {"cache:/books/a.epub", "library-dirty"}) {
+        if (std::count(host::trace.begin(), host::trace.end(), event) !=
+            int(installed || recovered || mode == "rename-sync"))
+          std::abort();
+      }
+    });
+    return 0;
+  }
+
   if (const char* check = std::getenv("WEB_UPLOAD_CLOSE_CHECK")) {
     record("upload-close-failure", [&](auto& app) {
       constexpr std::string_view error = "Failed to write final data to SD card";
@@ -261,7 +613,7 @@ int main() {
 
   if (std::getenv("WEB_STATIC_SCRATCH_CHECK")) {
     for (const char* path : {"/", "/files", "/js/jszip.min.js", "/assets/web.css", "/assets/icons.svg",
-                             "/assets/crosspoint-icon.svg", "/settings", "/fonts", "/plugins-run"}) {
+                             "/assets/crosspoint-icon.svg", "/settings", "/fonts", "/plugins-run", "/plugins", "/js/epub-optimizer.js", "/js/plugin-host.js"}) {
       record(path, [&](auto& app) {
         app.running = false;
         app.begin();
@@ -290,7 +642,7 @@ int main() {
         }
       });
     }
-    std::cerr << "static scratch: 63 cases released before all header/send callbacks\n";
+    std::cerr << "static scratch released before all header/send callbacks\n";
     return 0;
   }
   if (const char* check = std::getenv("WEB_STRING_LIFETIME_CHECK")) {
@@ -1234,12 +1586,12 @@ int main() {
   }
   record("fonts-list-response-allocation", [](auto& app) {
     app.handleFontList();
-    const std::string prefix = "response:200:application/json:";
-    const auto response = std::find_if(host::trace.begin(), host::trace.end(),
-                                       [&](const auto& event) { return event.starts_with(prefix); });
-    // Rust allocation sweeps may fail before the transport is reached.
-    if (response == host::trace.end()) return;
-    String::failAllocationSize = response->size() - prefix.size();
+    size_t documentBytes = 0;
+    for (const auto& event : host::trace) {
+      if (event.starts_with("chunk:")) documentBytes += event.size() - 6;
+    }
+    if (documentBytes == 0) std::abort();
+    String::failAllocationSize = documentBytes;
     app.handleFontList();
     host::trace.push_back("string-allocation-failures:" + std::to_string(String::failedAllocations));
     String::failAllocationSize = SIZE_MAX;
@@ -1897,7 +2249,7 @@ int main() {
     });
   }
   for (const char* path : {"/", "/files", "/js/jszip.min.js", "/assets/web.css", "/assets/icons.svg",
-                           "/assets/crosspoint-icon.svg", "/settings", "/fonts", "/plugins-run"}) {
+                           "/assets/crosspoint-icon.svg", "/settings", "/fonts", "/plugins-run", "/plugins", "/js/epub-optimizer.js", "/js/plugin-host.js"}) {
     record((std::string("life-static:") + path).c_str(), [&](auto& app) {
       app.running = false;
       app.begin();
@@ -1929,7 +2281,7 @@ int main() {
     });
   }
   for (const char* path : {"/", "/files", "/js/jszip.min.js", "/assets/web.css", "/assets/icons.svg",
-                           "/assets/crosspoint-icon.svg", "/settings", "/fonts", "/plugins-run"}) {
+                           "/assets/crosspoint-icon.svg", "/settings", "/fonts", "/plugins-run", "/plugins", "/js/epub-optimizer.js", "/js/plugin-host.js"}) {
     record((std::string("life-static-cstring:") + path).c_str(), [&](auto& app) {
       host::chunkStaticBodies = true;
       app.running = false;

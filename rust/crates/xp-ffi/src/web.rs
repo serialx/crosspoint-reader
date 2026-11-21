@@ -133,12 +133,6 @@ impl Text {
     }
 }
 impl Text {
-    fn number(&mut self, n: usize) -> Result<()> {
-        let mut bytes = [0; 24];
-        let mut out = Output::new(&mut bytes);
-        out.number(n);
-        self.append(out.bytes())
-    }
     fn quoted(&mut self, bytes: &[u8]) -> Result<()> {
         self.append(b"\"")?;
         // Reuse the shared escaping rules with a bounded scratch loan.
@@ -182,6 +176,7 @@ enum Io {
     OpenAppend,
     Flush,
     CreatePlugin,
+    IsDirectoryPath,
 }
 #[repr(u32)]
 #[derive(Clone, Copy)]
@@ -719,11 +714,6 @@ impl Request<'_> {
             return Ok(());
         }
         let uri = self.arg_or(b"\0", b"")?;
-        if self.flags() & 1 != 0 && !uri.bytes().starts_with(b"/api/") {
-            self.header(b"Location\0", b"/");
-            self.send(302, b"");
-            return Ok(());
-        }
         let mut body = Text::new(b"404 Not Found\n\nURI: ")?;
         body.append(uri.bytes())?;
         body.append(b"\n")?;
@@ -744,17 +734,53 @@ fn epub(name: &[u8]) -> bool {
     name.get(name.len().saturating_sub(5)..)
         .is_some_and(|tail| tail.eq_ignore_ascii_case(b".epub"))
 }
+
+// SdFat discards leading spaces and trailing spaces or dots during path lookup.
+fn upload_component(name: &[u8]) -> bool {
+    safe(name)
+        && !name.contains(&0)
+        && !name.starts_with(b" ")
+        && !name.ends_with(b" ")
+        && !name.ends_with(b".")
+}
 struct Output<'a> {
     data: &'a mut [u8],
+    stream: Option<&'a Request<'a>>,
     len: usize,
 }
 impl<'a> Output<'a> {
     fn new(data: &'a mut [u8]) -> Self {
-        Self { data, len: 0 }
+        Self {
+            data,
+            len: 0,
+            stream: None,
+        }
+    }
+    fn streaming(data: &'a mut [u8], request: &'a Request<'a>) -> Self {
+        Self {
+            data,
+            len: 0,
+            stream: Some(request),
+        }
+    }
+    fn flush(&mut self) {
+        if self.len != 0 {
+            if let Some(request) = self.stream {
+                request.chunk(self.bytes());
+                self.len = 0;
+            }
+        }
     }
     #[inline(never)]
     fn add(&mut self, bytes: &[u8]) {
         for &b in bytes {
+            if self.len == self.data.len() {
+                if let Some(request) = self.stream {
+                    self.flush();
+                    request.watchdog();
+                    unsafe { (request.services.yield_task)(request.ctx) };
+                }
+            }
             if let Some(out) = self.data.get_mut(self.len) {
                 *out = b;
             }
@@ -866,6 +892,7 @@ enum Field {
     FontPath,
     PluginPath,
     PluginTmp,
+    UploadStage,
 }
 #[repr(u32)]
 #[derive(Clone, Copy)]
@@ -939,7 +966,11 @@ impl Transfer<'_> {
         state.buffer = core::ptr::null_mut();
     }
     fn remove_upload(&self, ws: bool) -> (Span, bool) {
-        let path = unsafe { (self.t.joined_path)(self.r.ctx, ws) };
+        let path = if !ws && !self.get(Field::UploadStage).is_empty() {
+            unsafe { (self.t.get)(self.r.ctx, Field::UploadStage as u32) }
+        } else {
+            unsafe { (self.t.joined_path)(self.r.ctx, ws) }
+        };
         let removed = !path.data.is_null()
             && self
                 .r
@@ -1007,6 +1038,7 @@ impl Transfer<'_> {
                 self.r.watchdog();
                 self.set(Field::UploadName, name);
                 state.size = 0;
+                self.set(Field::UploadStage, b"");
                 state.success = false;
                 self.set(Field::UploadError, b"");
                 state.started_at = self.time();
@@ -1015,30 +1047,58 @@ impl Transfer<'_> {
                 state.write_time = 0;
                 state.writes = 0;
                 self.free_buffer(state);
-                if !safe(name) {
+                if !upload_component(name) {
                     self.set(Field::UploadError, b"Invalid file name");
                     self.diagnostic(TransferEvent::UploadUnsafe, name, b"", 0, 0, 0);
                     return Ok(());
                 }
-                let path = match self.r.arg(b"path\0")? {
-                    Some(path) => path.normalized()?,
-                    None => Text::new(b"/")?,
-                };
+                let path = self.r.arg(b"path\0")?.ok_or(())?;
+                if !path
+                    .bytes()
+                    .split(|&b| b == b'/')
+                    .all(|part| part.is_empty() || upload_component(part))
+                {
+                    self.set(Field::UploadError, b"Invalid upload directory");
+                    return Ok(());
+                }
+                let path = path.normalized()?;
                 self.set(Field::UploadPath, path.bytes());
+                if self.get(Field::UploadName) != name
+                    || self.get(Field::UploadPath) != path.bytes()
+                {
+                    return Err(());
+                }
                 self.diagnostic(TransferEvent::UploadStart, name, path.bytes(), 0, 0, 0);
                 self.diagnostic(TransferEvent::UploadHeap, b"", b"", 0, 0, 0);
-                let path = self.path(false)?;
+                let mut path = self.path(false)?;
                 if self.r.sensitive(&path) {
                     self.set(Field::UploadError, b"Cannot write protected items");
                     return Ok(());
                 }
                 self.r.watchdog();
                 if self.r.fs(Io::Exists, 0, &path) != 0 {
-                    let mut error = Text::new(b"File already exists: ")?;
-                    error.append(name)?;
-                    self.set(Field::UploadError, error.bytes());
-                    self.diagnostic(TransferEvent::UploadCollision, path.bytes(), b"", 0, 0, 0);
-                    return Ok(());
+                    let value =
+                        unsafe { (self.r.services.argument)(self.r.ctx, c"overwrite".as_ptr()) };
+                    let overwrite = matches!(c_bytes(unsafe { value.bytes() }), b"1" | b"true");
+                    unsafe { (self.r.services.argument)(self.r.ctx, core::ptr::null()) };
+                    let directory = overwrite && self.r.fs(Io::IsDirectoryPath, 1, &path) != 0;
+                    if !overwrite || directory {
+                        let mut error = Text::new(if directory {
+                            b"A folder with this name already exists: "
+                        } else {
+                            b"File already exists: "
+                        })?;
+                        error.append(name)?;
+                        self.set(Field::UploadError, error.bytes());
+                        self.diagnostic(TransferEvent::UploadCollision, path.bytes(), b"", 0, 0, 0);
+                        return Ok(());
+                    }
+                    path.0.try_reserve_exact(5).map_err(|_| ())?;
+                    path.append(b".part")?;
+                    self.set(Field::UploadStage, path.bytes());
+                    if self.get(Field::UploadStage).len() != path.bytes().len() {
+                        return Err(());
+                    }
                 }
                 state.buffer = unsafe { (self.r.services.buffer)(self.r.ctx, true) };
                 if state.buffer.is_null() {
@@ -1048,7 +1108,14 @@ impl Transfer<'_> {
                 }
                 self.r.watchdog();
                 if self.r.fs(Io::Create, 0, &path) == 0 {
-                    self.set(Field::UploadError, b"Failed to create file on SD card");
+                    let error: &[u8] = if !self.get(Field::UploadStage).is_empty()
+                        && self.r.fs(Io::Exists, 0, &path) != 0
+                    {
+                        b"Upload stage already exists; move or rename the .part file"
+                    } else {
+                        b"Failed to create file on SD card"
+                    };
+                    self.set(Field::UploadError, error);
                     self.diagnostic(
                         TransferEvent::UploadCreateFailed,
                         path.bytes(),
@@ -1123,6 +1190,48 @@ impl Transfer<'_> {
                     if !flushed || !closed || !self.get(Field::UploadError).is_empty() {
                         self.remove_upload(false);
                     } else {
+                        let Ok(dest) = self.path(false) else {
+                            self.remove_upload(false);
+                            return Err(());
+                        };
+                        let part = unsafe { (self.t.get)(self.r.ctx, Field::UploadStage as u32) };
+                        if part.len != 0 {
+                            self.r.watchdog();
+                            if self.r.io(
+                                Io::Replace,
+                                0,
+                                part.data.cast(),
+                                dest.ptr().cast_mut().cast(),
+                                0,
+                            ) == 0
+                            {
+                                // A failed FAT metadata sync can follow a directory entry change.
+                                // Keep any surviving stage even when the destination also exists.
+                                self.r.book(0, &dest, None);
+                                self.r.book(3, &dest, None);
+                                self.free_buffer(state);
+                                if self.r.io(
+                                    Io::Exists,
+                                    0,
+                                    part.data.cast(),
+                                    core::ptr::null_mut(),
+                                    0,
+                                ) != 0
+                                {
+                                    let mut error =
+                                        Text::new(b"Replace failed; the new file is kept as ")?;
+                                    error.append(self.get(Field::UploadName))?;
+                                    error.append(b".part")?;
+                                    self.set(Field::UploadError, error.bytes());
+                                } else {
+                                    self.set(
+                                        Field::UploadError,
+                                        b"Replace failed; check the destination on the SD card",
+                                    );
+                                }
+                                return Ok(());
+                            }
+                        }
                         state.success = true;
                         let elapsed = self.time().wrapping_sub(state.started_at) as usize;
                         self.diagnostic(
@@ -1141,9 +1250,8 @@ impl Transfer<'_> {
                             state.write_time as usize,
                             elapsed,
                         );
-                        let path = self.path(false)?;
-                        self.r.book(0, &path, None);
-                        self.r.book(3, &path, None);
+                        self.r.book(0, &dest, None);
+                        self.r.book(3, &dest, None);
                     }
                 }
                 self.free_buffer(state);

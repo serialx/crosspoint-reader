@@ -23,6 +23,6 @@ subprocess.run(['c++', '-std=c++20', '-DXP_SD_FONT_CATALOG', '-DPLUGIN_CATALOG_S
                 *['-I' + str(path) for path in (ROOT / 'test/web_server/stubs', ROOT / 'test/web_server',
                                               args.html_root, ROOT, args.arduinojson,
                                               ROOT / 'rust/crates/xp-ffi/include')],
-                str(cpp), str(ROOT / 'test/cmake/xp_ffi_host.cpp'), str(args.archive),
+                str(cpp), str(ROOT / 'freeink-sdk/libs/font/FreeInkFont/third_party/freetype/src/base/md5.c'), str(ROOT / 'test/cmake/xp_ffi_host.cpp'), str(args.archive),
                 '-o', str(binary)], check=True)
 subprocess.run([str(binary)], check=True)

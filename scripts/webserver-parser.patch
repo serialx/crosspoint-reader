@@ -1,0 +1,310 @@
+--- a/Parsing.cpp
++++ b/Parsing.cpp
+@@ -73,10 +73,13 @@
+   return buf;
+ }
+
++#include "UploadIngress.h"
++
+ bool WebServer::_parseRequest(NetworkClient &client) {
++  auto read = [&]() { return _uploadReadByte(client); };
+   // Read the first line of HTTP request
+-  String req = client.readStringUntil('\r');
+-  client.readStringUntil('\n');
++  String req;
++  if (!upload_ingress::readHeaderLine(req, read, upload_ingress::LineKind::Request)) return false;
+   //reset header value
+   if (_collectAllHeaders) {
+     // clear previous headers
+@@ -100,14 +103,18 @@
+   String methodStr = req.substring(0, addr_start);
+   String url = req.substring(addr_start + 1, addr_end);
+   String versionEnd = req.substring(addr_end + 8);
++  if (!versionEnd.c_str() || methodStr.length() != (unsigned int)addr_start ||
++      url.length() != (unsigned int)(addr_end - addr_start - 1)) return false;
+   _currentVersion = atoi(versionEnd.c_str());
+   String searchStr = "";
+   int hasSearch = url.indexOf('?');
+   if (hasSearch != -1) {
+     searchStr = url.substring(hasSearch + 1);
+-    url = url.substring(0, hasSearch);
++    if (searchStr.length() != url.length() - hasSearch - 1) return false;
++    url.remove(hasSearch);
+   }
+   _currentUri = url;
++  if (_currentUri.length() != url.length()) return false;
+   _chunked = false;
+   _clientContentLength = 0;  // not known yet, or invalid
+
+@@ -143,11 +150,11 @@
+     String headerName;
+     String headerValue;
+     bool isForm = false;
++    const bool fileUpload = method == HTTP_POST && url == "/upload";
+     bool isEncoded = false;
+     //parse headers
+     while (1) {
+-      req = client.readStringUntil('\r');
+-      client.readStringUntil('\n');
++      if (!upload_ingress::readHeaderLine(req, read, fileUpload ? upload_ingress::LineKind::Upload : upload_ingress::LineKind::Other)) return false;
+       if (req == "") {
+         break;  //no moar headers
+       }
+@@ -157,6 +164,7 @@
+       }
+       headerName = req.substring(0, headerDiv);
+       headerValue = req.substring(headerDiv + 1);
++      if (headerName.length() != (unsigned int)headerDiv || headerValue.length() != req.length() - headerDiv - 1) return false;
+       headerValue.trim();
+       _collectHeader(headerName.c_str(), headerValue.c_str());
+
+@@ -168,7 +176,9 @@
+           isForm = false;
+           isEncoded = true;
+         } else if (headerValue.startsWith(F("multipart/"))) {
+-          boundaryStr = headerValue.substring(headerValue.indexOf('=') + 1);
++          int boundaryStart = headerValue.indexOf('=') + 1;
++          boundaryStr = headerValue.substring(boundaryStart);
++          if (!boundaryStr.length() || boundaryStr.length() != headerValue.length() - boundaryStart) return false;
+           boundaryStr.replace("\"", "");
+           if (boundaryStr.length() > 70) {  // RFC 2046: max boundary length is 70
+             log_e("Invalid boundary length: %s", boundaryStr.c_str());
+@@ -238,8 +248,18 @@
+       }
+     } else {
+       // it IS a form
+-      _parseArguments(searchStr);
++      // Request parsing precedes response-header initialization; OOM must not allocate more headers.
++      static constexpr char badUpload[] = "HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
++      if (fileUpload) {
++        if (!upload_ingress::parseUploadArguments(searchStr, _currentArgs, _currentArgCount)) {
++          client.write(reinterpret_cast<const uint8_t*>(badUpload), sizeof(badUpload) - 1);
++          return false;
++        }
++      } else {
++        _parseArguments(searchStr);
++      }
+       if (!_parseForm(client, boundaryStr, _clientContentLength)) {
++        if (fileUpload && client.connected()) client.write(reinterpret_cast<const uint8_t*>(badUpload), sizeof(badUpload) - 1);
+         return false;
+       }
+     }
+@@ -410,23 +430,38 @@
+ }
+
+ bool WebServer::_parseForm(NetworkClient &client, const String &boundary, uint32_t len) {
+-  (void)len;
++  const bool fileUpload = _currentUri == "/upload";
++  const auto kind = fileUpload ? upload_ingress::LineKind::Upload : upload_ingress::LineKind::Other;
++  uint32_t consumed = 0;
++  auto read = [&]() {
++    if (len && consumed == len) return -1;
++    int c = _uploadReadByte(client);
++    if (c >= 0) ++consumed;
++    return c;
++  };
+   log_v("Parse Form: Boundary: %s Length: %" PRIu32, boundary.c_str(), len);
+   String line;
+   int retry = 0;
+   do {
+-    line = client.readStringUntil('\r');
++    if (!upload_ingress::readHeaderLine(line, read, kind)) return false;
+     ++retry;
+   } while (line.length() == 0 && retry < 3);
+
+-  client.readStringUntil('\n');
+   //start reading the form
+-  if (line == ("--" + boundary)) {
++  auto delimiter = [&](bool last) {
++    unsigned int length = boundary.length();
++    return line.length() == 2 + length + (last ? 2 : 0) && line.startsWith("--") &&
++           memcmp(line.c_str() + 2, boundary.c_str(), length) == 0 &&
++           (!last || line.endsWith("--"));
++  };
++  if (delimiter(false)) {
+     if (_postArgs) {
+       delete[] _postArgs;
+     }
+-    _postArgs = new RequestArgument[WEBSERVER_MAX_POST_ARGS];
++    _postArgs = fileUpload ? nullptr : new (std::nothrow) RequestArgument[WEBSERVER_MAX_POST_ARGS];
++    if (!fileUpload && !_postArgs) return false;
+     _postArgsLen = 0;
++    unsigned int textFields = 0;
+     while (1) {
+       String argName;
+       String argValue;
+@@ -434,70 +469,81 @@
+       String argFilename;
+       bool argIsFile = false;
+
+-      line = client.readStringUntil('\r');
+-      client.readStringUntil('\n');
+-      if (line.length() > (size_t)19 && line.substring(0, 19).equalsIgnoreCase(F("Content-Disposition"))) {
++      if (!upload_ingress::readHeaderLine(line, read, kind)) return false;
++      if (fileUpload && strncasecmp(line.c_str(), "Content-Disposition:", 20) != 0) return false;
++      if (line.length() > (size_t)19 && strncasecmp(line.c_str(), "Content-Disposition", 19) == 0) {
+         int nameStart = line.indexOf('=');
+-        if (nameStart != -1) {
+-          argName = line.substring(nameStart + 2);
+-          nameStart = argName.indexOf('=');
+-          if (nameStart == -1) {
+-            argName = argName.substring(0, argName.length() - 1);
++        if (nameStart != -1 || fileUpload) {
++          if (fileUpload) {
++            if (!upload_ingress::parseDisposition(line.c_str() + 20, argName, argFilename, argIsFile)) return false;
+           } else {
+-            argFilename = argName.substring(nameStart + 2, argName.length() - 1);
+-            argName = argName.substring(0, argName.indexOf('"'));
+-            argIsFile = true;
+-            log_v("PostArg FileName: %s", argFilename.c_str());
+-            //use GET to set the filename if uploading using blob
+-            if (argFilename == F("blob") && hasArg(FPSTR(filename))) {
+-              argFilename = arg(FPSTR(filename));
++            argName = line.substring(nameStart + 2);
++            if (argName.length() != line.length() - nameStart - 2) return false;
++            nameStart = argName.indexOf('=');
++            if (nameStart == -1) {
++              if (!argName.length()) return false;
++              argName.remove(argName.length() - 1);
++            } else {
++              argFilename = argName.substring(nameStart + 2, argName.length() - 1);
++              if (argFilename.length() + nameStart + 3 != argName.length()) return false;
++              argName.remove(argName.indexOf('"'));
++              argIsFile = true;
+             }
+           }
++          if (argIsFile && argFilename == F("blob") && hasArg(FPSTR(filename))) {
++            String overrideName = arg(FPSTR(filename));
++            if (!overrideName.c_str() || !overrideName.length()) return false;
++            argFilename = std::move(overrideName);
++          }
+           log_v("PostArg Name: %s", argName.c_str());
+           using namespace mime;
+           argType = FPSTR(mimeTable[txt].mimeType);
+-          line = client.readStringUntil('\r');
+-          client.readStringUntil('\n');
++          if (!upload_ingress::readHeaderLine(line, read, kind)) return false;
+           while (line.length() > 0) {
+-            if (line.length() > (size_t)12 && line.substring(0, 12).equalsIgnoreCase(FPSTR(Content_Type))) {
++            if (fileUpload && strncasecmp(line.c_str(), "Content-Disposition:", 20) == 0) return false;
++            if (line.length() > (size_t)12 && strncasecmp(line.c_str(), Content_Type, 12) == 0) {
+               argType = line.substring(line.indexOf(':') + 2);
+             }
+             //skip over any other headers
+-            line = client.readStringUntil('\r');
+-            client.readStringUntil('\n');
++            if (!upload_ingress::readHeaderLine(line, read, kind)) return false;
+           }
+           log_v("PostArg Type: %s", argType.c_str());
+           if (!argIsFile) {
+             while (1) {
+-              line = client.readStringUntil('\r');
+-              client.readStringUntil('\n');
+-              if (line.startsWith("--" + boundary)) {
++              if (!upload_ingress::readHeaderLine(line, read, kind, true)) return false;
++              if (delimiter(false) || delimiter(true)) {
+                 break;
+               }
++              if (fileUpload && argValue.length() + line.length() + (argValue.length() != 0) > upload_ingress::MAX_METADATA_BYTES) return false;
+               if (argValue.length() > (size_t)0) {
+-                argValue += "\n";
++                if (!argValue.concat('\n')) return false;
+               }
+-              argValue += line;
++              if (!argValue.concat(line)) return false;
+             }
+             log_v("PostArg Value: %s", argValue.c_str());
+
+-            RequestArgument &arg = _postArgs[_postArgsLen++];
+-            arg.key = argName;
+-            arg.value = argValue;
++            // Upload routing uses only the query table, including at file START.
++            if (!fileUpload) {
++              RequestArgument &arg = _postArgs[_postArgsLen++];
++              arg.key = std::move(argName);
++              arg.value = std::move(argValue);
++            }
+
+-            if (line == ("--" + boundary + "--")) {
++            ++textFields;
++            if (delimiter(true)) {
+               log_v("Done Parsing POST");
+               break;
+-            } else if (_postArgsLen >= WEBSERVER_MAX_POST_ARGS) {
++            } else if (textFields >= WEBSERVER_MAX_POST_ARGS) {
+               log_e("Too many PostArgs (max: %u) in request.", WEBSERVER_MAX_POST_ARGS);
+               return false;
+             }
+           } else {
+-            _currentUpload.reset(new HTTPUpload());
++            _currentUpload.reset(new (std::nothrow) HTTPUpload());
++            if (!_currentUpload) return false;
+             _currentUpload->status = UPLOAD_FILE_START;
+-            _currentUpload->name = argName;
+-            _currentUpload->filename = argFilename;
+-            _currentUpload->type = argType;
++            _currentUpload->name = std::move(argName);
++            _currentUpload->filename = std::move(argFilename);
++            _currentUpload->type = std::move(argType);
+             _currentUpload->totalSize = 0;
+             _currentUpload->currentSize = 0;
+             log_v("Start File: %s Type: %s", _currentUpload->filename.c_str(), _currentUpload->type.c_str());
+@@ -511,7 +557,7 @@
+             snprintf(fastBoundary, fastBoundaryLen, "\r\n--%s", boundary.c_str());
+             int boundaryPtr = 0;
+             while (true) {
+-              int ret = _uploadReadByte(client);
++              int ret = read();
+               if (ret < 0) {
+                 // Unexpected, we should have had data available per above
+                 return _parseFormUploadAborted();
+@@ -539,6 +585,17 @@
+                 }
+               }
+             }
++            // Validate the delimiter before exposing END to a file-committing handler.
++            int suffix = read();
++            bool last = suffix == '-';
++            if (last) {
++              if (read() != '-') return _parseFormUploadAborted();
++              if (!len || consumed < len) {
++                if (read() != '\r' || read() != '\n') return _parseFormUploadAborted();
++              }
++            } else if (suffix != '\r' || read() != '\n') {
++              return _parseFormUploadAborted();
++            }
+             // Found the boundary string, finish processing this file upload
+             if (_currentHandler && _currentHandler->canUpload(*this, _currentUri)) {
+               _currentHandler->upload(*this, _currentUri, *_currentUpload);
+@@ -552,9 +609,7 @@
+             if (!client.connected()) {
+               return _parseFormUploadAborted();
+             }
+-            line = client.readStringUntil('\r');
+-            client.readStringUntil('\n');
+-            if (line == "--") {  // extra two dashes mean we reached the end of all form fields
++            if (last) {  // extra two dashes mean we reached the end of all form fields
+               log_v("Done Parsing POST");
+               break;
+             }
+@@ -564,6 +619,7 @@
+       }
+     }
+
++    if (fileUpload) return true;
+     int iarg;
+     int totalArgs = ((WEBSERVER_MAX_POST_ARGS - _postArgsLen) < _currentArgCount) ? (WEBSERVER_MAX_POST_ARGS - _postArgsLen) : _currentArgCount;
+     for (iarg = 0; iarg < totalArgs; iarg++) {
+@@ -574,7 +630,11 @@
+     if (_currentArgs) {
+       delete[] _currentArgs;
+     }
+-    _currentArgs = new RequestArgument[_postArgsLen];
++    _currentArgs = new (std::nothrow) RequestArgument[_postArgsLen];
++    if (!_currentArgs) {
++      _currentArgCount = 0;
++      return false;
++    }
+     for (iarg = 0; iarg < _postArgsLen; iarg++) {
+       RequestArgument &arg = _currentArgs[iarg];
+       arg.key = _postArgs[iarg].key;

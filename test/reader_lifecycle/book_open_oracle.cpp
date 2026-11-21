@@ -26,6 +26,7 @@ struct SerialPort {
 constexpr int O_RDONLY = 1, O_RDWR = 2, O_CREAT = 4, O_TRUNC = 8;
 static bool sdkOpenOk = false;
 static bool failHandleAllocation = false;
+static int destructiveOpens = 0;
 
 void* operator new(size_t bytes, const std::nothrow_t&) noexcept {
   if (std::exchange(failHandleAllocation, false)) return nullptr;
@@ -39,6 +40,7 @@ struct Volume {
   FsFile open(const char*, int flags) {
     assert(depth == 1);
     assert(flags == O_RDONLY || flags == (O_RDWR | O_CREAT | O_TRUNC));
+    if (flags & O_TRUNC) ++destructiveOpens;
     return {};
   }
 };
@@ -103,6 +105,12 @@ int main() {
     const bool opened = write ? Storage.openFileForWrite("SLP", "/cache.tmp", file)
                               : Storage.openFileForRead("SLP", "/cache.bmp", file);
     assert(!opened && !file.impl && !failHandleAllocation && depth == 0);
+  }
+  assert(destructiveOpens == 0);
+  {
+    HalFile file;
+    assert(Storage.openFileForWrite("SLP", "/cache.tmp", file));
+    assert(file.impl && destructiveOpens == 1 && depth == 0);
   }
   sdkOpenOk = false;
   const char* tags[] = {"ERS", "BMC", "COF", "BMC", "CSS", "ZIP", "TXT", "EBP"};

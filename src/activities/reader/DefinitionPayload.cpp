@@ -193,16 +193,21 @@ bool DefinitionPayload::prepareDefinition(GfxRenderer& renderer, Slot& next, con
   }
   if (htmlDefinition && !forcePlain && view.size() <= MAX_STYLED_HTML_BYTES && layoutHtmlPages(renderer, next, body))
     return true;
-  if (htmlDefinition) {
-    if (auto* fcm = renderer.getFontCacheManager()) fcm->releaseSdFontCaches();
-    const auto heap = HalMemory::getDefaultHeap();
-    if (heap.largestBlockBytes < view.size() + 1 || heap.freeBytes < view.size() + HEAP_HEADROOM) {
-      LOG_ERR("DICT", "Low heap for plain definition (%u bytes)", static_cast<unsigned>(view.size() + 1));
-      return false;
-    }
-    next.text = htmlToPlainText(view, DICTIONARY_PLAIN_HEADWORD_MARKER);
-  }
+  if (htmlDefinition && !convertHtmlToPlain(renderer, next)) return false;
   return wrapText(renderer, next, body);
+}
+
+// Keep the fallback string allocation off the styled parser's stack route.
+[[gnu::noinline]] bool DefinitionPayload::convertHtmlToPlain(GfxRenderer& renderer, Slot& next) {
+  if (auto* fcm = renderer.getFontCacheManager()) fcm->releaseSdFontCaches();
+  const auto view = next.textView();
+  const auto heap = HalMemory::getDefaultHeap();
+  if (heap.largestBlockBytes < view.size() + 1 || heap.freeBytes < view.size() + HEAP_HEADROOM) {
+    LOG_ERR("DICT", "Low heap for plain definition (%u bytes)", static_cast<unsigned>(view.size() + 1));
+    return false;
+  }
+  next.text = htmlToPlainText(view, DICTIONARY_PLAIN_HEADWORD_MARKER);
+  return true;
 }
 
 bool DefinitionPayload::layoutHtmlPages(GfxRenderer& renderer, Slot& next, const XpUiRect body) {

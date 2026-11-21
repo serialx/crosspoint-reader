@@ -10,23 +10,23 @@ namespace upload_ingress {
 constexpr size_t MAX_METADATA_BYTES = 8192;
 constexpr size_t MAX_ARGUMENTS = 32;
 
-enum class LineKind { Request, Upload, Other };
-
 template <typename Read>
-bool readHeaderLine(String& out, Read read, LineKind kind, bool allowNul = false, bool* endedAtEof = nullptr) {
-  out.remove(0);
+bool appendHeaderLine(String& out, Read read, bool allowNul = false, bool* endedAtEof = nullptr) {
   for (;;) {
     int c = read();
     if (c < 0 && endedAtEof) *endedAtEof = true;
     if (c < 0 || (!allowNul && c == 0) || c == '\n') return false;
     if (c == '\r') return read() == '\n';
-    if (kind == LineKind::Request && out.length() == 12) {
-      kind = out == "POST /upload" && (c == '?' || c == ' ') ? LineKind::Upload : LineKind::Other;
-    }
-    if (kind == LineKind::Upload && out.length() == MAX_METADATA_BYTES) return false;
+    if (out.length() == MAX_METADATA_BYTES) return false;
     char byte = static_cast<char>(c);
     if (!out.concat(&byte, 1)) return false;
   }
+}
+
+template <typename Read>
+bool readHeaderLine(String& out, Read read, bool allowNul = false, bool* endedAtEof = nullptr) {
+  out.remove(0);
+  return appendHeaderLine(out, read, allowNul, endedAtEof);
 }
 
 // The upload endpoint accepts quoted form-data parameters in either order.

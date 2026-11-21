@@ -199,6 +199,34 @@ static void text(CrossPointWebServer& app, uint8_t client, const std::string& by
 int main() {
 #ifdef XP_FFI_HOST_FAULT_INJECTION
 
+  if (const char* uri = std::getenv("WEB_CLIENT_URI")) {
+    record("client shape", [&](auto& app) {
+      app.server->args["path"] = std::getenv("WEB_CLIENT_PATH");
+      app.server->part.filename = std::getenv("WEB_CLIENT_FILENAME");
+      const std::string payload = std::getenv("WEB_CLIENT_PAYLOAD");
+      if (std::string(uri) == "/api/plugin-fs") {
+        app.server->args["plugin"] = std::getenv("WEB_CLIENT_PLUGIN");
+        app.server->part.status = UPLOAD_FILE_START;
+        app.handlePluginFsUpload();
+        app.server->part.status = UPLOAD_FILE_WRITE;
+        app.server->part.buf = reinterpret_cast<const uint8_t*>(payload.data());
+        app.server->part.currentSize = payload.size();
+        app.handlePluginFsUpload();
+        app.server->part.status = UPLOAD_FILE_END;
+        app.handlePluginFsUpload();
+        app.handlePluginFs();
+      } else {
+        upload(app, UPLOAD_FILE_START);
+        upload(app, UPLOAD_FILE_WRITE, payload);
+        upload(app, UPLOAD_FILE_END);
+        app.handleUploadPost(app.upload);
+      }
+      if (!host::trace.back().starts_with("response:200:") || host::files.at("/books/new.epub")->bytes != payload ||
+          host::files.contains("/books/new.epub.part"))
+        std::abort();
+    });
+    return 0;
+  }
   if (const char* replace = std::getenv("WEB_PARSER_REPLACE")) {
     record("parsed upload", [&](auto& app) {
       host::add("/other", "", true);
@@ -254,7 +282,8 @@ int main() {
       app.handleGetSettings();
       const auto settings = collect(512);
       const auto last = settings[settings.size() - 1];
-      if (last["key"] != "oversized" || last["options"][0].template as<std::string>() != std::string(600, 'x')) std::abort();
+      if (last["key"] != "oversized" || last["options"][0].template as<std::string>() != std::string(600, 'x'))
+        std::abort();
     });
     return 0;
   }
@@ -263,16 +292,16 @@ int main() {
       record("fetch-method", [&](auto& app) {
         app.server->args["plain"] = R"({"url":"https://example.test/book","dest":"/books/new.epub",)" + fields + "}";
         app.handleFetch();
-        if (std::none_of(host::trace.begin(), host::trace.end(), [&](const auto& line) {
-              return line.find(expected) != std::string::npos;
-            })) {
+        if (std::none_of(host::trace.begin(), host::trace.end(),
+                         [&](const auto& line) { return line.find(expected) != std::string::npos; })) {
           std::cerr << "missing fetch event " << expected << '\n';
           std::abort();
         }
       });
     };
     for (auto method : {"POST", "PUT", "PATCH", "DELETE", "GET"}) {
-      request(std::string(R"("method":")") + method + R"(","body":"a\u0000b")", std::string("single:") + method + ":610062");
+      request(std::string(R"("method":")") + method + R"(","body":"a\u0000b")",
+              std::string("single:") + method + ":610062");
     }
     request(R"("method":"post","body":"")", "single:POST:");
     request(R"("method":false)", "method must be a string");
@@ -301,12 +330,17 @@ int main() {
           server._hostHeader = host;
           bool next = false;
           host::trace.clear();
-          if (!server.middleware(server, [&] { next = true; return true; })) std::abort();
-          const bool redirect = (method == HTTP_GET || method == HTTP_HEAD) &&
-                                std::string_view(host) == "connectivitycheck.gstatic.com";
+          if (!server.middleware(server, [&] {
+                next = true;
+                return true;
+              }))
+            std::abort();
+          const bool redirect =
+              (method == HTTP_GET || method == HTTP_HEAD) && std::string_view(host) == "connectivitycheck.gstatic.com";
           if (next == redirect) std::abort();
           if (redirect && (host::trace.size() != 2 || host::trace[0] != "header:Location:http://192.0.2.2/" ||
-                           host::trace[1] != "response:302:text/plain:")) std::abort();
+                           host::trace[1] != "response:302:text/plain:"))
+            std::abort();
         }
       }
       server._hostHeader = "example.com";
@@ -367,22 +401,21 @@ int main() {
       };
       app.server->part.filename = "a.epub";
       if (mode == "ingress-lines") {
-        auto line = [](const std::string& bytes, upload_ingress::LineKind kind, String& value) {
+        auto line = [](const std::string& bytes, String& value) {
           size_t cursor = 0;
           return upload_ingress::readHeaderLine(value, [&] {
             return cursor == bytes.size() ? -1 : static_cast<int>(static_cast<unsigned char>(bytes[cursor++]));
-          }, kind);
+          });
         };
-        using upload_ingress::LineKind;
         String value;
-        if (!line("POST /upload?path=/books HTTP/1.1\r\n", LineKind::Request, value) ||
-            line("unterminated", LineKind::Upload, value) || line("bad\n", LineKind::Upload, value) ||
-            line(std::string("name\0x\r\n", 8), LineKind::Upload, value)) std::abort();
+        if (!line("POST /upload?path=/books HTTP/1.1\r\n", value) || line("unterminated", value) ||
+            line("bad\n", value) || line(std::string("name\0x\r\n", 8), value))
+          std::abort();
         std::string target("POST /upload?");
         target.resize(upload_ingress::MAX_METADATA_BYTES, 'a');
-        if (!line(target + "\r\n", LineKind::Request, value) || line(target + "a\r\n", LineKind::Request, value)) std::abort();
+        if (!line(target + "\r\n", value) || line(target + "a\r\n", value)) std::abort();
         String::failAllocationSize = 5;
-        if (line("filename\r\n", LineKind::Upload, value) || String::failedAllocations != 1) std::abort();
+        if (line("filename\r\n", value) || String::failedAllocations != 1) std::abort();
         return;
       }
       if (mode == "aliases") {
@@ -411,7 +444,8 @@ int main() {
         }
         upload(app, UPLOAD_FILE_ABORTED);
         if (app.upload.policy.success || host::files.at(dest)->bytes != "original" || host::files.contains(part) ||
-            (priorPart && host::files.at("/books/first.txt")->bytes != "first payload")) std::abort();
+            (priorPart && host::files.at("/books/first.txt")->bytes != "first payload"))
+          std::abort();
         return;
       }
       if (mode == "ingress-oom") {
@@ -612,8 +646,9 @@ int main() {
   }
 
   if (std::getenv("WEB_STATIC_SCRATCH_CHECK")) {
-    for (const char* path : {"/", "/files", "/js/jszip.min.js", "/assets/web.css", "/assets/icons.svg",
-                             "/assets/crosspoint-icon.svg", "/settings", "/fonts", "/plugins-run", "/plugins", "/js/epub-optimizer.js", "/js/plugin-host.js"}) {
+    for (const char* path :
+         {"/", "/files", "/js/jszip.min.js", "/assets/web.css", "/assets/icons.svg", "/assets/crosspoint-icon.svg",
+          "/settings", "/fonts", "/plugins-run", "/plugins", "/js/epub-optimizer.js", "/js/plugin-host.js"}) {
       record(path, [&](auto& app) {
         app.running = false;
         app.begin();
@@ -2248,8 +2283,9 @@ int main() {
       upload(app, UPLOAD_FILE_ABORTED);
     });
   }
-  for (const char* path : {"/", "/files", "/js/jszip.min.js", "/assets/web.css", "/assets/icons.svg",
-                           "/assets/crosspoint-icon.svg", "/settings", "/fonts", "/plugins-run", "/plugins", "/js/epub-optimizer.js", "/js/plugin-host.js"}) {
+  for (const char* path :
+       {"/", "/files", "/js/jszip.min.js", "/assets/web.css", "/assets/icons.svg", "/assets/crosspoint-icon.svg",
+        "/settings", "/fonts", "/plugins-run", "/plugins", "/js/epub-optimizer.js", "/js/plugin-host.js"}) {
     record((std::string("life-static:") + path).c_str(), [&](auto& app) {
       app.running = false;
       app.begin();
@@ -2280,8 +2316,9 @@ int main() {
       }
     });
   }
-  for (const char* path : {"/", "/files", "/js/jszip.min.js", "/assets/web.css", "/assets/icons.svg",
-                           "/assets/crosspoint-icon.svg", "/settings", "/fonts", "/plugins-run", "/plugins", "/js/epub-optimizer.js", "/js/plugin-host.js"}) {
+  for (const char* path :
+       {"/", "/files", "/js/jszip.min.js", "/assets/web.css", "/assets/icons.svg", "/assets/crosspoint-icon.svg",
+        "/settings", "/fonts", "/plugins-run", "/plugins", "/js/epub-optimizer.js", "/js/plugin-host.js"}) {
     record((std::string("life-static-cstring:") + path).c_str(), [&](auto& app) {
       host::chunkStaticBodies = true;
       app.running = false;

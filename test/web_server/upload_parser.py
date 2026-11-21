@@ -23,6 +23,7 @@ with tempfile.TemporaryDirectory() as directory:
     pre=r'''
 #include <cassert>
 #include <memory>
+#include <iostream>
 #include <vector>
 #include <strings.h>
 #include "UploadIngress.h"
@@ -48,7 +49,12 @@ struct NetworkClient {
   bool connected() const {return true;}
   size_t write(const uint8_t* b,size_t n){output.append((const char*)b,n); return n;}
   int readBytes(char*,size_t){abort();}
-  String readStringUntil(char){abort();}
+  String readStringUntil(char delimiter){
+    String out;
+    int c;
+    while((c=read())>=0 && c!=delimiter) out.concat(static_cast<char>(c));
+    return out;
+  }
   void clear(){}
 };
 char* readBytesWithTimeout(NetworkClient&,size_t,size_t&,int){abort();}
@@ -60,7 +66,7 @@ struct RequestHandler {
   bool canUpload(WebServer&,const String&){return true;}
   RequestHandler* next(){return nullptr;}
   void raw(WebServer&,const String&,HTTPRaw&){abort();}
-  std::string directory, overwrite, filename;
+  std::string directory, overwrite, filename, plugin;
   void upload(WebServer&,const String&,HTTPUpload&);
 };
 struct WebServer {
@@ -75,7 +81,8 @@ struct WebServer {
   ~WebServer(){delete[] _currentArgs;delete[] _postArgs;}
   void collectAllHeaders(){abort();}
   void _collectHeader(const char* k,const char*){if(failDecode && strcmp(k,"X-End")==0)String::failAllocationSize=24;}
-  void _parseArguments(const String&){abort();}
+  void _parseArguments(const String&);
+  String urlDecode(const String&);
   bool hasArg(const String&) const;
   String arg(const String&) const;
   int _uploadReadByte(NetworkClient& c){return c.read();}
@@ -90,6 +97,7 @@ void RequestHandler::upload(WebServer& web,const String&,HTTPUpload& p){
       pending.clear();
       directory = web.arg("path");
       overwrite = web.arg("overwrite");
+      plugin = web.arg("plugin");
       filename = p.filename;
     }
     if(p.status==UPLOAD_FILE_WRITE)pending.append((const char*)p.buf,p.currentSize);
@@ -125,7 +133,19 @@ void checkRouting(bool reverse, bool blob, bool replace, bool trailing = false, 
          h.overwrite.c_str(), h.committed.front().c_str());
 }
 
-int main() {
+int main(int argc, char**) {
+  if (argc > 1) {
+    WebServer web;
+    NetworkClient client;
+    client.input.assign(std::istreambuf_iterator<char>(std::cin), {});
+    assert(web._parseRequest(client));
+    auto& h = web.handler;
+    assert(h.committed.size() == 1 && h.committed.front() == "complete");
+    assert(std::count(h.events.begin(), h.events.end(), UPLOAD_FILE_START) == 1);
+    printf("%s\t%s\t%s\t%s\t%s", web._currentUri.c_str(), h.directory.c_str(),
+           h.filename.c_str(), h.plugin.c_str(), h.committed.front().c_str());
+    return 0;
+  }
   for (bool reverse : {false, true})
     for (bool blob : {false, true})
       for (bool replace : {false, true}) checkRouting(reverse, blob, replace);
@@ -168,12 +188,49 @@ int main() {
   }
 }
 '''
-    definitions=[method(x) for x in ('bool WebServer::_parseRequest(', 'bool WebServer::_parseForm(', 'void WebServer::_uploadWriteByte(', 'bool WebServer::_parseFormUploadAborted(')]
-    lookup=(source.parent/'WebServer.cpp').read_text()
-    definitions.extend(method(sig,lookup) for sig in ('String WebServer::arg(const String', 'bool WebServer::hasArg(const String'))
-    unit=work/'oracle.cpp'
-    unit.write_text(pre+'\n'+'\n'.join(definitions)+'\n'+post)
-    subprocess.run(['c++','-std=c++20','-O1','-fsanitize=address,undefined','-I'+str(work),'-I'+str(root/'src/network'),str(unit),'-o',str(work/'oracle')],check=True)
+    def compile_parser(name, parser):
+        signatures = ('void WebServer::_parseArguments(', 'String WebServer::urlDecode(', 'bool WebServer::_parseRequest(',
+                      'bool WebServer::_parseForm(', 'void WebServer::_uploadWriteByte(', 'bool WebServer::_parseFormUploadAborted(')
+        definitions = [method(sig, parser) for sig in signatures]
+        lookup = (source.parent / 'WebServer.cpp').read_text()
+        definitions.extend(method(sig, lookup) for sig in ('String WebServer::arg(const String', 'bool WebServer::hasArg(const String'))
+        unit = work / (name + '.cpp')
+        unit.write_text(pre + '\n' + '\n'.join(definitions) + '\n' + post)
+        subprocess.run(['c++', '-std=c++20', '-Wno-vla-cxx-extension', '-O1', '-fsanitize=address,undefined',
+                        '-I' + str(work), '-I' + str(root/'src/network'), str(unit), '-o', str(work/name)], check=True)
+
+    compile_parser('oracle', s)
+    compile_parser('stock', source.read_text())
+    for name, plugin, filename, mime, trailing in [
+        ('FilesPage', False, 'new.epub', 'application/octet-stream', False),
+        ('EPUB optimizer', False, 'new.epub', 'application/epub+zip', False),
+        ('curl -F', False, 'new.epub', 'application/octet-stream', False),
+        ('browser FormData', False, 'new.epub', 'application/epub+zip', True),
+        ('plugin host', True, 'data', 'application/octet-stream', False),
+        ('plugin empty override', True, 'blob', 'application/octet-stream', False),
+    ]:
+        endpoint = '/api/plugin-fs?plugin=test&path=%2Fbooks%2Fnew.epub' if plugin else '/upload?path=%2Fbooks'
+        if plugin and filename == 'blob':
+            endpoint += '&filename='
+        boundary = ('------------------------' if name == 'curl -F' else '----WebKitFormBoundary') + 'abc123'
+        body = (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{filename}"\r\n'
+                f'Content-Type: {mime}\r\n\r\ncomplete\r\n')
+        if trailing:
+            body += f'--{boundary}\r\nContent-Disposition: form-data; name="comment"\r\n\r\nafter\r\n'
+        body += f'--{boundary}--' + ('\r\n' if name == 'curl -F' else '')
+        wire = (f'POST {endpoint} HTTP/1.1\r\nContent-Type: multipart/form-data; boundary={boundary}\r\n'
+                f'Content-Length: {len(body)}\r\n\r\n{body}').encode()
+        def dispatch(binary):
+            return subprocess.check_output([work/binary, 'wire'], input=wire).decode().split('\t')
+        current = dispatch('oracle')
+        assert current == dispatch('stock'), name
+        uri, path, part, owner, payload = current
+        assert part == ('' if filename == 'blob' else filename)
+        env = dict(os.environ, WEB_CLIENT_URI=uri, WEB_CLIENT_PATH=path, WEB_CLIENT_FILENAME=part,
+                   WEB_CLIENT_PLUGIN=owner, WEB_CLIENT_PAYLOAD=payload)
+        trace = subprocess.check_output([handler], env=env, text=True)
+        assert '"case":"client shape"' in trace, name
+        print(f'{name}: stock dispatch matches, HTTP 200, complete file')
     result=subprocess.check_output([str(work/'oracle')],text=True)
     for line in result.splitlines():
         if not line.startswith('ROUTE\t'):

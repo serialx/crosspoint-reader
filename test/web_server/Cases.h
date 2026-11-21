@@ -200,6 +200,11 @@ int main() {
   if (std::getenv("WEB_FONT_STREAM_CHECK")) {
     record("large-font-lists", [](auto& app) {
       auto collect = [](size_t maxChunk) {
+        for (size_t i = 0; i < host::trace.size(); ++i) {
+          if (host::trace[i].starts_with("chunk:") && host::trace[i].size() == maxChunk + 6 &&
+              (host::trace.at(i + 1) != "watchdog" || host::trace.at(i + 2) != "yield"))
+            std::abort();
+        }
         std::string json;
         for (const auto& event : host::trace) {
           if (!event.starts_with("chunk:")) continue;
@@ -213,6 +218,7 @@ int main() {
       auto& families = sdFontSystem.fonts.families;
       families.resize(64);
       for (size_t i = 0; i < families.size(); ++i) families[i].name = "Family" + std::to_string(i);
+      families.front().name.assign(700, 'F');
       app.handleFontList();
       const auto listed = collect(192);
       if (listed["families"].size() != 64 || listed["families"][63]["name"] != "Family63") std::abort();

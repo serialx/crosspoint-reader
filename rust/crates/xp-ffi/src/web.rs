@@ -765,8 +765,12 @@ impl<'a> Output<'a> {
     #[inline(never)]
     fn add(&mut self, bytes: &[u8]) {
         for &b in bytes {
-            if self.len == self.data.len() && self.stream.is_some() {
-                self.flush();
+            if self.len == self.data.len() {
+                if let Some(request) = self.stream {
+                    self.flush();
+                    request.watchdog();
+                    unsafe { (request.services.yield_task)(request.ctx) };
+                }
             }
             if let Some(out) = self.data.get_mut(self.len) {
                 *out = b;

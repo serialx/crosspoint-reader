@@ -970,7 +970,7 @@ pub struct Emit {
     pub(crate) text: unsafe extern "C" fn(*mut c_void, *const c_char, *const c_char, bool),
     pub(crate) number: unsafe extern "C" fn(*mut c_void, *const c_char, i64),
     pub(crate) object: unsafe extern "C" fn(*mut c_void, *const c_char),
-    pub(crate) serialize: unsafe extern "C" fn(*mut c_void) -> usize,
+    pub(crate) serialize: unsafe extern "C" fn(*mut c_void, *mut *const c_char) -> usize,
     pub(crate) append: unsafe extern "C" fn(*mut c_void, *const Subscriber, usize),
     pub(crate) oversize: unsafe extern "C" fn(*mut c_void, usize),
 }
@@ -1000,19 +1000,7 @@ extern "C" {
 }
 
 #[inline(never)]
-unsafe fn metadata_mask(table: &[Subscriber; MAX_EVENT_PLUGINS], event: usize, vars: &[Var]) -> u8 {
-    // The event JSON uses the last value for each name.
-    let value = |key: &[u8]| {
-        vars.iter()
-            .rev()
-            .find(|v| !v.key.is_null() && CStr::from_ptr(v.key).to_bytes() == key)
-            .filter(|v| !v.value.is_null())
-            .map_or(b"".as_slice(), |v| CStr::from_ptr(v.value).to_bytes())
-    };
-    let mut book = value(b"book");
-    if book.is_empty() {
-        book = value(b"path");
-    }
+unsafe fn metadata_mask(table: &[Subscriber; MAX_EVENT_PLUGINS], event: usize, book: &[u8]) -> u8 {
     if book.is_empty() {
         return 0;
     }
@@ -1108,7 +1096,8 @@ pub unsafe extern "C" fn xp_plugin_emit(
         let v = &*vars.add(i);
         (s.text)(s.ctx, v.key, v.value, false);
     }
-    let len = (s.serialize)(s.ctx);
+    let mut book = c"".as_ptr();
+    let len = (s.serialize)(s.ctx, &mut book);
     if len > MAX_EVENT_LINE {
         (s.oversize)(s.ctx, len);
         return;
@@ -1121,13 +1110,7 @@ pub unsafe extern "C" fn xp_plugin_emit(
         }
         if sub.meta_key_hash[event as usize] != 0 {
             let matches = *metadata_matches.get_or_insert_with(|| {
-                // A null vars pointer is valid for the empty event payload.
-                let vars = if count == 0 {
-                    &[]
-                } else {
-                    core::slice::from_raw_parts(vars, count)
-                };
-                metadata_mask(&*table, event as usize, vars)
+                metadata_mask(&*table, event as usize, CStr::from_ptr(book).to_bytes())
             });
             if matches & (1 << index) == 0 {
                 continue;

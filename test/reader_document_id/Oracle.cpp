@@ -58,7 +58,7 @@ XpPluginSequence* eventCodec(XpPluginEventStorage* storage, XpPluginEmitOps* ops
           },
           [](void*, const char* key, int64_t value) { assert(std::string(key) == "ts" && value == 1000); },
           [](void*, const char* key) { assert(std::string(key) == "vars"); },
-          [](void* raw) -> size_t {
+          [](void* raw, const char**) -> size_t {
             const auto& vars = static_cast<EventCodec*>(raw)->vars;
             const char* keys[] = {"book",
                                   "document",

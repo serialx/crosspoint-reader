@@ -269,7 +269,8 @@ typedef struct {
   void (*text)(void*, const char* key, const char* value, bool static_key);
   void (*number)(void*, const char* key, int64_t);
   void (*object)(void*, const char* key);
-  size_t (*serialize)(void*);
+  // The book or fallback path borrows the stored JSON until codec teardown.
+  size_t (*serialize)(void*, const char** book);
   void (*append)(void*, const XpPluginSubscriber*, size_t);
   void (*oversize)(void*, size_t);
 } XpPluginEmitOps;

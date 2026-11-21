@@ -281,8 +281,9 @@ XpPluginSequence* eventCodec(XpPluginEventStorage* storage, XpPluginEmitOps* ops
         auto& c = *static_cast<Context*>(p);
         c.node = c.node[JsonString(key, true)].to<JsonObject>();
       },
-      [](void* p) {
+      [](void* p, const char** book) {
         auto& c = *static_cast<Context*>(p);
+        *book = eventBook(c.node);
         c.line.reserve(160);
         serializeJson(c.doc, c.line);
         c.line += '\n';

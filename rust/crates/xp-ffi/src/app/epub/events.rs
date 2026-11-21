@@ -55,7 +55,7 @@ forward!(time() -> i64);
 forward!(text(key: *const c_char, value: *const c_char, envelope: bool) -> ());
 forward!(number(key: *const c_char, value: i64) -> ());
 forward!(object(key: *const c_char) -> ());
-forward!(serialize() -> usize);
+forward!(serialize(book: *mut *const c_char) -> usize);
 forward!(oversize(size: usize) -> ());
 unsafe extern "C" fn append(ctx: *mut c_void, subscriber: *const Subscriber, size: usize) {
     let b = &*ctx.cast::<Bridge>();

@@ -55,6 +55,7 @@ if a.encoding or a.metadata:
     raise SystemExit(0)
 cases = [(i, 0) for i in range(48)]
 if a.json_faults:
+    subprocess.run([str(a.build / "oracle"), "51"], check=True)
     cases += [(i, fault) for i in (0,7,16,22,23,29,40,43) for fault in range(1,113)]
 if a.token_lifetime:
     cases = [(48, 0)]

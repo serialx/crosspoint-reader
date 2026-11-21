@@ -62,7 +62,7 @@ int main() {
         [](void*, const char*, const char*, bool) {},
         [](void*, const char*, int64_t) {},
         [](void*, const char*) {},
-        [](void* p) { return static_cast<Emit*>(p)->bytes; },
+        [](void* p, const char**) { return static_cast<Emit*>(p)->bytes; },
         [](void* p, const XpPluginSubscriber*, size_t) { static_cast<Emit*>(p)->appended = true; },
         [](void* p, size_t) { static_cast<Emit*>(p)->oversized = true; }};
     xp_plugin_emit(table, &sequence, 0, nullptr, 0, &emit);

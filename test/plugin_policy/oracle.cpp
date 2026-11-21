@@ -64,6 +64,39 @@ int main(int argc, char** argv) {
                 std::to_string(oracle::hash(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()))));
     return 0;
   }
+#ifdef PLUGIN_JSON_FAULTS
+  if (c == 51) {
+    const std::string other = "/plugins/other";
+    oracle::dirs.insert(other);
+    file(dir + "/device.json", R"({"events":{"reader.exit":{"require_meta":"id","connect":true}}})");
+    file(other + "/device.json", R"({"events":{"reader.exit":{}}})");
+    pluginevents::refreshSubscriptions();
+    const std::string path = "/a-book-with-a-long-name.epub";
+    file(path + ".meta.json", R"({"id":"present"})");
+    const pluginevents::Var book = {"book", path.c_str()};
+    bool sawMissingBook = false;
+    bool sawStoredBook = false;
+    for (unsigned fault = 1; fault <= 24; ++fault) {
+      oracle::files.erase(queue);
+      oracle::files.erase(other + "/events.jsonl");
+      json_fault::failAt = json_fault::attempts + fault;
+      pluginevents::emit(pluginevents::Event::ReaderExit, &book, 1);
+      json_fault::failAt = 0;
+      const auto& bytes = oracle::files.at(other + "/events.jsonl");
+      const std::string line(bytes.begin(), bytes.end());
+      if (line.find(path) == std::string::npos) {
+        sawMissingBook = true;
+        assert(!oracle::files.contains(queue));
+        assert(!pluginevents::wantsConnectAny());
+      } else if (line.find(R"("e":"reader.exit")") != std::string::npos && oracle::files.contains(queue)) {
+        sawStoredBook = true;
+        assert(pluginevents::wantsConnectAny());
+      }
+    }
+    assert(sawMissingBook && sawStoredBook);
+    return 0;
+  }
+#endif
   if (c == 49) {
     const std::string other = "/plugins/other";
     oracle::dirs.insert(other);
@@ -109,6 +142,23 @@ int main(int argc, char** argv) {
     assert(!oracle::files.contains(other + "/events.jsonl"));
     assert(std::count(oracle::trace.begin(), oracle::trace.end(), "open /book.epub.meta.json 0 1") == 1);
     assert(pluginevents::wantsConnectAny());
+    oracle::files.erase(queue);
+    file(dir + "/device.json",
+         R"({"events":{"reader.open":{"require_meta":"id"},"reader.exit":{"require_meta":"id","connect":true}}})");
+    file(other + "/device.json", R"({"events":{"reader.exit":{}}})");
+    pluginevents::refreshSubscriptions();
+    for (const char* contents : {R"({"id":5.5})", R"({"different":"present"})"}) {
+      file("/book.epub.meta.json", contents);
+      pluginevents::emit(pluginevents::Event::ReaderExit, &book, 1);
+      assert(!oracle::files.contains(queue));
+      assert(oracle::files.erase(other + "/events.jsonl") == 1);
+      assert(!pluginevents::wantsConnectAny());
+    }
+    file("/book.epub.meta.json", R"({"id":5})");
+    for (const auto event : {pluginevents::Event::ReaderOpen, pluginevents::Event::ReaderExit}) {
+      pluginevents::emit(event, &book, 1);
+      assert(oracle::files.erase(queue) == 1);
+    }
     return 0;
   }
   std::string manifest =

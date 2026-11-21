@@ -11,12 +11,17 @@ source = (ROOT / "src/activities/plugins/PluginCatalogActivity.cpp").read_text()
 limits = re.findall(r"^constexpr size_t MAX_BROWSE_LIST(?:_INDEX_RESPONSE|S) = .*;$", source, re.M)
 start = source.index("bool PluginCatalogActivity::loadBrowseListIndex(")
 loader = source[start:source.index("\n}", start) + 2]
+policy = source[source.index("std::string_view trimCsvToken"):source.index("bool matchesCsvRestriction")]
+start = source.index("bool matchesListRequirements")
+policy += source[start:source.index("\n}", start) + 2]
 
 stub = r"""
 #include <ArduinoJson.h>
 #include <algorithm>
 #include <cassert>
 #include <memory>
+#include <string_view>
+#include "util/FirmwareIdentity.h"
 #include <string>
 #include <utility>
 #include <vector>
@@ -67,6 +72,7 @@ struct PluginCatalogActivity {
     size_t fixedListCount = 0;
     pluginhttp::Headers listsHeaders;
     std::string listsItemsPath = "lists", listsTitlePath = "title", listsUrlPath = "url", listsIdPath = "id";
+    std::string listsRequiresPath = "requires";
     bool password = false;
     bool hasPasswordGrant() const { return password; }
   } manifest;
@@ -147,12 +153,30 @@ int main() {
     assert(mapped.manifest.browseLists.front().id == "42");
     assert(mapped.manifest.browseLists.front().url.empty());
   }
+
+  PluginCatalogActivity filtered;
+  filtered.manifest.listsRequiresPath = "meta.caps";
+  pluginhttp::body = R"({"lists":[
+      {"title":"Missing","url":"page"},
+      {"title":"Empty","url":"page","meta":{"caps":[]}},
+      {"title":"Supported","url":"page","meta":{"caps":["catalog.list_requirements","catalog.lists"]}},
+      {"title":"Unsupported","url":"page","meta":{"caps":["catalog.list_requirements","unknown"]}},
+      {"title":"Null","url":"page","meta":{"caps":null}},
+      {"title":"Scalar","url":"page","meta":{"caps":"catalog.lists"}},
+      {"title":"Number","url":"page","meta":{"caps":[1]}},
+      {"title":"Blank","url":"page","meta":{"caps":[""]}}
+  ]})";
+  assert(filtered.loadBrowseListIndex(status));
+  assert(filtered.manifest.browseLists.size() == 3);
+  assert(filtered.manifest.browseLists[0].title == "Missing");
+  assert(filtered.manifest.browseLists[1].title == "Empty");
+  assert(filtered.manifest.browseLists[2].title == "Supported");
 }
 """
 
 with tempfile.TemporaryDirectory() as directory:
     unit = Path(directory) / "browse_list_index.cpp"
     executable = unit.with_suffix("")
-    unit.write_text("\n".join([stub, *limits, loader, cases]))
-    subprocess.run([sys.argv[1], "-std=c++20", "-I", sys.argv[2], str(unit), "-o", str(executable)], check=True)
+    unit.write_text("\n".join([stub, *limits, policy, loader, cases]))
+    subprocess.run([sys.argv[1], "-std=c++20", "-I", sys.argv[2], "-I", str(ROOT / "src"), str(unit), "-o", str(executable)], check=True)
     subprocess.run([str(executable)], check=True)

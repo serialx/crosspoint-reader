@@ -87,7 +87,7 @@ class PluginCatalogActivity final : public CatalogActivity {
     // Optional remote index that supplies the named JSON views dynamically.
     std::string browseListsUrl;
     pluginhttp::Headers listsHeaders;
-    std::string listsItemsPath, listsTitlePath, listsUrlPath, listsIdPath;
+    std::string listsItemsPath, listsTitlePath, listsUrlPath, listsIdPath, listsRequiresPath;
     size_t fixedListCount = 0;
     // JSON search overrides URL/body independently; empty fields reuse browse.
     std::string searchUrl, searchBody;

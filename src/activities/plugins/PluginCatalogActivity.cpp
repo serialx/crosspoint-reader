@@ -128,6 +128,19 @@ bool matchesCapabilities(const std::string& required) {
   });
 }
 
+bool matchesListRequirements(JsonVariantConst requirements) {
+  if (requirements.isUnbound()) return true;
+  const auto required = requirements.as<JsonArrayConst>();
+  if (required.isNull() || required.size() > 32) return false;
+  for (JsonVariantConst value : required) {
+    const char* capability = value.as<const char*>();
+    if (!capability || !*capability || !csvContainsToken(firmwareidentity::PLUGIN_CAPABILITIES, capability)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool catalogEntryCompatible(const std::string& family, const std::string& apiMin,
                             const std::string& requiredCapabilities) {
   return matchesCsvRestriction(family, firmwareidentity::FAMILY) && matchesPluginApiMinimum(apiMin) &&
@@ -274,8 +287,10 @@ bool PluginCatalogActivity::loadManifest() {
   manifest.listsTitlePath = listFields["title"] | "title";
   manifest.listsUrlPath = listFields["url"] | "url";
   manifest.listsIdPath = listFields["id"] | "id";
+  manifest.listsRequiresPath = listFields["requires"] | "requires";
   manifest.browseLists.reserve(browse["lists"].size());
   for (JsonVariantConst l : browse["lists"].as<JsonArrayConst>()) {
+    if (!matchesListRequirements(l["requires"])) continue;
     Manifest::BrowseList entry;
     entry.title = l["title"] | "";
     entry.url = l["url"] | "";
@@ -375,6 +390,7 @@ bool PluginCatalogActivity::loadBrowseListIndex(int& status) {
       LOG_ERR("PCAT", "browse list index truncated to %u lists", static_cast<unsigned>(MAX_BROWSE_LISTS));
       break;
     }
+    if (!matchesListRequirements(resolvePath(l, manifest.listsRequiresPath))) continue;
     Manifest::BrowseList entry;
     entry.title = variantToString(resolvePath(l, manifest.listsTitlePath));
     entry.url = variantToString(resolvePath(l, manifest.listsUrlPath));

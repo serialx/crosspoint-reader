@@ -424,7 +424,7 @@ pub fn view(
         row_height: row,
         row_gap: gap,
         inset: t.space_lg,
-        padding: 0,
+        padding: t.row_padding,
         scroll_width: t.scroll_width,
         radius: t.row_radius,
         selection: t.selection,

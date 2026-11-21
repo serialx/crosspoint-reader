@@ -61,6 +61,7 @@ constexpr size_t MAX_API_RESPONSE = 48 * 1024;
 constexpr char BROWSE_TMP_PATH[] = "/.pcat_tmp.json";
 constexpr size_t MAX_BROWSE_RESPONSE = 1024 * 1024;
 constexpr size_t MAX_BROWSE_LIST_INDEX_RESPONSE = 16 * 1024;
+constexpr size_t MAX_BROWSE_LISTS = 64;
 constexpr size_t MAX_ITEM_DETAILS_RESPONSE = 24 * 1024;
 constexpr int MAX_PAGE_SIZE = 16;
 
@@ -330,18 +331,20 @@ bool PluginCatalogActivity::loadManifest() {
 bool PluginCatalogActivity::loadBrowseListIndex() {
   if (manifest.browseListsUrl.empty()) return true;
 
-  String response;
   const std::string url = substituted(manifest.browseListsUrl, nullptr);
-  const int status = pluginhttp::request(session.get(), url, "GET", "", {}, response, MAX_BROWSE_LIST_INDEX_RESPONSE);
-  if (status < 200 || status >= 300) {
-    LOG_ERR("PCAT", "browse list index fetch failed: status=%d %s", status, url.c_str());
-    return false;
-  }
-
   JsonDocument doc;
-  if (deserializeJson(doc, response) != DeserializationError::Ok) {
-    LOG_ERR("PCAT", "browse list index parse failed: %s", url.c_str());
-    return false;
+  {
+    String response;
+    const int status = pluginhttp::request(session.get(), url, "GET", "", {}, response, MAX_BROWSE_LIST_INDEX_RESPONSE);
+    if (status < 200 || status >= 300) {
+      LOG_ERR("PCAT", "browse list index fetch failed: status=%d %s", status, url.c_str());
+      return false;
+    }
+
+    if (deserializeJson(doc, response) != DeserializationError::Ok) {
+      LOG_ERR("PCAT", "browse list index parse failed: %s", url.c_str());
+      return false;
+    }
   }
   JsonArrayConst lists = doc["lists"].as<JsonArrayConst>();
   if (lists.isNull() || lists.size() == 0) {
@@ -351,8 +354,12 @@ bool PluginCatalogActivity::loadBrowseListIndex() {
 
   ResourceLock resources(*this);
   manifest.browseLists.clear();
-  manifest.browseLists.reserve(lists.size());
+  manifest.browseLists.reserve(std::min(lists.size(), MAX_BROWSE_LISTS));
   for (JsonVariantConst l : lists) {
+    if (manifest.browseLists.size() >= MAX_BROWSE_LISTS) {
+      LOG_ERR("PCAT", "browse list index truncated to %u lists", static_cast<unsigned>(MAX_BROWSE_LISTS));
+      break;
+    }
     Manifest::BrowseList entry;
     entry.title = l["title"] | "";
     entry.url = l["url"] | "";

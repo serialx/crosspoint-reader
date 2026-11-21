@@ -148,6 +148,9 @@ add_subdirectory(reader_session)
 add_subdirectory(reader_strip_buffers)
 add_subdirectory(plugin_manifest_classification)
 add_subdirectory(plugin_picker_layout)
+add_test(NAME plugin_browse_list_index
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_plugin_browse_list_index.py
+    ${CMAKE_CXX_COMPILER} ${XP_TEST_ARDUINOJSON_SRC})
 add_subdirectory(protected_paths)
 
 add_test(NAME rust_ports COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_rust_ports.py)

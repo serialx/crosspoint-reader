@@ -247,7 +247,9 @@ int main() {
     request(R"("body":false)", "body must be a string");
     request(R"("method":"PATCH","offset":1)", "offset and maxBytes need a GET without a body");
     request(R"("body":"x","maxBytes":1)", "offset and maxBytes need a GET without a body");
-    request("\"body\":\"" + std::string(4096, 'a') + "\"", "single:GET:6161");
+    const std::string limitBody(4096, 'a');
+    request("\"body\":\"" + limitBody + "\"",
+            "single:GET:" + host::hex(reinterpret_cast<const uint8_t*>(limitBody.data()), limitBody.size()));
     request("\"body\":\"" + std::string(4097, 'a') + "\"", "body over 4KB");
     freeink::singleStatus = 400;
     freeink::singleResponse = std::string(511, 'e') + "€";

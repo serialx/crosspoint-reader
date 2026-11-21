@@ -646,7 +646,8 @@ plus optional `"method"` (`GET`, `POST`, `PUT`, `PATCH`, or `DELETE`; default
 
 - `dest` must be absolute with no `..`; missing parent folders are created.
 - The transfer is staged in `<dest>.part` and replaces `dest` only when the
-  whole body has arrived, so a failed update keeps the previous file.
+  whole body has arrived. A failed rename removes the staged file. If the card
+  already removed the previous destination during replacement, both files are lost.
 - Installing a book file (`.epub`, `.txt`, `.md`, `.xtc`) marks the Library
   index stale, so the book appears the next time the Library opens. Requests
   that end with `complete:false`, failed transfers, other file types, and

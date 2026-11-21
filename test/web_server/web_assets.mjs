@@ -68,3 +68,17 @@ for (const enabled of [false, true]) {
   }});
   assert.equal(removed, enabled ? 0 : 2);
 }
+
+const hostCode = read('js/plugin-host.js');
+
+const sent = [];
+const fetchPage = vm.createContext({window: {}, fetch: async (path, request) => {
+  assert.equal(path, '/api/fetch');
+  sent.push(JSON.parse(request.body));
+  return Response.json({status: 200, complete: true});
+}});
+vm.runInContext(hostCode, fetchPage);
+await fetchPage.window.CrossPoint.fetchToSd('test', 'https://example.test/catalog', '/books/new.epub',
+                                          {'X-App': 'from-browser'}, {method: 'post', body: 'a\0b'});
+assert.deepEqual(sent, [{plugin: 'test', url: 'https://example.test/catalog', dest: '/books/new.epub',
+                         headers: {'X-App': 'from-browser'}, method: 'POST', body: 'a\0b'}]);

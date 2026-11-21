@@ -1,6 +1,6 @@
 """Exercise the patched Arduino dispatch sequence with an in-memory client and an event recorder."""
 from pathlib import Path
-import hashlib, os, subprocess, sys, tempfile
+import hashlib, json, os, subprocess, sys, tempfile
 root=Path(__file__).resolve().parents[2]
 framework=Path(sys.argv[1]).resolve()
 handler=Path(sys.argv[2]).resolve()
@@ -229,7 +229,11 @@ int main(int argc, char**) {
         env = dict(os.environ, WEB_CLIENT_URI=uri, WEB_CLIENT_PATH=path, WEB_CLIENT_FILENAME=part,
                    WEB_CLIENT_PLUGIN=owner, WEB_CLIENT_PAYLOAD=payload)
         trace = subprocess.check_output([handler], env=env, text=True)
-        assert '"case":"client shape"' in trace, name
+        record = json.loads(trace)
+        assert record['case'] == 'client shape', name
+        response = ('response:200:application/json:{"ok":true,"bytes":8}' if plugin else
+                    'response:200:text/plain:File uploaded successfully: new.epub')
+        assert [event for event in record['events'] if event.startswith('response:')] == [response], name
         print(f'{name}: stock dispatch matches, HTTP 200, complete file')
     result=subprocess.check_output([str(work/'oracle')],text=True)
     for line in result.splitlines():
@@ -239,5 +243,5 @@ int main(int argc, char**) {
         _, replace, directory, filename, overwrite, payload = line.split('\t')
         env = dict(os.environ, WEB_PARSER_REPLACE=replace, WEB_PARSER_PATH=directory, WEB_PARSER_NAME=filename,
                    WEB_PARSER_OVERWRITE=overwrite, WEB_PARSER_PAYLOAD=payload)
-        subprocess.run([handler], env=env, stdout=subprocess.DEVNULL, check=True)
+        assert json.loads(subprocess.check_output([handler], env=env))['case'] == 'parsed upload'
     print('12 parser-to-handler routing cases passed')

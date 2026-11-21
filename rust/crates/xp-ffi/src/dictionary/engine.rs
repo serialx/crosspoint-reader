@@ -477,8 +477,9 @@ fn ifo_line(line: &[u8], flags: &mut u8, fixed: &mut bool) {
 #[no_mangle]
 pub unsafe extern "C" fn xp_dictionary_ifo(file: *const File) -> u8 {
     let file = &*file;
+    const MAX_IFO_BYTES: usize = 16 * 1024;
     let mut remaining = file.size();
-    if remaining == 0 {
+    if remaining == 0 || remaining > MAX_IFO_BYTES {
         return 0;
     }
     let mut flags = 0;

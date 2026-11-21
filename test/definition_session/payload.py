@@ -10,6 +10,16 @@ reference=ROOT/'test/test_recursive_dictionary.py';context={'__file__':str(refer
 exec(compile(reference.read_text().split('with tempfile.TemporaryDirectory() as directory:',1)[0],str(reference),'exec'),context)
 s=context['harness'].split('int main()',1)[0]
 # Physical geometry is supplied identically to the frozen native bodyArea and Rust query.
+s='#include <variant>\n#include "util/DictionaryBuffer.h"\n'+s
+s=s.replace('const std::string& text, char) { return text; }','std::string_view text, char) { return std::string(text); }')
+s=s.replace('Renderer& renderer, const std::string&, uint16_t','Renderer& renderer, std::string_view, uint16_t')
+s=s.replace('  std::string lastQuery;', '''  bool lookup(const char* word, DictionaryBuffer& out, std::string& title, LookupResult* code) {
+    std::string text;
+    if (!lookup(word, text, title, code)) return false;
+    memcpy(out.resize(text.size()), text.data(), text.size());
+    return true;
+  }
+  std::string lastQuery;''')
 s=s.replace('using GfxRenderer = Renderer;', 'using GfxRenderer = Renderer;\nstatic XpUiDefinitionLayout testLayout{};\nstatic int lastQueryX,lastQueryY;\nXpUiDefinitionLayout dictionaryUiDefinitionLayout(const GfxRenderer&){return testLayout;}')
 s=s.replace('BodyArea bodyArea() const { return {0, 0, 12, 20}; }','BodyArea bodyArea() const;')
 s+='\n'+block(context['viewer'],'DictionaryDefinitionActivity::BodyArea DictionaryDefinitionActivity::bodyArea')
@@ -20,7 +30,7 @@ h=(ROOT/'src/activities/reader/DefinitionPayload.h').read_text();cpp=(ROOT/'src/
 s+='\n'+block(h,'struct XpDefinitionNativeTransfer {')+';\n'+block(h,'class DefinitionPayload {')+';\n'
 for signature in ['DefinitionPayload& DefinitionPayload::get(XpDefinitionPayloadStorage*','const DefinitionPayload& DefinitionPayload::get','\nDefinitionPayload::Slot& DefinitionPayload::slot','const DefinitionPayload::Slot& DefinitionPayload::slot','void DefinitionPayload::Slot::releasePayload','struct DefinitionPayload::PlainSelectionLine {','bool DefinitionPayload::prepareDefinition','bool DefinitionPayload::layoutHtmlPages','int DefinitionPayload::measureSpan','bool DefinitionPayload::reserveLines','bool DefinitionPayload::wrapText','bool DefinitionPayload::buildPlainSelectionPages','void* DefinitionPayload::selectionChild','uint8_t DefinitionPayload::constructPlain','uint8_t DefinitionPayload::constructNative']:
  s+='\n'+block(cpp,signature)+(';' if signature.startswith('struct ') else '')+'\n'
-lookup=(ROOT/'src/activities/reader/RustReaderLookup.cpp').read_text();s+='\nnamespace readerLookup { struct PayloadLookup{Dictionary dictionary;std::string query,definition,headword;}; PayloadLookup& get(XpEpubLookupStorage* p){return *reinterpret_cast<PayloadLookup*>(p);}\n'+block(lookup,'uint8_t payloadLookup')+'\n'+block(lookup,'uint8_t payloadFind')+'\n}\nstatic Dictionary dictionary;\n'
+lookup=(ROOT/'src/activities/reader/RustReaderLookup.cpp').read_text();s+='\nnamespace readerLookup { struct PayloadLookup{Dictionary dictionary;std::string query,headword;DictionaryBuffer definition;}; PayloadLookup& get(XpEpubLookupStorage* p){return *reinterpret_cast<PayloadLookup*>(p);}\n'+block(lookup,'uint8_t payloadLookup')+'\n'+block(lookup,'uint8_t payloadFind')+'\n}\nstatic Dictionary dictionary;\n'
 leaf=block((ROOT/'src/activities/reader/RustEpubResources.cpp').read_text(),'[](XpUiDefinitionLayout* out, int32_t x, int32_t y)').replace('const bool headerBackHit','lastQueryX=x;lastQueryY=y;\n        const bool headerBackHit')
 s+=Path(__file__).with_name('payload.cpp.in').read_text().replace('// LAYOUT_LEAF',leaf)
 source=args.evidence/'payload.cpp';source.write_text(s);binary=args.evidence/'payload'

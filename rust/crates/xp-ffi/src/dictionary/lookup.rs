@@ -173,11 +173,15 @@ pub unsafe extern "C" fn xp_dictionary_lookup(io: *const Lookup) -> u8 {
                 core::ptr::null(),
                 reserve,
             );
+            if capacity < reserve {
+                return XP_DICTIONARY_LOOKUP_LOW_MEMORY;
+            }
             let mut length = 0;
             for i in 0..count {
                 let separator = if length == 0 { 0 } else { 2 };
                 let required = length + entry_size(i, separator);
                 if required > XP_DICTIONARY_MAX_DEFINITION_BYTES {
+                    io.log(XP_DICTIONARY_LOOKUP_EVENT_SKIP_ENTRY, 0, 0);
                     continue;
                 }
                 if required > capacity {
@@ -186,12 +190,15 @@ pub unsafe extern "C" fn xp_dictionary_lookup(io: *const Lookup) -> u8 {
                         io.log(XP_DICTIONARY_LOOKUP_EVENT_LOW_HEAP, required as u32, 0);
                         return XP_DICTIONARY_LOOKUP_LOW_MEMORY;
                     }
-                    (io.output)(
+                    let grown = (io.output)(
                         io.context,
                         XP_DICTIONARY_OUTPUT_GROW,
                         core::ptr::null(),
                         required,
                     );
+                    if grown < required {
+                        return XP_DICTIONARY_LOOKUP_LOW_MEMORY;
+                    }
                 }
                 if io.html {
                     io.output(XP_DICTIONARY_OUTPUT_APPEND, b"<h2>");

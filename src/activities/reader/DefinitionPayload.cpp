@@ -42,7 +42,7 @@ const DefinitionPayload::Slot& DefinitionPayload::slot(uint8_t index) const {
   return slots[index];
 }
 void DefinitionPayload::Slot::releasePayload() {
-  std::string{}.swap(text);
+  text.emplace<std::string>();
   std::vector<std::unique_ptr<Page>>{}.swap(pages);
   std::vector<Line>{}.swap(lines);
 }
@@ -185,24 +185,28 @@ struct DefinitionPayload::PlainSelectionLine {
 
 bool DefinitionPayload::prepareDefinition(GfxRenderer& renderer, Slot& next, const bool htmlDefinition,
                                           const bool forcePlain, const XpUiRect body) {
-  std::replace(next.text.begin(), next.text.end(), '\0', '\n');
-  if (htmlDefinition && !forcePlain && next.text.size() <= MAX_STYLED_HTML_BYTES &&
-      layoutHtmlPages(renderer, next, body))
+  const auto view = next.textView();
+  // Both owners provide mutable, NUL-terminated storage until layout completes.
+  if (!view.empty()) {
+    auto* begin = const_cast<char*>(view.data());
+    std::replace(begin, begin + view.size(), '\0', '\n');
+  }
+  if (htmlDefinition && !forcePlain && view.size() <= MAX_STYLED_HTML_BYTES && layoutHtmlPages(renderer, next, body))
     return true;
   if (htmlDefinition) {
     if (auto* fcm = renderer.getFontCacheManager()) fcm->releaseSdFontCaches();
     const auto heap = HalMemory::getDefaultHeap();
-    if (heap.largestBlockBytes < next.text.size() + 1 || heap.freeBytes < next.text.size() + HEAP_HEADROOM) {
-      LOG_ERR("DICT", "Low heap for plain definition (%u bytes)", static_cast<unsigned>(next.text.size() + 1));
+    if (heap.largestBlockBytes < view.size() + 1 || heap.freeBytes < view.size() + HEAP_HEADROOM) {
+      LOG_ERR("DICT", "Low heap for plain definition (%u bytes)", static_cast<unsigned>(view.size() + 1));
       return false;
     }
-    next.text = htmlToPlainText(next.text, DICTIONARY_PLAIN_HEADWORD_MARKER);
+    next.text = htmlToPlainText(view, DICTIONARY_PLAIN_HEADWORD_MARKER);
   }
   return wrapText(renderer, next, body);
 }
 
 bool DefinitionPayload::layoutHtmlPages(GfxRenderer& renderer, Slot& next, const XpUiRect body) {
-  auto& definition = next.text;
+  const auto definition = next.textView();
   auto& pages = next.pages;
   if (body.w <= 0 || body.h <= 0) {
     LOG_ERR("DHTML", "Invalid definition viewport: %dx%d", body.w, body.h);
@@ -212,9 +216,7 @@ bool DefinitionPayload::layoutHtmlPages(GfxRenderer& renderer, Slot& next, const
                                 pages)) {
     return false;
   }
-  definition.clear();
-  definition.shrink_to_fit();
-  next.totalPages = static_cast<int>(pages.size());
+  next.text.emplace<std::string>();
   return true;
 }
 
@@ -240,7 +242,7 @@ bool DefinitionPayload::reserveLines(Slot& next, const size_t count) {
 }
 
 bool DefinitionPayload::wrapText(GfxRenderer& renderer, Slot& next, const XpUiRect body) {
-  auto& definition = next.text;
+  const auto definition = next.textView();
   auto& lines = next.lines;
   lines.clear();
   if (!reserveLines(next, definition.size() / 32 + 8)) return false;
@@ -249,14 +251,14 @@ bool DefinitionPayload::wrapText(GfxRenderer& renderer, Slot& next, const XpUiRe
   // SD-card fonts: merge every definition codepoint into the persistent
   // advance table up front. Otherwise each unseen codepoint measured below
   // falls back to an on-demand glyph load from SD (8-slot overflow ring).
-  renderer.ensureSdCardFontReady(fontId, definition.c_str(), 0x03 /* REGULAR + BOLD */);
+  renderer.ensureSdCardFontReady(fontId, definition.data(), 0x03 /* REGULAR + BOLD */);
 
   const int maxWidth = body.w;
   const int spaceWidth = renderer.getSpaceWidth(fontId, EpdFontFamily::REGULAR);
   const int lineHeight = renderer.getLineHeight(fontId, PLAIN_TEXT_LINE_SPACING);
   next.linesPerPage = std::max(1, body.h / lineHeight);
 
-  const char* text = definition.c_str();
+  const char* text = definition.data();
   const uint32_t n = static_cast<uint32_t>(definition.size());
   uint32_t lineStart = 0;
   uint32_t lineEnd = 0;  // one past the last token byte on the current line
@@ -357,7 +359,6 @@ bool DefinitionPayload::wrapText(GfxRenderer& renderer, Slot& next, const XpUiRe
   // Trim trailing blank lines so the last page is not empty padding.
   while (!lines.empty() && lines.back().len == 0) lines.pop_back();
 
-  next.totalPages = std::max(1, (static_cast<int>(lines.size()) + next.linesPerPage - 1) / next.linesPerPage);
   return true;
 }
 
@@ -366,7 +367,7 @@ bool DefinitionPayload::buildPlainSelectionPages(GfxRenderer& renderer, const in
   // Only the selection window gets packed word arenas; the definition keeps its cheap line spans.
   const int fontId = SETTINGS.getReaderFontId();
   const int lineHeight = renderer.getLineHeight(fontId, PLAIN_TEXT_LINE_SPACING);
-  const int pageCount = std::min<int>(SELECTION_PAGE_WINDOW, content.totalPages - selectionPage);
+  const int pageCount = std::min<int>(SELECTION_PAGE_WINDOW, content.totalPages() - selectionPage);
   const size_t scratchBytes = sizeof(PlainSelectionLine) + MAX_LINE_BYTES + MAX_PLAIN_WORDS + 1 +
                               MAX_PLAIN_WORDS * (2 * sizeof(std::string) + sizeof(int16_t) +
                                                  2 * sizeof(TextBlock::SourceRange) + sizeof(uint16_t) + 4);
@@ -392,7 +393,7 @@ bool DefinitionPayload::buildPlainSelectionPages(GfxRenderer& renderer, const in
     const int last = std::min(first + content.linesPerPage, static_cast<int>(content.lines.size()));
     for (int row = first; row < last; ++row) {
       const auto& line = content.lines[row];
-      const char* text = content.text.c_str() + line.start;
+      const char* text = content.textView().data() + line.start;
       const size_t length = utf8SafeTruncateBuffer(text, std::min<size_t>(line.len, MAX_LINE_BYTES));
       scratch->text.assign(text, length);
       if (length) {
@@ -418,8 +419,8 @@ bool DefinitionPayload::buildPlainSelectionPages(GfxRenderer& renderer, const in
       const auto& line = content.lines[row];
       if (!line.len) continue;
       const size_t length =
-          utf8SafeTruncateBuffer(content.text.c_str() + line.start, std::min<size_t>(line.len, MAX_LINE_BYTES));
-      scratch->text.assign(content.text.c_str() + line.start, length);
+          utf8SafeTruncateBuffer(content.textView().data() + line.start, std::min<size_t>(line.len, MAX_LINE_BYTES));
+      scratch->text.assign(content.textView().data() + line.start, length);
       heap = HalMemory::getDefaultHeap();
       const size_t lineBytes = length * (sizeof(TextBlock::SourceRange) + 12) + sizeof(TextBlock) + 1024;
       if (heap.freeBytes < lineBytes + HEAP_HEADROOM || heap.largestBlockBytes < lineBytes) return false;
@@ -444,7 +445,7 @@ void DefinitionPayload::drawBody(GfxRenderer& renderer, const int fontId, const 
   const auto& content = slots[0];
   const auto& pages = content.pages;
   const auto& lines = content.lines;
-  const auto& definition = content.text;
+  const auto definition = content.textView();
   const int linesPerPage = content.linesPerPage;
   if (!pages.empty()) {
     pages[currentPage]->render(renderer, fontId, x, startY);
@@ -456,9 +457,9 @@ void DefinitionPayload::drawBody(GfxRenderer& renderer, const int fontId, const 
   const int lastLine = std::min(firstLine + linesPerPage, static_cast<int>(lines.size()));
   for (int i = firstLine; i < lastLine; i++) {
     if (lines[i].len == 0) continue;
-    const size_t len = utf8SafeTruncateBuffer(definition.c_str() + lines[i].start,
+    const size_t len = utf8SafeTruncateBuffer(definition.data() + lines[i].start,
                                               std::min(static_cast<size_t>(lines[i].len), MAX_LINE_BYTES));
-    memcpy(buf, definition.c_str() + lines[i].start, len);
+    memcpy(buf, definition.data() + lines[i].start, len);
     buf[len] = '\0';
     renderer.drawText(fontId, x, startY + (i - firstLine) * lineHeight, buf, true,
                       lines[i].bold ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);

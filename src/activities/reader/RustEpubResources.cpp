@@ -1089,7 +1089,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
           value.lines.clear();
           return 0;
         }
-        *out = {value.totalPages, static_cast<uint8_t>(!value.pages.empty()), {0, 0, 0}};
+        *out = {value.totalPages(), static_cast<uint8_t>(!value.pages.empty()), {0, 0, 0}};
         return 1;
       },
       .child_definition_payload_release =

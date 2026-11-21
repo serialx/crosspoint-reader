@@ -8,7 +8,7 @@
 
 namespace {
 
-bool isTagStart(const std::string& input, size_t pos) {
+bool isTagStart(std::string_view input, size_t pos) {
   if (pos + 1 >= input.size()) return false;
   const unsigned char next = input[pos + 1];
   return next == '/' || next == '!' || next == '?' || std::isalpha(next);
@@ -16,7 +16,7 @@ bool isTagStart(const std::string& input, size_t pos) {
 
 enum class TagBreak : uint8_t { None, Line, Paragraph, HeadingOpen, HeadingClose };
 
-TagBreak tagBreak(const std::string& input, size_t start, size_t end) {
+TagBreak tagBreak(std::string_view input, size_t start, size_t end) {
   // A closing tag is marked by the '/' the name scan below skips.
   bool closing = false;
   while (start < end && (input[start] == '/' || std::isspace(static_cast<unsigned char>(input[start])))) {
@@ -110,7 +110,7 @@ void appendBreak(std::string& output, size_t count = 1) {
 
 }  // namespace
 
-std::string htmlToPlainText(const std::string& html, const char headingMarker) {
+std::string htmlToPlainText(std::string_view html, const char headingMarker) {
   std::string output;
   output.reserve(html.size());
 

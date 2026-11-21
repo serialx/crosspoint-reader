@@ -5,7 +5,10 @@
 
 #include <memory>
 #include <string>
+#include <variant>
 #include <vector>
+
+#include "util/DictionaryBuffer.h"
 class GfxRenderer;
 class MappedInputManager;
 struct XpDefinitionNativeTransfer {
@@ -27,10 +30,19 @@ class DefinitionPayload {
     bool bold;
   };
   struct Slot {
-    std::string headword, text;
+    std::string headword;
+    std::variant<std::string, DictionaryBuffer> text;
+    std::string_view textView() const {
+      if (const auto* buffer = std::get_if<DictionaryBuffer>(&text)) return buffer->view();
+      return std::get<std::string>(text);
+    }
     std::vector<std::unique_ptr<Page>> pages;
     std::vector<Line> lines;
-    int totalPages = 1, linesPerPage = 1;
+    int linesPerPage = 1;
+    int totalPages() const {
+      if (!pages.empty()) return static_cast<int>(pages.size());
+      return lines.empty() ? 1 : 1 + static_cast<int>((lines.size() - 1) / linesPerPage);
+    }
     void releasePayload();
   };
   Slot slots[2];

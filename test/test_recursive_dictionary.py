@@ -652,11 +652,16 @@ lookup_harness = r'''
 #include <vector>
 #include <CjkBreaks.h>
 #include <Memory.h>
+#include <DictionaryBuffer.h>
 #include <xp_ffi.h>
 #include <Utf8.h>
 template<typename... Args> void ignoreLog(Args&&...) {}
 #define LOG_ERR(...) ignoreLog(__VA_ARGS__)
-#define LOG_INF(...) ignoreLog(__VA_ARGS__)
+static unsigned skippedEntries;
+template<typename... Args> void logInfo(const char*, const char* format, Args&&...) {
+  if (std::string_view(format) == "Definition does not fit; skipping entry") ++skippedEntries;
+}
+#define LOG_INF(...) logInfo(__VA_ARGS__)
 struct HalMemory {
   struct Heap { size_t freeBytes, largestBlockBytes; };
   static inline Heap heap{65536, 65536};
@@ -700,15 +705,15 @@ class Dictionary {
     ++searches;
     return false;
   }
-  bool readDefinition(DictLocation entry, std::string& out, LookupResult* result, bool append = false,
+  bool readDefinition(DictLocation entry, DictionaryBuffer& out, LookupResult* result, bool append = false,
                       bool* exceedsLimit = nullptr) {
     assert(bundle);
     reads.push_back(entry.offset);
     if (exceedsLimit) *exceedsLimit = false;
-    if (!append) out.clear();
+    if (!append) out.resize(0);
     switch (entry.offset) {
       case 0:
-        out = "standalone";
+        memcpy(out.resize(10), "standalone", 10);
         return true;
       case 1:
         if (exceedsLimit) *exceedsLimit = true;
@@ -718,7 +723,7 @@ class Dictionary {
         *result = LookupResult::NotFound;
         return false;
       case 3:
-        out += "<pre>known</pre>";
+        out.append("<pre>known</pre>", 16);
         return true;
     }
     assert(false);
@@ -726,7 +731,7 @@ class Dictionary {
   }
   static std::string cleanWord(const char*);
   static void stemVariants(const std::string&, std::vector<std::string>&);
-  bool lookup(const char*, std::string&, std::string&, LookupResult*);
+  bool lookup(const char*, DictionaryBuffer&, std::string&, LookupResult*);
 };
 ''' + (ROOT / 'src/util/DictionaryIo.h').read_text().split('// Internal callback discriminants;', 1)[1].split('\n', 1)[1] + lookup_methods + r'''
 int main() {
@@ -736,7 +741,9 @@ int main() {
   assert(Dictionary::cleanWord("「」").empty());
   assert(Dictionary::cleanWord("言「葉") == "言「葉");
   Dictionary dictionary;
-  std::string definition = "unchanged", headword = "unchanged";
+  DictionaryBuffer definition;
+  memcpy(definition.resize(9), "unchanged", 9);
+  std::string headword = "unchanged";
   for (const char* suffix : {"ing", "ed", "ies"}) {
     const std::string phrase = std::string(4096 - std::strlen(suffix), 'a') + suffix;
     auto result = Dictionary::LookupResult::Found;
@@ -744,7 +751,7 @@ int main() {
     dictionary.searches = 0;
     assert(!dictionary.lookup(phrase.c_str(), definition, headword, &result));
     assert(result == Dictionary::LookupResult::LowMemory && dictionary.searches == 0);
-    assert(definition == "unchanged" && headword == "unchanged");
+    assert(definition.view() == "unchanged" && headword == "unchanged");
     HalMemory::heap = {65536, 4096};
     assert(!dictionary.lookup(phrase.c_str(), definition, headword, &result));
     assert(result == Dictionary::LookupResult::LowMemory && dictionary.searches == 0);
@@ -757,7 +764,8 @@ int main() {
   assert(dictionary.lookup("group", definition, headword, &result));
   assert(result == Dictionary::LookupResult::Found);
   assert((dictionary.reads == std::vector<uint32_t>{1, 2, 3}));
-  assert(definition == "<h2>&lt;fits&gt;</h2><pre>known</pre>");
+  assert(skippedEntries == 1);
+  assert(definition.view() == "<h2>&lt;fits&gt;</h2><pre>known</pre>");
 }
 '''
 
@@ -816,7 +824,7 @@ with tempfile.TemporaryDirectory() as directory:
     (path / "lookup.cpp").write_text(lookup_harness)
     subprocess.run(["c++", "-std=c++20", "-Wall", "-Wextra", "-Werror",
                     "-I", str(ROOT / "lib/Epub/Epub"), "-I", str(ROOT / "lib/Utf8"), "-I", str(ROOT / "lib/Memory"),
-                    str(path / "lookup.cpp"),
+                    "-I", str(ROOT / "src/util"), str(path / "lookup.cpp"),
                     str(ROOT / "lib/Utf8/Utf8.cpp"), str(ROOT / "lib/Epub/Epub/CjkBreaks.cpp"), *rust_link_flags(),
                     "-o", str(path / "lookup")], check=True)
     subprocess.run([str(path / "lookup")], check=True)

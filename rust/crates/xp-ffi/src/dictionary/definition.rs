@@ -219,7 +219,9 @@ unsafe fn decode_inline(
         offset: start,
         truncated,
     };
-    while let Some((markup, range)) = fields.next(source)? {
+    while let Some((markup, range)) = fields.next(source).inspect_err(|_| {
+        io.log(XP_DICTIONARY_DEFINITION_EVENT_INVALID_FIELD, 0, 0, 0);
+    })? {
         all_markup &= markup;
         length += if markup {
             range.len()
@@ -227,6 +229,7 @@ unsafe fn decode_inline(
             OPEN.len() + txt::escaped_size(&source[range]) + CLOSE.len()
         };
         if length > limit {
+            io.log(XP_DICTIONARY_DEFINITION_EVENT_DECODED_CAP, 0, 0, 0);
             return Err(if io.append {
                 XP_DICTIONARY_LOOKUP_ENTRY_CAP
             } else {

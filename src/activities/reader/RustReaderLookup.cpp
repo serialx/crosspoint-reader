@@ -21,14 +21,14 @@ namespace {
 struct Lookup {
   Dictionary dictionary;
   std::string query;
-  std::string definition;
+  DictionaryBuffer definition;
   std::string headword;
   explicit Lookup(XpAppText text) : query(text.len ? reinterpret_cast<const char*>(text.data) : "", text.len) {}
 };
 static_assert(sizeof(Lookup) <= sizeof(XpEpubLookupStorage));
 static_assert(alignof(Lookup) <= alignof(XpEpubLookupStorage));
 #if UINTPTR_MAX == UINT32_MAX
-static_assert(sizeof(Lookup) == 360);
+static_assert(sizeof(Lookup) == 348);
 #endif
 Lookup& get(XpEpubLookupStorage* storage) { return *std::launder(reinterpret_cast<Lookup*>(storage)); }
 void indexYield(void*) { vTaskDelay(1); }
@@ -59,7 +59,7 @@ uint8_t find(XpEpubLookupStorage* storage, uint8_t* result) {
 void discard(XpEpubLookupStorage* storage) {
   auto& lookup = get(storage);
   std::string{}.swap(lookup.headword);
-  std::string{}.swap(lookup.definition);
+  lookup.definition = {};
 }
 uint8_t payloadLookup(XpDefinitionPayloadStorage* storage, XpEpubLookupStorage* source, XpAppTextSink sink,
                       void* context, uint8_t* html) {
@@ -76,8 +76,9 @@ uint8_t payloadFind(XpDefinitionPayloadStorage* storage, uint8_t slot, XpEpubLoo
                     uint8_t* result) {
   auto& payload = DefinitionPayload::get(storage).slot(slot);
   auto code = Dictionary::LookupResult::Found;
-  const bool found = get(source).dictionary.lookup(query.len ? reinterpret_cast<const char*>(query.data) : "",
-                                                   payload.text, payload.headword, &code);
+  auto& text = payload.text.emplace<DictionaryBuffer>();
+  const bool found = get(source).dictionary.lookup(query.len ? reinterpret_cast<const char*>(query.data) : "", text,
+                                                   payload.headword, &code);
   *result = static_cast<uint8_t>(code);
   return found;
 }

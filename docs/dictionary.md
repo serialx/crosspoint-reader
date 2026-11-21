@@ -60,9 +60,9 @@ On the very first lookup with a dictionary (and again whenever the `.idx` or `.s
 
 When a word is found, the definition screen shows the matched headword at the top and the definition text below, with a page counter for long definitions. A word that maps to several definitions shows them one after another, each labelled with its headword. Definitions that exceed the remaining size limit are skipped, and later definitions are still considered. If no labelled definition fits, the first definition is shown alone without an extra label.
 
-HTML dictionaries (`sametypesequence=h`) and XDXF dictionaries (`sametypesequence=x`) use the EPUB text-layout engine for supported formatting such as headings, bold, italics, lists, and line breaks. Unrecognized tags keep their text without special formatting. Images and CSS styling are ignored. Definitions that are too large or cannot be parsed or laid out within the available memory fall back to plain text.
+HTML dictionaries (`sametypesequence=h`) and XDXF dictionaries (`sametypesequence=x`) use the EPUB text-layout engine for supported formatting such as headings, bold, italics, lists, and line breaks. Unrecognized tags keep their text without special formatting. Images and CSS styling are ignored. If formatted layout fails or a definition exceeds the styled size limit, the viewer falls back to plain text when enough memory remains. If lookup or display runs out of memory, the reader reports Low Memory.
 
-A readable `.ifo` file with a missing or empty `sametypesequence` enables the type stored in each entry field. HTML (`h`) and XDXF (`x`) fields use the same formatting support. Text fields are shown as text; binary fields, such as images and sounds, are skipped. Missing, empty, or unreadable `.ifo` files retain plain-text handling.
+A readable `.ifo` file with a missing or empty `sametypesequence` enables the type stored in each entry field. HTML (`h`) and XDXF (`x`) fields use the same formatting support. Text fields are shown as text; binary fields, such as images and sounds, are skipped. The reader treats entries as plain text if the `.ifo` file is missing, empty, unreadable, or larger than 16 KiB.
 
 Inline entries with only empty or binary fields are skipped. If all matching entries are empty, the lookup reports no match.
 

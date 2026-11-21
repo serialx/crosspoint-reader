@@ -341,14 +341,14 @@ bool Dictionary::locateSynonyms(LookupSession& session, const char* target, Dict
   return !out.empty();
 }
 
-bool Dictionary::readDefinition(const DictLocation& location, std::string& out, LookupResult* outResult, bool append,
-                                bool* exceedsLimit) {
+bool Dictionary::readDefinition(const DictLocation& location, DictionaryBuffer& out, LookupResult* outResult,
+                                bool append, bool* exceedsLimit) {
   struct Context {
     Dictionary& dictionary;
-    std::string& out;
+    DictionaryBuffer& out;
     HalFile data, tmp;
     char path[PATH_BUF_BYTES]{};
-    std::string decoded;
+    DictionaryBuffer decoded;
   } context{*this, out, {}, {}, {}, {}};
   const auto file = dictionaryFile(context.data);
   const XpDictionaryDefinition io{
@@ -390,24 +390,25 @@ bool Dictionary::readDefinition(const DictLocation& location, std::string& out, 
       [](void* ctx) { static_cast<Context*>(ctx)->tmp = HalFile{}; },
       [](void* ctx, size_t size, bool assign) -> uint8_t* {
         auto& out = static_cast<Context*>(ctx)->out;
-        if (assign)
-          out.assign(size, '\0');
-        else
-          out.resize(size);
-        return reinterpret_cast<uint8_t*>(out.data());
+        if (assign) out.resize(0);
+        return reinterpret_cast<uint8_t*>(out.resize(size));
       },
       [](void* ctx, size_t length) -> uint8_t* {
         auto& decoded = static_cast<Context*>(ctx)->decoded;
-        decoded.resize(length);
-        return reinterpret_cast<uint8_t*>(decoded.data());
+        return reinterpret_cast<uint8_t*>(decoded.resize(length));
       },
       [](void* ctx) {
         auto& c = *static_cast<Context*>(ctx);
-        c.out.swap(c.decoded);
-        std::string{}.swap(c.decoded);
+        c.out = std::move(c.decoded);
       },
       [](void* ctx, uint8_t event, uint32_t a, uint32_t b, uint32_t c) {
         switch (static_cast<DictionaryDefinitionEvent>(event)) {
+          case DictionaryDefinitionEvent::InvalidField:
+            LOG_ERR("DICT", "Invalid inline definition field");
+            break;
+          case DictionaryDefinitionEvent::DecodedCap:
+            LOG_INF("DICT", "Decoded definition exceeds byte limit");
+            break;
           case DictionaryDefinitionEvent::Empty:
             LOG_ERR("DICT", "Zero-length definition entry");
             break;
@@ -469,12 +470,12 @@ void Dictionary::stemVariants(const std::string& word, std::vector<std::string>&
                       });
 }
 
-bool Dictionary::lookup(const char* word, std::string& definitionOut, std::string& matchedHeadwordOut,
+bool Dictionary::lookup(const char* word, DictionaryBuffer& definitionOut, std::string& matchedHeadwordOut,
                         LookupResult* outResult) {
   struct Context {
     Dictionary& dictionary;
     const char* word;
-    std::string& definition;
+    DictionaryBuffer& definition;
     std::string& matched;
     std::string cleaned;
     std::vector<std::string> variants;
@@ -563,7 +564,7 @@ bool Dictionary::lookup(const char* word, std::string& definitionOut, std::strin
         auto& out = static_cast<Context*>(ctx)->definition;
         switch (static_cast<DictionaryOutput>(operation)) {
           case DictionaryOutput::Reserve:
-            out.clear();
+            out.resize(0);
             out.reserve(size);
             break;
           case DictionaryOutput::Append:
@@ -583,6 +584,9 @@ bool Dictionary::lookup(const char* word, std::string& definitionOut, std::strin
       []() -> size_t { return ESP.getMaxAllocHeap(); },
       [](void*, uint8_t event, uint32_t a, uint32_t b) {
         switch (static_cast<DictionaryLookupEvent>(event)) {
+          case DictionaryLookupEvent::SkipEntry:
+            LOG_INF("DICT", "Definition does not fit; skipping entry");
+            break;
           case DictionaryLookupEvent::WorkingSet:
             LOG_ERR("DICT", "Low heap for lookup (%u byte working set)", static_cast<unsigned>(a));
             break;

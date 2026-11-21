@@ -190,6 +190,6 @@ void CatalogActivity::finishDownload(const HttpDownloader::DownloadError result)
     downloadFinished(result == HttpDownloader::ABORTED);
   } else {
     LOG_ERR("CAT", "Download failed: %d", static_cast<int>(result));
-    fail(StrId::STR_DOWNLOAD_FAILED);
+    fail(result == HttpDownloader::REQUEST_TOO_LARGE ? StrId::STR_FETCH_FEED_FAILED : StrId::STR_DOWNLOAD_FAILED);
   }
 }

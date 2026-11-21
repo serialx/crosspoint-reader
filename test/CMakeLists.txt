@@ -69,6 +69,8 @@ enable_testing()
 include(GoogleTest)
 
 add_subdirectory(streaming_json_parser)
+add_subdirectory(plugin_catalog_paging)
+add_subdirectory(url_utils)
 add_subdirectory(release_json_parser)
 add_subdirectory(differential_rounding)
 add_subdirectory(hyphenation_eval)
@@ -152,7 +154,7 @@ add_subdirectory(plugin_manifest_classification)
 add_subdirectory(plugin_picker_layout)
 add_test(NAME plugin_browse_list_index
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_plugin_browse_list_index.py
-    ${CMAKE_CXX_COMPILER} ${XP_TEST_ARDUINOJSON_SRC})
+    ${CMAKE_CXX_COMPILER} ${XP_TEST_ARDUINOJSON_SRC} ${XP_FFI_HOST_ARCHIVE})
 add_subdirectory(protected_paths)
 
 add_test(NAME rust_ports COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_rust_ports.py)

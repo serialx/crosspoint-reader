@@ -55,7 +55,7 @@ forward!(time() -> i64);
 forward!(text(key: *const c_char, value: *const c_char, envelope: bool) -> ());
 forward!(number(key: *const c_char, value: i64) -> ());
 forward!(object(key: *const c_char) -> ());
-forward!(serialize() -> usize);
+forward!(serialize(book: *mut *const c_char) -> usize);
 forward!(oversize(size: usize) -> ());
 unsafe extern "C" fn append(ctx: *mut c_void, subscriber: *const Subscriber, size: usize) {
     let b = &*ctx.cast::<Bridge>();
@@ -139,14 +139,16 @@ pub(super) unsafe fn open(ports: &Ports, path: XpAppText) {
 }
 // percent comes from export_percent and is in 0–100.
 #[inline(never)]
-pub(super) unsafe fn exit(ports: &Ports, path: XpAppText, percent: i32) {
+pub(super) unsafe fn exit(ports: &Ports, path: XpAppText, percent: i32, end_percent: i32) {
     let percent = decimal::<8>(percent.into());
+    let end_percent = decimal::<8>(end_percent.into());
     emit(
         ports,
         Event::ReaderExit,
         &[
             var(c"book", terminated(path)),
             var(c"percent", percent.as_ptr().cast()),
+            var(c"end_percent", end_percent.as_ptr().cast()),
         ],
     );
 }

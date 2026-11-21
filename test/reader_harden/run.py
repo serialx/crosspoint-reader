@@ -68,10 +68,11 @@ boundaries = (HERE / 'boundary_consumers.cpp').read_text()
 for marker, path, signature in [
     ('// ACTUAL_SCREENSHOT_FILENAME', 'src/util/ScreenshotUtil.cpp', 'void ScreenshotUtil::buildFilename'),
     ('// ACTUAL_SCREENSHOT_INFO', 'src/activities/ActivityManager.cpp', 'ScreenshotInfo ActivityManager::getScreenshotInfo'),
+    ('// ACTUAL_XTC_PROGRESS', 'src/activities/reader/XtcReaderActivity.cpp', 'ScreenshotInfo XtcReaderActivity::getScreenshotInfo'),
     ('// ACTUAL_EXIT', 'src/activities/reader/RustEpubResources.cpp', 'void emitExit')]:
     boundaries = replace_once(boundaries, marker, definition((ROOT / path).read_text(), signature))
 main = (ROOT / 'src/main.cpp').read_text()
-start = main.index('  pluginevents::Var vars[2];', main.index('static void deliverSleepPluginEvents'))
+start = main.index('  pluginevents::Var vars[', main.index('static void deliverSleepPluginEvents'))
 end = main.index('  if (!allowNetwork)', start)
 boundaries = replace_once(boundaries, '// ACTUAL_SLEEP', main[start:end])
 source += boundaries

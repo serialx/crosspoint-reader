@@ -17,6 +17,7 @@ physical EPUB.child_lookup_find xp_inflate_small_step_segmented # 280895ff6: Dic
 physical EPUB.protection_index xp_inflate_init xp_inflate_state_align xp_inflate_state_size xp_inflate_step # SDK ProtectedBook index scans encryption XML through MinizCompat; named physical byte stream, no reader policy callback.
 # SDK UI measurement/drawing continuations use runtime callbacks; audit them at R8b.
 # Battery HAL and nested clipping_physical callbacks also require manual R8b review.
+callback xp_native_plugin_metadata # Plugin owner borrows the native JSON vtable only until releasing the parsed document; the output cannot call back into Rust (e0bcd26b4, #4200).
 callback EPUB.protection_stream # Prepare opens caller-owned SD scratch; Read synchronously emits SDK decrypted bytes to the borrowed sink, which is not retained after Read returns.
 callback EPUB.popup_show # Retains label/choice callbacks until the popup is dismissed; review both lifetimes.
 callback EPUB.end_input # Delivers the selected end-menu action synchronously.
@@ -207,6 +208,7 @@ import xp_native_font_cache_diagnostic # Existing direct native ABI at 5ff7aa05;
 import xp_native_font_diagnostic # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 import xp_native_page_image_file # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 import xp_native_page_image_log # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
+import xp_native_plugin_metadata # Plugin event owner reads and releases the bounded ArduinoJson sidecar for e0bcd26b4 (#4200).
 import xp_native_render_target # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 import xp_native_sd_allocate # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.
 import xp_native_sd_diagnostic # Existing direct native ABI at 5ff7aa05; review its header signature and retained pointers whenever changed; callbacks require a separate contract.

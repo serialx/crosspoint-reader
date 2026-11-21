@@ -17,11 +17,16 @@ impl XpEpubLeaves {
         #[cfg(not(feature = "app-test"))]
         super::events::open(&self.event_ports(), path);
     }
-    pub(super) unsafe fn emit_exit(&self, path: super::app_abi::Text, percent: i32) {
+    pub(super) unsafe fn emit_exit(
+        &self,
+        path: super::app_abi::Text,
+        percent: i32,
+        _end_percent: i32,
+    ) {
         #[cfg(feature = "app-test")]
         (self.emit_exit)(path, percent);
         #[cfg(not(feature = "app-test"))]
-        super::events::exit(&self.event_ports(), path, percent);
+        super::events::exit(&self.event_ports(), path, percent, _end_percent);
     }
     pub(super) unsafe fn emit_session(
         &self,

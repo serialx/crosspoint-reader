@@ -67,10 +67,12 @@ typedef struct {
   char dir[XP_PLUGIN_SUB_DIR_BYTES];
   uint8_t mask;
   uint8_t connect_mask;
+  uint32_t meta_key_hash[XP_PLUGIN_EVENT_COUNT];
 } XpPluginSubscriber;
 // name/dir remain valid through the subscription iteration, including release.
 // parse opens event storage; event returns null at end, otherwise valid until
-// release. connect reads the same index. release runs even after parse failure.
+// release. options supplies connect and require_meta for the same index;
+// false skips the handler. release runs even after parse failure.
 typedef struct {
   void* ctx;
   size_t (*count)(void*);
@@ -79,7 +81,7 @@ typedef struct {
   XpPluginSpan (*dir)(void*, size_t);
   bool (*parse)(void*, size_t);
   XpPluginSpan (*event)(void*, size_t);
-  bool (*connect)(void*, size_t);
+  bool (*options)(void*, size_t, bool* connect, XpPluginSpan* require_meta);
   void (*release)(void*);
   void (*diagnostic)(void*, uint32_t, size_t, size_t);
 } XpPluginSubscriptionOps;
@@ -179,6 +181,13 @@ typedef struct {
   void* ctx;
   const XpPluginJsonVtable* vtable;
 } XpPluginJson;
+// Borrows a parsed sidecar through json. On success, call again with null path
+// and json to destroy it before moving or releasing storage.
+typedef union {
+  uint64_t alignment;
+  unsigned char bytes[30 * sizeof(void*)];
+} XpPluginMetadataStorage;
+bool xp_native_plugin_metadata(XpPluginMetadataStorage*, const char* path, XpPluginJson* json);
 typedef struct {
   void* ctx;
   void (*text)(void*, uint32_t field, XpPluginSpan);
@@ -260,7 +269,8 @@ typedef struct {
   void (*text)(void*, const char* key, const char* value, bool static_key);
   void (*number)(void*, const char* key, int64_t);
   void (*object)(void*, const char* key);
-  size_t (*serialize)(void*);
+  // The book or fallback path borrows the stored JSON until codec teardown.
+  size_t (*serialize)(void*, const char** book);
   void (*append)(void*, const XpPluginSubscriber*, size_t);
   void (*oversize)(void*, size_t);
 } XpPluginEmitOps;

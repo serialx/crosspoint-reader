@@ -29,11 +29,15 @@ struct GPIO {
   bool deviceIsX3() const { return true; }
 };
 inline GPIO gpio;
+#ifdef PLUGIN_CATALOG_STATUS_TEST
+#include "src/util/FirmwareIdentity.h"
+#else
 namespace firmwareidentity {
 constexpr const char* FAMILY = "crosspoint";
 constexpr int PLUGIN_API_VERSION = 1;
 constexpr const char* PLUGIN_CAPABILITIES = "oracle";
 }  // namespace firmwareidentity
+#endif
 using wifi_mode_t = int;
 constexpr int WIFI_MODE_STA = 1, WIFI_MODE_AP = 2, WL_CONNECTED = 3;
 struct IP {

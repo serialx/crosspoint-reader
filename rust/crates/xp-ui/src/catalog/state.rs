@@ -368,6 +368,11 @@ impl Window {
         false
     }
 }
-pub fn page_template(bytes: &[u8]) -> bool {
-    bytes.windows(6).any(|w| w == b"{page}")
+pub fn page_template(bytes: &[u8]) -> u8 {
+    const PAGE: u8 = 1;
+    const OFFSET: u8 = 2;
+    const LIMIT: u8 = 4;
+    u8::from(bytes.windows(6).any(|w| w == b"{page}")) * PAGE
+        | u8::from(bytes.windows(8).any(|w| w == b"{offset}")) * OFFSET
+        | u8::from(bytes.windows(7).any(|w| w == b"{limit}")) * LIMIT
 }

@@ -3,6 +3,8 @@
 #include <SecureHttpClient.h>
 #include <components/UITheme.h>
 
+#include <cassert>
+
 #include "util/PluginEvents.h"
 #include "util/PluginHttp.h"
 #include "util/PluginLocations.h"
@@ -34,6 +36,131 @@ int main(int argc, char** argv) {
 #endif
   oracle::dirs = {"/plugins", "/plugins/demo"};
   const std::string dir = "/plugins/demo", queue = dir + "/events.jsonl";
+  if (c == 50) {
+    const std::string raw = "a b/%20?x=#&é\x7f\r\n";
+    assert(pluginhttp::urlEncodeQuery(raw) == "a%20b%2F%2520%3Fx%3D%23%26%C3%A9%7F%0D%0A");
+    for (unsigned byte = 0; byte <= 255; ++byte) {
+      const std::string input(1, static_cast<char>(byte));
+      const std::string url = pluginhttp::escapeUrl(input);
+      const std::string encoded = pluginhttp::urlEncodeQuery(input);
+      if (byte <= 0x20 || byte >= 0x7f) {
+        assert(url == encoded);
+      } else {
+        assert(url.empty());
+        const bool unreserved = (byte >= '0' && byte <= '9') || (byte >= 'A' && byte <= 'Z') ||
+                                (byte >= 'a' && byte <= 'z') || std::string("-_.~").find(input) != std::string::npos;
+        assert(unreserved ? encoded == input : encoded.starts_with('%') && encoded.size() == 3);
+      }
+    }
+    String out;
+    response(200);
+    assert(pluginhttp::request(nullptr, "https://example/" + raw, "POST", raw, {{"X-Test", raw}}, out, 16) == 200);
+    const auto seen = [](const std::string& line) {
+      return std::find(oracle::trace.begin(), oracle::trace.end(), line) != oracle::trace.end();
+    };
+    assert(seen("begin https://example/a%20b/%20?x=#&%C3%A9%7F%0D%0A"));
+    assert(seen("header X-Test " + raw));
+    assert(seen("request POST " + std::to_string(raw.size()) + " " +
+                std::to_string(oracle::hash(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()))));
+    return 0;
+  }
+#ifdef PLUGIN_JSON_FAULTS
+  if (c == 51) {
+    const std::string other = "/plugins/other";
+    oracle::dirs.insert(other);
+    file(dir + "/device.json", R"({"events":{"reader.exit":{"require_meta":"id","connect":true}}})");
+    file(other + "/device.json", R"({"events":{"reader.exit":{}}})");
+    pluginevents::refreshSubscriptions();
+    const std::string path = "/a-book-with-a-long-name.epub";
+    file(path + ".meta.json", R"({"id":"present"})");
+    const pluginevents::Var book = {"book", path.c_str()};
+    bool sawMissingBook = false;
+    bool sawStoredBook = false;
+    for (unsigned fault = 1; fault <= 24; ++fault) {
+      oracle::files.erase(queue);
+      oracle::files.erase(other + "/events.jsonl");
+      json_fault::failAt = json_fault::attempts + fault;
+      pluginevents::emit(pluginevents::Event::ReaderExit, &book, 1);
+      json_fault::failAt = 0;
+      const auto& bytes = oracle::files.at(other + "/events.jsonl");
+      const std::string line(bytes.begin(), bytes.end());
+      if (line.find(path) == std::string::npos) {
+        sawMissingBook = true;
+        assert(!oracle::files.contains(queue));
+        assert(!pluginevents::wantsConnectAny());
+      } else if (line.find(R"("e":"reader.exit")") != std::string::npos && oracle::files.contains(queue)) {
+        sawStoredBook = true;
+        assert(pluginevents::wantsConnectAny());
+      }
+    }
+    assert(sawMissingBook && sawStoredBook);
+    return 0;
+  }
+#endif
+  if (c == 49) {
+    const std::string other = "/plugins/other";
+    oracle::dirs.insert(other);
+    file(
+        dir + "/device.json",
+        R"({"events":{"reader.exit":{"require_meta":42},"reader.open":{"require_meta":true},"sleep.enter":{"require_meta":"id","download":{"url":"https://image","dest":"/sleep.bmp"}},"book.downloaded":{"require_meta":"id","request":{"url":"https://send/{meta.id}"}}}})");
+    file(other + "/device.json", R"({"events":{"sleep.enter":{"require_meta":"external"}}})");
+    pluginevents::refreshSubscriptions();
+    assert(!pluginevents::anySubscriber(pluginevents::Event::ReaderExit));
+    assert(!pluginevents::anySubscriber(pluginevents::Event::ReaderOpen));
+    const pluginevents::Var book = {"book", "/book.epub"};
+    const pluginevents::Var path = {"path", "/book.epub"};
+    pluginevents::emit(pluginevents::Event::SleepEnter, &book, 1);
+    file("/book.epub.meta.json", R"({"id":""})");
+    pluginevents::emit(pluginevents::Event::SleepEnter, &book, 1);
+    file("/book.epub.meta.json", "{");
+    pluginevents::emit(pluginevents::Event::SleepEnter, &book, 1);
+    assert(!oracle::files.contains(queue));
+    assert(!pluginevents::wantsConnectAny());
+    file("/book.epub.meta.json", R"({"id":42})" + std::string(2048, ' '));
+    pluginevents::emit(pluginevents::Event::SleepEnter, &book, 1);
+    assert(!oracle::files.contains(queue));
+    file("/book.epub.meta.json", R"({"id":42})");
+    pluginevents::emit(pluginevents::Event::BookDownloaded, &path, 1);
+    assert(oracle::files.contains(queue));
+    assert(!pluginevents::wantsConnectAny());
+    response(204);
+    pluginevents::drain(nullptr);
+    assert(std::find(oracle::trace.begin(), oracle::trace.end(), "begin https://send/42") != oracle::trace.end());
+    oracle::trace.clear();
+    const pluginevents::Var protectedBook = {"book", "/.crosspoint/wifi.json"};
+    file("/.crosspoint/wifi.json.meta.json", R"({"id":"protected"})");
+    pluginevents::emit(pluginevents::Event::SleepEnter, &protectedBook, 1);
+    assert(!oracle::files.contains(queue));
+    assert(oracle::trace.empty());
+    file("/book.epub.meta.json", R"({"id":true,"external":[]})");
+    pluginevents::emit(pluginevents::Event::SleepEnter, &book, 1);
+    assert(!oracle::files.contains(queue));
+    file("/book.epub.meta.json", R"({"id":"123"})");
+    oracle::trace.clear();
+    pluginevents::emit(pluginevents::Event::SleepEnter, &book, 1);
+    assert(oracle::files.contains(queue));
+    assert(!oracle::files.contains(other + "/events.jsonl"));
+    assert(std::count(oracle::trace.begin(), oracle::trace.end(), "open /book.epub.meta.json 0 1") == 1);
+    assert(pluginevents::wantsConnectAny());
+    oracle::files.erase(queue);
+    file(dir + "/device.json",
+         R"({"events":{"reader.open":{"require_meta":"id"},"reader.exit":{"require_meta":"id","connect":true}}})");
+    file(other + "/device.json", R"({"events":{"reader.exit":{}}})");
+    pluginevents::refreshSubscriptions();
+    for (const char* contents : {R"({"id":5.5})", R"({"different":"present"})"}) {
+      file("/book.epub.meta.json", contents);
+      pluginevents::emit(pluginevents::Event::ReaderExit, &book, 1);
+      assert(!oracle::files.contains(queue));
+      assert(oracle::files.erase(other + "/events.jsonl") == 1);
+      assert(!pluginevents::wantsConnectAny());
+    }
+    file("/book.epub.meta.json", R"({"id":5})");
+    for (const auto event : {pluginevents::Event::ReaderOpen, pluginevents::Event::ReaderExit}) {
+      pluginevents::emit(event, &book, 1);
+      assert(oracle::files.erase(queue) == 1);
+    }
+    return 0;
+  }
   std::string manifest =
       R"({"token":{"file":"token.json","path":"auth.token"},"config":{"file":"config.json"},"auth":{"type":"password","token_path":"access_token","request":{"url":"https://auth","body":"{cfg.secret}:{event.book}","headers":{"Auth":"{token}"}}},"events":{"unknown":{},"reader.exit":{"connect":true,"request":{"url":"https://send/{event.id}","headers":{"Auth":"{token}"},"body":"{event.book}|{event.percent}|{event.ts}|{cfg.secret}|{meta.id}"},"toast":"Sent {event.book}"},"sleep.enter":{"download":{"url":"https://image","dest":"/sleep.bmp"}}}})";
 #ifdef PLUGIN_TOKEN_LIFETIME

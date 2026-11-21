@@ -4,10 +4,12 @@
 #include <HalStorage.h>
 #include <LibraryBuilder.h>
 #include <Logging.h>
+#include <esp_heap_caps.h>
 #include <esp_random.h>
 #include <time.h>
 #include <xp_plugin.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <new>
@@ -39,12 +41,58 @@ constexpr size_t MAX_EVENT_RESPONSE = 8 * 1024;
 // plugin list screen, not a marketplace.
 constexpr size_t MAX_EVENT_PLUGINS = XP_PLUGIN_MAX_EVENT_PLUGINS;
 using Subscriber = XpPluginSubscriber;
+static_assert(static_cast<size_t>(pluginevents::Event::COUNT) == XP_PLUGIN_EVENT_COUNT);
 Subscriber subscribers[MAX_EVENT_PLUGINS]{};
 int eventFromName(const char* name) { return xp_plugin_event(span(name)); }
 
 std::string outboxPath(const Subscriber& sub) { return std::string(sub.dir) + OUTBOX_NAME; }
 
+const char* eventBook(JsonVariantConst vars) {
+  const char* book = vars["book"] | "";
+  return book[0] ? book : vars["path"] | "";
+}
+
 }  // namespace
+
+namespace {
+struct MetadataDocument {
+  JsonDocument document;
+  PluginJson json{JsonVariantConst{}};
+};
+static_assert(sizeof(MetadataDocument) <= sizeof(XpPluginMetadataStorage));
+static_assert(alignof(MetadataDocument) <= alignof(XpPluginMetadataStorage));
+
+bool readMetadataDocument(const char* path, JsonDocument& document) {
+  constexpr size_t MAX_BYTES = 2048;
+  HalFile file;
+  if (!Storage.openFileForRead("PHTP", path, file) || file.isDirectory()) return false;
+  const size_t size = file.fileSize();
+  if (size == 0 || size > MAX_BYTES) return false;
+  if (heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) < size + 512) {
+    LOG_ERR("PHTP", "readFileToString OOM: %u bytes for %s", static_cast<unsigned>(size), path);
+    return false;
+  }
+  std::string raw(size, '\0');
+  if (file.read(raw.data(), size) != static_cast<int32_t>(size)) return false;
+  file.close();
+  return deserializeJson(document, raw) == DeserializationError::Ok;
+}
+}  // namespace
+
+extern "C" bool xp_native_plugin_metadata(XpPluginMetadataStorage* storage, const char* path, XpPluginJson* json) {
+  if (!path) {
+    reinterpret_cast<MetadataDocument*>(storage)->~MetadataDocument();
+    return false;
+  }
+  auto& value = *new (storage) MetadataDocument;
+  if (!readMetadataDocument(path, value.document)) {
+    value.~MetadataDocument();
+    return false;
+  }
+  value.json.slots[0] = value.document.as<JsonVariantConst>();
+  *json = value.json.api();
+  return true;
+}
 
 namespace pluginevents {
 
@@ -91,7 +139,18 @@ void refreshSubscriptions() {
         return deserializeJson(c.doc, c.raw, DeserializationOption::Filter(filter)) == DeserializationError::Ok;
       },
       [](void* p, size_t i) { return span(static_cast<Context*>(p)->eventKey(i)); },
-      [](void* p, size_t i) { return static_cast<Context*>(p)->eventValue(i)["connect"] | false; },
+      [](void* p, size_t i, bool* connect, XpPluginSpan* metaKey) {
+        const auto& c = *static_cast<Context*>(p);
+        const auto value = c.eventValue(i);
+        const JsonVariantConst requireMeta = value["require_meta"];
+        if (!requireMeta.isNull() && !requireMeta.is<const char*>()) {
+          LOG_ERR("PEVT", "%s require_meta is not a string; handler ignored", c.eventKey(i));
+          return false;
+        }
+        *connect = value["connect"] | false;
+        *metaKey = span(requireMeta | "");
+        return true;
+      },
       [](void* p) {
         auto& c = *static_cast<Context*>(p);
         c.doc.clear();
@@ -222,8 +281,9 @@ XpPluginSequence* eventCodec(XpPluginEventStorage* storage, XpPluginEmitOps* ops
         auto& c = *static_cast<Context*>(p);
         c.node = c.node[JsonString(key, true)].to<JsonObject>();
       },
-      [](void* p) {
+      [](void* p, const char** book) {
         auto& c = *static_cast<Context*>(p);
+        *book = eventBook(c.node);
         c.line.reserve(160);
         serializeJson(c.doc, c.line);
         c.line += '\n';
@@ -419,7 +479,7 @@ bool deliverLine(const DrainManifest& mf, const std::string& lineText, std::stri
   // flat fields written at download time) as {meta.*} variables, e.g. a
   // service book id for a sync handler.
   pluginhttp::Headers meta;
-  const char* book = vars["book"] | "";
+  const char* book = eventBook(vars);
   if (book[0] != '\0') {
     pluginhttp::loadConfigFile(std::string(book) + ".meta.json", meta);
     for (auto& kv : meta) kv.first = "{meta." + kv.first + "}";

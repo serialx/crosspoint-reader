@@ -43,9 +43,7 @@ pub unsafe extern "C" fn xp_ui_catalog_page_template(s: *const u8, len: usize) -
     if s.is_null() || len > isize::MAX as usize {
         return 0;
     }
-    u8::from(xp_ui::catalog::state::page_template(unsafe {
-        core::slice::from_raw_parts(s, len)
-    }))
+    xp_ui::catalog::state::page_template(unsafe { core::slice::from_raw_parts(s, len) })
 }
 #[no_mangle]
 #[inline(never)]

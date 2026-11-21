@@ -195,9 +195,10 @@ int main(){
 #include <string>
 std::mutex panel,model;
 using String=std::string;
-struct StrId {enum {STR_PLUGIN_AUTH_FAILED};};
+struct StrId {enum {STR_PLUGIN_AUTH_FAILED,STR_FETCH_FEED_FAILED};};
 unsigned millis(){return 10;}
-struct Request {std::string url,body;};
+struct Request {std::string url,body,method; int headers;};
+namespace pluginhttp { using RequestSpec = Request; }
 void substituteAll(std::string&,const char*,const std::string&){}
 struct PluginCatalogActivity;
 struct RenderLock {std::unique_lock<std::mutex> lock;RenderLock(PluginCatalogActivity&):lock(panel){}};
@@ -207,9 +208,9 @@ struct PluginCatalogActivity {
  struct {unsigned auth_next_poll_ms=0;} ui;
  struct {Request pollReq;} manifest;
  std::string authDeviceCode;
- bool requested=false;
- void fail(int){assert(false);}
- Request substitutedRequest(const Request& r){return r;}
+ bool requested=false, fits=true;int error=-1;
+ void fail(int id){error=id;}
+ bool buildRequest(Request&, const std::string&,const std::string&,int,void*,std::string_view,bool){return fits;}
  int apiRequest(Request,String&){requested=true;return -1;}
  void pollAuth();
 };
@@ -218,6 +219,7 @@ int main(){PluginCatalogActivity a;std::unique_lock<std::mutex> busy(panel);
  auto run=std::async(std::launch::async,[&]{a.pollAuth();});
  bool polled=run.wait_for(std::chrono::milliseconds(100))==std::future_status::ready;
  busy.unlock();run.get();assert(polled && a.requested && a.ui.auth_next_poll_ms==510);
+ a.requested=false;a.fits=false;a.pollAuth();assert(!a.requested && a.error==StrId::STR_FETCH_FEED_FAILED);
 }
 """
         self.compile_run(fixture)

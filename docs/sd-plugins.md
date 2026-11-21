@@ -205,6 +205,7 @@ String fields explicitly passed through the template resolver support substituti
 Template-bearing fields include request URLs, bodies, and header values;
 `browse.lists_url`; list notice title/message/Confirm/Cancel text; `bundle.subdir`;
 download filename/username/password; and sidecar path/body.
+Catalog template expansions, including the XML listing base used to resolve links, are limited to 16 KiB each, and the escaped request URL, body, header names and header values must fit within 16 KiB in total.
 
 | Variable | Meaning | Available in |
 |---|---|---|
@@ -423,12 +424,13 @@ JSON catalogs may also map `description`, `detail_author`, and `repository` for 
   `browse.url`, which gets the id through `{list_id}` or `{list_id_enc}`.
   Other entries are skipped. At most 64 fetched lists are kept; an answer with
   no usable entries, or one larger than 16KB, counts as a failed fetch. The
-  fetched lists follow any `lists` from the manifest. If the fetch fails, the
-  manifest's own lists are still shown and the fetch is not retried until the
-  catalog is reopened; without them the catalog shows an error, and Retry
-  fetches again. A 401/403 answer is handled as for browsing: a `password`
-  sign-in mints a new token and retries once, otherwise the sign-in screen is
-  shown. Firmware before this change ignores `lists_url` when `lists` is also
+  fetched lists follow any `lists` from the manifest. A 401 or 403 triggers
+  one token refresh and retry when a password grant is configured. If the
+  request still returns 401 or 403, the catalog shows the sign-in screen.
+  For other fetch failures, the manifest's own lists stay available and the
+  catalog waits until it is reopened to fetch the index again. Without fixed
+  lists, the catalog shows an error and Retry fetches again. Firmware before
+  this change ignores `lists_url` when `lists` is also
   set. `lists_headers`, `lists_items`, `lists_fields`, `{list_id}`, and
   `{list_id_enc}` need the `catalog.list_index_mapping` capability.
   Optional `requires` on either a manifest list or a fetched list contains an

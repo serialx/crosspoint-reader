@@ -84,6 +84,7 @@ typedef struct {
   uint8_t more;
 } XpUiCatalogWindow;
 uint8_t xp_ui_catalog_window_take(XpUiCatalogWindow*, uint8_t eligible);
+enum { XP_UI_CATALOG_TEMPLATE_PAGE = 1, XP_UI_CATALOG_TEMPLATE_OFFSET = 2, XP_UI_CATALOG_TEMPLATE_LIMIT = 4 };
 uint8_t xp_ui_catalog_page_template(const char*, size_t);
 // Returns -1 for Previous, item_count for Next, or the item index; mutates page
 // only for pager rows. The caller then performs the existing fetch operation.

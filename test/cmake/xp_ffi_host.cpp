@@ -218,9 +218,13 @@ __attribute__((weak)) void xp_settings_shell_theme_reload(void) { std::abort(); 
 // Isolated core/ABI suites do not instantiate the physical renderer. Real
 // renderer fixtures override these leaves; unexpected routing must fail.
 #include <xp_font_registry.h>
+#include <xp_plugin.h>
 #include <xp_sd_physical.h>
 extern "C" {
 __attribute__((weak)) const XpLoadedFonts* xp_native_chapter_font_owner(void*) { std::abort(); }
+__attribute__((weak)) bool xp_native_plugin_metadata(XpPluginMetadataStorage*, const char*, XpPluginJson*) {
+  std::abort();
+}
 __attribute__((weak)) size_t heap_caps_get_largest_free_block(uint32_t) { return 200 * 1024; }
 __attribute__((weak)) void xp_native_sd_handle_init(XpSdFileSlot*) { std::abort(); }
 __attribute__((weak)) void xp_native_sd_handle_destroy(XpSdFileSlot*) { std::abort(); }

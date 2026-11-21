@@ -45,7 +45,7 @@ int main() {
       [](void*, size_t) { return span("/plugins/demo"); },
       [](void*, size_t) { return true; },
       [](void*, size_t i) { return i < 5 ? span(NAMES[i]) : XpPluginSpan{nullptr, 0}; },
-      [](void*, size_t) { return false; },
+      [](void*, size_t, bool*, XpPluginSpan*) { return true; },
       [](void*) {},
       nullptr};
   xp_plugin_subscriptions(table, &subscriptions);
@@ -62,7 +62,7 @@ int main() {
         [](void*, const char*, const char*, bool) {},
         [](void*, const char*, int64_t) {},
         [](void*, const char*) {},
-        [](void* p) { return static_cast<Emit*>(p)->bytes; },
+        [](void* p, const char**) { return static_cast<Emit*>(p)->bytes; },
         [](void* p, const XpPluginSubscriber*, size_t) { static_cast<Emit*>(p)->appended = true; },
         [](void* p, size_t) { static_cast<Emit*>(p)->oversized = true; }};
     xp_plugin_emit(table, &sequence, 0, nullptr, 0, &emit);

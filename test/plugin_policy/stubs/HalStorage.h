@@ -1,4 +1,6 @@
 #pragma once
+#include <cstring>
+
 #include "../../hal_fake_strict.h"
 #include "WString.h"
 
@@ -39,6 +41,14 @@ class HalFile {
     return oracle::files[path].size();
   }
   uint64_t fileSize64() const { return fileSize(); }
+  int32_t read(void* output, size_t n) {
+    hal_fake::requireImpl(hasImpl, "read", path.c_str());
+    if (oracle::fault == "read") return -1;
+    const auto& data = oracle::files.at(path);
+    n = std::min(n, data.size());
+    memcpy(output, data.data(), n);
+    return static_cast<int32_t>(n);
+  }
   void close() {
     hal_fake::requireImpl(hasImpl, "close", path.c_str());
     oracle::record("close %s", path.c_str());
@@ -103,6 +113,7 @@ struct StorageType {
     f.open(p, mode);
     return f;
   }
+  bool openFileForRead(const char*, const char* p, HalFile& f) { return f.open(p); }
   bool openFileForWrite(const char*, const std::string& p, HalFile& f) { return f.open(p.c_str(), O_WRONLY | O_CREAT); }
   bool remove(const char* p) {
     oracle::record("remove %s", p);

@@ -1250,7 +1250,6 @@ Legacy.create xp_plugin_drain_all
 Legacy.create xp_plugin_drain_file
 Legacy.create xp_plugin_drain_lines
 Legacy.create xp_plugin_emit
-Legacy.create xp_plugin_encode
 Legacy.create xp_plugin_event
 Legacy.create xp_plugin_event_substitute
 Legacy.create xp_plugin_find

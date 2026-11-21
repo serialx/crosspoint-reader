@@ -143,6 +143,8 @@ int main(){
 #include <vector>
 #include <memory>
 #include "xp_ui_catalog.h"
+namespace plugincatalog {constexpr size_t MAX_REQUEST_BYTES=16384;}
+constexpr int REQUEST_REFUSED=-2;
 constexpr auto BROWSE_TMP_PATH="browse";
 constexpr unsigned MAX_BROWSE_RESPONSE=1;
 namespace pluginhttp {
@@ -172,10 +174,11 @@ struct PluginCatalogActivity {
  State getState(){return static_cast<State>(ui.mode);}
  void setState(State s){xp_ui_catalog_mode(&ui,static_cast<uint8_t>(s));}
  void requestUpdate(){}void loadConfig(){}bool loadToken(){return true;}
- bool refreshCredentialToken(){++auth;return false;}
+ bool refreshCredentialToken(int&){++auth;return false;}
  void fail(int){assert(false);}
- std::string substituted(const std::string& s,void*){return s;}
- std::vector<int> substitutedHeaders(const std::vector<int>& h,void*){return h;}
+ bool substituted(const std::string& s,std::string& out,const void*,size_t){out=s;return true;}
+ bool buildRequest(pluginhttp::RequestSpec&,const std::string&,const std::string&,const std::vector<int>&,void*,std::string_view){return true;}
+ std::string_view activeBrowseOrigin(){return {};}
  std::string activeBrowseUrl(){return "search";}std::string activeBrowseBody(){return {};}
  void releaseRows(){}void resetSelection(){}
  void beginLoading(){setState(State::LOADING);}

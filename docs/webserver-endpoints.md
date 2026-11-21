@@ -43,7 +43,7 @@ Response:
   "version": "1.0.0",
   "firmwareFamily": "crosspoint",
   "pluginApi": 1,
-  "pluginCapabilities": "catalog.lists,catalog.notices,catalog.bundle_install,catalog.version_tracking,catalog.compatibility,catalog.item_details,catalog.encoded_item_fields,catalog.list_index_mapping",
+  "pluginCapabilities": "catalog.lists,catalog.notices,catalog.bundle_install,catalog.version_tracking,catalog.compatibility,catalog.item_details,catalog.encoded_item_fields,catalog.list_index_mapping,catalog.list_requirements,catalog.server_paths",
   "ip": "192.168.1.100",
   "mode": "STA",
   "rssi": -45,

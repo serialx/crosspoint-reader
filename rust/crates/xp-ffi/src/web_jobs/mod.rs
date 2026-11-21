@@ -3,4 +3,4 @@ pub(crate) mod board;
 mod dav;
 mod flash;
 mod lcp;
-mod paths;
+pub(crate) mod paths;

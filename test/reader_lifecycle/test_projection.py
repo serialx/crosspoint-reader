@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -72,6 +73,42 @@ def generated_i18n_directory(archive):
     return headers[0].parent
 
 
+def project_event_progress(trace):
+    """Apply the new progress fields to the historical screenshot and basis traces."""
+    out = []
+    flags = page = total = spine = 0
+
+    def progress(fraction):
+        bits, = struct.unpack('<I', struct.pack('<f', fraction))
+        return f'progress {spine} {bits:08x}\n'.encode()
+
+    for line in trace.splitlines(keepends=True):
+        if line.startswith(b'case '):
+            flags, page, total, spine = map(int, line.split()[1:])
+        if line.startswith(b'float '):
+            flags, page, total, spine = 0, 0, 5, 0
+        cached = bool(flags & 1)
+        has_progress = not (flags & (2 | 32))
+        if line.startswith(b'screenshot '):
+            if cached:
+                # The fixture releases the section with page 2 of 8 saved.
+                header, old_values = line.rsplit(b'] ', 1)
+                reported_spine = int(old_values.split()[0])
+                percent = min(100, int((spine + 2 / 8) * 25 + 0.5)) if has_progress else 0
+                if has_progress:
+                    out.extend((progress(2 / 8), progress(3 / 8)))
+                line = header + f'] {reported_spine} 3 8 {percent}\n'.encode()
+            elif has_progress and total > 0:
+                last_page = spine == 3 and not (flags & 4) and page + 1 >= total
+                if not last_page:
+                    out.append(progress((page + 1) / total))
+        if line.startswith(b'basis ') and cached and has_progress and spine < 4:
+            out.extend((progress(2 / 8), progress(3 / 8)))
+            line = f'basis {int((spine + 2 / 8) * 25 + 0.5) * 100} 0\n'.encode()
+        out.append(line)
+    return b''.join(out)
+
+
 def difference(expected, actual):
     for line, (left, right) in enumerate(zip(expected.splitlines(), actual.splitlines()), 1):
         if left != right:
@@ -91,6 +128,7 @@ def main():
     counts = collections.Counter(line.split(b' ', 1)[0].decode() for line in raw.splitlines())
     assert (counts['case'], counts['action'], counts['threshold-case'], counts['float']) == (4608, 27648, 40, 7)
     expected, projections = project(raw)
+    expected = project_event_progress(expected)
     fixture = (HERE / 'projection_oracle.cpp').read_bytes()
     marker = b'#include "projection_session_rust.inc"'
     assert fixture.count(marker) == 1
@@ -135,7 +173,7 @@ def main():
             print(json.dumps({
                 'test_name': TEST_NAME, 'original_gzip_sha256': GZIP_SHA, 'original_trace_sha256': RAW_SHA,
                 'projected_trace_sha256': digest(expected), 'actual_trace_sha256': digest(baseline.stdout),
-                'original_lines': 215943, 'projected_lines': 220551, 'projection_event_counts': projections,
+                'original_lines': 215943, 'projected_lines': len(expected.splitlines()), 'projection_event_counts': projections,
                 'original_event_counts': counts, 'owner_edge_float_cases': 6, 'owner_edge_movement_cases': 20,
                 'owner_edge_trace_sha256': digest(edges.stdout), 'legacy_abi_retained': False, 'retirement_absence': absence, 'physical_abi_retained': True,
                 'production_sha256': {str(path): digest(data) for path, data in production.items()},
@@ -182,7 +220,7 @@ def main():
         assert golden.read_bytes() == compressed, 'immutable original golden changed'
         for path, data in production.items():
             assert (ROOT / 'rust' / path).read_bytes() == data, ('real production source changed', path)
-    print(f'{TEST_NAME}: 220551 projected lines; owner value/move edges, physical ABI and retired-name absence; four Rust mutants and caller-lock mutant rejected')
+    print(f'{TEST_NAME}: {len(expected.splitlines())} projected lines, owner value/move edges, physical ABI and retired-name absence; four Rust mutants and caller-lock mutant rejected')
 
 
 if __name__ == '__main__':

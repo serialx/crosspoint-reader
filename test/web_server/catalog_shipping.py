@@ -18,7 +18,7 @@ source = source.replace('#include "Cases.h"', '#include "CatalogCases.h"')
 cpp = args.build / 'server.cpp'
 cpp.write_text(source)
 binary = args.build / 'catalog'
-subprocess.run(['c++', '-std=c++20', '-DXP_SD_FONT_CATALOG', '-funsigned-char', '-UNDEBUG',
+subprocess.run(['c++', '-std=c++20', '-DXP_SD_FONT_CATALOG', '-DPLUGIN_CATALOG_STATUS_TEST', '-funsigned-char', '-UNDEBUG',
                 '-O1', '-g', '-fsanitize=address,undefined', '-fno-omit-frame-pointer',
                 *['-I' + str(path) for path in (ROOT / 'test/web_server/stubs', ROOT / 'test/web_server',
                                               args.html_root, ROOT, args.arduinojson,

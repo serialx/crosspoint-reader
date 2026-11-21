@@ -198,11 +198,24 @@ TEST(PartialLineLayout, FollowingTextCanAbsorbRubyOverhang) {
         text.setRubyForWordAt(0, attached ? "ruby" : "longer");
         text.addWord("b", EpdFontFamily::REGULAR, false, attached);
         text.layoutAndExtractLines(
-            renderer, 0, attached ? 36 : 56,
+            renderer, 0, attached ? 38 : 58,
             [&](std::unique_ptr<TextBlock> line, auto) { EXPECT_EQ(line->wordCount(), 2); }, true, 0, 100, limit);
         EXPECT_TRUE(text.isEmpty());
       }
     }
+  }
+}
+
+TEST(PartialLineLayout, NarrowNeighborCannotAbsorbMoreThanQuarterWidth) {
+  for (const bool attached : {false, true}) {
+    GfxRenderer renderer;
+    Paragraph text(false, false, BlockStyle{}, 0);
+    text.addWord("a", EpdFontFamily::REGULAR);
+    text.setRubyForWordAt(0, attached ? "ruby" : "longer");
+    text.addWord("b", EpdFontFamily::REGULAR, false, attached);
+    text.layoutAndExtractLines(
+        renderer, 0, attached ? 37 : 57, [&](auto line, auto) { EXPECT_EQ(line->wordCount(), 1u); }, true, 0, 100, 1);
+    EXPECT_FALSE(text.isEmpty());
   }
 }
 

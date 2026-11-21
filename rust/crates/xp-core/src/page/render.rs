@@ -502,18 +502,20 @@ fn draw_ruby(data: &RenderLine<'_>, i: u16, c: &mut impl Canvas, t: Text<'_>) ->
     while i + count < line.count && data.word(i + count)?.style & 64 != 0 {
         count += 1;
     }
-    let (mut width, mut chars) = (0, 0);
-    for k in 0..count {
-        let w = data.word(i + k)?;
-        width += c.advance(
+    let last = data.word(i + count - 1)?;
+    let width = i32::from(last.x) - i32::from(data.word(i)?.x)
+        + c.advance(
             Text {
-                bytes: w.text,
-                style: w.style,
+                bytes: last.text,
+                style: last.style,
                 direction: -1,
                 ..t
             },
             MeasureMode::Layout,
         );
+    let mut chars = 0;
+    for k in 0..count {
+        let w = data.word(i + k)?;
         chars += w
             .text
             .iter()

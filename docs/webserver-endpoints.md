@@ -143,7 +143,12 @@ Notes:
 - Without `overwrite`, an existing file with the same name is kept and the
   request fails with `400` "File already exists: <name>".
 - With `overwrite`, the upload is written to `<name>.part` and replaces the
-  existing file only when it is complete, so a failed upload keeps the old file.
+  existing file after all data has been written and closed. A write or close
+  failure leaves the old file in place. If replacement fails while the old
+  file still exists, the server removes the staged copy. If the card removed
+  the old file before the rename failed, the server returns `400`, keeps the
+  new data at `<name>.part` for recovery, and invalidates the missing book's
+  cache and library entry.
   The card needs free space for both copies while the upload runs. A file
   already named `<name>.part` is replaced. If a folder has the name, the
   request fails with `400` "A folder with this name already exists: <name>".

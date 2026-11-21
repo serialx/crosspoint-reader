@@ -219,7 +219,12 @@ const XpWebServices WebFileBridge::services = {
       }
       if (!*key)
         b.argument = b.owner.server->uri();
-      else if (b.owner.server->hasArg(key))
+      else if (b.uploadState && strcmp(key, "path") == 0) {
+        if (!b.owner.server->hasArg(key)) return {reinterpret_cast<const uint8_t*>("/"), 1};
+        String path = b.owner.server->arg(key);
+        if (!path.c_str()) return {nullptr, 0};
+        b.argument = std::move(path);
+      } else if (b.owner.server->hasArg(key))
         b.argument = b.owner.server->arg(key);
       else
         return {nullptr, 0};

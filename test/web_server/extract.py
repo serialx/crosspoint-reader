@@ -139,7 +139,7 @@ def main():
     if args.review_check:
         if not args.archive:
             raise SystemExit("--review-check requires --archive")
-        for mode in ["refuse", "directory", "success", "cancel", "close", "replace", "rename"]:
+        for mode in ["refuse", "directory", "directory-oom", "argument-oom", "name-oom", "success", "nul", "cancel", "close", "replace", "rename"]:
             subprocess.run([str(args.build / "oracle")], env={**os.environ, "WEB_UPLOAD_OVERWRITE_CHECK": mode},
                            stdout=subprocess.DEVNULL, check=True)
         for mode in ["detail", "drop-error"]:

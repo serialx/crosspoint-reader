@@ -407,6 +407,7 @@ class WebServer {
   }
   bool hasArg(const char* name) const { return args.count(name); }
   String arg(const char* name) const {
+    if (host::fail("copy-argument")) return String(nullptr);
     auto it = args.find(name);
     return it == args.end() ? String{} : it->second;
   }

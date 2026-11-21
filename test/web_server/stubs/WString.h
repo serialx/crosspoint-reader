@@ -24,6 +24,9 @@ class String : public std::string {
   inline static size_t failedAllocations = 0;
   String() { instances.insert(this); }
   ~String() { instances.erase(this); }
+  bool invalid = false;
+  String(std::nullptr_t) : String() { invalid = true; }
+  const char* c_str() const { return invalid ? nullptr : std::string::c_str(); }
   String(const char* s) : String() {
     if (s) assign(s);
   }

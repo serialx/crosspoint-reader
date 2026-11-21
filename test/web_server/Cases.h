@@ -313,12 +313,42 @@ int main() {
     record(check, [&](auto& app) {
       const std::string mode(check), dest("/books/a.epub"), part(dest + ".part");
       app.server->args["path"] = "/books";
-      app.server->args["overwrite"] = mode == "refuse" ? "yes" : mode == "success" ? "1" : "true";
+      if (mode != "refuse") app.server->args["overwrite"] = mode == "success" ? "1" : "true";
+      // WebServer decodes true%00x to six bytes.
+      if (mode == "nul") app.server->args["overwrite"] = std::string("true\0x", 6);
+      auto response = [&](const std::string& expected) {
+        app.handleUploadPost(app.upload);
+        if (host::trace.back() != "response:" + expected) std::abort();
+      };
       app.server->part.filename = "a.epub";
       if (mode == "directory") host::add(dest, "", true);
+      if (mode == "directory-oom" || mode == "name-oom" || mode == "argument-oom") {
+        const std::string parent = "/a-long-requested-directory/subdirectory";
+        app.server->args["path"] = parent;
+        host::add(parent + "/a.epub", "requested");
+        host::add("/a.epub", "root");
+        if (mode == "argument-oom") {
+          host::failOperation = "copy-argument";
+          host::failAfter = 0;
+        } else {
+          String::failAllocationSize = mode == "directory-oom" ? parent.size() : strlen("a.epub");
+        }
+        upload(app, UPLOAD_FILE_START);
+        upload(app, UPLOAD_FILE_WRITE, "new");
+        upload(app, UPLOAD_FILE_END);
+        response("400:text/plain:Memory error");
+        if ((mode == "argument-oom" ? host::failAfter != -1 : String::failedAllocations != 1) ||
+            host::files.at("/a.epub")->bytes != "root" || host::files.at(parent + "/a.epub")->bytes != "requested" ||
+            std::any_of(host::trace.begin(), host::trace.end(),
+                        [](const auto& event) { return event.starts_with("create:"); }))
+          std::abort();
+        return;
+      }
       upload(app, UPLOAD_FILE_START);
       if (mode == "directory" || mode == "refuse") {
-        if (host::files.contains(part) || app.upload.error.isEmpty()) std::abort();
+        response(mode == "directory" ? "400:text/plain:A folder with this name already exists: a.epub"
+                                     : "400:text/plain:File already exists: a.epub");
+        if (host::files.contains(part)) std::abort();
         return;
       }
       if (!host::files.contains(part) || host::files.at(dest)->bytes != "original") std::abort();
@@ -328,9 +358,11 @@ int main() {
         host::failAfter = 0;
       }
       upload(app, mode == "cancel" ? UPLOAD_FILE_ABORTED : UPLOAD_FILE_END);
-      const bool installed = mode == "success", recovered = mode == "rename";
+      const bool installed = mode == "success" || mode == "nul", recovered = mode == "rename";
       if (app.upload.policy.success != installed || host::files.contains(part) != recovered) std::abort();
+      if (installed) response("200:text/plain:File uploaded successfully: a.epub");
       if (recovered) {
+        response("400:text/plain:Replace failed; the new file is kept as a.epub.part");
         if (host::files.contains(dest) || host::files.at(part)->bytes != "new") std::abort();
       } else if (host::files.at(dest)->bytes != (installed ? "new" : "original")) {
         std::abort();

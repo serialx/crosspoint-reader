@@ -1039,11 +1039,13 @@ impl Transfer<'_> {
                     self.diagnostic(TransferEvent::UploadUnsafe, name, b"", 0, 0, 0);
                     return Ok(());
                 }
-                let path = match self.r.arg(b"path\0")? {
-                    Some(path) => path.normalized()?,
-                    None => Text::new(b"/")?,
-                };
+                let path = self.r.arg(b"path\0")?.ok_or(())?.normalized()?;
                 self.set(Field::UploadPath, path.bytes());
+                if self.get(Field::UploadName) != name
+                    || self.get(Field::UploadPath) != path.bytes()
+                {
+                    return Err(());
+                }
                 self.diagnostic(TransferEvent::UploadStart, name, path.bytes(), 0, 0, 0);
                 self.diagnostic(TransferEvent::UploadHeap, b"", b"", 0, 0, 0);
                 let mut path = self.path(false)?;
@@ -1055,7 +1057,7 @@ impl Transfer<'_> {
                 if self.r.fs(Io::Exists, 0, &path) != 0 {
                     let value =
                         unsafe { (self.r.services.argument)(self.r.ctx, c"overwrite".as_ptr()) };
-                    let overwrite = matches!(unsafe { value.bytes() }, b"1" | b"true");
+                    let overwrite = matches!(c_bytes(unsafe { value.bytes() }), b"1" | b"true");
                     unsafe { (self.r.services.argument)(self.r.ctx, core::ptr::null()) };
                     let directory = overwrite && self.r.fs(Io::IsDirectoryPath, 1, &path) != 0;
                     if !overwrite || directory {

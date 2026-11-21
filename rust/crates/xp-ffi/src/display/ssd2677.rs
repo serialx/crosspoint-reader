@@ -68,6 +68,7 @@ pub(super) unsafe fn dispatch(action: Action<'_>) -> u32 {
             match r.operation {
                 OP_BEGIN => panel.begin(bus, &mut memory),
                 OP_SLEEP => panel.sleep(bus),
+                OP_POWER_OFF_BETWEEN_FRAMES => panel.power_off_between_frames(bus),
                 OP_DISPLAY | OP_DISPLAY_START | OP_GRAY_BASE => {
                     if let Some(fb) = data {
                         panel.display(bus, fb, r.mode, off, chunk);

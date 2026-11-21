@@ -1737,22 +1737,26 @@ const XpWebFetch WebFetchBridge::services = {
       freeink::FetchSink sink;
       sink.write = [&](const uint8_t* data, size_t len) { return callbacks->write(sinkCtx, {data, len}); };
       sink.rewind = [&] { return callbacks->rewind(sinkCtx); };
+      const auto poll = [&] { return callbacks->poll(sinkCtx); };
       const auto result = freeink::fetchResumable(
           b.url, options,
-          [&](freeink::SecureHttpClient& http, bool sameOrigin) { callbacks->configure(sinkCtx, &http, sameOrigin); },
-          sink, [&] { return callbacks->poll(sinkCtx); });
+          [&](freeink::SecureHttpClient& http, bool sameOrigin) {
+            callbacks->configure(sinkCtx, &http, sameOrigin);
+            if (sameOrigin && !b.headers.empty()) {
+              http.connect(poll);
+              for (const auto& header : b.headers) http.addHeader(header.first, header.second);
+            }
+          },
+          sink, poll);
       return {result.status, result.total, result.complete};
     },
     .configure =
-        [](void* ctx, void* client, const char* agent, uint32_t timeout, bool headers) {
+        [](void*, void* client, const char* agent, uint32_t timeout, bool) {
           auto& http = *static_cast<freeink::SecureHttpClient*>(client);
           http.setUserAgent(agent);
           // Preserve the SDK transport's existing trust mode (no CA bundle).
           http.setInsecure();
           http.setTimeout(timeout);
-          if (headers) {
-            for (const auto& header : fetch(ctx).headers) http.addHeader(header.first, header.second);
-          }
         },
     .time = WebFileBridge::transfers.time,
     .response = [](void* ctx, uint32_t kind, const char* error, int32_t status, size_t bytes, bool complete,

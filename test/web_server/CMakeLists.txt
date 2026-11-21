@@ -17,3 +17,7 @@ add_test(NAME web_server_catalog_shipping
     --arduinojson ${XP_TEST_ARDUINOJSON_SRC}
     --html-root ${XP_TEST_WEB_DIR}
     --archive ${XP_FFI_HOST_ARCHIVE})
+
+add_test(NAME plugin_http_connect_before_headers
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/plugin_connect.py
+    --build ${CMAKE_CURRENT_BINARY_DIR}/plugin-connect)

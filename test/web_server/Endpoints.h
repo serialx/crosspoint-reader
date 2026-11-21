@@ -359,10 +359,13 @@ inline int request(void*, const std::string& url, const std::string& method, con
 }  // namespace pluginhttp
 namespace freeink {
 struct SecureHttpClient {
+  bool connected = false;
+  bool connect(const std::function<bool()>&) { return connected = true; }
   void setUserAgent(const char* value) { host::trace.push_back(std::string("fetch-agent:") + value); }
   void setInsecure() { host::trace.emplace_back("fetch-insecure"); }
   void setTimeout(int n) { host::trace.push_back("fetch-timeout:" + std::to_string(n)); }
   void addHeader(const std::string& name, const std::string& value) {
+    if (!connected) std::abort();
     host::trace.push_back("fetch-header:" + name + ":" + value);
   }
 };

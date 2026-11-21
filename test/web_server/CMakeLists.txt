@@ -29,3 +29,7 @@ add_test(NAME web_sdk_preconnected_retry
     --html-root ${XP_TEST_WEB_DIR})
 
 add_test(NAME web_asset_loading COMMAND node ${CMAKE_CURRENT_SOURCE_DIR}/web_assets.mjs)
+
+if(XP_TEST_REQUIRE_ESP_COMPILERS)
+  add_test(NAME web_parser_link_guard COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/parser_link_guard.py)
+endif()

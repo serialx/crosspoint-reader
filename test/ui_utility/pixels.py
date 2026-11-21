@@ -18,4 +18,9 @@ if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as directory:
         subprocess.run([sys.argv[1], sys.argv[2], directory], check=True)
         actual = packed(directory)
-        assert actual == gzip.decompress((HERE / "pixels.golden.gz").read_bytes()), "Utility widget pixels changed"
+        if sys.argv[2] == "rust":
+            subprocess.run([sys.argv[1], "upstream", directory], check=True)
+            expected = packed(directory)
+        else:
+            expected = gzip.decompress((HERE / "pixels.golden.gz").read_bytes())
+        assert actual == expected, "Utility widget pixels changed"

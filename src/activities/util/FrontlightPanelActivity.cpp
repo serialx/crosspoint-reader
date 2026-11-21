@@ -1,15 +1,25 @@
 #include "FrontlightPanelActivity.h"
 
+#include <BlePageTurner.h>
 #include <HalFrontlight.h>
 
 #include <cstdio>
 
 #include "CrossPointSettings.h"
 #include "components/UiAppHelpers.h"
+#include "components/icons/listIcons.h"
 #include "components/icons/readerToolbarIcons.h"
 #include "util/SlideSwitch.h"
 namespace fui = freeink::ui;
 void FrontlightPanelActivity::onEnter() {
+  state.light_unavailable = !Frontlight.present();
+  state.ble_compiled = bleturner::status().compiledIn;
+  state.ble_enabled = SETTINGS.ble.enabled;
+  // Only the two-slider touch layout with Bluetooth needs the extra slots.
+  const bool fullPanel =
+      state.ble_compiled && !state.light_unavailable && Frontlight.hasColorTemperature() && mappedInput.hasTouch();
+  commandCapacity = BaseCommands + fullPanel;
+  hitCapacity = BaseHits + fullPanel;
   state.brightness = Frontlight.brightness();
   state.warmth = Frontlight.warmth();
   state.light_on = Frontlight.isOn();
@@ -22,7 +32,7 @@ void FrontlightPanelActivity::onEnter() {
 void FrontlightPanelActivity::onExit() {
   const bool changed = SETTINGS.frontlightBrightness != state.brightness || SETTINGS.frontlightWarmth != state.warmth ||
                        (state.light_changed && SETTINGS.frontlightOn != state.light_on);
-  if (changed) {
+  if (Frontlight.present() && changed) {
     SETTINGS.frontlightBrightness = state.brightness;
     SETTINGS.frontlightWarmth = state.warmth;
     if (state.light_changed) SETTINGS.frontlightOn = state.light_on;
@@ -58,6 +68,11 @@ void FrontlightPanelActivity::applyUtilityEffect(const XpUiUtilityEffect& e) {
     SETTINGS.touchReaderControls = state.touch_mode;
     SETTINGS.saveToFile();
   }
+  if (e.writes & XP_UI_UTILITY_BLE) {
+    SETTINGS.ble.enabled = state.ble_enabled;
+    if (!state.ble_enabled) bleturner::switchOff();
+    SETTINGS.saveToFile();
+  }
   if (e.writes & XP_UI_UTILITY_CLEAN_PARENT) renderer.promoteNextRefresh(HalDisplay::FULL_REFRESH);
   UtilityActivity::applyUtilityEffect(e);
 }
@@ -71,7 +86,7 @@ XpUiEffect FrontlightPanelActivity::updateRust(const XpUiInput& input) {
 }
 
 bool FrontlightPanelActivity::utilityResourceValid(const uint32_t h) const {
-  return h == Battery || (h >= Sun && h <= TouchIcon) || UtilityActivity::utilityResourceValid(h);
+  return h == Battery || (h >= Sun && h <= BluetoothOffIcon) || UtilityActivity::utilityResourceValid(h);
 }
 void FrontlightPanelActivity::utilityResource(const XpUiCommand& c) {
   const Rect r{c.rect.x, c.rect.y, c.rect.w, c.rect.h};
@@ -84,7 +99,9 @@ void FrontlightPanelActivity::utilityResource(const XpUiCommand& c) {
     case Moon:
     case RefreshIcon:
     case OrientationIcon:
-    case TouchIcon: {
+    case TouchIcon:
+    case BluetoothIcon:
+    case BluetoothOffIcon: {
       auto target = makeUiTarget(renderer);
       fui::BitmapRef bitmap;
       switch (c.resource) {
@@ -105,6 +122,12 @@ void FrontlightPanelActivity::utilityResource(const XpUiCommand& c) {
           break;
         case TouchIcon:
           bitmap = fui::bitmapFromIcon(icon_pointer_32);
+          break;
+        case BluetoothIcon:
+          bitmap = fui::bitmapFromIcon(icon_bluetooth_32);
+          break;
+        case BluetoothOffIcon:
+          bitmap = fui::bitmapFromIcon(icon_bluetooth_off_32);
           break;
       }
       target.bitmap({c.rect.x, c.rect.y, c.rect.w, c.rect.h}, bitmap, fui::BitmapMode::Center,

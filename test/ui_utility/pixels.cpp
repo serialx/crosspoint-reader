@@ -135,7 +135,7 @@ static void baselineDetails(ui::GfxRendererTarget& target, bool cover, int radiu
   p.actionHeight = t.rowHeight;
   ui::publicationPage(frame, screen.body(), p);
 }
-static void baselineLight(ui::GfxRendererTarget& target, int variant, int radius) {
+static void baselineLight(ui::GfxRendererTarget& target, int variant, int radius, bool upstream) {
   const auto device = target.deviceContext();
   ui::InteractionBuffer<24> hits;
   ui::Frame<24> frame(target, device, {}, hits);
@@ -143,10 +143,11 @@ static void baselineLight(ui::GfxRendererTarget& target, int variant, int radius
   ui::Screen<24> screen(frame, t);
   const bool warmth = variant & 1, touch = variant & 2, toggle = variant & 4;
   const auto line = target.lineHeight(t.smallText.font);
+  const int16_t tileHeight = upstream ? 56 : 48 + t.spaceSm + line;
   const int bottom = t.spaceMd + line + t.spaceMd + (line + t.spaceMd + 56 + 2 * t.spaceMd) * (warmth ? 2 : 1) +
-                     t.spaceSm + (touch ? 48 + t.spaceSm + line : 0) + 2 * t.spaceLg + 5 + t.spaceMd;
+                     t.spaceSm + (touch ? tileHeight : 0) + 2 * t.spaceLg + 5 + t.spaceMd + (upstream ? t.spaceMd : 0);
   ui::SheetProps sheet;
-  sheet.grabberMargin = t.spaceLg;
+  sheet.grabberMargin = upstream ? t.spaceLg + t.spaceMd : t.spaceLg;
   sheet.grabberInset = t.spaceLg + t.spaceMd;
   screen.sheet(sheet, bottom);
   screen.insetContent({0, 16, 0, 16});
@@ -166,10 +167,23 @@ static void baselineLight(ui::GfxRendererTarget& target, int variant, int radius
   }
   screen.spacer(t.spaceSm);
   if (touch) {
-    const auto row = screen.takeTop(48 + t.spaceSm + line);
+    const auto row = screen.takeTop(tileHeight);
     for (int i = 0; i < 4; ++i) {
       const int16_t left = row.x + row.width * i / 4, right = row.x + row.width * (i + 1) / 4;
       const ui::Rect slot{left, row.y, static_cast<int16_t>(right - left), row.height};
+      if (upstream) {
+        const ui::Rect tile{static_cast<int16_t>(left + (slot.width - 56) / 2), row.y, 56, 56};
+        const auto ink = ui::Paint::solid(ui::Color::Black);
+        if (i == 3) {
+          target.fill(tile, ink, t.controlRadius);
+        } else {
+          target.stroke(tile, ink, 2, t.controlRadius);
+        }
+        if (i == 2) {
+          target.fill({static_cast<int16_t>(tile.x + 16), static_cast<int16_t>(tile.y + 41), 24, 3}, ink);
+        }
+        continue;
+      }
       const ui::Rect circle{static_cast<int16_t>(left + (slot.width - 48) / 2), row.y, 48, 48};
       if (i == 3)
         target.fill(circle, ui::Paint::solid(ui::Color::Black), 24);
@@ -380,13 +394,13 @@ int main(int argc, char** argv) {
           target.setFont(0, UI_10_FONT_ID);
           target.setFont(1, UI_12_FONT_ID);
           target.setFont(2, UI_12_FONT_ID);
-          if (std::strcmp(argv[1], "cpp") == 0) {
+          if (std::strcmp(argv[1], "rust") != 0) {
             if (kind < 2)
               baselinePopup(target, kind == 1, variant, radius);
             else if (kind == 2)
               baselineDetails(target, variant, radius);
             else
-              baselineLight(target, variant, radius);
+              baselineLight(target, variant, radius, std::strcmp(argv[1], "upstream") == 0);
           }
 #ifdef UI_UTILITY_CANDIDATE
           else

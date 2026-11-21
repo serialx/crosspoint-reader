@@ -14,7 +14,16 @@ struct CrossPointSettings {
 };
 struct {
   int vibration = 0, hapticIntensity = 0;
+  struct {
+    bool enabled = false;
+  } ble;
 } SETTINGS;
+struct {
+  uint32_t visit() const { return 0; }
+} activityManager;
+namespace bleturner {
+void switchOn() { assert(false); }
+}  // namespace bleturner
 namespace HalHaptics {
 void longPress(bool, int) {}
 }  // namespace HalHaptics
@@ -168,6 +177,7 @@ struct SettingsUiActivity : RustActivityAdapter {
     nextHits.first_index = 4;
   }
   bool handleCustomInput() { return false; }
+  bool hasUiStorage() const { return true; }
   bool routingReady() const { return publication.ready; }
   bool uiSceneFailed() const { return sceneFailed; }
   int selectedIndex() const { return state.selected; }
@@ -179,6 +189,7 @@ struct SettingsUiActivity : RustActivityAdapter {
 };
 struct BleSettingsActivity : SettingsUiActivity {
   XpUiSettingsBle state{};
+  uint32_t radioVisit = 0;
   void loop();
   void setView(int v) {
     currentView = v;

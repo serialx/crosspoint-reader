@@ -28,6 +28,7 @@ class BleSettingsActivity final : public SettingsUiActivity {
   const char* headerTitle() const override;
 
   XpUiSettingsBle state{};
+  uint32_t radioVisit = 0;
   void onBackButton() override;
   void showView(uint8_t target);
   uint32_t signature() const;

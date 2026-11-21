@@ -81,7 +81,7 @@ class GfxRenderer {
   mutable FontCacheManager* fontCacheManager_ = nullptr;
 
   // One-shot refresh promotion (see promoteNextRefresh). Mutable because
-  // displayBuffer() is const but must consume the flag.
+  // the display entry points are const but must consume the flag.
   mutable bool promotedRefreshPending_ = false;
   mutable HalDisplay::RefreshMode promotedRefresh_ = HalDisplay::FAST_REFRESH;
   // Swap in (and clear) the promoted mode, if one is pending.
@@ -318,7 +318,7 @@ class GfxRenderer {
   int getScreenHeight() const;
   void tapToLogical(float nx, float ny, int& outX, int& outY) const;
   void displayBuffer(HalDisplay::RefreshMode refreshMode = HalDisplay::FAST_REFRESH) const;
-  // One-shot: the next displayBuffer()/displayBufferAsync() call uses `mode`
+  // One-shot: the next buffer or grayscale base display uses `mode`
   // instead of what its caller asked for, then the override clears itself.
   // Lets a closing overlay (the control center's refresh tile) hand a
   // ghost-cleanup waveform to the repaint of whatever screen is underneath,

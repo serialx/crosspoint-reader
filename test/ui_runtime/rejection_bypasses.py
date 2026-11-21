@@ -24,12 +24,22 @@ struct Settings {
  unsigned writes=0;
  void saveToFile(){++writes;}
 } SETTINGS;
-namespace bleturner {bool service(){return false;}}
+namespace bleturner {
+unsigned starts=0;
+bool service(){return false;}
+void switchOn(){++starts;}
+}
+struct ActivityManager {
+ uint32_t current=0;
+ uint32_t visit() const{return current;}
+} activityManager;
 class SettingsUiActivity:public RustActivityAdapter {
  public:
  using RustActivityAdapter::RustActivityAdapter;
  bool buildOk=true;
+ bool storage=true;
  unsigned finished=0;
+ bool hasUiStorage() const{return storage;}
  void finish(){++finished;}
  void selectIndex(int){}
  int selectedIndex(){return 0;}
@@ -47,6 +57,7 @@ class BleSettingsActivity:public SettingsUiActivity {
  public:
  using SettingsUiActivity::SettingsUiActivity;
  XpUiSettingsBle state{};
+ uint32_t radioVisit=0;
  unsigned cleared=0,polled=0;
  void loop() override;
  void clearMapping(int){++cleared;}
@@ -61,6 +72,21 @@ code+=inline.replace('  void cancelRejectedInput(', 'void ButtonRemapActivity::c
 code+=method('src/activities/settings/BleSettingsActivity.cpp','void BleSettingsActivity::loop()')
 code+=r'''
 int main(){
+ {
+  GfxRenderer renderer;MappedInputManager input;
+  BleSettingsActivity ble("ble",renderer,input);
+  SETTINGS.ble.enabled=true;
+  ble.storage=false;
+  ++activityManager.current;
+  ble.loop();assert(bleturner::starts==0);
+  ble.storage=true;
+  ble.loop();assert(bleturner::starts==1);
+  ble.loop();assert(bleturner::starts==1);
+  SETTINGS.ble.enabled=false;
+  ++activityManager.current;
+  ble.loop();assert(bleturner::starts==1);
+  activityManager.current=0;
+ }
  for(bool first:{false,true})for(bool buildFailure:{false,true}){
   GfxRenderer renderer;MappedInputManager input;
   ButtonRemapActivity remap("remap",renderer,input);

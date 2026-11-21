@@ -35,6 +35,8 @@ target_compile_options(UiUtilityParents PRIVATE -UNDEBUG)
 add_test(NAME ui_utility_parents COMMAND UiUtilityParents)
 
 add_test(NAME ui_utility_native_sources COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/native_sources.py)
+add_test(NAME ui_utility_frontlight_output COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_frontlight_output.py)
 add_test(NAME ui_utility_library_rejection COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/library_rejection.py ${XP_FFI_HOST_ARCHIVE})
 add_test(NAME ui_utility_owned COMMAND ${XP_FFI_CARGO} test --manifest-path ${REPO_ROOT}/rust/Cargo.toml

@@ -42,6 +42,8 @@ pub const MOON: u32 = 1012;
 pub const REFRESH_ICON: u32 = 1013;
 pub const ORIENTATION_ICON: u32 = 1014;
 pub const TOUCH_ICON: u32 = 1015;
+pub const BLUETOOTH: u32 = 1016;
+pub const BLUETOOTH_OFF: u32 = 1017;
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct Layout {
@@ -336,6 +338,7 @@ impl View<'_, '_> {
         )
     }
     fn frontlight(&mut self, feedback: &mut Feedback) -> Result<(), Error> {
+        const TILE_SIZE: i16 = 56;
         let l = *self.layout;
         let line = self.line(l.small_font)?;
         let battery = l.battery_height.max(line);
@@ -349,9 +352,9 @@ impl View<'_, '_> {
             bottom += l.space_sm
         }
         if l.touch != 0 {
-            bottom += 48 + l.space_sm + line
+            bottom += TILE_SIZE
         }
-        bottom += 2 * l.space_lg + 5 + l.space_md;
+        bottom += 2 * (l.space_lg + l.space_md) + 5;
         feedback.panel_bottom = bottom;
         let sheet_h = bottom + l.safe.y.max(0);
         self.fill(rect(0, 0, l.screen.w, sheet_h), 1, l.sheet_radius, 12)?;
@@ -387,26 +390,34 @@ impl View<'_, '_> {
             y += l.space_sm;
         }
         if l.touch != 0 {
-            let row = rect(l.safe.x + 16, y, l.safe.w - 32, 48 + l.space_sm + line);
-            for (i, handle) in [MOON, REFRESH_ICON, ORIENTATION_ICON, TOUCH_ICON]
+            let row = rect(l.safe.x + 16, y, l.safe.w - 32, TILE_SIZE);
+            let ble_icon = if self.state.ble_enabled != 0 {
+                BLUETOOTH
+            } else {
+                BLUETOOTH_OFF
+            };
+            let tile_count = 4 + usize::from(self.state.ble_compiled != 0);
+            for (i, handle) in [MOON, REFRESH_ICON, ORIENTATION_ICON, TOUCH_ICON, ble_icon]
                 .into_iter()
+                .take(tile_count)
                 .enumerate()
             {
-                let left = row.x + row.w * i as i16 / 4;
-                let right = row.x + row.w * (i as i16 + 1) / 4;
+                let left = row.x + (i32::from(row.w) * i as i32 / tile_count as i32) as i16;
+                let right = row.x + (i32::from(row.w) * (i as i32 + 1) / tile_count as i32) as i16;
                 let slot = rect(left, y, right - left, row.h);
-                let circle = rect(left + (slot.w - 48) / 2, y, 48, 48);
-                let toggle = i == 0 || i == 3;
-                let enabled =
-                    i == 0 && self.state.inverted != 0 || i == 3 && self.state.touch_mode != 0;
-                if toggle && enabled {
-                    self.fill(circle, 0, 24, 0)?
-                } else if toggle
-                    || self.state.active_action == TILE && self.state.active_value == i as i32
-                {
-                    self.stroke(circle, 2, 24)?
+                let control = rect(left + (slot.w - TILE_SIZE) / 2, y, TILE_SIZE, TILE_SIZE);
+                let enabled = match i {
+                    0 => self.state.inverted != 0,
+                    3 => self.state.touch_mode != 0,
+                    4 => self.state.ble_enabled != 0,
+                    _ => false,
+                };
+                if enabled {
+                    self.fill(control, 0, l.control_radius, 0)?
+                } else {
+                    self.stroke(control, 2, l.control_radius)?
                 }
-                let icon = rect(circle.x + 8, circle.y + 8, 32, 32);
+                let icon = rect(control.x + 12, control.y + 12, 32, 32);
                 self.arena.push(Command {
                     kind: Kind::Bitmap as u8,
                     rect: icon,
@@ -428,17 +439,6 @@ impl View<'_, '_> {
                         _ => rect(29, 4, 3, 24),
                     };
                     self.fill(rect(icon.x + r.x, icon.y + r.y, r.w, r.h), 0, 0, 0)?;
-                }
-                if toggle {
-                    self.text(
-                        if enabled { ON } else { OFF },
-                        rect(slot.x, y + 48 + l.space_sm, slot.w, line),
-                        l.small_font,
-                        0,
-                        1,
-                        1,
-                        0,
-                    )?;
                 }
                 self.hit(slot, TILE, i as i32, 1)?;
             }

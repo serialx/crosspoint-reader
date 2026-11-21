@@ -78,6 +78,116 @@ fn details_offers_more_only_when_description_has_content() {
 }
 
 #[test]
+fn lightless_control_center_shows_and_toggles_bluetooth_when_compiled() {
+    use crate::scene::{Arena, Command, Kind, Refresh};
+    let layout = utility_test_layout();
+    let mut commands = [Command::default(); 43];
+    let mut hits = [Interaction::default(); 11];
+    let resources = UtilityTestResources { description: false };
+    let mut metrics = UtilityTestResources { description: false };
+    for compiled in [0, 1] {
+        let mut state = State {
+            kind: Screen::Frontlight as u8,
+            light_unavailable: 1,
+            ble_compiled: compiled,
+            ..State::default()
+        };
+        for enabled in [0, 1] {
+            state.ble_enabled = enabled;
+            let mut arena = Arena::new(&mut commands, &mut [], &mut hits).unwrap();
+            let (feedback, _) = frontlight_view(
+                &mut arena,
+                &state,
+                &layout,
+                &mut metrics,
+                &resources,
+                Feedback::default(),
+            )
+            .unwrap();
+            let scene = arena.finish(Refresh::Fast, 1).unwrap();
+            assert_eq!(scene.interactions.len(), 4 + compiled as usize);
+            let expected_icon = if enabled != 0 {
+                BLUETOOTH
+            } else {
+                BLUETOOTH_OFF
+            };
+            assert_eq!(
+                scene
+                    .commands
+                    .iter()
+                    .any(|c| c.kind == Kind::Bitmap as u8 && c.resource == expected_icon),
+                compiled != 0
+            );
+            assert_eq!(
+                state
+                    .update(
+                        &Input {
+                            released: crate::model::CONFIRM,
+                            ..Input::default()
+                        },
+                        Some(scene.interactions),
+                        &feedback
+                    )
+                    .writes,
+                0
+            );
+            if let Some(tile) = scene
+                .interactions
+                .iter()
+                .find(|h| h.action == TILE && h.value == 4)
+            {
+                let effect = state.update(
+                    &Input {
+                        touch_flags: TOUCH_RELEASED,
+                        touch_x: tile.rect.x + 1,
+                        touch_y: tile.rect.y + 1,
+                        ..Input::default()
+                    },
+                    Some(scene.interactions),
+                    &feedback,
+                );
+                assert_eq!(effect.writes, WRITE_BLE);
+                assert_eq!(state.ble_enabled, 1 - enabled);
+            }
+        }
+    }
+}
+
+#[test]
+fn two_sliders_and_five_tiles_fit_the_full_control_center_budget() {
+    use crate::scene::{Arena, Command, Refresh};
+    let layout = Layout {
+        light_present: 1,
+        has_warmth: 1,
+        ..utility_test_layout()
+    };
+    let state = State {
+        kind: Screen::Frontlight as u8,
+        ble_compiled: 1,
+        brightness: 60,
+        warmth: 50,
+        ..State::default()
+    };
+    let mut commands = [Command::default(); 44];
+    let mut hits = [Interaction::default(); 12];
+    let mut metrics = UtilityTestResources { description: false };
+    let texts = UtilityTestResources { description: false };
+    let mut arena = Arena::new(&mut commands, &mut [], &mut hits).unwrap();
+    frontlight_view(
+        &mut arena,
+        &state,
+        &layout,
+        &mut metrics,
+        &texts,
+        Feedback::default(),
+    )
+    .unwrap();
+    let scene = arena.finish(Refresh::Fast, 1).unwrap();
+    assert_eq!(scene.commands.len(), 44);
+    assert_eq!(scene.interactions.len(), 12);
+}
+
+#[test]
 fn frozen_application_traces() {
     let mut actual = String::new();
     for edge in [false, true] {
@@ -310,8 +420,11 @@ fn layout_wire_contract() {
             offset_of!(State, kind),
             offset_of!(State, last_drag_x)
         ),
-        (56, 4, 36, 52)
+        (60, 4, 36, 52)
     );
+    assert_eq!(offset_of!(State, light_unavailable), 56);
+    assert_eq!(offset_of!(State, ble_compiled), 57);
+    assert_eq!(offset_of!(State, ble_enabled), 58);
     assert_eq!(
         (
             size_of::<Update>(),

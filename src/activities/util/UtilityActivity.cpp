@@ -8,8 +8,9 @@
 #include "components/themes/BaseTheme.h"
 #include "fontIds.h"
 namespace fui = freeink::ui;
-static_assert(sizeof(XpUiUtilityState) == 56 && alignof(XpUiUtilityState) == 4);
+static_assert(sizeof(XpUiUtilityState) == 60 && alignof(XpUiUtilityState) == 4);
 static_assert(offsetof(XpUiUtilityState, kind) == 36 && offsetof(XpUiUtilityState, last_drag_x) == 52);
+static_assert(offsetof(XpUiUtilityState, light_unavailable) == 56 && offsetof(XpUiUtilityState, ble_enabled) == 58);
 static_assert(sizeof(XpUiUtilityEffect) == 12 && alignof(XpUiUtilityEffect) == 4 &&
               offsetof(XpUiUtilityEffect, writes) == 8);
 static_assert(sizeof(XpUiUtilityLayout) == 80 && alignof(XpUiUtilityLayout) == 4 &&

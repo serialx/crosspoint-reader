@@ -19,6 +19,7 @@ enum Entry {
 }
 thread_local! {
     static LIGHT_GESTURE: Cell<bool> = const { Cell::new(false) };
+    static LIGHT_PRESENT: Cell<bool> = const { Cell::new(true) };
     static RETURN_KIND: Cell<u8> = const { Cell::new(RESULT_NONE) };
     static RETURN_CANCELLED: Cell<u8> = const { Cell::new(0) };
 }
@@ -74,7 +75,7 @@ unsafe extern "C" fn no_shot(_: *const c_void, _: abi::ScreenshotSink, _: *mut c
     panic!("screenshot");
 }
 unsafe extern "C" fn present() -> u8 {
-    1
+    u8::from(LIGHT_PRESENT.with(Cell::get))
 }
 unsafe extern "C" fn allowed(_: u8) -> u8 {
     1
@@ -360,6 +361,11 @@ fn exercise(entry: Entry) {
 }
 #[test]
 fn frontlight_return_from_details_keeps_definition() {
+    exercise(Entry::Details);
+}
+#[test]
+fn lightless_control_center_returns_to_definition() {
+    LIGHT_PRESENT.with(|p| p.set(false));
     exercise(Entry::Details);
 }
 #[test]

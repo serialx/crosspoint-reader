@@ -40,23 +40,11 @@ SidecarHeader readSidecarHeader(HalFile& file, uint32_t magic, uint32_t sampleIn
   xp_dictionary_header(&io, magic, sampleInterval, &result);
   return result;
 }
-struct IfoFacts {
-  bool offsets64 = false;        // idxoffsetbits=64 (unsupported)
-  bool htmlDefinitions = false;  // sametypesequence=h or x (HTML or XDXF)
-};
-
-IfoFacts readIfoFacts(const std::string& ifoPath) {
-  IfoFacts facts;
+uint8_t readIfoFacts(const std::string& ifoPath) {
   HalFile ifo;
-  if (!Storage.openFileForRead("DICT", ifoPath, ifo)) return facts;
-  char buf[2048];
-  const int n = ifo.read(buf, sizeof(buf) - 1);
-  if (n <= 0) return facts;
-  buf[n] = '\0';
-  const uint8_t flags = xp_dictionary_ifo(reinterpret_cast<const uint8_t*>(buf), n);
-  facts.offsets64 = flags & XP_DICTIONARY_IFO_OFFSETS64;
-  facts.htmlDefinitions = flags & XP_DICTIONARY_IFO_HTML;
-  return facts;
+  if (!Storage.openFileForRead("DICT", ifoPath, ifo)) return 0;
+  const auto file = dictionaryFile(ifo);
+  return xp_dictionary_ifo(&file);
 }
 
 }  // namespace
@@ -129,9 +117,10 @@ bool Dictionary::open(const char* folderName) {
         return Storage.exists((static_cast<Context*>(ctx)->resolved + suffixes[kind]).c_str());
       },
       [](void* ctx) -> uint8_t {
-        const auto facts = readIfoFacts(static_cast<Context*>(ctx)->resolved + ".ifo");
-        return static_cast<uint8_t>((facts.offsets64 ? XP_DICTIONARY_IFO_OFFSETS64 : 0) |
-                                    (facts.htmlDefinitions ? XP_DICTIONARY_IFO_HTML : 0));
+        auto& c = *static_cast<Context*>(ctx);
+        const uint8_t flags = readIfoFacts(c.resolved + ".ifo");
+        c.dictionary.inlineTypes = flags & XP_DICTIONARY_IFO_INLINE;
+        return flags;
       },
       [](void* ctx) { return static_cast<Context*>(ctx)->resolved.size(); },
       [](void* ctx) {
@@ -352,13 +341,15 @@ bool Dictionary::locateSynonyms(LookupSession& session, const char* target, Dict
   return !out.empty();
 }
 
-bool Dictionary::readDefinition(const DictLocation& location, std::string& out, LookupResult* outResult, bool append) {
+bool Dictionary::readDefinition(const DictLocation& location, std::string& out, LookupResult* outResult, bool append,
+                                bool* exceedsLimit) {
   struct Context {
     Dictionary& dictionary;
     std::string& out;
     HalFile data, tmp;
     char path[PATH_BUF_BYTES]{};
-  } context{*this, out, {}, {}, {}};
+    std::string decoded;
+  } context{*this, out, {}, {}, {}, {}};
   const auto file = dictionaryFile(context.data);
   const XpDictionaryDefinition io{
       &context,
@@ -369,6 +360,7 @@ bool Dictionary::readDefinition(const DictLocation& location, std::string& out, 
       hasPlainDict,
       htmlDefinitions,
       append,
+      inlineTypes,
       out.size(),
       out.capacity(),
       []() -> size_t { return ESP.getMaxAllocHeap(); },
@@ -404,6 +396,16 @@ bool Dictionary::readDefinition(const DictLocation& location, std::string& out, 
           out.resize(size);
         return reinterpret_cast<uint8_t*>(out.data());
       },
+      [](void* ctx, size_t length) -> uint8_t* {
+        auto& decoded = static_cast<Context*>(ctx)->decoded;
+        decoded.resize(length);
+        return reinterpret_cast<uint8_t*>(decoded.data());
+      },
+      [](void* ctx) {
+        auto& c = *static_cast<Context*>(ctx);
+        c.out.swap(c.decoded);
+        std::string{}.swap(c.decoded);
+      },
       [](void* ctx, uint8_t event, uint32_t a, uint32_t b, uint32_t c) {
         switch (static_cast<DictionaryDefinitionEvent>(event)) {
           case DictionaryDefinitionEvent::Empty:
@@ -434,7 +436,10 @@ bool Dictionary::readDefinition(const DictLocation& location, std::string& out, 
         }
       }};
   const uint8_t result = xp_dictionary_definition(&io);
-  if (result != XP_DICTIONARY_LOOKUP_FOUND && outResult) *outResult = static_cast<LookupResult>(result);
+  const bool capped = result == XP_DICTIONARY_LOOKUP_ENTRY_CAP;
+  if (exceedsLimit) *exceedsLimit = capped;
+  if (result != XP_DICTIONARY_LOOKUP_FOUND && outResult)
+    *outResult = capped ? LookupResult::ReadError : static_cast<LookupResult>(result);
   return result == XP_DICTIONARY_LOOKUP_FOUND;
 }
 
@@ -545,19 +550,35 @@ bool Dictionary::lookup(const char* word, std::string& definitionOut, std::strin
         const auto& location = static_cast<Context*>(ctx)->dictionary.entryList->at(index).location;
         return {location.offset, location.size, location.found, location.readError};
       },
-      [](void* ctx, size_t index, bool append) -> uint8_t {
+      [](void* ctx, size_t index, bool append, size_t* length) -> uint8_t {
         auto& c = *static_cast<Context*>(ctx);
         LookupResult result = LookupResult::Found;
-        c.dictionary.readDefinition(c.dictionary.entryList->at(index).location, c.definition, &result, append);
-        return static_cast<uint8_t>(result);
+        bool exceedsLimit;
+        c.dictionary.readDefinition(c.dictionary.entryList->at(index).location, c.definition, &result, append,
+                                    &exceedsLimit);
+        *length = c.definition.size();
+        return exceedsLimit ? XP_DICTIONARY_LOOKUP_ENTRY_CAP : static_cast<uint8_t>(result);
       },
       [](void* ctx, uint8_t operation, const uint8_t* data, size_t size) {
         auto& out = static_cast<Context*>(ctx)->definition;
-        if (static_cast<DictionaryOutput>(operation) == DictionaryOutput::Reserve) {
-          out.clear();
-          out.reserve(size);
-        } else
-          out.append(reinterpret_cast<const char*>(data), size);
+        switch (static_cast<DictionaryOutput>(operation)) {
+          case DictionaryOutput::Reserve:
+            out.clear();
+            out.reserve(size);
+            break;
+          case DictionaryOutput::Append:
+            out.append(reinterpret_cast<const char*>(data), size);
+            break;
+          case DictionaryOutput::Capacity:
+            break;
+          case DictionaryOutput::Grow:
+            out.reserve(size);
+            break;
+          case DictionaryOutput::Restore:
+            out.resize(size);
+            break;
+        }
+        return out.capacity();
       },
       []() -> size_t { return ESP.getMaxAllocHeap(); },
       [](void*, uint8_t event, uint32_t a, uint32_t b) {

@@ -2312,6 +2312,7 @@ enum {
   XP_DICTIONARY_LOOKUP_LOW_MEMORY = 2,
   XP_DICTIONARY_LOOKUP_DECOMPRESS = 3,
   XP_DICTIONARY_LOOKUP_READ_ERROR = 4,
+  XP_DICTIONARY_LOOKUP_ENTRY_CAP = 5,
   XP_DICTIONARY_INDEX_OK = 0,
   XP_DICTIONARY_INDEX_LOW_MEMORY = 1,
   XP_DICTIONARY_INDEX_READ_ERROR = 2,
@@ -2334,6 +2335,9 @@ enum {
   XP_DICTIONARY_VIEW_HEADWORD = 2,
   XP_DICTIONARY_OUTPUT_RESERVE = 0,
   XP_DICTIONARY_OUTPUT_APPEND = 2,
+  XP_DICTIONARY_OUTPUT_CAPACITY = 3,
+  XP_DICTIONARY_OUTPUT_GROW = 4,
+  XP_DICTIONARY_OUTPUT_RESTORE = 5,
   XP_DICTIONARY_DATA_OPEN_PLAIN = 0,
   XP_DICTIONARY_DATA_OPEN_COMPRESSED = 1,
   XP_DICTIONARY_DATA_OPEN_TEMPORARY = 2,
@@ -2375,6 +2379,7 @@ enum {
   XP_DICTIONARY_REGISTRY_KIND_DIRECTORY = 2,
   XP_DICTIONARY_IFO_OFFSETS64 = 1,
   XP_DICTIONARY_IFO_HTML = 2,
+  XP_DICTIONARY_IFO_INLINE = 4,
   XP_DICTIONARY_HTML_LIMIT_OK = 0,
   XP_DICTIONARY_HTML_LIMIT_PAGES = 1,
   XP_DICTIONARY_HTML_LIMIT_ELEMENTS = 2,
@@ -2449,7 +2454,7 @@ void xp_dictionary_clean_bounds(const uint8_t*, size_t, size_t*, size_t*);
 void xp_dictionary_lower(uint8_t*, size_t);
 void xp_dictionary_stems(const uint8_t*, size_t, void*, void (*)(void*, size_t, uint8_t));
 // Returns the XP_DICTIONARY_IFO_* bit flags.
-uint8_t xp_dictionary_ifo(const uint8_t*, size_t);
+uint8_t xp_dictionary_ifo(const XpDictionaryFile*);
 // Registry slots use XP_DICTIONARY_REGISTRY_SLOT_*; open/exists paths are NUL-terminated.
 // next writes a terminated name within XP_DICTIONARY_REGISTRY_NAME_BYTES and returns REGISTRY_KIND_*.
 // emit receives length-delimited views (no NUL guarantee). diagnostic text is NUL-terminated:
@@ -2473,13 +2478,15 @@ typedef struct {
   void* context;
   const XpDictionaryFile* file;
   uint32_t offset, size;
-  bool found, plain, html, append;
+  bool found, plain, html, append, inlineTypes;
   size_t length, capacity;
   size_t (*heap)();
   bool (*open)(void*, uint8_t);
   uint8_t (*extract)(void*, uint32_t, uint32_t);
   void (*closeTmp)(void*);
   uint8_t* (*resize)(void*, size_t, bool);
+  uint8_t* (*decoded)(void*, size_t);
+  void (*commitDecoded)(void*);
   void (*diagnostic)(void*, uint8_t, uint32_t, uint32_t, uint32_t);
 } XpDictionaryDefinition;
 // Returns XP_DICTIONARY_LOOKUP_*.
@@ -2497,8 +2504,9 @@ typedef struct {
 } XpDictionaryGroup;
 // prepare uses PREPARE_* (CLEAN word, CLEAR entries, OPEN session, STEM variants).
 // view uses VIEW_*; probe borrows the unchanged CLEANED/VARIANT view including its terminator.
-// close releases session and variant views. read returns LOOKUP_*.
-// output uses OUTPUT_*: RESERVE clears/reserves length (data=null); APPEND borrows length bytes.
+// close releases session and variant views. read returns LOOKUP_* and writes the resulting length.
+// output returns current capacity. RESERVE clears/reserves length; GROW reserves without clearing;
+// RESTORE resizes to length; APPEND borrows length bytes. Only APPEND uses data.
 // Diagnostic LOOKUP_EVENT_* payloads: WORKING_SET/LOW_HEAP a=bytes; MISSING_ENTRIES/FIRST_CAP none;
 // COMBINED_CAP a=shown entries,b=total entries. Unused payload fields are zero.
 typedef struct {
@@ -2512,8 +2520,8 @@ typedef struct {
   void (*close)(void*);
   void (*title)(void*, bool);
   XpDictionaryLocation (*location)(void*, size_t);
-  uint8_t (*read)(void*, size_t, bool);
-  void (*output)(void*, uint8_t, const uint8_t*, size_t);
+  uint8_t (*read)(void*, size_t, bool, size_t*);
+  size_t (*output)(void*, uint8_t, const uint8_t*, size_t);
   size_t (*heap)();
   void (*diagnostic)(void*, uint8_t, uint32_t, uint32_t);
 } XpDictionaryLookup;

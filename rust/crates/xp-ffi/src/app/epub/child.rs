@@ -391,8 +391,15 @@ impl EpubSession {
     }
 
     pub(super) fn dictionary_result(&self, cancelled: bool) {
-        if !cancelled {
-            self.open_dictionary_word_select();
+        if cancelled {
+            return;
+        }
+        let mut input = core::mem::MaybeUninit::uninit();
+        unsafe {
+            self.leaves.input_facts(input.as_mut_ptr());
+            if input.assume_init().touch == 0 {
+                self.open_dictionary_word_select();
+            }
         }
     }
 }

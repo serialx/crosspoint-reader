@@ -435,34 +435,76 @@ pub unsafe extern "C" fn xp_dictionary_stems(
         }
     }
 }
-/// # Safety
-/// Input includes exactly len readable bytes; the routine emulates the original terminated .ifo prefix.
-#[no_mangle]
-pub unsafe extern "C" fn xp_dictionary_ifo(data: *const u8, len: usize) -> u8 {
-    let b = text(bytes(data, len));
-    fn value<'a>(b: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
-        let start = b.windows(key.len()).position(|w| w == key)?;
-        let eq = b[start..].iter().position(|b| *b == b'=')?;
-        Some(&b[start + eq + 1..])
+fn offset_bits_64(mut value: &[u8]) -> bool {
+    while value.first().is_some_and(|b| matches!(b, 9..=13 | 32)) {
+        value = &value[1..];
     }
-    let offset = value(b, b"idxoffsetbits").is_some_and(|v| {
-        let mut i = 0;
-        while v.get(i).is_some_and(|b| matches!(b, 9..=13 | 32)) {
-            i += 1;
+    if let Some(rest) = value.strip_prefix(b"+") {
+        value = rest;
+    }
+    let mut digits = value
+        .iter()
+        .take_while(|byte| byte.is_ascii_digit())
+        .peekable();
+    while digits.peek() == Some(&&b'0') {
+        digits.next();
+    }
+    digits.eq(b"64")
+}
+
+fn ifo_line(line: &[u8], flags: &mut u8, fixed: &mut bool) {
+    let line = line.strip_suffix(b"\r").unwrap_or(line);
+    let Some(eq) = line.iter().position(|&b| b == b'=') else {
+        return;
+    };
+    let value = &line[eq + 1..];
+    match &line[..eq] {
+        b"idxoffsetbits" if offset_bits_64(value) => *flags |= XP_DICTIONARY_IFO_OFFSETS64,
+        b"sametypesequence" if !value.is_empty() => {
+            *fixed = true;
+            if matches!(value, b"h" | b"x") {
+                *flags |= XP_DICTIONARY_IFO_HTML;
+            } else {
+                *flags &= !XP_DICTIONARY_IFO_HTML;
+            }
         }
-        let negative = v.get(i) == Some(&b'-');
-        if matches!(v.get(i), Some(b'+' | b'-')) {
-            i += 1;
+        _ => {}
+    }
+}
+
+/// # Safety
+/// The descriptor exclusively borrows an open .ifo file at its starting position.
+#[no_mangle]
+pub unsafe extern "C" fn xp_dictionary_ifo(file: *const File) -> u8 {
+    let file = &*file;
+    let mut remaining = file.size();
+    if remaining == 0 {
+        return 0;
+    }
+    let mut flags = 0;
+    let mut fixed = false;
+    let mut chunk = [0; 128];
+    let mut line = [0; 64];
+    let mut len = 0;
+    while remaining != 0 {
+        let count = remaining.min(chunk.len());
+        if file.read(&mut chunk[..count]) != count as i32 {
+            return 0;
         }
-        let mut n = 0u64;
-        while let Some(c) = v.get(i).filter(|c| c.is_ascii_digit()) {
-            n = n.saturating_mul(10).saturating_add(u64::from(*c - b'0'));
-            i += 1;
+        remaining -= count;
+        for &byte in &chunk[..count] {
+            if byte == b'\n' {
+                ifo_line(&line[..len], &mut flags, &mut fixed);
+                len = 0;
+            } else if len < line.len() {
+                line[len] = byte;
+                len += 1;
+            }
         }
-        !negative && n == 64
-    });
-    let html = value(b, b"sametypesequence").is_some_and(|v| {
-        matches!(v.first(), Some(b'h' | b'x')) && matches!(v.get(1), None | Some(b'\r' | b'\n'))
-    });
-    (u8::from(offset) * XP_DICTIONARY_IFO_OFFSETS64) | (u8::from(html) * XP_DICTIONARY_IFO_HTML)
+    }
+    ifo_line(&line[..len], &mut flags, &mut fixed);
+    if !fixed {
+        flags |= XP_DICTIONARY_IFO_INLINE | XP_DICTIONARY_IFO_HTML;
+    }
+    flags
 }

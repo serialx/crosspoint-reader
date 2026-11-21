@@ -212,6 +212,7 @@ struct Settings {
 } SETTINGS;
 struct MappedInputManager {
   enum class Button { Back };
+  bool touch = false;
   bool released = false;
   unsigned long heldMs = 0;
   bool longPress = false;
@@ -615,13 +616,28 @@ int main() {
       }
     }
   }
-  assert(xp_recursive_dictionary_cases() == 5);
+  for (const bool touch : {false, true}) {
+    for (const bool cancelled : {false, true}) {
+      for (const bool controlsEnabled : {false, true}) {
+        SETTINGS.touchReaderControls = controlsEnabled;
+        DictionaryDefinitionActivity lookupParent, bookReader;
+        ActivityResult exitResult;
+        exitResult.isCancelled = cancelled;
+        lookupParent.onDefinitionResult(exitResult);
+        bookReader.mappedInput.touch = touch;
+        bookReader.onLookupResult(lookupParent.result);
+        assert(bookReader.selectionOpened == (!touch && !cancelled));
+      }
+    }
+  }
+  assert(xp_recursive_dictionary_cases() == 13);
 }
 '''
 
 dictionary_source = (ROOT / "src/util/Dictionary.cpp").read_text()
 lookup_methods = "\n".join(block(dictionary_source, name) for name in (
-    "std::string Dictionary::cleanWord", "void Dictionary::stemVariants", "bool Dictionary::lookup"
+    "bool DictEntryList::appendUnique", "std::string Dictionary::cleanWord", "void Dictionary::stemVariants",
+    "bool Dictionary::lookup"
 ))
 lookup_harness = r'''
 #include <algorithm>
@@ -635,6 +651,7 @@ lookup_harness = r'''
 #include <string_view>
 #include <vector>
 #include <CjkBreaks.h>
+#include <Memory.h>
 #include <xp_ffi.h>
 #include <Utf8.h>
 template<typename... Args> void ignoreLog(Args&&...) {}
@@ -664,18 +681,49 @@ class Dictionary {
   bool hasSyn = false;
   bool htmlDefinitions = false;
   unsigned searches = 0;
+  bool bundle = false;
+  std::vector<uint32_t> reads;
   std::unique_ptr<DictEntryList> entryList = std::make_unique<DictEntryList>();
   bool isOpen() const { return true; }
   bool openSession(LookupSession&) { return true; }
-  void locateAll(LookupSession&, const char*, DictEntryList&, bool* readError) {
+  void locateAll(LookupSession&, const char*, DictEntryList& entries, bool* readError) {
     ++searches;
     if (readError) *readError = false;
+    if (bundle) {
+      assert(entries.appendUnique("oversized", {0, 65536, true, false}));
+      assert(entries.appendUnique("expands", {1, 15000, true, false}));
+      assert(entries.appendUnique("binary only", {2, 7, true, false}));
+      assert(entries.appendUnique("<fits>", {3, 14, true, false}));
+    }
   }
   bool locateSynonyms(LookupSession&, const char*, DictEntryList&, bool*) {
     ++searches;
     return false;
   }
-  bool readDefinition(DictLocation, std::string&, LookupResult*, bool = false) { return false; }
+  bool readDefinition(DictLocation entry, std::string& out, LookupResult* result, bool append = false,
+                      bool* exceedsLimit = nullptr) {
+    assert(bundle);
+    reads.push_back(entry.offset);
+    if (exceedsLimit) *exceedsLimit = false;
+    if (!append) out.clear();
+    switch (entry.offset) {
+      case 0:
+        out = "standalone";
+        return true;
+      case 1:
+        if (exceedsLimit) *exceedsLimit = true;
+        *result = LookupResult::ReadError;
+        return false;
+      case 2:
+        *result = LookupResult::NotFound;
+        return false;
+      case 3:
+        out += "<pre>known</pre>";
+        return true;
+    }
+    assert(false);
+    return false;
+  }
   static std::string cleanWord(const char*);
   static void stemVariants(const std::string&, std::vector<std::string>&);
   bool lookup(const char*, std::string&, std::string&, LookupResult*);
@@ -704,6 +752,12 @@ int main() {
     assert(!dictionary.lookup(phrase.c_str(), definition, headword, &result));
     assert(result == Dictionary::LookupResult::NotFound && dictionary.searches > 1);
   }
+  dictionary.bundle = dictionary.htmlDefinitions = true;
+  auto result = Dictionary::LookupResult::NotFound;
+  assert(dictionary.lookup("group", definition, headword, &result));
+  assert(result == Dictionary::LookupResult::Found);
+  assert((dictionary.reads == std::vector<uint32_t>{1, 2, 3}));
+  assert(definition == "<h2>&lt;fits&gt;</h2><pre>known</pre>");
 }
 '''
 
@@ -761,7 +815,7 @@ with tempfile.TemporaryDirectory() as directory:
     subprocess.run([str(path / "navigation")], check=True)
     (path / "lookup.cpp").write_text(lookup_harness)
     subprocess.run(["c++", "-std=c++20", "-Wall", "-Wextra", "-Werror",
-                    "-I", str(ROOT / "lib/Epub/Epub"), "-I", str(ROOT / "lib/Utf8"),
+                    "-I", str(ROOT / "lib/Epub/Epub"), "-I", str(ROOT / "lib/Utf8"), "-I", str(ROOT / "lib/Memory"),
                     str(path / "lookup.cpp"),
                     str(ROOT / "lib/Utf8/Utf8.cpp"), str(ROOT / "lib/Epub/Epub/CjkBreaks.cpp"), *rust_link_flags(),
                     "-o", str(path / "lookup")], check=True)
@@ -769,7 +823,7 @@ with tempfile.TemporaryDirectory() as directory:
 assert all(hashlib.sha256(Path(p).read_bytes()).hexdigest() == digest for p, digest in owner_hashes.items())
 print(json.dumps({'owner_source_sha256': owner_hashes,
                   'generated_owner_sha256': hashlib.sha256(owner_source.encode()).hexdigest(),
-                  'widget_cases': 'unchanged', 'app_dictionary_return_cases': 5,
+                  'widget_cases': 'unchanged', 'app_dictionary_return_cases': 13,
                   'sequence': 'real entry/render -> Selection -> successful Lookup -> Dictionary -> original viewer result',
                   'policy_hooks': 0, 'intent_seeds': 0,
                   'limits': 'synthetic physical Section/Page and native children; no device or dictionary storage integration'}))

@@ -5,6 +5,8 @@ in-memory HAL and compares its results and formatted diagnostics with `golden.tx
 captured from commit `31d5cd46`. The fixtures are synthetic and contain no private
 dictionary data. `--check-mutation` proves the oracle rejects a deliberate normalization mutation
 (the original C++ wrapper, or zero input length in the Rust facade); `--source-root PATH` supports an exported original source tree.
+The `idxoffsetbits = 64` row follows the exact key comparison in upstream `b6605a518`.
+The trailing space makes it an unknown key, so the readable IFO uses inline types.
 
 The cases cover sampled-index boundaries, duplicate headwords, synonym ordinals,
 English stem fallback, case and punctuation cleaning, stale/missing sidecars,

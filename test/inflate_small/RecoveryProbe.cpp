@@ -48,6 +48,67 @@ static void dictionaryRecovery(const char* path) {
   std::puts("DictZip: short reads, incomplete slice ReadError, no publication, next read byte-identical");
 }
 
+static void inlineIfoAndDefinition() {
+  HalFile ifo;
+  ifo.markOpen();
+  const auto readIfo = [&](const std::string& text) {
+    ifo.bytes.assign(text.begin(), text.end());
+    ifo.cursor = 0;
+    const auto file = dictionaryFile(ifo);
+    return xp_dictionary_ifo(&file);
+  };
+  const std::string prefix = "description=" + std::string(4096, 'z') + "\n";
+  require(readIfo("") == 0);
+  require(readIfo(prefix + "idxoffsetbits= +064other\r\nsametypesequence=x") ==
+          (XP_DICTIONARY_IFO_OFFSETS64 | XP_DICTIONARY_IFO_HTML));
+  require(readIfo(prefix + "sametypesequence=h\r\nsametypesequence=mh\n") == 0);
+  require(readIfo(prefix + "sametypesequence=\r\n") == (XP_DICTIONARY_IFO_INLINE | XP_DICTIONARY_IFO_HTML));
+  require(readIfo(prefix + "other=sametypesequence=x\n") == (XP_DICTIONARY_IFO_INLINE | XP_DICTIONARY_IFO_HTML));
+  ifo.path = "/memory.ifo";
+  readFault = {ifo.path, 128, 512, 256, 32};
+  require(readIfo(prefix + "sametypesequence=h\n") == 0);
+  readFault = {};
+
+  Dictionary dictionary;
+  dictionary.basePath = "/inline";
+  dictionary.hasPlainDict = dictionary.htmlDefinitions = dictionary.inlineTypes = true;
+  Storage.temporaryPath = "/inline.dict";
+  auto lookup = [&](std::string_view raw, std::string& out, bool append, size_t advertised = 0,
+                    bool* exceeds = nullptr) {
+    Storage.temporary.assign(raw.begin(), raw.end());
+    auto result = Dictionary::LookupResult::Found;
+    const DictLocation location{0, static_cast<uint32_t>(advertised ? advertised : raw.size()), true, false};
+    dictionary.readDefinition(location, out, &result, append, exceeds);
+    return result;
+  };
+  using Result = Dictionary::LookupResult;
+  using namespace std::string_view_literals;
+  std::string out = "label:";
+  require(lookup("mhi &<>\0Pb\0\0\0q"sv, out, true) == Result::ReadError);
+  require(out == "label:");
+  require(lookup("mhi &<>\0P\0\0\0\2qw"
+                 "h<b>bold</b>\0x<i>ita</i>\0"sv,
+                 out, true) == Result::Found);
+  require(out == "label:<pre>hi &amp;&lt;&gt;</pre><b>bold</b><i>ita</i>");
+  require(lookup("h<b>a</b>\0P\0\0\0\1z"
+                 "x<i>b</i>\0"sv,
+                 out, false) == Result::Found);
+  require(out == "<b>a</b><i>b</i>");
+  require(lookup("P\0\0\0\1zm\0"sv, out, false) == Result::NotFound);
+  require(lookup("munterminated"sv, out, false) == Result::ReadError && out.empty());
+  require(lookup("1invalid"sv, out, false) == Result::ReadError && out.empty());
+
+  const std::string escaped = "m" + std::string(15000, '&') + '\0';
+  bool capped = false;
+  out = "label";
+  require(lookup(escaped, out, true, 0, &capped) == Result::ReadError && capped && out == "label");
+  require(lookup(escaped, out, false, 0, &capped) == Result::Found && !capped && out.size() == 75011);
+  const std::string clipped = "m" + std::string(65535, 'a');
+  require(lookup(clipped, out, false, clipped.size() + 1) == Result::Found);
+  require(out.size() == 65546 && out.starts_with("<pre>a") && out.ends_with("a</pre>"));
+  std::puts("StarDict: full IFO scan, markup compaction, escaped text, binary skip, cap and malformed fields");
+}
+
 static void fontRecovery() {
   // The first stored block ends halfway through its declared 16-byte bitmap.
   const uint8_t bitmap[] = {1,   16, 0, 239, 255, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 1,  16, 0,  239,
@@ -79,5 +140,6 @@ static void fontRecovery() {
 int main(int argc, char** argv) {
   if (argc != 2) return 2;
   dictionaryRecovery(argv[1]);
+  inlineIfoAndDefinition();
   fontRecovery();
 }

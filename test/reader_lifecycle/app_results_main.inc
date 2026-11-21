@@ -37,6 +37,7 @@ struct Results {
   ResultSection* section = nullptr;
   ResultToolbar* toolbar = nullptr;
   bool toolbarMode = false;
+  bool hasTouch = false, touchReaderControls = false;
   unsigned toolbarBegins = 0, settingsSaved = 0;
   void* bound = nullptr;
   void* returning = nullptr;

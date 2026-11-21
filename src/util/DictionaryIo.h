@@ -26,6 +26,9 @@ enum class DictionaryView : uint8_t {
 enum class DictionaryOutput : uint8_t {
   Reserve = XP_DICTIONARY_OUTPUT_RESERVE,
   Append = XP_DICTIONARY_OUTPUT_APPEND,
+  Capacity = XP_DICTIONARY_OUTPUT_CAPACITY,
+  Grow = XP_DICTIONARY_OUTPUT_GROW,
+  Restore = XP_DICTIONARY_OUTPUT_RESTORE,
 };
 enum class DictionaryDataOpen : uint8_t {
   Plain = XP_DICTIONARY_DATA_OPEN_PLAIN,

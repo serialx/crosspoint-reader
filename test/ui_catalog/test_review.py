@@ -143,6 +143,7 @@ int main(){
 #include <vector>
 #include <memory>
 #include "xp_ui_catalog.h"
+constexpr int REQUEST_REFUSED=-2;
 constexpr auto BROWSE_TMP_PATH="browse";
 constexpr unsigned MAX_BROWSE_RESPONSE=1;
 namespace pluginhttp {
@@ -172,7 +173,7 @@ struct PluginCatalogActivity {
  State getState(){return static_cast<State>(ui.mode);}
  void setState(State s){xp_ui_catalog_mode(&ui,static_cast<uint8_t>(s));}
  void requestUpdate(){}void loadConfig(){}bool loadToken(){return true;}
- bool refreshCredentialToken(){++auth;return false;}
+ bool refreshCredentialToken(int&){++auth;return false;}
  void fail(int){assert(false);}
  bool substituted(const std::string& s,std::string& out){out=s;return true;}
  bool buildRequest(pluginhttp::RequestSpec&,const std::string&,const std::string&,const std::vector<int>&,void*,std::string_view){return true;}

@@ -221,7 +221,7 @@ class PluginCatalogActivity final : public CatalogActivity {
   HttpDownloader::DownloadError downloadBook(const Item& item);
   void beginAuth();
   void pollAuth();
-  bool refreshCredentialToken();  // password grant: mint a token from config creds
+  bool refreshCredentialToken(int& status, bool* pending = nullptr);  // password grant: mint a token from config creds
   // Load credentials and stream a JSON/XML browse response to the SD temp file.
   // Retries a password grant once on 401/403; displays failures and returns false.
   bool fetchBrowseResponse();
@@ -230,7 +230,8 @@ class PluginCatalogActivity final : public CatalogActivity {
   struct DownloadCredentials {
     std::string user, password;
   };
-  bool buildRequest(pluginhttp::RequestSpec& out, const std::string& url, const std::string& body,
+  bool detailsRequest(std::string& url, std::string_view path, const Item& item) const;
+  bool buildRequest(pluginhttp::RequestSpec& out, std::string_view url, const std::string& body,
                     const pluginhttp::Headers& headers, const Item* item = nullptr, std::string_view prefix = {},
                     bool poll = false, bool literalUrl = false, DownloadCredentials* credentials = nullptr,
                     std::string* origin = nullptr) const;

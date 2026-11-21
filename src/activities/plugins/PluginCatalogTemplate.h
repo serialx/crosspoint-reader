@@ -47,7 +47,9 @@ class Template {
   // Each stage sees the previous substitution's output, including matches across its boundaries.
   // Matched prefixes borrow the rule key. No intermediate expanded string is stored.
   bool expand(std::string_view prefix, std::string_view input, bool escapeUrl, size_t& remaining,
-              std::string* output = nullptr, Origin* origin = nullptr, std::string* rawOrigin = nullptr) {
+              std::string* output = nullptr, Origin* origin = nullptr, std::string* rawOrigin = nullptr,
+              bool onlyOrigin = false, bool* rooted = nullptr) {
+    size_t leading = 0;
     for (size_t i = 0; i < count; ++i) stages[i].reset();
     size_t source = 0;
     size_t next = count;
@@ -73,7 +75,17 @@ class Template {
         continue;
       }
       if (byte == End) return true;
-      if (origin) {
+      if (rooted && leading < 2) {
+        if (!leading)
+          *rooted = byte == '/';
+        else if (byte == '/')
+          *rooted = false;
+        ++leading;
+      }
+      if (onlyOrigin) {
+        origin->count(byte);
+        if (origin->ended) return true;
+      } else if (origin) {
         if (!output)
           origin->count(byte);
         else if (rawOrigin && rawOrigin->size() < origin->length())

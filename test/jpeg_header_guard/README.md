@@ -19,6 +19,12 @@ checks are off (the decoder reads unaligned 16-bit words), and
 lookup builder (`JPEGMakeHuffTables`), which shifts by a negative count for
 short codes. Its bounds checks and all other checks stay on.
 
+On x86-64 hosts the copies are built with `NO_SIMD`. JPEGDEC's SSE version of
+`JPEGFilter` builds its 0xFF constant from an uninitialised variable. An
+optimising compiler may make that constant zero; restart markers then stay in
+the entropy data and valid files with restart intervals fail to decode. No
+firmware target compiles the SSE code, so the test builds the scalar code.
+
 `HeaderGuardTest.cpp` encodes a 24x16 baseline image and builds every input
 from it at run time; there are no binary fixtures. `run_cases.py` runs each
 case in its own process for each copy:

@@ -31,6 +31,11 @@ foreach(variant ${JHG_VARIANTS})
   set_property(SOURCE ${dir}/src/JPEGDEC.cpp APPEND PROPERTY OBJECT_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/ubsan-ignore.txt)
   target_include_directories(jpeg_header_guard_${variant} PRIVATE ${dir}/src ${CMAKE_CURRENT_SOURCE_DIR})
   target_compile_definitions(jpeg_header_guard_${variant} PRIVATE __LINUX__)
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64)$")
+    # JPEGDEC's SSE marker filter compares with an uninitialised register and can leave restart markers in the
+    # entropy data. No firmware target compiles that path; build the scalar code that the firmware compiles.
+    target_compile_definitions(jpeg_header_guard_${variant} PRIVATE NO_SIMD)
+  endif()
   target_compile_options(jpeg_header_guard_${variant} PRIVATE
     -O1 -g -fsanitize=address,undefined -fno-sanitize=alignment -fno-omit-frame-pointer
     -fsanitize-ignorelist=${CMAKE_CURRENT_SOURCE_DIR}/ubsan-ignore.txt)

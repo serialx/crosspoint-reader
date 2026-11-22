@@ -43,6 +43,7 @@ void DialogActivity::log(Log event, uint32_t bytes) const {
   }
 }
 namespace {
+// cppcheck-suppress constParameterPointer // Const here propagates to the Rust dialog entry points' mutable handle.
 DialogActivity& dialog(void* object) { return *nativeActivity(object)->dialog(); }
 }  // namespace
 void xp_dialog_launch(void* object, XpDialogLaunch* out) { *out = dialog(object).launch(); }

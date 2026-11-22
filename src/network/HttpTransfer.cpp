@@ -16,6 +16,7 @@ const std::string& string(const XpHttpNativeText& value) {
   return *static_cast<const std::string*>(value.native_string);
 }
 freeink::SecureHttpClient& client(void* storage) { return *static_cast<freeink::SecureHttpClient*>(storage); }
+// cppcheck-suppress passedByValueCallback // Rust's C ABI passes XpHttpNativeText by value.
 bool acquire(void* storage, XpHttpNativeText url) {
   auto* http = new (storage) freeink::SecureHttpClient;
   return http->begin(string(url));
@@ -35,6 +36,7 @@ void configure(void* storage, const XpHttpSdkConfiguration* configuration) {
   }
   if (configuration->basic_auth) http.setBasicAuth(string(configuration->username), string(configuration->password));
 }
+// cppcheck-suppress passedByValueCallback // Rust's C ABI passes both text descriptors by value.
 void addHeader(void* storage, XpHttpNativeText name, XpHttpNativeText value) {
   client(storage).addHeader(string(name), string(value));
 }
@@ -61,6 +63,7 @@ void responseHeader(void* storage, const char* name, XpHttpTextStorageRetireP19*
   auto* value = new (text) std::string(client(storage).getHeader(name));
   *output = mutableText(*value);
 }
+// cppcheck-suppress passedByValueCallback // Rust's C ABI passes the path descriptor by value.
 bool openWrite(void* file, XpHttpNativeText path) {
   return Storage.openFileForWrite("HTTP", string(path).c_str(), *static_cast<HalFile*>(file));
 }
@@ -72,7 +75,9 @@ void close(void* storage, bool releaseHandle) {
   else if (file.isOpen())
     file.close();
 }
+// cppcheck-suppress passedByValueCallback // Rust's C ABI passes the path descriptor by value.
 bool remove(XpHttpNativeText path) { return Storage.remove(string(path).c_str()); }
+// cppcheck-suppress passedByValueCallback // Rust's C ABI passes both path descriptors by value.
 bool replace(XpHttpNativeText from, XpHttpNativeText to) {
   return Storage.replaceFile(string(from).c_str(), string(to).c_str());
 }

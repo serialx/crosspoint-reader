@@ -17,12 +17,14 @@ struct Context {
   const std::vector<HttpDownloader::Header>* headers = nullptr;
 };
 void headerAt(void* p, size_t i, XpHttpNativeText* name, XpHttpNativeText* value) {
+  // cppcheck-suppress constVariableReference // Const here propagates to the mutable Rust callback context.
   auto& c = *static_cast<Context*>(p);
   *name = httptransfer::nativeText((*c.headers)[i].first);
   *value = httptransfer::nativeText((*c.headers)[i].second);
 }
 bool sink(void* p, XpHttpBytes bytes) { return (*static_cast<Context*>(p)->sink)(bytes.data, bytes.length); }
 void progress(void* p, size_t bytes, size_t total) {
+  // cppcheck-suppress constVariableReference // Const here propagates to the mutable Rust callback context.
   auto& c = *static_cast<Context*>(p);
   if (c.progress && *c.progress) (*c.progress)(bytes, total);
 }

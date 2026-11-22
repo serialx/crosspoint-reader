@@ -12,7 +12,9 @@
 
 namespace httptransfer {
 namespace {
-const std::string& string(XpHttpNativeText value) { return *static_cast<const std::string*>(value.native_string); }
+const std::string& string(const XpHttpNativeText& value) {
+  return *static_cast<const std::string*>(value.native_string);
+}
 freeink::SecureHttpClient& client(void* storage) { return *static_cast<freeink::SecureHttpClient*>(storage); }
 bool acquire(void* storage, XpHttpNativeText url) {
   auto* http = new (storage) freeink::SecureHttpClient;

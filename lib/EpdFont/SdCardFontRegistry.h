@@ -69,12 +69,12 @@ class SdFontCatalog {
   }
   std::optional<SdFontFamily> view(const XpSdCatalogQuery& q) const {
     if (!owner_) return std::nullopt;
-    SdFontFamily family;
-    const auto index = xp_sd_catalog_query(owner_, &q, &family);
+    SdFontFamily result;
+    const auto index = xp_sd_catalog_query(owner_, &q, &result);
     if (!index) return std::nullopt;
-    family.owner = owner_;
-    family.index = index - 1;
-    return family;
+    result.owner = owner_;
+    result.index = index - 1;
+    return result;
   }
 };
 

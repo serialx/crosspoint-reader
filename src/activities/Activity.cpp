@@ -32,10 +32,10 @@ __attribute__((noinline)) void cancelRejectedDialog(Activity& parent, ActivityRe
 }  // namespace
 
 void Activity::startActivityForResult(std::unique_ptr<Activity>&& activity, ActivityResultHandler resultHandler) {
-  const bool dialog = activity && activity->dialog();
+  const bool isDialog = activity && activity->dialog();
   this->resultHandler = std::move(resultHandler);
   const bool accepted = activityManager.pushActivity(std::move(activity));
-  if (dialog && !accepted) cancelRejectedDialog(*this, this->resultHandler);
+  if (isDialog && !accepted) cancelRejectedDialog(*this, this->resultHandler);
 }
 
 void Activity::setResult(ActivityResult&& result) { this->result = std::move(result); }

@@ -356,13 +356,15 @@ void forEachBaseSetting(SettingVisitor visit, void* context) {
   // LEGACY: retired quarter-hour UTC offset (biased by 48). Persisted so
   // timezones::activeIndex() can migrate it into clockTimezone.
   emit(SettingInfo::Value(StrId::STR_CLOCK, &CrossPointSettings::clockUtcOffsetQ, {0, 104, 1}, "clockUtcOffsetQ",
-                          StrId::STR_CUSTOMISE_STATUS_BAR).withWebHidden());
+                          StrId::STR_CUSTOMISE_STATUS_BAR)
+           .withWebHidden());
   emit(SettingInfo::Enum(StrId::STR_CLOCK_FORMAT, &CrossPointSettings::clockFormat,
                          {StrId::STR_CLOCK_FORMAT_24H, StrId::STR_CLOCK_FORMAT_12H}, "clockFormat",
                          StrId::STR_CUSTOMISE_STATUS_BAR));
   // Index into the append-only table in src/util/Timezones.cpp; 255 = unset.
   emit(SettingInfo::Value(StrId::STR_TIMEZONE, &CrossPointSettings::clockTimezone, {0, 255, 1}, "clockTimezone",
-                          StrId::STR_CUSTOMISE_STATUS_BAR).withWebHidden());
+                          StrId::STR_CUSTOMISE_STATUS_BAR)
+           .withWebHidden());
   emit(SettingInfo::Enum(StrId::STR_CLOCK_DST, &CrossPointSettings::clockDst,
                          {StrId::STR_CLOCK_DST_AUTO, StrId::STR_STATE_ON, StrId::STR_STATE_OFF}, "clockDst",
                          StrId::STR_CUSTOMISE_STATUS_BAR));

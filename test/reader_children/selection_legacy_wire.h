@@ -1,7 +1,7 @@
 #pragma once
 // Frozen native oracle wire; excluded from the firmware ABI.
-#include <xp_ui_reader_chrome.h>
 #include <xp_ui_dictionary.h>
+#include <xp_ui_reader_chrome.h>
 #ifdef __cplusplus
 extern "C" {
 #endif

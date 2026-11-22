@@ -4,6 +4,7 @@
 #include <ReaderFontSizes.h>
 class GfxRenderer {
   FontRegistry fonts{this};
+
  public:
   FontVariantProvider provider;
   auto& getFontMap() { return fonts; }

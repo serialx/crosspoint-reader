@@ -55,6 +55,5 @@ int main() {
     check(raw, 4, value);
     ++cases;
   }
-  printf("PASS %u parent-matched header bytes and Chapter options; every boolean byte and image layout mode\n",
-         cases);
+  printf("PASS %u parent-matched header bytes and Chapter options; every boolean byte and image layout mode\n", cases);
 }

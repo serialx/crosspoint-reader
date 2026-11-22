@@ -4,6 +4,7 @@
 class MD5Builder {
   MD5_CTX ctx{};
   unsigned char bytes[16]{};
+
  public:
   void begin() { MD5_Init(&ctx); }
   void add(const uint8_t* p, size_t n) { MD5_Update(&ctx, p, n); }

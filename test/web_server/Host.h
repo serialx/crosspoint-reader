@@ -342,7 +342,10 @@ inline SettingsStub SETTINGS;
 
 enum HTTPMethod { HTTP_GET, HTTP_POST, HTTP_OPTIONS, HTTP_HEAD };
 class WebServer;
-struct Middleware { using Callback = std::function<bool()>; using Function = std::function<bool(WebServer&, Callback)>; };
+struct Middleware {
+  using Callback = std::function<bool()>;
+  using Function = std::function<bool(WebServer&, Callback)>;
+};
 enum HTTPUploadStatus { UPLOAD_FILE_START, UPLOAD_FILE_WRITE, UPLOAD_FILE_END, UPLOAD_FILE_ABORTED };
 struct HTTPUpload {
   HTTPUploadStatus status = UPLOAD_FILE_START;
@@ -373,7 +376,11 @@ class WebServer {
   String* _postArgs = nullptr;
   int _currentArgCount = 0, _postArgsLen = 0;
   std::map<std::string, String> headers;
-  struct RequestArgument { String key; String& value; RequestArgument* next; };
+  struct RequestArgument {
+    String key;
+    String& value;
+    RequestArgument* next;
+  };
   RequestArgument conditional{"If-None-Match", headers["If-None-Match"], nullptr};
   RequestArgument* _currentHeaders = &conditional;
   std::map<std::string, std::function<void()>> routes;

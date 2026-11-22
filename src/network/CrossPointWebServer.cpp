@@ -46,15 +46,15 @@
 #include "html/FilesPageHtml.generated.h"
 #include "html/FontsPageHtml.generated.h"
 #include "html/HomePageHtml.generated.h"
+#include "html/PluginsPageHtml.generated.h"
 #include "html/RunnerPageHtml.generated.h"
 #include "html/SettingsPageHtml.generated.h"
 #include "html/assets/crosspoint_iconSvg.generated.h"
 #include "html/assets/iconsSvg.generated.h"
 #include "html/assets/webCss.generated.h"
 #include "html/js/epub_optimizerJs.generated.h"
-#include "html/js/plugin_hostJs.generated.h"
-#include "html/PluginsPageHtml.generated.h"
 #include "html/js/jszip_minJs.generated.h"
+#include "html/js/plugin_hostJs.generated.h"
 #include "util/BookCacheUtils.h"
 #include "util/DictionaryRegistry.h"
 #include "util/FirmwareIdentity.h"
@@ -1784,21 +1784,22 @@ struct WebFetchBridge : WebRpcBridge {
   String response;
   String errorBody;
   template <typename Configure>
-  static XpWebFetchResult single(WebFetchBridge& b, const char* method, XpWebText body,
-                                 const freeink::FetchSink& sink,
-                                 const freeink::SecureHttpClient::AbortCallback& poll,
-                                 const Configure& configure) {
+  static XpWebFetchResult single(WebFetchBridge& b, const char* method, XpWebText body, const freeink::FetchSink& sink,
+                                 const freeink::SecureHttpClient::AbortCallback& poll, const Configure& configure) {
     freeink::SecureHttpClient http;
     if (!http.begin(b.url)) return {-1, 0, false, {nullptr, 0}};
     configure(http, true);
-    const int status = http.sendRequest(method, body.data, body.len, [&](const uint8_t* data, size_t n) {
-      if (http.getStatus() >= 200 && http.getStatus() < 300) return sink.write(data, n);
-      constexpr size_t limit = 512;
-      const auto count = std::min(n, limit - b.errorBody.length());
-      if (!b.errorBody.concat(reinterpret_cast<const char*>(data), count)) return false;
-      resetTaskWatchdogIfSubscribed();
-      return b.errorBody.length() < limit;
-    }, poll);
+    const int status = http.sendRequest(
+        method, body.data, body.len,
+        [&](const uint8_t* data, size_t n) {
+          if (http.getStatus() >= 200 && http.getStatus() < 300) return sink.write(data, n);
+          constexpr size_t limit = 512;
+          const auto count = std::min(n, limit - b.errorBody.length());
+          if (!b.errorBody.concat(reinterpret_cast<const char*>(data), count)) return false;
+          resetTaskWatchdogIfSubscribed();
+          return b.errorBody.length() < limit;
+        },
+        poll);
     return {status, http.hasContentLength() ? http.getContentLength() : 0,
             status >= 200 && status < 300 && http.responseComplete(), span(b.errorBody)};
   }
@@ -1839,7 +1840,8 @@ const XpWebFetch WebFetchBridge::services = {
             b.mutableOwner.resumeTransferServices();
           }
         },
-    .run = [](void* ctx, size_t offset, const char* method, XpWebText body, void* sinkCtx, const XpWebFetchSink* callbacks) -> XpWebFetchResult {
+    .run = [](void* ctx, size_t offset, const char* method, XpWebText body, void* sinkCtx,
+              const XpWebFetchSink* callbacks) -> XpWebFetchResult {
       auto& b = fetch(ctx);
       freeink::FetchOptions options;
       options.startOffset = offset;
@@ -1916,12 +1918,13 @@ const XpWebFetch WebFetchBridge::services = {
               break;
           }
         },
-    .field = [](void* ctx, const char* key, XpWebText* out) {
-      const JsonVariantConst value = self(ctx).paths[key];
-      const JsonString text = value.as<JsonString>();
-      *out = {reinterpret_cast<const uint8_t*>(text.c_str()), text.size()};
-      return value.isNull() || !text.isNull();
-    },
+    .field =
+        [](void* ctx, const char* key, XpWebText* out) {
+          const JsonVariantConst value = self(ctx).paths[key];
+          const JsonString text = value.as<JsonString>();
+          *out = {reinterpret_cast<const uint8_t*>(text.c_str()), text.size()};
+          return value.isNull() || !text.isNull();
+        },
 };
 
 void CrossPointWebServer::handleFetch() {

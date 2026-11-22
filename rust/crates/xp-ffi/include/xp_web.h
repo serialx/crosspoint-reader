@@ -537,7 +537,8 @@ typedef struct {
   XpWebText (*path)(void*, uint32_t);
   void (*directory)(void*, XpWebText);
   void (*suspend)(void*, bool);
-  XpWebFetchResult (*run)(void*, size_t offset, const char* method, XpWebText body, void* sink_ctx, const XpWebFetchSink*);
+  XpWebFetchResult (*run)(void*, size_t offset, const char* method, XpWebText body, void* sink_ctx,
+                          const XpWebFetchSink*);
   void (*configure)(void*, void* http, const char* agent, uint32_t timeout, bool headers);
   uint32_t (*time)(void*);
   XpWebText (*response)(void*, uint32_t, const char* error, int32_t, size_t, bool, size_t, XpWebText);

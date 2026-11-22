@@ -198,7 +198,7 @@ bool DefinitionPayload::prepareDefinition(GfxRenderer& renderer, Slot& next, con
 }
 
 // Keep the fallback string allocation off the styled parser's stack route.
-[[gnu::noinline]] bool DefinitionPayload::convertHtmlToPlain(GfxRenderer& renderer, Slot& next) {
+[[gnu::noinline]] bool DefinitionPayload::convertHtmlToPlain(const GfxRenderer& renderer, Slot& next) {
   if (auto* fcm = renderer.getFontCacheManager()) fcm->releaseSdFontCaches();
   const auto view = next.textView();
   const auto heap = HalMemory::getDefaultHeap();
@@ -456,8 +456,9 @@ void DefinitionPayload::drawBody(GfxRenderer& renderer, const int fontId, const 
 }
 
 // Plain text needs a line buffer. Styled pages can enter the JPEG decoder here.
-[[gnu::noinline]] void DefinitionPayload::drawPlainBody(GfxRenderer& renderer, const Slot& content, const int fontId,
-                                                        const int x, const int startY, const int currentPage) {
+[[gnu::noinline]] void DefinitionPayload::drawPlainBody(const GfxRenderer& renderer, const Slot& content,
+                                                        const int fontId, const int x, const int startY,
+                                                        const int currentPage) {
   const auto& lines = content.lines;
   const auto definition = content.textView();
   const int linesPerPage = content.linesPerPage;

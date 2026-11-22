@@ -79,10 +79,10 @@ with tempfile.TemporaryDirectory(prefix='wifi-saved-native-') as tmp:
                     '-DMBEDTLS_CONFIG_FILE="oracle_mbedtls.h"', '-o', str(d / 'base64.o')], check=True)
     subprocess.run(['c++', '-std=c++20', '-O1', '-g', '-fsanitize=address', '-fno-omit-frame-pointer',
                     '-DARDUINOJSON_ENABLE_ARDUINO_STRING=0', '-DARDUINOJSON_ENABLE_ARDUINO_STREAM=0',
-                    '-DARDUINOJSON_ENABLE_ARDUINO_PRINT=0', *flags, *rust_link_flags(a.archive),
+                    '-DARDUINOJSON_ENABLE_ARDUINO_PRINT=0', *flags,
                     str(ROOT / 'src/WifiCredentialStore.cpp'),
                     str(ROOT / 'lib/Serialization/PersistableStore.cpp'),
                     str(ROOT / 'lib/Serialization/ObfuscationUtils.cpp'),
-                    str(d / 'base64.o'), str(cpp), '-o', str(binary)], check=True)
+                    str(d / 'base64.o'), str(cpp), *rust_link_flags(a.archive), '-o', str(binary)], check=True)
     for ssid, password in [('1', 'pw'), ('fifteen-letters!', 'p' * 15), ('long-saved-network-name', 'p' * 64)]:
         subprocess.run([str(binary), ssid, password], check=True)

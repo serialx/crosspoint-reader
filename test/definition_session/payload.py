@@ -30,10 +30,12 @@ h=(ROOT/'src/activities/reader/DefinitionPayload.h').read_text();cpp=(ROOT/'src/
 # Frozen viewer methods above retain their old spacing constant.
 spacing = next(line for line in cpp.splitlines() if line.startswith('constexpr float PLAIN_TEXT_LINE_SPACING ='))
 s += '\n#define PLAIN_TEXT_LINE_SPACING PAYLOAD_LINE_SPACING\n' + spacing + '\n'
+s = s.replace('FontCacheManager cache;', 'mutable FontCacheManager cache;')
+s = s.replace('FontCacheManager* getFontCacheManager() {', 'FontCacheManager* getFontCacheManager() const {')
 s = s.replace('int getLineHeight(int, float) const { return 10; }',
-              'mutable float lastSpacing = 0; std::vector<int> paintedRows; '
+              'mutable float lastSpacing = 0; mutable std::vector<int> paintedRows; '
               'int getLineHeight(int, float spacing) const { lastSpacing = spacing; return 10; } '
-              'void drawText(int, int, int y, const char*, bool, EpdFontFamily::Style) { paintedRows.push_back(y); }')
+              'void drawText(int, int, int y, const char*, bool, EpdFontFamily::Style) const { paintedRows.push_back(y); }')
 s = s.replace('struct Page {', 'struct Page { template<class R> void render(R&, int, int, int) {}')
 s+='\n'+block(h,'struct XpDefinitionNativeTransfer {')+';\n'+block(h,'class DefinitionPayload {')+';\n'
 for signature in ['DefinitionPayload& DefinitionPayload::get(XpDefinitionPayloadStorage*','const DefinitionPayload& DefinitionPayload::get','\nDefinitionPayload::Slot& DefinitionPayload::slot','const DefinitionPayload::Slot& DefinitionPayload::slot','void DefinitionPayload::Slot::releasePayload','struct DefinitionPayload::PlainSelectionLine {','bool DefinitionPayload::prepareDefinition','bool DefinitionPayload::convertHtmlToPlain','bool DefinitionPayload::layoutHtmlPages','int DefinitionPayload::measureSpan','bool DefinitionPayload::reserveLines','bool DefinitionPayload::wrapText','bool DefinitionPayload::buildPlainSelectionPages','void DefinitionPayload::drawBody','void DefinitionPayload::drawPlainBody','void* DefinitionPayload::selectionChild','uint8_t DefinitionPayload::constructPlain','uint8_t DefinitionPayload::constructNative']:

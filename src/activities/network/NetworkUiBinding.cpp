@@ -11,7 +11,7 @@
 
 namespace {
 // Return SDK layout scratch before a line can trigger a cold glyph load.
-__attribute__((noinline)) uint8_t layoutFlowText(GfxRenderer& renderer, const XpUiCommand& command,
+__attribute__((noinline)) uint8_t layoutFlowText(const GfxRenderer& renderer, const XpUiCommand& command,
                                                  const networkui::Resource& resource, XpUiRect (&lines)[2]) {
   const auto& r = command.rect;
   freeink::ui::GfxRendererTarget target(renderer);
@@ -29,7 +29,7 @@ __attribute__((noinline)) uint8_t layoutFlowText(GfxRenderer& renderer, const Xp
                           });
   return count;
 }
-__attribute__((noinline)) void paintFlowText(GfxRenderer& renderer, const XpUiCommand& command, XpUiRect clip,
+__attribute__((noinline)) void paintFlowText(const GfxRenderer& renderer, const XpUiCommand& command, XpUiRect clip,
                                              const networkui::Resource& resource) {
   XpUiRect lines[2];
   const auto count = layoutFlowText(renderer, command, resource, lines);

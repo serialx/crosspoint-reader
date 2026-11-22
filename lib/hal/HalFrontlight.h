@@ -19,6 +19,7 @@ class HalFrontlight {
   void setOn(bool on);
 
   // Borrowed synchronously; policy and selected brightness stay in the Rust state.
+  // cppcheck-suppress functionStatic // Returns this instance's Rust light state.
   XpHalLight* lightState() { return &state; }
   void writeOutput(uint8_t brightness) { manager.setBrightness(brightness); }
 

@@ -172,7 +172,7 @@ class Page {
       void* owner;
       void (*destroy)(void*);
     } transferred;
-  } storage;
+  } storage{};
   static size_t allocationSize(size_t arenaBytes, size_t elements);
   static std::unique_ptr<Page> allocate(const XpPageInfo& info);
   bool resolveViews();

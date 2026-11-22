@@ -23,7 +23,8 @@ inline bool makePaths(Paths& paths, std::string_view source, size_t bytes, uint3
       snprintf(key.get(), capacity, "%.*s|%zu|%lu|%dx%d|%c%s", static_cast<int>(source.size()), source.data(), bytes,
                static_cast<unsigned long>(modified), width, height, crop ? 'c' : 'f', originalThresholds ? "|t" : "");
   if (length < 0 || static_cast<size_t>(length) >= capacity) return false;
-  const size_t hash = std::hash<std::string_view>{}({key.get(), static_cast<size_t>(length)});
+  const std::string_view formattedKey(key.get(), static_cast<size_t>(length));
+  const size_t hash = std::hash<std::string_view>{}(formattedKey);
   snprintf(paths.final, sizeof(paths.final), "/.crosspoint/sleep_%zu.bmp", hash);
   snprintf(paths.temp, sizeof(paths.temp), "%s.tmp", paths.final);
   return true;

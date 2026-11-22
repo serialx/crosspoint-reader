@@ -61,13 +61,11 @@ struct WifiPhysical {
             },
             [](XpWifiLastSsidStorage* slot) { reinterpret_cast<Last*>(slot)->~Last(); },
             [](XpWifiLastSsidStorage* slot) {
-              auto& last = *new (slot) Last{};
-              last.emplace(WIFI_STORE.getLastConnectedSsid());
+              const auto& last = *new (slot) Last{WIFI_STORE.getLastConnectedSsid()};
               return bytes(*last);
             },
             [](XpWifiCredentialStorage* slot, XpAppText ssid, XpWifiCredentialView* out) -> uint8_t {
-              auto& credential = *new (slot) Credential{};
-              credential = WIFI_STORE.findCredential(view(ssid));
+              const auto& credential = *new (slot) Credential(WIFI_STORE.findCredential(view(ssid)));
               if (!credential) {
                 *out = {};
                 return false;

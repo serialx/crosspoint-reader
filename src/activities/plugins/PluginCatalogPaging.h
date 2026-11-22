@@ -1,6 +1,7 @@
 #pragma once
 #include <xp_ui_catalog.h>
 
+#include <numeric>
 #include <string_view>
 namespace plugincatalogpaging {
 enum class Paging : uint8_t { Static, Offset, PageNumber, SizedPages };
@@ -11,7 +12,9 @@ inline Paging pagingOf(std::string_view url, std::string_view body, const Header
   const auto variables = [](std::string_view text) { return xp_ui_catalog_page_template(text.data(), text.size()); };
   uint8_t flags = variables(url) | variables(body);
   if (!origin.empty()) flags |= variables(origin);
-  for (const auto& header : headers) flags |= variables(header.second);
+  flags = std::accumulate(headers.begin(), headers.end(), flags, [&](uint8_t found, const auto& header) {
+    return static_cast<uint8_t>(found | variables(header.second));
+  });
   if (flags & XP_UI_CATALOG_TEMPLATE_OFFSET) return Paging::Offset;
   if (!(flags & XP_UI_CATALOG_TEMPLATE_PAGE)) return Paging::Static;
   return flags & XP_UI_CATALOG_TEMPLATE_LIMIT ? Paging::SizedPages : Paging::PageNumber;

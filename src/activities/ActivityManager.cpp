@@ -334,14 +334,15 @@ bool ActivityManager::pushActivity(std::unique_ptr<Activity>&& activity) {
   const bool dialog = activity && activity->dialog();
   auto owner = ownLegacy(std::move(activity));
   if (!owner) return false;
+  // Rust adopts the wrapper on success. On rejection, owner still deletes it.
   if (dialog) {
     if (!xp_app_dialog_push(owner.get())) return false;
-    owner.release();
+    (void)owner.release();
     return true;
   }
   if (keyboard) {
     if (!xp_app_keyboard_push(owner.get())) return false;
-    owner.release();
+    (void)owner.release();
     return true;
   }
   XpAppEvent event{.kind = XP_APP_ADOPT_PUSH};

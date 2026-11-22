@@ -72,7 +72,7 @@ def rebind(spec, calls, source_attestations, output):
                 if before.startswith("DefinitionPayload::drawBody(") and new.startswith(
                     "GfxRenderer::drawText("
                 ):
-                    plain = "DefinitionPayload::drawPlainBody(GfxRenderer&, DefinitionPayload::Slot const&, int, int, int, int)"
+                    plain = "DefinitionPayload::drawPlainBody(GfxRenderer const&, DefinitionPayload::Slot const&, int, int, int, int)"
                     if plain in by_name:
                         new_route.append(plain)
                 if (
@@ -80,7 +80,7 @@ def rebind(spec, calls, source_attestations, output):
                     and new == "xp_font_cache_release"
                 ):
                     fallback = (
-                        "DefinitionPayload::convertHtmlToPlain(GfxRenderer&, DefinitionPayload::Slot&)"
+                        "DefinitionPayload::convertHtmlToPlain(GfxRenderer const&, DefinitionPayload::Slot&)"
                     )
                     if fallback in by_name:
                         new_route.append(fallback)

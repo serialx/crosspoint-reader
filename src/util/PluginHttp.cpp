@@ -3,6 +3,7 @@
 #include <HalStorage.h>
 #include <Logging.h>
 #include <SecureHttpClient.h>
+#include <xp_plugin.h>
 
 #include <algorithm>
 #include <cctype>
@@ -10,23 +11,57 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "PluginJson.h"
 #include "network/ProtectedPaths.h"
 #include "network/WifiPowerSaveGuard.h"
 
 namespace {
+XpPluginSpan span(const std::string& s) { return {reinterpret_cast<const uint8_t*>(s.data()), s.size()}; }
+XpPluginSpan span(const char* s) { return {reinterpret_cast<const uint8_t*>(s), s ? strlen(s) : 0}; }
 constexpr size_t MAX_TOKEN_FILE_SIZE = 2 * 1024;
 
+// Token construction makes a single-member object chain, possibly cut short by OOM.
+// Keep traversal scratch out of the shared token-operation callback.
+__attribute__((noinline)) void serializeToken(JsonVariantConst node, std::string& out) {
+  using Writer = ArduinoJson::detail::Writer<std::string>;
+  ArduinoJson::detail::TextFormatter<Writer> formatter{Writer(out)};
+  size_t depth = 0;
+  while (node.is<JsonObjectConst>() && node.size() != 0) {
+    const auto pair = *node.as<JsonObjectConst>().begin();
+    formatter.writeRaw('{');
+    formatter.writeString(pair.key().c_str(), pair.key().size());
+    formatter.writeRaw(':');
+    node = pair.value();
+    ++depth;
+  }
+  if (node.is<JsonObjectConst>()) {
+    formatter.writeRaw('{');
+    formatter.writeRaw('}');
+  } else if (node.isNull())
+    formatter.writeRaw("null");
+  else {
+    const auto value = node.as<JsonString>();
+    formatter.writeString(value.c_str(), value.size());
+  }
+  for (; depth > 0; --depth) formatter.writeRaw('}');
+}
+
 // Resolves the caller's reused TLS session (or `tmp`) into a configured,
-// connected client, or nullptr if begin() failed.
+// connected client, or nullptr on failure.
 freeink::SecureHttpClient* openClient(freeink::SecureHttpClient* session, freeink::SecureHttpClient& tmp,
-                                      const std::string& url, const pluginhttp::Headers& headers) {
+                                      const std::string& url, const pluginhttp::Headers& headers,
+                                      const std::function<bool()>& shouldAbort = nullptr) {
   freeink::SecureHttpClient& http = session ? *session : tmp;
   http.setUserAgent("CrossPoint");
   // Same trust posture as every other SecureNet consumer: no CA bundle ships
   // with the transport, so verification is skipped; traffic stays encrypted.
   http.setInsecure();
   http.setTimeout(30000);
-  if (!http.begin(url)) return nullptr;
+  {
+    const std::string escaped = pluginhttp::escapeUrl(url);
+    if (!http.begin(escaped.empty() ? url : escaped)) return nullptr;
+  }
+  if (!http.connect(shouldAbort)) return nullptr;
   for (const auto& h : headers) http.addHeader(h.first, h.second);
   return &http;
 }
@@ -34,92 +69,112 @@ freeink::SecureHttpClient* openClient(freeink::SecureHttpClient* session, freein
 
 namespace pluginhttp {
 
-// True when a dotted-path segment addresses an array index.
-static bool segIsIndex(const std::string& seg) { return !seg.empty() && isdigit(static_cast<unsigned char>(seg[0])); }
-
-void splitPath(const std::string& dotted, std::vector<std::string>& out) {
-  out.clear();
-  out.reserve(static_cast<size_t>(std::count(dotted.begin(), dotted.end(), '.')) + 1);
-  size_t start = 0;
-  while (start <= dotted.size()) {
-    const size_t dot = dotted.find('.', start);
-    if (dot == std::string::npos) {
-      if (start < dotted.size()) out.push_back(dotted.substr(start));
-      break;
-    }
-    if (dot > start) out.push_back(dotted.substr(start, dot - start));
-    start = dot + 1;
-  }
-}
-
 JsonVariantConst resolvePath(JsonVariantConst node, const std::string& dotted) {
-  if (dotted.empty()) return node;
-  std::vector<std::string> segs;
-  splitPath(dotted, segs);
-  for (const auto& seg : segs) {
-    if (node.isNull()) break;
-    if (segIsIndex(seg)) {
-      node = node[atoi(seg.c_str())];
-    } else {
-      node = node[seg.c_str()];
-    }
-  }
-  return node;
+  PluginJson json(node);
+  const auto api = json.api();
+  xp_plugin_resolve(&api, span(dotted));
+  return json.slots[0];
 }
 
 std::string variantToString(JsonVariantConst v) {
-  if (v.isNull()) return "";
-  if (v.is<const char*>()) return v.as<const char*>();
-  char buf[24];
-  if (v.is<long long>() || v.is<int>()) {
-    snprintf(buf, sizeof(buf), "%lld", v.as<long long>());
-    return buf;
+  PluginJson json(v);
+  const auto api = json.api();
+  switch (static_cast<XpPluginValueKind>(xp_plugin_value_kind(&api))) {
+    case XP_PLUGIN_VALUE_STRING:
+      return v.as<const char*>();
+    case XP_PLUGIN_VALUE_INTEGER: {
+      char buf[24];
+      snprintf(buf, sizeof(buf), "%lld", v.as<long long>());
+      return buf;
+    }
+    case XP_PLUGIN_VALUE_EMPTY:
+      return {};
   }
-  return "";
+  return {};
 }
 
 void substituteAll(std::string& s, const char* key, const std::string& value) {
-  const size_t keyLen = strlen(key);
-  size_t pos = 0;
-  while ((pos = s.find(key, pos)) != std::string::npos) {
-    s.replace(pos, keyLen, value);
-    pos += value.size();
-  }
+  const XpPluginString text{&s, [](void* ctx) { return span(*static_cast<std::string*>(ctx)); },
+                            [](void* ctx, size_t pos, size_t len, XpPluginSpan value) {
+                              static_cast<std::string*>(ctx)->replace(
+                                  pos, len, reinterpret_cast<const char*>(value.data), value.len);
+                            }};
+  xp_plugin_substitute(&text, span(key), span(value), &s == &value);
 }
 
 void readRequest(JsonVariantConst node, const char* defaultMethod, RequestSpec& out) {
-  out.url = node["url"] | "";
-  out.method = node["method"] | defaultMethod;
-  out.body = node["body"] | "";
-  readHeaders(node["headers"], out.headers);
+  PluginJson json(node);
+  const auto api = json.api();
+  static const XpPluginRequest targetCallbacks{nullptr,
+                                               [](void* p, uint32_t field, XpPluginSpan s) {
+                                                 auto& r = *static_cast<RequestSpec*>(p);
+                                                 std::string* fields[] = {&r.url, &r.method, &r.body};
+                                                 fields[field]->assign(reinterpret_cast<const char*>(s.data), s.len);
+                                               },
+                                               [](void* p, XpPluginSpan key, XpPluginSpan value) {
+                                                 static_cast<RequestSpec*>(p)->headers.emplace_back(
+                                                     std::string(reinterpret_cast<const char*>(key.data), key.len),
+                                                     std::string(reinterpret_cast<const char*>(value.data), value.len));
+                                               },
+                                               [](void* p, size_t count) {
+                                                 auto& h = static_cast<RequestSpec*>(p)->headers;
+                                                 h.clear();
+                                                 h.reserve(count);
+                                               }};
+  auto target = targetCallbacks;
+  target.ctx = &out;
+  xp_plugin_read_request(&api, span(defaultMethod), &target);
 }
 
 void readHeaders(JsonVariantConst node, Headers& out) {
-  out.clear();
-  const JsonObjectConst headers = node.as<JsonObjectConst>();
-  out.reserve(headers.size());
-  for (JsonPairConst kv : headers) {
-    out.emplace_back(kv.key().c_str(), kv.value().as<const char*>() ? kv.value().as<const char*>() : "");
-  }
+  PluginJson json(node);
+  const auto api = json.api();
+  static const XpPluginRequest targetCallbacks{nullptr, nullptr,
+                                               [](void* p, XpPluginSpan key, XpPluginSpan value) {
+                                                 static_cast<Headers*>(p)->emplace_back(
+                                                     std::string(reinterpret_cast<const char*>(key.data), key.len),
+                                                     std::string(reinterpret_cast<const char*>(value.data), value.len));
+                                               },
+                                               [](void* p, size_t count) {
+                                                 auto& h = *static_cast<Headers*>(p);
+                                                 h.clear();
+                                                 h.reserve(count);
+                                               }};
+  auto target = targetCallbacks;
+  target.ctx = &out;
+  xp_plugin_read_headers(&api, &target);
 }
 
 std::string urlEncodeQuery(const std::string& s) {
   std::string out;
   out.reserve(s.size() * 3);
-  for (const unsigned char c : s) {
-    if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+  xp_plugin_encode(span(s), &out, [](void* ctx, XpPluginSpan part) {
+    static_cast<std::string*>(ctx)->append(reinterpret_cast<const char*>(part.data), part.len);
+  });
+  return out;
+}
+
+std::string escapeUrl(const std::string& url) {
+  const auto kept = [](unsigned char c) { return c > 0x20 && c < 0x7F; };
+  const auto escaped = std::count_if(url.begin(), url.end(), [&](unsigned char c) { return !kept(c); });
+  if (escaped == 0) return {};
+  constexpr char HEX_DIGITS[] = "0123456789ABCDEF";
+  std::string out;
+  out.reserve(url.size() + 2 * escaped);
+  for (const unsigned char c : url) {
+    if (kept(c)) {
       out += static_cast<char>(c);
     } else {
-      char buf[4];
-      snprintf(buf, sizeof(buf), "%%%02X", c);
-      out += buf;
+      out += '%';
+      out += HEX_DIGITS[c >> 4];
+      out += HEX_DIGITS[c & 0x0F];
     }
   }
   return out;
 }
 
 std::string inPluginDir(const std::string& pluginDir, const char* path) {
-  if (!path || !path[0] || path[0] == '/') return path ? path : "";
+  if (!xp_plugin_relative(span(path))) return path ? path : "";
   return pluginDir + "/" + path;
 }
 
@@ -132,42 +187,79 @@ static bool allowedFile(const std::string& file) {
 
 bool loadTokenFromFile(const std::string& file, const std::string& path, std::string& out) {
   out.clear();
-  if (file.empty()) return true;  // token-less plugin
-  if (!allowedFile(file)) return false;
-  std::string raw;
-  if (!Storage.readFileToString("PHTP", file, MAX_TOKEN_FILE_SIZE, raw)) return false;
-  JsonDocument doc;
-  if (deserializeJson(doc, raw) != DeserializationError::Ok) return false;
-  out = variantToString(resolvePath(doc.as<JsonVariantConst>(), path));
-  return !out.empty();
+  struct Context {
+    const std::string& file;
+    const std::string& path;
+    std::string& out;
+    std::string raw;
+    JsonDocument doc;
+  } context{file, path, out, {}, JsonDocument{}};
+  const XpPluginOps ops{&context, [](void* p, uint32_t operation, uint64_t) -> uint64_t {
+                          auto& c = *static_cast<Context*>(p);
+                          switch (static_cast<XpPluginTokenOp>(operation)) {
+                            case XP_PLUGIN_TOKEN_ALLOWED:
+                              return allowedFile(c.file);
+                            case XP_PLUGIN_TOKEN_READ:
+                              return Storage.readFileToString("PHTP", c.file, MAX_TOKEN_FILE_SIZE, c.raw) &&
+                                     deserializeJson(c.doc, c.raw) == DeserializationError::Ok;
+                            case XP_PLUGIN_TOKEN_EXTRACT:
+                              c.out = variantToString(resolvePath(c.doc.as<JsonVariantConst>(), c.path));
+                              return !c.out.empty();
+                            default:
+                              return 0;
+                          }
+                        }};
+  return xp_plugin_load_token(file.empty(), &ops);
 }
 
 bool saveTokenToFile(const std::string& file, const std::string& path, const std::string& value) {
-  if (file.empty()) return false;
-  if (!allowedFile(file)) return false;
-  JsonDocument doc;
-  // Build the nesting the read path expects (numeric segments unsupported).
-  std::vector<std::string> segs;
-  splitPath(path, segs);
-  if (segs.empty()) return false;
-  JsonVariant node = doc.to<JsonObject>();
-  for (size_t i = 0; i + 1 < segs.size(); i++) node = node[segs[i]].to<JsonObject>();
-  node[segs.back()] = value;
-  std::string out;
-  serializeJson(doc, out);
-  HalFile f;
-  if (!Storage.openFileForWrite("PHTP", file, f)) return false;
-  const size_t written = f.write(out.data(), out.size());
-  f.flush();
-  if (written != out.size()) {
-    // A short write (SD full, I/O fault) must not persist a truncated token:
-    // the writer would report success, then every later load fails.
-    LOG_ERR("PHTP", "short token write (%u of %u)", static_cast<unsigned>(written), static_cast<unsigned>(out.size()));
-    if (f.isOpen()) f.close();
-    Storage.remove(file.c_str());
-    return false;
-  }
-  return true;
+  struct Context {
+    const std::string& file;
+    const std::string& value;
+    JsonDocument doc;
+    JsonVariant node;
+    std::string out;
+    HalFile handle;
+  } context{file, value, JsonDocument{}, {}, {}, {}};
+  context.node = context.doc.to<JsonObject>();
+  const XpPluginOps ops{&context, [](void* p, uint32_t operation, uint64_t argument) -> uint64_t {
+                          auto& c = *static_cast<Context*>(p);
+                          switch (static_cast<XpPluginTokenOp>(operation)) {
+                            case XP_PLUGIN_TOKEN_ALLOWED:
+                              return allowedFile(c.file);
+                            case XP_PLUGIN_TOKEN_SERIALIZE:
+                              serializeToken(c.doc, c.out);
+                              return c.out.size();
+                            case XP_PLUGIN_TOKEN_OPEN:
+                              return Storage.openFileForWrite("PHTP", c.file, c.handle);
+                            case XP_PLUGIN_TOKEN_WRITE:
+                              return c.handle.write(c.out.data(), c.out.size());
+                            case XP_PLUGIN_TOKEN_FLUSH:
+                              c.handle.flush();
+                              break;
+                            case XP_PLUGIN_TOKEN_CLOSE:
+                              if (c.handle.isOpen()) c.handle.close();
+                              break;
+                            case XP_PLUGIN_TOKEN_REMOVE:
+                              Storage.remove(c.file.c_str());
+                              break;
+                            case XP_PLUGIN_TOKEN_SHORT:
+                              LOG_ERR("PHTP", "short token write (%u of %u)", static_cast<unsigned>(argument),
+                                      static_cast<unsigned>(c.out.size()));
+                              break;
+                            default:
+                              break;
+                          }
+                          return 0;
+                        }};
+  return xp_plugin_save_token(file.empty(), span(path), &ops, [](void* p, XpPluginSpan key, bool last) {
+    auto& c = *static_cast<Context*>(p);
+    const std::string name(reinterpret_cast<const char*>(key.data), key.len);
+    if (last)
+      c.node[name] = c.value;
+    else
+      c.node = c.node[name].to<JsonObject>();
+  });
 }
 
 void loadConfigFile(const std::string& file, Headers& out) {
@@ -178,11 +270,22 @@ void loadConfigFile(const std::string& file, Headers& out) {
   if (!Storage.readFileToString("PHTP", file, MAX_TOKEN_FILE_SIZE, raw)) return;
   JsonDocument doc;
   if (deserializeJson(doc, raw) != DeserializationError::Ok) return;
-  const JsonObjectConst fields = doc.as<JsonObjectConst>();
-  out.reserve(fields.size());
-  for (JsonPairConst kv : fields) {
-    out.emplace_back(kv.key().c_str(), variantToString(kv.value()));
-  }
+  PluginJson json(doc.as<JsonVariantConst>());
+  const auto api = json.api();
+  struct Context {
+    Headers& out;
+    PluginJson& json;
+  } context{out, json};
+  static const XpPluginConfigOps opsCallbacks{
+      nullptr, [](void* p, size_t count) { static_cast<Context*>(p)->out.reserve(count); },
+      [](void* p, XpPluginSpan key, uint32_t slot) {
+        auto& c = *static_cast<Context*>(p);
+        c.out.emplace_back(std::string(reinterpret_cast<const char*>(key.data), key.len),
+                           variantToString(c.json.slots[slot]));
+      }};
+  auto ops = opsCallbacks;
+  ops.ctx = &context;
+  xp_plugin_config_fields(&api, &ops);
 }
 
 int request(freeink::SecureHttpClient* session, const std::string& url, const std::string& method,
@@ -190,7 +293,7 @@ int request(freeink::SecureHttpClient* session, const std::string& url, const st
             Headers* responseHeaders, const std::function<bool()>& shouldAbort) {
   WifiPowerSaveGuard psGuard;
   freeink::SecureHttpClient tmp;
-  freeink::SecureHttpClient* httpPtr = openClient(session, tmp, url, headers);
+  freeink::SecureHttpClient* httpPtr = openClient(session, tmp, url, headers, shouldAbort);
   if (!httpPtr) return -1;
   freeink::SecureHttpClient& http = *httpPtr;
 
@@ -200,13 +303,10 @@ int request(freeink::SecureHttpClient* session, const std::string& url, const st
   const int status = http.sendRequest(
       method.c_str(), reinterpret_cast<const uint8_t*>(body.data()), body.size(),
       [&](const uint8_t* data, size_t len) {
-        if (len > maxResponse - out.length()) {
+        if (!xp_plugin_receive(out.length(), len, maxResponse, &reserved)) {
           overflow = true;
           return false;
         }
-        const size_t needed = out.length() + len;
-        // Grow geometrically instead of reallocating for every network chunk.
-        if (needed > reserved) reserved = std::min(maxResponse, std::max(needed, reserved * 2));
         if (!out.reserve(reserved) || !out.concat(reinterpret_cast<const char*>(data), len)) {
           overflow = true;
           return false;
@@ -217,7 +317,7 @@ int request(freeink::SecureHttpClient* session, const std::string& url, const st
   if (responseHeaders) *responseHeaders = http.getHeaders();
   // Error statuses still return their body: OAuth device-code polling carries
   // its state ("authorization_pending") in 4xx response bodies.
-  if (overflow || status < 0 || !http.responseComplete()) {
+  if (!xp_plugin_http_ok(status, overflow, http.responseComplete())) {
     LOG_ERR("PHTP", "API request failed: status=%d overflow=%d complete=%d %s", status, overflow,
             http.responseComplete(), url.c_str());
     return -1;
@@ -241,7 +341,8 @@ int requestToFile(freeink::SecureHttpClient* session, const std::string& url, co
     if (!Storage.openFileForWrite("PHTP", destPath, file)) return -1;
     status = http.sendRequest(method.c_str(), reinterpret_cast<const uint8_t*>(body.data()), body.size(),
                               [&](const uint8_t* data, size_t len) {
-                                if (written + len > maxResponse) {
+                                size_t reserved = 0;
+                                if (!xp_plugin_receive(written, len, maxResponse, &reserved)) {
                                   writeOk = false;
                                   return false;
                                 }
@@ -255,7 +356,7 @@ int requestToFile(freeink::SecureHttpClient* session, const std::string& url, co
     file.flush();
     // file closed at scope exit, before any Storage.remove of destPath
   }
-  if (!writeOk || status < 0 || !http.responseComplete()) {
+  if (!xp_plugin_http_ok(status, !writeOk, http.responseComplete())) {
     LOG_ERR("PHTP", "API request (to file) failed: status=%d writeOk=%d complete=%d %s", status, writeOk,
             http.responseComplete(), url.c_str());
     Storage.remove(destPath);
@@ -270,7 +371,7 @@ bool mintPasswordToken(freeink::SecureHttpClient* session, const std::string& ur
   String response;
   constexpr size_t MAX_AUTH_RESPONSE = 8 * 1024;
   const int status = request(session, url, method, body, headers, response, MAX_AUTH_RESPONSE);
-  if (status < 200 || status >= 300) return false;
+  if (!xp_plugin_mint_status(status)) return false;
   JsonDocument doc;
   if (deserializeJson(doc, response) != DeserializationError::Ok) return false;
   outToken = variantToString(resolvePath(doc.as<JsonVariantConst>(), tokenPath));

@@ -24,9 +24,6 @@ using Headers = std::vector<std::pair<std::string, std::string>>;
 
 // --- JSON / template helpers ---
 
-// Splits a dotted path ("authors.0.name") into segments.
-void splitPath(const std::string& dotted, std::vector<std::string>& out);
-
 // Resolves a dotted path against a parsed document.
 JsonVariantConst resolvePath(JsonVariantConst node, const std::string& dotted);
 
@@ -52,6 +49,9 @@ void readRequest(JsonVariantConst node, const char* defaultMethod, RequestSpec& 
 
 // Percent-encodes a query value ('/' included).
 std::string urlEncodeQuery(const std::string& s);
+
+// Returns an escaped request URL, or an empty string when it needs no escaping.
+std::string escapeUrl(const std::string& url);
 
 // --- token / config files ---
 

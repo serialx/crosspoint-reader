@@ -135,9 +135,9 @@ bool clippingSync::run(const std::string& bookPath, const std::string& documentH
   // Gate before loading files, allocating buffers, or contacting the server.
   if (!KOREADER_STORE.getSyncClippings()) return true;
   if (!KOREADER_STORE.hasCredentials()) return false;
-  if (!CLIPPINGS.loadForBook(bookPath, "", "", "epub")) return false;
+  if (!ClippingStoreFacade::loadForBook(bookPath, "", "", "epub")) return false;
   struct Unload {
-    ~Unload() { CLIPPINGS.unload(); }
+    ~Unload() { ClippingStoreFacade::unload(); }
   } unload;
 
 #if defined(CONFIG_IDF_TARGET_ESP32C3) && CONFIG_IDF_TARGET_ESP32C3
@@ -162,12 +162,12 @@ bool clippingSync::run(const std::string& bookPath, const std::string& documentH
     LOG_ERR("CLIP", "Clipping sync requires a compatible crosspoint-sync server");
     return false;
   }
-  if (!CLIPPINGS.prepareSync()) return false;
+  if (!ClippingStoreFacade::prepareSync()) return false;
 
   uint32_t deletionOffset = 0;
   char deletedId[65];
   while (true) {
-    if (!CLIPPINGS.nextDeletion(deletionOffset, deletedId)) return false;
+    if (!ClippingStoreFacade::nextDeletion(deletionOffset, deletedId)) return false;
     if (!deletedId[0]) break;
     doc.clear();
     JsonObject item = doc["items"].to<JsonArray>().add<JsonObject>();
@@ -175,18 +175,19 @@ bool clippingSync::run(const std::string& bookPath, const std::string& documentH
     item["deleted"] = 1;
     if (!request(*http, url, buffer.get(), doc, true)) return false;
   }
-  if (!CLIPPINGS.finishDeletions()) return false;
+  if (!ClippingStoreFacade::finishDeletions()) return false;
 
   std::string text;
-  for (size_t i = 0; i < CLIPPINGS.clippingCount(); ++i) {
-    const Clipping& clipping = *CLIPPINGS.clippingAt(i);
+  for (size_t i = 0; i < ClippingStoreFacade::clippingCount(); ++i) {
+    Clipping clipping;
+    if (!ClippingStoreFacade::clippingAt(i, clipping)) return false;
     if (!clipping.pendingUpload) continue;
-    if (!CLIPPINGS.readClippingText(i, text)) return false;
+    if (!ClippingStoreFacade::readClippingText(i, text)) return false;
     doc.clear();
     encode(doc["items"].to<JsonArray>().add<JsonObject>(), clipping, text);
     if (!request(*http, url, buffer.get(), doc, true)) return false;
   }
-  if (!CLIPPINGS.finishUploads()) return false;
+  if (!ClippingStoreFacade::finishUploads()) return false;
 
   // ponytail: rescan one book per manual sync; persist an account-scoped cursor if histories grow large.
   uint64_t cursor = 0;
@@ -208,7 +209,7 @@ bool clippingSync::run(const std::string& bookPath, const std::string& documentH
         LOG_ERR("CLIP", "Invalid remote clipping");
         return false;
       }
-      if (!CLIPPINGS.applyRemote(clipping, text, deleted)) return false;
+      if (!ClippingStoreFacade::applyRemote(clipping, text, deleted)) return false;
     }
     cursor = next;
   } while (doc["more"].as<bool>());

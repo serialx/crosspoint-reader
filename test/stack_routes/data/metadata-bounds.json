@@ -1,0 +1,871 @@
+{
+  "roots": {
+    "__cxa_throw": {
+      "bound": 3232,
+      "chain": [
+        "__cxa_throw",
+        "_Unwind_RaiseException",
+        "_Unwind_RaiseException_Phase2",
+        "uw_frame_state_for",
+        "execute_cfa_program",
+        "execute_cfa_program_specialized",
+        "read_encoded_value",
+        "abort",
+        "ROM::itoa",
+        "ROM::__itoa",
+        "ROM::__utoa",
+        "ROM::memcpy"
+      ]
+    },
+    "__cxa_allocate_exception": {
+      "bound": 768,
+      "chain": [
+        "__cxa_allocate_exception",
+        "std::terminate()",
+        "std::get_terminate()",
+        "__gnu_cxx::__mutex::lock()",
+        "pthread_mutex_lock",
+        "pthread_mutex_init_if_static",
+        "pthread_mutex_init",
+        "xQueueCreateMutex",
+        "xQueueGenericCreate",
+        "pvPortMalloc",
+        "heap_caps_malloc",
+        "heap_caps_malloc_base",
+        "heap_caps_aligned_alloc_base",
+        "multi_heap_aligned_alloc_offs",
+        "multi_heap_aligned_alloc_impl_offs",
+        "tlsf_memalign_offs",
+        "__assert_func",
+        "ROM::itoa",
+        "ROM::__itoa",
+        "ROM::__utoa",
+        "ROM::memcpy"
+      ]
+    },
+    "std::__throw_bad_alloc()": {
+      "bound": 3248,
+      "chain": [
+        "std::__throw_bad_alloc()",
+        "__cxa_throw",
+        "_Unwind_RaiseException",
+        "_Unwind_RaiseException_Phase2",
+        "uw_frame_state_for",
+        "execute_cfa_program",
+        "execute_cfa_program_specialized",
+        "read_encoded_value",
+        "abort",
+        "ROM::itoa",
+        "ROM::__itoa",
+        "ROM::__utoa",
+        "ROM::memcpy"
+      ]
+    },
+    "std::__throw_bad_array_new_length()": {
+      "bound": 3248,
+      "chain": [
+        "std::__throw_bad_array_new_length()",
+        "__cxa_throw",
+        "_Unwind_RaiseException",
+        "_Unwind_RaiseException_Phase2",
+        "uw_frame_state_for",
+        "execute_cfa_program",
+        "execute_cfa_program_specialized",
+        "read_encoded_value",
+        "abort",
+        "ROM::itoa",
+        "ROM::__itoa",
+        "ROM::__utoa",
+        "ROM::memcpy"
+      ]
+    },
+    "std::__throw_length_error(char const*)": {
+      "bound": 3408,
+      "chain": [
+        "std::__throw_length_error(char const*)",
+        "std::length_error::length_error(char const*)",
+        "std::logic_error::logic_error(char const*)",
+        "std::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(char const*, std::allocator<char> const&)",
+        "char* std::string::_S_construct<char const*>(char const*, char const*, std::allocator<char> const&, std::forward_iterator_tag)",
+        "std::string::_Rep::_S_create(unsigned int, unsigned int, std::allocator<char> const&)",
+        "std::__throw_bad_alloc()",
+        "__cxa_throw",
+        "_Unwind_RaiseException",
+        "_Unwind_RaiseException_Phase2",
+        "uw_frame_state_for",
+        "execute_cfa_program",
+        "execute_cfa_program_specialized",
+        "read_encoded_value",
+        "abort",
+        "ROM::itoa",
+        "ROM::__itoa",
+        "ROM::__utoa",
+        "ROM::memcpy"
+      ]
+    },
+    "std::__throw_bad_function_call()": {
+      "bound": 3248,
+      "chain": [
+        "std::__throw_bad_function_call()",
+        "__cxa_throw",
+        "_Unwind_RaiseException",
+        "_Unwind_RaiseException_Phase2",
+        "uw_frame_state_for",
+        "execute_cfa_program",
+        "execute_cfa_program_specialized",
+        "read_encoded_value",
+        "abort",
+        "ROM::itoa",
+        "ROM::__itoa",
+        "ROM::__utoa",
+        "ROM::memcpy"
+      ]
+    },
+    "std::__throw_logic_error(char const*)": {
+      "bound": 3392,
+      "chain": [
+        "std::__throw_logic_error(char const*)",
+        "std::logic_error::logic_error(char const*)",
+        "std::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(char const*, std::allocator<char> const&)",
+        "char* std::string::_S_construct<char const*>(char const*, char const*, std::allocator<char> const&, std::forward_iterator_tag)",
+        "std::string::_Rep::_S_create(unsigned int, unsigned int, std::allocator<char> const&)",
+        "std::__throw_bad_alloc()",
+        "__cxa_throw",
+        "_Unwind_RaiseException",
+        "_Unwind_RaiseException_Phase2",
+        "uw_frame_state_for",
+        "execute_cfa_program",
+        "execute_cfa_program_specialized",
+        "read_encoded_value",
+        "abort",
+        "ROM::itoa",
+        "ROM::__itoa",
+        "ROM::__utoa",
+        "ROM::memcpy"
+      ]
+    }
+  },
+  "C_fatal": 3408,
+  "functions": [
+    {
+      "name": "(anonymous namespace)::pool::allocate(unsigned int) [clone .constprop.0]",
+      "bound": 736
+    },
+    {
+      "name": "(anonymous namespace)::pool::free(void*) [clone .constprop.0]",
+      "bound": 736
+    },
+    {
+      "name": "ROM::Cache_Get_ICache_Line_Size",
+      "bound": 0
+    },
+    {
+      "name": "ROM::__clzsi2",
+      "bound": 0
+    },
+    {
+      "name": "ROM::__ffssi2",
+      "bound": 0
+    },
+    {
+      "name": "ROM::__itoa",
+      "bound": 80
+    },
+    {
+      "name": "ROM::__utoa",
+      "bound": 64
+    },
+    {
+      "name": "ROM::itoa",
+      "bound": 80
+    },
+    {
+      "name": "ROM::memcpy",
+      "bound": 0
+    },
+    {
+      "name": "ROM::memset",
+      "bound": 0
+    },
+    {
+      "name": "ROM::strcat",
+      "bound": 0
+    },
+    {
+      "name": "ROM::strlen",
+      "bound": 0
+    },
+    {
+      "name": "_Unwind_DebugHook",
+      "bound": 0
+    },
+    {
+      "name": "_Unwind_Find_FDE",
+      "bound": 752
+    },
+    {
+      "name": "_Unwind_GetDataRelBase",
+      "bound": 0
+    },
+    {
+      "name": "_Unwind_GetGR",
+      "bound": 208
+    },
+    {
+      "name": "_Unwind_GetGRPtr",
+      "bound": 0
+    },
+    {
+      "name": "_Unwind_GetIPInfo",
+      "bound": 0
+    },
+    {
+      "name": "_Unwind_GetLanguageSpecificData",
+      "bound": 0
+    },
+    {
+      "name": "_Unwind_GetRegionStart",
+      "bound": 0
+    },
+    {
+      "name": "_Unwind_GetTextRelBase",
+      "bound": 0
+    },
+    {
+      "name": "_Unwind_RaiseException",
+      "bound": 3200
+    },
+    {
+      "name": "_Unwind_RaiseException_Phase2",
+      "bound": 1952
+    },
+    {
+      "name": "_Unwind_Resume",
+      "bound": 2816
+    },
+    {
+      "name": "_Unwind_SetGR",
+      "bound": 208
+    },
+    {
+      "name": "_Unwind_SetGRPtr",
+      "bound": 0
+    },
+    {
+      "name": "_Unwind_SetGRValue",
+      "bound": 208
+    },
+    {
+      "name": "_Unwind_SetIP",
+      "bound": 0
+    },
+    {
+      "name": "_Unwind_SetSpColumn",
+      "bound": 208
+    },
+    {
+      "name": "__assert_func",
+      "bound": 400
+    },
+    {
+      "name": "__cxa_allocate_exception",
+      "bound": 768
+    },
+    {
+      "name": "__cxa_begin_catch",
+      "bound": 784
+    },
+    {
+      "name": "__cxa_call_terminate",
+      "bound": 800
+    },
+    {
+      "name": "__cxa_free_exception",
+      "bound": 736
+    },
+    {
+      "name": "__cxa_get_globals",
+      "bound": 768
+    },
+    {
+      "name": "__cxa_init_primary_exception",
+      "bound": 752
+    },
+    {
+      "name": "__cxa_throw",
+      "bound": 3232
+    },
+    {
+      "name": "__cxxabiv1::__terminate(void (*)())",
+      "bound": 208
+    },
+    {
+      "name": "__cxxabiv1::__unexpected(void (*)())",
+      "bound": 768
+    },
+    {
+      "name": "__gnu_cxx::__mutex::lock()",
+      "bound": 720
+    },
+    {
+      "name": "__gnu_cxx::__mutex::unlock()",
+      "bound": 608
+    },
+    {
+      "name": "__gxx_personality_v0",
+      "bound": 928
+    },
+    {
+      "name": "__wrap_panic_abort",
+      "bound": 0
+    },
+    {
+      "name": "abort",
+      "bound": 192
+    },
+    {
+      "name": "assert_valid_block",
+      "bound": 208
+    },
+    {
+      "name": "base_from_object",
+      "bound": 208
+    },
+    {
+      "name": "base_of_encoded_value(unsigned char, _Unwind_Context*)",
+      "bound": 208
+    },
+    {
+      "name": "cache_hal_get_cache_line_size",
+      "bound": 416
+    },
+    {
+      "name": "cache_hal_is_cache_enabled",
+      "bound": 0
+    },
+    {
+      "name": "calloc",
+      "bound": 640
+    },
+    {
+      "name": "cfree",
+      "bound": 480
+    },
+    {
+      "name": "char* std::string::_S_construct<char const*>(char const*, char const*, std::allocator<char> const&, std::forward_iterator_tag)",
+      "bound": 3296
+    },
+    {
+      "name": "check_exception_spec(lsda_header_info*, std::type_info const*, void*, long)",
+      "bound": 320
+    },
+    {
+      "name": "classify_object_over_fdes.constprop.0",
+      "bound": 368
+    },
+    {
+      "name": "esp_cache_get_alignment",
+      "bound": 432
+    },
+    {
+      "name": "esp_cpu_compare_and_set",
+      "bound": 0
+    },
+    {
+      "name": "esp_crosscore_int_send",
+      "bound": 432
+    },
+    {
+      "name": "esp_crosscore_int_send_yield",
+      "bound": 432
+    },
+    {
+      "name": "esp_heap_adjust_alignment_to_hw",
+      "bound": 480
+    },
+    {
+      "name": "esp_system_abort",
+      "bound": 16
+    },
+    {
+      "name": "execute_cfa_program",
+      "bound": 1440
+    },
+    {
+      "name": "execute_cfa_program_generic",
+      "bound": 1440
+    },
+    {
+      "name": "execute_cfa_program_specialized",
+      "bound": 1440
+    },
+    {
+      "name": "execute_stack_op",
+      "bound": 592
+    },
+    {
+      "name": "find_key",
+      "bound": 432
+    },
+    {
+      "name": "get_adjusted_ptr(std::type_info const*, std::type_info const*, void**)",
+      "bound": 176
+    },
+    {
+      "name": "get_cie_encoding",
+      "bound": 288
+    },
+    {
+      "name": "get_ttype_entry(lsda_header_info*, unsigned long)",
+      "bound": 272
+    },
+    {
+      "name": "heap_caps_aligned_alloc_base",
+      "bound": 576
+    },
+    {
+      "name": "heap_caps_alloc_failed",
+      "bound": 0
+    },
+    {
+      "name": "heap_caps_free",
+      "bound": 480
+    },
+    {
+      "name": "heap_caps_malloc",
+      "bound": 592
+    },
+    {
+      "name": "heap_caps_malloc_base",
+      "bound": 576
+    },
+    {
+      "name": "heap_caps_malloc_default",
+      "bound": 608
+    },
+    {
+      "name": "init_dwarf_reg_size_table",
+      "bound": 0
+    },
+    {
+      "name": "linear_search_fdes",
+      "bound": 352
+    },
+    {
+      "name": "malloc",
+      "bound": 608
+    },
+    {
+      "name": "multi_heap_aligned_alloc_impl_offs",
+      "bound": 496
+    },
+    {
+      "name": "multi_heap_aligned_alloc_offs",
+      "bound": 528
+    },
+    {
+      "name": "multi_heap_free",
+      "bound": 464
+    },
+    {
+      "name": "multi_heap_free_impl",
+      "bound": 448
+    },
+    {
+      "name": "multi_heap_internal_lock",
+      "bound": 32
+    },
+    {
+      "name": "multi_heap_internal_unlock",
+      "bound": 432
+    },
+    {
+      "name": "multi_heap_malloc",
+      "bound": 496
+    },
+    {
+      "name": "multi_heap_malloc_impl",
+      "bound": 480
+    },
+    {
+      "name": "operator new(unsigned int)",
+      "bound": 3248
+    },
+    {
+      "name": "panic_abort",
+      "bound": 0
+    },
+    {
+      "name": "parse_lsda_header(_Unwind_Context*, unsigned char const*, lsda_header_info*)",
+      "bound": 304
+    },
+    {
+      "name": "poison_allocated_region",
+      "bound": 32
+    },
+    {
+      "name": "prvAddCurrentTaskToDelayedList",
+      "bound": 32
+    },
+    {
+      "name": "prvCopyDataToQueue",
+      "bound": 432
+    },
+    {
+      "name": "prvIsQueueEmpty",
+      "bound": 432
+    },
+    {
+      "name": "prvNotifyQueueSetContainer",
+      "bound": 464
+    },
+    {
+      "name": "prvResetNextTaskUnblockTime",
+      "bound": 0
+    },
+    {
+      "name": "prvUnlockQueue",
+      "bound": 480
+    },
+    {
+      "name": "pthread_getspecific",
+      "bound": 16
+    },
+    {
+      "name": "pthread_mutex_init",
+      "bound": 656
+    },
+    {
+      "name": "pthread_mutex_init_if_static",
+      "bound": 688
+    },
+    {
+      "name": "pthread_mutex_lock",
+      "bound": 704
+    },
+    {
+      "name": "pthread_mutex_lock_internal",
+      "bound": 624
+    },
+    {
+      "name": "pthread_mutex_unlock",
+      "bound": 592
+    },
+    {
+      "name": "pthread_once",
+      "bound": 16
+    },
+    {
+      "name": "pthread_setspecific",
+      "bound": 672
+    },
+    {
+      "name": "pvPortMalloc",
+      "bound": 592
+    },
+    {
+      "name": "pvTaskGetThreadLocalStoragePointer",
+      "bound": 0
+    },
+    {
+      "name": "pvTaskIncrementMutexHeldCount",
+      "bound": 0
+    },
+    {
+      "name": "read_encoded_value",
+      "bound": 240
+    },
+    {
+      "name": "read_encoded_value(_Unwind_Context*, unsigned char, unsigned char const*, unsigned int*)",
+      "bound": 272
+    },
+    {
+      "name": "read_encoded_value_with_base",
+      "bound": 240
+    },
+    {
+      "name": "read_encoded_value_with_base(unsigned char, unsigned int, unsigned char const*, unsigned int*)",
+      "bound": 240
+    },
+    {
+      "name": "read_sleb128",
+      "bound": 0
+    },
+    {
+      "name": "read_sleb128(unsigned char const*, long*)",
+      "bound": 0
+    },
+    {
+      "name": "read_uleb128",
+      "bound": 0
+    },
+    {
+      "name": "read_uleb128(unsigned char const*, unsigned long*)",
+      "bound": 0
+    },
+    {
+      "name": "search_object",
+      "bound": 400
+    },
+    {
+      "name": "size_of_encoded_value",
+      "bound": 208
+    },
+    {
+      "name": "spi_flash_cache_enabled",
+      "bound": 0
+    },
+    {
+      "name": "std::__throw_bad_alloc()",
+      "bound": 3248
+    },
+    {
+      "name": "std::__throw_bad_array_new_length()",
+      "bound": 3248
+    },
+    {
+      "name": "std::__throw_bad_function_call()",
+      "bound": 3248
+    },
+    {
+      "name": "std::__throw_length_error(char const*)",
+      "bound": 3408
+    },
+    {
+      "name": "std::__throw_logic_error(char const*)",
+      "bound": 3392
+    },
+    {
+      "name": "std::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(char const*, std::allocator<char> const&)",
+      "bound": 3328
+    },
+    {
+      "name": "std::exception::~exception()",
+      "bound": 0
+    },
+    {
+      "name": "std::get_new_handler()",
+      "bound": 736
+    },
+    {
+      "name": "std::get_terminate()",
+      "bound": 736
+    },
+    {
+      "name": "std::get_unexpected()",
+      "bound": 736
+    },
+    {
+      "name": "std::length_error::length_error(char const*)",
+      "bound": 3376
+    },
+    {
+      "name": "std::logic_error::logic_error(char const*)",
+      "bound": 3360
+    },
+    {
+      "name": "std::string::_M_copy(char*, char const*, unsigned int)",
+      "bound": 0
+    },
+    {
+      "name": "std::string::_Rep::_M_set_length_and_sharable(unsigned int)",
+      "bound": 0
+    },
+    {
+      "name": "std::string::_Rep::_S_create(unsigned int, unsigned int, std::allocator<char> const&)",
+      "bound": 3264
+    },
+    {
+      "name": "std::string::_S_copy_chars(char*, char const*, char const*)",
+      "bound": 0
+    },
+    {
+      "name": "std::terminate()",
+      "bound": 752
+    },
+    {
+      "name": "std::unexpected()",
+      "bound": 784
+    },
+    {
+      "name": "tlsf_alloc_overhead",
+      "bound": 0
+    },
+    {
+      "name": "tlsf_block_size",
+      "bound": 0
+    },
+    {
+      "name": "tlsf_free",
+      "bound": 432
+    },
+    {
+      "name": "tlsf_get_pool",
+      "bound": 0
+    },
+    {
+      "name": "tlsf_malloc",
+      "bound": 448
+    },
+    {
+      "name": "tlsf_memalign_offs",
+      "bound": 464
+    },
+    {
+      "name": "uw_frame_state_for",
+      "bound": 1504
+    },
+    {
+      "name": "uw_init_context_1",
+      "bound": 1936
+    },
+    {
+      "name": "uw_install_context_1",
+      "bound": 256
+    },
+    {
+      "name": "uw_update_context",
+      "bound": 1040
+    },
+    {
+      "name": "uw_update_context_1",
+      "bound": 1024
+    },
+    {
+      "name": "uxListRemove",
+      "bound": 0
+    },
+    {
+      "name": "uxTaskGetNumberOfTasks",
+      "bound": 0
+    },
+    {
+      "name": "vListInitialise",
+      "bound": 0
+    },
+    {
+      "name": "vListInsert",
+      "bound": 0
+    },
+    {
+      "name": "vPortClearInterruptMaskFromISR",
+      "bound": 0
+    },
+    {
+      "name": "vPortEnterCritical",
+      "bound": 16
+    },
+    {
+      "name": "vPortExitCritical",
+      "bound": 416
+    },
+    {
+      "name": "vPortYield",
+      "bound": 448
+    },
+    {
+      "name": "vPortYieldFromISR",
+      "bound": 0
+    },
+    {
+      "name": "vTaskInternalSetTimeOutState",
+      "bound": 0
+    },
+    {
+      "name": "vTaskMissedYield",
+      "bound": 0
+    },
+    {
+      "name": "vTaskPlaceOnEventList",
+      "bound": 416
+    },
+    {
+      "name": "vTaskPriorityDisinheritAfterTimeout",
+      "bound": 416
+    },
+    {
+      "name": "vTaskSetThreadLocalStoragePointerAndDelCallback",
+      "bound": 0
+    },
+    {
+      "name": "vTaskSuspendAll",
+      "bound": 0
+    },
+    {
+      "name": "verify_allocated_region",
+      "bound": 48
+    },
+    {
+      "name": "xPortInIsrContext",
+      "bound": 0
+    },
+    {
+      "name": "xPortSetInterruptMaskFromISR",
+      "bound": 0
+    },
+    {
+      "name": "xQueueCreateMutex",
+      "bound": 640
+    },
+    {
+      "name": "xQueueGenericCreate",
+      "bound": 624
+    },
+    {
+      "name": "xQueueGenericReset",
+      "bound": 464
+    },
+    {
+      "name": "xQueueGenericSend",
+      "bound": 560
+    },
+    {
+      "name": "xQueueGetMutexHolder",
+      "bound": 448
+    },
+    {
+      "name": "xQueueGiveMutexRecursive",
+      "bound": 576
+    },
+    {
+      "name": "xQueueSemaphoreTake",
+      "bound": 560
+    },
+    {
+      "name": "xQueueTakeMutexRecursive",
+      "bound": 592
+    },
+    {
+      "name": "xTaskCheckForTimeOut",
+      "bound": 448
+    },
+    {
+      "name": "xTaskGetCurrentTaskHandle",
+      "bound": 0
+    },
+    {
+      "name": "xTaskGetSchedulerState",
+      "bound": 0
+    },
+    {
+      "name": "xTaskIncrementTick",
+      "bound": 416
+    },
+    {
+      "name": "xTaskPriorityDisinherit",
+      "bound": 416
+    },
+    {
+      "name": "xTaskPriorityInherit",
+      "bound": 32
+    },
+    {
+      "name": "xTaskRemoveFromEventList",
+      "bound": 416
+    },
+    {
+      "name": "xTaskResumeAll",
+      "bound": 496
+    }
+  ]
+}

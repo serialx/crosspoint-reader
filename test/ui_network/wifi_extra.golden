@@ -1,0 +1,666 @@
+CASE:wifi-entry:0:0:33
+enter
+lock
+persist-load
+unlock
+read-mac
+viewport-reset
+reset-ui
+paint
+viewport-reset
+paint
+wifi-mode:1
+wifi-disconnect:0:0
+delay:100
+scan-start:1
+state:1
+exit
+DBG:WIFI:Free heap at onExit start: 123456 bytes
+DBG:WIFI:Deleting WiFi scan...
+scan-delete
+DBG:WIFI:Free heap after scanDelete: 123456 bytes
+DBG:WIFI:Free heap at onExit end: 123456 bytes
+CASE:wifi-entry:0:0:64
+enter
+lock
+persist-load
+unlock
+read-mac
+viewport-reset
+reset-ui
+paint
+viewport-reset
+paint
+wifi-mode:1
+wifi-disconnect:0:0
+delay:100
+scan-start:1
+state:1
+exit
+DBG:WIFI:Free heap at onExit start: 123456 bytes
+DBG:WIFI:Deleting WiFi scan...
+scan-delete
+DBG:WIFI:Free heap after scanDelete: 123456 bytes
+DBG:WIFI:Free heap at onExit end: 123456 bytes
+CASE:wifi-entry:0:0:255
+enter
+lock
+persist-load
+unlock
+read-mac
+viewport-reset
+reset-ui
+paint
+viewport-reset
+paint
+wifi-mode:1
+wifi-disconnect:0:0
+delay:100
+scan-start:1
+state:1
+exit
+DBG:WIFI:Free heap at onExit start: 123456 bytes
+DBG:WIFI:Deleting WiFi scan...
+scan-delete
+DBG:WIFI:Free heap after scanDelete: 123456 bytes
+DBG:WIFI:Free heap at onExit end: 123456 bytes
+CASE:wifi-entry:0:1:33
+enter
+lock
+persist-load
+unlock
+read-mac
+viewport-reset
+reset-ui
+paint
+viewport-reset
+paint
+wifi-mode:1
+wifi-disconnect:0:0
+delay:100
+scan-start:1
+state:1
+exit
+DBG:WIFI:Free heap at onExit start: 123456 bytes
+DBG:WIFI:Deleting WiFi scan...
+scan-delete
+DBG:WIFI:Free heap after scanDelete: 123456 bytes
+DBG:WIFI:Free heap at onExit end: 123456 bytes
+CASE:wifi-entry:0:1:64
+enter
+lock
+persist-load
+unlock
+read-mac
+viewport-reset
+reset-ui
+paint
+viewport-reset
+paint
+wifi-mode:1
+wifi-disconnect:0:0
+delay:100
+scan-start:1
+state:1
+exit
+DBG:WIFI:Free heap at onExit start: 123456 bytes
+DBG:WIFI:Deleting WiFi scan...
+scan-delete
+DBG:WIFI:Free heap after scanDelete: 123456 bytes
+DBG:WIFI:Free heap at onExit end: 123456 bytes
+CASE:wifi-entry:0:1:255
+enter
+lock
+persist-load
+unlock
+read-mac
+viewport-reset
+reset-ui
+paint
+viewport-reset
+paint
+wifi-mode:1
+wifi-disconnect:0:0
+delay:100
+scan-start:1
+state:1
+exit
+DBG:WIFI:Free heap at onExit start: 123456 bytes
+DBG:WIFI:Deleting WiFi scan...
+scan-delete
+DBG:WIFI:Free heap after scanDelete: 123456 bytes
+DBG:WIFI:Free heap at onExit end: 123456 bytes
+CASE:wifi-entry:0:2:33
+enter
+lock
+persist-load
+unlock
+read-mac
+viewport-reset
+reset-ui
+paint
+viewport-reset
+paint
+wifi-mode:1
+wifi-disconnect:0:0
+delay:100
+scan-start:1
+state:1
+exit
+DBG:WIFI:Free heap at onExit start: 123456 bytes
+DBG:WIFI:Deleting WiFi scan...
+scan-delete
+DBG:WIFI:Free heap after scanDelete: 123456 bytes
+DBG:WIFI:Free heap at onExit end: 123456 bytes
+CASE:wifi-entry:0:2:64
+enter
+lock
+persist-load
+unlock
+read-mac
+viewport-reset
+reset-ui
+paint
+viewport-reset
+paint
+wifi-mode:1
+wifi-disconnect:0:0
+delay:100
+scan-start:1
+state:1
+exit
+DBG:WIFI:Free heap at onExit start: 123456 bytes
+DBG:WIFI:Deleting WiFi scan...
+scan-delete
+DBG:WIFI:Free heap after scanDelete: 123456 bytes
+DBG:WIFI:Free heap at onExit end: 123456 bytes
+CASE:wifi-entry:0:2:255
+enter
+lock
+persist-load
+unlock
+read-mac
+viewport-reset
+reset-ui
+paint
+viewport-reset
+paint
+wifi-mode:1
+wifi-disconnect:0:0
+delay:100
+scan-start:1
+state:1
+exit
+DBG:WIFI:Free heap at onExit start: 123456 bytes
+DBG:WIFI:Deleting WiFi scan...
+scan-delete
+DBG:WIFI:Free heap after scanDelete: 123456 bytes
+DBG:WIFI:Free heap at onExit end: 123456 bytes
+CASE:wifi-entry:1:0:33
+enter
+lock
+persist-load
+unlock
+read-mac
+viewport-reset
+reset-ui
+paint
+viewport-reset
+paint
+wifi-mode:1
+wifi-disconnect:0:0
+delay:100
+scan-start:1
+state:1
+exit
+DBG:WIFI:Free heap at onExit start: 123456 bytes
+DBG:WIFI:Deleting WiFi scan...
+scan-delete
+DBG:WIFI:Free heap after scanDelete: 123456 bytes
+DBG:WIFI:Free heap at onExit end: 123456 bytes
+CASE:wifi-entry:1:0:64
+enter
+lock
+persist-load
+unlock
+read-mac
+viewport-reset
+reset-ui
+paint
+viewport-reset
+paint
+wifi-mode:1
+wifi-disconnect:0:0
+delay:100
+scan-start:1
+state:1
+exit
+DBG:WIFI:Free heap at onExit start: 123456 bytes
+DBG:WIFI:Deleting WiFi scan...
+scan-delete
+DBG:WIFI:Free heap after scanDelete: 123456 bytes
+DBG:WIFI:Free heap at onExit end: 123456 bytes
+CASE:wifi-entry:1:0:255
+enter
+lock
+persist-load
+unlock
+read-mac
+viewport-reset
+reset-ui
+paint
+viewport-reset
+paint
+wifi-mode:1
+wifi-disconnect:0:0
+delay:100
+scan-start:1
+state:1
+exit
+DBG:WIFI:Free heap at onExit start: 123456 bytes
+DBG:WIFI:Deleting WiFi scan...
+scan-delete
+DBG:WIFI:Free heap after scanDelete: 123456 bytes
+DBG:WIFI:Free heap at onExit end: 123456 bytes
+CASE:wifi-entry:1:1:33
+enter
+lock
+persist-load
+unlock
+read-mac
+viewport-reset
+reset-ui
+paint
+get-last
+DBG:WIFI:Attempting saved network: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+paint
+wifi-persistent:0
+wifi-mode:1
+wifi-disconnect:1:1
+delay:100
+scan-method:1
+sort-method:1
+read-mac
+hostname:CrossPoint-Reader-000102030405
+wifi-begin:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx:<null>
+paint
+state:0
+exit
+DBG:WIFI:Free heap at onExit start: 123456 bytes
+DBG:WIFI:Deleting WiFi scan...
+scan-delete
+DBG:WIFI:Free heap after scanDelete: 123456 bytes
+DBG:WIFI:Free heap at onExit end: 123456 bytes
+CASE:wifi-entry:1:1:64
+enter
+lock
+persist-load
+unlock
+read-mac
+viewport-reset
+reset-ui
+paint
+get-last
+DBG:WIFI:Attempting saved network: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+paint
+wifi-persistent:0
+wifi-mode:1
+wifi-disconnect:1:1
+delay:100
+scan-method:1
+sort-method:1
+read-mac
+hostname:CrossPoint-Reader-000102030405
+wifi-begin:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx:<null>
+paint
+state:0
+exit
+DBG:WIFI:Free heap at onExit start: 123456 bytes
+DBG:WIFI:Deleting WiFi scan...
+scan-delete
+DBG:WIFI:Free heap after scanDelete: 123456 bytes
+DBG:WIFI:Free heap at onExit end: 123456 bytes
+CASE:wifi-entry:1:1:255
+enter
+lock
+persist-load
+unlock
+read-mac
+viewport-reset
+reset-ui
+paint
+get-last
+DBG:WIFI:Attempting saved network: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+paint
+wifi-persistent:0
+wifi-mode:1
+wifi-disconnect:1:1
+delay:100
+scan-method:1
+sort-method:1
+read-mac
+hostname:CrossPoint-Reader-000102030405
+wifi-begin:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx:<null>
+paint
+state:0
+exit
+DBG:WIFI:Free heap at onExit start: 123456 bytes
+DBG:WIFI:Deleting WiFi scan...
+scan-delete
+DBG:WIFI:Free heap after scanDelete: 123456 bytes
+DBG:WIFI:Free heap at onExit end: 123456 bytes
+CASE:wifi-entry:1:2:33
+enter
+lock
+persist-load
+unlock
+read-mac
+viewport-reset
+reset-ui
+paint
+get-last
+DBG:WIFI:Attempting saved network: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+paint
+wifi-persistent:0
+wifi-mode:1
+wifi-disconnect:1:1
+delay:100
+scan-method:1
+sort-method:1
+read-mac
+hostname:CrossPoint-Reader-000102030405
+wifi-begin:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx:secret
+paint
+state:0
+exit
+DBG:WIFI:Free heap at onExit start: 123456 bytes
+DBG:WIFI:Deleting WiFi scan...
+scan-delete
+DBG:WIFI:Free heap after scanDelete: 123456 bytes
+DBG:WIFI:Free heap at onExit end: 123456 bytes
+CASE:wifi-entry:1:2:64
+enter
+lock
+persist-load
+unlock
+read-mac
+viewport-reset
+reset-ui
+paint
+get-last
+DBG:WIFI:Attempting saved network: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+paint
+wifi-persistent:0
+wifi-mode:1
+wifi-disconnect:1:1
+delay:100
+scan-method:1
+sort-method:1
+read-mac
+hostname:CrossPoint-Reader-000102030405
+wifi-begin:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx:secret
+paint
+state:0
+exit
+DBG:WIFI:Free heap at onExit start: 123456 bytes
+DBG:WIFI:Deleting WiFi scan...
+scan-delete
+DBG:WIFI:Free heap after scanDelete: 123456 bytes
+DBG:WIFI:Free heap at onExit end: 123456 bytes
+CASE:wifi-entry:1:2:255
+enter
+lock
+persist-load
+unlock
+read-mac
+viewport-reset
+reset-ui
+paint
+get-last
+DBG:WIFI:Attempting saved network: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+paint
+wifi-persistent:0
+wifi-mode:1
+wifi-disconnect:1:1
+delay:100
+scan-method:1
+sort-method:1
+read-mac
+hostname:CrossPoint-Reader-000102030405
+wifi-begin:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx:secret
+paint
+state:0
+exit
+DBG:WIFI:Free heap at onExit start: 123456 bytes
+DBG:WIFI:Deleting WiFi scan...
+scan-delete
+DBG:WIFI:Free heap after scanDelete: 123456 bytes
+DBG:WIFI:Free heap at onExit end: 123456 bytes
+CASE:wifi-keyboard:0:0:
+keyboard:STR_ENTER_WIFI_PASSWORD:64
+child-wifi
+after-child:4:ordinary:
+paint
+wifi-persistent:0
+wifi-mode:1
+wifi-disconnect:1:1
+delay:100
+scan-method:1
+sort-method:1
+read-mac
+hostname:CrossPoint-Reader-000102030405
+wifi-begin:ordinary:<null>
+after-loop:5
+CASE:wifi-keyboard:0:0:a wireless network
+keyboard:STR_ENTER_WIFI_PASSWORD:64
+child-wifi
+after-child:4:ordinary:a wireless network
+paint
+wifi-persistent:0
+wifi-mode:1
+wifi-disconnect:1:1
+delay:100
+scan-method:1
+sort-method:1
+read-mac
+hostname:CrossPoint-Reader-000102030405
+wifi-begin:ordinary:<null>
+after-loop:5
+CASE:wifi-keyboard:0:0:비공개 네트워크
+keyboard:STR_ENTER_WIFI_PASSWORD:64
+child-wifi
+after-child:4:ordinary:비공개 네트워크
+paint
+wifi-persistent:0
+wifi-mode:1
+wifi-disconnect:1:1
+delay:100
+scan-method:1
+sort-method:1
+read-mac
+hostname:CrossPoint-Reader-000102030405
+wifi-begin:ordinary:<null>
+after-loop:5
+CASE:wifi-keyboard:0:1:
+keyboard:STR_ENTER_WIFI_PASSWORD:64
+child-wifi
+after-child:2:ordinary:
+after-loop:2
+CASE:wifi-keyboard:0:1:a wireless network
+keyboard:STR_ENTER_WIFI_PASSWORD:64
+child-wifi
+after-child:2:ordinary:
+after-loop:2
+CASE:wifi-keyboard:0:1:비공개 네트워크
+keyboard:STR_ENTER_WIFI_PASSWORD:64
+child-wifi
+after-child:2:ordinary:
+after-loop:2
+CASE:wifi-keyboard:1:0:
+keyboard:STR_ENTER_WIFI_SSID:32
+child-wifi
+after-child:2::
+after-loop:2
+CASE:wifi-keyboard:1:0:a wireless network
+keyboard:STR_ENTER_WIFI_SSID:32
+child-wifi
+after-child:3:a wireless network:
+keyboard:STR_ENTER_WIFI_PASSWORD:64
+child-wifi
+after-loop:4
+CASE:wifi-keyboard:1:0:비공개 네트워크
+keyboard:STR_ENTER_WIFI_SSID:32
+child-wifi
+after-child:3:비공개 네트워크:
+keyboard:STR_ENTER_WIFI_PASSWORD:64
+child-wifi
+after-loop:4
+CASE:wifi-keyboard:1:1:
+keyboard:STR_ENTER_WIFI_SSID:32
+child-wifi
+after-child:2::
+after-loop:2
+CASE:wifi-keyboard:1:1:a wireless network
+keyboard:STR_ENTER_WIFI_SSID:32
+child-wifi
+after-child:2::
+after-loop:2
+CASE:wifi-keyboard:1:1:비공개 네트워크
+keyboard:STR_ENTER_WIFI_SSID:32
+child-wifi
+after-child:2::
+after-loop:2
+CASE:wifi-touch:2:0:0
+clear-flash
+keyboard:STR_ENTER_WIFI_PASSWORD:64
+child-wifi
+state:4
+selected:saved
+CASE:wifi-touch:2:0:1
+clear-flash
+paint
+wifi-persistent:0
+wifi-mode:1
+wifi-disconnect:1:1
+delay:100
+scan-method:1
+sort-method:1
+read-mac
+hostname:CrossPoint-Reader-000102030405
+wifi-begin:new:<null>
+state:5
+selected:new
+CASE:wifi-touch:2:1:0
+clear-flash
+paint
+state:9
+selected:saved
+CASE:wifi-touch:2:1:1
+state:2
+selected:saved
+CASE:wifi-touch:7:0:0
+clear-flash
+lock
+persist-add:saved:secret
+unlock
+result:0:saved:
+finish
+state:7
+selected:saved
+CASE:wifi-touch:7:0:1
+clear-flash
+result:0:saved:
+finish
+state:7
+selected:saved
+CASE:wifi-touch:7:1:0
+clear-flash
+lock
+persist-add:saved:secret
+unlock
+result:0:saved:
+finish
+state:7
+selected:saved
+CASE:wifi-touch:7:1:1
+clear-flash
+result:0:saved:
+finish
+state:7
+selected:saved
+CASE:wifi-touch:9:0:0
+clear-flash
+viewport-reset
+paint
+wifi-mode:1
+wifi-disconnect:0:0
+delay:100
+scan-start:1
+state:1
+selected:saved
+CASE:wifi-touch:9:0:1
+clear-flash
+lock
+persist-remove:saved
+unlock
+viewport-reset
+paint
+wifi-mode:1
+wifi-disconnect:0:0
+delay:100
+scan-start:1
+state:1
+selected:saved
+CASE:wifi-touch:9:1:0
+clear-flash
+viewport-reset
+paint
+wifi-mode:1
+wifi-disconnect:0:0
+delay:100
+scan-start:1
+state:1
+selected:saved
+CASE:wifi-touch:9:1:1
+clear-flash
+lock
+persist-remove:saved
+unlock
+viewport-reset
+paint
+wifi-mode:1
+wifi-disconnect:0:0
+delay:100
+scan-start:1
+state:1
+selected:saved
+CASE:wifi-dedup:0
+scan-complete
+scan-delete
+paint
+row:saved:-90:1:1:+ *    |
+row:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx:-40:1:0:* ||||
+row:equal-a:-50:0:0:||||
+row:equal-b:-50:1:0:* ||||
+row:한글:-70:0:0:  ||
+row::0:1:0:
+CASE:wifi-dedup:1
+scan-complete
+scan-delete
+paint
+row:saved:-90:1:1:+ *    |
+row:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx:-40:1:0:* ||||
+row:equal-a:-50:1:0:* ||||
+row:equal-b:-50:1:0:* ||||
+row:한글:-70:0:0:  ||
+row::0:1:0:
+CASE:wifi-dedup:2
+scan-complete
+scan-delete
+paint
+row:saved:-90:1:1:+ *    |
+row:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx:-40:1:0:* ||||
+row:equal-a:-49:1:0:* ||||
+row:equal-b:-50:1:0:* ||||
+row:한글:-70:0:0:  ||
+row::0:1:0:

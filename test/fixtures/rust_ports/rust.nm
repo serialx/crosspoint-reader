@@ -1,0 +1,7 @@
+libxp_ffi.a[ffi.rcgu.o]:
+xp_native_bidi_acquire U
+xp_keyboard_metrics U
+xp_bidi_reorder T 0 10
+xp_bidi_workspace_size T 10 10
+xp_bidi_workspace_align T 20 10
+xp_panel T 30 10

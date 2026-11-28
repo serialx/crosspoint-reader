@@ -1,0 +1,19 @@
+[package]
+name = "sdfont-owner-host"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+xp-core = { path = "../../rust/crates/xp-core" }
+xp-layout = { path = "../../rust/crates/xp-layout" }
+
+[[bin]]
+name = "sdfont-owner"
+path = "main.rs"
+
+[lib]
+name = "sdfont_owner_layout"
+path = "layout.rs"

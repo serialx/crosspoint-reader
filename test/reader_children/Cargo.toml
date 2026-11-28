@@ -1,0 +1,27 @@
+[package]
+name = "reader-children-test"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[features]
+default = ["app-test"]
+app-test = []
+
+[dependencies]
+xp-ui = { path = "../../rust/crates/xp-ui" }
+xp-core = { path = "../../rust/crates/xp-core" }
+xp-layout = { path = "../../rust/crates/xp-layout" }
+
+[lib]
+path = "lib.rs"
+
+[[bin]]
+name = "percent-oracle"
+path = "percent_oracle.rs"
+
+[[bin]]
+name = "chapter-oracle"
+path = "chapter_oracle.rs"

@@ -1,0 +1,117 @@
+{
+  "nodes": {
+    "1": {
+      "name": "reader",
+      "language": "rust",
+      "object": "rust.o",
+      "edges": [
+        {
+          "target": 2,
+          "pc": "0x10",
+          "kind": "jal"
+        },
+        {
+          "target": 5,
+          "pc": "0x10",
+          "kind": "jal"
+        }
+      ],
+      "indirect": [],
+      "references": []
+    },
+    "2": {
+      "name": "native_front",
+      "language": "native",
+      "object": "native.o",
+      "edges": [
+        {
+          "target": 3,
+          "pc": "0x10",
+          "kind": "jal"
+        }
+      ],
+      "indirect": [],
+      "references": []
+    },
+    "3": {
+      "name": "native_cycle",
+      "language": "native",
+      "object": "native.o",
+      "edges": [
+        {
+          "target": 2,
+          "pc": "0x10",
+          "kind": "jal"
+        },
+        {
+          "target": 4,
+          "pc": "0x10",
+          "kind": "jal"
+        }
+      ],
+      "indirect": [],
+      "references": []
+    },
+    "4": {
+      "name": "rust_return",
+      "language": "rust",
+      "object": "rust.o",
+      "edges": [
+        {
+          "target": 6,
+          "pc": "0x10",
+          "kind": "jal"
+        }
+      ],
+      "indirect": [],
+      "references": []
+    },
+    "5": {
+      "name": "xp_native_is_actually_rust",
+      "language": "rust",
+      "object": "rust.o",
+      "edges": [],
+      "indirect": [],
+      "references": []
+    },
+    "6": {
+      "name": "second_front",
+      "language": "native",
+      "object": "native.o",
+      "edges": [
+        {
+          "target": 7,
+          "pc": "0x10",
+          "kind": "jal"
+        }
+      ],
+      "indirect": [],
+      "references": []
+    },
+    "7": {
+      "name": "second_return",
+      "language": "rust",
+      "object": "rust.o",
+      "edges": [],
+      "indirect": [],
+      "references": []
+    },
+    "8": {
+      "name": "unreachable_front",
+      "language": "native",
+      "object": "native.o",
+      "edges": [
+        {
+          "target": 4,
+          "pc": "0x10",
+          "kind": "jal"
+        }
+      ],
+      "indirect": [],
+      "references": []
+    }
+  },
+  "roots": {
+    "reader": 1
+  }
+}

@@ -1,0 +1,13 @@
+[package]
+name = "xp-layout"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[features]
+chapter-trace = []
+chapter-test = ["xp-core/chapter-test"]
+sd-font-catalog = ["xp-core/sd-font-catalog"]
+
+[dependencies]
+xp-core = { path = "../xp-core" }

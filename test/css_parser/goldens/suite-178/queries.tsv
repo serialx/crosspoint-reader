@@ -1,0 +1,21 @@
+P	AFTER		
+P	ASC		
+P	AVOID		
+P	BEFORE		
+P	NORMAL		
+P	SC		
+div	a b c d e f g h i	id	
+p			
+p	after		
+p	after unrelated		
+p	asc		
+p	asc unrelated		
+p	avoid		
+p	avoid unrelated		
+p	before		
+p	before unrelated		
+p	normal		
+p	normal unrelated		
+p	sc		
+p	sc unrelated		
+span	note	target	

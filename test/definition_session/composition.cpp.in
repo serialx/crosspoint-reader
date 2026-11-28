@@ -1,0 +1,191 @@
+#include <xp_app.h>
+#include <xp_epub_session.h>
+
+#include <cassert>
+#include <cstdlib>
+#include <cstring>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "activities/ActivityResult.h"
+#include "activities/ActivityResultView.h"
+#include "app_leaves.h"
+#include "physical_defaults.h"
+extern "C" {
+uint8_t xp_app_test_drain();
+void* xp_app_test_current_definition();
+void* xp_app_test_published_definition();
+uint8_t xp_app_test_definition_install_lookup(XpEpubLookupStorage*);
+}
+static bool locked, childLive, resultLive, tracing;
+static unsigned pages, copies, allocations, frees;
+static std::vector<std::string> events;
+static void record(const char* s) {
+  if (tracing) events.emplace_back(s);
+}
+struct Activity {
+  ActivityResult result;
+  bool child = false;
+  ~Activity() {
+    if (child) {
+      assert(locked && pages && childLive);
+      childLive = false;
+      record("child-drop");
+    }
+  }
+};
+struct ClipSelectionActivity {
+  ActivityResult result;
+  void cancel();
+  void setResult(ActivityResult&& value) { result = std::move(value); }
+  void finish() {}
+};
+// CLIP_CANCEL
+static Activity* nativeActivity(void* p) { return static_cast<Activity*>(p); }
+static void* parent;
+struct ResultLifetime {
+  ResultLifetime() {
+    assert(!resultLive);
+    resultLive = true;
+  }
+  ~ResultLifetime() {
+    resultLive = false;
+    record("result-drop");
+  }
+};
+struct Page {
+  Page() { ++pages; }
+  ~Page() {
+    assert(!childLive && !locked);
+    --pages;
+    record("selection-release");
+  }
+};
+struct Payload {
+  std::vector<std::unique_ptr<Page>> pages;
+};
+static XpAppLegacy legacy = appTestLegacy();
+static XpAppResources resources = appTestResources();
+static XpAppRuntime runtime = appTestRuntime();
+static XpEpubLeaves leaves = unexpectedEpubLeaves();
+static XpAppCompatibility compatibility{};
+static uint8_t* block;
+static Payload* payload;
+extern "C" void* xp_test_definition_malloc(size_t size) {
+  assert(!childLive && !locked && !pages && resultLive);
+  assert(xp_app_test_published_definition() == parent);
+  ++allocations;
+  record("malloc");
+  return block = static_cast<uint8_t*>(std::malloc(size));
+}
+extern "C" void xp_test_definition_free(void* p) {
+  ++frees;
+  std::free(p);
+}
+extern "C" void xp_test_definition_copied(const uint8_t* source, uint8_t* target, size_t size) {
+  assert(resultLive && !childLive && !locked && pages == 0 && target == block);
+  assert(std::memcmp(source, target, size) == 0 && target[size] == 0);
+  ++copies;
+  record("copy");
+}
+static void push(Activity* activity) {
+  XpAppEvent event{.kind = XP_APP_ADOPT_PUSH};
+  event.value.adopt_push = activity;
+  assert(xp_app_event(&event) == XP_APP_ACCEPTED);
+  assert(xp_app_test_drain());
+}
+int main(int argc, char** argv) {
+  assert(argc == 3);
+  const size_t length = std::stoul(argv[1]);
+  const bool cancelled = std::stoi(argv[2]);
+  runtime.render_lock = []() -> void* {
+    assert(!locked);
+    locked = true;
+    return &locked;
+  };
+  runtime.render_unlock = [](void*) {
+    assert(locked);
+    if (tracing && !childLive && pages) {
+      assert(xp_app_test_current_definition() == parent && xp_app_test_published_definition() == parent);
+      record("parent-publish");
+    }
+    locked = false;
+    if (tracing && !childLive && pages) record("unlock");
+  };
+  runtime.ble_before_screen_change = [](uint8_t) -> uint8_t { return 1; };
+  legacy.destroy = [](void* p) { delete nativeActivity(p); };
+  legacy.with_result =  // GENERIC_BRIDGE
+      ;
+  leaves.child_definition_payload_lookup = [](XpDefinitionPayloadStorage* p, XpEpubLookupStorage*, XpAppTextSink, void*,
+                                              uint8_t* html) -> uint8_t {
+    payload = new (p) Payload{};
+    *html = 0;
+    return 1;
+  };
+  leaves.child_definition_payload_drop = [](XpDefinitionPayloadStorage* p) {
+    std::destroy_at(reinterpret_cast<Payload*>(p));
+  };
+  leaves.child_definition_selection_release = [](XpDefinitionPayloadStorage* p) {
+    assert(!locked && !childLive && resultLive && xp_app_test_published_definition() == parent);
+    reinterpret_cast<Payload*>(p)->pages.clear();
+  };
+  leaves.child_definition_heap = [](XpEpubHeap* out) {
+    assert(!pages && !locked);
+    *out = {100000, 50000};
+    record("default-heap");
+  };
+  leaves.child_definition_payload_prepare = [](XpDefinitionPayloadStorage*, uint8_t, uint8_t, uint8_t,
+      XpUiRect, XpDefinitionPayloadView* out) -> uint8_t { *out = {}; out->pages = 1; return 1; };
+  leaves.child_definition_layout = [](XpUiDefinitionLayout* out, int32_t x, int32_t y) -> uint8_t {
+    assert(x == -1 && y == -1); *out = {}; return 0;
+  };
+  leaves.log_enabled = [](uint8_t) -> uint8_t { return 0; };
+  leaves.fonts_release_caches = [] { assert(locked); };
+  XpAppPlatform platform{&legacy, &resources, &runtime, &leaves};
+  assert(xp_app_init(&platform, &compatibility) == XP_APP_OK);
+  XpEpubLookupStorage lookup{};
+  assert(xp_app_test_definition_install_lookup(&lookup));
+  assert(xp_app_test_drain());
+  parent = xp_app_test_current_definition();
+  assert(parent);
+  // A test leaf records the payload pointer during construction; selection loans use its actual inline storage.
+  auto* child = new Activity;
+  child->child = true;
+  childLive = true;
+  payload->pages.push_back(std::make_unique<Page>());
+  if (cancelled) {
+    ClipSelectionActivity selection;
+    selection.cancel();
+    assert(selection.result.isCancelled);
+    assert(std::holds_alternative<ClippingResult>(selection.result.data));
+    child->result = std::move(selection.result);
+  } else {
+    ClippingResult selected;
+    selected.text.assign(length, 'x');
+    selected.endPageOffset = 1;
+    child->result.data = std::move(selected);
+  }
+  push(child);
+  tracing = true;
+  XpAppEvent pop{.kind = XP_APP_POP};
+  assert(xp_app_event(&pop) == XP_APP_ACCEPTED);
+  assert(xp_app_test_drain());
+  tracing = false;
+  std::vector<std::string> expected{"child-drop", "parent-publish", "unlock", "selection-release"};
+  if (!cancelled) {
+    expected.emplace_back("default-heap");
+    if (length) {
+      expected.emplace_back("malloc");
+      expected.emplace_back("copy");
+    }
+  }
+  expected.emplace_back("result-drop");
+  assert(events == expected);
+  assert(copies == unsigned(!cancelled && length));
+  assert(allocations == copies);
+  XpAppEvent home{.kind = XP_APP_HOME_REQUESTED};
+  assert(xp_app_event(&home) == XP_APP_ACCEPTED);
+  assert(xp_app_test_drain());
+  assert(frees == allocations && !pages && !resultLive);
+}

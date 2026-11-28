@@ -1,0 +1,139 @@
+// PRELUDE
+#include <HalStorage.h>
+#include <WifiCredentialStore.h>
+#include <optional>
+using Last = std::optional<std::string>;
+using Credential = std::optional<WifiCredential>;
+XpAppText bytes(const std::string& s) { return {reinterpret_cast<const uint8_t*>(s.data()), s.size()}; }
+std::string_view view(XpAppText s) {
+  return s.len ? std::string_view(reinterpret_cast<const char*>(s.data), s.len) : std::string_view();
+}
+void* lastSlot = nullptr;
+void* credentialSlot = nullptr;
+std::string savedName;
+std::string savedPassword;
+int32_t connection = 0;
+unsigned connects = 0, hiddenSaved = 0;
+bool keyboardLocked = false;
+extern "C" { volatile unsigned char mbedtls_ct_zero = 0; }
+@NATIVE_FUNCTIONS@
+
+extern "C" void xp_keyboard_launch(void*, XpAppKeyboardLaunch* out) {
+  // Synthetic keyboard input; the real owned keyboard returns it on its OK key.
+  static const uint8_t title[] = "SSID";
+  *out = {{title, 4}, bytes(savedName), 32, 0};
+}
+extern "C" void xp_keyboard_release_launch(void*) {}
+extern "C" XpUiKeyboardLayouts xp_keyboard_layouts() {
+  return {nullptr,
+    [](void*, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t row) -> XpUiKeyboardRow {
+      return {uint8_t(row == 0), 0, 0, 0};
+    },
+    [](void*, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t) -> XpUiKeyboardKey {
+      return {"OK", nullptr, nullptr, 13, 1, 2};
+    }};
+}
+extern "C" XpUiKeyboardMetrics xp_keyboard_metrics(void*) {
+  return {nullptr,
+    [](void*, int32_t, const uint8_t*, uint32_t length, uint8_t mode) -> int32_t { return mode == 2 ? 0 : length * 8; },
+    [](void*, int32_t) -> int32_t { return 20; }};
+}
+extern "C" void xp_keyboard_snapshot(void*, XpUiKeyboardViewLayout* out, uint16_t* configured, uint8_t* language) {
+  if (out) {
+    *out = {};
+    out->screen = out->content = {0, 0, 528, 792};
+    out->header_height = out->hints_height = 40;
+    out->spacing = 8;
+    out->key_spacing = 6;
+    out->key_height = 56;
+    out->text_percent = 80;
+    out->field_normal = 1;
+    out->field_cursor = 2;
+    out->touch = 1;
+  }
+  if (configured) *configured = 1;
+  if (language) *language = 0;
+}
+extern "C" void xp_keyboard_text_lock(void*, uint8_t acquire) {
+  assert(keyboardLocked != bool(acquire));
+  keyboardLocked = acquire;
+}
+extern "C" void xp_keyboard_draw_key(void*, const XpUiCommand*, const XpUiKeyboardPaintKey*, uint8_t, uint8_t, uint8_t) {}
+extern "C" void xp_keyboard_chrome(void*, const XpUiCommand*, XpUiRect, XpAppText) {}
+// MAIN
+int main(int argc, char** argv) {
+  assert(argc == 3);
+  savedName = argv[1];
+  savedPassword = argv[2];
+  JsonDocument seed;
+  auto credential = seed["credentials"].to<JsonArray>().add<JsonObject>();
+  credential["ssid"] = savedName;
+  credential["password"] = savedPassword;
+  seed["lastConnectedSsid"] = "";
+  String serialized;
+  serializeJson(seed, serialized);
+  store_test::files[WifiCredentialStore::getFilePath()] = serialized;
+  static_assert(sizeof(Last) <= sizeof(XpWifiLastSsidStorage));
+  static_assert(sizeof(Credential) <= sizeof(XpWifiCredentialStorage));
+  auto legacy = appTestLegacy();
+  legacy.facts = @FACTS@;
+  legacy.enter = [](void*) {};
+  legacy.destroy = [](void* p) { delete static_cast<OwnedLegacyActivity*>(p); };
+  legacy.create = [](const XpAppLaunch* launch) -> void* {
+    assert(launch->kind == XP_APP_KEYBOARD);
+    ++keyboardLaunches;
+    auto activity = std::make_unique<Activity>();
+    activity->name = "KeyboardEntry";
+    return ownLegacy(std::move(activity)).release();
+  };
+  auto resources = appTestResources();
+  resources.buffer_allocate = [](uint8_t, size_t n) -> uint8_t* { return static_cast<uint8_t*>(std::calloc(1, n)); };
+  resources.buffer_release = [](uint8_t, uint8_t* p) { std::free(p); };
+  resources.paint_scene = [](const XpUiScene* scene, const XpUiPaint*) -> uint8_t {
+    assert(scene->command_count != 0); ++paints; return 1;
+  };
+  auto runtime = appTestRuntime();
+  runtime.ble_before_screen_change = [](uint8_t) -> uint8_t { return 1; };
+  runtime.render_lock = []() -> void* { assert(!renderLocked); renderLocked = true; return &renderLocked; };
+  runtime.render_unlock = [](void*) { assert(renderLocked); renderLocked = false; };
+  runtime.model_lock = [] { assert(!modelLocked); modelLocked = true; };
+  runtime.model_unlock = [] { assert(modelLocked); modelLocked = false; };
+  runtime.input_mapped_snapshot = [](uint8_t, uint8_t, uint8_t, XpAppMappedSnapshot* out) { *out = {}; out->input = input; };
+  auto epub = unexpectedEpubLeaves();
+  epub.input_snapshot = [](XpUiInput* out) { *out = input; };
+  epub.input_screen_point = [](uint8_t, int32_t*, int32_t*) -> uint8_t { return false; };
+  const XpAppPlatform platform{&legacy, &resources, &runtime, &epub};
+  XpAppCompatibility compatibility{};
+  assert(xp_app_init(&platform, &compatibility) == XP_APP_OK);
+  XpAppEvent event{.kind = XP_APP_ADOPT_REPLACE};
+  event.value.adopt_replace = ownLegacy(std::make_unique<Activity>()).release();
+  assert(xp_app_event(&event) == XP_APP_ACCEPTED);
+  assert(scans == 1 && WIFI_STORE.getCredentialCount() == 1 && lastSlot == nullptr);
+  auto tick = [](uint32_t pressed = 0, uint32_t released = 0) {
+    input = {}; input.pressed = pressed; input.released = released;
+    xp_app_test_activity_loop();
+  };
+  auto paint = [] { XpAppRenderToken token{&renderLocked}; xp_app_render(&token); };
+  scanResult = 0;
+  tick(); paint();
+  tick(0, XP_UI_CONFIRM); paint();
+  assert(keyboardLaunches == 1);
+  tick(XP_UI_CONFIRM, XP_UI_CONFIRM);
+  tick();
+  assert(keyboardLaunches == 1 && hiddenSaved == 1 && connects == 1 && credentialSlot == nullptr);
+  connection = 1;
+  tick(); paint();
+  tick(XP_UI_BACK); paint();
+  tick(XP_UI_RIGHT);
+  tick(XP_UI_CONFIRM);
+  assert(WIFI_STORE.getCredentialCount() == 0);
+  JsonDocument persisted;
+  assert(!deserializeJson(persisted, store_test::files[WifiCredentialStore::getFilePath()]));
+  assert(persisted["credentials"].as<JsonArrayConst>().size() == 0);
+  auto replacement = std::make_unique<Activity>(); replacement->name = "Unknown";
+  event.value.adopt_replace = ownLegacy(std::move(replacement)).release();
+  assert(xp_app_event(&event) == XP_APP_ACCEPTED);
+  xp_app_test_drain();
+  assert(lastSlot == nullptr && credentialSlot == nullptr && !resourceLocked);
+  std::puts("PASS real saved-store load -> native loans -> owned keyboard/list/forget -> persisted removal");
+}

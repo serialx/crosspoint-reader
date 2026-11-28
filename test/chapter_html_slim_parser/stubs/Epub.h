@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -10,6 +11,8 @@ class Epub {
   static inline bool enableGifProbeForTest = false;
   std::vector<uint8_t> imageBytes;
   mutable size_t headerProbes = 0;
+  size_t failedProbes = 0;
+  std::function<void(bool)> onRead;
   mutable size_t fullExtractions = 0;
   template <typename Output>
   bool readItemContentsToStream(const std::string&, Output& output, size_t, bool allowEarlyStop = false) const {
@@ -18,6 +21,8 @@ class Epub {
       ++headerProbes;
     else
       ++fullExtractions;
+    if (onRead) onRead(allowEarlyStop);
+    if (allowEarlyStop && headerProbes <= failedProbes) return false;
     const size_t written = output.write(imageBytes.data(), imageBytes.size());
     return written == imageBytes.size() || allowEarlyStop;
   }

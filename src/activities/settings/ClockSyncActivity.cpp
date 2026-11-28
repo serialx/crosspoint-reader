@@ -16,8 +16,9 @@
 #include "fontIds.h"
 
 void ClockSyncActivity::onEnter() {
-  Activity::onEnter();
-  state = SYNCING;
+  SettingsUiActivity::onEnter();
+  if (!hasUiStorage()) return;
+  selectIndex(0);
   syncedTime[0] = '\0';
 
   if (WiFi.status() == WL_CONNECTED) {
@@ -30,7 +31,7 @@ void ClockSyncActivity::onEnter() {
 }
 
 void ClockSyncActivity::onExit() {
-  Activity::onExit();
+  SettingsUiActivity::onExit();
 
   if (shouldTearDownWifiOnExit && WiFi.getMode() != WIFI_MODE_NULL) {
     WiFi.disconnect(false);
@@ -52,21 +53,21 @@ void ClockSyncActivity::onWifiSelectionComplete(const bool connected) {
     return;
   }
 
-  state = SYNCING;
+  selectIndex(0);
   requestUpdate();
 }
 
 void ClockSyncActivity::runSync() {
   if (WiFi.status() != WL_CONNECTED) {
     LOG_INF("CLK", "Manual sync requested but WiFi is not connected after selection");
-    state = NO_WIFI;
+    selectIndex(xp_ui_settings_sync_result(0, 0));
     requestUpdate();
     return;
   }
 
   const bool ok = halClock.syncFromNTP();
   if (!ok) {
-    state = FAILED;
+    selectIndex(xp_ui_settings_sync_result(1, 0));
     requestUpdate();
     return;
   }
@@ -80,67 +81,50 @@ void ClockSyncActivity::runSync() {
   if (halClock.formatTime(buf, sizeof(buf), SETTINGS.clockFormat == 1)) {
     snprintf(syncedTime, sizeof(syncedTime), "%s", buf);
   }
-  state = SUCCESS;
+  selectIndex(xp_ui_settings_sync_result(1, 1));
   requestUpdate();
 }
 
 void ClockSyncActivity::loop() {
-  if (state == SYNCING) {
-    // First-tick: render the "Syncing..." screen, then perform the (blocking) sync.
-    // requestUpdateAndWait below forces the render before we block on WiFi.
+  XpUiInput input{};
+  input.pressed = mappedInput.wasPressed(MappedInputManager::Button::Back) ? XP_UI_BACK : 0;
+  int x = 0, y = 0;
+  if (mappedInput.wasScreenTapped(x, y)) {
+    input.touch_flags = XP_UI_TOUCH_RELEASED;
+    input.touch_x = x;
+    input.touch_y = y;
+  }
+  const auto effect = xp_ui_settings_sync_update(selectedIndex(), &input);
+  if (effect.kind == 4) {
     requestUpdateAndWait();
     runSync();
-    return;
-  }
-
-  int x = 0;
-  int y = 0;
-  if (mappedInput.wasPressed(MappedInputManager::Button::Back) || mappedInput.wasScreenTapped(x, y)) {
+  } else if (effect.kind == XP_UI_CANCEL)
     finish();
-  }
 }
 
-void ClockSyncActivity::render(RenderLock&&) {
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  const auto pageWidth = renderer.getScreenWidth();
-  const auto pageHeight = renderer.getScreenHeight();
-
-  renderer.clearScreen();
-
-  GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.headerHeight}, tr(STR_CLOCK_SYNC));
-
-  const int midY = pageHeight / 2;
-
-  switch (state) {
-    case SYNCING:
-      renderer.drawCenteredText(UI_12_FONT_ID, midY, tr(STR_CLOCK_SYNCING));
+const SettingsUiRow* ClockSyncActivity::rowAt(int index) const {
+  if (index < 0 || index >= 4) return nullptr;
+  static constexpr StrId titles[] = {StrId::STR_CLOCK_SYNCING, StrId::STR_CLOCK_SYNC_OK, StrId::STR_CLOCK_SYNC_NO_WIFI,
+                                     StrId::STR_CLOCK_SYNC_FAIL};
+  row = {};
+  row.label = I18N.get(titles[index]);
+  switch (index) {
+    case 1:
+      row.value = syncedTime[0] ? currentTime : nullptr;
       break;
-    case SUCCESS: {
-      renderer.drawCenteredText(UI_12_FONT_ID, midY - 20, tr(STR_CLOCK_SYNC_OK), true, EpdFontFamily::BOLD);
-      if (syncedTime[0] != '\0') {
-        // Sized for the label in any language: STR_CURRENT_TIME is 26 bytes in
-        // Russian (UTF-8 Cyrillic is 2 bytes per letter) versus 13 in English,
-        // plus a separator and up to "08:56 PM".
-        char line[64];
-        snprintf(line, sizeof(line), "%s %s", tr(STR_CURRENT_TIME), syncedTime);
-        renderer.drawCenteredText(UI_10_FONT_ID, midY + 10, line);
-      }
+    case 2:
+      row.value = tr(STR_CLOCK_SYNC_NO_WIFI_HINT);
       break;
-    }
-    case NO_WIFI:
-      renderer.drawCenteredText(UI_12_FONT_ID, midY - 20, tr(STR_CLOCK_SYNC_NO_WIFI), true, EpdFontFamily::BOLD);
-      renderer.drawCenteredText(UI_10_FONT_ID, midY + 10, tr(STR_CLOCK_SYNC_NO_WIFI_HINT));
-      break;
-    case FAILED:
-      renderer.drawCenteredText(UI_12_FONT_ID, midY - 20, tr(STR_CLOCK_SYNC_FAIL), true, EpdFontFamily::BOLD);
-      renderer.drawCenteredText(UI_10_FONT_ID, midY + 10, tr(STR_CHECK_SERIAL_OUTPUT));
+    case 3:
+      row.value = tr(STR_CHECK_SERIAL_OUTPUT);
       break;
   }
-
-  if (state != SYNCING) {
-    const auto labels = mappedInput.mapLabels(tr(STR_BACK), "", "", "");
-    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-  }
-
-  renderer.displayBuffer();
+  return &row;
+}
+void ClockSyncActivity::prepareRows() {
+  snprintf(currentTime, sizeof(currentTime), "%s %s", tr(STR_CURRENT_TIME), syncedTime);
+}
+void ClockSyncActivity::drawFooter() {
+  const auto labels = mappedInput.mapLabels(tr(STR_BACK), "", "", "");
+  GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
 }

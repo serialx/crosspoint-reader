@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <Logging.h>
+#include <xp_settings.h>
 
 #include <mutex>
 #include <string>
@@ -52,6 +53,9 @@ class PersistableStoreBase {
   // Reads path and parses it into doc. Returns false silently when the file
   // does not exist (expected on first boot); logs on read/parse failure.
   static bool readDocFromFile(const char* path, JsonDocument& doc);
+
+  void beginReaderSave(const char* path, void* storage, XpStoreJsonOps* json, XpStorePersistOps* file) const;
+  static void endReaderSave(void* storage);
 
  protected:
   /**
@@ -107,24 +111,20 @@ class PersistableStore : public PersistableStoreBase {
   }
 
   bool loadFromFile() {
-    bool ok;
-    bool doResave;
-    {
-      std::lock_guard<std::mutex> lock(storeMutex);
-      resaveRequested = false;
-      JsonDocument doc;
-      if (!readDocFromFile(T::getFilePath(), doc)) {
-        return false;
-      }
-      ok = static_cast<T*>(this)->fromJson(doc.as<JsonVariantConst>());
-      // Read the flag under the lock that guards the fromJson() that set it.
-      doResave = resaveRequested;
-      resaveRequested = false;
-    }
-    // Deliberately outside the lock: saveToFile() takes storeMutex itself.
-    if (ok && doResave && !saveToFile()) {
-      LOG_ERR("PERSIST", "Failed to resave %s after format update", T::getFilePath());
-    }
-    return ok;
+    return xp_store_load(
+        this,
+        [](void* ctx) -> uint32_t {
+          auto& self = *static_cast<PersistableStore*>(ctx);
+          std::lock_guard<std::mutex> lock(self.storeMutex);
+          self.resaveRequested = false;
+          JsonDocument doc;
+          if (!readDocFromFile(T::getFilePath(), doc)) return 0;
+          const bool ok = static_cast<T&>(self).fromJson(doc.as<JsonVariantConst>());
+          const bool resave = self.resaveRequested;
+          self.resaveRequested = false;
+          return static_cast<uint32_t>(ok) | (static_cast<uint32_t>(resave) << 1);
+        },
+        [](void* ctx) { return static_cast<PersistableStore*>(ctx)->saveToFile(); },
+        [](void*) { LOG_ERR("PERSIST", "Failed to resave %s after format update", T::getFilePath()); });
   }
 };

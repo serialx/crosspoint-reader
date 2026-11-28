@@ -1,19 +1,17 @@
 #include "HttpHeader.h"
 
-#include <AsciiText.h>
+#include "HttpText.h"
 
 void parseHttpHeaderLine(const std::string_view line, HttpHeader& header) {
-  const size_t colon = line.find(':');
-  header.name = trimAsciiWhitespace(line.substr(0, colon));
-  if (colon == std::string_view::npos) {
-    header.value.clear();
-  } else {
-    header.value = trimAsciiWhitespace(line.substr(colon + 1));
-  }
+  auto name = httptransfer::mutableText(header.name);
+  auto value = httptransfer::mutableText(header.value);
+  xp_http_header_parse_retire_c1_s2({reinterpret_cast<const uint8_t*>(line.data()), line.size()}, &name, &value,
+                                    &httptransfer::textLeaves);
 }
 
 std::string formatHttpHeaderLine(const HttpHeader& header, const bool maskValue) {
-  if (header.name.empty()) return "";
-  if (header.value.empty()) return header.name;
-  return header.name + ": " + (maskValue ? "******" : header.value);
+  return httptransfer::textResult([&](XpHttpMutableText* output) {
+    xp_http_header_format_retire_c1_s2(httptransfer::nativeText(header.name), httptransfer::nativeText(header.value),
+                                       maskValue, output, &httptransfer::textLeaves);
+  });
 }

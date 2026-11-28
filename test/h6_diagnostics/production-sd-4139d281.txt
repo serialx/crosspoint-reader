@@ -1,0 +1,342 @@
+001 seek=0 logs=1
+ERR SDCF Failed to open .cpfont for ligatures: Family/path.cpfont
+001 seek=1 logs=1
+ERR SDCF Failed to open .cpfont for ligatures: Family/path.cpfont
+002 seek=0 logs=1
+ERR SDCF Failed to allocate ligature pairs
+002 seek=1 logs=1
+ERR SDCF Failed to allocate ligature pairs
+003 seek=0 logs=1
+ERR SDCF Failed to read ligature pairs
+003 seek=1 logs=1
+ERR SDCF Failed to seek to ligature data
+004 seek=0 logs=1
+DBG SDCF Ligatures loaded: 65
+004 seek=1 logs=1
+DBG SDCF Ligatures loaded: 65
+005 seek=0 logs=1
+ERR SDCF Failed to open .cpfont for mini kern: Family/path.cpfont
+005 seek=1 logs=1
+ERR SDCF Failed to open .cpfont for mini kern: Family/path.cpfont
+006 seek=0 logs=1
+ERR SDCF Failed to allocate mini kern scratch (65 bytes)
+006 seek=1 logs=1
+ERR SDCF Failed to allocate mini kern scratch (65 bytes)
+007 seek=0 logs=1
+ERR SDCF Failed to read kern classes
+007 seek=1 logs=1
+ERR SDCF Failed to read kern classes
+008 seek=0 logs=1
+ERR SDCF Failed to allocate mini kern (65+66+67 bytes)
+008 seek=1 logs=1
+ERR SDCF Failed to allocate mini kern (65+66+67 bytes)
+009 seek=0 logs=1
+ERR SDCF Failed to read kern row 65
+009 seek=1 logs=1
+ERR SDCF Failed to seek to kern row 65
+00a seek=0 logs=1
+DBG SDCF Built mini kern: 65×66 matrix (4290 bytes, full was 67×68 = 4556 bytes)
+00a seek=1 logs=1
+DBG SDCF Built mini kern: 65×66 matrix (4290 bytes, full was 67×68 = 4556 bytes)
+00b seek=0 logs=1
+ERR SDCF Failed to allocate codepoint buffer (65 bytes)
+00b seek=1 logs=1
+ERR SDCF Failed to allocate codepoint buffer (65 bytes)
+00c seek=0 logs=1
+DBG SDCF Arena retry: 65 -> 66 glyphs (67B/glyph, maxAlloc=68)
+00c seek=1 logs=1
+DBG SDCF Arena retry: 65 -> 66 glyphs (67B/glyph, maxAlloc=68)
+00d seek=0 logs=1
+ERR SDCF OOM: resident kern codepoints (65) for style 66
+00d seek=1 logs=1
+ERR SDCF OOM: resident kern codepoints (65) for style 66
+00e seek=0 logs=1
+DBG SDCF mini release (underuse): used=65 cap=66
+00e seek=1 logs=1
+DBG SDCF mini release (underuse): used=65 cap=66
+00f seek=0 logs=1
+ERR SDCF Failed to allocate mapping array for style 65
+00f seek=1 logs=1
+ERR SDCF Failed to allocate mapping array for style 65
+010 seek=0 logs=1
+ERR SDCF Failed to allocate mini intervals for style 65
+010 seek=1 logs=1
+ERR SDCF Failed to allocate mini intervals for style 65
+011 seek=0 logs=1
+ERR SDCF Failed to allocate mini glyphs for style 65
+011 seek=1 logs=1
+ERR SDCF Failed to allocate mini glyphs for style 65
+012 seek=0 logs=1
+ERR SDCF Failed to allocate read order for style 65
+012 seek=1 logs=1
+ERR SDCF Failed to allocate read order for style 65
+013 seek=0 logs=1
+ERR SDCF Failed to reopen .cpfont for prewarm (style 65)
+013 seek=1 logs=1
+ERR SDCF Failed to reopen .cpfont for prewarm (style 65)
+014 seek=0 logs=1
+ERR SDCF Prewarm: short glyph read (style 66, glyph 65)
+014 seek=1 logs=1
+ERR SDCF Prewarm: failed to seek to glyph 65 (style 66)
+015 seek=0 logs=1
+DBG SDCF Retrying bitmap after advance-cache release: maxAlloc=65 -> 66
+015 seek=1 logs=1
+DBG SDCF Retrying bitmap after advance-cache release: maxAlloc=65 -> 66
+016 seek=0 logs=1
+ERR SDCF Failed to reserve mini bitmap (65 bytes) for style 66
+016 seek=1 logs=1
+ERR SDCF Failed to reserve mini bitmap (65 bytes) for style 66
+017 seek=0 logs=1
+DBG SDCF Reserved bitmap before metadata rebuild (65 bytes)
+017 seek=1 logs=1
+DBG SDCF Reserved bitmap before metadata rebuild (65 bytes)
+018 seek=0 logs=1
+ERR SDCF Failed to allocate mini bitmap (65 bytes) for style 66
+018 seek=1 logs=1
+ERR SDCF Failed to allocate mini bitmap (65 bytes) for style 66
+019 seek=0 logs=1
+ERR SDCF Failed to allocate bitmap read order for style 65
+019 seek=1 logs=1
+ERR SDCF Failed to allocate bitmap read order for style 65
+01a seek=0 logs=1
+ERR SDCF Prewarm: short bitmap read (style 65)
+01a seek=1 logs=1
+ERR SDCF Prewarm: failed to seek to bitmap (style 65)
+01b seek=0 logs=1
+ERR SDCF mergeIntoAdvanceTable: alloc failed (65 entries) style 66
+01b seek=1 logs=1
+ERR SDCF mergeIntoAdvanceTable: alloc failed (65 entries) style 66
+01c seek=0 logs=1
+ERR SDCF buildAdvanceTable: failed to allocate mappings for style 65
+01c seek=1 logs=1
+ERR SDCF buildAdvanceTable: failed to allocate mappings for style 65
+01d seek=0 logs=1
+ERR SDCF buildAdvanceTable: failed to open .cpfont for style 65
+01d seek=1 logs=1
+ERR SDCF buildAdvanceTable: failed to open .cpfont for style 65
+01e seek=0 logs=1
+ERR SDCF buildAdvanceTable: failed to allocate staging for style 65
+01e seek=1 logs=1
+ERR SDCF buildAdvanceTable: failed to allocate staging for style 65
+01f seek=0 logs=1
+ERR SDCF buildAdvanceTable: short glyph read (style 66, glyph 65)
+01f seek=1 logs=1
+ERR SDCF buildAdvanceTable: failed to seek to glyph 65 (style 66)
+020 seek=0 logs=1
+DBG SDCF Advance table style 65: +66 from SD, total=67/68
+020 seek=1 logs=1
+DBG SDCF Advance table style 65: +66 from SD, total=67/68
+021 seek=0 logs=1
+DBG SDCF Advance table pre-grow failed for style 65; the merge grows it
+021 seek=1 logs=1
+DBG SDCF Advance table pre-grow failed for style 65; the merge grows it
+022 seek=0 logs=1
+ERR SDCF buildAdvanceTable: failed to allocate codepoint buffer (65 bytes)
+022 seek=1 logs=1
+ERR SDCF buildAdvanceTable: failed to allocate codepoint buffer (65 bytes)
+023 seek=0 logs=1
+ERR SDCF Overflow: failed to open .cpfont
+023 seek=1 logs=1
+ERR SDCF Overflow: failed to open .cpfont
+024 seek=0 logs=1
+ERR SDCF Overflow: failed to read glyph metadata for U+0041 style 66
+024 seek=1 logs=1
+ERR SDCF Overflow: failed to seek to glyph for U+0041 style 66
+025 seek=0 logs=1
+ERR SDCF Overflow: failed to allocate 65 bytes for U+0042 bitmap
+025 seek=1 logs=1
+ERR SDCF Overflow: failed to allocate 65 bytes for U+0042 bitmap
+026 seek=0 logs=1
+ERR SDCF Overflow: failed to read bitmap for U+0041
+026 seek=1 logs=1
+ERR SDCF Overflow: failed to seek to bitmap for U+0041
+027 seek=0 logs=1
+DBG SDCF Overflow: loaded U+0041 style 66 on demand (slot 67/68)
+027 seek=1 logs=1
+DBG SDCF Overflow: loaded U+0041 style 66 on demand (slot 67/68)
+101 seek=0 logs=1
+ERR SDCF Failed to read header
+101 seek=1 logs=1
+ERR SDCF Failed to read header
+102 seek=0 logs=1
+ERR SDCF Failed to allocate 65 bytes for style records
+102 seek=1 logs=1
+ERR SDCF Failed to allocate 65 bytes for style records
+103 seek=0 logs=1
+ERR SDCF Failed to read style TOC entry 65
+103 seek=1 logs=1
+ERR SDCF Failed to read style TOC entry 65
+104 seek=0 logs=1
+ERR SDCF Failed to seek to intervals for style 65
+104 seek=1 logs=1
+ERR SDCF Failed to seek to intervals for style 65
+105 seek=0 logs=1
+ERR SDCF Failed to read interval 65 for style 66
+105 seek=1 logs=1
+ERR SDCF Failed to read interval 65 for style 66
+106 seek=0 logs=1
+DBG SDCF Style 65: sharing a loaded 66-interval table (67 B not allocated)
+106 seek=1 logs=1
+DBG SDCF Style 65: sharing a loaded 66-interval table (67 B not allocated)
+107 seek=0 logs=1
+ERR SDCF Failed to seek back to intervals for style 65
+107 seek=1 logs=1
+ERR SDCF Failed to seek back to intervals for style 65
+108 seek=0 logs=1
+ERR SDCF Failed to allocate compact intervals for style 65
+108 seek=1 logs=1
+ERR SDCF Failed to allocate compact intervals for style 65
+109 seek=0 logs=1
+ERR SDCF Failed to read compact interval 65 for style 66
+109 seek=1 logs=1
+ERR SDCF Failed to read compact interval 65 for style 66
+10a seek=0 logs=1
+ERR SDCF Failed to allocate 65 intervals for style 66
+10a seek=1 logs=1
+ERR SDCF Failed to allocate 65 intervals for style 66
+10b seek=0 logs=1
+ERR SDCF Failed to read intervals for style 65
+10b seek=1 logs=1
+ERR SDCF Failed to read intervals for style 65
+10c seek=0 logs=1
+DBG SDCF No kern block index for style 65; reading whole class tables
+10c seek=1 logs=1
+DBG SDCF No kern block index for style 65; reading whole class tables
+200 seek=0 logs=0
+200 seek=1 logs=0
+201 seek=0 logs=1
+ERR SDCF Invalid magic bytes
+201 seek=1 logs=1
+ERR SDCF Invalid magic bytes
+202 seek=0 logs=1
+ERR SDCF Unsupported version: 65 (expected 66)
+202 seek=1 logs=1
+ERR SDCF Unsupported version: 65 (expected 66)
+203 seek=0 logs=1
+ERR SDCF Invalid style count: 65
+203 seek=1 logs=1
+ERR SDCF Invalid style count: 65
+204 seek=0 logs=1
+ERR SDCF Invalid styleId 65 in TOC
+204 seek=1 logs=1
+ERR SDCF Invalid styleId 65 in TOC
+205 seek=0 logs=1
+ERR SDCF Duplicate styleId 65 in TOC
+205 seek=1 logs=1
+ERR SDCF Duplicate styleId 65 in TOC
+206 seek=0 logs=1
+ERR SDCF Style 2: unreasonable counts (iv=65, gl=66, kL=67, kR=68)
+206 seek=1 logs=1
+ERR SDCF Style 2: unreasonable counts (iv=65, gl=66, kL=67, kR=68)
+207 seek=0 logs=1
+ERR SDCF Style 2: invalid interval 3 (first 0x41 > last 0x42)
+207 seek=1 logs=1
+ERR SDCF Style 2: invalid interval 3 (first 0x41 > last 0x42)
+208 seek=0 logs=1
+ERR SDCF Style 2: invalid interval layout at 3 (overlap=65 span=66 offMis=67 offOver=68)
+208 seek=1 logs=1
+ERR SDCF Style 2: invalid interval layout at 3 (overlap=65 span=66 offMis=67 offOver=68)
+300 seek=0 logs=1
+ERR SDCF Corrupt glyph for U+0041 in Family/path.cpfont (0x66, 67 bytes at 68); drawing it as missing
+300 seek=1 logs=1
+ERR SDCF Corrupt glyph for U+0041 in Family/path.cpfont (0x66, 67 bytes at 68); drawing it as missing
+401 seek=0 logs=1
+DBG SDREG Fonts directory not found: Family/path.cpfont
+401 seek=1 logs=1
+DBG SDREG Fonts directory not found: Family/path.cpfont
+402 seek=0 logs=1
+ERR SDREG Fonts path is not a directory: Family/path.cpfont
+402 seek=1 logs=1
+ERR SDREG Fonts path is not a directory: Family/path.cpfont
+403 seek=0 logs=1
+ERR SDREG Duplicate font Family/path.cpfont in Other — skipping
+403 seek=1 logs=1
+ERR SDREG Duplicate font Family/path.cpfont in Other — skipping
+404 seek=0 logs=1
+DBG SDREG Found family: Family/path.cpfont (65 files) in Other
+404 seek=1 logs=1
+DBG SDREG Found family: Family/path.cpfont (65 files) in Other
+405 seek=0 logs=1
+DBG SDREG Found vector font: Family/path.cpfont in Other
+405 seek=1 logs=1
+DBG SDREG Found vector font: Family/path.cpfont in Other
+406 seek=0 logs=1
+ERR SDREG OOM: 65 byte filename Family/path.cpfont
+406 seek=1 logs=1
+ERR SDREG OOM: 65 byte filename Family/path.cpfont
+407 seek=0 logs=1
+ERR SDREG Path too long for Family/path.cpfont in Other — skipping
+407 seek=1 logs=1
+ERR SDREG Path too long for Family/path.cpfont in Other — skipping
+408 seek=0 logs=1
+DBG SDREG No upright face in Family/path.cpfont — promoting Other
+408 seek=1 logs=1
+DBG SDREG No upright face in Family/path.cpfont — promoting Other
+409 seek=0 logs=1
+DBG SDREG Family/path.cpfont: 65 of 66 faces selected by weight
+409 seek=1 logs=1
+DBG SDREG Family/path.cpfont: 65 of 66 faces selected by weight
+40a seek=0 logs=1
+DBG SDREG Discovery complete: 65 families
+40a seek=1 logs=1
+DBG SDREG Discovery complete: 65 families
+501 seek=0 logs=1
+DBG SDFS Font size 65 unavailable, snapping to 66
+501 seek=1 logs=1
+DBG SDFS Font size 65 unavailable, snapping to 66
+502 seek=0 logs=1
+DBG SDFS SD font system ready (65 families discovered)
+502 seek=1 logs=1
+DBG SDFS SD font system ready (65 families discovered)
+503 seek=0 logs=1
+DBG SDFS Loaded SD card font family: Family/path.cpfont
+503 seek=1 logs=1
+DBG SDFS Loaded SD card font family: Family/path.cpfont
+504 seek=0 logs=1
+ERR SDFS Failed to load SD font family: Family/path.cpfont (clearing)
+504 seek=1 logs=1
+ERR SDFS Failed to load SD font family: Family/path.cpfont (clearing)
+505 seek=0 logs=1
+DBG SDFS SD font family not found on card: Family/path.cpfont (clearing)
+505 seek=1 logs=1
+DBG SDFS SD font family not found on card: Family/path.cpfont (clearing)
+506 seek=0 logs=1
+DBG SDFS Registry dirty — re-discovering fonts
+506 seek=1 logs=1
+DBG SDFS Registry dirty — re-discovering fonts
+507 seek=0 logs=1
+DBG SDFS SD font family disappeared: Family/path.cpfont (clearing)
+507 seek=1 logs=1
+DBG SDFS SD font family disappeared: Family/path.cpfont (clearing)
+508 seek=0 logs=1
+DBG SDFS Reloading Family/path.cpfont: size 65 -> 66 [registry dirty]
+508 seek=1 logs=1
+DBG SDFS Reloading Family/path.cpfont: size 65 -> 66 [registry dirty]
+509 seek=0 logs=1
+DBG SDFS Loaded SD font family: Family/path.cpfont
+509 seek=1 logs=1
+DBG SDFS Loaded SD font family: Family/path.cpfont
+50a seek=0 logs=1
+ERR SDFS Failed to load SD font family: Family/path.cpfont (clearing)
+50a seek=1 logs=1
+ERR SDFS Failed to load SD font family: Family/path.cpfont (clearing)
+50b seek=0 logs=1
+DBG SDFS SD font family not found: Family/path.cpfont (clearing)
+50b seek=1 logs=1
+DBG SDFS SD font family not found: Family/path.cpfont (clearing)
+50c seek=0 logs=1
+DBG SDFS Family/path.cpfont has no fallback-script coverage - skipping UI fallback sizes
+50c seek=1 logs=1
+DBG SDFS Family/path.cpfont has no fallback-script coverage - skipping UI fallback sizes
+50d seek=0 logs=1
+DBG SDFS No 65 pt SD glyphs for UI fallback in Family/path.cpfont
+50d seek=1 logs=1
+DBG SDFS No 65 pt SD glyphs for UI fallback in Family/path.cpfont
+50e seek=0 logs=1
+DBG SDFS Skipping 65pt variant: largest free block 66
+50e seek=1 logs=1
+DBG SDFS Skipping 65pt variant: largest free block 66
+50f seek=0 logs=1
+DBG SDFS Loaded Family/path.cpfont 65pt variant (heap free 66)
+50f seek=1 logs=1
+DBG SDFS Loaded Family/path.cpfont 65pt variant (heap free 66)

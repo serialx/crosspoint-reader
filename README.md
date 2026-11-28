@@ -159,7 +159,7 @@ Conversion runs the firmware repo's `lib/EpdFont/scripts/fontconvert_sdcard.py` 
 - [Web server endpoints](./docs/webserver-endpoints.md)
 - [Project scope](./SCOPE.md)
 - [Contributing docs](./docs/contributing/README.md)
-- [Touch and UI development](./docs/contributing/touch-and-ui.md) - how to build new screens on the FreeInkUI activity bases (UiListActivity and friends), plus build envs for the non-Xteink touch devices
+- [Touch and UI development](./docs/contributing/touch-and-ui.md) - how to build new screens (Rust UI hosts first), plus build envs for the non-Xteink touch devices
 
 ---
 
@@ -169,6 +169,7 @@ Conversion runs the firmware repo's `lib/EpdFont/scripts/fontconvert_sdcard.py` 
 
 - [pioarduino PlatformIO Core](https://github.com/pioarduino/platformio-core) or [VS Code + pioarduino IDE](https://github.com/pioarduino/pioarduino-vscode-ide)
 - Python 3.8+
+- [Rust setup](./docs/contributing/rust.md): C3 needs the pinned Rust toolchain and target; S3 needs the Espressif toolchain.
 - `clang-format` 21
 - USB-C cable supporting data transfer
 

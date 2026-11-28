@@ -1,0 +1,101 @@
+#include <xp_app.h>
+
+#include <cstdlib>
+#include <cstring>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <variant>
+
+class OwnedSelectionText {
+  XpDefinitionOwnedText value{};
+  static void releaseNative(uint8_t* data, uint32_t) { ::free(data); }
+
+ public:
+  OwnedSelectionText() = default;
+  explicit OwnedSelectionText(XpDefinitionOwnedText value) : value(value) {}
+  OwnedSelectionText(const OwnedSelectionText&) = delete;
+  OwnedSelectionText& operator=(const OwnedSelectionText&) = delete;
+  OwnedSelectionText(OwnedSelectionText&& other) noexcept : value(other.release()) {}
+  OwnedSelectionText& operator=(OwnedSelectionText&& other) noexcept {
+    if (this != &other) {
+      OwnedSelectionText previous(release());
+      value = other.release();
+    }
+    return *this;
+  }
+  ~OwnedSelectionText() {
+    if (value.data) value.release(value.data, value.capacity);
+  }
+  XpDefinitionOwnedText release() { return std::exchange(value, {}); }
+  XpDefinitionOwnedText borrow() const { return value; }
+  const char* c_str() const { return value.data ? reinterpret_cast<const char*>(value.data) : ""; }
+  bool empty() const { return value.len == 0; }
+  void clear() {
+    value.len = 0;
+    if (value.data) value.data[0] = 0;
+  }
+  bool assign(std::string_view text) {
+    if (text.empty()) {
+      clear();
+      return true;
+    }
+    if (text.size() >= UINT32_MAX) return false;
+    const auto needed = static_cast<uint32_t>(text.size() + 1);
+    if (value.capacity < needed) {
+      // The cross-language owner carries the matching free callback.
+      auto* data = static_cast<uint8_t*>(::malloc(needed));
+      if (!data) return false;
+      std::memcpy(data, text.data(), text.size());
+      data[text.size()] = 0;
+      *this = OwnedSelectionText({data, needed - 1, needed, releaseNative});
+    } else {
+      std::memcpy(value.data, text.data(), text.size());
+      value.data[text.size()] = 0;
+      value.len = needed - 1;
+    }
+    return true;
+  }
+};
+
+// Initial queries use native strings; selections use allocator-matched owned blocks.
+// The Definition viewer move to Rust retires this holder with current/pending/history.
+class DefinitionQuery {
+  std::variant<std::string, OwnedSelectionText> value;
+
+ public:
+  DefinitionQuery() = default;
+  DefinitionQuery(std::string text) : value(std::move(text)) {}
+  explicit DefinitionQuery(OwnedSelectionText text) : value(std::move(text)) {}
+  DefinitionQuery(const DefinitionQuery&) = delete;
+  DefinitionQuery& operator=(const DefinitionQuery&) = delete;
+  DefinitionQuery(DefinitionQuery&&) noexcept = default;
+  DefinitionQuery& operator=(DefinitionQuery&&) noexcept = default;
+  DefinitionQuery& operator=(std::string&& text) {
+    value = std::move(text);
+    return *this;
+  }
+  DefinitionQuery& operator=(OwnedSelectionText&& text) {
+    value = std::move(text);
+    return *this;
+  }
+  const char* c_str() const {
+    if (const auto* text = std::get_if<OwnedSelectionText>(&value)) return text->c_str();
+    return std::get<std::string>(value).c_str();
+  }
+  bool empty() const {
+    if (const auto* text = std::get_if<OwnedSelectionText>(&value)) return text->empty();
+    return std::get<std::string>(value).empty();
+  }
+  void clear() {
+    if (auto* text = std::get_if<OwnedSelectionText>(&value))
+      text->clear();
+    else
+      std::get<std::string>(value).clear();
+  }
+  bool ownsBlock() const { return std::holds_alternative<OwnedSelectionText>(value); }
+  OwnedSelectionText takeOwned() {
+    if (auto* text = std::get_if<OwnedSelectionText>(&value)) return std::move(*text);
+    return {};
+  }
+};

@@ -1,0 +1,430 @@
+{
+  "commit": "493373a76fa3b8b908c13355c2d222c6ec8b3537",
+  "snapshot_count": 4,
+  "snapshot_bytes": 35236,
+  "sources": [
+    {
+      "source": "src/activities/reader/DictionaryDefinitionActivity.cpp",
+      "bytes": 28501,
+      "sha256": "fd86d1ddd014c15617a4b657319557fede0466f902acd0de0631a3a2b6a7f37a",
+      "consumer_status": "Named section consumers below; frozen original bytes separated by newlines",
+      "delete_when": "Remove when every named native differential consumer is replaced",
+      "snapshot": "src/activities/reader/DictionaryDefinitionActivity.cpp.txt",
+      "sections": [
+        {
+          "name": "constants and plain selection line",
+          "first_line": 27,
+          "last_line": 163,
+          "bytes": 5350,
+          "sha256": "97225a4c0be18a11c4a1d6f0fb0f3172a86c320f9844454c8d17ade6ed202a68",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py",
+            "test/line_render_golden/extract.py"
+          ],
+          "start_byte": 605,
+          "end_byte": 5955
+        },
+        {
+          "name": "bool DictionaryDefinitionActivity::prepareDefinition",
+          "first_line": 182,
+          "last_line": 195,
+          "bytes": 791,
+          "sha256": "42e8745b565058be4a2ea843c548f1525b9ee9a161dd69768548477ee53bd16c",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 6653,
+          "end_byte": 7444
+        },
+        {
+          "name": "DictionaryDefinitionActivity::BodyArea DictionaryDefinitionActivity::bodyArea",
+          "first_line": 204,
+          "last_line": 208,
+          "bytes": 246,
+          "sha256": "7d07f5c72f298cb828b5fd2c85f143b691afe85523a7cb81a1fcdb874087c582",
+          "consumers": [
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 7605,
+          "end_byte": 7851
+        },
+        {
+          "name": "bool DictionaryDefinitionActivity::layoutHtmlPages",
+          "first_line": 213,
+          "last_line": 230,
+          "bytes": 652,
+          "sha256": "910853f3f2d4b10ff87da8cdc6990cf062a701f6c84366012afad72bb2f625a9",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 8086,
+          "end_byte": 8738
+        },
+        {
+          "name": "int DictionaryDefinitionActivity::measureSpan",
+          "first_line": 232,
+          "last_line": 239,
+          "bytes": 356,
+          "sha256": "c25844d508f8600344dd8773710e45990b0e5f3b18ae2c609aeed7dd4b86dbdf",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py",
+            "test/line_render_golden/extract.py"
+          ],
+          "start_byte": 8740,
+          "end_byte": 9096
+        },
+        {
+          "name": "bool DictionaryDefinitionActivity::reserveLines",
+          "first_line": 241,
+          "last_line": 251,
+          "bytes": 474,
+          "sha256": "c7a5df5680667ebc365e87fcb53247b0fbaa86a216b2689887a7965b16cefef5",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 9098,
+          "end_byte": 9572
+        },
+        {
+          "name": "bool DictionaryDefinitionActivity::wrapText",
+          "first_line": 253,
+          "last_line": 375,
+          "bytes": 5087,
+          "sha256": "a0e096bdf50fe22eb1fa43640b69da7cadcd1b706e6ea9080192c744f057ae49",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 9574,
+          "end_byte": 14661
+        },
+        {
+          "name": "void DictionaryDefinitionActivity::showMessage",
+          "first_line": 377,
+          "last_line": 382,
+          "bytes": 170,
+          "sha256": "5916e8fec6d5c58408e140cec7d4100ff18e344b31da06acb9af05774a7d0b4b",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 14663,
+          "end_byte": 14833
+        },
+        {
+          "name": "bool DictionaryDefinitionActivity::restoreCurrentDefinition",
+          "first_line": 384,
+          "last_line": 395,
+          "bytes": 542,
+          "sha256": "9310c33390d79249f7e5f29b664c3abb51201d001a2f14d6ba1ce1d3d1d1de2c",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 14835,
+          "end_byte": 15377
+        },
+        {
+          "name": "void DictionaryDefinitionActivity::navigateDefinition",
+          "first_line": 397,
+          "last_line": 486,
+          "bytes": 3222,
+          "sha256": "856492b0872cf234d8501d795a4d73f9720f64e43bd69f8dd06bcf31c49e0758",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 15379,
+          "end_byte": 18601
+        },
+        {
+          "name": "bool DictionaryDefinitionActivity::buildPlainSelectionPages",
+          "first_line": 488,
+          "last_line": 563,
+          "bytes": 4212,
+          "sha256": "72e6475d76d537dbeec9281d66e483435063c3f956bd59f5290bb57b1cc1d099",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py",
+            "test/line_render_golden/extract.py"
+          ],
+          "start_byte": 18603,
+          "end_byte": 22815
+        },
+        {
+          "name": "void DictionaryDefinitionActivity::startSelection",
+          "first_line": 565,
+          "last_line": 613,
+          "bytes": 1674,
+          "sha256": "53a90ad4f9dd509f8e5dee5afe046c95d24ff365a0594e2643f272a37146f901",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 22817,
+          "end_byte": 24491
+        },
+        {
+          "name": "XpDefinitionSelection DictionaryDefinitionActivity::prepareSelectionResult",
+          "first_line": 616,
+          "last_line": 653,
+          "bytes": 1611,
+          "sha256": "e23f76682a833f04c87792b14d3f244b82d0ce9262b149221777e8452b7c5bf6",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 24575,
+          "end_byte": 26186
+        },
+        {
+          "name": "uint8_t DictionaryDefinitionActivity::acceptSelectionResult",
+          "first_line": 655,
+          "last_line": 661,
+          "bytes": 252,
+          "sha256": "a8511ea352aaabb076223ff6b1d44c965d973aae74dd4d166e00d6d4946b6537",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 26188,
+          "end_byte": 26440
+        },
+        {
+          "name": "void DictionaryDefinitionActivity::loop()",
+          "first_line": 669,
+          "last_line": 720,
+          "bytes": 1956,
+          "sha256": "1dc5c80c7483fc82c9c0aa80cd6ea4de6f78c80d69ee991e173ec32f91c3ac18",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 26603,
+          "end_byte": 28559
+        },
+        {
+          "name": "void DictionaryDefinitionActivity::applyNavigation",
+          "first_line": 722,
+          "last_line": 746,
+          "bytes": 664,
+          "sha256": "8a1a09223a7170b069084f4845e81e021c54a4ce432077dd429f747e1f9f54b3",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 28561,
+          "end_byte": 29225
+        },
+        {
+          "name": "void DictionaryDefinitionActivity::render(",
+          "first_line": 777,
+          "last_line": 797,
+          "bytes": 779,
+          "sha256": "e0d1a6ccf662e930a38e9e73abebdf86317baad47c75f9473c5e3730f15ac28a",
+          "consumers": [
+            "test/ui_runtime/rejection_composites.py"
+          ],
+          "start_byte": 30692,
+          "end_byte": 31471
+        },
+        {
+          "name": "void DictionaryDefinitionActivity::cancelRejectedInput(",
+          "first_line": 841,
+          "last_line": 848,
+          "bytes": 428,
+          "sha256": "b0fecb71eec95860ddb9decd6f5ef6965c9c492f2aa34fa8c49273798bce35d1",
+          "consumers": [
+            "test/ui_runtime/rejection_composites.py"
+          ],
+          "start_byte": 33707,
+          "end_byte": 34135
+        }
+      ],
+      "original_sha256": "4bcab804d6ee39b1c0dc60e384e36aa7e52387bebf06341046397eee2e7b002b"
+    },
+    {
+      "source": "src/activities/reader/DictionaryDefinitionActivity.h",
+      "bytes": 1619,
+      "sha256": "acb507201f43e8f8be1e7b2a2f4237fea1413cc20b6872de74f716b5fdbdbd2b",
+      "consumer_status": "Named section consumers below; frozen original bytes separated by newlines",
+      "delete_when": "Remove when every named native differential consumer is replaced",
+      "snapshot": "src/activities/reader/DictionaryDefinitionActivity.h.txt",
+      "sections": [
+        {
+          "name": "constructor and extraction boundary",
+          "first_line": 26,
+          "last_line": 32,
+          "bytes": 477,
+          "sha256": "0a99c2dd4625267e294e73ac1bf44705b64bdcb816538eca9c1c5dffb30398e2",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 754,
+          "end_byte": 1231
+        },
+        {
+          "name": "Line",
+          "first_line": 48,
+          "last_line": 52,
+          "bytes": 71,
+          "sha256": "b77bc0d5ccf97bbb12eb84a59b2be2ded4bb65891f0deb9f97a0f05d37685ed0",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 1704,
+          "end_byte": 1775
+        },
+        {
+          "name": "BodyArea",
+          "first_line": 55,
+          "last_line": 60,
+          "bytes": 75,
+          "sha256": "64546af8a5af4468ce5b711178c437e4e3b45623d44441338e569c3e3aceb197",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 1847,
+          "end_byte": 1922
+        },
+        {
+          "name": "Definition",
+          "first_line": 64,
+          "last_line": 80,
+          "bytes": 459,
+          "sha256": "ac969e6b15c85e515f51392d47c50465cb02cbae813b1189e1bc945a1db80753",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 1956,
+          "end_byte": 2415
+        },
+        {
+          "name": "HistoryEntry",
+          "first_line": 83,
+          "last_line": 89,
+          "bytes": 171,
+          "sha256": "7f9e3c8f90c415f2091ce492d421b391594a3de288e6c196a14c4439c3b5d541",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 2500,
+          "end_byte": 2671
+        },
+        {
+          "name": "LookupState",
+          "first_line": 91,
+          "last_line": 99,
+          "bytes": 355,
+          "sha256": "ef065e818ed65e0daa60ba52dffdd9d545e057cf7e153bc40ddb5151cc643f6c",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 2675,
+          "end_byte": 3030
+        }
+      ],
+      "original_sha256": "0406a17acf4433390bf11dd3be18ca05c8cd3c78087f385f88ed7b42f6f2756f"
+    },
+    {
+      "source": "src/activities/reader/DefinitionQuery.h",
+      "bytes": 3605,
+      "sha256": "c4cc7ed2cfbcc77c35de055cd5cf0b45fe004cd20388055c3618ae92815a41f4",
+      "consumer_status": "Named section consumers below; frozen original bytes separated by newlines",
+      "delete_when": "Remove when every named native differential consumer is replaced",
+      "snapshot": "src/activities/reader/DefinitionQuery.h.txt",
+      "sections": [
+        {
+          "name": "native move-only query reference",
+          "first_line": 3,
+          "last_line": 103,
+          "bytes": 3605,
+          "sha256": "c4cc7ed2cfbcc77c35de055cd5cf0b45fe004cd20388055c3618ae92815a41f4",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 14,
+          "end_byte": 3619
+        }
+      ],
+      "original_sha256": "76f4c79700082b50dad6bf688f9bb84272a856eb8b58f705642299274bf6ca8d"
+    },
+    {
+      "source": "src/activities/reader/RustReaderLookup.cpp",
+      "bytes": 1511,
+      "sha256": "eac48dd3953f196486557b5788892105191ffb03a9b42c0e7080abb9d70018c9",
+      "consumer_status": "Named section consumers below; frozen original bytes separated by newlines",
+      "delete_when": "Remove when every named native differential consumer is replaced",
+      "snapshot": "src/activities/reader/RustReaderLookup.cpp.txt",
+      "sections": [
+        {
+          "name": "struct Definition {",
+          "first_line": 29,
+          "last_line": 32,
+          "bytes": 160,
+          "sha256": "287661dbf3b7c4a856c668ee9adcee71d7abb7b737632d85649c7c94505a897c",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 684,
+          "end_byte": 844
+        },
+        {
+          "name": "Definition* construct(",
+          "first_line": 45,
+          "last_line": 52,
+          "bytes": 459,
+          "sha256": "a5b39cb010aa4fe6cb70e8ce7f40ace9936380462ea599f1913490cde27e4c00",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 1428,
+          "end_byte": 1887
+        },
+        {
+          "name": "void* definitionPlain(",
+          "first_line": 93,
+          "last_line": 100,
+          "bytes": 531,
+          "sha256": "81b793c57587fd085d813f3e8f4124dfb67c31588516fdc36c6eb81904d539eb",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 3651,
+          "end_byte": 4182
+        },
+        {
+          "name": "void definitionDrop(",
+          "first_line": 101,
+          "last_line": 107,
+          "bytes": 354,
+          "sha256": "18855e97ec60edc6b4988ef10433c892a1c2b8a2f359cdd9ad2a6fb5e598b11b",
+          "consumers": [
+            "test/test_recursive_dictionary.py",
+            "test/definition_session/payload.py"
+          ],
+          "start_byte": 4183,
+          "end_byte": 4537
+        }
+      ],
+      "original_sha256": "189a1648ed09112b2aa1c96437498dd4e028170ca12c987b66e332417f493604"
+    }
+  ],
+  "scope": "CP3 trimmed native reference sections; never production sources or include paths; named consumers and original line ranges per section",
+  "original_snapshot_bytes": 242535
+}

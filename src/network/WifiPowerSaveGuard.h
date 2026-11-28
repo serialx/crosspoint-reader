@@ -1,7 +1,6 @@
 #pragma once
 
-#include <Logging.h>
-#include <esp_wifi.h>
+#include "HttpTransfer.h"
 
 // Network transfers can run for minutes (OPDS crawls, plugin API calls, OTA
 // streams). Modem sleep powers the radio down between DTIM beacons, which adds
@@ -11,18 +10,16 @@
 // power-save off for their whole lifetime (the web server) are not reverted.
 struct WifiPowerSaveGuard {
   WifiPowerSaveGuard() {
-    if (esp_wifi_get_ps(&previous) != ESP_OK) previous = WIFI_PS_MIN_MODEM;
-    esp_err_t err = esp_wifi_set_ps(WIFI_PS_NONE);
-    if (err != ESP_OK) LOG_ERR("WIFI", "Failed to disable WiFi power-save: %d", err);
+    const auto& api = httptransfer::leaves();
+    previous = xp_wifi_guard_enter_retire_n7_s1_s2_w3b(api.radio, api.diagnostics);
   }
   ~WifiPowerSaveGuard() {
-    if (previous == WIFI_PS_NONE) return;
-    esp_err_t err = esp_wifi_set_ps(previous);
-    if (err != ESP_OK) LOG_ERR("WIFI", "Failed to restore WiFi power-save: %d", err);
+    const auto& api = httptransfer::leaves();
+    xp_wifi_guard_exit_retire_n7_s1_s2_w3b(previous, api.radio, api.diagnostics);
   }
   WifiPowerSaveGuard(const WifiPowerSaveGuard&) = delete;
   WifiPowerSaveGuard& operator=(const WifiPowerSaveGuard&) = delete;
 
  private:
-  wifi_ps_type_t previous = WIFI_PS_MIN_MODEM;
+  XpHttpGuardToken previous{};
 };

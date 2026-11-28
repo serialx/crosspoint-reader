@@ -28,7 +28,7 @@ class TickTest : public ::testing::Test {
     radio().queueStarts = true;
   }
   bool pass(const Scene& s) {
-    const bool acted = bleturner::tick(s);
+    const bool acted = fake::tick(s);
     if (radio().startQueued) radio().runStart();
     return acted;
   }
@@ -69,7 +69,7 @@ TEST_F(TickTest, HomeNeverStartsTheRadioInTheX3Profile) {
   s.pageShown = true;
   for (int i = 0; i < 3; ++i) pass(s);
   EXPECT_EQ(radio().creates, 0u);
-  EXPECT_FALSE(bleturner::beforeScreenChange(0, /*nextIsReader=*/true) && radio().running);
+  EXPECT_FALSE(fake::beforeScreenChange(0, /*nextIsReader=*/true) && radio().running);
 }
 
 TEST_F(TickTest, StartsOnceTheBookShowsItsPageAndOncePerVisit) {
@@ -101,6 +101,65 @@ TEST_F(TickTest, NoStartOutsideAShownBookOrWhileItIndexes) {
   pass(fake::reading(2));
   EXPECT_EQ(radio().creates, 0u);
   EXPECT_EQ(host().yields, 0u);
+}
+
+TEST_F(TickTest, DisabledPollsDoNotDelayEnableInTheSameVisit) {
+  config.enabled = 0;
+  for (int i = 0; i < 100; ++i) {
+    EXPECT_FALSE(pass(fake::reading()));
+    EXPECT_EQ(bleturner::linkNote(), bleturner::LinkNote::None);
+  }
+  EXPECT_EQ(radio().creates, 0u);
+  config.enabled = 1;
+  pass(fake::reading());
+  EXPECT_EQ(radio().creates, 1u);
+  EXPECT_TRUE(radio().running);
+}
+
+TEST_F(TickTest, DisabledPollCancelsAnInFlightStart) {
+  fake::tick(fake::reading());
+  ASSERT_TRUE(radio().startQueued);
+  config.enabled = 0;
+  EXPECT_FALSE(fake::tick(fake::reading()));
+  radio().runStart();
+  EXPECT_FALSE(radio().running);
+  EXPECT_EQ(radio().beginCalls, 0u);
+  config.enabled = 1;
+  pass(fake::reading());
+  EXPECT_TRUE(radio().running);
+}
+
+TEST_F(TickTest, DisabledPollKeepsTryingAnUnfinishedStop) {
+  running();
+  config.enabled = 0;
+  radio().endResult = false;
+  pass(fake::reading());
+  const auto calls = radio().endCalls;
+  ASSERT_GT(calls, 0u);
+  EXPECT_TRUE(radio().stopping);
+  EXPECT_EQ(bleturner::linkNote(), bleturner::LinkNote::None);
+  radio().endResult = true;
+  pass(fake::reading());
+  EXPECT_GT(radio().endCalls, calls);
+  EXPECT_FALSE(radio().running);
+  config.enabled = 1;
+  pass(fake::reading());
+  EXPECT_TRUE(radio().running);
+}
+
+TEST_F(TickTest, DisabledPollConsumesRequestsWithoutRearmingIdle) {
+  ASSERT_TRUE(bleturner::detail::stopForIdle());
+  config.enabled = 0;
+  bleturner::requestConnect();
+  bleturner::afterPaint();
+  pass(fake::reading());
+  EXPECT_TRUE(bleturner::status().idleStopped);
+  config.enabled = 1;
+  pass(fake::reading());
+  EXPECT_EQ(radio().creates, 0u);
+  bleturner::requestConnect();
+  pass(fake::reading());
+  EXPECT_TRUE(radio().running);
 }
 
 TEST_F(TickTest, BookNotReadyToYieldIsAskedAgainNextPass) {
@@ -249,7 +308,7 @@ TEST_F(TickTest, BuildReportsARadioThatDoesNotStop) {
 
 // A start past the render lock (inside the stack's own init) is waited for, then stopped.
 TEST_F(TickTest, BuildWaitsForAStartPastTheLockThenStopsIt) {
-  bleturner::tick(fake::reading());
+  fake::tick(fake::reading());
   ASSERT_TRUE(radio().startQueued);
   radio().onSleep = [] {
     if (radio().startQueued) radio().runStart();
@@ -263,7 +322,7 @@ TEST_F(TickTest, BuildWaitsForAStartPastTheLockThenStopsIt) {
 // The render task holds its lock through the build. A start still waiting for that lock
 // gives up its turn: the build does not sit out 3 s for a start that cannot finish.
 TEST_F(TickTest, BuildDoesNotWaitOnAStartThatNeedsTheRenderLock) {
-  bleturner::tick(fake::reading());
+  fake::tick(fake::reading());
   ASSERT_TRUE(radio().startQueued);
   host().renderBusy = true;
   radio().onSleep = [] {
@@ -281,7 +340,7 @@ TEST_F(TickTest, BuildDoesNotWaitOnAStartThatNeedsTheRenderLock) {
 // stack) and ran the heap dry: abort(), since a nothrow new cannot even throw with no heap left. A
 // paint lets a start in flight finish first, and leaves the radio it started up.
 TEST_F(TickTest, PaintWaitsForAStartPastTheLock) {
-  bleturner::tick(fake::reading());
+  fake::tick(fake::reading());
   ASSERT_TRUE(radio().startQueued);
   radio().onSleep = [] {
     if (radio().startQueued) radio().runStart();
@@ -293,7 +352,7 @@ TEST_F(TickTest, PaintWaitsForAStartPastTheLock) {
 }
 
 TEST_F(TickTest, PaintDoesNotWaitOnAStartThatNeedsTheRenderLock) {
-  bleturner::tick(fake::reading());
+  fake::tick(fake::reading());
   ASSERT_TRUE(radio().startQueued);
   host().renderBusy = true;
   radio().onSleep = [] {
@@ -330,7 +389,7 @@ TEST_F(TickTest, SheetStopsTheRadioFirstAndThePageStartsItAgain) {
 }
 
 TEST_F(TickTest, SheetCancelsAStartInFlight) {
-  bleturner::tick(fake::reading());
+  fake::tick(fake::reading());
   ASSERT_TRUE(radio().startQueued);
   radio().onSleep = [] {
     if (radio().startQueued) radio().runStart();
@@ -582,7 +641,7 @@ TEST_F(TickTest, HeapRestartOnlyFromAQuietShownPage) {
   host().heap = {87308, 23540};
   for (int i = 0; i < 3; ++i) EXPECT_FALSE(bleturner::switchOn());
   ASSERT_TRUE(bleturner::detail::heapRestartWanted());
-  bleturner::tick(fake::reading());
+  fake::tick(fake::reading());
   EXPECT_EQ(host().restarts, 0u) << "not while the book's own start is in flight";
   radio().runStart();
   Scene s = fake::reading();
@@ -619,7 +678,7 @@ TEST_F(TickTest, BookWhoseStartsRollBackInPiecesRestartsIntoItself) {
 
 TEST_F(TickTest, HoldsHeapWhileTheRadioOwnsOrAsksForIt) {
   EXPECT_FALSE(bleturner::holdsHeap());
-  bleturner::tick(fake::reading());
+  fake::tick(fake::reading());
   EXPECT_TRUE(bleturner::holdsHeap()) << "a start in flight";
   radio().runStart();
   EXPECT_TRUE(bleturner::holdsHeap()) << "running";

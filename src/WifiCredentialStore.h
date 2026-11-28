@@ -4,6 +4,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 struct WifiCredential {
@@ -46,9 +47,9 @@ class WifiCredentialStore : public PersistableStore<WifiCredentialStore> {
   bool fromJson(JsonVariantConst doc);
 
   // Credential management
-  bool addCredential(const std::string& ssid, const std::string& password);
-  bool removeCredential(const std::string& ssid);
-  std::optional<WifiCredential> findCredential(const std::string& ssid) const;
+  bool addCredential(std::string_view ssid, std::string_view password);
+  bool removeCredential(std::string_view ssid);
+  std::optional<WifiCredential> findCredential(std::string_view ssid) const;
   std::optional<WifiCredential> getCredentialAt(size_t index) const;
   std::optional<std::string> getSsidAt(size_t index) const;
   size_t getCredentialCount() const;
@@ -56,10 +57,10 @@ class WifiCredentialStore : public PersistableStore<WifiCredentialStore> {
   std::vector<WifiCredentialSummary> getCredentialSummaries() const;
 
   // Check if a network is saved
-  bool hasSavedCredential(const std::string& ssid) const;
+  bool hasSavedCredential(std::string_view ssid) const;
 
   // Last connected network
-  void setLastConnectedSsid(const std::string& ssid);
+  void setLastConnectedSsid(std::string_view ssid);
   std::string getLastConnectedSsid() const;
 };
 

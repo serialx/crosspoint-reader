@@ -1,0 +1,17 @@
+{
+  "parent": "31d036eb4543b1d19b964bde4937aa24f9ed4256",
+  "path": "src/activities/network/WifiSelectionActivity.cpp",
+  "methods": [
+    "onEnter",
+    "onExit",
+    "loop",
+    "render",
+    "rustSceneFailed",
+    "rustPublished",
+    "rustSceneCurrent",
+    "buildRustScene",
+    "rustResources"
+  ],
+  "sha256": "1f4b7734676aabfd878c95039b19497043c106ebe5e873356a5ddc3e6f17cbba",
+  "scope": "Only native entry/exit/loop/render/vtable methods deactivated at CP2. Other native effect bodies still come from source until CP3. Compatibility oracles are not claimed as active-owner tests; actual owner/App/Miri suites cover current behavior."
+}

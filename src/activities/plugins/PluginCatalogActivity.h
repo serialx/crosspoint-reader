@@ -6,8 +6,8 @@
 #include <utility>
 #include <vector>
 
+#include "PluginCatalogPaging.h"
 #include "activities/CatalogActivity.h"
-#include "components/OptionPopup.h"
 #include "network/HttpDownloader.h"
 #include "util/PluginHttp.h"
 #include "util/PluginLocations.h"
@@ -35,6 +35,9 @@ std::vector<PluginRef> discoverPlugins();
 // See docs/sd-plugins.md for the device.json schema.
 class PluginCatalogActivity final : public CatalogActivity {
  public:
+#ifdef CROSSPOINT_UI_ORACLE
+  friend bool uiOraclePluginEnter(PluginCatalogActivity&);
+#endif
   // showOpds adds the OPDS row; rootMode returns Home instead of popping to Settings.
   // Out-of-line construction/destruction needs the complete SecureHttpClient type.
   explicit PluginCatalogActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, bool showOpds = false,
@@ -42,6 +45,7 @@ class PluginCatalogActivity final : public CatalogActivity {
   ~PluginCatalogActivity() override;
 
   void onEnter() override;
+  void render(RenderLock&&) override;
   void onExit() override;
 
  private:
@@ -51,7 +55,7 @@ class PluginCatalogActivity final : public CatalogActivity {
     std::string configFile;
     // JSON uses dotted field paths; XML uses element/attribute selectors.
     std::string browseFormat;
-    // Browse request: templates may use {token}, {cfg.KEY}, {page}, {limit}.
+    // Browse request: templates may use {token}, {cfg.KEY}, {page}, {offset}, {limit}.
     pluginhttp::RequestSpec browseReq;
     std::string itemsPath;  // JSON: dotted path to the item array; "" = response root
     // JSON field paths (dotted); XML field selectors ("elem", "elem@attr", "@attr").
@@ -75,13 +79,16 @@ class PluginCatalogActivity final : public CatalogActivity {
     int pageSize = 8;
     // Named JSON views override the browse URL/body; Back returns to their picker.
     struct BrowseList {
-      std::string title, url, body;
+      std::string title, url, body, id;
       std::string noticeTitle, noticeMessage, noticeConfirm, noticeCancel;
       bool hasNotice() const { return !noticeMessage.empty(); }
     };
     std::vector<BrowseList> browseLists;
     // Optional remote index that supplies the named JSON views dynamically.
-    std::string browseListsUrl;
+    std::string browseListsUrl, listOrigin;
+    pluginhttp::Headers listsHeaders;
+    std::string listsItemsPath, listsTitlePath, listsUrlPath, listsIdPath, listsRequiresPath;
+    size_t fixedListCount = 0;
     // JSON search overrides URL/body independently; empty fields reuse browse.
     std::string searchUrl, searchBody;
     bool hasSearch() const { return (!searchUrl.empty() || !searchBody.empty()) && browseFormat != "xml"; }
@@ -136,23 +143,16 @@ class PluginCatalogActivity final : public CatalogActivity {
   std::vector<PluginRef> installedPlugins;
   bool pluginHubAvailable = false;
   bool showPluginHubInstallRow = false;
-  bool ignoreHubInstallerBackRelease = false;
-  OptionPopup pluginHubPopup;
   bool showOpds = false;
   bool rootMode = false;
   std::string pickerReturnName;  // plugin identity to reselect after leaving a catalog
   std::vector<Item> items;
-  // Row buffer over items/browseLists plus the synthetic pager rows; rebuilt
-  // lazily on the render task whenever rowsDirty (items or state changed).
-  std::vector<freeink::ui::ListItem> rowItems;
-  bool rowsDirty = true;
+  std::string renderedTitle;
   std::string token;
   pluginhttp::Headers config;  // {cfg.KEY} values
-  int page = 1;
-  bool hasMore = false;
-  int currentList = -1;  // index into manifest.browseLists; -1 = none/default
   std::string searchQuery;
   bool searchActive = false;
+  bool listIndexLoaded = false;
   // Reuse browse TLS; release in the picker and before a single-file download.
   std::unique_ptr<freeink::SecureHttpClient> session;
   // XML-list folder navigation: current container URL and the trail back out.
@@ -161,22 +161,17 @@ class PluginCatalogActivity final : public CatalogActivity {
   // Device-code sign-in state
   std::string authUserCode, authVerifyUrl, authDeviceCode;
   unsigned long authIntervalMs = 5000;
-  unsigned long authNextPollMs = 0;
   unsigned long authDeadlineMs = 0;
-  // QR placement measured by buildScreen (AUTH state); drawn as a raw-renderer
-  // overlay in drawFooter() after the app has painted.
-  freeink::ui::Rect authQrRect{};
-
   void enterPluginPicker();
   void enterCatalog();
   void exitCatalog();
-  // Clear items, paging, list and search state, and the row buffer.
+  // Clear items, paging, list and search state.
   void resetBrowse();
   // JSON catalog with named lists and none picked yet.
   bool wantsListPicker() const;
   void openList(int index);
   bool loadManifest();
-  bool loadBrowseListIndex();
+  bool loadBrowseListIndex(int& status);
   bool loadToken();
   void loadConfig();
   bool saveToken(const std::string& value);
@@ -196,25 +191,23 @@ class PluginCatalogActivity final : public CatalogActivity {
   int listCount() const override { return rowCount(); }
   // Row dispatch: pager rows page, picker rows pick, item rows open/download.
   void activateIndex(int index) override;
-  void onRowLongPress(int index) override;
-  bool handleButtons() override;
   void confirmUninstallPlugin(int pickerIndex);
-  void render(RenderLock&& lock) override;
-  void buildScreen(UiScreen& screen) override;
-  bool handleCustomInput() override;
   void onBackButton() override;
   void drawFooter() override;
-  void rebuildRowItems();
+  bool rowAt(int, XpUiCatalogRow&) const override;
+  void prepareRows() override;
+  const char* headerTitle() const override { return renderedTitle.c_str(); }
+  const char* catalogText(uint32_t) const override;
+  void paintCatalogResource(const XpUiCommand&) override;
+  void catalogEffect(const XpUiEffect&) override;
   // Items (and the interaction table indexing them) are about to be replaced:
-  // stop routing and mark the row buffer for rebuild.
+  // stop routing until the replacement is painted.
   void releaseRows();
-  void buildAuthScreen(UiScreen& screen);
-  void buildBrowsingScreen(UiScreen& screen);
   // Browse url/body with the selected browse list's overrides applied.
   const std::string& activeBrowseUrl() const;
+  std::string_view activeBrowseOrigin() const;
   const std::string& activeBrowseBody() const;
-  // Copies `headers` with `substituted()` applied to each value.
-  pluginhttp::Headers substitutedHeaders(const pluginhttp::Headers& headers, const Item* item) const;
+  plugincatalogpaging::Paging browsePaging() const;
   void fetchPage(int newPage);
   // Read installed versions once per page, outside the render path.
   void computeInstallStatus();
@@ -228,13 +221,21 @@ class PluginCatalogActivity final : public CatalogActivity {
   HttpDownloader::DownloadError downloadBook(const Item& item);
   void beginAuth();
   void pollAuth();
-  bool refreshCredentialToken();  // password grant: mint a token from config creds
+  bool refreshCredentialToken(int& status);  // password grant: mint a token from config creds
   // Load credentials and stream a JSON/XML browse response to the SD temp file.
   // Retries a password grant once on 401/403; displays failures and returns false.
   bool fetchBrowseResponse();
   int apiRequest(const pluginhttp::RequestSpec& req, String& out);
-  pluginhttp::RequestSpec substitutedRequest(const pluginhttp::RequestSpec& req, const Item* item = nullptr) const;
-  std::string substituted(std::string tpl, const Item* item) const;
+  struct Variables;
+  struct DownloadCredentials {
+    std::string user, password;
+  };
+  bool detailsRequest(std::string& url, std::string_view path, const Item& item) const;
+  bool buildRequest(pluginhttp::RequestSpec& out, std::string_view url, const std::string& body,
+                    const pluginhttp::Headers& headers, const Item* item = nullptr, std::string_view prefix = {},
+                    bool poll = false, bool literalUrl = false, DownloadCredentials* credentials = nullptr) const;
+  bool substituted(const std::string& tpl, std::string& out, const Item* item = nullptr, size_t limit = SIZE_MAX,
+                   std::string_view md5 = {}, std::string_view dest = {}) const;
   // Where downloads land: a "dest_dir" in the plugin's config.json (its web
   // card can offer the setting), else the manifest's download.dest_dir.
   std::string downloadDir() const;

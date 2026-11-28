@@ -1,0 +1,35 @@
+P			
+P	CALIBRE		
+P	CALIBRE1		
+P	LINE-THROUGH-ONLY		
+P	NO-DECO		
+P	NOTE		
+P	PARENT-LINE-THROUGH		
+P	SECTION-HEADING		
+P	THRO		
+P	UNDER		
+P	UNDERTHRO		
+div	a b c d e f g h i	id	
+p			
+p	 unrelated		
+p	calibre		
+p	calibre unrelated		
+p	calibre1		
+p	calibre1 unrelated		
+p	line-through-only		
+p	line-through-only unrelated		
+p	no-deco		
+p	no-deco unrelated		
+p	note		
+p	note unrelated		
+p	parent-line-through		
+p	parent-line-through unrelated		
+p	section-heading		
+p	section-heading unrelated		
+p	thro		
+p	thro unrelated		
+p	under		
+p	under unrelated		
+p	underthro		
+p	underthro unrelated		
+span	note	target	

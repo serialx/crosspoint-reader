@@ -1,0 +1,84 @@
+BLOCKQUOTE			
+BODY			
+H1			
+H2			
+P	BOOK-STYLE-JUSTIFY		
+P	BORDERED		
+P	CENTER		
+P	HANGING-INDENT		
+P	JUSTIFY		
+P	LARGE		
+P	LARGE-MARGINS		
+P	LEFT		
+P	MONO		
+P	NESTED-INDENT		
+P	NOTE		
+P	PAGE-AFTER		
+P	PAGE-BEFORE		
+P	POSITIVE-INDENT		
+P	RIGHT		
+P	SMALL		
+P	STRIKE		
+P	UNDERLINE		
+P	UNDERLINE-STRIKE		
+P	ZERO-INDENT		
+TABLE			
+TD			
+TH			
+blockquote			
+blockquote	 unrelated		
+body			
+body	 unrelated		
+div	a b c d e f g h i	id	
+h1			
+h1	 unrelated		
+h2			
+h2	 unrelated		
+p			
+p	book-style-justify		
+p	book-style-justify unrelated		
+p	bordered		
+p	bordered unrelated		
+p	center		
+p	center unrelated		
+p	hanging-indent		
+p	hanging-indent unrelated		
+p	justify		
+p	justify unrelated		
+p	large		
+p	large unrelated		
+p	large-margins		
+p	large-margins unrelated		
+p	left		
+p	left unrelated		
+p	mono		
+p	mono unrelated		
+p	nested-indent		
+p	nested-indent unrelated		
+p	note		
+p	note unrelated		
+p	page-after		
+p	page-after unrelated		
+p	page-before		
+p	page-before unrelated		
+p	positive-indent		
+p	positive-indent unrelated		
+p	right		
+p	right unrelated		
+p	small		
+p	small unrelated		
+p	strike		
+p	strike unrelated		
+p	underline		
+p	underline unrelated		
+p	underline-strike		
+p	underline-strike unrelated		
+p	zero-indent		
+p	zero-indent unrelated		
+span	note	target	
+table			
+table	 unrelated		
+td			
+td	 unrelated		
+th			
+th	 unrelated		

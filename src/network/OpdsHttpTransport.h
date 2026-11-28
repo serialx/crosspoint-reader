@@ -3,7 +3,7 @@
 
 /**
  * Firmware implementation of the SDK OpdsClient's transport: streaming GET and
- * form POST over HttpDownloader (esp_http_client + wolfSSL), and URL joining
+ * form POST over the Rust-owned HttpDownloader facade, and URL joining
  * through UrlUtils. Stateless — one instance is shared by an OpdsClient.
  */
 class OpdsHttpTransport final : public freeink::opds::OpdsTransport {

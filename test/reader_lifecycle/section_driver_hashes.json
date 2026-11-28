@@ -1,0 +1,18 @@
+{
+  "plain-complete": {
+    "bytes": 492642,
+    "sha256": "9d5ee5dbe2707eca8ee789a744532912b1323ba2ec9335fae4e8058b6f5bb84f"
+  },
+  "plain-partial": {
+    "bytes": 3584,
+    "sha256": "8ef122890ec1cfe203e00676e438d1efab22cff03ea01c332858dd52e99b271c"
+  },
+  "rich-complete": {
+    "bytes": 36769,
+    "sha256": "e6ae164bd529ebcc24743952c65817a4fd2f107c608585da660ca64ab047c2cd"
+  },
+  "rich-partial": {
+    "bytes": 5451,
+    "sha256": "06f8d212535280146f2f87e6137720e8eaf81c36deae1c6e43ac2497b84dfc51"
+  }
+}

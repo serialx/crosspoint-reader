@@ -1,0 +1,29 @@
+[package]
+name = "bookmark-owner-tests"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[features]
+app-test = []
+
+[dependencies]
+xp-core = { path = "../../../rust/crates/xp-core" }
+xp-ui = { path = "../../../rust/crates/xp-ui" }
+
+[lib]
+path = "tests.rs"
+
+[[bin]]
+name = "bookmark-codec"
+path = "main.rs"
+
+[[bin]]
+name = "bookmark-xpath"
+path = "progress_main.rs"
+
+[[bin]]
+name = "bookmark-progress-logs"
+path = "progress_logs_main.rs"

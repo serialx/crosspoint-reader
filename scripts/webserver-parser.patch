@@ -1,0 +1,294 @@
+--- a/Parsing.cpp
++++ b/Parsing.cpp
+@@ -73,10 +73,39 @@
+   return buf;
+ }
+
++#include "UploadIngress.h"
++
++// The firmware linker requires this alias of the parser entry point.
++asm(".global crosspoint_checked_webserver_parser\n"
++    ".set crosspoint_checked_webserver_parser, _ZN9WebServer13_parseRequestER13NetworkClient");
++
+ bool WebServer::_parseRequest(NetworkClient &client) {
+-  // Read the first line of HTTP request
+-  String req = client.readStringUntil('\r');
+-  client.readStringUntil('\n');
++  auto badUpload = [&]() {
++    static constexpr char response[] = "HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
++    if (client.connected()) client.write(reinterpret_cast<const uint8_t*>(response), sizeof(response) - 1);
++    return false;
++  };
++  auto read = [&]() { return _uploadReadByte(client); };
++  String req;
++  static constexpr char uploadPrefix[] = "POST /upload";
++  bool fileUpload = false;
++  // Classify the short prefix before an upload request can allocate an unbounded line.
++  for (;;) {
++    int c = read();
++    if (c < 0 || c == '\r') break;
++    unsigned int pos = req.length();
++    fileUpload = pos == sizeof(uploadPrefix) - 1 && (c == '?' || c == ' ');
++    if (!req.concat(static_cast<char>(c))) return fileUpload ? badUpload() : false;
++    if (fileUpload) {
++      if (!upload_ingress::appendHeaderLine(req, read)) return badUpload();
++      break;
++    }
++    if (pos == sizeof(uploadPrefix) - 1 || c != uploadPrefix[pos]) {
++      while ((c = read()) >= 0 && c != '\r') req += static_cast<char>(c);
++      break;
++    }
++  }
++  if (!fileUpload) client.readStringUntil('\n');
+   //reset header value
+   if (_collectAllHeaders) {
+     // clear previous headers
+@@ -100,14 +129,22 @@
+   String methodStr = req.substring(0, addr_start);
+   String url = req.substring(addr_start + 1, addr_end);
+   String versionEnd = req.substring(addr_end + 8);
++  if (fileUpload && (!versionEnd.c_str() || methodStr.length() != (unsigned int)addr_start ||
++      url.length() != (unsigned int)(addr_end - addr_start - 1))) return badUpload();
+   _currentVersion = atoi(versionEnd.c_str());
+   String searchStr = "";
+   int hasSearch = url.indexOf('?');
+   if (hasSearch != -1) {
+     searchStr = url.substring(hasSearch + 1);
+-    url = url.substring(0, hasSearch);
++    if (fileUpload) {
++      if (searchStr.length() != url.length() - hasSearch - 1) return badUpload();
++      url.remove(hasSearch);
++    } else {
++      url = url.substring(0, hasSearch);
++    }
+   }
+   _currentUri = url;
++  if (fileUpload && _currentUri.length() != url.length()) return badUpload();
+   _chunked = false;
+   _clientContentLength = 0;  // not known yet, or invalid
+
+@@ -146,8 +183,12 @@
+     bool isEncoded = false;
+     //parse headers
+     while (1) {
+-      req = client.readStringUntil('\r');
+-      client.readStringUntil('\n');
++      if (fileUpload) {
++        if (!upload_ingress::readHeaderLine(req, read)) return badUpload();
++      } else {
++        req = client.readStringUntil('\r');
++        client.readStringUntil('\n');
++      }
+       if (req == "") {
+         break;  //no moar headers
+       }
+@@ -157,6 +198,7 @@
+       }
+       headerName = req.substring(0, headerDiv);
+       headerValue = req.substring(headerDiv + 1);
++      if (fileUpload && (headerName.length() != (unsigned int)headerDiv || headerValue.length() != req.length() - headerDiv - 1)) return badUpload();
+       headerValue.trim();
+       _collectHeader(headerName.c_str(), headerValue.c_str());
+
+@@ -168,7 +210,9 @@
+           isForm = false;
+           isEncoded = true;
+         } else if (headerValue.startsWith(F("multipart/"))) {
+-          boundaryStr = headerValue.substring(headerValue.indexOf('=') + 1);
++          int boundaryStart = headerValue.indexOf('=') + 1;
++          boundaryStr = headerValue.substring(boundaryStart);
++          if (fileUpload && (!boundaryStr.length() || boundaryStr.length() != headerValue.length() - boundaryStart)) return badUpload();
+           boundaryStr.replace("\"", "");
+           if (boundaryStr.length() > 70) {  // RFC 2046: max boundary length is 70
+             log_e("Invalid boundary length: %s", boundaryStr.c_str());
+@@ -238,9 +282,15 @@
+       }
+     } else {
+       // it IS a form
+-      _parseArguments(searchStr);
++      if (fileUpload) {
++        if (!upload_ingress::parseUploadArguments(searchStr, _currentArgs, _currentArgCount)) {
++          return badUpload();
++        }
++      } else {
++        _parseArguments(searchStr);
++      }
+       if (!_parseForm(client, boundaryStr, _clientContentLength)) {
+-        return false;
++        return fileUpload ? badUpload() : false;
+       }
+     }
+   } else {
+@@ -410,6 +460,172 @@
+ }
+
+ bool WebServer::_parseForm(NetworkClient &client, const String &boundary, uint32_t len) {
++  if (_currentMethod == HTTP_POST && _currentUri == "/upload") {
++    uint32_t consumed = 0;
++    auto read = [&]() {
++      if (len && consumed == len) return -1;
++      int c = _uploadReadByte(client);
++      if (c >= 0) ++consumed;
++      return c;
++    };
++    log_v("Parse Form: Boundary: %s Length: %" PRIu32, boundary.c_str(), len);
++    String line;
++    int retry = 0;
++    do {
++      if (!upload_ingress::readHeaderLine(line, read)) return false;
++      ++retry;
++    } while (line.length() == 0 && retry < 3);
++
++    //start reading the form
++    auto delimiter = [&](bool last) {
++      unsigned int length = boundary.length();
++      return line.length() == 2 + length + (last ? 2 : 0) && line.startsWith("--") &&
++             memcmp(line.c_str() + 2, boundary.c_str(), length) == 0 &&
++             (!last || line.endsWith("--"));
++    };
++    if (delimiter(false)) {
++      if (_postArgs) {
++        delete[] _postArgs;
++      }
++      _postArgs = nullptr;
++      _postArgsLen = 0;
++      unsigned int textFields = 0;
++      while (1) {
++        String argName;
++        String argValue;
++        String argType;
++        String argFilename;
++        bool argIsFile = false;
++
++        if (!upload_ingress::readHeaderLine(line, read)) return false;
++        if (strncasecmp(line.c_str(), "Content-Disposition:", 20) != 0 ||
++            !upload_ingress::parseDisposition(line.c_str() + 20, argName, argFilename, argIsFile)) return false;
++        if (argIsFile && argFilename == F("blob") && hasArg(FPSTR(filename))) {
++          String overrideName = arg(FPSTR(filename));
++          if (!overrideName.c_str() || !overrideName.length()) return false;
++          argFilename = std::move(overrideName);
++        }
++        log_v("PostArg Name: %s", argName.c_str());
++        using namespace mime;
++        argType = FPSTR(mimeTable[txt].mimeType);
++        if (!upload_ingress::readHeaderLine(line, read)) return false;
++        while (line.length() > 0) {
++          if (strncasecmp(line.c_str(), "Content-Disposition:", 20) == 0) return false;
++          if (line.length() > (size_t)12 && strncasecmp(line.c_str(), Content_Type, 12) == 0) {
++            argType = line.substring(line.indexOf(':') + 2);
++          }
++          //skip over any other headers
++          if (!upload_ingress::readHeaderLine(line, read)) return false;
++        }
++        log_v("PostArg Type: %s", argType.c_str());
++        if (!argIsFile) {
++          while (1) {
++            bool endedAtEof = false;
++            if (!upload_ingress::readHeaderLine(line, read, true, &endedAtEof) &&
++                !(endedAtEof && len && consumed == len && delimiter(true))) return false;
++            if (delimiter(false) || delimiter(true)) {
++              break;
++            }
++            if (argValue.length() + line.length() + (argValue.length() != 0) > upload_ingress::MAX_METADATA_BYTES) return false;
++            if (argValue.length() > (size_t)0) {
++              if (!argValue.concat('\n')) return false;
++            }
++            if (!argValue.concat(line)) return false;
++          }
++          log_v("PostArg Value: %s", argValue.c_str());
++
++          ++textFields;
++          if (delimiter(true)) {
++            log_v("Done Parsing POST");
++            break;
++          } else if (textFields >= WEBSERVER_MAX_POST_ARGS) {
++            log_e("Too many PostArgs (max: %u) in request.", WEBSERVER_MAX_POST_ARGS);
++            return false;
++          }
++        } else {
++          _currentUpload.reset(new (std::nothrow) HTTPUpload());
++          if (!_currentUpload) return false;
++          _currentUpload->status = UPLOAD_FILE_START;
++          _currentUpload->name = std::move(argName);
++          _currentUpload->filename = std::move(argFilename);
++          _currentUpload->type = std::move(argType);
++          _currentUpload->totalSize = 0;
++          _currentUpload->currentSize = 0;
++          log_v("Start File: %s Type: %s", _currentUpload->filename.c_str(), _currentUpload->type.c_str());
++          if (_currentHandler && _currentHandler->canUpload(*this, _currentUri)) {
++            _currentHandler->upload(*this, _currentUri, *_currentUpload);
++          }
++          _currentUpload->status = UPLOAD_FILE_WRITE;
++
++          int fastBoundaryLen = 4 /* \r\n-- */ + boundary.length() + 1 /* \0 */;
++          char fastBoundary[fastBoundaryLen];
++          snprintf(fastBoundary, fastBoundaryLen, "\r\n--%s", boundary.c_str());
++          int boundaryPtr = 0;
++          while (true) {
++            int ret = read();
++            if (ret < 0) {
++              // Unexpected, we should have had data available per above
++              return _parseFormUploadAborted();
++            }
++            char in = (char)ret;
++            if (in == fastBoundary[boundaryPtr]) {
++              // The input matched the current expected character, advance and possibly exit this file
++              boundaryPtr++;
++              if (boundaryPtr == fastBoundaryLen - 1) {
++                // We read the whole boundary line, we're done here!
++                break;
++              }
++            } else {
++              // The char doesn't match what we want, so dump whatever matches we had, the read in char, and reset ptr to start
++              for (int i = 0; i < boundaryPtr; i++) {
++                _uploadWriteByte(fastBoundary[i]);
++              }
++              if (in == fastBoundary[0]) {
++                // This could be the start of the real end, mark it so and don't emit/skip it
++                boundaryPtr = 1;
++              } else {
++                // Not the 1st char of our pattern, so emit and ignore
++                _uploadWriteByte(in);
++                boundaryPtr = 0;
++              }
++            }
++          }
++          // Validate the delimiter before exposing END to a file-committing handler.
++          int suffix = read();
++          bool last = suffix == '-';
++          if (last) {
++            if (read() != '-') return _parseFormUploadAborted();
++            if (!len || consumed < len) {
++              if (read() != '\r' || read() != '\n') return _parseFormUploadAborted();
++            }
++          } else if (suffix != '\r' || read() != '\n') {
++            return _parseFormUploadAborted();
++          }
++          // Found the boundary string, finish processing this file upload
++          if (_currentHandler && _currentHandler->canUpload(*this, _currentUri)) {
++            _currentHandler->upload(*this, _currentUri, *_currentUpload);
++          }
++          _currentUpload->totalSize += _currentUpload->currentSize;
++          _currentUpload->status = UPLOAD_FILE_END;
++          if (_currentHandler && _currentHandler->canUpload(*this, _currentUri)) {
++            _currentHandler->upload(*this, _currentUri, *_currentUpload);
++          }
++          log_v("End File: %s Type: %s Size: %lu", _currentUpload->filename.c_str(), _currentUpload->type.c_str(), (unsigned long)_currentUpload->totalSize);
++          if (!client.connected()) {
++            return _parseFormUploadAborted();
++          }
++          if (last) {  // extra two dashes mean we reached the end of all form fields
++            log_v("Done Parsing POST");
++            break;
++          }
++          continue;
++        }
++      }
++
++      return true;
++    }
++    return false;
++  }
+   (void)len;
+   log_v("Parse Form: Boundary: %s Length: %" PRIu32, boundary.c_str(), len);
+   String line;

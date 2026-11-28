@@ -1,22 +1,8 @@
 #pragma once
 #include <string>
+#include <string_view>
 
 namespace UrlUtils {
-
-/**
- * Prepend http:// if no protocol specified (server will redirect to https if needed)
- */
-std::string ensureProtocol(const std::string& url);
-
-/**
- * Extract host with protocol from URL (e.g., "http://example.com" from "http://example.com/path")
- */
-std::string extractHost(const std::string& url);
-
-/**
- * Percent-encode raw characters that esp_http_client rejects in a URL.
- */
-std::string encodeUnsafeUrlChars(const std::string& url);
 
 /**
  * Build full URL from server URL and path.
@@ -24,5 +10,13 @@ std::string encodeUnsafeUrlChars(const std::string& url);
  * Otherwise, it's relative to the server URL.
  */
 std::string buildUrl(const std::string& serverUrl, const std::string& path);
+
+bool isServerPath(std::string_view path);
+std::string_view origin(std::string_view requestUrl);
+
+// Adds the request origin to a single-slash server path. Returns true on change.
+bool resolveServerPath(std::string& path, const std::string& requestUrl);
+
+bool isForeignHost(const char* hostHeader);
 
 }  // namespace UrlUtils

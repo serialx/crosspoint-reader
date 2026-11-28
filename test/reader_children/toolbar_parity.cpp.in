@@ -1,0 +1,110 @@
+extern "C" {
+struct ToolbarDrawing {
+  void (*theme)(XpUiReaderTheme*, XpUiReaderThemeFacts*, uint8_t);
+  uint8_t (*layout)(XpUiUtilityLayout*);
+  void (*header)(XpUiRect, XpAppText, uint8_t);
+  void (*footer)(XpUiRect, const XpAppText*);
+  void (*qr)(XpUiRect, XpAppText);
+  void (*icon)(uint32_t, XpUiRect, XpUiRect);
+  void (*clear)();
+  void (*prewarm)(int32_t, const void*, XpAppText (*)(const void*, uint32_t), uint32_t);
+};
+void* xp_epub_test_toolbar_open(const XpAppRuntime*);
+void xp_epub_test_toolbar_close(void*);
+uint8_t xp_epub_test_toolbar_render(void*, const XpAppResources*, const ToolbarDrawing*, const XpEpubToolbarModel*, int32_t);
+uint8_t xp_epub_test_toolbar_observe(void*, XpUiListState*, XpUiReaderHitLayout*);
+void xp_epub_test_toolbar_reset(void*, int32_t, int32_t);
+uint8_t xp_epub_test_toolbar_scroll(void*, int32_t, int32_t);
+XpEpubRouted xp_epub_test_toolbar_route(void*, const XpAppRuntime*, const XpUiInput*);
+}
+static const ToolbarDrawing drawing{
+  [](XpUiReaderTheme* theme, XpUiReaderThemeFacts* facts, uint8_t toolbar) { assert(toolbar); sampleReaderChromeTheme(renderer, *theme); *facts = {theme->space_sm * 6, theme->help_font, theme->help_font}; },
+  [](XpUiUtilityLayout*) -> uint8_t { std::abort(); },
+  [](XpUiRect, XpAppText, uint8_t) { std::abort(); },
+  [](XpUiRect, const XpAppText*) { std::abort(); },
+  [](XpUiRect, XpAppText) { std::abort(); },
+  [](uint32_t, XpUiRect, XpUiRect) { assert(!criticalDepth); },
+  [] { std::abort(); },
+  [](int32_t, const void*, XpAppText (*)(const void*, uint32_t), uint32_t) { std::abort(); }
+};
+static int failedRow = -1;
+static uint8_t parityRows(void*, int32_t index, XpEpubToolbarRowSink sink, void* context) {
+  if (index == failedRow) return false;
+  char label[64], value[32];
+  std::memset(label, 'A' + index % 26, sizeof(label));
+  std::memset(value, 'a' + index % 26, sizeof(value));
+  XpEpubToolbarRow row{{reinterpret_cast<uint8_t*>(label),sizeof(label)},
+                      {reinterpret_cast<uint8_t*>(value),sizeof(value)},
+                      static_cast<uint32_t>(index % 5),static_cast<uint8_t>(index % 2),static_cast<uint8_t>(index % 3 == 0)};
+  const auto copied = sink(context,&row);
+  std::memset(label,'!',sizeof(label)); std::memset(value,'?',sizeof(value));
+  return copied;
+}
+static void compareRoute(ReaderToolbarUi& native, void* owned, const XpAppRuntime& runtime, int16_t x, int16_t y, uint8_t flags) {
+  input.touch = {x,y, bool(flags & XP_UI_TOUCH_PRESSED), bool(flags & XP_UI_TOUCH_RELEASED), bool(flags & XP_UI_TOUCH_HELD)};
+  XpUiInput frame{}; frame.touch_x=x; frame.touch_y=y; frame.touch_flags=flags;
+  const int before = haptics;
+  XpEpubRouted expected{}; routeToolbar(&native,&expected);
+  const int feedback = haptics - before;
+  const auto actual = xp_epub_test_toolbar_route(owned,&runtime,&frame);
+  if (actual.value!=expected.value || actual.permille!=expected.permille || actual.event!=expected.event)
+    std::fprintf(stderr,"Toolbar route (%d,%d flags=%u ready=%u): actual=%d/%d/%u expected=%d/%d/%u\n",x,y,flags,native.ready,actual.value,actual.permille,actual.event,expected.value,expected.permille,expected.event);
+  assert(actual.value==expected.value && actual.permille==expected.permille && actual.event==expected.event);
+  assert(actual.routed==expected.routed && actual.x==expected.x && actual.y==expected.y);
+  assert(haptics-before == 2*feedback);
+}
+int main() {
+  static auto runtime = appTestRuntime();
+  runtime.model_lock = [] { assert(criticalDepth++ == 0); };
+  runtime.model_unlock = [] { assert(--criticalDepth == 0); };
+  runtime.touch_feedback = [](uint8_t strong) { haptic_feedback::touchAction(strong); };
+  static auto services = appTestResources();
+  services.buffer_allocate = [](XpAppMemoryDomain, size_t n) { return static_cast<uint8_t*>(std::malloc(n)); };
+  services.buffer_release = [](XpAppMemoryDomain, uint8_t* p) { std::free(p); };
+  services.text_width = [](XpAppText t, int32_t font, uint8_t bold) { return renderer.getTextWidth(font, reinterpret_cast<const char*>(t.data), bold ? EpdFontFamily::Bold : EpdFontFamily::Regular); };
+  services.line_height = [](int32_t font) { return renderer.getLineHeight(font); };
+  services.text_box_height = [](XpAppText, XpAppTextLayout) -> int32_t { return 24; };
+  services.text_draw = [](const XpUiCommand* c, XpUiRect clip, XpAppText t) { assert(t.data[t.len]==0); renderer.drawUiText(*c,clip,reinterpret_cast<const char*>(t.data)); };
+  services.paint_scene = [](const XpUiScene* scene, const XpUiPaint* paint) -> uint8_t { return renderer.drawUiScene(*scene,paint); };
+  unsigned cases = 0;
+  for (bool panel : {false,true}) for (bool dense : {false,true}) for (int count : {0,1,16,17,1000})
+    for (int selected : {-1,0,count-1}) for (int progress : {0,500,1000}) for (bool empty : {false,true}) {
+      auto* native = static_cast<ReaderToolbarUi*>(openToolbar());
+      void* owned = xp_epub_test_toolbar_open(&runtime);
+      beginToolbar(native);
+      xp_epub_test_toolbar_reset(owned,-1,0);
+      // Native begin resets navigation to the same empty state.
+      XpEpubToolbarModel model{};
+      model.chapter = empty ? XpAppText{} : text("Chapter"); model.page_info=text("");
+      model.panel_title=text("Contents"); model.progress_permille=progress; model.item_count=count;
+      model.selected=selected; model.active_tool=1; model.panel=panel; model.dense=dense;
+      failedRow=-1; renderer.paintSucceeds=true;
+      recordedCommands.clear(); recordedTexts.clear();
+      assert(paintToolbar(native,&model,parityRows,nullptr));
+      const auto commands=recordedCommands; const auto texts=recordedTexts;
+      recordedCommands.clear(); recordedTexts.clear();
+      assert(xp_epub_test_toolbar_render(owned,&services,&drawing,&model,-1));
+      assert(commands.size()==recordedCommands.size());
+      assert(std::memcmp(commands.data(),recordedCommands.data(),commands.size()*sizeof(XpUiCommand))==0);
+      assert(texts==recordedTexts);
+      XpUiListState nav{}; XpUiReaderHitLayout hits{};
+      assert(xp_epub_test_toolbar_observe(owned,&nav,&hits));
+      sameNav(native->nav_,nav);
+      assert(std::memcmp(&native->published,&hits,sizeof(hits))==0);
+      for (int y=0; y<792; y+=47) for (int x=0; x<528; x+=53) {
+        compareRoute(*native,owned,runtime,x,y,XP_UI_TOUCH_PRESSED);
+        compareRoute(*native,owned,runtime,x,y,XP_UI_TOUCH_HELD);
+        compareRoute(*native,owned,runtime,x,y,XP_UI_TOUCH_RELEASED);
+      }
+      assert(scrollToolbar(native,1,count)==xp_epub_test_toolbar_scroll(owned,1,count));
+      xp_epub_test_toolbar_observe(owned,&nav,&hits); sameNav(native->nav_,nav);
+      renderer.paintSucceeds=false;
+      assert(!paintToolbar(native,&model,parityRows,nullptr));
+      assert(!xp_epub_test_toolbar_render(owned,&services,&drawing,&model,-1));
+      assert(!xp_epub_test_toolbar_observe(owned,&nav,&hits));
+      compareRoute(*native,owned,runtime,100,750,XP_UI_TOUCH_RELEASED);
+      renderer.paintSucceeds=true;
+      closeToolbar(native); xp_epub_test_toolbar_close(owned); ++cases;
+    }
+  std::printf("Native/owned Toolbar scene, text, navigation, hit, route and failed-paint parity: %u cases\n",cases);
+}

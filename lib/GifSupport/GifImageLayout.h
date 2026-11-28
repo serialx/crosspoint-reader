@@ -6,7 +6,6 @@
 namespace GifCommon {
 constexpr uint32_t MAX_FILE_BYTES = 16 * 1024 * 1024;
 constexpr int MAX_OUTPUT_DIMENSION = 3072;
-constexpr uint32_t MAX_BMP_BYTES = 4 * 1024 * 1024;
 
 struct ImageLayout {
   int sourceX = 0;

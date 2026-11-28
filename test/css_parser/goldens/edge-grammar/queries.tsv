@@ -1,0 +1,16 @@
+P			
+P	A		
+P	B A		P~a b~id|div~x~
+SCREEN			p~~
+div	a b c d e f g h i	id	
+p			
+p	 unrelated		
+p	a		
+p	a unrelated		
+p	b a		
+p	b a		P~a b~id|div~x~
+p	b a unrelated		P~a b~id|div~x~
+screen			
+screen			p~~
+screen	 unrelated		p~~
+span	note	target	

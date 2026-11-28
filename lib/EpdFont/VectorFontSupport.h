@@ -1,6 +1,6 @@
 #pragma once
 
-// Runtime TTF/OTF rendering (FreeInkFont/FreeType via TtfEpdFont) is a
+// Runtime TTF/OTF rendering (Rust ownership with FreeInkFont/FreeType) is a
 // PSRAM-boards-only feature. On the no-PSRAM ESP32-C3 devices the engine's
 // working set (FreeType face + table state, per-style glyph arenas, resident
 // or GPOS font bytes) competes with the reader's section build for the same

@@ -16,9 +16,8 @@ class MappedInputManager;
 // an ordinary repaint. The handshake lives here exactly once so no screen
 // re-implements (and mis-orders) it.
 //
-// UiListActivity layers list navigation on top of this; screens that are not a
-// single list (sliders, prompts, state machines) inherit or hold this directly
-// and keep their own input/loop logic.
+// Rust list screens use RustActivityAdapter. Custom FreeInkUI screens inherit
+// or hold this host and keep their own input/loop logic.
 class UiAppHost {
  public:
   // One shared instantiation for every FUI screen (the largest of the sizes

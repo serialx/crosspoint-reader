@@ -56,9 +56,19 @@ reviewers may not write files (including temporary diagnostics), run tests/build
 commit, publish, deploy, or flash.
 
 The human must write PR descriptions; agents may give concise factual notes and test
-results, never ready-to-paste PR prose. Creating/amending local commits requires
-explicit human approval. Push only on an explicit human instruction to push;
+results, never ready-to-paste PR prose. Push only on an explicit human instruction to push;
 edit/commit approval does not authorize it. Never open or close a PR.
+
+This repository is a fork maintained by one person. Do not ask the human to
+"accept", "approve" or "sign off" a finished change. When a change's checks are
+green and its reviews pass, the coordinating agent merges it into the integration
+branch and sends the human a short digest: what moved, the measured numbers, and
+any inherited defect or maintenance item with its owner. The human keeps a veto
+("revert <task>"). Hardware testing happens on the human's own schedule from a
+running checklist, not as a gate before the next change. Stop and ask the human
+only for: a deliberate change of user-visible behavior, new persistent state or a
+file-format change, sleep/power or storage changes, a budget overrun, or a review
+finding that blocks without a clean fix.
 
 Repository-facing prose: use plain English for non-native readers and standard
 technical terms when clearest. Code comments must be short and useful after merge; follow the
@@ -66,6 +76,6 @@ technical terms when clearest. Code comments must be short and useful after merg
 
 ## Mandatory firmware handoff
 
-For every logical change that can affect shipped firmware or its build—including C/C++, build configuration, partitions, code-generation sources, translations, and release scripts—the main agent must complete [firmware-handoff](.agents/skills/firmware-handoff/SKILL.md) before declaring the work ready or making an approved local commit. That skill owns the required checks, four independent reviews, bounded follow-up, and explicit human acceptance of behavior, architecture, and maintenance ownership.
+For every logical change that can affect shipped firmware or its build—including C/C++, build configuration, partitions, code-generation sources, translations, and release scripts—the main agent must complete [firmware-handoff](.agents/skills/firmware-handoff/SKILL.md) before declaring the work ready or making an approved local commit. That skill owns the required checks, the independent reviews, bounded follow-up, and the digest to the human; it does not ask the human to accept.
 
 Read-only inquiries, audits, and reviewers do not run implementation handoff. Pure tests, diagnostics, documentation, and host-only Python scripts use a lighter review unless they alter firmware output or its build. Hardware testing remains the human's responsibility and is required before a PR is opened.

@@ -1,0 +1,165 @@
+extern "C" XpUiRect xp_app_test_definition_body(const void*);
+static XpEpubLeaves geometryLeaves{};
+static void equalBody(const XpUiRect b, const DictionaryDefinitionActivity::BodyArea n) {
+  assert(b.x == n.x && b.y == n.y && b.w == n.width && b.h == n.height);
+}
+static void equalPages(const std::vector<std::unique_ptr<Page>>& a, const std::vector<std::unique_ptr<Page>>& b) {
+  assert(a.size() == b.size());
+  for (size_t p = 0; p < a.size(); ++p) {
+    assert(a[p]->elements.size() == b[p]->elements.size());
+    for (size_t e = 0; e < a[p]->elements.size(); ++e) {
+      const auto& x = *static_cast<PageLine*>(a[p]->elements[e].get());
+      const auto& y = *static_cast<PageLine*>(b[p]->elements[e].get());
+      assert(x.y == y.y && x.block->words == y.block->words && x.block->positions == y.block->positions);
+      assert(x.block->ranges.size() == y.block->ranges.size());
+      for (size_t r = 0; r < x.block->ranges.size(); ++r)
+        assert(x.block->ranges[r].start == y.block->ranges[r].start &&
+               x.block->ranges[r].end == y.block->ranges[r].end);
+    }
+  }
+}
+int main() {
+  GfxRenderer renderer;
+  static GfxRenderer* target = &renderer;
+  geometryLeaves.child_definition_layout =  // LAYOUT_LEAF
+      ;
+  std::vector<std::string> texts{"",
+                                 "one two\nthree four",
+                                 std::string("a\0b\0c", 5),
+                                 std::string(4097, 'z'),
+                                 "中文 한글 カナ abc",
+                                 std::string(12000, 'x')};
+  {
+    DefinitionPayload payload;
+    auto& slot = payload.slots[0];
+    slot.text = "first\nsecond\nthird";
+    assert(payload.prepareDefinition(renderer, slot, false, false, {0, 0, 100, 25}));
+    assert(renderer.lastSpacing == 2.0f && slot.linesPerPage == 2 && slot.totalPages() == 2);
+    renderer.lastSpacing = 0;
+    assert(payload.buildPlainSelectionPages(renderer, 0));
+    assert(renderer.lastSpacing == 2.0f);
+    const auto& lines = payload.selectionPages[0]->elements;
+    assert(lines.size() == 2 && static_cast<PageLine*>(lines[1].get())->y == 10);
+    renderer.lastSpacing = 0;
+    payload.drawBody(renderer, 0, 0, 7, 0);
+    assert(renderer.lastSpacing == 2.0f && renderer.paintedRows == std::vector<int>({7, 17}));
+  }
+  unsigned cases = 0;
+  for (uint8_t orientation = 0; orientation < 4; ++orientation)
+    for (bool styled : {false, true})
+      for (const auto& text : texts) {
+        testLayout = {{0, 0, 480, 800}, 13, 17, 19, 23, 7, 41, 5, 9, 33, 51, orientation, 0, {0, 0}};
+        HeaderBackTapTarget::set(0, 0, 40, 40);
+        const auto body = xp_app_test_definition_body(&geometryLeaves.child_definition_payload_lookup);
+        assert(lastQueryX == -1 && lastQueryY == -1);  // Render/body sampling never queries a header hit.
+        DictionaryDefinitionActivity oracle;
+        oracle.lookup = std::make_unique<DictionaryDefinitionActivity::LookupState>(dictionary);
+        oracle.htmlDefinition = styled;
+        oracle.content.headword = "head";
+        oracle.content.text = text;
+        equalBody(body, oracle.bodyArea());
+        DefinitionPayload payload;
+        payload.slots[0].headword = "head";
+        payload.slots[0].text = text;
+        styledAvailable = styled;
+        const bool old = oracle.prepareDefinition(oracle.content);
+        const bool candidate = payload.prepareDefinition(renderer, payload.slots[0], styled, false, body);
+        assert(old == candidate);
+        auto& slot = payload.slots[0];
+        assert(slot.textView() == oracle.content.text && slot.totalPages() == oracle.content.totalPages &&
+               slot.linesPerPage == oracle.content.linesPerPage);
+        assert(slot.pages.size() == oracle.content.pages.size() && slot.lines.size() == oracle.content.lines.size());
+        for (size_t i = 0; i < slot.lines.size(); ++i) {
+          const auto a = slot.lines[i];
+          const auto b = oracle.content.lines[i];
+          assert(a.start == b.start && a.len == b.len && a.bold == b.bold);
+        }
+        if (!styled) {
+          assert(payload.buildPlainSelectionPages(renderer, 0) == oracle.buildPlainSelectionPages());
+          equalPages(payload.selectionPages, oracle.lookup->selectionPages);
+        }
+        XpDefinitionSelectionRequest request{};
+        request.x = request.y = -1;
+        auto* child = static_cast<SelectionOwner*>(payload.selectionChild(renderer, oracle.mappedInput, request, body));
+        assert(child);
+        assert(selectionOriginX == body.x && selectionOriginY == body.y);
+        delete child;
+        payload.slots[0].releasePayload();
+        assert(slot.textView().empty() && slot.pages.empty() && slot.lines.empty());
+        ++cases;
+      }
+  // Both paths keep native reserve/headroom failure behavior and font release ordering.
+  testLayout = {{0, 0, 480, 800}, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {0, 0}};
+  for (bool html : {false, true})
+    for (size_t heap : {size_t{0}, size_t{8192}, size_t{1024 * 1024}}) {
+      styledAvailable = false;
+      HalMemory::available = heap;
+      DictionaryDefinitionActivity oracle;
+      oracle.htmlDefinition = html;
+      oracle.content.text = "one two three";
+      DefinitionPayload p;
+      p.slots[0].text = oracle.content.text;
+      const auto body = xp_app_test_definition_body(&geometryLeaves.child_definition_payload_lookup);
+      assert(p.prepareDefinition(renderer, p.slots[0], html, false, body) == oracle.prepareDefinition(oracle.content));
+    }
+  HalMemory::available = 1024 * 1024;
+  XpDefinitionPayloadStorage storage{};
+  const std::string source(4097, 'q');
+  uint8_t* filled = nullptr;
+  const auto fill = [](void* p, uint8_t* bytes, uint32_t length) -> uint8_t {
+    *static_cast<uint8_t**>(p) = bytes;
+    std::memset(bytes, 'q', length);
+    return 1;
+  };
+  assert(DefinitionPayload::constructPlain(&storage, {}, source.size(), fill, &filled));
+  auto& plain = DefinitionPayload::get(&storage);
+  assert(plain.slots[0].textView() == source && plain.slots[0].textView().data() == reinterpret_cast<char*>(filled));
+  std::destroy_at(&plain);
+  assert(!DefinitionPayload::constructPlain(
+      &storage, {}, 8, [](void*, uint8_t*, uint32_t) -> uint8_t { return 0; }, nullptr));
+  for (bool move : {false, true}) {
+    std::string text = source, title = "title";
+    const auto* original = text.data();
+    XpDefinitionNativeTransfer transfer{};
+    transfer.title = &title;
+    transfer.kind = move ? XpDefinitionNativeTransfer::TextKind::Move : XpDefinitionNativeTransfer::TextKind::Copy;
+    if (move)
+      transfer.text.move = &text;
+    else
+      transfer.text.copy = &text;
+    transfer.html = true;
+    uint8_t html = 0;
+    assert(DefinitionPayload::constructNative(&storage, &transfer, &html));
+    auto& p = DefinitionPayload::get(&storage);
+    assert(html && p.slots[0].textView() == source && p.slots[0].headword == title);
+    if (move)
+      assert(p.slots[0].textView().data() == original);
+    else
+      assert(text == source);
+    std::destroy_at(&p);
+  }
+  readerLookup::PayloadLookup lookup;
+  lookup.query = source;
+  lookup.headword = "head";
+  memcpy(lookup.definition.resize(source.size()), source.data(), source.size());
+  lookup.dictionary.entries = {{10, "found"}};
+  auto* lookupStorage = reinterpret_cast<XpEpubLookupStorage*>(&lookup);
+  uint8_t html = 99;
+  assert(!readerLookup::payloadLookup(
+      &storage, lookupStorage, [](void*, XpAppText) -> uint8_t { return 0; }, nullptr, &html));
+  assert(lookup.query == source && lookup.definition.view() == source && lookup.headword == "head" && html == 99);
+  const auto* original = lookup.definition.data();
+  assert(readerLookup::payloadLookup(
+      &storage, lookupStorage, [](void*, XpAppText text) -> uint8_t { return text.len == 4097; }, nullptr, &html));
+  auto& p = DefinitionPayload::get(&storage);
+  assert(lookup.query.empty() && lookup.query.capacity() < source.size() && p.slots[0].textView().data() == original);
+  uint8_t result = 99;
+  assert(readerLookup::payloadFind(&storage, 1, lookupStorage, {reinterpret_cast<const uint8_t*>("same"), 4}, &result));
+  assert(result == 0 && p.slots[1].textView() == "found");
+  assert(!readerLookup::payloadFind(&storage, 1, lookupStorage, {reinterpret_cast<const uint8_t*>("missing"), 7},
+                                    &result) &&
+         result == 1);
+  std::destroy_at(&p);
+  std::printf("%u geometry/plain/styled/selection differential cases plus allocation-transfer/failure cases passed\n",
+              cases);
+}

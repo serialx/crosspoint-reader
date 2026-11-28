@@ -1,0 +1,9 @@
+   display: block;   font-size: 1em;   font-weight: bold;   margin: 1.5em 0 0.25em;   border-bottom: 0.5pt solid #999;   padding-bottom: 2pt; 
+   display: block;   font-size: 1em;   padding-left: 0;   padding-right: 0;   margin: 0 5pt; 
+   display: block;   margin: 1em 0; 
+   font-size: 0.85em;   color: #666;   font-style: italic;   margin-bottom: 0.25em; 
+   margin-bottom: 5pt;   margin-top: 5pt; 
+ text-decoration: line-through; 
+ text-decoration: none; 
+ text-decoration: underline line-through; 
+ text-decoration: underline; 

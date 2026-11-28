@@ -1,0 +1,143 @@
+{
+  "artifacts": {
+    "reference.cpp": {
+      "bytes": 13550,
+      "sha256": "0d2bbd1b80ede13f1eb1a250cb7bb9609caa85fea89da7a3bc957b10c5dcdb6b"
+    },
+    "trace.txt": {
+      "bytes": 85985,
+      "sha256": "0e2c95f21cd62fed645ac398f990ca467a0eb836ddc93b934684d624caf84426"
+    }
+  },
+  "capture_command": [
+    "/Users/serialx/.platformio/penv/bin/python3",
+    "/Users/serialx/orca/workspaces/crosspoint-reader/riir-p16-o2-reader-session/test/reader_lifecycle/capture_read_folder.py",
+    "--capture",
+    "/Users/serialx/workspace/crosspoint-evidence/riir-round-2026-10/p16-o2f/read-folder-reference-formatted"
+  ],
+  "capture_command_shell": "/Users/serialx/.platformio/penv/bin/python3 /Users/serialx/orca/workspaces/crosspoint-reader/riir-p16-o2-reader-session/test/reader_lifecycle/capture_read_folder.py --capture /Users/serialx/workspace/crosspoint-evidence/riir-round-2026-10/p16-o2f/read-folder-reference-formatted",
+  "case_count": 100,
+  "cases": {
+    "cache": {
+      "0": "empty oldCachePath",
+      "1": "absent directory",
+      "2": "present directory with progress.bin",
+      "3": "present directory, rename fails"
+    },
+    "classification": 17,
+    "collision_convention": "N occupies the unsuffixed name and names (2) through (N); source files are not materialized in destination-only cases.",
+    "destination": 23,
+    "destination_collision_counts": [
+      0,
+      1,
+      2,
+      97,
+      98,
+      99
+    ],
+    "failure": {
+      "0": "none",
+      "1": "clipping move",
+      "2": "key rename",
+      "3": "rights rename"
+    },
+    "move": 60,
+    "move_fields": [
+      "sidecar_mask",
+      "cache",
+      "open_matches",
+      "failure",
+      "rollback_failure_mask"
+    ],
+    "move_matrix": {
+      "clipping_failure": 8,
+      "key_failure": 8,
+      "rights_failure": 12,
+      "success": 32
+    },
+    "rollback_failure_mask": {
+      "1": "book rename",
+      "2": "key rename"
+    },
+    "sidecar_mask": {
+      "1": "key",
+      "2": "rights"
+    }
+  },
+  "compile_command": [
+    "/usr/bin/c++",
+    "-std=c++17",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-fsanitize=address,undefined",
+    "/var/folders/vd/pb_87xyn4gn4r09mhyd771080000gn/T/read-folder-reference-objsevc4/reference.cpp",
+    "-o",
+    "/var/folders/vd/pb_87xyn4gn4r09mhyd771080000gn/T/read-folder-reference-objsevc4/reference"
+  ],
+  "compile_command_cwd": "/var/folders/vd/pb_87xyn4gn4r09mhyd771080000gn/T/read-folder-reference-objsevc4",
+  "compiler_version": "Apple clang version 21.0.0 (clang-2100.4.1.1)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n",
+  "definitions": {
+    "buildReadFolderDestination": {
+      "sha256": "bea0e0f7e6527c79b7f831ca06d6261a426b141b29052a3b1d55654d8bf17c75",
+      "signature": "std::string buildReadFolderDestination(const std::string& srcPath)"
+    },
+    "isInReadFolder": {
+      "sha256": "a27cfb94149b2755a89832921b88963fe0a944b94d897d44e71fed0c679a2ac6",
+      "signature": "bool isInReadFolder(const std::string& path)"
+    },
+    "moveFinishedBookToReadFolder": {
+      "sha256": "3eeb3e0564f7bcea4991b35dcf1145de05efedd08c57442d9c585b753f0b525d",
+      "signature": "void moveFinishedBookToReadFolder(const std::string& srcPath,"
+    }
+  },
+  "driver_sha256": "6edfed6056c2ce9287f0783a96f164895386c6b4b2283c9583107b4cb359b363",
+  "fake_contract": {
+    "app_state": "Open path and saved open path are separate; saveToFile records a single persistence call.",
+    "clippings": "One physical moveBook leaf atomically moves book and clipping association on success; configured failure changes neither; no nested Storage API calls are fabricated.",
+    "recents": "One source entry; updatePath records all four arguments and replaces path/cache.",
+    "storage": "Sorted in-memory path map; trailing slash aliases a directory path; mkdir is idempotent for directories; rename rejects missing source, occupied target or configured failure and otherwise moves the full subtree.",
+    "trace": "Production calls and logs in execution order, then sorted filesystem and clipping records, recent entry/update count, live/saved open path/save count; fixture setup is silent."
+  },
+  "maximum_combined_artifact_bytes": 200000,
+  "original_extracted_sha256": "bfe16f7e424934a117d81a2e22c1e78b38486f8f0384fc13547a8d31cab3f847",
+  "parent": "b88726243ea49662e161eaab935ee11f303f9197",
+  "parent_commit_parents": [
+    "2543f2a4ef2b092bb01483c5941f12008e2490ca"
+  ],
+  "read_folder_declaration": "constexpr char READ_FOLDER[] = \"/read\";",
+  "read_folder_declaration_sha256": "20899d0da99f84f882355e9ec3f6c161833d313f1b3b75c18b442c2ba5361543",
+  "replay_compile_command": [
+    "/usr/bin/c++",
+    "-std=c++17",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-fsanitize=address,undefined",
+    "reference.cpp",
+    "-o",
+    "reference"
+  ],
+  "run_command": [
+    "/var/folders/vd/pb_87xyn4gn4r09mhyd771080000gn/T/read-folder-reference-objsevc4/reference"
+  ],
+  "run_command_cwd": "/var/folders/vd/pb_87xyn4gn4r09mhyd771080000gn/T/read-folder-reference-objsevc4",
+  "schema": 1,
+  "source_command": [
+    "git",
+    "show",
+    "b88726243ea49662e161eaab935ee11f303f9197:src/activities/reader/EpubReaderActivity.cpp"
+  ],
+  "source_command_cwd": "/Users/serialx/orca/workspaces/crosspoint-reader/riir-p16-o2-reader-session",
+  "source_path": "src/activities/reader/EpubReaderActivity.cpp",
+  "source_sha256": "579eee94c29ce8a633ad395b6e899cde3aa82c51339b1e1cba4994f6883b164f",
+  "substituted_extracted_sha256": "b2eba7fd9eb045cd8641aafaa2a44e4ec5ab9973822dec4f2436cfc03d1dd8cf",
+  "substitution": {
+    "convention": "32-bit FNV-1a over unsigned path bytes, initial 2166136261, xor byte then multiply by 16777619 modulo 2^32; unsigned decimal cache suffix.",
+    "count": 1,
+    "event": "path-hash records the raw path and unsigned result at the original expression site.",
+    "from": "std::hash<std::string>{}(dstPath)",
+    "to": "fixturePathHash(dstPath)"
+  },
+  "template_sha256": "644ae4e53ee5d99bdf0c0f72dcb530f863e629f8ce734462ad75f63b54e5a160"
+}

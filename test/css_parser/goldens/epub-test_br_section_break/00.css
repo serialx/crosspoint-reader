@@ -1,0 +1,11 @@
+body { margin: 0; padding: 0; }
+p    { margin-top: 1pt; margin-bottom: 0; text-indent: 1em; text-align: justify; }
+h1   { text-align: center; margin-top: 0.5em; margin-bottom: 0.5em; }
+h2   { text-align: center; margin-top: 0.5em; margin-bottom: 0.5em; }
+.section-br { display: block; }
+.list-simple1 { margin-left: 1em; }
+.list-item1 { text-indent: 0; }
+.list-bullet { margin-left: 1em; }
+.list-bullet2 { margin-left: 2em; }
+.list { text-indent: 0; }
+.list-item { text-indent: 0; }

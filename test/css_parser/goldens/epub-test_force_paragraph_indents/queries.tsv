@@ -1,0 +1,32 @@
+BODY			
+H1			
+H2			
+P			
+P	CENTERED		
+P	HANGING		
+P	NOTE		
+P	RIGHTED		
+P	ZERO-INDENT		
+P	ZERO-INDENT-JUSTIFY		
+body			
+body	 unrelated		
+div	a b c d e f g h i	id	
+h1			
+h1	 unrelated		
+h2			
+h2	 unrelated		
+p			
+p	 unrelated		
+p	centered		
+p	centered unrelated		
+p	hanging		
+p	hanging unrelated		
+p	note		
+p	note unrelated		
+p	righted		
+p	righted unrelated		
+p	zero-indent		
+p	zero-indent unrelated		
+p	zero-indent-justify		
+p	zero-indent-justify unrelated		
+span	note	target	

@@ -1,0 +1,8 @@
+execute_process(COMMAND "${PROGRAM}" OUTPUT_VARIABLE actual RESULT_VARIABLE result)
+if(NOT result EQUAL 0)
+  message(FATAL_ERROR "BLE oracle exited ${result}")
+endif()
+file(READ "${GOLDEN}" expected)
+if(NOT actual STREQUAL expected)
+  message(FATAL_ERROR "BLE trace differs from the frozen C++ oracle")
+endif()

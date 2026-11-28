@@ -1,0 +1,23 @@
+[package]
+name = "home-app-owner-tests"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+xp-ui = { path = "../../../rust/crates/xp-ui" }
+xp-core = { path = "../../../rust/crates/xp-core" }
+xp-layout = { path = "../../../rust/crates/xp-layout" }
+
+[lib]
+path = "lib.rs"
+
+[features]
+default = ["app-test"]
+app-test = []
+
+[lints.rust]
+# Production modules reference firmware-only features disabled in this owner fixture.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("reader-strips", "chapter-test"))'] }

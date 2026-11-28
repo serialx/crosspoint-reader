@@ -1,0 +1,16 @@
+[package]
+name = "vector-manager-lifetime"
+version = "0.1.0"
+edition = "2021"
+publish = false
+[workspace]
+[lib]
+path = "bindings.rs"
+[features]
+default = ["vector-fonts", "sd-font-catalog"]
+vector-fonts = []
+sd-font-catalog = []
+app-test = []
+[dev-dependencies]
+xp-core = { path = "../../../rust/crates/xp-core", features = ["vector-owner-test"] }
+xp-layout = { path = "../../../rust/crates/xp-layout" }

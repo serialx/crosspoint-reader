@@ -3,6 +3,7 @@
 #include <Logging.h>
 
 #include <atomic>
+#include <cassert>
 
 namespace buildscratch {
 namespace {
@@ -30,6 +31,7 @@ void reclaim() {
     // clobbered; the consumer's output will be garbage. Loud log so a
     // lifetime bug is visible instead of a silent corrupt decode.
     LOG_ERR("SCR", "Build scratch reclaimed while still claimed");
+    assert(!claimed.load() && "scratch lease outlived framebuffer lender");
   }
   block = nullptr;
   blockLen = 0;

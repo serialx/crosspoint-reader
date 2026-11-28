@@ -71,13 +71,16 @@ class Bitmap {
   BmpReaderError parseHeaders();
   BmpReaderError readNextRow(uint8_t* data, uint8_t* rowBuffer) const;
   BmpReaderError rewindToData() const;
+  // Unprocessed luminance of display-order row y (0 = top); leaves readNextRow()'s dither state alone.
+  BmpReaderError readRowGray(int y, uint8_t* gray, uint8_t* rowBuffer) const;
+  bool hasCompletePixelData() const;
   int getWidth() const { return width; }
   int getHeight() const { return height; }
   bool isTopDown() const { return topDown; }
   bool hasGreyscale() const { return bpp > 1; }
   int getRowBytes() const { return rowBytes; }
-  bool is1Bit() const { return bpp == 1; }
   uint16_t getBpp() const { return bpp; }
+  bool is1Bit() const { return bpp == 1; }
 
  private:
   static uint16_t readLE16(HalFile& f);

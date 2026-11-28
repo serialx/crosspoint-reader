@@ -2,86 +2,28 @@
 
 CrossPoint runs on touch devices (Seeed Sticky, M5Paper, M5Stack PaperMono, LilyGo T5, Xteink X4 Pro) alongside the button-only Xteink X3/X4. Every screen must work with both input styles.
 
-**There is one supported way to build a new screen: FreeInkUI, hosted through the firmware base classes below.** Touch hit-testing, tap highlighting, long-press, swipe scrolling, and button focus navigation all come from the shared stack; you never hand-roll coordinate math.
-
-The old bridge helpers (`rowTouch`, `colTouch`, manual rect `contains()` checks) are legacy. They survive only for the two remaining hand-rolled surfaces (the theme-driven home screen and the reader page) and must not appear in new code. PRs that add new uses will be asked to convert.
-
----
+New screens use the [Rust UI runtime](rust-ui.md). Rust owns state, layout and input policy; the Rust application owns navigation. Legacy `RustActivityAdapter` facades retain resource bindings and publication for their screens. Home, the keyboard, Wi-Fi selection, the EPUB session and its Menu, Chapters, Percent, QR, Bookmarks, Clippings, clipping selection, dictionary lookup/Definition and Footnote children have direct Rust owners; the session also owns Toolbar. Use the existing family host when it fits the screen. Rust-owned screens paint through the direct Rust scene entry; native-origin screens enter the same renderer through `xp_ui_render`. FreeInkUI still supplies shared resource painters and supports remaining C++ surfaces.
 
 ## Picking the right host
 
 | Your screen is... | Use | In-tree reference |
 |---|---|---|
-| A single list of rows | subclass `UiListActivity` | [`LanguageSelectActivity`](../../src/activities/settings/LanguageSelectActivity.cpp) (minimal), [`FileBrowserActivity`](../../src/activities/home/FileBrowserActivity.cpp) (long-press and lazy rows) |
-| Tabbed lists | subclass `UiTabListActivity` | [`SettingsActivity`](../../src/activities/settings/SettingsActivity.cpp) |
-| Custom FUI layout (sliders, prompts, state machines) | inherit `UiAppHost` directly | [`EpubReaderPercentSelectionActivity`](../../src/activities/reader/EpubReaderPercentSelectionActivity.cpp), [`WifiSelectionActivity`](../../src/activities/network/WifiSelectionActivity.cpp) |
-| A modal picker or confirm inside a legacy activity | `OptionPopup` (or push `ConfirmationActivity`) | [`OtaUpdateActivity`](../../src/activities/settings/OtaUpdateActivity.cpp) |
-| A Yes/No prompt inside a FUI screen | build `fui::optionDialog` into the screen | `WifiSelectionActivity::buildPromptDialog` |
+| A settings list | `SettingsUiActivity` | [`LanguageSelectActivity`](../../src/activities/settings/LanguageSelectActivity.cpp) |
+| A file or library list | `RustActivityAdapter` with the shared Rust list and Home resources | [`FileBrowserActivity`](../../src/activities/home/FileBrowserActivity.cpp), [`LibraryListActivity`](../../src/activities/library/LibraryListActivity.cpp) |
+| Wi-Fi selection | Rust `StableOwner` adopted from an `Activity` shell | [`wifi_owner`](../../rust/crates/xp-ui/src/network/wifi_owner/mod.rs), [`WifiSelectionActivity`](../../src/activities/network/WifiSelectionActivity.cpp) |
+| A download or update screen | `UpdateUiActivity` | [`OtaUpdateActivity`](../../src/activities/settings/OtaUpdateActivity.cpp) |
+| A modal picker inside an existing C++ facade | `OptionPopup` | [`SettingsActivity`](../../src/activities/settings/SettingsActivity.cpp) |
+| A separate Yes/No activity | `ConfirmationActivity` | [`FontDownloadActivity`](../../src/activities/settings/FontDownloadActivity.cpp) |
 
-All of these paths route input through the same SDK interaction table, so touch and physical buttons fire the same actions with no per-screen coordinate code.
+Layout and input must use the same published geometry. The Rust runtime guide describes the model lock, resource lifetime, scene rejection and publication contracts.
 
-## The hosting stack
+## Remaining C++ hosting stack
+
+The following describes the remaining C++ hosts. For new screens, use the Rust hosts above. The reader Percent dialog is owned by [`children/percent.rs`](../../rust/crates/xp-ffi/src/app/epub/children/percent.rs); its narrow interval view shares the Rust utility widget formulas and publishes its own input geometry. See the [reader child ownership map](rust-ui.md#reader-child-ownership).
 
 `UiAppHost` ([src/components/UiAppHost.h](../../src/components/UiAppHost.h)) owns what every FUI screen shares: the font-bound render target, the `FreeInkApp`, and the `uiReady` handshake that lets the loop task route touch snapshots against the interaction table the render task rebuilds. Never re-implement that handshake; it is a cross-task protocol and lives in exactly one place.
 
-`UiListActivity` ([src/activities/UiListActivity.h](../../src/activities/UiListActivity.h)) layers the list protocol on top: swipes scroll the viewport without moving the selection, buttons move the selection and pull the viewport along (`fui::ListNav`), plus the render skeleton (header chrome, app, footer hints). `UiTabListActivity` is the tab-bar sibling; its selection ring puts the tab bar at position 0 and the rows after it.
-
-### New list screen skeleton
-
-Subclasses supply the data; the base owns the loop. The whole contract:
-
-```cpp
-class MyListActivity final : public UiListActivity {
- public:
-  MyListActivity(GfxRenderer& r, MappedInputManager& in) : UiListActivity("MyList", r, in) {}
-
- private:
-  std::vector<Entry> entries;       // the activity's data, loaded in onEnter
-  std::vector<fui::ListItem> rows;  // activity-owned row cache: rebuilt only when entries changes, reused every render
-
-  int listCount() const override { return entries.size(); }
-  const char* headerTitle() const override { return tr(STR_MY_TITLE); }
-
-  void onEnter() override {
-    UiListActivity::onEnter();
-    entries = /* ... load from wherever ... */;
-    rebuildRows();
-  }
-
-  // Called whenever entries changes (here, only onEnter; a mutable list would
-  // also call this after any add/remove). NOT called from buildScreen().
-  void rebuildRows() {
-    rows.clear();
-    rows.reserve(entries.size());
-    // ... one fui::ListItem per entry (label, actionValue = index) ...
-  }
-
-  void buildScreen(UiScreen& screen) override {
-    // set content margin from the theme safe area, then:
-    fui::ListProps props;
-    props.items = rows.data();
-    props.count = rows.size();
-    props.action = ACTION_ROW;
-    props.inputMask = fui::InputTouch;  // physical buttons stay in the base loop
-    syncListViewport(screen, props);    // selection/viewport handoff, always right before list()
-    screen.list(props);
-  }
-
-  void activateIndex(int index) override {
-    app.clearTapFlash();  // leaving the screen: a lingering flash would gray the next render
-    // ... open the thing ...
-  }
-};
-```
-
-For small bounded lists, [`LanguageSelectActivity`](../../src/activities/settings/LanguageSelectActivity.cpp)
-builds a fixed row array in `onEnter()` and reuses it in `buildScreen()`. For
-large lists, follow [`FileBrowserActivity::provideRow()`](../../src/activities/home/FileBrowserActivity.cpp)
-and `fui::ListProps::rowProvider`: format rows on demand into reusable scratch
-storage instead of materializing the whole row list. Optional overrides include
-`onRowLongPress(index)`, `drawFooter()`, and `handleButtons()` for extra physical
-input. Use `ACTION_USER`-and-up action ids for non-row elements and register
-handlers in `onEnter()` after the base's.
+The C++ list base classes (`UiListActivity`, `UiTabListActivity`) have been deleted; lists and tabbed lists use `RustActivityAdapter` with the shared Rust list scenes. See [the Rust UI guide](rust-ui.md).
 
 ### Rules that apply to every FUI screen
 
@@ -89,7 +31,7 @@ handlers in `onEnter()` after the base's.
 - Handlers that leave the current screen call `app.clearTapFlash()` first.
 - Theme tokens are shared and bound by `resetUi()`; never call `app.setTheme` yourself. Metrics flow from the active UITheme through [`UIThemeTokens.h`](../../src/components/UIThemeTokens.h), including the per-board bezel insets that keep scrollbars visible.
 - `TextStyle.maxLines` defaults to 1 and truncates with an ellipsis. Set `maxLines` explicitly on any dialog headline or message that can wrap.
-- Keep steady-state repaint allocation-free. A local `std::vector` in `buildScreen()` allocates and frees on every repaint even with `reserve()`. For bounded lists, reuse activity-owned row storage, reserved or fixed-size when data loads. For large lists, use `rowProvider` with reusable scratch storage as above. Keep the backing storage alive for rendering; do not retain FUI `props` across renders.
+- Keep steady-state repaint allocation-free. A local `std::vector` in `buildScreen()` allocates and frees on every repaint even with `reserve()`. For bounded lists, reuse activity-owned row storage, reserved or fixed-size when data loads. Keep the backing storage alive for rendering; do not retain FUI `props` across renders.
 
 ### Component inventory
 
@@ -105,7 +47,37 @@ All under `freeink-sdk/libs/ui/FreeInkUI/include/components/`:
 | Media | `book-card`, `cover-grid`, `cover-carousel`, `metric-card` |
 | Text | `text-field`, `text-area` |
 
-One exception to "always go through a host": `KeyboardEntryActivity` drives the keyboard component with a raw `fui::Frame` and `TouchHoldRouter` because per-key hold repeat needs its own routing. If you think your screen needs that, raise it in the PR first.
+### Keyboard ownership and launch compatibility
+
+`KeyboardEntryActivity` derives from `Activity` and supplies constructor
+compatibility and physical services to one Rust `StableOwner`. Rust owns editing,
+input, scene storage, publication and the moved text/cancel result. The native
+facade retains its static text semaphore and SDK/font drawing bindings. Its raw
+`fui::Frame` has no interactions and only paints one SDK key; it does not own the
+keyboard scene or input geometry.
+
+The eleven native constructor sites in these seven files still launch through
+`Activity::startActivityForResult`. `ActivityManager::pushActivity` adopts the
+facade into the Rust keyboard owner without pushing an extra child.
+
+| Caller | Constructor sites | Use |
+|---|---|---|
+| [FileBrowserActivity](../../src/activities/home/FileBrowserActivity.cpp) | 376 | Rename |
+| [LibraryListActivity](../../src/activities/library/LibraryListActivity.cpp) | 350 | Search |
+| [KOReaderSettingsActivity](../../src/activities/settings/KOReaderSettingsActivity.cpp) | 114 | Settings fields |
+| [CatalogActivity](../../src/activities/CatalogActivity.cpp) | 73 | Online catalog search |
+| [OpdsBookBrowserActivity](../../src/activities/browser/OpdsBookBrowserActivity.cpp) | 618 | LCP passphrase |
+| [OpdsSettingsActivity](../../src/activities/settings/OpdsSettingsActivity.cpp) | 102, 116, 129, 142, 160 | Server settings fields |
+| [OpdsServerListActivity](../../src/activities/settings/OpdsServerListActivity.cpp) | 130 | Download folder |
+
+Bookmarks is the first production Rust parent of the keyboard. Its outlined
+rename action passes a borrowed descriptor through `Legacy.create(Keyboard)`,
+then uses the existing Rust keyboard creation and push path. The native create
+call copies title and initial text before returning; it retains no descriptor
+pointer. The outlined result receiver moves the keyboard text block directly
+into final bookmark name storage after destruction, publication and unlock.
+See the [Rust UI guide](rust-ui.md) and
+[keyboard witnesses](../../test/keyboard_oracle/README.md).
 
 ---
 
@@ -116,7 +88,7 @@ Three gestures are handled once, for every screen. Activities must not add their
 | Gesture | Trigger | Where it is handled |
 |---|---|---|
 | Back | Right-swipe starting in the left 25% of the screen | Folded into `Button::Back`, so the existing `wasPressed(Button::Back)` in your activity already fires |
-| Home | Up-swipe starting in the bottom 14% | `ActivityManager::loop()`; pops to Home (activities can override via `handleHomeGesture()`) |
+| Home | Up-swipe starting in the bottom 14% | Rust app dispatch through `ActivityManager::loop()`; returns to Home (activities can override via `handleHomeGesture()`) |
 | Menu | Down-swipe starting in the top 14% | Activities that have a menu check `wasMenuGesture()` themselves (the reader does this) |
 
 Because the back gesture arrives as `Button::Back`, most button-era activities gain back-swipe support with zero changes.
@@ -125,16 +97,16 @@ Because the back gesture arrives as `Button::Back`, most button-era activities g
 
 ## Legacy bridge helpers (do not use in new code)
 
-`MappedInputManager` still exposes raw touch accessors. The FUI stack consumes them internally (via `touchSnapshotFrom` in [`UiAppHelpers.h`](../../src/components/UiAppHelpers.h)); activities should not.
+`MappedInputManager` still exposes raw touch accessors. The shared input adapters consume them internally (via `touchSnapshotFrom` in [`UiAppHelpers.h`](../../src/components/UiAppHelpers.h)); activities should not.
 
 | Helper | Status |
 |---|---|
-| `wasScreenTapped` / `wasScreenTouchDown` / `isScreenTouchHeld` | Consumed by the FUI snapshot builder. Direct use only in the two legacy surfaces |
-| `rowTouch` / `colTouch` | Legacy row/column band math. Sole remaining user: `HomeActivity` (theme-driven layout) |
+| `wasScreenTapped` / `wasScreenTouchDown` / `isScreenTouchHeld` | Consumed by the FUI snapshot builder. Direct use only where an existing surface owns the input frame |
+| `rowTouch` | Legacy row band math; no current activity caller |
 | `wasSwipe()` | Raw swipe direction, for behavior beyond the global gestures (reader page turns) |
 | `hasTouch()` | Still fine anywhere: gate touch-only chrome (on-screen Cancel/OK pairs) on it |
 
-The `wasListItemTapped` / `wasListItemTouchedDown` helpers from the button-era bridge have been removed; every themed list is a `UiListActivity` now. If you are porting a branch that still calls them, convert the screen to `UiListActivity` rather than resurrecting the helpers.
+The `wasListItemTapped` / `wasListItemTouchedDown` helpers from the button-era bridge have been removed; the current list families route input in Rust against published geometry. If you are porting a branch that still calls them, use the relevant Rust UI family host.
 
 As with all input: never call the SDK `InputManager` or read GPIO directly. The HAL rule from the main guide applies to touch too.
 

@@ -20,22 +20,51 @@
 #include "activities/settings/SettingsActivity.h"
 #include "components/UITheme.h"
 #include "util/DictionaryRegistry.h"
+#include "util/SlideSwitch.h"
 
-// Build the font family setting dynamically. When registry is non-null, SD card fonts
-// are appended after the built-in fonts. Otherwise only built-in fonts are listed.
-inline SettingInfo buildFontFamilySetting(const SdCardFontRegistry* registry) {
+#ifdef XP_SD_FONT_CATALOG
+inline std::vector<std::string> copyFontFamilyNames(const ReaderFontCatalog* registry, const XpSdChoices* choices) {
+  std::vector<std::string> names;
+  const size_t count = choices ? choices->count : (registry ? registry->getFamilyCount() : 0);
+  names.reserve(count);
+  for (size_t i = 0; i < count; ++i) {
+    if (choices) {
+      const auto* record =
+          reinterpret_cast<const XpSdName*>(static_cast<const uint8_t*>(choices->names) + i * choices->stride);
+      const char* text =
+          record->capacity == 15 ? reinterpret_cast<const char*>(record->text.inline_bytes) : record->text.heap;
+      names.emplace_back(text, record->length);
+    } else {
+      const auto family = registry->family(i);
+      names.emplace_back(family->name, family->length);
+    }
+  }
+  return names;
+}
+#endif
+
+// Native UI owns labels and captured copies; Rust supplies ordered choices.
+inline SettingInfo buildFontFamilySetting(const ReaderFontCatalog* registry
+#ifdef XP_SD_FONT_CATALOG
+                                          ,
+                                          const XpSdChoices* choices = nullptr
+#endif
+) {
   // Built-in font labels (StrId)
   std::vector<StrId> enumValues = {StrId::STR_NOTO_SANS};
   // Runtime string labels for SD card fonts
+#ifdef XP_SD_FONT_CATALOG
+  std::vector<std::string> enumStringValues = copyFontFamilyNames(registry, choices);
+#else
   std::vector<std::string> enumStringValues;
-
-  // Reserve: first CrossPointSettings::BUILTIN_FONT_COUNT entries use StrId, rest use strings
   if (registry) {
     const auto& families = registry->getFamilies();
     enumStringValues.reserve(families.size());
     std::transform(families.begin(), families.end(), std::back_inserter(enumStringValues),
                    [](const SdCardFontFamilyInfo& f) { return f.name; });
   }
+
+#endif
 
   // Capture the SD font count for the lambdas
   const int sdFontCount = static_cast<int>(enumStringValues.size());
@@ -60,6 +89,9 @@ inline SettingInfo buildFontFamilySetting(const SdCardFontRegistry* registry) {
   s.inTextSettings = true;  // matches the static font-family entry it replaces
 
   // Capture registry families by copy for the lambdas
+#ifdef XP_SD_FONT_CATALOG
+  std::vector<std::string> sdFamilyNames = copyFontFamilyNames(registry, choices);
+#else
   std::vector<std::string> sdFamilyNames;
   if (registry) {
     const auto& families = registry->getFamilies();
@@ -67,6 +99,8 @@ inline SettingInfo buildFontFamilySetting(const SdCardFontRegistry* registry) {
     std::transform(families.begin(), families.end(), std::back_inserter(sdFamilyNames),
                    [](const SdCardFontFamilyInfo& f) { return f.name; });
   }
+
+#endif
 
   s.valueGetter = [sdFamilyNames]() -> uint8_t {
     // If an SD card font is selected, find its index
@@ -103,10 +137,19 @@ inline SettingInfo buildFontFamilySetting(const SdCardFontRegistry* registry) {
 // in SETTINGS.fontPointSize (saved/loaded manually in CrossPointSettings::
 // toJson/fromJson — the generic loop skips dynamic entries), while the ENUM
 // contract shared with the web UI stays index-based.
-inline SettingInfo buildFontSizeSetting(const SdCardFontRegistry* registry) {
+inline SettingInfo buildFontSizeSetting(const ReaderFontCatalog* registry
+#ifdef XP_SD_FONT_CATALOG
+                                        ,
+                                        const XpSdChoices* choices = nullptr
+#endif
+) {
   // Captured by copy: getSettingsList() returns by value and the lambdas outlive
   // this call, so they must not reference the registry.
-  const std::vector<uint8_t> sizes = readerFontPointSizes(registry, SETTINGS.sdFontFamilyName);
+  const std::vector<uint8_t> sizes =
+#ifdef XP_SD_FONT_CATALOG
+      choices ? readerFontPointSizes(*choices) :
+#endif
+              readerFontPointSizes(registry, SETTINGS.sdFontFamilyName);
 
   // "pt" is deliberately not translated — see the matching note in
   // TextSettingsActivity::rebuildSizeList().
@@ -288,15 +331,30 @@ void forEachBaseSetting(Fn& fn) {
 std::vector<SettingInfo> getBaseSettingsList(size_t extraCapacity = 0);
 
 // UI callers own the list for runtime filtering and font/dictionary options.
-inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* registry = nullptr,
-                                                const std::vector<DictionaryEntry>* dictionaries = nullptr) {
+inline std::vector<SettingInfo> getSettingsList(const ReaderFontCatalog* registry = nullptr,
+                                                const std::vector<DictionaryEntry>* dictionaries = nullptr
+#ifdef XP_SD_FONT_CATALOG
+                                                ,
+                                                const XpSdChoices* choices = nullptr
+#endif
+) {
   auto v = getBaseSettingsList(dictionaries && !dictionaries->empty() ? 1 : 0);
   // Frontlit and lightless variants of a board share one binary (EEGO A4);
   // presence is the I2C probe result from Frontlight.begin(). UI-only: the probe
   // has not run at load time, so the base list must keep the persisted key.
-  if (!Frontlight.present()) {
+  if (!Frontlight.present() || slideSwitchOwnsLight()) {
     v.erase(std::remove_if(v.begin(), v.end(),
                            [](const SettingInfo& s) { return s.nameId == StrId::STR_RESTORE_LIGHT_ON_WAKE; }),
+            v.end());
+  }
+  if (gpio.hasToggleSwitch()) {
+    v.erase(std::remove_if(v.begin(), v.end(),
+                           [](const SettingInfo& s) {
+                             return (s.nameId == StrId::STR_NIGHT_MODE &&
+                                     SETTINGS.slideSwitchAction == CrossPointSettings::SLIDE_SWITCH_NIGHT_MODE) ||
+                                    (s.nameId == StrId::STR_TOUCH_READER_CONTROLS &&
+                                     SETTINGS.slideSwitchAction == CrossPointSettings::SLIDE_SWITCH_TOUCH_CONTROLS);
+                           }),
             v.end());
   }
   // Tilt page turn needs an IMU with a gyroscope. UI-only, like the frontlight
@@ -313,10 +371,19 @@ inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* regist
         std::remove_if(v.begin(), v.end(), [](const SettingInfo& s) { return s.nameId == StrId::STR_LONG_PRESS_MENU; }),
         v.end());
   }
-  if (registry && registry->getFamilyCount() > 0) {
+  if (
+#ifdef XP_SD_FONT_CATALOG
+      choices ? choices->count > 0 :
+#endif
+              registry && registry->getFamilyCount() > 0) {
     auto it = std::find_if(v.begin(), v.end(), [](const SettingInfo& s) { return s.nameId == StrId::STR_FONT_FAMILY; });
     if (it != v.end()) {
-      *it = buildFontFamilySetting(registry);
+      *it = buildFontFamilySetting(registry
+#ifdef XP_SD_FONT_CATALOG
+                                   ,
+                                   choices
+#endif
+      );
     }
   }
   {
@@ -324,7 +391,12 @@ inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* regist
     // built-in family rather than a fixed Small/Medium/Large/XL enum.
     auto it = std::find_if(v.begin(), v.end(), [](const SettingInfo& s) { return s.nameId == StrId::STR_FONT_SIZE; });
     if (it != v.end()) {
-      *it = buildFontSizeSetting(registry);
+      *it = buildFontSizeSetting(registry
+#ifdef XP_SD_FONT_CATALOG
+                                 ,
+                                 choices
+#endif
+      );
     }
   }
   if (dictionaries && !dictionaries->empty()) {

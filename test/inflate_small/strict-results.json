@@ -1,0 +1,427 @@
+{
+  "bitflip/0/74": {
+    "status": -1,
+    "length": 17,
+    "sha256": "d4e10166a657fc3f93818e86c62b43bf5e8919edd4130d219009a0108b130cd9"
+  },
+  "bitflip/0/75": {
+    "status": -1,
+    "length": 17,
+    "sha256": "d4e10166a657fc3f93818e86c62b43bf5e8919edd4130d219009a0108b130cd9"
+  },
+  "bitflip/0/76": {
+    "status": -1,
+    "length": 17,
+    "sha256": "d4e10166a657fc3f93818e86c62b43bf5e8919edd4130d219009a0108b130cd9"
+  },
+  "bitflip/0/77": {
+    "status": -1,
+    "length": 17,
+    "sha256": "d4e10166a657fc3f93818e86c62b43bf5e8919edd4130d219009a0108b130cd9"
+  },
+  "bitflip/0/78": {
+    "status": -1,
+    "length": 17,
+    "sha256": "d4e10166a657fc3f93818e86c62b43bf5e8919edd4130d219009a0108b130cd9"
+  },
+  "bitflip/1/133": {
+    "status": -1,
+    "length": 16,
+    "sha256": "be45cb2605bf36bebde684841a28f0fd43c69850a3dce5fedba69928ee3a8991"
+  },
+  "truncate/2/5": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "truncate/2/6": {
+    "status": -1,
+    "length": 1,
+    "sha256": "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb"
+  },
+  "truncate/2/7": {
+    "status": -1,
+    "length": 2,
+    "sha256": "fb8e20fc2e4c3f248c60c39bd652f3c1347298bb977b8b4d5903b85055620603"
+  },
+  "truncate/3/27": {
+    "status": -1,
+    "length": 25,
+    "sha256": "7364839247ccf7d19d88d785cb95edb62cac02cffae019aa301d8df97e212a40"
+  },
+  "truncate/4/23": {
+    "status": -1,
+    "length": 6,
+    "sha256": "2f7124cc50e450d0fc84f9abef409cc57960e51e5e2fa9ac67dd80b26442e181"
+  },
+  "truncate/4/31": {
+    "status": -1,
+    "length": 30,
+    "sha256": "75e6fe9c7b433b50c70b9d12517bca25e5041c7a0fd8263868ed670c337cc056"
+  },
+  "truncate/4/34": {
+    "status": -1,
+    "length": 43,
+    "sha256": "dc8fb9a8c0269a824e9b631f4ba3f2a6988e6b3b0fdb5a7e3b9979e5f4bfb770"
+  },
+  "truncate/4/36": {
+    "status": -1,
+    "length": 49,
+    "sha256": "a6b6e16480b4bcabb1a085d40853239cb5260c240f65f24920b7730a6bb688c2"
+  },
+  "truncate/4/38": {
+    "status": -1,
+    "length": 54,
+    "sha256": "349425a789a3724017a035dc0c26da96c3502d042941fcff9958eef54567002f"
+  },
+  "truncate/4/40": {
+    "status": -1,
+    "length": 61,
+    "sha256": "3d720f50fdcee3cfed1a82882bdcce5b508eefb8b85bd6ebfb7a5bd4984cd10d"
+  },
+  "truncate/4/43": {
+    "status": -1,
+    "length": 68,
+    "sha256": "a643aaa6cd763b13aac6dc1049a337fe4567f256e73728339899d99417f9f2be"
+  },
+  "truncate/4/46": {
+    "status": -1,
+    "length": 75,
+    "sha256": "84fcd2e7d3eaaa480f4eca81d82eddd783c5b30c6ff15774696a7ddef038d923"
+  },
+  "truncate/4/49": {
+    "status": -1,
+    "length": 88,
+    "sha256": "9adf70e6f3cc4d8a733dc7ccbe4490eecf20b648657c3b0e6ac5fb9aecb55480"
+  },
+  "truncate/4/51": {
+    "status": -1,
+    "length": 93,
+    "sha256": "dc6e5ce0327fbed75809907352924d054e525c71b22d74f72c0ddd62c635b78b"
+  },
+  "truncate/4/56": {
+    "status": -1,
+    "length": 109,
+    "sha256": "42f9510b3cfee5bd7da9895e4a15cd0715e192752785454c3667dc4a75b45765"
+  },
+  "truncate/4/57": {
+    "status": -1,
+    "length": 112,
+    "sha256": "5b951446afe4dd3d01072e6afe7932519a939b4d169131789307bb4e67a075fa"
+  },
+  "truncate/4/60": {
+    "status": -1,
+    "length": 120,
+    "sha256": "406dfee351d83b4ac9c84b3b4fd0ad20ea323a40586e3d8ef36fc56229306cbc"
+  },
+  "truncate/4/61": {
+    "status": -1,
+    "length": 128,
+    "sha256": "cfbfd14832e9c3a4ce18e9c5924482c58f234b766651a8dcc73ba5603a379941"
+  },
+  "bitflip/4/3": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/5": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/8": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/10": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/11": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/18": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/21": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/22": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/29": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/31": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/32": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/34": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/35": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/37": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/41": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/43": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/47": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/49": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/53": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/55": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/59": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/61": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/62": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/64": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/68": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/70": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/74": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/80": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/87": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/88": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/89": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/98": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/99": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/100": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/101": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/102": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/116": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/120": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/121": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/122": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/123": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/124": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/125": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/126": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/129": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/134": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/135": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/136": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/137": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/138": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/139": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/140": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/145": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/149": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/150": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/151": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/152": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/153": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/157": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/159": {
+    "status": -1,
+    "length": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bitflip/4/489": {
+    "status": 1,
+    "length": 128,
+    "sha256": "cfbfd14832e9c3a4ce18e9c5924482c58f234b766651a8dcc73ba5603a379941"
+  }
+}

@@ -1,0 +1,2083 @@
+{
+  "definitions": {
+    "tlsf_free": [
+      {
+        "frame": 32,
+        "targets": {
+          "__assert_func": 10,
+          "__clzsi2": 3,
+          "indirect": 2
+        }
+      }
+    ],
+    "ExFatFile::close()": [
+      {
+        "frame": 16,
+        "targets": {
+          "ExFatFile::sync()": 1
+        }
+      }
+    ],
+    "SPIClass::transferBytes(unsigned char const*, unsigned char*, unsigned long)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "prvReturnItemByteBuf": [
+      {
+        "frame": 16,
+        "targets": {
+          "__assert_func": 1
+        }
+      }
+    ],
+    "__cxa_allocate_exception": [
+      {
+        "frame": 16,
+        "targets": {
+          "malloc": 1,
+          "(anonymous namespace)::pool::allocate(unsigned int) [clone .constprop.0]": 1,
+          "std::terminate()": 1,
+          "memset": 1
+        }
+      }
+    ],
+    "SdSpiCard::writeSector(unsigned long, unsigned char const*)": [
+      {
+        "frame": 16,
+        "targets": {
+          "SdSpiCard::cardCommand(unsigned char, unsigned long)": 2,
+          "SdSpiCard::writeData(unsigned char, unsigned char const*)": 1,
+          "SdSpiCard::waitReady(unsigned short)": 1,
+          "SdSpiCard::spiStop()": 2,
+          "SdSpiArduinoDriver::receive() [clone .isra.0]": 1
+        }
+      }
+    ],
+    "SdSpiArduinoDriver::receive() [clone .isra.0]": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "ExFatPartition::dirCache(DirPos_t const*, unsigned char)": [
+      {
+        "frame": 16,
+        "targets": {
+          "FsCache::prepare(unsigned long, unsigned char)": 1
+        }
+      }
+    ],
+    "vTaskInternalSetTimeOutState": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "SPIClass::beginTransaction(SPISettings)": [
+      {
+        "frame": 32,
+        "targets": {
+          "xQueueSemaphoreTake": 1,
+          "spiGetClockDiv": 1,
+          "spiFrequencyToClockDiv": 1,
+          "spiTransaction": 1
+        }
+      }
+    ],
+    "SdSpiCard::syncDevice()": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "ExFatFile::dirCache(unsigned char, unsigned char)": [
+      {
+        "frame": 32,
+        "targets": {
+          "memcpy": 1,
+          "ExFatPartition::dirSeek(DirPos_t*, unsigned long)": 1,
+          "ExFatPartition::dirCache(DirPos_t const*, unsigned char)": 1
+        }
+      }
+    ],
+    "Print::printf(char const*, ...)": [
+      {
+        "frame": 64,
+        "targets": {
+          "Print::vprintf(char const*, void*)": 1
+        }
+      }
+    ],
+    "SdSpiCard::readSectors(unsigned long, unsigned char*, unsigned int)": [
+      {
+        "frame": 32,
+        "targets": {
+          "SdSpiCard::readStart(unsigned long)": 1,
+          "SdSpiCard::readData(unsigned char*)": 1
+        }
+      }
+    ],
+    "xTaskCheckForTimeOut": [
+      {
+        "frame": 32,
+        "targets": {
+          "__assert_func": 1,
+          "vPortEnterCritical": 1,
+          "vPortExitCritical": 1,
+          "vTaskInternalSetTimeOutState": 1
+        }
+      }
+    ],
+    "esp_heap_adjust_alignment_to_hw": [
+      {
+        "frame": 48,
+        "targets": {
+          "esp_cache_get_alignment": 1
+        }
+      }
+    ],
+    "tlsf_block_size": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "std::get_new_handler()": [
+      {
+        "frame": 16,
+        "targets": {
+          "__gnu_cxx::__mutex::lock()": 1,
+          "__gnu_cxx::__mutex::unlock()": 1
+        }
+      }
+    ],
+    "FsBaseFile::fileSize() const": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "HalFile::fileSize64()": [
+      {
+        "frame": 16,
+        "targets": {
+          "__assert_func": 1
+        }
+      }
+    ],
+    "Print::write(char const*)": [
+      {
+        "frame": 32,
+        "targets": {
+          "strlen": 1
+        }
+      }
+    ],
+    "ExFatPartition::bitmapModify(unsigned long, unsigned long, bool)": [
+      {
+        "frame": 32,
+        "targets": {
+          "FsCache::prepare(unsigned long, unsigned char)": 1
+        }
+      }
+    ],
+    "ExFatPartition::cacheSync()": [
+      {
+        "frame": 16,
+        "targets": {
+          "FsCache::sync()": 1
+        }
+      }
+    ],
+    "ExFatFile::openRoot(ExFatVolume*)": [
+      {
+        "frame": 16,
+        "targets": {
+          "memset": 1
+        }
+      }
+    ],
+    "std::default_delete<HalFile::Impl>::operator()(HalFile::Impl*) const [clone .part.0]": [
+      {
+        "frame": 16,
+        "targets": {
+          "HalStorage::StorageLock::StorageLock() [clone .constprop.0]": 1,
+          "FsBaseFile::close()": 1,
+          "HalStorage::StorageLock::~StorageLock() [clone .constprop.0]": 1,
+          "FsFile::~FsFile()": 1
+        }
+      }
+    ],
+    "vRingbufferGetInfo": [
+      {
+        "frame": 32,
+        "targets": {
+          "__assert_func": 1,
+          "vPortEnterCritical": 1
+        }
+      }
+    ],
+    "multi_heap_malloc_impl": [
+      {
+        "frame": 32,
+        "targets": {
+          "multi_heap_internal_lock": 1,
+          "tlsf_malloc": 1,
+          "tlsf_block_size": 1,
+          "tlsf_alloc_overhead": 1,
+          "multi_heap_internal_unlock": 1
+        }
+      }
+    ],
+    "HWCDC::operator bool() const": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "FatFile::copy(FatFile const*)": [
+      {
+        "frame": 16,
+        "targets": {
+          "memcpy": 1
+        }
+      }
+    ],
+    "ExFatFile::open(ExFatVolume*, char const*, int)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "_realloc_r": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "pathToFileName": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "ExFatFile::open(ExFatFile*, char const*, int)": [
+      {
+        "frame": 112,
+        "targets": {
+          "ExFatFile::close()": 2,
+          "ExFatFile::parsePathName(char const*, ExName_t*, char const**)": 1,
+          "ExFatFile::openPrivate(ExFatFile*, ExName_t*, int)": 2,
+          "memcpy": 1,
+          "ExFatFile::openRoot(ExFatVolume*)": 1,
+          "memset": 1
+        }
+      }
+    ],
+    "perimanGetPinBus": [
+      {
+        "frame": 48,
+        "targets": {
+          "__lshrdi3": 1,
+          "esp_timer_get_time": 2,
+          "pathToFileName": 2,
+          "__udivdi3": 2,
+          "log_printf": 2,
+          "perimanGetTypeName": 1
+        }
+      }
+    ],
+    "FatFile::readPrivate(void*, unsigned int, DirFat_t**)": [
+      {
+        "frame": 80,
+        "targets": {
+          "SdSpiCard::readSector(unsigned long, unsigned char*)": 1,
+          "FatPartition::fatGet(unsigned long, unsigned long*)": 1,
+          "FsCache::prepare(unsigned long, unsigned char)": 1,
+          "memcpy": 1,
+          "SdSpiCard::readSectors(unsigned long, unsigned char*, unsigned int)": 1,
+          "FsCache::sync()": 1
+        }
+      }
+    ],
+    "std::__uniq_ptr_impl<HalFile::Impl, std::default_delete<HalFile::Impl> >::reset(HalFile::Impl*)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "xTaskRemoveFromEventList": [
+      {
+        "frame": 16,
+        "targets": {
+          "__assert_func": 1
+        }
+      }
+    ],
+    "HalStorage::StorageLock::StorageLock() [clone .constprop.0]": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "SdSpiCard::writeSectors(unsigned long, unsigned char const*, unsigned int)": [
+      {
+        "frame": 32,
+        "targets": {
+          "SdSpiCard::writeStart(unsigned long)": 1,
+          "SdSpiCard::writeData(unsigned char const*)": 1,
+          "SdSpiCard::spiStop()": 1
+        }
+      }
+    ],
+    "multi_heap_get_allocated_size": [
+      {
+        "frame": 16,
+        "targets": {
+          "verify_allocated_region": 1,
+          "__assert_func": 1,
+          "multi_heap_get_allocated_size_impl": 1
+        }
+      }
+    ],
+    "prvSendAcquireGeneric": [
+      {
+        "frame": 64,
+        "targets": {
+          "vPortEnterCritical": 1,
+          "indirect": 2,
+          "prvAcquireItemNoSplit": 1,
+          "vPortExitCritical": 4,
+          "xQueueGenericSend": 1,
+          "xTaskRemoveFromEventList": 1,
+          "vPortYield": 2,
+          "vTaskInternalSetTimeOutState": 1,
+          "xTaskCheckForTimeOut": 1,
+          "vTaskPlaceOnEventList": 1
+        }
+      }
+    ],
+    "FsUtf::mbToCp(char const*, char const*, unsigned long*)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "prvCopyItemByteBuf": [
+      {
+        "frame": 32,
+        "targets": {
+          "__assert_func": 1,
+          "memcpy": 2
+        }
+      }
+    ],
+    "SPIClass::transfer(void*, unsigned long)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "xRingbufferReceiveUpTo": [
+      {
+        "frame": 32,
+        "targets": {
+          "__assert_func": 1,
+          "prvReceiveGeneric": 1
+        }
+      }
+    ],
+    "__ssprint_r": [
+      {
+        "frame": 48,
+        "targets": {
+          "_malloc_r": 1,
+          "memcpy": 1,
+          "memmove": 1,
+          "_realloc_r": 1,
+          "_free_r": 1
+        }
+      }
+    ],
+    "SdSpiCard::cardCommand(unsigned char, unsigned long)": [
+      {
+        "frame": 48,
+        "targets": {
+          "SdSpiCard::syncDevice()": 1,
+          "SdSpiCard::spiStart()": 1,
+          "SdSpiArduinoDriver::send(unsigned char) [clone .isra.0]": 3,
+          "SdSpiArduinoDriver::receive() [clone .isra.0]": 2,
+          "SdSpiCard::waitReady(unsigned short)": 1
+        }
+      }
+    ],
+    "SPIClass::transfer(unsigned char)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "_svfprintf_r": [
+      {
+        "frame": 1152,
+        "targets": {
+          "_localeconv_r": 3,
+          "strlen": 3,
+          "_malloc_r": 2,
+          "__ssprint_r": 35,
+          "get_arg.isra.0": 27,
+          "__trunctfdf2": 1,
+          "__unorddf2": 2,
+          "__ledf2": 1,
+          "__ltdf2": 1,
+          "frexp": 1,
+          "__muldf3": 2,
+          "__eqdf2": 4,
+          "__fixdfsi": 1,
+          "__floatsidf": 1,
+          "__subdf3": 1,
+          "__nedf2": 3,
+          "__gtdf2": 1,
+          "_dtoa_r": 1,
+          "memchr": 1,
+          "__umoddi3": 1,
+          "strncpy": 1,
+          "__udivdi3": 2,
+          "_free_r": 2
+        }
+      }
+    ],
+    "ExFatFile::syncDir()": [
+      {
+        "frame": 48,
+        "targets": {
+          "ExFatPartition::dirCache(DirPos_t const*, unsigned char)": 1,
+          "ExFatPartition::cacheSync()": 1,
+          "ExFatFile::dirCache(unsigned char, unsigned char)": 1,
+          "indirect": 1,
+          "exFatDirChecksum(unsigned char const*, unsigned short)": 1
+        }
+      }
+    ],
+    "SdSpiCard::readSector(unsigned long, unsigned char*)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "xRingbufferGetCurFreeSize": [
+      {
+        "frame": 32,
+        "targets": {
+          "__assert_func": 1,
+          "vPortEnterCritical": 1,
+          "indirect": 1,
+          "vPortExitCritical": 1
+        }
+      }
+    ],
+    "SdSpiCard::readStop()": [
+      {
+        "frame": 16,
+        "targets": {
+          "SdSpiCard::cardCommand(unsigned char, unsigned long)": 1,
+          "SdSpiCard::spiStop()": 2
+        }
+      }
+    ],
+    "SdSpiCard::waitReady(unsigned short)": [
+      {
+        "frame": 16,
+        "targets": {
+          "millis": 2,
+          "SdSpiArduinoDriver::receive() [clone .isra.0]": 1
+        }
+      }
+    ],
+    "millis": [
+      {
+        "frame": 16,
+        "targets": {
+          "esp_timer_get_time": 1,
+          "__udivdi3": 1
+        }
+      }
+    ],
+    "FsBaseFile::~FsBaseFile()": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "ExFatPartition::rootLength()": [
+      {
+        "frame": 16,
+        "targets": {
+          "ExFatPartition::chainSize(unsigned long)": 1
+        }
+      }
+    ],
+    "ExFatFile::addDirCluster()": [
+      {
+        "frame": 32,
+        "targets": {
+          "ExFatPartition::rootLength()": 1,
+          "ExFatFile::addCluster()": 1,
+          "FsCache::prepare(unsigned long, unsigned char)": 1,
+          "memset": 1
+        }
+      }
+    ],
+    "FatFile::openCachedEntry(FatFile*, unsigned short, int, unsigned char)": [
+      {
+        "frame": 32,
+        "targets": {
+          "memset": 1,
+          "FatPartition::freeChain(unsigned long)": 1,
+          "FatFile::seekSet(unsigned long)": 1
+        }
+      }
+    ],
+    "multi_heap_internal_lock": [
+      {
+        "frame": 16,
+        "targets": {
+          "xPortInIsrContext": 1
+        }
+      }
+    ],
+    "verify_allocated_region": [
+      {
+        "frame": 48,
+        "targets": {
+          "esp_rom_printf": 1,
+          "memcpy": 1
+        }
+      }
+    ],
+    "SdSpiCard::readData(unsigned char*)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "rtc_clk_xtal_freq_get": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "_malloc_r": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "xQueueGiveMutexRecursive": [
+      {
+        "frame": 16,
+        "targets": {
+          "__assert_func": 1,
+          "xTaskGetCurrentTaskHandle": 1,
+          "xQueueGenericSend": 1
+        }
+      }
+    ],
+    "multi_heap_malloc": [
+      {
+        "frame": 16,
+        "targets": {
+          "multi_heap_internal_lock": 1,
+          "multi_heap_malloc_impl": 1,
+          "poison_allocated_region": 1,
+          "multi_heap_internal_unlock": 1
+        }
+      }
+    ],
+    "ExFatFile::cmpName(DirName_t const*, ExName_t*)": [
+      {
+        "frame": 32,
+        "targets": {
+          "FsName::get16()": 1,
+          "toUpcase(unsigned short)": 2
+        }
+      }
+    ],
+    "FatFile::getLfnChar(DirLfn_t const*, unsigned char)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "spiTransferBytes": [
+      {
+        "frame": 32,
+        "targets": {
+          "xQueueSemaphoreTake": 1,
+          "__spiTransferBytes": 2
+        }
+      }
+    ],
+    "xRingbufferSend": [
+      {
+        "frame": 16,
+        "targets": {
+          "__assert_func": 1
+        }
+      }
+    ],
+    "FatPartition::fatPut(unsigned long, unsigned long)": [
+      {
+        "frame": 16,
+        "targets": {
+          "FatPartition::fatCachePrepare(unsigned long, unsigned char)": 2
+        }
+      }
+    ],
+    "HalFile::isOpen() const": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "FatPartition::fatGet(unsigned long, unsigned long*)": [
+      {
+        "frame": 16,
+        "targets": {
+          "FatPartition::fatCachePrepare(unsigned long, unsigned char)": 2,
+          "getLe32(unsigned char const*)": 1
+        }
+      }
+    ],
+    "spiTransferByteNL": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "operator delete(void*)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "heap_caps_realloc_default": [
+      {
+        "frame": 16,
+        "targets": {
+          "heap_caps_realloc_base": 3,
+          "heap_caps_alloc_failed": 1
+        }
+      }
+    ],
+    "SdSpiCard::writeStop()": [
+      {
+        "frame": 16,
+        "targets": {
+          "SdSpiCard::waitReady(unsigned short)": 1,
+          "SdSpiCard::spiStop()": 2,
+          "SdSpiArduinoDriver::send(unsigned char) [clone .isra.0]": 1
+        }
+      }
+    ],
+    "prvGetCurMaxSizeByteBuf": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "HWCDC::isCDC_Connected()": [
+      {
+        "frame": 16,
+        "targets": {
+          "usb_serial_jtag_is_connected": 1,
+          "hw_cdc_enable_tx_intr()": 1
+        }
+      }
+    ],
+    "vRingbufferReturnItem": [
+      {
+        "frame": 32,
+        "targets": {
+          "__assert_func": 1,
+          "vPortEnterCritical": 1,
+          "indirect": 1,
+          "xTaskRemoveFromEventList": 1,
+          "vPortYield": 1
+        }
+      }
+    ],
+    "ExFatPartition::fatGet(unsigned long, unsigned long*)": [
+      {
+        "frame": 16,
+        "targets": {
+          "FsCache::prepare(unsigned long, unsigned char)": 1,
+          "getLe32(unsigned char const*)": 1
+        }
+      }
+    ],
+    "hw_cdc_clear_tx_stash()": [
+      {
+        "frame": 16,
+        "targets": {
+          "xPortInIsrContext": 2,
+          "vPortEnterCritical": 1
+        }
+      }
+    ],
+    "std::__detail::_MakeUniq<HalFile::Impl>::__single_object std::make_unique<HalFile::Impl, FsFile>(FsFile&&)": [],
+    "_free_r": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "_vsnprintf_r": [
+      {
+        "frame": 128,
+        "targets": {
+          "_svfprintf_r": 1
+        }
+      }
+    ],
+    "FsBaseFile::seekSet(unsigned long long)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "HalStorage::openFileForRead(char const*, char const*, HalFile&)": [
+      {
+        "frame": 112,
+        "targets": {
+          "HalStorage::StorageLock::StorageLock() [clone .constprop.0]": 1,
+          "SDCardManager::openFileForRead(char const*, char const*, FsFile&)": 1,
+          "operator new(unsigned int, std::nothrow_t const&)": 1,
+          "FsFile::FsFile(FsFile&&)": 1,
+          "std::__uniq_ptr_impl<HalFile::Impl, std::default_delete<HalFile::Impl> >::reset(HalFile::Impl*)": 1,
+          "FsBaseFile::~FsBaseFile()": 1,
+          "HalStorage::StorageLock::~StorageLock() [clone .constprop.0]": 1
+        }
+      }
+    ],
+    "FatFile::open(FatFile*, FatLfn_t*, int)": [
+      {
+        "frame": 96,
+        "targets": {
+          "FatFile::seekSet(unsigned long)": 1,
+          "FatFile::readDirCache()": 2,
+          "FatFile::cmpName(unsigned short, FatLfn_t*, unsigned char)": 1,
+          "FatFile::lfnChecksum(unsigned char const*) [clone .isra.0]": 1,
+          "memcmp": 1,
+          "FatFile::openCachedEntry(FatFile*, unsigned short, int, unsigned char)": 1,
+          "FatFile::createLFN(unsigned short, FatLfn_t*, unsigned char)": 1,
+          "FatFile::cacheDir(unsigned short)": 1,
+          "memset": 1,
+          "memcpy": 1,
+          "indirect": 1,
+          "FatFile::addDirCluster()": 1,
+          "FatFile::makeUniqueSfn(FatLfn_t*)": 1
+        }
+      }
+    ],
+    "ExFatFile::parsePathName(char const*, ExName_t*, char const**)": [
+      {
+        "frame": 16,
+        "targets": {}
+      }
+    ],
+    "HalStorage::StorageLock::~StorageLock() [clone .constprop.0]": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "SdSpiCard::spiStop()": [
+      {
+        "frame": 16,
+        "targets": {
+          "sdCsWrite(unsigned char, bool)": 1,
+          "SdSpiArduinoDriver::send(unsigned char) [clone .isra.0]": 1,
+          "SPIClass::endTransaction()": 1
+        }
+      }
+    ],
+    "FsFile::FsFile(FsFile&&)": [
+      {
+        "frame": 16,
+        "targets": {
+          "FsBaseFile::move(FsBaseFile*)": 1
+        }
+      }
+    ],
+    "multi_heap_realloc_impl": [
+      {
+        "frame": 32,
+        "targets": {
+          "__assert_func": 1,
+          "assert_valid_block": 1,
+          "multi_heap_internal_lock": 1,
+          "tlsf_block_size": 2,
+          "tlsf_realloc": 1,
+          "multi_heap_internal_unlock": 1
+        }
+      }
+    ],
+    "std::unique_ptr<HalFile::Impl, std::default_delete<HalFile::Impl> >::~unique_ptr()": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "frexp": [
+      {
+        "frame": 32,
+        "targets": {
+          "__muldf3": 1
+        }
+      }
+    ],
+    "SdSpiCard::writeData(unsigned char, unsigned char const*)": [
+      {
+        "frame": 16,
+        "targets": {
+          "SdSpiArduinoDriver::send(unsigned char) [clone .isra.0]": 3,
+          "SdSpiArduinoDriver::send(unsigned char const*, unsigned int)": 1,
+          "SdSpiArduinoDriver::receive() [clone .isra.0]": 1,
+          "SdSpiCard::spiStop()": 1
+        }
+      }
+    ],
+    "spiTransaction": [
+      {
+        "frame": 32,
+        "targets": {
+          "xQueueSemaphoreTake": 1
+        }
+      }
+    ],
+    "spiTransferByte": [
+      {
+        "frame": 16,
+        "targets": {
+          "xQueueSemaphoreTake": 1,
+          "xQueueGenericSend": 1
+        }
+      }
+    ],
+    "vPortEnterCritical": [
+      {
+        "frame": 16,
+        "targets": {
+          "xPortSetInterruptMaskFromISR": 1
+        }
+      }
+    ],
+    "FsFile::~FsFile()": [
+      {
+        "frame": 0,
+        "targets": {}
+      },
+      {
+        "frame": 16,
+        "targets": {
+          "FsFile::~FsFile()": 1
+        }
+      }
+    ],
+    "cfree": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "spiGetClockDiv": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "ExFatFile::read(void*, unsigned int)": [
+      {
+        "frame": 80,
+        "targets": {
+          "ExFatPartition::fatGet(unsigned long, unsigned long*)": 1,
+          "memset": 1,
+          "ExFatFile::seekSet(unsigned long long)": 1,
+          "FsCache::prepare(unsigned long, unsigned char)": 1,
+          "memcpy": 1,
+          "SdSpiCard::readSector(unsigned long, unsigned char*)": 1,
+          "SdSpiCard::readSectors(unsigned long, unsigned char*, unsigned int)": 1,
+          "FsCache::sync()": 1
+        }
+      }
+    ],
+    "FsCache::sync()": [
+      {
+        "frame": 32,
+        "targets": {
+          "SdSpiCard::writeSector(unsigned long, unsigned char const*)": 2
+        }
+      }
+    ],
+    "heap_caps_alloc_failed": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "FatFile::makeSFN(FatLfn_t*)": [
+      {
+        "frame": 32,
+        "targets": {
+          "memset": 1
+        }
+      }
+    ],
+    "FatFile::addDirCluster()": [
+      {
+        "frame": 32,
+        "targets": {
+          "FatFile::addCluster()": 1,
+          "FsCache::prepare(unsigned long, unsigned char)": 1,
+          "memset": 1
+        }
+      }
+    ],
+    "systimer_ticks_to_us": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "tlsf_realloc": [
+      {
+        "frame": 48,
+        "targets": {
+          "tlsf_free": 2,
+          "__assert_func": 1,
+          "tlsf_malloc": 1,
+          "memcpy": 1,
+          "__clzsi2": 3,
+          "indirect": 2
+        }
+      }
+    ],
+    "SDCardManager::openFileForRead(char const*, char const*, FsFile&)": [
+      {
+        "frame": 112,
+        "targets": {
+          "FsVolume::open(char const*, int)": 1,
+          "FsBaseFile::move(FsBaseFile*)": 1,
+          "FsBaseFile::~FsBaseFile()": 1,
+          "FsBaseFile::isOpen() const": 1,
+          "HWCDC::operator bool() const": 1,
+          "millis": 1,
+          "Print::printf(char const*, ...)": 1
+        }
+      }
+    ],
+    "FatFile::lfnChecksum(unsigned char const*) [clone .isra.0]": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "FatPartition::allocateCluster(unsigned long, unsigned long*)": [
+      {
+        "frame": 48,
+        "targets": {
+          "FatPartition::fatGet(unsigned long, unsigned long*)": 1,
+          "FatPartition::fatPut(unsigned long, unsigned long)": 2
+        }
+      }
+    ],
+    "malloc": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "FatFile::cmpName(unsigned short, FatLfn_t*, unsigned char)": [
+      {
+        "frame": 96,
+        "targets": {
+          "memcpy": 1,
+          "FatFile::cacheDir(unsigned short)": 1,
+          "FatFile::close()": 1,
+          "FatFile::getLfnChar(DirLfn_t const*, unsigned char)": 1,
+          "FsName::get16()": 1,
+          "toUpcase(unsigned short)": 2
+        }
+      }
+    ],
+    "operator delete(void*, unsigned int)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "prvCheckItemAvail": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "operator new(unsigned int, std::nothrow_t const&)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "FatFile::sync()": [
+      {
+        "frame": 32,
+        "targets": {
+          "FatFile::cacheDirEntry(unsigned char)": 1,
+          "indirect": 1,
+          "FatPartition::cacheSync()": 1
+        }
+      }
+    ],
+    "usb_serial_jtag_is_connected": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "vPortYield": [
+      {
+        "frame": 16,
+        "targets": {
+          "esp_crosscore_int_send_yield": 1
+        }
+      }
+    ],
+    "FatFile::~FatFile()": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "ExFatFile::openPrivate(ExFatFile*, ExName_t*, int)": [
+      {
+        "frame": 112,
+        "targets": {
+          "ExFatFile::seekSet(unsigned long long)": 3,
+          "ExFatFile::read(void*, unsigned int)": 2,
+          "memset": 3,
+          "ExFatFile::sync()": 1,
+          "__stack_chk_fail": 1,
+          "ExFatFile::cmpName(DirName_t const*, ExName_t*)": 1,
+          "ExFatFile::truncate()": 1,
+          "ExFatFile::addDirCluster()": 1,
+          "ExFatFile::dirCache(unsigned char, unsigned char)": 1,
+          "indirect": 1,
+          "FsName::get16()": 1
+        }
+      }
+    ],
+    "FatFile::makeUniqueSfn(FatLfn_t*)": [
+      {
+        "frame": 48,
+        "targets": {
+          "millis": 1,
+          "FatFile::seekSet(unsigned long)": 1,
+          "FatFile::readDirCache()": 1,
+          "memcmp": 1
+        }
+      }
+    ],
+    "__stack_chk_fail": [
+      {
+        "frame": 16,
+        "targets": {
+          "esp_system_abort": 1
+        }
+      }
+    ],
+    "exFatDirChecksum(unsigned char const*, unsigned short)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "HalFile::operator=(HalFile&&)": [
+      {
+        "frame": 16,
+        "targets": {
+          "std::__uniq_ptr_impl<HalFile::Impl, std::default_delete<HalFile::Impl> >::reset(HalFile::Impl*)": 1
+        }
+      }
+    ],
+    "prvGetItemByteBuf": [
+      {
+        "frame": 16,
+        "targets": {
+          "__assert_func": 1
+        }
+      }
+    ],
+    "Print::vprintf(char const*, void*)": [
+      {
+        "frame": 112,
+        "targets": {
+          "vsnprintf": 2,
+          "__stack_chk_fail": 1,
+          "malloc": 1,
+          "indirect": 1,
+          "cfree": 1
+        }
+      }
+    ],
+    "heap_caps_realloc": [
+      {
+        "frame": 16,
+        "targets": {
+          "heap_caps_realloc_base": 1,
+          "heap_caps_alloc_failed": 1
+        }
+      }
+    ],
+    "xQueueSemaphoreTake": [
+      {
+        "frame": 64,
+        "targets": {
+          "__assert_func": 1,
+          "xTaskGetSchedulerState": 1,
+          "vPortExitCritical": 5,
+          "vTaskInternalSetTimeOutState": 1,
+          "vTaskSuspendAll": 1,
+          "vPortEnterCritical": 4,
+          "xTaskCheckForTimeOut": 1,
+          "prvIsQueueEmpty": 2,
+          "xTaskPriorityInherit": 1,
+          "vTaskPlaceOnEventList": 1,
+          "prvUnlockQueue": 3,
+          "xTaskResumeAll": 3,
+          "vPortYield": 2,
+          "pvTaskIncrementMutexHeldCount": 1,
+          "xTaskRemoveFromEventList": 1,
+          "vTaskPriorityDisinheritAfterTimeout": 1
+        }
+      }
+    ],
+    "xPortInIsrContext": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "spiFrequencyToClockDiv": [
+      {
+        "frame": 16,
+        "targets": {
+          "getApbFrequency": 1
+        }
+      }
+    ],
+    "gpio_set_level": [
+      {
+        "frame": 16,
+        "targets": {
+          "__lshrdi3": 1,
+          "esp_log_timestamp": 1,
+          "esp_log": 1
+        }
+      }
+    ],
+    "prvAcquireItemNoSplit": [
+      {
+        "frame": 16,
+        "targets": {
+          "__assert_func": 1
+        }
+      }
+    ],
+    "esp_timer_get_time": [
+      {
+        "frame": 16,
+        "targets": {
+          "systimer_hal_get_counter_value": 1
+        }
+      }
+    ],
+    "getLe32(unsigned char const*)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "FsName::get16()": [
+      {
+        "frame": 32,
+        "targets": {
+          "FsUtf::mbToCp(char const*, char const*, unsigned long*)": 1
+        }
+      }
+    ],
+    "SdSpiCard::writeData(unsigned char const*)": [
+      {
+        "frame": 32,
+        "targets": {
+          "SdSpiCard::waitReady(unsigned short)": 1,
+          "SdSpiCard::spiStop()": 1,
+          "SdSpiCard::writeData(unsigned char, unsigned char const*)": 1
+        }
+      }
+    ],
+    "heap_caps_malloc_default": [
+      {
+        "frame": 16,
+        "targets": {
+          "heap_caps_malloc_base": 3,
+          "heap_caps_alloc_failed": 1
+        }
+      }
+    ],
+    "operator new(unsigned int, unsigned long*)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "getApbFrequency": [
+      {
+        "frame": 32,
+        "targets": {
+          "rtc_clk_cpu_freq_get_config": 1
+        }
+      }
+    ],
+    "FsBaseFile::move(FsBaseFile*)": [
+      {
+        "frame": 16,
+        "targets": {
+          "FsBaseFile::copy(FsBaseFile const*)": 1
+        }
+      }
+    ],
+    "vPortExitCritical": [
+      {
+        "frame": 16,
+        "targets": {
+          "__assert_func": 1
+        }
+      }
+    ],
+    "Print::print(char const*)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "ExFatPartition::freeChain(unsigned long)": [
+      {
+        "frame": 48,
+        "targets": {
+          "ExFatPartition::fatGet(unsigned long, unsigned long*)": 1,
+          "ExFatPartition::fatPut(unsigned long, unsigned long)": 1,
+          "ExFatPartition::bitmapModify(unsigned long, unsigned long, bool)": 1
+        }
+      }
+    ],
+    "SPIClass::endTransaction()": [
+      {
+        "frame": 16,
+        "targets": {
+          "spiEndTransaction": 1
+        }
+      }
+    ],
+    "HWCDC::write(unsigned char const*, unsigned int)": [
+      {
+        "frame": 80,
+        "targets": {
+          "xQueueSemaphoreTake": 1,
+          "HWCDC::isCDC_Connected()": 1,
+          "flushTXBuffer(unsigned char const*, unsigned int)": 2,
+          "hw_cdc_enable_tx_intr()": 3,
+          "xRingbufferGetMaxItemSize": 1,
+          "xRingbufferSend": 1,
+          "usb_serial_jtag_is_connected": 1,
+          "xQueueGenericSend": 1
+        }
+      }
+    ],
+    "multi_heap_free": [
+      {
+        "frame": 16,
+        "targets": {
+          "multi_heap_internal_lock": 1,
+          "verify_allocated_region": 1,
+          "__assert_func": 1,
+          "multi_heap_free_impl": 1
+        }
+      }
+    ],
+    "multi_heap_get_allocated_size_impl": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "perimanGetTypeName": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "__assert_func": [
+      {
+        "frame": 320,
+        "targets": {
+          "itoa": 2,
+          "spi_flash_cache_enabled": 1,
+          "strlen": 1,
+          "memcpy": 1,
+          "esp_system_abort": 1
+        }
+      }
+    ],
+    "__trunctfdf2": [
+      {
+        "frame": 48,
+        "targets": {}
+      }
+    ],
+    "hw_cdc_enable_tx_intr()": [
+      {
+        "frame": 16,
+        "targets": {
+          "xPortInIsrContext": 2,
+          "vPortEnterCritical": 1
+        }
+      }
+    ],
+    "poison_allocated_region": [
+      {
+        "frame": 32,
+        "targets": {
+          "memcpy": 1
+        }
+      }
+    ],
+    "HalFile::close()": [
+      {
+        "frame": 32,
+        "targets": {
+          "HalStorage::StorageLock::StorageLock() [clone .constprop.0]": 1,
+          "__assert_func": 1,
+          "FsBaseFile::close()": 1,
+          "HalStorage::StorageLock::~StorageLock() [clone .constprop.0]": 1
+        }
+      }
+    ],
+    "ExFatFile::truncate()": [
+      {
+        "frame": 48,
+        "targets": {
+          "__lshrdi3": 1,
+          "ExFatFile::sync()": 1,
+          "ExFatPartition::bitmapModify(unsigned long, unsigned long, bool)": 1,
+          "ExFatPartition::fatGet(unsigned long, unsigned long*)": 1,
+          "ExFatPartition::fatPut(unsigned long, unsigned long)": 1,
+          "ExFatPartition::freeChain(unsigned long)": 1
+        }
+      }
+    ],
+    "HalFile::read(void*, unsigned int)": [
+      {
+        "frame": 32,
+        "targets": {
+          "HalStorage::StorageLock::StorageLock() [clone .constprop.0]": 1,
+          "__assert_func": 1,
+          "FsBaseFile::read(void*, unsigned int)": 1,
+          "HalStorage::StorageLock::~StorageLock() [clone .constprop.0]": 1
+        }
+      }
+    ],
+    "ExFatFile::addCluster()": [
+      {
+        "frame": 32,
+        "targets": {
+          "ExFatPartition::bitmapFind(unsigned long, unsigned long)": 1,
+          "ExFatPartition::bitmapModify(unsigned long, unsigned long, bool)": 1,
+          "ExFatPartition::fatPut(unsigned long, unsigned long)": 3
+        }
+      }
+    ],
+    "operator new(unsigned int)": [
+      {
+        "frame": 16,
+        "targets": {
+          "malloc": 1,
+          "std::get_new_handler()": 1,
+          "__cxa_allocate_exception": 1,
+          "__cxa_throw": 1,
+          "indirect": 1
+        }
+      }
+    ],
+    "ExFatPartition::chainSize(unsigned long)": [
+      {
+        "frame": 32,
+        "targets": {
+          "ExFatPartition::fatGet(unsigned long, unsigned long*)": 1
+        }
+      }
+    ],
+    "ExFatPartition::bitmapFind(unsigned long, unsigned long)": [
+      {
+        "frame": 48,
+        "targets": {
+          "FsCache::prepare(unsigned long, unsigned char)": 1
+        }
+      }
+    ],
+    "systimer_hal_get_counter_value": [
+      {
+        "frame": 16,
+        "targets": {}
+      }
+    ],
+    "FatFile::open(FatFile*, char const*, int)": [
+      {
+        "frame": 128,
+        "targets": {
+          "FatFile::~FatFile()": 1,
+          "__stack_chk_fail": 1,
+          "FatFile::openRoot(FatVolume*)": 2,
+          "FatFile::parsePathName(char const*, FatLfn_t*, char const**)": 1,
+          "FatFile::open(FatFile*, FatLfn_t*, int)": 2,
+          "FatFile::copy(FatFile const*)": 1,
+          "FatFile::close()": 1
+        }
+      }
+    ],
+    "multi_heap_realloc": [
+      {
+        "frame": 32,
+        "targets": {
+          "multi_heap_free": 1,
+          "verify_allocated_region": 1,
+          "__assert_func": 1,
+          "multi_heap_internal_lock": 1,
+          "multi_heap_realloc_impl": 1,
+          "poison_allocated_region": 1,
+          "multi_heap_internal_unlock": 1
+        }
+      }
+    ],
+    "spiEndTransaction": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "FsBaseFile::copy(FsBaseFile const*)": [
+      {
+        "frame": 16,
+        "targets": {
+          "operator new(unsigned int, unsigned long*)": 2,
+          "memcpy": 1
+        }
+      }
+    ],
+    "HalFile::seek64(unsigned long long)": [
+      {
+        "frame": 32,
+        "targets": {
+          "HalStorage::StorageLock::StorageLock() [clone .constprop.0]": 1,
+          "__assert_func": 1,
+          "FsBaseFile::seekSet(unsigned long long)": 1,
+          "HalStorage::StorageLock::~StorageLock() [clone .constprop.0]": 1
+        }
+      }
+    ],
+    "SdSpiCard::spiStart()": [
+      {
+        "frame": 16,
+        "targets": {
+          "SPIClass::beginTransaction(SPISettings)": 1,
+          "sdCsWrite(unsigned char, bool)": 1
+        }
+      }
+    ],
+    "FsBaseFile::close()": [
+      {
+        "frame": 16,
+        "targets": {
+          "FatFile::close()": 1,
+          "ExFatFile::close()": 1
+        }
+      }
+    ],
+    "rtc_clk_cpu_freq_get_config": [
+      {
+        "frame": 16,
+        "targets": {
+          "rtc_clk_xtal_freq_get": 1,
+          "esp_log_timestamp": 1,
+          "esp_rom_printf": 1,
+          "abort": 1
+        }
+      }
+    ],
+    "xQueueGenericSend": [
+      {
+        "frame": 64,
+        "targets": {
+          "__assert_func": 1,
+          "xTaskGetSchedulerState": 1,
+          "vPortExitCritical": 6,
+          "prvNotifyQueueSetContainer": 1,
+          "vPortYield": 2,
+          "vTaskInternalSetTimeOutState": 1,
+          "vTaskSuspendAll": 1,
+          "vPortEnterCritical": 3,
+          "xTaskCheckForTimeOut": 1,
+          "vTaskPlaceOnEventList": 1,
+          "prvUnlockQueue": 3,
+          "xTaskResumeAll": 3,
+          "prvCopyDataToQueue": 1,
+          "xTaskRemoveFromEventList": 1
+        }
+      }
+    ],
+    "FatPartition::fatCachePrepare(unsigned long, unsigned char)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "__digitalWrite": [
+      {
+        "frame": 32,
+        "targets": {
+          "perimanGetPinBus": 1,
+          "esp_timer_get_time": 1,
+          "pathToFileName": 1,
+          "__udivdi3": 1
+        }
+      }
+    ],
+    "prvReceiveGeneric": [
+      {
+        "frame": 80,
+        "targets": {
+          "vPortEnterCritical": 1,
+          "prvCheckItemAvail": 1,
+          "indirect": 2,
+          "__assert_func": 1,
+          "vPortExitCritical": 2,
+          "vTaskInternalSetTimeOutState": 1,
+          "xTaskCheckForTimeOut": 1,
+          "vTaskPlaceOnEventList": 1,
+          "vPortYield": 1
+        }
+      }
+    ],
+    "FsVolume::open(char const*, int)": [
+      {
+        "frame": 16,
+        "targets": {
+          "FsBaseFile::open(FsVolume*, char const*, int)": 1
+        }
+      }
+    ],
+    "FsBaseFile::open(FsVolume*, char const*, int)": [
+      {
+        "frame": 32,
+        "targets": {
+          "FsBaseFile::close()": 1,
+          "operator new(unsigned int, unsigned long*)": 2,
+          "FatFile::open(FatVolume*, char const*, int)": 1,
+          "ExFatFile::open(ExFatVolume*, char const*, int)": 1
+        }
+      }
+    ],
+    "FatFile::readDirCache()": [
+      {
+        "frame": 32,
+        "targets": {
+          "FatFile::readPrivate(void*, unsigned int, DirFat_t**)": 1
+        }
+      }
+    ],
+    "FatFile::createLFN(unsigned short, FatLfn_t*, unsigned char)": [
+      {
+        "frame": 112,
+        "targets": {
+          "memcpy": 1,
+          "FatFile::lfnChecksum(unsigned char const*) [clone .isra.0]": 1,
+          "FatFile::close()": 1,
+          "FatFile::cacheDir(unsigned short)": 1,
+          "FsName::get16()": 1
+        }
+      }
+    ],
+    "FatFile::addCluster()": [
+      {
+        "frame": 16,
+        "targets": {
+          "FatPartition::allocateCluster(unsigned long, unsigned long*)": 1
+        }
+      }
+    ],
+    "sdCsWrite(unsigned char, bool)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "toUpcase(unsigned short)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "FatFile::parsePathName(char const*, FatLfn_t*, char const**)": [
+      {
+        "frame": 64,
+        "targets": {
+          "FsUtf::mbToCp(char const*, char const*, unsigned long*)": 1
+        }
+      }
+    ],
+    "FsBaseFile::read(void*, unsigned int)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "_localeconv_r": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "SdSpiCard::readData(unsigned char*, unsigned int)": [
+      {
+        "frame": 32,
+        "targets": {
+          "millis": 2,
+          "SdSpiArduinoDriver::receive() [clone .isra.0]": 3,
+          "memset": 1,
+          "SPIClass::transfer(void*, unsigned long)": 1,
+          "SdSpiCard::spiStop()": 1
+        }
+      }
+    ],
+    "ExFatFile::hashName(ExName_t*)": [
+      {
+        "frame": 16,
+        "targets": {
+          "toUpcase(unsigned short)": 1,
+          "FsName::get16()": 1
+        }
+      }
+    ],
+    "FatFile::close()": [
+      {
+        "frame": 16,
+        "targets": {
+          "FatFile::sync()": 1
+        }
+      }
+    ],
+    "FatPartition::cacheSync()": [
+      {
+        "frame": 16,
+        "targets": {
+          "FsCache::sync()": 2
+        }
+      }
+    ],
+    "FatFile::cacheDirEntry(unsigned char)": [
+      {
+        "frame": 16,
+        "targets": {
+          "FsCache::prepare(unsigned long, unsigned char)": 1
+        }
+      }
+    ],
+    "__getreent": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "FatFile::seekSet(unsigned long)": [
+      {
+        "frame": 32,
+        "targets": {
+          "FatPartition::fatGet(unsigned long, unsigned long*)": 1
+        }
+      }
+    ],
+    "heap_caps_realloc_base": [
+      {
+        "frame": 64,
+        "targets": {
+          "esp_heap_adjust_alignment_to_hw": 1,
+          "heap_caps_aligned_alloc_base": 2,
+          "heap_caps_free": 2,
+          "__assert_func": 1,
+          "multi_heap_get_allocated_size": 1,
+          "multi_heap_realloc": 1,
+          "memcpy": 1
+        }
+      }
+    ],
+    "xQueueTakeMutexRecursive": [
+      {
+        "frame": 32,
+        "targets": {
+          "__assert_func": 1,
+          "xTaskGetCurrentTaskHandle": 1,
+          "xQueueSemaphoreTake": 1
+        }
+      }
+    ],
+    "snprintf": [
+      {
+        "frame": 176,
+        "targets": {
+          "__getreent": 1,
+          "_svfprintf_r": 1
+        }
+      }
+    ],
+    "SdSpiCard::readStart(unsigned long)": [
+      {
+        "frame": 16,
+        "targets": {
+          "SdSpiCard::cardCommand(unsigned char, unsigned long)": 1,
+          "SdSpiCard::spiStop()": 1
+        }
+      }
+    ],
+    "heap_caps_aligned_alloc_base": [
+      {
+        "frame": 48,
+        "targets": {
+          "esp_heap_adjust_alignment_to_hw": 1,
+          "multi_heap_malloc": 2,
+          "__assert_func": 1,
+          "multi_heap_aligned_alloc_offs": 2
+        }
+      }
+    ],
+    "vTaskPlaceOnEventList": [
+      {
+        "frame": 16,
+        "targets": {
+          "__assert_func": 1,
+          "vListInsert": 1
+        }
+      }
+    ],
+    "FatFile::cacheDir(unsigned short)": [
+      {
+        "frame": 16,
+        "targets": {
+          "FatFile::seekSet(unsigned long)": 1
+        }
+      }
+    ],
+    "vsnprintf": [
+      {
+        "frame": 32,
+        "targets": {
+          "__getreent": 1
+        }
+      }
+    ],
+    "SdSpiArduinoDriver::send(unsigned char) [clone .isra.0]": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "FsCache::prepare(unsigned long, unsigned char)": [
+      {
+        "frame": 16,
+        "targets": {
+          "FsCache::sync()": 1,
+          "SdSpiCard::readSector(unsigned long, unsigned char*)": 1
+        }
+      }
+    ],
+    "flushTXBuffer(unsigned char const*, unsigned int)": [
+      {
+        "frame": 48,
+        "targets": {
+          "vRingbufferGetInfo": 1,
+          "xRingbufferGetCurFreeSize": 1,
+          "hw_cdc_clear_tx_stash()": 1,
+          "xRingbufferReceiveUpTo": 2,
+          "vRingbufferReturnItem": 2,
+          "xRingbufferSend": 1
+        }
+      }
+    ],
+    "FatPartition::freeChain(unsigned long)": [
+      {
+        "frame": 48,
+        "targets": {
+          "FatPartition::fatGet(unsigned long, unsigned long*)": 1,
+          "FatPartition::fatPut(unsigned long, unsigned long)": 1
+        }
+      }
+    ],
+    "FsBaseFile::isOpen() const": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "StreamFile<FsBaseFile, unsigned long long>::~StreamFile()": [
+      {
+        "frame": 0,
+        "targets": {}
+      },
+      {
+        "frame": 16,
+        "targets": {
+          "StreamFile<FsBaseFile, unsigned long long>::~StreamFile()": 1
+        }
+      }
+    ],
+    "xRingbufferGetMaxItemSize": [
+      {
+        "frame": 16,
+        "targets": {
+          "__assert_func": 1
+        }
+      }
+    ],
+    "assert_valid_block": [
+      {
+        "frame": 16,
+        "targets": {
+          "tlsf_get_pool": 1,
+          "esp_rom_printf": 1,
+          "abort": 1
+        }
+      }
+    ],
+    "__spiTransferBytes": [
+      {
+        "frame": 96,
+        "targets": {
+          "memset": 2,
+          "memcpy": 2
+        }
+      }
+    ],
+    "ExFatPartition::fatPut(unsigned long, unsigned long)": [
+      {
+        "frame": 16,
+        "targets": {
+          "FsCache::prepare(unsigned long, unsigned char)": 1
+        }
+      }
+    ],
+    "ExFatFile::sync()": [
+      {
+        "frame": 16,
+        "targets": {
+          "ExFatPartition::cacheSync()": 1
+        }
+      }
+    ],
+    "FatFile::openRoot(FatVolume*)": [
+      {
+        "frame": 16,
+        "targets": {
+          "memset": 1
+        }
+      }
+    ],
+    "SdSpiCard::writeStart(unsigned long)": [
+      {
+        "frame": 16,
+        "targets": {
+          "SdSpiCard::cardCommand(unsigned char, unsigned long)": 1,
+          "SdSpiCard::spiStop()": 1
+        }
+      }
+    ],
+    "heap_caps_free": [
+      {
+        "frame": 16,
+        "targets": {
+          "__assert_func": 1
+        }
+      }
+    ],
+    "spiTransferBytesNL": [
+      {
+        "frame": 64,
+        "targets": {
+          "memcpy": 1
+        }
+      }
+    ],
+    "tlsf_malloc": [
+      {
+        "frame": 48,
+        "targets": {
+          "__clzsi2": 3,
+          "__assert_func": 1,
+          "__ffssi2": 2
+        }
+      }
+    ],
+    "FatFile::open(FatVolume*, char const*, int)": [
+      {
+        "frame": 0,
+        "targets": {}
+      }
+    ],
+    "__cxa_throw": [
+      {
+        "frame": 32,
+        "targets": {
+          "__cxa_get_globals": 1,
+          "__cxa_init_primary_exception": 1,
+          "_Unwind_RaiseException": 1,
+          "__cxa_begin_catch": 1,
+          "std::terminate()": 1
+        }
+      }
+    ],
+    "prvCheckItemFitsByteBuffer": [
+      {
+        "frame": 16,
+        "targets": {
+          "__assert_func": 1
+        }
+      }
+    ],
+    "get_arg.isra.0": [
+      {
+        "frame": 80,
+        "targets": {
+          "memset": 2
+        }
+      },
+      {
+        "frame": 80,
+        "targets": {
+          "memset": 2
+        }
+      }
+    ],
+    "ExFatPartition::dirSeek(DirPos_t*, unsigned long)": [
+      {
+        "frame": 32,
+        "targets": {
+          "ExFatPartition::fatGet(unsigned long, unsigned long*)": 1
+        }
+      }
+    ],
+    "multi_heap_internal_unlock": [
+      {
+        "frame": 16,
+        "targets": {
+          "xPortInIsrContext": 1
+        }
+      }
+    ],
+    "SdSpiArduinoDriver::send(unsigned char const*, unsigned int)": [
+      {
+        "frame": 560,
+        "targets": {
+          "__stack_chk_fail": 1,
+          "memcpy": 1,
+          "SPIClass::transfer(void*, unsigned long)": 1
+        }
+      }
+    ],
+    "ExFatFile::seekSet(unsigned long long)": [
+      {
+        "frame": 64,
+        "targets": {
+          "__lshrdi3": 2,
+          "ExFatPartition::fatGet(unsigned long, unsigned long*)": 1
+        }
+      }
+    ]
+  },
+  "suffix": 3408,
+  "prefixes": {
+    "wifi": [
+      "vPortTaskWrapper",
+      "ActivityManager::renderTaskTrampoline(void*)",
+      "ActivityManager::renderTaskLoop()",
+      "xp_app_render",
+      "<xp_ui::network::wifi_owner::Wifi<xp_ffi::app::wifi::NativeHost>>::render",
+      "<xp_ffi::app::wifi::NativeHost as xp_ui::network::wifi_owner::Host>::paint",
+      "xp_ffi::app::scene::paint",
+      "xp_ui::ffi::render",
+      "xp_ui::draw::walk",
+      "<xp_ui::ffi::Raster as xp_ui::draw::Sink>::paint",
+      "xp_ui::network::wifi_owner::view::bindings::paint::<xp_ffi::app::wifi::NativeHost>",
+      "WifiPhysical::paint(void*, XpUiCommand const*, XpUiRect, XpWifiPaintData const*)",
+      "networkui::paint(GfxRenderer&, MappedInputManager&, XpUiCommand const&, XpUiRect, networkui::Resource const&)",
+      "(anonymous namespace)::paintFlowText(GfxRenderer const&, XpUiCommand const&, XpUiRect, networkui::Resource const&)",
+      "GfxRenderer::drawUiText(XpUiCommand const&, XpUiRect, char const*) const",
+      "freeink::ui::GfxRendererTarget::text(freeink::ui::Rect, char const*, freeink::ui::TextStyle)",
+      "freeink::ui::GfxRendererTarget::text(freeink::ui::Rect, char const*, freeink::ui::TextStyle)::{lambda(char const*, int)#1}::operator()(char const*, int) const",
+      "GfxRenderer::drawText(int, int, int, char const*, bool, EpdFontFamily::Style, BidiUtils::BidiBaseDir, signed char) const",
+      "GfxRenderer::drawGlyphRun(int, int, int, char const*, bool, EpdFontFamily::Style, BidiUtils::BidiBaseDir, signed char, bool) const",
+      "xp_native_draw_pixels",
+      "xp_ffi::textm::draw_pixels",
+      "xp_core::textm::draw::walk::<xp_core::textm::native::DrawingFace, xp_core::textm::native::Codepoints, xp_ffi::textm::draw_pixels::{closure#0}>",
+      "xp_ffi::textm::draw_pixels::{closure#0}",
+      "xp_font_glyph_miss",
+      "xp_ffi::font_runtime::miss",
+      "xp_font_metrics",
+      "xp_ffi::font::lookup",
+      "xp_ffi::font_sd::miss",
+      "xp_ffi::font_sd::open",
+      "<xp_core::sdfont::io::Files<xp_ffi::font_sd::Physical>>::open",
+      "xp_native_sd_file_open"
+    ],
+    "wifi_measure": [
+      "vPortTaskWrapper",
+      "ActivityManager::renderTaskTrampoline(void*)",
+      "ActivityManager::renderTaskLoop()",
+      "xp_app_render",
+      "<xp_ui::network::wifi_owner::Wifi<xp_ffi::app::wifi::NativeHost>>::render",
+      "<xp_ffi::app::wifi::NativeHost as xp_ui::network::wifi_owner::Host>::paint",
+      "xp_ffi::app::scene::paint",
+      "xp_ui::ffi::render",
+      "xp_ui::draw::walk",
+      "<xp_ui::ffi::Raster as xp_ui::draw::Sink>::paint",
+      "xp_ui::network::wifi_owner::view::bindings::paint::<xp_ffi::app::wifi::NativeHost>",
+      "WifiPhysical::paint(void*, XpUiCommand const*, XpUiRect, XpWifiPaintData const*)",
+      "networkui::paint(GfxRenderer&, MappedInputManager&, XpUiCommand const&, XpUiRect, networkui::Resource const&)",
+      "(anonymous namespace)::paintFlowText(GfxRenderer const&, XpUiCommand const&, XpUiRect, networkui::Resource const&)",
+      "(anonymous namespace)::layoutFlowText(GfxRenderer const&, XpUiCommand const&, networkui::Resource const&, XpUiRect (&) [2])",
+      "freeink::ui::layoutText<(anonymous namespace)::layoutFlowText(GfxRenderer const&, XpUiCommand const&, networkui::Resource const&, XpUiRect (&) [2])::{lambda(char const*, freeink::ui::Rect)#1}>(freeink::ui::DrawTarget const&, freeink::ui::Rect, char const*, freeink::ui::TextStyle, (anonymous namespace)::layoutFlowText(GfxRenderer const&, XpUiCommand const&, networkui::Resource const&, XpUiRect (&) [2])::{lambda(char const*, freeink::ui::Rect)#1}&&)::{lambda(char const*, unsigned short, bool)#1}::operator()(char const*, unsigned short, bool) const",
+      "freeink::ui::GfxRendererTarget::measureText(unsigned short, char const*, freeink::ui::TextStyle) const",
+      "GfxRenderer::getTextWidth(int, char const*, EpdFontFamily::Style, BidiUtils::BidiBaseDir) const",
+      "xp_native_width",
+      "<xp_core::textm::native::Engine>::width",
+      "xp_core::textm::dimensions_stream::<xp_core::textm::native::Face, xp_core::textm::native::Codepoints>",
+      "xp_core::textm::glyph_metrics::<xp_core::textm::native::Face>",
+      "<xp_core::textm::native::Face as xp_core::textm::FontFace>::glyph",
+      "xp_ffi::font_registry::glyph",
+      "xp_ffi::font::lookup",
+      "xp_ffi::font_sd::miss",
+      "xp_ffi::font_sd::open",
+      "<xp_core::sdfont::io::Files<xp_ffi::font_sd::Physical>>::open",
+      "xp_native_sd_file_open"
+    ]
+  }
+}

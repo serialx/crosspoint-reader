@@ -1,0 +1,97 @@
+{
+  "gate": 8192,
+  "routes": {
+    "emitter": [
+      "loopTask(void*)",
+      "loop()",
+      "ActivityManager::loop()",
+      "xp_app_loop",
+      "(anonymous namespace)::appRuntime()::{lambda(unsigned char)#6}::_FUN(unsigned char)",
+      "enterDeepSleep(bool)",
+      "deliverSleepPluginEvents(bool)",
+      "pluginevents::emit(pluginevents::Event, pluginevents::Var const*, unsigned int)",
+      "xp_plugin_emit"
+    ],
+    "metadata document": [
+      "loopTask(void*)",
+      "loop()",
+      "ActivityManager::loop()",
+      "xp_app_loop",
+      "(anonymous namespace)::appRuntime()::{lambda(unsigned char)#6}::_FUN(unsigned char)",
+      "enterDeepSleep(bool)",
+      "deliverSleepPluginEvents(bool)",
+      "pluginevents::emit(pluginevents::Event, pluginevents::Var const*, unsigned int)",
+      "xp_plugin_emit",
+      "xp_ffi::plugin::metadata_mask",
+      "xp_native_plugin_metadata"
+    ],
+    "metadata path guard": [
+      "loopTask(void*)",
+      "loop()",
+      "ActivityManager::loop()",
+      "xp_app_loop",
+      "(anonymous namespace)::appRuntime()::{lambda(unsigned char)#6}::_FUN(unsigned char)",
+      "enterDeepSleep(bool)",
+      "deliverSleepPluginEvents(bool)",
+      "pluginevents::emit(pluginevents::Event, pluginevents::Var const*, unsigned int)",
+      "xp_plugin_emit",
+      "xp_ffi::plugin::metadata_mask",
+      "xp_sensitive_path"
+    ],
+    "SDK open adapter": [
+      "loopTask(void*)",
+      "loop()",
+      "ActivityManager::loop()",
+      "xp_app_loop",
+      "(anonymous namespace)::appRuntime()::{lambda(unsigned char)#6}::_FUN(unsigned char)",
+      "enterDeepSleep(bool)",
+      "deliverSleepPluginEvents(bool)",
+      "pluginevents::emit(pluginevents::Event, pluginevents::Var const*, unsigned int)",
+      "xp_plugin_emit",
+      "xp_ffi::plugin::metadata_mask",
+      "xp_native_plugin_metadata",
+      "HalStorage::openFileForRead(char const*, char const*, HalFile&)",
+      "SDCardManager::openFileForRead(char const*, char const*, FsFile&)"
+    ],
+    "JSON adapter text": [
+      "loopTask(void*)",
+      "loop()",
+      "ActivityManager::loop()",
+      "xp_app_loop",
+      "(anonymous namespace)::appRuntime()::{lambda(unsigned char)#6}::_FUN(unsigned char)",
+      "enterDeepSleep(bool)",
+      "deliverSleepPluginEvents(bool)",
+      "pluginevents::emit(pluginevents::Event, pluginevents::Var const*, unsigned int)",
+      "xp_plugin_emit",
+      "xp_ffi::plugin::metadata_mask",
+      "PluginJson::api()::{lambda(void*, unsigned long)#1}::_FUN(void*, unsigned long)"
+    ],
+    "JSON adapter integer": [
+      "loopTask(void*)",
+      "loop()",
+      "ActivityManager::loop()",
+      "xp_app_loop",
+      "(anonymous namespace)::appRuntime()::{lambda(unsigned char)#6}::_FUN(unsigned char)",
+      "enterDeepSleep(bool)",
+      "deliverSleepPluginEvents(bool)",
+      "pluginevents::emit(pluginevents::Event, pluginevents::Var const*, unsigned int)",
+      "xp_plugin_emit",
+      "xp_ffi::plugin::metadata_mask",
+      "PluginJson::api()::{lambda(void*, unsigned long)#2}::_FUN(void*, unsigned long)"
+    ],
+    "JSON adapter pair": [
+      "loopTask(void*)",
+      "loop()",
+      "ActivityManager::loop()",
+      "xp_app_loop",
+      "(anonymous namespace)::appRuntime()::{lambda(unsigned char)#6}::_FUN(unsigned char)",
+      "enterDeepSleep(bool)",
+      "deliverSleepPluginEvents(bool)",
+      "pluginevents::emit(pluginevents::Event, pluginevents::Var const*, unsigned int)",
+      "xp_plugin_emit",
+      "xp_ffi::plugin::metadata_mask",
+      "PluginJson::api()::{lambda(void*, unsigned long, unsigned long, unsigned int, XpPluginSpan*)#5}::_FUN(void*, unsigned long, unsigned long, unsigned int, XpPluginSpan*)"
+    ]
+  },
+  "metadata_continuation": "xp_ffi::plugin::metadata_mask"
+}

@@ -25,12 +25,11 @@
 
 #include "CrossPointSettings.h"
 #include "MappedInputManager.h"
-#include "PluginCatalogPaging.h"
-#include "activities/reader/DictionaryDefinitionActivity.h"  // plain-text README viewer
+#include "PluginCatalogTemplate.h"
+#include "activities/reader/DefinitionPayload.h"
 #include "activities/settings/PluginHubInstallActivity.h"
 #include "activities/util/ConfirmationActivity.h"
 #include "activities/util/DetailsActivity.h"
-#include "components/CatalogScreens.h"
 #include "components/UITheme.h"
 #include "network/HttpDownloader.h"
 #include "network/ProtectedPaths.h"
@@ -39,16 +38,14 @@
 #include "util/PluginEvents.h"
 #include "util/PluginHttp.h"
 #include "util/PluginLocations.h"
-#include "util/PluginPickerLayout.h"
 #include "util/QrUtils.h"
 #include "util/StringUtils.h"
+#include "util/UrlUtils.h"
 
 namespace fui = freeink::ui;
 
 // Template/JSON/transport primitives shared with the plugin event drain.
 using pluginhttp::resolvePath;
-using pluginhttp::substituteAll;
-using pluginhttp::urlEncodeQuery;
 using pluginhttp::variantToString;
 
 namespace {
@@ -62,10 +59,11 @@ constexpr size_t MAX_API_RESPONSE = 48 * 1024;
 // response until leaving the catalog so downloads can release the parsed rows.
 constexpr char BROWSE_TMP_PATH[] = "/.pcat_tmp.json";
 constexpr size_t MAX_BROWSE_RESPONSE = 1024 * 1024;
+constexpr int REQUEST_REFUSED = -2;
 constexpr size_t MAX_BROWSE_LIST_INDEX_RESPONSE = 16 * 1024;
+constexpr size_t MAX_BROWSE_LISTS = 64;
 constexpr size_t MAX_ITEM_DETAILS_RESPONSE = 24 * 1024;
 constexpr int MAX_PAGE_SIZE = 16;
-constexpr unsigned long PLUGIN_UNINSTALL_HOLD_MS = 1000;
 
 // JsonListParser has six generic field slots. The compatibility and details
 // passes store other fields in the slots they do not need.
@@ -129,6 +127,19 @@ bool matchesCapabilities(const std::string& required) {
   return allCsvTokens(required, [](const std::string_view capability) {
     return !capability.empty() && csvContainsToken(firmwareidentity::PLUGIN_CAPABILITIES, capability);
   });
+}
+
+bool matchesListRequirements(JsonVariantConst requirements) {
+  if (requirements.isUnbound()) return true;
+  const auto required = requirements.as<JsonArrayConst>();
+  if (required.isNull() || required.size() > 32) return false;
+  for (JsonVariantConst value : required) {
+    const char* capability = value.as<const char*>();
+    if (!capability || !*capability || !csvContainsToken(firmwareidentity::PLUGIN_CAPABILITIES, capability)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 bool catalogEntryCompatible(const std::string& family, const std::string& apiMin,
@@ -271,11 +282,20 @@ bool PluginCatalogActivity::loadManifest() {
   // Documented bounds: each row costs an Item (strings) and a screen slot.
   manifest.pageSize = std::clamp(manifest.pageSize, 1, MAX_PAGE_SIZE);
   manifest.browseListsUrl = browse["lists_url"] | "";
+  pluginhttp::readHeaders(browse["lists_headers"], manifest.listsHeaders);
+  manifest.listsItemsPath = browse["lists_items"] | "lists";
+  JsonVariantConst listFields = browse["lists_fields"];
+  manifest.listsTitlePath = listFields["title"] | "title";
+  manifest.listsUrlPath = listFields["url"] | "url";
+  manifest.listsIdPath = listFields["id"] | "id";
+  manifest.listsRequiresPath = listFields["requires"] | "requires";
   manifest.browseLists.reserve(browse["lists"].size());
   for (JsonVariantConst l : browse["lists"].as<JsonArrayConst>()) {
+    if (!matchesListRequirements(l["requires"])) continue;
     Manifest::BrowseList entry;
     entry.title = l["title"] | "";
     entry.url = l["url"] | "";
+    entry.id = variantToString(l["id"]);
     entry.body = l["body"] | "";
     JsonVariantConst notice = l["notice"];
     entry.noticeTitle = notice["title"] | "";
@@ -284,6 +304,7 @@ bool PluginCatalogActivity::loadManifest() {
     entry.noticeCancel = notice["cancel"] | "";
     if (!entry.title.empty()) manifest.browseLists.push_back(std::move(entry));
   }
+  manifest.fixedListCount = manifest.browseLists.size();
   manifest.searchUrl = browse["search"]["url"] | "";
   manifest.searchBody = browse["search"]["body"] | "";
   manifest.xmlItem = browse["item"] | "";
@@ -330,43 +351,72 @@ bool PluginCatalogActivity::loadManifest() {
   return !manifest.browseReq.url.empty();
 }
 
-bool PluginCatalogActivity::loadBrowseListIndex() {
+bool PluginCatalogActivity::loadBrowseListIndex(int& status) {
+  status = 200;
   if (manifest.browseListsUrl.empty()) return true;
 
-  String response;
-  const std::string url = substituted(manifest.browseListsUrl, nullptr);
-  const int status = pluginhttp::request(session.get(), url, "GET", "", {}, response, MAX_BROWSE_LIST_INDEX_RESPONSE);
-  if (status < 200 || status >= 300) {
-    LOG_ERR("PCAT", "browse list index fetch failed: status=%d %s", status, url.c_str());
+  std::string url;
+  JsonDocument doc;
+  const auto fetch = [&] {
+    String response;
+    {
+      pluginhttp::RequestSpec req;
+      if (!buildRequest(req, manifest.browseListsUrl, "", manifest.listsHeaders)) {
+        status = REQUEST_REFUSED;
+        return false;
+      }
+      url = std::move(req.url);
+      status =
+          pluginhttp::request(session.get(), url, "GET", "", req.headers, response, MAX_BROWSE_LIST_INDEX_RESPONSE);
+    }
+    if (status < 200 || status >= 300) {
+      LOG_ERR("PCAT", "browse list index fetch failed: status=%d %s", status, url.c_str());
+      std::string().swap(url);
+      return false;
+    }
+    if (deserializeJson(doc, response) != DeserializationError::Ok) {
+      LOG_ERR("PCAT", "browse list index parse failed: %s", url.c_str());
+      return false;
+    }
+    return true;
+  };
+  if (!fetch() &&
+      !((status == 401 || status == 403) && manifest.hasPasswordGrant() && refreshCredentialToken(status) && fetch())) {
     return false;
   }
 
-  JsonDocument doc;
-  if (deserializeJson(doc, response) != DeserializationError::Ok) {
-    LOG_ERR("PCAT", "browse list index parse failed: %s", url.c_str());
-    return false;
-  }
-  JsonArrayConst lists = doc["lists"].as<JsonArrayConst>();
+  const auto lists = resolvePath(doc.as<JsonVariantConst>(), manifest.listsItemsPath).as<JsonArrayConst>();
   if (lists.isNull() || lists.size() == 0) {
     LOG_ERR("PCAT", "browse list index has no lists: %s", url.c_str());
     return false;
   }
 
-  manifest.browseLists.clear();
-  manifest.browseLists.reserve(lists.size());
+  ResourceLock resources(*this);
+  std::string().swap(manifest.listOrigin);
+  manifest.browseLists.resize(manifest.fixedListCount);
+  manifest.browseLists.reserve(manifest.fixedListCount + std::min(lists.size(), MAX_BROWSE_LISTS));
   for (JsonVariantConst l : lists) {
+    if (manifest.browseLists.size() - manifest.fixedListCount >= MAX_BROWSE_LISTS) {
+      LOG_ERR("PCAT", "browse list index truncated to %u lists", static_cast<unsigned>(MAX_BROWSE_LISTS));
+      break;
+    }
+    if (!matchesListRequirements(resolvePath(l, manifest.listsRequiresPath))) continue;
     Manifest::BrowseList entry;
-    entry.title = l["title"] | "";
-    entry.url = l["url"] | "";
+    entry.title = variantToString(resolvePath(l, manifest.listsTitlePath));
+    entry.url = variantToString(resolvePath(l, manifest.listsUrlPath));
+    entry.id = variantToString(resolvePath(l, manifest.listsIdPath));
     entry.body = l["body"] | "";
     JsonVariantConst notice = l["notice"];
     entry.noticeTitle = notice["title"] | "";
     entry.noticeMessage = notice["message"] | "";
     entry.noticeConfirm = notice["confirm"] | "";
     entry.noticeCancel = notice["cancel"] | "";
-    if (!entry.title.empty() && !entry.url.empty()) manifest.browseLists.push_back(std::move(entry));
+    if (!entry.title.empty() && (!entry.url.empty() || !entry.id.empty())) {
+      if (manifest.listOrigin.empty() && UrlUtils::isServerPath(entry.url)) manifest.listOrigin = UrlUtils::origin(url);
+      manifest.browseLists.push_back(std::move(entry));
+    }
   }
-  if (manifest.browseLists.empty()) {
+  if (manifest.browseLists.size() == manifest.fixedListCount) {
     LOG_ERR("PCAT", "browse list index has no valid lists: %s", url.c_str());
     return false;
   }
@@ -383,41 +433,136 @@ bool PluginCatalogActivity::loadToken() {
 
 void PluginCatalogActivity::loadConfig() { pluginhttp::loadConfigFile(manifest.configFile, config); }
 
-pluginhttp::Headers PluginCatalogActivity::substitutedHeaders(const pluginhttp::Headers& headers,
-                                                              const Item* item) const {
-  pluginhttp::Headers out;
-  out.reserve(headers.size());
-  for (const auto& h : headers) out.emplace_back(h.first, substituted(h.second, item));
-  return out;
-}
-
-pluginhttp::RequestSpec PluginCatalogActivity::substitutedRequest(const pluginhttp::RequestSpec& req,
-                                                                  const Item* item) const {
-  return {substituted(req.url, item), req.method, substituted(req.body, item), substitutedHeaders(req.headers, item)};
-}
-
-std::string PluginCatalogActivity::substituted(std::string tpl, const Item* item) const {
-  substituteAll(tpl, "{token}", token);
-  for (const auto& kv : config) substituteAll(tpl, ("{cfg." + kv.first + "}").c_str(), kv.second);
-  substituteAll(tpl, "{firmware_family}", firmwareidentity::FAMILY);
-  substituteAll(tpl, "{firmware_version}", CROSSPOINT_VERSION);
-  substituteAll(tpl, "{plugin_capabilities}", firmwareidentity::PLUGIN_CAPABILITIES);
-  char num[16];
-  snprintf(num, sizeof(num), "%d", firmwareidentity::PLUGIN_API_VERSION);
-  substituteAll(tpl, "{plugin_api}", num);
-  snprintf(num, sizeof(num), "%d", page);
-  substituteAll(tpl, "{page}", num);
-  snprintf(num, sizeof(num), "%d", manifest.pageSize + 1);
-  substituteAll(tpl, "{limit}", num);
-  substituteAll(tpl, "{query}", urlEncodeQuery(searchQuery));
-  substituteAll(tpl, "{query_raw}", searchQuery);
-  if (item) {
-    substituteAll(tpl, "{id}", item->id);
-    substituteAll(tpl, "{title}", item->title);
-    substituteAll(tpl, "{author}", item->author);
-    substituteAll(tpl, "{url}", item->url);
+struct PluginCatalogActivity::Variables : plugincatalog::Template {
+  char api[12], page[12], limit[12], offset[16];
+  Sources sources;
+  Variables(const PluginCatalogActivity& catalog, const Item* item)
+      : Template(catalog.config, sources, item != nullptr) {
+    snprintf(api, sizeof(api), "%d", firmwareidentity::PLUGIN_API_VERSION);
+    snprintf(page, sizeof(page), "%d", static_cast<int>(catalog.ui.page));
+    snprintf(limit, sizeof(limit), "%d",
+             plugincatalogpaging::limitFor(catalog.browsePaging(), catalog.manifest.pageSize));
+    snprintf(offset, sizeof(offset), "%llu",
+             static_cast<unsigned long long>(std::max<int32_t>(1, catalog.ui.page) - 1) * catalog.manifest.pageSize);
+    const bool inList =
+        catalog.ui.current_list >= 0 && catalog.ui.current_list < static_cast<int>(catalog.manifest.browseLists.size());
+    const std::string_view listId =
+        inList ? std::string_view(catalog.manifest.browseLists[catalog.ui.current_list].id) : std::string_view{};
+    sources.token = catalog.token;
+    sources.family = firmwareidentity::FAMILY;
+    sources.version = CROSSPOINT_VERSION;
+    sources.capabilities = firmwareidentity::PLUGIN_CAPABILITIES;
+    sources.api = api;
+    sources.page = page;
+    sources.limit = limit;
+    sources.offset = offset;
+    sources.listId = listId;
+    sources.query = catalog.searchQuery;
+    if (item) {
+      sources.id = item->id;
+      sources.title = item->title;
+      sources.author = item->author;
+      sources.url = item->url;
+    }
   }
-  return tpl;
+};
+
+bool PluginCatalogActivity::buildRequest(pluginhttp::RequestSpec& out, std::string_view url, const std::string& body,
+                                         const pluginhttp::Headers& headers, const Item* item, std::string_view prefix,
+                                         bool poll, bool literalUrl, DownloadCredentials* credentials) const {
+  Variables vars(*this, item);
+  plugincatalog::Template literal;
+  size_t remaining = 0;
+  const auto field = [&](std::string_view lead, std::string_view text, bool escape, std::string* dest) {
+    auto& resolver = escape && literalUrl ? literal : vars;
+    if (!dest) return resolver.expand(lead, text, escape, remaining);
+    // The full wire request fits. Measure this field again to reserve only its raw bytes.
+    size_t spare = plugincatalog::MAX_REQUEST_BYTES;
+    if (!resolver.expand(lead, text, false, spare)) return false;
+    size_t size = plugincatalog::MAX_REQUEST_BYTES - spare;
+    dest->reserve(size);
+    return resolver.expand(lead, text, false, size, dest);
+  };
+  size_t user = 0, password = 0, basic = 0;
+  if (credentials) {
+    // A zero-byte probe stops on the first emitted byte. The transfer omits an incomplete pair.
+    size_t probe = 0;
+    if (!vars.expand({}, manifest.dlUser, false, probe) && !vars.expand({}, manifest.dlPass, false, probe)) {
+      constexpr size_t overhead = sizeof("AuthorizationBasic ") - 1;
+      constexpr size_t rawLimit = 3 * ((plugincatalog::MAX_REQUEST_BYTES - overhead) / 4) - 1;  // colon
+      size_t raw = rawLimit;
+      if (!vars.expand({}, manifest.dlUser, false, raw)) return false;
+      user = rawLimit - raw;
+      if (!vars.expand({}, manifest.dlPass, false, raw)) return false;
+      password = rawLimit - raw - user;
+      basic = overhead + 4 * ((user + password + 3) / 3);
+    }
+  }
+  for (bool write : {false, true}) {
+    remaining = plugincatalog::MAX_REQUEST_BYTES - basic;
+    if (write && basic) {
+      credentials->user.reserve(user);
+      credentials->password.reserve(password);
+      vars.expand({}, manifest.dlUser, false, user, &credentials->user);
+      vars.expand({}, manifest.dlPass, false, password, &credentials->password);
+    }
+    if (write) out.headers.reserve(headers.size());
+    for (size_t i = 0; i < headers.size(); ++i) {
+      const auto& h = headers[i];
+      if (h.first.size() > remaining) return false;
+      remaining -= h.first.size();
+      if (write) out.headers.emplace_back(h.first, "");
+      if (!field({}, h.second, false, write ? &out.headers.back().second : nullptr)) return false;
+    }
+    if (poll) vars.add("{device_code}", authDeviceCode);
+    if (!field(prefix, url, true, write ? &out.url : nullptr) || !field({}, body, false, write ? &out.body : nullptr))
+      return false;
+    if (poll) vars.removeLast();
+  }
+  return true;
+}
+
+bool PluginCatalogActivity::detailsRequest(std::string& url, std::string_view path, const Item& item) const {
+  Variables vars(*this, &item);
+  size_t remaining = plugincatalog::MAX_REQUEST_BYTES;
+  bool rooted = false;
+  if (!vars.expand({}, path, true, remaining, nullptr, nullptr, &rooted)) return false;
+  size_t rawSpare = plugincatalog::MAX_REQUEST_BYTES;
+  if (!vars.expand({}, path, false, rawSpare)) return false;
+  size_t pathBytes = plugincatalog::MAX_REQUEST_BYTES - rawSpare;
+  if (rooted) {
+    Variables browse(*this, nullptr);
+    plugincatalog::Origin origin;
+    size_t bytes = SIZE_MAX;
+    browse.expand(activeBrowseOrigin(), activeBrowseUrl(), true, bytes, nullptr, &origin);
+    const size_t originBytes = origin.length();
+    if (originBytes) {
+      if (SIZE_MAX - bytes > remaining) return false;
+      // Keep only the raw URL during the request. The transport escapes it for begin().
+      url.reserve(originBytes + pathBytes);
+      origin = {};
+      bytes = originBytes;
+      browse.expand(activeBrowseOrigin(), activeBrowseUrl(), false, bytes, &url, &origin);
+      return vars.expand({}, path, false, pathBytes, &url);
+    }
+  }
+  url.reserve(pathBytes);
+  return vars.expand({}, path, false, pathBytes, &url);
+}
+
+bool PluginCatalogActivity::substituted(const std::string& tpl, std::string& out, const Item* item, size_t limit,
+                                        std::string_view md5, std::string_view dest) const {
+  Variables vars(*this, item);
+  if (!md5.empty()) {
+    vars.add("{md5}", md5);
+    vars.add("{dest}", dest);
+  }
+  size_t remaining = limit;
+  if (!vars.expand({}, tpl, false, remaining)) return false;
+  size_t size = limit - remaining;
+  out.clear();
+  out.reserve(size);
+  return vars.expand({}, tpl, false, size, &out);
 }
 
 std::string PluginCatalogActivity::downloadDir() const {
@@ -434,7 +579,7 @@ std::string PluginCatalogActivity::downloadDir() const {
 
 PluginCatalogActivity::PluginCatalogActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                              const bool showOpds, const bool rootMode)
-    : CatalogActivity("PluginCatalog", renderer, mappedInput, /*wantsTouchLongPress=*/true),
+    : CatalogActivity("PluginCatalog", renderer, mappedInput, XP_UI_CATALOG_PLUGINS),
       showOpds(showOpds),
       rootMode(rootMode) {}
 
@@ -446,10 +591,21 @@ int PluginCatalogActivity::apiRequest(const pluginhttp::RequestSpec& req, String
 
 void PluginCatalogActivity::onEnter() {
   CatalogActivity::onEnter();
+  if (!hasUiStorage()) return;
+#ifdef CROSSPOINT_UI_ORACLE
+  if (uiOraclePluginEnter(*this)) return;
+#endif
   enterPluginPicker();
 }
 
+void PluginCatalogActivity::render(RenderLock&& lock) {
+  CatalogActivity::render(std::move(lock));
+  // The formatted title is borrowed only while painting, not between frames.
+  std::string().swap(renderedTitle);
+}
+
 void PluginCatalogActivity::enterPluginPicker() {
+  ResourceLock resources(*this);
   Storage.remove(BROWSE_TMP_PATH);
   installedPlugins = discoverPlugins();
   pluginHubAvailable = PluginHubInstallActivity::isAvailable();
@@ -488,18 +644,18 @@ void PluginCatalogActivity::enterPluginPicker() {
   browseCurrentUrl.clear();
   errorMessage.clear();
   session.reset();  // no TLS while only picking
-  state = State::PLUGIN_PICKER;
+  setState(State::PLUGIN_PICKER);
   for (size_t i = 0; i < installedPlugins.size(); ++i) {
     if (installedPlugins[i].name != pickerReturnName) continue;
     const int prefixRows = (showOpds ? 1 : 0) + (showPluginHubInstallRow ? 1 : 0);
-    moveSelectionTo(prefixRows + static_cast<int>(i));
+    selectIndex(prefixRows + static_cast<int>(i));
     break;
   }
   requestUpdate();
 }
 
 void PluginCatalogActivity::confirmUninstallPlugin(const int pickerIndex) {
-  if (state != State::PLUGIN_PICKER) return;
+  if (getState() != State::PLUGIN_PICKER) return;
   const int offset = (showOpds ? 1 : 0) + (showPluginHubInstallRow ? 1 : 0);
   const int pluginIndex = pickerIndex - offset;
   if (pluginIndex < 0 || pluginIndex >= static_cast<int>(installedPlugins.size())) return;
@@ -536,8 +692,6 @@ void PluginCatalogActivity::confirmUninstallPlugin(const int pickerIndex) {
     returnPluginName = installedPlugins[pluginIndex + 1].name;
   else if (pluginIndex > 0)
     returnPluginName = installedPlugins[pluginIndex - 1].name;
-
-  app.clearTapFlash();
   startActivityForResult(std::move(confirmation), [this, plugin, returnPluginName](const ActivityResult& result) {
     if (result.isCancelled) return;
     const bool removed = !Storage.exists(plugin.dir.c_str()) || Storage.removeDir(plugin.dir.c_str());
@@ -548,16 +702,26 @@ void PluginCatalogActivity::confirmUninstallPlugin(const int pickerIndex) {
 }
 
 void PluginCatalogActivity::enterCatalog() {
-  state = State::CHECK_WIFI;
-  resetBrowse();
-  errorMessage.clear();
-  statusMessage = tr(STR_CHECKING_WIFI);
-  session.reset(new (std::nothrow) freeink::SecureHttpClient());
-  if (session) session->setReuse(true);
+  {
+    ResourceLock resources(*this);
+    setState(State::CHECK_WIFI);
+    resetBrowse();
+    errorMessage.clear();
+    statusMessage = tr(STR_CHECKING_WIFI);
+    session.reset(new (std::nothrow) freeink::SecureHttpClient());
+    if (session) session->setReuse(true);
 
-  if (!loadManifest()) {
-    fail(StrId::STR_PLUGIN_MANIFEST_INVALID);
-    return;
+    listIndexLoaded = false;
+    if (!loadManifest()) {
+      fail(StrId::STR_PLUGIN_MANIFEST_INVALID);
+      return;
+    }
+  }
+  const uint8_t flags =
+      (manifest.isXmlList() ? XP_UI_CATALOG_XML : 0) | (manifest.hasDeviceCode() ? XP_UI_CATALOG_DEVICE_CODE : 0);
+  {
+    ModelLock lock(*this);
+    ui.plugin_flags = flags;
   }
   requestUpdate();
   checkAndConnectWifi();
@@ -569,14 +733,18 @@ void PluginCatalogActivity::enterCatalog() {
 void PluginCatalogActivity::exitCatalog() { enterPluginPicker(); }
 
 void PluginCatalogActivity::resetBrowse() {
+  ResourceLock resources(*this);
   items.clear();
-  page = 1;
-  hasMore = false;
-  currentList = -1;
+  {
+    ModelLock lock(*this);
+    ui.page = 1;
+    ui.plugin_flags &= ~XP_UI_CATALOG_MORE;
+    ui.current_list = -1;
+  }
   searchActive = false;
   searchQuery.clear();
   releaseRows();
-  nav.reset();
+  resetSelection();
 }
 
 // Shows the list's notice first when it has one. Declining stays on the
@@ -584,14 +752,20 @@ void PluginCatalogActivity::resetBrowse() {
 void PluginCatalogActivity::openList(const int index) {
   const auto& list = manifest.browseLists[index];
   if (!list.hasNotice()) {
-    currentList = index;
+    {
+      ModelLock lock(*this);
+      ui.current_list = index;
+    }
     startBrowse();
     return;
   }
-  const std::string heading = substituted(list.noticeTitle.empty() ? list.title : list.noticeTitle, nullptr);
-  const std::string message = substituted(list.noticeMessage, nullptr);
-  const std::string cancel = substituted(list.noticeCancel, nullptr);
-  const std::string confirm = substituted(list.noticeConfirm, nullptr);
+  std::string heading, message, cancel, confirm;
+  if (!substituted(list.noticeTitle.empty() ? list.title : list.noticeTitle, heading) ||
+      !substituted(list.noticeMessage, message) || !substituted(list.noticeCancel, cancel) ||
+      !substituted(list.noticeConfirm, confirm)) {
+    fail(StrId::STR_FETCH_FEED_FAILED);
+    return;
+  }
   auto confirmation = makeUniqueNoThrow<ConfirmationActivity>(renderer, mappedInput, heading, message, cancel, confirm);
   if (!confirmation) {
     LOG_ERR("PCAT", "OOM: browse-list notice");
@@ -603,13 +777,16 @@ void PluginCatalogActivity::openList(const int index) {
       if (manifest.browseLists.size() == 1) exitCatalog();
       return;
     }
-    currentList = index;
+    {
+      ModelLock lock(*this);
+      ui.current_list = index;
+    }
     startBrowse();
   });
 }
 
 bool PluginCatalogActivity::wantsListPicker() const {
-  return !manifest.browseLists.empty() && !manifest.isXmlList() && currentList < 0;
+  return !manifest.browseLists.empty() && !manifest.isXmlList() && ui.current_list < 0;
 }
 
 void PluginCatalogActivity::onExit() {
@@ -620,26 +797,39 @@ void PluginCatalogActivity::onExit() {
 }
 
 void PluginCatalogActivity::startBrowse() {
-  const bool needsListAuth = (!manifest.browseListsUrl.empty() && manifest.browseLists.empty()) || wantsListPicker();
+  const bool needsListIndex = !manifest.browseListsUrl.empty() && !listIndexLoaded;
+  const bool needsListAuth = needsListIndex || wantsListPicker();
   if (needsListAuth) {
     // Dynamic list indexes and list pickers may both use {token}/{cfg.KEY}, so
     // resolve credentials before either path. Token-less catalogs skip the gate.
     loadConfig();
-    if (!loadToken() && !(manifest.hasPasswordGrant() && refreshCredentialToken())) {
-      if (manifest.hasDeviceCode()) {
+    int status = 0;
+    if (!loadToken() && !(manifest.hasPasswordGrant() && refreshCredentialToken(status))) {
+      if (status == REQUEST_REFUSED) {
+        fail(StrId::STR_FETCH_FEED_FAILED);
+      } else if (manifest.hasDeviceCode()) {
         beginAuth();  // straight to the QR/code sign-in, no interstitial
       } else {
-        state = State::NO_TOKEN;
+        setState(State::NO_TOKEN);
         requestUpdate();
       }
       return;
     }
   }
-  if (!manifest.browseListsUrl.empty() && manifest.browseLists.empty()) {
-    if (!loadBrowseListIndex()) {
-      fail(StrId::STR_FETCH_FEED_FAILED);
-      return;
+  if (needsListIndex) {
+    int status;
+    if (!loadBrowseListIndex(status)) {
+      if (status == 401 || status == 403) {
+        setState(State::NO_TOKEN);
+        requestUpdate();
+        return;
+      }
+      if (status == REQUEST_REFUSED || manifest.fixedListCount == 0) {
+        fail(StrId::STR_FETCH_FEED_FAILED);
+        return;
+      }
     }
+    listIndexLoaded = true;
   }
   // Browse lists apply to JSON catalogs; XML lists navigate by folder instead.
   if (wantsListPicker()) {
@@ -647,12 +837,18 @@ void PluginCatalogActivity::startBrowse() {
       openList(0);  // a one-entry picker is just an extra click
       return;
     }
-    items.clear();
-    page = 1;
-    hasMore = false;
-    releaseRows();
-    nav.reset();
-    state = State::LIST_PICKER;
+    {
+      ResourceLock resources(*this);
+      items.clear();
+      {
+        ModelLock lock(*this);
+        ui.page = 1;
+        ui.plugin_flags &= ~XP_UI_CATALOG_MORE;
+      }
+      releaseRows();
+      resetSelection();
+      setState(State::LIST_PICKER);
+    }
     requestUpdate();
     return;
   }
@@ -665,33 +861,49 @@ void PluginCatalogActivity::performSearch(const std::string& query) {
     requestUpdate();
     return;
   }
-  searchQuery = query;
-  searchActive = true;
-  currentList = -1;  // search spans the whole catalog, not a single list
-  releaseRows();
-  nav.reset();
+  {
+    ResourceLock resources(*this);
+    searchQuery = query;
+    searchActive = true;
+    {
+      ModelLock lock(*this);
+      ui.current_list = -1;
+    }  // Search spans every list.
+    releaseRows();
+    resetSelection();
+  }
   beginLoading();
   fetchPage(1);
 }
 
-bool PluginCatalogActivity::refreshCredentialToken() {
+bool PluginCatalogActivity::refreshCredentialToken(int& status) {
   loadConfig();
   std::string minted;
-  if (!pluginhttp::mintPasswordToken(session.get(), substituted(manifest.authReq.url, nullptr), manifest.authReq.method,
-                                     substituted(manifest.authReq.body, nullptr),
-                                     substitutedHeaders(manifest.authReq.headers, nullptr), manifest.authTokenPath,
-                                     minted)) {
-    return false;
+  {
+    pluginhttp::RequestSpec req;
+    if (!buildRequest(req, manifest.authReq.url, manifest.authReq.body, manifest.authReq.headers)) {
+      status = REQUEST_REFUSED;
+      return false;
+    }
+    if (!pluginhttp::mintPasswordToken(session.get(), req.url, manifest.authReq.method, req.body, req.headers,
+                                       manifest.authTokenPath, minted)) {
+      return false;
+    }
   }
   if (!saveToken(minted)) return false;
-  token = minted;  // usable immediately, without re-reading the file
+  token = std::move(minted);  // usable immediately, without re-reading the file
   return true;
 }
 
 bool PluginCatalogActivity::fetchBrowseResponse() {
   loadConfig();
-  if (!loadToken() && !(manifest.hasPasswordGrant() && refreshCredentialToken())) {
-    state = State::NO_TOKEN;
+  int status = 0;
+  if (!loadToken() && !(manifest.hasPasswordGrant() && refreshCredentialToken(status))) {
+    if (status == REQUEST_REFUSED) {
+      fail(StrId::STR_FETCH_FEED_FAILED);
+      return false;
+    }
+    setState(State::NO_TOKEN);
     requestUpdate();
     return false;
   }
@@ -700,23 +912,28 @@ bool PluginCatalogActivity::fetchBrowseResponse() {
       fail(StrId::STR_PLUGIN_MANIFEST_INVALID);
       return false;
     }
-    if (browseCurrentUrl.empty()) browseCurrentUrl = substituted(manifest.browseReq.url, nullptr);
+    if (browseCurrentUrl.empty() &&
+        !substituted(manifest.browseReq.url, browseCurrentUrl, nullptr, plugincatalog::MAX_REQUEST_BYTES)) {
+      fail(StrId::STR_FETCH_FEED_FAILED);
+      return false;
+    }
   }
   const auto run = [&] {
-    const pluginhttp::RequestSpec req = {
-        substituted(manifest.isXmlList() ? browseCurrentUrl : activeBrowseUrl(), nullptr), manifest.browseReq.method,
-        substituted(manifest.isXmlList() ? manifest.browseReq.body : activeBrowseBody(), nullptr),
-        substitutedHeaders(manifest.browseReq.headers, nullptr)};
-    return pluginhttp::requestToFile(session.get(), req.url, req.method, req.body, req.headers, BROWSE_TMP_PATH,
-                                     MAX_BROWSE_RESPONSE);
+    pluginhttp::RequestSpec req;
+    if (!buildRequest(req, manifest.isXmlList() ? browseCurrentUrl : activeBrowseUrl(),
+                      manifest.isXmlList() ? manifest.browseReq.body : activeBrowseBody(), manifest.browseReq.headers,
+                      nullptr, activeBrowseOrigin()))
+      return REQUEST_REFUSED;
+    return pluginhttp::requestToFile(session.get(), req.url, manifest.browseReq.method, req.body, req.headers,
+                                     BROWSE_TMP_PATH, MAX_BROWSE_RESPONSE);
   };
-  int status = run();
+  status = run();
   // Rebuild templates with the refreshed token; retry only once.
-  if ((status == 401 || status == 403) && manifest.hasPasswordGrant() && refreshCredentialToken()) status = run();
+  if ((status == 401 || status == 403) && manifest.hasPasswordGrant() && refreshCredentialToken(status)) status = run();
   if (status >= 200 && status < 300) return true;  // includes WebDAV's 207 Multi-Status
-  Storage.remove(BROWSE_TMP_PATH);
+  if (status != REQUEST_REFUSED) Storage.remove(BROWSE_TMP_PATH);
   if (status == 401 || status == 403) {
-    state = State::NO_TOKEN;
+    setState(State::NO_TOKEN);
     requestUpdate();
   } else {
     fail(StrId::STR_FETCH_FEED_FAILED);
@@ -725,6 +942,7 @@ bool PluginCatalogActivity::fetchBrowseResponse() {
 }
 
 bool PluginCatalogActivity::parseXmlList() {
+  ResourceLock resources(*this);
   releaseRows();
   items.clear();
   auto append = [&](XmlListParser::RawItem& row) {
@@ -762,56 +980,76 @@ bool PluginCatalogActivity::parseXmlList() {
     if (a.isDir != b.isDir) return a.isDir;
     return strcasecmp(a.title.c_str(), b.title.c_str()) < 0;
   });
-  hasMore = false;
+  {
+    ModelLock lock(*this);
+    ui.plugin_flags &= ~XP_UI_CATALOG_MORE;
+  }
   return true;
 }
 
 bool PluginCatalogActivity::prevRowVisible() const {
-  return state == State::BROWSING && !manifest.isXmlList() && page > 1;
+  return getState() == State::BROWSING && !manifest.isXmlList() && ui.page > 1;
 }
 
 bool PluginCatalogActivity::nextRowVisible() const {
-  return state == State::BROWSING && !manifest.isXmlList() && hasMore;
+  return getState() == State::BROWSING && !manifest.isXmlList() && (ui.plugin_flags & XP_UI_CATALOG_MORE);
 }
 
 int PluginCatalogActivity::rowCount() const {
-  if (state == State::PLUGIN_PICKER)
+  if (getState() == State::PLUGIN_PICKER)
     return static_cast<int>(installedPlugins.size()) + (showOpds ? 1 : 0) + (showPluginHubInstallRow ? 1 : 0);
-  if (state == State::LIST_PICKER) return static_cast<int>(manifest.browseLists.size());
-  if (state != State::BROWSING) return 0;
+  if (getState() == State::LIST_PICKER) return static_cast<int>(manifest.browseLists.size());
+  if (getState() != State::BROWSING) return 0;
   return static_cast<int>(items.size()) + (prevRowVisible() ? 1 : 0) + (nextRowVisible() ? 1 : 0);
 }
 
 const std::string& PluginCatalogActivity::activeBrowseUrl() const {
   // Search overrides the list view, reusing the browse url when unspecified.
   if (searchActive) return pick(manifest.searchUrl, manifest.browseReq.url);
-  if (currentList < 0 || currentList >= static_cast<int>(manifest.browseLists.size())) return manifest.browseReq.url;
-  return pick(manifest.browseLists[currentList].url, manifest.browseReq.url);
+  if (ui.current_list < 0 || ui.current_list >= static_cast<int>(manifest.browseLists.size()))
+    return manifest.browseReq.url;
+  return pick(manifest.browseLists[ui.current_list].url, manifest.browseReq.url);
+}
+
+std::string_view PluginCatalogActivity::activeBrowseOrigin() const {
+  if (searchActive || ui.current_list < 0 || static_cast<size_t>(ui.current_list) < manifest.fixedListCount ||
+      static_cast<size_t>(ui.current_list) >= manifest.browseLists.size())
+    return {};
+  return UrlUtils::isServerPath(manifest.browseLists[ui.current_list].url) ? std::string_view(manifest.listOrigin)
+                                                                           : std::string_view{};
 }
 
 const std::string& PluginCatalogActivity::activeBrowseBody() const {
   if (searchActive) return pick(manifest.searchBody, manifest.browseReq.body);
-  if (currentList < 0 || currentList >= static_cast<int>(manifest.browseLists.size())) return manifest.browseReq.body;
-  return pick(manifest.browseLists[currentList].body, manifest.browseReq.body);
+  if (ui.current_list < 0 || ui.current_list >= static_cast<int>(manifest.browseLists.size()))
+    return manifest.browseReq.body;
+  return pick(manifest.browseLists[ui.current_list].body, manifest.browseReq.body);
+}
+
+plugincatalogpaging::Paging PluginCatalogActivity::browsePaging() const {
+  return plugincatalogpaging::pagingOf(activeBrowseUrl(), activeBrowseBody(), manifest.browseReq.headers,
+                                       activeBrowseOrigin());
 }
 
 void PluginCatalogActivity::fetchPage(const int newPage) {
-  if (!manifest.isXmlList()) page = newPage;
+  if (!manifest.isXmlList()) {
+    ModelLock lock(*this);
+    ui.page = newPage;
+  }
   if (!fetchBrowseResponse() || !parseBrowseResponse()) return;
-  nav.reset();
-  state = State::BROWSING;
+  resetSelection();
+  setState(State::BROWSING);
   requestUpdate();
 }
 
 bool PluginCatalogActivity::parseBrowseResponse() {
+  ResourceLock resources(*this);
   if (manifest.isXmlList()) return parseXmlList();
 
-  // Requests with {page} are already sliced server-side. Static JSON files
-  // need a bounded client-side page window into the streamed response.
-  const bool localPaging =
-      plugincatalogpaging::isStaticFeed(activeBrowseUrl(), activeBrowseBody(), manifest.browseReq.headers);
+  const auto paging = browsePaging();
+  const bool localPaging = paging == plugincatalogpaging::Paging::Static;
   const size_t pageOffset =
-      localPaging ? static_cast<size_t>(std::max(0, page - 1)) * static_cast<size_t>(manifest.pageSize) : 0;
+      localPaging ? static_cast<size_t>(std::max<int32_t>(0, ui.page - 1)) * static_cast<size_t>(manifest.pageSize) : 0;
 
   // Static catalogs paginate *compatible* entries rather than raw entries,
   // so incompatible plugins cannot create empty or misleading pages.
@@ -820,17 +1058,14 @@ bool PluginCatalogActivity::parseBrowseResponse() {
   if (manifest.filtersCompatibility()) {
     compatibleRows.reserve(manifest.pageSize);
     int rowIndex = 0;
-    plugincatalogpaging::PageWindow filteredWindow(pageOffset, manifest.pageSize);
-    plugincatalogpaging::PageWindow serverWindow(0, manifest.pageSize);
+    plugincatalogpaging::PageWindow compatibleWindow(pageOffset, manifest.pageSize);
     const std::string unused;
     auto selectCompatible = [&](JsonListParser::Row& row) {
       const int thisRow = rowIndex++;
-      if (row.field[JsonListParser::F_TITLE].empty()) return;
-      const bool compatible =
+      const bool shown =
+          !row.field[JsonListParser::F_TITLE].empty() &&
           catalogEntryCompatible(row.field[COMPAT_FAMILY], row.field[COMPAT_API_MIN], row.field[COMPAT_REQUIRES]);
-      if (localPaging) {
-        if (filteredWindow.take(compatible)) compatibleRows.push_back(thisRow);
-      } else if (serverWindow.take() && compatible) {
+      if (compatibleWindow.take(plugincatalogpaging::countsTowardPage(paging, shown)) && shown) {
         compatibleRows.push_back(thisRow);
       }
     };
@@ -848,7 +1083,7 @@ bool PluginCatalogActivity::parseBrowseResponse() {
       fail(StrId::STR_PARSE_FEED_FAILED);
       return false;
     }
-    rawHasMore = localPaging ? filteredWindow.hasMore() : serverWindow.hasMore();
+    rawHasMore = compatibleWindow.hasMore(paging);
   }
 
   releaseRows();
@@ -862,7 +1097,8 @@ bool PluginCatalogActivity::parseBrowseResponse() {
     if (manifest.filtersCompatibility()) {
       if (compatibleIndex >= compatibleRows.size() || compatibleRows[compatibleIndex] != thisRow) return;
       compatibleIndex++;
-    } else if (!visibleWindow.take(!row.field[JsonListParser::F_TITLE].empty())) {
+    } else if (!visibleWindow.take(
+                   plugincatalogpaging::countsTowardPage(paging, !row.field[JsonListParser::F_TITLE].empty()))) {
       return;
     }
     if (row.field[JsonListParser::F_TITLE].empty()) return;
@@ -887,7 +1123,11 @@ bool PluginCatalogActivity::parseBrowseResponse() {
     fail(StrId::STR_PARSE_FEED_FAILED);
     return false;
   }
-  hasMore = manifest.filtersCompatibility() ? rawHasMore : visibleWindow.hasMore();
+  const bool more = manifest.filtersCompatibility() ? rawHasMore : visibleWindow.hasMore(paging);
+  {
+    ModelLock lock(*this);
+    ui.plugin_flags = (ui.plugin_flags & ~XP_UI_CATALOG_MORE) | (more ? XP_UI_CATALOG_MORE : 0);
+  }
   computeInstallStatus();
   return true;
 }
@@ -897,6 +1137,7 @@ bool PluginCatalogActivity::parseBrowseResponse() {
 // catalog version is an update, so an older catalog never offers a downgrade.
 // Runs once per page.
 void PluginCatalogActivity::computeInstallStatus() {
+  ResourceLock resources(*this);
   if (!manifest.tracksInstalls()) return;
   JsonDocument filter;
   filter["version"] = true;
@@ -926,13 +1167,23 @@ void PluginCatalogActivity::beginAuth() {
   beginLoading();
 
   String response;
-  const int status = apiRequest(substitutedRequest(manifest.authReq), response);
+  int status;
+  {
+    pluginhttp::RequestSpec req;
+    req.method = manifest.authReq.method;
+    if (!buildRequest(req, manifest.authReq.url, manifest.authReq.body, manifest.authReq.headers)) {
+      fail(StrId::STR_FETCH_FEED_FAILED);
+      return;
+    }
+    status = apiRequest(req, response);
+  }
   JsonDocument doc;
   if (status < 200 || status >= 300 || deserializeJson(doc, response) != DeserializationError::Ok) {
     fail(StrId::STR_PLUGIN_AUTH_FAILED);
     return;
   }
   const JsonVariantConst root = doc.as<JsonVariantConst>();
+  ResourceLock resources(*this);
   authUserCode = variantToString(resolvePath(root, manifest.authCodePath));
   authVerifyUrl = variantToString(resolvePath(root, manifest.authVerifyPath));
   authDeviceCode = variantToString(resolvePath(root, manifest.authDeviceCodePath));
@@ -944,8 +1195,12 @@ void PluginCatalogActivity::beginAuth() {
   }
   authIntervalMs = (interval < 3 ? 3 : interval) * 1000UL;
   authDeadlineMs = millis() + (expires < 60 ? 60 : expires) * 1000UL;
-  authNextPollMs = millis() + authIntervalMs;
-  state = State::AUTH;
+  const auto nextPoll = millis() + authIntervalMs;
+  {
+    ModelLock lock(*this);
+    ui.auth_next_poll_ms = nextPoll;
+  }
+  setState(State::AUTH);
   requestUpdate();
 }
 
@@ -956,12 +1211,18 @@ void PluginCatalogActivity::pollAuth() {
     fail(StrId::STR_PLUGIN_AUTH_FAILED);
     return;
   }
-  authNextPollMs = millis() + authIntervalMs;
+  const auto nextPoll = millis() + authIntervalMs;
+  {
+    ModelLock lock(*this);
+    ui.auth_next_poll_ms = nextPoll;
+  }
 
-  auto req = substitutedRequest(manifest.pollReq);
-  substituteAll(req.url, "{device_code}", authDeviceCode);
-  substituteAll(req.body, "{device_code}", authDeviceCode);
-
+  pluginhttp::RequestSpec req;
+  req.method = manifest.pollReq.method;
+  if (!buildRequest(req, manifest.pollReq.url, manifest.pollReq.body, manifest.pollReq.headers, nullptr, {}, true)) {
+    fail(StrId::STR_FETCH_FEED_FAILED);
+    return;
+  }
   String response;
   const int status = apiRequest(req, response);
   if (status < 0) return;  // transient transport failure: keep polling
@@ -993,11 +1254,10 @@ void PluginCatalogActivity::downloadItem(const int itemIndex) {
   // Own only the selected item's metadata while TLS needs the catalog's heap.
   Item item;
   {
-    RenderLock lock;
+    ResourceLock lock(*this);
     item = std::move(items[itemIndex]);
     beginDownload(item.title);
     releaseRows();
-    std::vector<fui::ListItem>().swap(rowItems);
     std::vector<Item>().swap(items);
   }
   requestUpdateAndWait();
@@ -1012,13 +1272,14 @@ void PluginCatalogActivity::downloadItem(const int itemIndex) {
 }
 
 void PluginCatalogActivity::downloadFinished(const bool cancelled) {
-  state = cancelled ? State::BROWSING : State::DONE;
+  setState(cancelled ? State::BROWSING : State::DONE);
   requestUpdate();
 }
 
 HttpDownloader::DownloadError PluginCatalogActivity::downloadBundle(const Item& item) {
   session.reset();
-  const std::string subdir = substituted(manifest.bundleSubdir, &item);
+  std::string subdir;
+  if (!substituted(manifest.bundleSubdir, subdir, &item)) return HttpDownloader::HTTP_ERROR;
   // Reject traversal, the current-directory alias, and ambiguous backslash separators.
   if (subdir.empty() || subdir == "." || subdir.find("..") != std::string::npos ||
       subdir.find('\\') != std::string::npos || subdir.front() == '/') {
@@ -1035,6 +1296,12 @@ HttpDownloader::DownloadError PluginCatalogActivity::downloadBundle(const Item& 
     dir += '/';
     dir += subdir;
   }
+  plugincatalog::Template literal;
+  const bool separator = !item.base.empty() && item.base.back() != '/';
+  const auto relative = [](std::string_view path) {
+    const auto first = path.find_first_not_of('/');
+    return first == path.npos ? std::string_view{} : path.substr(first);
+  };
   if (Storage.exists(dir.c_str())) {
     HalFile target = Storage.open(dir.c_str());
     if (!target || !target.isDirectory()) {
@@ -1045,8 +1312,6 @@ HttpDownloader::DownloadError PluginCatalogActivity::downloadBundle(const Item& 
     LOG_ERR("PCAT", "bundle mkdir failed: %s", dir.c_str());
     return HttpDownloader::FILE_ERROR;
   }
-  std::string base = item.base;
-  if (!base.empty() && base.back() != '/') base += '/';
   const size_t total = item.files.size();
   // Every file downloads to <dest>.new first and replaces <dest> only once the
   // whole bundle has arrived, so a failed or cancelled update leaves the
@@ -1061,9 +1326,12 @@ HttpDownloader::DownloadError PluginCatalogActivity::downloadBundle(const Item& 
     Storage.rmdir(dir.c_str());  // only succeeds when the folder is empty (a fresh install)
   }};
   for (size_t i = 0; i < total; i++) {
-    std::string rel = item.files[i];
-    while (!rel.empty() && rel.front() == '/') rel.erase(rel.begin());
-    const std::string dest = dir + "/" + rel;
+    const auto rel = relative(item.files[i]);
+    size_t remaining = plugincatalog::MAX_REQUEST_BYTES - separator;
+    if (!literal.expand({}, item.base, true, remaining) || !literal.expand({}, rel, true, remaining))
+      return HttpDownloader::REQUEST_TOO_LARGE;
+    std::string dest = dir + "/";
+    dest.append(rel);
     if (rel.empty() || !protectedpaths::isPluginPath(dest)) {
       // A manifest listing traversal or credential-store entries is hostile
       // or broken either way; abort rather than install a bundle with holes.
@@ -1076,7 +1344,13 @@ HttpDownloader::DownloadError PluginCatalogActivity::downloadBundle(const Item& 
       const std::string parent = dest.substr(0, slash);
       if (!Storage.exists(parent.c_str())) Storage.mkdir(parent.c_str());
     }
-    const auto result = downloadFile(base + rel, dest + ".new");
+    size_t space = plugincatalog::MAX_REQUEST_BYTES - remaining;
+    std::string url;
+    url.reserve(space);
+    literal.expand({}, item.base, true, space, &url);
+    if (separator) url += '/';
+    literal.expand({}, rel, true, space, &url);
+    const auto result = downloadFile(url, dest + ".new");
     if (result != HttpDownloader::OK) return result;
     staged.push_back(dest);
   }
@@ -1099,181 +1373,156 @@ HttpDownloader::DownloadError PluginCatalogActivity::downloadBundle(const Item& 
 }
 
 HttpDownloader::DownloadError PluginCatalogActivity::downloadBook(const Item& item) {
-  // Resolve the file URL: either the template itself, or one API hop away.
-  std::string fileUrl;
-  if (!manifest.dlUrlPath.empty()) {
-    String response;
-    int status = apiRequest(substitutedRequest(manifest.downloadReq, &item), response);
-    // An expired password-grant token: mint a fresh one and retry once.
-    if ((status == 401 || status == 403) && manifest.hasPasswordGrant() && refreshCredentialToken()) {
-      status = apiRequest(substitutedRequest(manifest.downloadReq, &item), response);
-    }
-    if (status < 200 || status >= 300) {
-      return HttpDownloader::HTTP_ERROR;
-    }
-    JsonDocument doc;
-    if (deserializeJson(doc, response) != DeserializationError::Ok) {
-      return HttpDownloader::HTTP_ERROR;
-    }
-    fileUrl = variantToString(resolvePath(doc.as<JsonVariantConst>(), manifest.dlUrlPath));
-  } else {
-    fileUrl = substituted(manifest.downloadReq.url, &item);
-  }
-  if (fileUrl.empty()) {
-    return HttpDownloader::FILE_ERROR;
-  }
-
-  const std::string folderDir = downloadDir();
-  const char* folder = folderDir.c_str();
-  bool haveFolder = folder[0] != '\0';
-  if (haveFolder && !Storage.exists(folder) && !Storage.mkdir(folder)) {
-    LOG_ERR("PCAT", "mkdir failed for %s, using SD root", folder);
-    haveFolder = false;
-  }
-
-  // Sanitize after substitution so the byte limit applies to the complete
-  // filename and does not remove an extension already present in {title}.
-  const std::string filename =
-      StringUtils::sanitizeFilenamePreservingExtension(substituted(manifest.filenameTpl, &item));
-  if (filename.empty() || filename.find("..") != std::string::npos || filename.find('/') != std::string::npos) {
-    LOG_ERR("PCAT", "unsafe filename rejected: %s", filename.c_str());
-    return HttpDownloader::FILE_ERROR;
-  }
   std::string dest;
-  dest.reserve((haveFolder ? folderDir.size() : 0) + 1 + filename.size());
-  if (haveFolder) dest += folder;
-  dest += '/';
-  dest += filename;
-  if (!protectedpaths::isPluginPath(dest)) {
-    LOG_ERR("PCAT", "unsafe download dest rejected: %s", dest.c_str());
-    return HttpDownloader::FILE_ERROR;
-  }
+  {
+    // Resolve the file URL: either the template itself, or one API hop away.
+    pluginhttp::RequestSpec file;
+    DownloadCredentials credentials;
+    const pluginhttp::Headers none;
+    bool sendHeaders = true;
+    int status = 0;
+    const auto prepare = [&](std::string_view url, std::string_view prefix, bool literal) {
+      return buildRequest(file, url, "", sendHeaders ? manifest.downloadReq.headers : none, &item, prefix, false,
+                          literal, &credentials);
+    };
+    if (manifest.dlUrlPath.empty()) {
+      session.reset();
+      if (!prepare(manifest.downloadReq.url, {}, false)) return HttpDownloader::REQUEST_TOO_LARGE;
+    } else {
+      JsonDocument doc;
+      std::string apiUrl;
+      const auto resolve = [&] {
+        pluginhttp::RequestSpec req;
+        if (!buildRequest(req, manifest.downloadReq.url, manifest.downloadReq.body, manifest.downloadReq.headers,
+                          &item))
+          return REQUEST_REFUSED;
+        String response;
+        const int code = pluginhttp::request(session.get(), req.url, manifest.downloadReq.method, req.body, req.headers,
+                                             response, MAX_API_RESPONSE);
+        if (code >= 200 && code < 300) {
+          session.reset();
+          if (deserializeJson(doc, response) != DeserializationError::Ok) return -1;
+          apiUrl = std::move(req.url);
+        }
+        return code;
+      };
+      status = resolve();
+      if ((status == 401 || status == 403) && manifest.hasPasswordGrant() && refreshCredentialToken(status))
+        status = resolve();
+      if (status == REQUEST_REFUSED) return HttpDownloader::REQUEST_TOO_LARGE;
+      if (status < 200 || status >= 300) return HttpDownloader::HTTP_ERROR;
+      const auto value = resolvePath(doc.as<JsonVariantConst>(), manifest.dlUrlPath);
+      const char* borrowed = value.as<const char*>();
+      const std::string scalar = borrowed ? std::string{} : variantToString(value);
+      const std::string_view returned = borrowed ? std::string_view(borrowed) : std::string_view(scalar);
+      const auto origin = UrlUtils::origin(apiUrl);
+      sendHeaders = UrlUtils::isServerPath(returned) && !origin.empty();
+      if (!prepare(returned, sendHeaders ? origin : std::string_view{}, true)) return HttpDownloader::REQUEST_TOO_LARGE;
+    }
+    if (file.url.empty()) return HttpDownloader::FILE_ERROR;
 
-  // url_path already authenticated the JSON hop; the resolved file URL must not
-  // inherit those headers (S3 pre-signed GETs reject a second Authorization).
-  const auto fetchFile = [&] {
-    const std::vector<HttpDownloader::Header> fileHeaders =
-        manifest.dlUrlPath.empty() ? substitutedHeaders(manifest.downloadReq.headers, &item)
-                                   : std::vector<HttpDownloader::Header>{};
-    return downloadFile(fileUrl, dest, substituted(manifest.dlUser, &item), substituted(manifest.dlPass, &item),
-                        fileHeaders);
-  };
-  session.reset();  // free browse TLS before the large file GET
-  auto result = fetchFile();
-  // The direct GET carries the catalog's token templates (never a pre-signed
-  // url_path target): an expired password-grant token gets one mint-and-retry.
-  if (result == HttpDownloader::UNAUTHORIZED && manifest.dlUrlPath.empty() && manifest.hasPasswordGrant() &&
-      refreshCredentialToken()) {
-    result = fetchFile();
+    dest = downloadDir();
+    if (!dest.empty() && !Storage.exists(dest.c_str()) && !Storage.mkdir(dest.c_str())) {
+      LOG_ERR("PCAT", "mkdir failed for %s, using SD root", dest.c_str());
+      std::string().swap(dest);
+    }
+    {
+      std::string filename;
+      if (!substituted(manifest.filenameTpl, filename, &item)) return HttpDownloader::FILE_ERROR;
+      filename = StringUtils::sanitizeFilenamePreservingExtension(filename);
+      if (filename.empty() || filename.find("..") != std::string::npos || filename.find('/') != std::string::npos)
+        return HttpDownloader::FILE_ERROR;
+      dest.reserve(dest.size() + 1 + filename.size());
+      dest += '/';
+      dest += filename;
+    }
+    if (!protectedpaths::isPluginPath(dest)) return HttpDownloader::FILE_ERROR;
+    const auto fetch = [&] {
+      const std::string escaped = pluginhttp::escapeUrl(file.url);
+      return downloadFile(escaped.empty() ? file.url : escaped, dest, credentials.user, credentials.password,
+                          file.headers);
+    };
+    auto result = fetch();
+    if (result == HttpDownloader::UNAUTHORIZED && sendHeaders && manifest.hasPasswordGrant()) {
+      {
+        std::string frozen = std::move(file.url);
+        pluginhttp::Headers().swap(file.headers);
+        std::string().swap(credentials.user);
+        std::string().swap(credentials.password);
+        if (!refreshCredentialToken(status))
+          return status == REQUEST_REFUSED ? HttpDownloader::REQUEST_TOO_LARGE : result;
+        if (!prepare(frozen, {}, true)) return HttpDownloader::REQUEST_TOO_LARGE;
+      }
+      result = fetch();
+    }
+    if (result != HttpDownloader::OK) return result;
   }
-  if (result != HttpDownloader::OK) return result;
   clearBookCache(dest);
   if (library::isLibraryBookFile(dest)) library::markLibraryIndexDirty();
-
-  // Optional per-book sidecar (e.g. a service book id keyed by the file's
-  // path hash) so a later sync stage can associate the file with the service.
   if (!manifest.sidecarPath.empty() && !manifest.sidecarBody.empty()) {
     const std::string md5 = md5Hex(dest);
-    std::string path = substituted(manifest.sidecarPath, &item);
-    substituteAll(path, "{md5}", md5);
-    // {dest} is the sanitized on-SD path of the downloaded file, so a sidecar
-    // can sit next to it ("{dest}.meta.json" - the book metadata convention);
-    // {title} alone cannot express that, since the filename is sanitized.
-    substituteAll(path, "{dest}", dest);
-    // Sidecar paths legitimately contain '/', but the substituted fields must
-    // not climb out of the tree or land on a credential store.
-    if (!protectedpaths::isPluginPath(path)) {
-      LOG_ERR("PCAT", "unsafe sidecar path rejected: %s", path.c_str());
-    } else {
-      std::string body = substituted(manifest.sidecarBody, &item);
-      substituteAll(body, "{md5}", md5);
-      substituteAll(body, "{dest}", dest);
-      if (!Storage.writeFile(path.c_str(), String(body.c_str())))
-        LOG_ERR("PCAT", "Sidecar write failed: %s", path.c_str());
-    }
+    std::string path, body;
+    if (!substituted(manifest.sidecarPath, path, &item, plugincatalog::MAX_REQUEST_BYTES, md5, dest) ||
+        !protectedpaths::isPluginPath(path) ||
+        !substituted(manifest.sidecarBody, body, &item, plugincatalog::MAX_REQUEST_BYTES, md5, dest) ||
+        !Storage.writeFile(path.c_str(), String(body.c_str())))
+      LOG_ERR("PCAT", "Sidecar write failed: %s", path.c_str());
   }
 
   emitBookDownloaded(manifestPath, dest, item.title);
   return HttpDownloader::OK;
 }
 
-// Sign-in and completion states precede the shared catalog input handling.
-void PluginCatalogActivity::onRowLongPress(const int index) {
-  if (state != State::PLUGIN_PICKER) return;
-  activeNav().selected = index;
-  confirmUninstallPlugin(index);
-}
-
-bool PluginCatalogActivity::handleButtons() {
-  if (state == State::PLUGIN_PICKER &&
-      mappedInput.wasLongPressed(MappedInputManager::Button::Confirm, PLUGIN_UNINSTALL_HOLD_MS)) {
-    confirmUninstallPlugin(activeNav().selected);
-    return true;
-  }
-  return UiListActivity::handleButtons();
-}
-
-bool PluginCatalogActivity::handleCustomInput() {
-  if (ignoreHubInstallerBackRelease) {
-    if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-      ignoreHubInstallerBackRelease = false;
-      return true;
-    }
-    if (!mappedInput.isPressed(MappedInputManager::Button::Back)) ignoreHubInstallerBackRelease = false;
-  }
-  if (pluginHubPopup.handleInput(mappedInput, [this] { requestUpdate(); })) return true;
-
-  if (state == State::AUTH) {
-    if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-      state = State::NO_TOKEN;
-      requestUpdate();
-      return true;
-    }
-    if (static_cast<long>(millis() - authNextPollMs) >= 0) pollAuth();
-    return true;
-  }
-
-  if (state == State::NO_TOKEN) {
-    // Back first: a header back tap is also a screen tap, which means sign in here.
-    int tx = 0;
-    int ty = 0;
-    if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-      exitCatalog();
-    } else if (mappedInput.wasReleased(MappedInputManager::Button::Confirm) || mappedInput.wasScreenTapped(tx, ty)) {
-      if (!wifiConnected())
-        launchWifiSelection();
-      else
-        retryBrowse();
-    }
-    return true;
-  }
-
-  if (state == State::DONE) {
-    int tx = 0;
-    int ty = 0;
-    if (mappedInput.wasReleased(MappedInputManager::Button::Confirm) ||
-        mappedInput.wasReleased(MappedInputManager::Button::Back) || mappedInput.wasScreenTapped(tx, ty)) {
-      // The just-finished download may have installed/updated a plugin; refresh
-      // the install badges so the row no longer reads "Update".
+void PluginCatalogActivity::catalogEffect(const XpUiEffect& effect) {
+  switch (effect.kind) {
+    case XP_UI_CATALOG_COMPLETE:
       computeInstallStatus();
       releaseRows();
-      state = State::BROWSING;
+      setState(State::BROWSING);
       requestUpdate();
-    }
-    return true;
+      break;
+    case XP_UI_CATALOG_POLL_AUTH:
+      pollAuth();
+      break;
+    case XP_UI_CATALOG_UNINSTALL:
+      confirmUninstallPlugin(effect.value);
+      break;
+    case XP_UI_CATALOG_HUB_OPTION:
+      if (effect.value == 0) {
+        auto installer = makeUniqueNoThrow<PluginHubInstallActivity>(renderer, mappedInput, false);
+        if (!installer) {
+          LOG_ERR("PCAT", "OOM: Plugin Hub installer");
+          return;
+        }
+        startActivityForResult(std::move(installer), [this](const ActivityResult& result) {
+          const bool ignoreBack = result.isCancelled && mappedInput.isPressed(MappedInputManager::Button::Back);
+          {
+            ModelLock lock(*this);
+            ui.ignore_back = ignoreBack;
+          }
+          enterPluginPicker();
+        });
+      } else if (effect.value == 1) {
+        SETTINGS.pluginHubPromptHidden = 1;
+        SETTINGS.saveToFile();
+        enterPluginPicker();
+      }
+      requestUpdate();
+      break;
+    default:
+      CatalogActivity::catalogEffect(effect);
+      break;
   }
-
-  return CatalogActivity::handleCustomInput();
 }
 
 void PluginCatalogActivity::retryBrowse() {
-  if (state == State::NO_TOKEN && manifest.hasDeviceCode()) {
+  if (getState() == State::NO_TOKEN && manifest.hasDeviceCode()) {
     beginAuth();
-  } else if ((!manifest.browseListsUrl.empty() && manifest.browseLists.empty()) || wantsListPicker()) {
+  } else if ((!manifest.browseListsUrl.empty() && !listIndexLoaded) || wantsListPicker()) {
     startBrowse();
   } else {
     beginLoading();
-    fetchPage(page);
+    fetchPage(ui.page);
   }
 }
 
@@ -1281,11 +1530,12 @@ void PluginCatalogActivity::retryBrowse() {
 // handleButtons. The catalog states route their Back through exitCatalog()
 // instead, landing back on the picker.
 void PluginCatalogActivity::onBackButton() {
-  if (state == State::ERROR || state == State::CHECK_WIFI || state == State::LOADING) {
+  if (getState() == State::ERROR || getState() == State::CHECK_WIFI || getState() == State::LOADING ||
+      getState() == State::NO_TOKEN) {
     exitCatalog();
     return;
   }
-  if (state == State::PLUGIN_PICKER) {
+  if (getState() == State::PLUGIN_PICKER) {
     if (rootMode) {
       onGoHome();  // home launch replaced the home screen (root)
     } else {
@@ -1295,9 +1545,15 @@ void PluginCatalogActivity::onBackButton() {
   }
   if (searchActive) {
     // Leave the results and return to the pre-search view (picker or page 1).
-    searchActive = false;
-    searchQuery.clear();
-    if (manifest.browseLists.size() == 1) currentList = 0;  // its notice was already accepted
+    {
+      ResourceLock resources(*this);
+      searchActive = false;
+      searchQuery.clear();
+      if (manifest.browseLists.size() == 1) {
+        ModelLock lock(*this);
+        ui.current_list = 0;
+      }  // Its notice was already accepted.
+    }
     startBrowse();
     return;
   }
@@ -1305,10 +1561,13 @@ void PluginCatalogActivity::onBackButton() {
     browseCurrentUrl = browseHistory.back();
     browseHistory.pop_back();
     beginLoading();
-    fetchPage(page);
-  } else if (state == State::BROWSING && currentList >= 0 && manifest.browseLists.size() > 1) {
+    fetchPage(ui.page);
+  } else if (getState() == State::BROWSING && ui.current_list >= 0 && manifest.browseLists.size() > 1) {
     // Browsing a picked list: Back returns to the list picker, not out.
-    currentList = -1;
+    {
+      ModelLock lock(*this);
+      ui.current_list = -1;
+    }
     startBrowse();
   } else {
     exitCatalog();
@@ -1316,34 +1575,20 @@ void PluginCatalogActivity::onBackButton() {
 }
 
 void PluginCatalogActivity::activateIndex(const int index) {
-  if (state == State::PLUGIN_PICKER) {
+  if (getState() == State::PLUGIN_PICKER) {
     if (index < 0 || index >= rowCount()) return;
     if (showOpds && index == 0) {
-      app.clearTapFlash();            // the row leaves this screen
       activityManager.goToBrowser();  // replaces this screen with the OPDS browser
       return;
     }
     const int pluginStart = showOpds ? 1 : 0;
     if (showPluginHubInstallRow && index == pluginStart) {
-      static constexpr StrId OPTIONS[] = {StrId::STR_INSTALL, StrId::STR_HIDE, StrId::STR_CANCEL};
-      pluginHubPopup.show(StrId::STR_PLUGIN_HUB, OPTIONS, 3, 0, [this](const int selected) {
-        if (selected == 0) {
-          auto installer = makeUniqueNoThrow<PluginHubInstallActivity>(renderer, mappedInput, false);
-          if (!installer) {
-            LOG_ERR("PCAT", "OOM: Plugin Hub installer");
-            return;
-          }
-          startActivityForResult(std::move(installer), [this](const ActivityResult& result) {
-            ignoreHubInstallerBackRelease =
-                result.isCancelled && mappedInput.isPressed(MappedInputManager::Button::Back);
-            enterPluginPicker();
-          });
-        } else if (selected == 1) {
-          SETTINGS.pluginHubPromptHidden = 1;
-          SETTINGS.saveToFile();
-          enterPluginPicker();
-        }
-      });
+      ResourceLock resources(*this);
+      {
+        ModelLock lock(*this);
+        ui.popup = 1;
+      }
+      closeRouting();
       requestUpdate();
       return;
     }
@@ -1361,40 +1606,49 @@ void PluginCatalogActivity::activateIndex(const int index) {
                 plugin.readmePath.c_str());
         return;
       }
-      auto viewer =
-          makeUniqueNoThrow<DictionaryDefinitionActivity>(renderer, mappedInput, plugin.title, std::move(text));
-      if (!viewer) {
+      XpDefinitionNativeTransfer transfer{};
+      transfer.title = &plugin.title;
+      transfer.text.move = &text;
+      transfer.kind = XpDefinitionNativeTransfer::TextKind::Move;
+      if (!xp_app_definition_open_native(&transfer)) {
         LOG_ERR("PCAT", "OOM: README viewer");
         return;
       }
-      app.clearTapFlash();
-      startActivityForResult(std::move(viewer), [](const ActivityResult&) {});
+      resultHandler = [](const ActivityResult&) {};
       return;
     }
     if (action != PluginLocations::PickerAction::Catalog) return;
-    app.clearTapFlash();  // the row leaves this screen
-    pickerReturnName = plugin.name;
-    manifestPath = plugin.manifestPath;
-    catalogTitle = plugin.title;
+    {
+      ResourceLock resources(*this);
+      pickerReturnName = plugin.name;
+      manifestPath = plugin.manifestPath;
+      catalogTitle = plugin.title;
+    }
     enterCatalog();
     return;
   }
-  if (state == State::LIST_PICKER) {
+  if (getState() == State::LIST_PICKER) {
     if (index < 0 || index >= static_cast<int>(manifest.browseLists.size())) return;
-    app.clearTapFlash();
     openList(index);
     return;
   }
   // The pager rows bracket the items: "Previous page" ahead of them past
   // page 1, "Next page" after them while more pages exist.
-  const int itemIndex = index - (prevRowVisible() ? 1 : 0);
-  if (itemIndex == -1 || (nextRowVisible() && itemIndex == static_cast<int>(items.size()))) {
-    app.clearTapFlash();
-    beginLoading();
-    fetchPage(itemIndex == -1 ? page - 1 : page + 1);
+  int itemIndex;
+  bool paging;
+  {
+    ResourceLock resources(*this);
+    {
+      ModelLock lock(*this);
+      itemIndex = xp_ui_catalog_item(&ui, index, items.size());
+    }
+    paging = itemIndex == -1 || (nextRowVisible() && itemIndex == static_cast<int>(items.size()));
+    if (paging) beginLoading();
+  }
+  if (paging) {
+    fetchPage(ui.page);
     return;
   }
-  app.clearTapFlash();  // the row leaves this screen (folder, download view)
   activateItem(itemIndex);
 }
 
@@ -1405,7 +1659,7 @@ void PluginCatalogActivity::activateItem(const int itemIndex) {
     browseHistory.push_back(browseCurrentUrl);
     browseCurrentUrl = item.url;
     beginLoading();
-    fetchPage(page);
+    fetchPage(ui.page);
     return;
   }
   if (!manifest.isXmlList() && manifest.hasItemDetails()) {
@@ -1482,7 +1736,11 @@ void PluginCatalogActivity::showItemDetails(const int itemIndex) {
   if (!details.repository.empty()) spec.source = std::string(tr(STR_REPOSITORY)) + ": " + details.repository;
   if (!details.detailsUrl.empty()) {
     String response;
-    const std::string url = substituted(details.detailsUrl, &item);
+    std::string url;
+    if (!detailsRequest(url, details.detailsUrl, item)) {
+      fail(StrId::STR_FETCH_FEED_FAILED);
+      return;
+    }
     const int status = pluginhttp::request(session.get(), url, "GET", "", {}, response, MAX_ITEM_DETAILS_RESPONSE);
     const bool html = details.detailsFormat == "html";
     if (status < 200 || status >= 300 || response.length() == 0) {
@@ -1519,21 +1777,20 @@ void PluginCatalogActivity::showItemDetails(const int itemIndex) {
 }
 
 void PluginCatalogActivity::drawFooter() {
-  // The QR is a raw-renderer overlay (FreeInkUI has no QR component); the base
-  // render() calls drawFooter() after the app has painted.
-  if (state == State::AUTH && authQrRect.width > 0) {
-    QrUtils::drawQrCode(renderer, Rect{authQrRect.x, authQrRect.y, authQrRect.width, authQrRect.height}, authVerifyUrl);
+  if (paintState.popup) {
+    CatalogUiActivity::drawFooter();
+    return;
   }
   MappedInputManager::Labels labels;
-  switch (state) {
+  switch (static_cast<State>(paintState.mode)) {
     case State::BROWSING:
     case State::LIST_PICKER:
     case State::PLUGIN_PICKER: {
       const int count = rowCount();
       const int prevOff = prevRowVisible() ? 1 : 0;
-      const int itemSel = nav.selected - prevOff;
+      const int itemSel = paintState.list.selected - prevOff;
       const char* confirmLabel;
-      if (state != State::BROWSING) {
+      if (static_cast<State>(paintState.mode) != State::BROWSING) {
         confirmLabel = count > 0 ? tr(STR_OPEN) : "";
       } else {
         const bool onItem = itemSel >= 0 && itemSel < static_cast<int>(items.size());
@@ -1543,7 +1800,8 @@ void PluginCatalogActivity::drawFooter() {
       }
       // On the top row of a searchable catalog the previous-nav slot becomes
       // Search (front Left), mirroring the OPDS browser's side-button search.
-      const bool searchable = state == State::BROWSING && manifest.hasSearch() && nav.selected == 0;
+      const bool searchable = static_cast<State>(paintState.mode) == State::BROWSING && manifest.hasSearch() &&
+                              paintState.list.selected == 0;
       const char* up = searchable ? tr(STR_SEARCH) : (count > 1 ? tr(STR_DIR_UP) : "");
       const char* down = count > 1 ? tr(STR_DIR_DOWN) : "";
       labels = mappedInput.mapLabels(tr(STR_BACK), confirmLabel, up, down);
@@ -1551,7 +1809,7 @@ void PluginCatalogActivity::drawFooter() {
     }
     case State::ERROR:
     case State::NO_TOKEN: {
-      const bool canSignIn = state == State::NO_TOKEN && manifest.hasDeviceCode();
+      const bool canSignIn = static_cast<State>(paintState.mode) == State::NO_TOKEN && manifest.hasDeviceCode();
       labels = mappedInput.mapLabels(tr(STR_BACK), canSignIn ? tr(STR_PLUGIN_SIGN_IN) : tr(STR_RETRY), "", "");
       break;
     }
@@ -1565,159 +1823,102 @@ void PluginCatalogActivity::drawFooter() {
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
 }
 
-void PluginCatalogActivity::render(RenderLock&& lock) {
-  if (pluginHubPopup.processRender(renderer, mappedInput)) return;
-  CatalogActivity::render(std::move(lock));
-}
-
-void PluginCatalogActivity::buildScreen(UiScreen& screen) {
-  const bool listState = state == State::BROWSING || state == State::LIST_PICKER;
-  const std::string title = listState ? browsingHeaderLabel() : catalogTitle;
-  screenHeader(screen, title.c_str());
-  if (buildStatusScreen(screen)) return;
-
-  switch (state) {
-    case State::BROWSING:
-    case State::LIST_PICKER:
-    case State::PLUGIN_PICKER:
-      buildBrowsingScreen(screen);
-      return;
-    case State::AUTH:
-      buildAuthScreen(screen);
-      return;
-    case State::DONE:
-      catalogCenteredBlock(screen, {{tr(STR_DOWNLOAD_COMPLETE), true}, {statusMessage.c_str()}});
-      return;
-    case State::NO_TOKEN:
-      catalogCenteredBlock(screen,
-                           {{manifest.hasDeviceCode() ? tr(STR_PLUGIN_SIGN_IN_HINT) : tr(STR_PLUGIN_NOT_SIGNED_IN)}});
-      return;
-    default:
-      return;
-  }
-}
-
-// Device-code sign-in: verification URL (text + QR) and the user code. The QR
-// bitmap itself is painted by drawFooter() into the rect measured here.
-void PluginCatalogActivity::buildAuthScreen(UiScreen& screen) {
-  fui::TextStyle centered = screen.theme().bodyText;
-  centered.align = fui::TextAlign::Center;
-  fui::TextStyle code = screen.theme().titleText;
-  code.align = fui::TextAlign::Center;
-  code.bold = true;
-  const int16_t lh = screen.target().lineHeight(centered.font);
-  const int16_t gap = screen.theme().spaceMd;
-
-  screen.target().text(screen.takeTop(lh, gap), authVerifyUrl.c_str(), centered);
-  screen.target().text(screen.takeTop(screen.target().lineHeight(code.font), gap), authUserCode.c_str(), code);
-
-  constexpr int16_t qrSize = 180;
-  const fui::Rect band = screen.takeTop(qrSize, gap);
-  authQrRect = fui::Rect{static_cast<int16_t>(band.x + (band.width - qrSize) / 2), band.y, qrSize, qrSize};
-
-  screen.target().text(screen.takeTop(lh), tr(STR_PLUGIN_AUTH_WAITING), centered);
-}
-
 std::string PluginCatalogActivity::browsingHeaderLabel() const {
   std::string label = catalogTitle;
   if (searchActive) {
     label = std::string(tr(STR_SEARCH)) + ": " + searchQuery;
-  } else if (state == State::BROWSING && currentList >= 0 &&
-             currentList < static_cast<int>(manifest.browseLists.size())) {
-    label = manifest.browseLists[currentList].title;
+  } else if (static_cast<State>(paintState.mode) == State::BROWSING && paintState.current_list >= 0 &&
+             paintState.current_list < static_cast<int>(manifest.browseLists.size())) {
+    label = manifest.browseLists[paintState.current_list].title;
   }
-  if (state == State::BROWSING && page > 1) {
+  if (static_cast<State>(paintState.mode) == State::BROWSING && paintState.page > 1) {
     char suffix[16];
-    snprintf(suffix, sizeof(suffix), " %d", page);
+    snprintf(suffix, sizeof(suffix), " %d", static_cast<int>(paintState.page));
     label += suffix;
   }
   return label;
 }
 
-void PluginCatalogActivity::buildBrowsingScreen(UiScreen& screen) {
-  if (rowsDirty) {
-    rebuildRowItems();
-    rowsDirty = false;
-  }
-
-  if (rowItems.empty()) {
-    screen.centeredText(state == State::PLUGIN_PICKER ? tr(STR_NO_PLUGINS_INSTALLED) : tr(STR_NO_ENTRIES),
-                        screen.theme().bodyText);
-    return;
-  }
-
-  fui::ListProps props;
-  props.items = rowItems.data();
-  props.count = static_cast<uint16_t>(rowItems.size());
-  props.action = ACTION_ROW;
-  props.inputMask = state == State::PLUGIN_PICKER ? static_cast<uint16_t>(fui::InputTouch | fui::InputLongPress)
-                                                  : static_cast<uint16_t>(fui::InputTouch);
-  props.valueInset = 8;  // air between the nav chevron and the row edge
-  if (state == State::PLUGIN_PICKER) {
-    // Mark the subtitle style caller-owned before resolving the theme.
-    props.subtitleText = screen.theme().smallText;
-    props.subtitleText.maxLines = 2;
-  } else if (state == State::BROWSING && !manifest.isXmlList()) {
-    // Catalog descriptions get enough room to be useful without replacing
-    // the explicit Details page.
-    props.subtitleText = screen.theme().smallText;
-    props.subtitleText.maxLines = 3;
-  }
-  syncListViewport(screen, props);
-  if (state == State::PLUGIN_PICKER) {
-    fitPluginSubtitleToViewport(screen.target(), screen.body().height, props);
-  }
-  screen.list(props);
+void PluginCatalogActivity::prepareRows() {
+  const bool list = static_cast<State>(paintState.mode) == State::BROWSING ||
+                    static_cast<State>(paintState.mode) == State::LIST_PICKER;
+  renderedTitle = list ? browsingHeaderLabel() : catalogTitle;
 }
 
-// Derives rowItems from the current state's row source: the browse lists
-// (LIST_PICKER) or the pager rows bracketing the items (BROWSING). Labels
-// point into `manifest`/`items` strings, which outlive the buffer.
-void PluginCatalogActivity::rebuildRowItems() {
-  rowItems.clear();
-  rowItems.reserve(rowCount());
-  const auto addRow = [&](const char* label, const char* subtitle = nullptr, const char* value = nullptr) {
-    fui::ListItem row;
-    row.label = label;
-    row.subtitle = subtitle && subtitle[0] ? subtitle : nullptr;
-    row.value = value && value[0] ? value : nullptr;
-    row.actionValue = static_cast<int16_t>(rowItems.size());
-    rowItems.push_back(row);
-  };
-  if (state == State::PLUGIN_PICKER) {
-    if (showOpds) addRow(tr(STR_OPDS_BROWSER), tr(STR_OPDS_SERVERS));
-    if (showPluginHubInstallRow) addRow(tr(STR_PLUGIN_HUB), tr(STR_PLUGIN_HUB_DESCRIPTION), ">");
-    for (const auto& plugin : installedPlugins) {
-      //   None       -> web-only hint; chevron only with a readme
-      //   Catalog    -> browsable, own description, chevron
-      //   Background -> events-only, own description, chevron only with a readme
-      const char* subtitle = plugin.description.empty() ? nullptr : plugin.description.c_str();
-      switch (plugin.deviceKind) {
-        case PluginLocations::DeviceKind::None:
-          addRow(plugin.title.c_str(), tr(STR_PLUGIN_WEB_ONLY), plugin.readmePath.empty() ? nullptr : ">");
-          break;
-        case PluginLocations::DeviceKind::Catalog:
-          addRow(plugin.title.c_str(), subtitle, ">");
-          break;
-        case PluginLocations::DeviceKind::Background:
-          addRow(plugin.title.c_str(), subtitle, plugin.readmePath.empty() ? nullptr : ">");
-          break;
-      }
+const char* PluginCatalogActivity::catalogText(uint32_t handle) const {
+  switch (handle) {
+    case 0x80000004:
+      return static_cast<State>(paintState.mode) == State::PLUGIN_PICKER ? tr(STR_NO_PLUGINS_INSTALLED)
+                                                                         : tr(STR_NO_ENTRIES);
+    case 0x8000000d:
+      return tr(STR_DOWNLOAD_COMPLETE);
+    case 0x8000000e:
+      return manifest.hasDeviceCode() ? tr(STR_PLUGIN_SIGN_IN_HINT) : tr(STR_PLUGIN_NOT_SIGNED_IN);
+    case 0x80000014:
+      return authVerifyUrl.c_str();
+    case 0x80000015:
+      return authUserCode.c_str();
+    case 0x80000016:
+      return tr(STR_PLUGIN_AUTH_WAITING);
+    case 0x80000018:
+      return tr(STR_PLUGIN_HUB);
+    case 0x80000019:
+      return tr(STR_INSTALL);
+    case 0x8000001a:
+      return tr(STR_HIDE);
+    case 0x8000001b:
+      return tr(STR_CANCEL);
+    default:
+      return CatalogActivity::catalogText(handle);
+  }
+}
+void PluginCatalogActivity::paintCatalogResource(const XpUiCommand& command) {
+  if (command.resource == 0x80000017) {
+    const auto r = command.rect;
+    QrUtils::drawQrCode(renderer, Rect{r.x, r.y, r.w, r.h}, authVerifyUrl);
+  }
+}
+
+bool PluginCatalogActivity::rowAt(int index, XpUiCatalogRow& row) const {
+  if (index < 0 || index >= rowCount()) return false;
+  row = {};
+  if (static_cast<State>(paintState.mode) == State::PLUGIN_PICKER) {
+    if (showOpds && index-- == 0) {
+      row.label = tr(STR_OPDS_BROWSER);
+      row.subtitle = tr(STR_OPDS_SERVERS);
+      return true;
     }
-  } else if (state == State::LIST_PICKER) {
-    for (const auto& list : manifest.browseLists) addRow(list.title.c_str());
+    if (showPluginHubInstallRow && index-- == 0) {
+      row.label = tr(STR_PLUGIN_HUB);
+      row.subtitle = tr(STR_PLUGIN_HUB_DESCRIPTION);
+      row.value = ">";
+      return true;
+    }
+    const auto& plugin = installedPlugins[index];
+    row.label = plugin.title.c_str();
+    row.subtitle =
+        plugin.deviceKind == PluginLocations::DeviceKind::None ? tr(STR_PLUGIN_WEB_ONLY) : plugin.description.c_str();
+    if (plugin.deviceKind == PluginLocations::DeviceKind::Catalog || !plugin.readmePath.empty()) row.value = ">";
+  } else if (static_cast<State>(paintState.mode) == State::LIST_PICKER) {
+    row.label = manifest.browseLists[index].title.c_str();
   } else {
-    if (prevRowVisible()) addRow(tr(STR_PREV_PAGE), nullptr, ">");
-    for (const auto& entry : items) {
-      addRow(entry.title.c_str(), entry.author.c_str(), entry.isDir ? ">" : entry.status.c_str());
+    if (prevRowVisible() && index-- == 0) {
+      row.label = tr(STR_PREV_PAGE);
+      row.value = ">";
+      return true;
     }
-    if (nextRowVisible()) addRow(tr(STR_NEXT_PAGE), nullptr, ">");
+    if (index == static_cast<int>(items.size())) {
+      row.label = tr(STR_NEXT_PAGE);
+      row.value = ">";
+      return true;
+    }
+    const auto& item = items[index];
+    row.label = item.title.c_str();
+    row.subtitle = item.author.c_str();
+    row.value = item.isDir ? ">" : item.status.c_str();
   }
+  if (row.subtitle && !row.subtitle[0]) row.subtitle = nullptr;
+  if (row.value && !row.value[0]) row.value = nullptr;
+  return true;
 }
-
-void PluginCatalogActivity::releaseRows() {
-  // The app's interaction table holds row indices (and hit rects) for the old
-  // rows; stop routing touches against it until the next render.
-  closeRouting();
-  rowsDirty = true;
-}
+void PluginCatalogActivity::releaseRows() { closeRouting(); }

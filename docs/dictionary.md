@@ -13,7 +13,9 @@ A dictionary folder must contain:
 - `.syn` — synonym index (optional; maps alternate spellings and irregular forms to their headword)
 - `.ifo` — metadata (optional)
 
-Not supported: dictionaries with 64-bit index offsets (`idxoffsetbits=64` in the `.ifo` — rare, and rejected with an error).
+The reader supports 32-bit index offsets. It reports an error when a readable `.ifo` of at most 16 KiB declares `idxoffsetbits=64`.
+
+The reader ignores all metadata in an `.ifo` larger than 16 KiB, including the entry types and index offset width. Definitions may show raw markup, and a dictionary with 64-bit offsets may fail to open or give incorrect lookups because the reader attempts to use 32-bit offsets. For a 32-bit dictionary, shorten the description to bring the `.ifo` within 16 KiB and keep the format fields intact.
 
 > [!NOTE]  
 > If you use .dict.dz and Crosspoint failed to load your dictionary with error message "Not enough memory", try unzipping it.
@@ -45,22 +47,26 @@ Two ways to start a lookup while reading:
 
 **On touchscreen devices:**
 
-- Tap or drag the selection handles across words to highlight a word or phrase, then tap **Look Up**.
+- Tap or drag the selection handles across words to highlight a word or phrase, then tap **Look Up**. This action appears when the selected dictionary is available.
 
 On the very first lookup with a dictionary (and again whenever the `.idx` or `.syn` source file changes), the reader shows *"Indexing dictionary…"* while it builds small sidecar files next to them — a `.qidx` for the word index, and a `.sidx` when a `.syn` synonym file is present. Each sidecar is rebuilt independently, only when its own source changes. This takes a few seconds for large dictionaries and makes all subsequent lookups fast. The sidecars can be deleted safely at any time — they will simply be rebuilt.
 
 ### How Lookup Works
 
-1. **Direct match** — the word or phrase is searched as-is (case-insensitive) in the dictionary index. Leading and trailing punctuation and whitespace are stripped automatically. Multi-word phrases match dictionary entries containing spaces (such as idioms, phrasal verbs, or compound terms). An index may list the same headword more than once (one entry per part of speech, for example); every entry it lists is shown, each labelled with its headword.
-2. **Synonyms** — on a miss, if the dictionary ships a `.syn` file, alternate spellings and irregular forms recorded there are resolved to their headword (e.g. `oxen` → `ox`, `colour` → `color`). All the headwords a synonym points at are shown. This step is skipped if the `.sidx` sidecar could not be built (e.g. transient low memory during indexing); the dictionary otherwise stays usable, and the build is retried the next time it is opened.
+1. **Direct match** — the word or phrase is searched as-is (case-insensitive) in the dictionary index. Leading and trailing punctuation and whitespace are stripped automatically. Multi-word phrases match dictionary entries containing spaces (such as idioms, phrasal verbs, or compound terms). An index may list the same headword more than once, for example when it has a separate entry for each part of speech.
+2. **Synonyms** — on a miss, if the dictionary ships a `.syn` file, alternate spellings and irregular forms recorded there are resolved to their headwords (e.g. `oxen` → `ox`, `colour` → `color`). A synonym can point to several headwords. This step is skipped if the `.sidx` sidecar could not be built (e.g. transient low memory during indexing). The dictionary stays usable and the build is retried the next time it is opened.
 3. **Stemming** — still no match: common English word forms are retried automatically: possessives and plurals (`dogs` → `dog`, `stories` → `story`) and verb endings (`walked` → `walk`, `running` → `run`, `making` → `make`).
-4. **Not found** — a short popup appears and you return to word selection.
+4. **Not found** — a short popup appears. Touchscreen devices return to reading; buttons-only devices return to word selection.
 
 ## The Definition Screen
 
-When a word is found, the definition screen shows the matched headword at the top and the definition text below, with a page counter for long definitions. A word that maps to several definitions shows all of them one after another, each labelled with its headword; if they do not all fit, the ones that fit are shown. If the first definition fills the size limit, it is shown alone without an extra label.
+When a word is found, the definition screen shows the matched headword at the top and the definition text below, with a page counter for long definitions. A word that maps to several definitions shows them one after another, each labelled with its headword. Definitions that exceed the remaining size limit are skipped, and later definitions are still considered. If no labelled definition fits, the first definition is shown alone without an extra label.
 
-HTML dictionaries (`sametypesequence=h`) and XDXF dictionaries (`sametypesequence=x`) use the EPUB text-layout engine for supported formatting such as headings, bold, italics, lists, and line breaks. Unrecognized tags keep their text without special formatting. Images and CSS styling are ignored. Definitions that are too large or cannot be parsed or laid out within the available memory fall back to plain text.
+HTML dictionaries (`sametypesequence=h`) and XDXF dictionaries (`sametypesequence=x`) use the EPUB text-layout engine for supported formatting such as headings, bold, italics, lists, and line breaks. Unrecognized tags keep their text without special formatting. Images and CSS styling are ignored. If formatted layout fails or a definition exceeds the styled size limit, the viewer falls back to plain text when enough memory remains. If the reader detects insufficient memory for lookup or display, it reports Low Memory.
+
+A readable `.ifo` file with a missing or empty `sametypesequence` enables the type stored in each entry field. HTML (`h`) and XDXF (`x`) fields use the same formatting support. Text fields are shown as text; binary fields, such as images and sounds, are skipped. The reader treats entries as plain text if the `.ifo` file is missing, empty, unreadable, or larger than 16 KiB.
+
+Inline entries with only empty or binary fields are skipped. If all matching entries are empty, the lookup reports no match.
 
 Definitions are drawn in your reading font. Dictionaries may use IPA symbols (e.g. `ˈ ː ɹ ɪ ʊ`…) as pronunciation guide, which built-in reader fonts do not include, so they are shown as `�`. To see them, install an [SD card font](./sd-card-fonts.md) that covers IPA and select it as the reading font.
 
@@ -68,7 +74,7 @@ Definitions are drawn in your reading font. Dictionaries may use IPA symbols (e.
 - **Confirm** — select words or a phrase inside the definition, then choose **Look Up**
 - **Long press on text** — select the touched word on touchscreen devices when touch reader controls are enabled
 - **Back during selection** — cancel selection
-- **Back while reading a definition** — return to the previous definition, or to book word selection at the first definition
+- **Back while reading a definition** — return to the previous definition. At the first definition, touchscreen devices return to reading; buttons-only devices return to book word selection
 - **Long Back while reading a definition** — hold **Back** for at least one second, then release to close all definitions and return directly to reading
 - **Long press the header Back arrow** — close all definitions and return directly to reading on touchscreen devices, even when touch reader controls are disabled
 
@@ -82,7 +88,7 @@ A failed lookup reloads the current definition and keeps its page and selection.
 
 The current definition is released before loading another entry, so two definitions do not need to fit in memory together.
 Returning to a previous definition reads it from the SD card again.
-If a previous definition cannot be read or its position restored, the definition screen closes and returns to book word selection.
+If a previous definition cannot be read or its position restored, the definition screen closes. Touchscreen devices return to reading; buttons-only devices return to book word selection.
 The screen also closes if a failed forward lookup cannot reload the current definition.
 
 

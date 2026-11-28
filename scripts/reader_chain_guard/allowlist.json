@@ -1,0 +1,75 @@
+{
+  "purpose": "Physical continuation notes for on-demand linked-image audits; not a gate or permission to add chains.",
+  "physical": [
+    {
+      "native": "freeink::content::ProtectedBook::decryptEntryToSink(freeink::content::ByteSource&, freeink::content::Crypto&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, bool (*)(void*, unsigned char const*, unsigned int), void*)",
+      "category": "SDK crypto/miniz byte streams",
+      "reason": "SDK decryption and decompression emit bounded byte chunks to the Rust reader sink."
+    },
+    {
+      "native": "(anonymous namespace)::jpegDrawCallback(jpeg_draw_tag*)",
+      "category": "JPEGDEC streaming callback",
+      "reason": "JPEGDEC emits bounded decoded blocks and cooperative-yield callbacks without buffering an image."
+    },
+    {
+      "native": "GfxRenderer::uiPaint() const::{lambda(void*, XpGlyphTarget const*, XpUiCommand const*, XpUiRect, char const*)#1}::_FUN(void*, XpGlyphTarget const*, XpUiCommand const*, XpUiRect, char const*)",
+      "category": "SDK UI measurement/drawing",
+      "reason": "SDK target measurement and drawing synchronously use the firmware font engine."
+    },
+    {
+      "native": "freeink::ui::GfxRendererTarget::fill(freeink::ui::Rect, freeink::ui::Paint, unsigned char, unsigned char)",
+      "category": "SDK UI measurement/drawing",
+      "reason": "SDK geometry drawing uses renderer state, including Rust-backed font-scanning queries."
+    },
+    {
+      "native": "freeink::ui::GfxRendererTarget::inkBounds(unsigned short, char const*, freeink::ui::TextStyle) const",
+      "category": "SDK UI measurement/drawing",
+      "reason": "SDK target measurement and drawing synchronously use the firmware font engine."
+    },
+    {
+      "native": "freeink::ui::GfxRendererTarget::line(freeink::ui::Point, freeink::ui::Point, unsigned char, freeink::ui::Paint)",
+      "category": "SDK UI measurement/drawing",
+      "reason": "SDK geometry drawing uses renderer state, including Rust-backed font-scanning queries."
+    },
+    {
+      "native": "freeink::ui::GfxRendererTarget::lineHeight(unsigned short) const",
+      "category": "SDK UI measurement/drawing",
+      "reason": "SDK target measurement and drawing synchronously use the firmware font engine."
+    },
+    {
+      "native": "freeink::ui::GfxRendererTarget::measureText(unsigned short, char const*, freeink::ui::TextStyle) const",
+      "category": "SDK UI measurement/drawing",
+      "reason": "SDK target measurement and drawing synchronously use the firmware font engine."
+    },
+    {
+      "native": "freeink::ui::GfxRendererTarget::stroke(freeink::ui::Rect, freeink::ui::Paint, unsigned char, unsigned char, unsigned char)",
+      "category": "SDK UI measurement/drawing",
+      "reason": "SDK geometry drawing uses renderer state, including Rust-backed font-scanning queries."
+    },
+    {
+      "native": "freeink::ui::GfxRendererTarget::text(freeink::ui::Rect, char const*, freeink::ui::TextStyle)",
+      "category": "SDK UI measurement/drawing",
+      "reason": "SDK target measurement and drawing synchronously use the firmware font engine."
+    },
+    {
+      "native": "HalDisplay::dispatch(void*, XpHalDisplayOp, unsigned long, bool, unsigned long)",
+      "category": "panel/bus HAL",
+      "reason": "Physical display dispatch and SDK waveform/bus continuations."
+    },
+    {
+      "native": "rustEpubResources(GfxRenderer&, MappedInputManager&)::{lambda()#7}::_FUN()",
+      "category": "clock/ADC/battery HAL",
+      "reason": "Physical clock or ADC sampling through the existing HAL contract."
+    },
+    {
+      "native": "rustEpubResources(GfxRenderer&, MappedInputManager&)::{lambda(XpEpubCalendar*)#1}::_FUN(XpEpubCalendar*)",
+      "category": "clock/ADC/battery HAL",
+      "reason": "Physical clock or ADC sampling through the existing HAL contract."
+    },
+    {
+      "native": "rustEpubResources(GfxRenderer&, MappedInputManager&)::{lambda(XpEpubPhysicalOp const*)#1}::_FUN(XpEpubPhysicalOp const*)",
+      "category": "panel/bus HAL",
+      "reason": "Physical display dispatch and SDK waveform/bus continuations."
+    }
+  ]
+}

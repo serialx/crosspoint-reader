@@ -2,7 +2,7 @@ name: CI (build)
 
 on:
   push:
-    branches: [develop]
+    branches: [develop, serialx/riir-1st]
   pull_request:
 
 permissions:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   clang-format:
-    runs-on: ubuntu-latest
+    runs-on: &ci-runner ${{ github.repository == 'serialx/crosspoint-reader' && github.ref == 'refs/heads/serialx/riir-1st' && 'boat' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -34,7 +34,7 @@ jobs:
           git diff --exit-code || (echo "Please run 'bin/clang-format-fix' to fix formatting issues" && exit 1)
 
   cppcheck:
-    runs-on: ubuntu-latest
+    runs-on: *ci-runner
     steps:
       - uses: actions/checkout@v6
         with:
@@ -65,21 +65,39 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.platformio
-          key: pio-v2-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          key: pio-v2-${{ runner.os }}-${{ hashFiles('platformio.ini', 'scripts/patch_pioarduino_cache.py') }}
           restore-keys: pio-v2-${{ runner.os }}-
 
       - name: Install cppcheck runtime dependency
         run: |
           # pioarduino's Linux cppcheck binary links against libpcre.so.3.
+          # In newer Ubuntu runner images where libpcre3 is omitted from apt sources,
+          # download from Ubuntu archive over HTTPS and verify SHA-256 before installation.
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libpcre3
+          if ! sudo apt-get install -y --no-install-recommends libpcre3; then
+            PKG="libpcre3_8.39-13ubuntu0.22.04.1_amd64.deb"
+            SHA256="0d1eb051047eb0c637c893f618f45e1d419863bfa3bc821897ee05ad418ba22e"
+            wget -q "https://security.ubuntu.com/ubuntu/pool/main/p/pcre3/${PKG}"
+            echo "${SHA256}  ${PKG}" | sha256sum -c -
+            sudo dpkg -i "${PKG}"
+            rm -f "${PKG}"
+          fi
+
+      - name: Set up Rust
+        uses: ./.github/actions/setup-rust-esp
+        with:
+          mcu: esp32c3
 
       - name: Run cppcheck
         run: pio check --fail-on-defect low --fail-on-defect medium --fail-on-defect high
 
+      - name: Report cppcheck version
+        if: always()
+        run: ~/.platformio/packages/tool-cppcheck/cppcheck --version
+
   build:
     name: Build ${{ matrix.env }}
-    runs-on: ubuntu-latest
+    runs-on: *ci-runner
     strategy:
       fail-fast: false
       matrix:
@@ -88,20 +106,28 @@ jobs:
         include:
           - env: default
             asset: firmware.bin
+            mcu: esp32c3
           - env: sticky
             asset: firmware-sticky.bin
+            mcu: esp32s3
           - env: x4pro
             asset: firmware-x4pro.bin
+            mcu: esp32s3
           - env: x4c
             asset: firmware-x4c.bin
+            mcu: esp32s3
           - env: papermono
             asset: firmware-papermono.bin
+            mcu: esp32s3
           - env: metalio_eink4
             asset: firmware-metalio_eink4.bin
+            mcu: esp32s3
           - env: eego_a4
             asset: firmware-eego_a4.bin
+            mcu: esp32s3
           - env: picco
             asset: firmware-picco.bin
+            mcu: esp32s3
     steps:
       - uses: actions/checkout@v6
         with:
@@ -132,7 +158,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.platformio
-          key: pio-v3-${{ runner.os }}-${{ matrix.env }}-${{ hashFiles('platformio.ini') }}
+          key: pio-v3-${{ runner.os }}-${{ matrix.env }}-${{ hashFiles('platformio.ini', 'scripts/patch_pioarduino_cache.py') }}
           restore-keys: pio-v3-${{ runner.os }}-${{ matrix.env }}-
 
       - name: Pin pioarduino core inside the platform penv
@@ -149,6 +175,11 @@ jobs:
           pio pkg install -e ${{ matrix.env }}
           uv pip install --python ~/.platformio/penv/bin/python "pioarduino==6.1.19"
           ~/.platformio/penv/bin/pio --version
+
+      - name: Set up Rust
+        uses: ./.github/actions/setup-rust-esp
+        with:
+          mcu: ${{ matrix.mcu }}
 
       - name: Build ${{ matrix.env }} firmware
         run: |
@@ -176,16 +207,55 @@ jobs:
           if-no-files-found: error
 
   unit-tests:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.repository == 'serialx/crosspoint-reader' && github.ref == 'refs/heads/serialx/riir-1st' && 'boat-large' || 'ubuntu-latest' }}
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.0'
+      CC: clang-22
+      CXX: c++
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
+          # Differential tests compile frozen implementations from Git history.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      # Native oracles use the same library sources as platformio.ini.
+      - name: Check out QRCode
+        uses: actions/checkout@v6
+        with:
+          repository: ricmoo/QRCode
+          ref: 5ba5d5bf2790f4a885b0db823cf218e4fa718061 # v0.0.1
+          path: .pio/libdeps/default/QRCode
 
       - name: Install build tools
         run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 22
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build
+          sudo apt-get install -y cmake ninja-build clang-22 libc++-22-dev libc++abi-22-dev libunwind-22-dev zlib1g-dev
+
+      - name: Select native C++ toolchain
+        run: |
+          # Frozen allocation traces use libc++; Python oracles also invoke c++.
+          mkdir -p "$RUNNER_TEMP/native-bin"
+          printf '%s\n' '#!/bin/sh' 'exec clang++-22 -stdlib=libc++ "$@"' > "$RUNNER_TEMP/native-bin/c++"
+          chmod +x "$RUNNER_TEMP/native-bin/c++"
+          echo "$RUNNER_TEMP/native-bin" >> "$GITHUB_PATH"
+          clang++-22 --version
+
+      - name: Set up Rust
+        uses: ./.github/actions/setup-rust-esp
+        with:
+          mcu: esp32c3
+
+      - name: Run Rust tests
+        working-directory: rust
+        run: cargo test --locked -p xp-core -p xp-layout -p xp-gif -p xp-ui -p xp-display
 
       - name: Cache googletest source
         uses: actions/cache@v4
@@ -212,7 +282,7 @@ jobs:
       - cppcheck
       - unit-tests
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: *ci-runner
     steps:
       - name: Fail because needed jobs failed
         # Fail if any job failed or was cancelled (skipped jobs are ok)

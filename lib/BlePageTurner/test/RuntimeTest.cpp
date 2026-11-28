@@ -48,16 +48,16 @@ TEST_F(RuntimeTest, HomeDoesNotTouchTheRadioOnTheDefaultProfile) {
   home.pageShown = true;
   for (int i = 0; i < 40; ++i) {
     radio().now += 1000;
-    bleturner::tick(home);
+    fake::tick(home);
   }
   EXPECT_EQ(radio().beginCalls, 0u);
   EXPECT_EQ(radio().creates, 0u);
   EXPECT_FALSE(radio().running);
   EXPECT_EQ(radio().polls, 0u);
   EXPECT_EQ(radio().armCalls, 0u);
-  bleturner::tick(fake::reading(2));
+  fake::tick(fake::reading(2));
   ASSERT_TRUE(radio().running);
-  EXPECT_TRUE(bleturner::beforeScreenChange(0, /*nextIsReader=*/true));
+  EXPECT_TRUE(fake::beforeScreenChange(0, /*nextIsReader=*/true));
   EXPECT_FALSE(radio().running);
 }
 
@@ -102,7 +102,7 @@ TEST_F(RuntimeTest, TimedStopPropagatesPendingTeardown) {
   radio().stopping = true;
   radio().endResult = false;
 
-  EXPECT_FALSE(bleturner::beforeScreenChange(1000));
+  EXPECT_FALSE(fake::beforeScreenChange(1000));
   EXPECT_EQ(radio().endCalls, 1u);
   EXPECT_EQ(radio().lastEndTimeoutMs, 1000u);
 }
@@ -175,21 +175,21 @@ TEST_F(RuntimeTest, RunningHostReturnsTrueWithoutRetryOrCacheChurn) {
 TEST_F(RuntimeTest, ScreenChangeDefersUntilRadioMemoryIsReleased) {
   radio().running = true;
   radio().endResult = false;
-  EXPECT_FALSE(bleturner::beforeScreenChange());
+  EXPECT_FALSE(fake::beforeScreenChange());
   EXPECT_EQ(radio().lastEndTimeoutMs, 0u);
   EXPECT_TRUE(radio().stopping);
   EXPECT_TRUE(radio().endHadFullSpeed);
 
-  EXPECT_FALSE(bleturner::beforeScreenChange());
+  EXPECT_FALSE(fake::beforeScreenChange());
   radio().endResult = true;
-  EXPECT_TRUE(bleturner::beforeScreenChange());
+  EXPECT_TRUE(fake::beforeScreenChange());
   EXPECT_FALSE(radio().stopping);
   EXPECT_EQ(radio().endCalls, 3u);
   EXPECT_FALSE(host().fullSpeed);
 }
 
 TEST_F(RuntimeTest, ScreenChangeWithIdleRadioDoesNotAllocateOrStopAgain) {
-  EXPECT_TRUE(bleturner::beforeScreenChange());
+  EXPECT_TRUE(fake::beforeScreenChange());
   EXPECT_EQ(radio().endCalls, 0u);
   EXPECT_EQ(host().releaseCalls, 0u);
   EXPECT_EQ(host().heapReads, 0u);
@@ -214,11 +214,11 @@ TEST_F(RuntimeTest, PendingIdleStopKeepsReasonThroughCleanupAndNavigation) {
   EXPECT_FALSE(bleturner::detail::stopForIdle());
   EXPECT_TRUE(bleturner::status().idleStopped);
   EXPECT_TRUE(radio().stopping);
-  EXPECT_FALSE(bleturner::beforeScreenChange());
+  EXPECT_FALSE(fake::beforeScreenChange());
   EXPECT_TRUE(bleturner::status().idleStopped);
 
   radio().endResult = true;
-  EXPECT_TRUE(bleturner::beforeScreenChange());
+  EXPECT_TRUE(fake::beforeScreenChange());
   EXPECT_FALSE(radio().stopping);
   EXPECT_TRUE(bleturner::status().idleStopped);
 }
@@ -260,12 +260,12 @@ TEST_F(RuntimeTest, QueuedStartCancelledByScreenChangeNeverBegins) {
   ASSERT_TRUE(bleturner::detail::startAsync());
   EXPECT_TRUE(host().fullSpeed);
   EXPECT_TRUE(bleturner::status().starting);
-  EXPECT_FALSE(bleturner::beforeScreenChange()) << "never stop while a start is in flight";
+  EXPECT_FALSE(fake::beforeScreenChange()) << "never stop while a start is in flight";
   EXPECT_EQ(radio().endCalls, 0u);
   radio().runStart();
   EXPECT_EQ(radio().beginCalls, 0u);
   EXPECT_FALSE(bleturner::status().readerDeferred) << "a cancelled start is not a memory refusal";
-  EXPECT_TRUE(bleturner::beforeScreenChange());
+  EXPECT_TRUE(fake::beforeScreenChange());
   EXPECT_FALSE(host().fullSpeed);
 }
 
@@ -315,7 +315,7 @@ TEST_F(RuntimeTest, ThirdFragmentedRefusalAsksForOneRestartUntilTheRadioComesUp)
   EXPECT_EQ(radio().beginCalls, 1u);
 
   // The tick restarts into the book from a shown page; the heap it finds after is still in pieces.
-  bleturner::tick(fake::reading());
+  fake::tick(fake::reading());
   EXPECT_EQ(host().restarts, 1u);
   EXPECT_FALSE(bleturner::detail::heapRestartWanted());
 
@@ -359,7 +359,7 @@ TEST_F(RuntimeTest, PostInitRollbackInPiecesAsksForOneRestartUntilTheRadioComesU
       std::string::npos);
 
   // Restarted into the book; the same heap again: no second restart until the radio comes up.
-  bleturner::tick(fake::reading());
+  fake::tick(fake::reading());
   EXPECT_EQ(host().restarts, 1u);
   fake::reset(/*keepMemo=*/true);
   bleturner::begin(fake::hostFns(), config);

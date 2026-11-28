@@ -85,15 +85,14 @@ or missing verification is explicitly reported and handoff remains incomplete.
 
 Explain old and new behavior, state/resource ownership, affected files, the
 important tradeoff, checks, and remaining risks in plain English. Point to the
-diff. Ask the human to accept the specific behavior and design tradeoff just
-explained, including responsibility for maintaining it. Name the relevant choice:
-for example, bounded temporary storage and a fallback when allocation fails.
-For a straightforward fix, ask whether the new behavior and its state ownership
-match their intent; do not invent a tradeoff. A generic understanding/ownership
-question does not complete handoff. Prescribe no confirmation phrase. Recognize
-explicit acceptance already given for this logical change; record it once and
-reopen only after a material design change. Continuation or commit approval alone
-does not establish understanding and ownership.
+diff. Name the relevant choice: for example, bounded temporary storage and a
+fallback when allocation fails. Do not ask the human to accept it. Merge the
+change into the integration branch once the checks and reviews below are done,
+and send the human a digest: what moved, the measured numbers, inherited defects
+and maintenance items with their owners. The human may veto afterwards. Ask the
+human before merging only when the change deliberately alters user-visible
+behavior, adds persistent state or changes a file format, touches sleep/power or
+storage, exceeds a budget, or when a review finding blocks without a clean fix.
 
 Give applicable hardware steps with expected results and likely failure signs,
 including orientations, resources, and caches when affected. Hardware testing is
@@ -102,7 +101,6 @@ hardware verification yourself. Publication follows the root guide's human
 ownership policy and the [Git rule](../../rules/git-workflow.md).
 
 **Done when:** checks and independent reviews cover the final change, no verified
-finding remains, and explicit human acceptance covers the described behavior,
-architecture, and maintenance responsibility. The hardware test plan is provided.
-If the human rejects the architecture, ask what must change and revise before
-calling it ready.
+finding remains, the change is merged into the integration branch, and the digest
+with the hardware test steps has been sent. If the human vetoes afterwards, revert
+or ask what must change.

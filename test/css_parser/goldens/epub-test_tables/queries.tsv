@@ -1,0 +1,331 @@
+A			
+A			p~~TOC
+A	FOOTNOTE-REF		
+ABBR			
+ACRONYM			
+ADDRESS			
+APPLET			
+ARTICLE			
+ASIDE			
+AUDIO			
+B			
+BIG			
+BLOCKQUOTE			
+BODY			
+CANVAS			
+CAPTION			
+CAPTION			table~~
+CENTER			
+CITE			
+CODE			
+CODE			pre~~
+DD			
+DEL			
+DETAILS			
+DFN			
+DIV			
+DIV	COLUMN		
+DIV	HANGING-INDENT		
+DL			
+DT			
+EM			
+EM			em~~
+EM			em~~|em~~
+EM			em~~|em~~|em~~
+EM			em~~|em~~|em~~|em~~
+EMBED			
+FIELDSET			
+FIGCAPTION			
+FIGURE			
+FOOTER			
+FORM			
+H1			
+H1	TITLE		
+H2			
+H3			
+H4			
+H5			
+H6			
+HEADER			
+HGROUP			
+HR			
+HTML			
+I			
+IFRAME			
+IMG			
+INPUT			ul~task-list~|li~~
+INS			
+KBD			
+LABEL			
+LEGEND			
+LI			
+LI			nav~~landmarks|ol~~
+LI			nav~~toc|ol~~
+LI			p~~TOC
+MARK			
+MENU			
+NAV			
+OBJECT			
+OL			
+OL			li~~
+OL			nav~~landmarks
+OL			nav~~toc
+OUTPUT			
+P			
+P	AUTHOR		
+P	DATE		
+P	DISPLAY MATH		
+P	SOURCECODE		
+PRE			
+Q			
+RUBY			
+S			
+SAMP			
+SCREEN			p~~
+SECTION			
+SMALL			
+SPAN			
+SPAN	SMALLCAPS		
+STRIKE			
+STRONG			
+SUB			
+SUMMARY			
+SUP			
+TABLE			
+TBODY			
+TD			
+TFOOT			
+TH			
+THEAD			
+TIME			
+TR			
+TT			
+U			
+UL			
+UL			li~~
+UL			p~~TOC
+UL	TASK-LIST		
+VAR			
+VIDEO			
+a			
+a			p~~TOC
+a	 unrelated		
+a	 unrelated		p~~TOC
+a	footnote-ref		
+a	footnote-ref unrelated		
+abbr			
+abbr	 unrelated		
+acronym			
+acronym	 unrelated		
+address			
+address	 unrelated		
+applet			
+applet	 unrelated		
+article			
+article	 unrelated		
+aside			
+aside	 unrelated		
+audio			
+audio	 unrelated		
+b			
+b	 unrelated		
+big			
+big	 unrelated		
+blockquote			
+blockquote	 unrelated		
+body			
+body	 unrelated		
+canvas			
+canvas	 unrelated		
+caption			
+caption			table~~
+caption	 unrelated		
+caption	 unrelated		table~~
+center			
+center	 unrelated		
+cite			
+cite	 unrelated		
+code			
+code			pre~~
+code	 unrelated		
+code	 unrelated		pre~~
+dd			
+dd	 unrelated		
+del			
+del	 unrelated		
+details			
+details	 unrelated		
+dfn			
+dfn	 unrelated		
+div			
+div	 unrelated		
+div	a b c d e f g h i	id	
+div	column		
+div	column unrelated		
+div	hanging-indent		
+div	hanging-indent unrelated		
+dl			
+dl	 unrelated		
+dt			
+dt	 unrelated		
+em			
+em			em~~
+em			em~~|em~~
+em			em~~|em~~|em~~
+em			em~~|em~~|em~~|em~~
+em	 unrelated		
+em	 unrelated		em~~
+em	 unrelated		em~~|em~~
+em	 unrelated		em~~|em~~|em~~
+em	 unrelated		em~~|em~~|em~~|em~~
+embed			
+embed	 unrelated		
+fieldset			
+fieldset	 unrelated		
+figcaption			
+figcaption	 unrelated		
+figure			
+figure	 unrelated		
+footer			
+footer	 unrelated		
+form			
+form	 unrelated		
+h1			
+h1	 unrelated		
+h1	title		
+h1	title unrelated		
+h2			
+h2	 unrelated		
+h3			
+h3	 unrelated		
+h4			
+h4	 unrelated		
+h5			
+h5	 unrelated		
+h6			
+h6	 unrelated		
+header			
+header	 unrelated		
+hgroup			
+hgroup	 unrelated		
+hr			
+hr	 unrelated		
+html			
+html	 unrelated		
+i			
+i	 unrelated		
+iframe			
+iframe	 unrelated		
+img			
+img	 unrelated		
+input			
+input			ul~task-list~|li~~
+input	 unrelated		ul~task-list~|li~~
+ins			
+ins	 unrelated		
+kbd			
+kbd	 unrelated		
+label			
+label	 unrelated		
+legend			
+legend	 unrelated		
+li			
+li			nav~~landmarks|ol~~
+li			nav~~toc|ol~~
+li			p~~TOC
+li	 unrelated		
+li	 unrelated		nav~~landmarks|ol~~
+li	 unrelated		nav~~toc|ol~~
+li	 unrelated		p~~TOC
+mark			
+mark	 unrelated		
+menu			
+menu	 unrelated		
+nav			
+nav	 unrelated		
+object			
+object	 unrelated		
+ol			
+ol			li~~
+ol			nav~~landmarks
+ol			nav~~toc
+ol	 unrelated		
+ol	 unrelated		li~~
+ol	 unrelated		nav~~landmarks
+ol	 unrelated		nav~~toc
+output			
+output	 unrelated		
+p			
+p	 unrelated		
+p	author		
+p	author unrelated		
+p	date		
+p	date unrelated		
+p	display math		
+p	display math unrelated		
+p	sourceCode		
+p	sourceCode unrelated		
+pre			
+pre	 unrelated		
+q			
+q	 unrelated		
+ruby			
+ruby	 unrelated		
+s			
+s	 unrelated		
+samp			
+samp	 unrelated		
+screen			
+screen			p~~
+screen	 unrelated		p~~
+section			
+section	 unrelated		
+small			
+small	 unrelated		
+span			
+span	 unrelated		
+span	note	target	
+span	smallcaps		
+span	smallcaps unrelated		
+strike			
+strike	 unrelated		
+strong			
+strong	 unrelated		
+sub			
+sub	 unrelated		
+summary			
+summary	 unrelated		
+sup			
+sup	 unrelated		
+table			
+table	 unrelated		
+tbody			
+tbody	 unrelated		
+td			
+td	 unrelated		
+tfoot			
+tfoot	 unrelated		
+th			
+th	 unrelated		
+thead			
+thead	 unrelated		
+time			
+time	 unrelated		
+tr			
+tr	 unrelated		
+tt			
+tt	 unrelated		
+u			
+u	 unrelated		
+ul			
+ul			li~~
+ul			p~~TOC
+ul	 unrelated		
+ul	 unrelated		li~~
+ul	 unrelated		p~~TOC
+ul	task-list		
+ul	task-list unrelated		
+var			
+var	 unrelated		
+video			
+video	 unrelated		

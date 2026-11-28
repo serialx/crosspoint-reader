@@ -1,0 +1,114 @@
+{
+  "bitflip-META-INF_container.xml-119/nav-1024": {
+    "difference": {
+      "case": "bitflip-META-INF_container.xml-119/nav-1024",
+      "old_status": 3,
+      "new_status": 3,
+      "missing": [
+        "ERR|CTR|Parse error: partial character"
+      ],
+      "extra": [
+        "ERR|CTR|Parse error: not well-formed (invalid token)"
+      ]
+    },
+    "reason": "Existing Rust XML error 4 versus upstream Expat error 6; both reject the same input. Coordinator approved 2026-10-28; parser behavior unchanged."
+  },
+  "bitflip-META-INF_container.xml-119/nav-7": {
+    "difference": {
+      "case": "bitflip-META-INF_container.xml-119/nav-7",
+      "old_status": 3,
+      "new_status": 3,
+      "missing": [
+        "ERR|CTR|Parse error: partial character"
+      ],
+      "extra": [
+        "ERR|CTR|Parse error: not well-formed (invalid token)"
+      ]
+    },
+    "reason": "Existing Rust XML error 4 versus upstream Expat error 6; both reject the same input. Coordinator approved 2026-10-28; parser behavior unchanged."
+  },
+  "bitflip-META-INF_container.xml-119/ncx-1024": {
+    "difference": {
+      "case": "bitflip-META-INF_container.xml-119/ncx-1024",
+      "old_status": 3,
+      "new_status": 3,
+      "missing": [
+        "ERR|CTR|Parse error: partial character"
+      ],
+      "extra": [
+        "ERR|CTR|Parse error: not well-formed (invalid token)"
+      ]
+    },
+    "reason": "Existing Rust XML error 4 versus upstream Expat error 6; both reject the same input. Coordinator approved 2026-10-28; parser behavior unchanged."
+  },
+  "bitflip-META-INF_container.xml-119/ncx-7": {
+    "difference": {
+      "case": "bitflip-META-INF_container.xml-119/ncx-7",
+      "old_status": 3,
+      "new_status": 3,
+      "missing": [
+        "ERR|CTR|Parse error: partial character"
+      ],
+      "extra": [
+        "ERR|CTR|Parse error: not well-formed (invalid token)"
+      ]
+    },
+    "reason": "Existing Rust XML error 4 versus upstream Expat error 6; both reject the same input. Coordinator approved 2026-10-28; parser behavior unchanged."
+  },
+  "bitflip-book.opf-196/nav-1024": {
+    "difference": {
+      "case": "bitflip-book.opf-196/nav-1024",
+      "old_status": 5,
+      "new_status": 5,
+      "missing": [
+        "DBG|COF|Parse error at line 1: partial character"
+      ],
+      "extra": [
+        "DBG|COF|Parse error at line 1: not well-formed (invalid token)"
+      ]
+    },
+    "reason": "Existing Rust XML error 4 versus upstream Expat error 6; both reject the same input. Coordinator approved 2026-10-28; parser behavior unchanged."
+  },
+  "bitflip-book.opf-196/nav-7": {
+    "difference": {
+      "case": "bitflip-book.opf-196/nav-7",
+      "old_status": 5,
+      "new_status": 5,
+      "missing": [
+        "DBG|COF|Parse error at line 1: partial character"
+      ],
+      "extra": [
+        "DBG|COF|Parse error at line 1: not well-formed (invalid token)"
+      ]
+    },
+    "reason": "Existing Rust XML error 4 versus upstream Expat error 6; both reject the same input. Coordinator approved 2026-10-28; parser behavior unchanged."
+  },
+  "bitflip-book.opf-196/ncx-1024": {
+    "difference": {
+      "case": "bitflip-book.opf-196/ncx-1024",
+      "old_status": 5,
+      "new_status": 5,
+      "missing": [
+        "DBG|COF|Parse error at line 1: partial character"
+      ],
+      "extra": [
+        "DBG|COF|Parse error at line 1: not well-formed (invalid token)"
+      ]
+    },
+    "reason": "Existing Rust XML error 4 versus upstream Expat error 6; both reject the same input. Coordinator approved 2026-10-28; parser behavior unchanged."
+  },
+  "bitflip-book.opf-196/ncx-7": {
+    "difference": {
+      "case": "bitflip-book.opf-196/ncx-7",
+      "old_status": 5,
+      "new_status": 5,
+      "missing": [
+        "DBG|COF|Parse error at line 1: partial character"
+      ],
+      "extra": [
+        "DBG|COF|Parse error at line 1: not well-formed (invalid token)"
+      ]
+    },
+    "reason": "Existing Rust XML error 4 versus upstream Expat error 6; both reject the same input. Coordinator approved 2026-10-28; parser behavior unchanged."
+  }
+}

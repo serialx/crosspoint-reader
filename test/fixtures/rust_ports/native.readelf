@@ -1,0 +1,32 @@
+File: RustBidi.cpp.o
+Section Headers:
+  [ 1] .text.xp_native_bidi_acquire PROGBITS 00000000 000034 000010 00 AX 0 0 4
+  [ 2] .text.bidi_wrapper PROGBITS 00000000 000044 000010 00 AX 0 0 4
+Relocation section '.rela.text.bidi_wrapper' at offset 0x120 contains 1 entry:
+00000000 00000313 R_RISCV_CALL_PLT 00000000 xp_bidi_reorder + 0
+Symbol table '.symtab' contains 4 entries:
+  1: 00000000 16 FUNC GLOBAL DEFAULT 1 xp_native_bidi_acquire
+  2: 00000000 16 FUNC GLOBAL DEFAULT 2 bidi_wrapper
+  3: 00000000 0 NOTYPE GLOBAL DEFAULT UND xp_bidi_reorder
+File: ports.cpp.o
+Section Headers:
+  [ 1] .rodata.PORTS PROGBITS 00000000 000034 000008 00 A 0 0 4
+  [ 2] .text.panel PROGBITS 00000000 000044 000010 00 AX 0 0 4
+Relocation section '.rela.rodata.PORTS' at offset 0x100 contains 2 entries:
+00000000 00000201 R_RISCV_32 00000000 xp_keyboard_metrics + 0
+00000004 00000301 R_RISCV_32 00000000 panel + 0
+Relocation section '.rela.text.panel' at offset 0x120 contains 1 entry:
+00000000 00000413 R_RISCV_CALL_PLT 00000000 xp_panel + 0
+Symbol table '.symtab' contains 5 entries:
+  1: 00000000 8 OBJECT LOCAL DEFAULT 1 PORTS
+  2: 00000000 0 NOTYPE GLOBAL DEFAULT UND xp_keyboard_metrics
+  3: 00000000 16 FUNC LOCAL DEFAULT 2 panel
+  4: 00000000 0 NOTYPE GLOBAL DEFAULT UND xp_panel
+File: KeyboardEntryActivity.cpp.o
+Section Headers:
+  [ 1] .text.xp_keyboard_metrics PROGBITS 00000000 000034 000010 00 AX 0 0 4
+Relocation section '.rela.text.xp_keyboard_metrics' at offset 0x100 contains 1 entry:
+00000000 00000213 R_RISCV_CALL_PLT 00000000 bidi_wrapper + 0
+Symbol table '.symtab' contains 3 entries:
+  1: 00000000 16 FUNC GLOBAL DEFAULT 1 xp_keyboard_metrics
+  2: 00000000 0 NOTYPE GLOBAL DEFAULT UND bidi_wrapper

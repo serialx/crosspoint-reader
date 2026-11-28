@@ -1,6 +1,7 @@
 #pragma once
 
 #include <FrontlightManager.h>
+#include <xp_hal.h>
 
 // Thin firmware HAL over the SDK frontlight manager. It is inert on boards
 // without a frontlight, so callers do not need board-specific conditionals.
@@ -17,9 +18,16 @@ class HalFrontlight {
   void setWarmth(uint8_t warmPercent);
   void setOn(bool on);
 
-  uint8_t brightness() const { return lastBrightness; }
+  // Borrowed synchronously; policy and selected brightness stay in the Rust state.
+  // cppcheck-suppress functionStatic // Returns this instance's Rust light state.
+  XpHalLight* lightState() { return &state; }
+  void writeOutput(uint8_t brightness) { manager.setBrightness(brightness); }
+
+  // cppcheck-suppress functionStatic // Reads this instance's Rust light state.
+  uint8_t brightness() const { return state.brightness; }
   uint8_t warmth() const { return manager.colorTemperature(); }
-  bool isOn() const { return lit; }
+  // cppcheck-suppress functionStatic // Reads this instance's Rust light state.
+  bool isOn() const { return state.lit; }
 
  private:
   HalFrontlight() = default;
@@ -27,8 +35,7 @@ class HalFrontlight {
   FrontlightManager manager;
   // The SDK represents off as brightness 0. Keep the selected brightness so
   // toggling back on restores it.
-  uint8_t lastBrightness = 60;
-  bool lit = false;
+  XpHalLight state{60, false};
 
   static HalFrontlight instance;
 };

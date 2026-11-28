@@ -1,0 +1,30 @@
+struct Definition {
+  OwnedLegacyActivity adapter{nullptr};
+  alignas(DictionaryDefinitionActivity) std::byte activity[sizeof(DictionaryDefinitionActivity)];
+};
+
+Definition* construct(XpEpubDefinitionStorage* storage, GfxRenderer& renderer, MappedInputManager& input,
+                      std::string&& title, std::string&& text, bool html) {
+  auto* owner = ::new (static_cast<void*>(storage)) Definition;
+  auto* viewer = ::new (static_cast<void*>(owner->activity))
+      DictionaryDefinitionActivity(renderer, input, std::move(title), std::move(text), html);
+  owner->adapter.activity.reset(viewer);
+  return owner;
+}
+
+void* definitionPlain(XpEpubDefinitionStorage* storage, XpAppText title, uint32_t length, XpEpubDefinitionFill fill,
+                      void* context, GfxRenderer& renderer, MappedInputManager& input) {
+  std::string text;
+  text.resize(length);
+  if (!fill(context, reinterpret_cast<uint8_t*>(text.data()), length)) return nullptr;
+  std::string heading(title.len ? reinterpret_cast<const char*>(title.data) : "", title.len);
+  return &construct(storage, renderer, input, std::move(heading), std::move(text), false)->adapter;
+}
+
+void definitionDrop(XpEpubDefinitionStorage* storage) {
+  auto* owner = std::launder(reinterpret_cast<Definition*>(storage));
+  // The adapter points into caller storage; releasing first prevents delete.
+  auto* viewer = static_cast<DictionaryDefinitionActivity*>(owner->adapter.activity.release());
+  std::destroy_at(viewer);
+  std::destroy_at(owner);
+}

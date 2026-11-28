@@ -1,0 +1,32 @@
+{
+  "source_commit": "1d95ed1d",
+  "source_sha256": {
+    "lib/KOReaderSync/ChapterXPathResolver.cpp": "c3c171c0fb1bd9a6b921c6bf1cd2844ec7c82d7f82274f384c6daf899d4625d7",
+    "lib/KOReaderSync/ChapterXPathResolver.h": "081f8e81ed81a522a65de8c5bdf3b993d484703b40ff4f4b6367f77131aa586e",
+    "lib/KOReaderSync/CrossPointPosition.h": "fa2f543bc5ca3d18aad7c26537d10eed41fbae4ff223a3a9e76962a844cb1c14",
+    "lib/KOReaderSync/KOReaderCredentialStore.cpp": "375024fb185c7d1605bfd7fecaba3db63fb0d8041d220d105cc897580d19c12d",
+    "lib/KOReaderSync/KOReaderCredentialStore.h": "89343cfc75ce0cd337583d046a86805b8ccda160db438e3d6a5f7171a8ed1c7f",
+    "lib/KOReaderSync/KOReaderDocumentId.cpp": "15b6ff372a4de7070729062f9d0193b0fbdb84e5d2037a629409af8470af1cb4",
+    "lib/KOReaderSync/KOReaderDocumentId.h": "c7a760c8446b73014e35cbf5abf94679b3a25647159c8b51cb68edcac67f0ece",
+    "lib/KOReaderSync/KOReaderSyncClient.cpp": "3ceff4eb0e4b458bd96b78941631bfd227a19255d04d1b23f0872f0c795c6ffa",
+    "lib/KOReaderSync/KOReaderSyncClient.h": "c5e9efe4c052593f29d501cf334713b91bdbe542a80b2262c9bf4939b743d7bb",
+    "lib/KOReaderSync/ProgressComparison.cpp": "a40c9cb6fa2eb01c61b70d72b919ec879415e693e0478ed6bc5903b416152f92",
+    "lib/KOReaderSync/ProgressComparison.h": "e5473536fab52b27bf4b18d90521614c16758b6358b4f7d7bc644d07c8a254f1",
+    "lib/KOReaderSync/ProgressMapper.cpp": "6a667ccccc98d76d47ff359615449fc5cbc0290c45d88242e8e1b95baed89f76",
+    "lib/KOReaderSync/ProgressMapper.h": "b6f492575f7909e823392ecccda2fbc08ddea72ac605cf4efb1877e58de10bd8",
+    "lib/Utf8/Utf8.cpp": "feb0000024a9e2f3a7b32845ab318bf123576f615a535f7b43d293ce4efafd14",
+    "lib/Utf8/Utf8.h": "9466450ea41f0f162e0764252475b474966e6e65ad736e81932625e5709de6df",
+    "lib/Epub/Epub/htmlEntities.cpp": "be4b2e154d28765933e1d599ef6f9b153a92b058068836639a2e4d2118753d2b",
+    "lib/Epub/Epub/htmlEntities.h": "189fc31cd1969ce90c0f60b2d166a7bcbf07d8d011c29be54f78891125ca327a",
+    "lib/Epub/Epub/VisibleTextUtils.h": "a4a7f06c155e194dbf5157ef1ecc79aaf12ac1e10377abccabc55441bc1e9675",
+    "lib/expat/ExpatErrors.cpp": "c40eed3b4ee53b6e9ffdf5aebcc61b77dae661645d46ef96fa71aa5e3b465104"
+  },
+  "original_control_matches_immutable": true,
+  "original_sha256": "125339f8c0a1e31a57cebf969f9d635b4da52c4b43fd3405b38c0ded49873c0c",
+  "boundary_sha256": "438b6b8c95d57470a7f5299ba9d67aea57e3a9381ab1500a45b62cff1fcb22a4",
+  "boundary_compressed_sha256": "8dd9f2e1cbefcbf94787815097bde6953d3357c9d068c805bb3de795c8b9db18",
+  "original_bytes": 874918,
+  "boundary_bytes": 874628,
+  "physical_correction": "Only n>0 && n==getBookSize returns last spine; interior boundary model is unchanged",
+  "native_contract": "1d95ed1d lib/Epub/Epub/BookMetadataCache.cpp:390-403"
+}

@@ -21,9 +21,10 @@ USB-MSC profiles use the prebuilt Arduino/TinyUSB graph instead of the
 Read the selected configuration rather than copying flag values from examples.
 Preserve the contracts behind:
 `EINK_DISPLAY_SINGLE_BUFFER_MODE`, `ARDUINO_USB_MODE`,
-`ARDUINO_USB_CDC_ON_BOOT`, `XML_CONTEXT_BYTES`, `USE_UTF8_LONG_NAMES`,
-`XML_GE` (general-entity security), and `DESTRUCTOR_CLOSES_FILE`.
-XML general entities remain disabled (`XML_GE=0`).
+`ARDUINO_USB_CDC_ON_BOOT`, `USE_UTF8_LONG_NAMES`, and `DESTRUCTOR_CLOSES_FILE`.
+The Rust XML core preserves the former Expat GE=0 entity behavior. The SDK
+compatibility adapter uses that core; Expat build flags apply only to host
+oracles under `test/vendor/expat`, not firmware.
 
 SdFat's `USE_SPI_ARRAY_TRANSFER` / `USE_SEPARATE_FAT_CACHE` depend on
 `scripts/patch_sdfat.py` and its dependency pin. SPI array transfers add

@@ -9,20 +9,20 @@
 // Bluetooth page turner: a BLE remote turns the pages of the book in front.
 //
 // The host hands the module a Host (what the module may ask of it) and the saved Config
-// once, then calls tick() once per main-loop pass and reports the events below. The module
+// once; Rust ticks it once per main-loop pass and reports the events below. The module
 // owns the radio (the SDK's BleKeyboardHost); nothing else in the host starts or stops it.
 //
 // Threads:
-//   - begin, tick, beforeScreenChange, beforeSleep, afterPaint, the settings calls and
-//     Host::deliver, Host::yieldForRadio, Host::restartIntoBook run on the host's main loop.
-//     tick reads the clock itself (RadioPort::nowMs): a remote's hold is timed against the
+//   - begin, xp_ble_tick, xp_ble_before_screen, beforeSleep, afterPaint, the settings calls and
+//     the Rust delivery/restart callbacks and Host::yieldForRadio run on the host's main loop.
+//     xp_ble_tick reads the clock itself (RadioPort::nowMs): a remote's hold is timed against the
 //     moment its frame arrived, which can be later than the start of the pass.
 //   - beforeChapterBuild runs on the host's render task while it holds its render lock.
 //     It may wait (at most 3 s) for a radio start that is already past its cache release,
 //     never for one that still needs the render lock: a start waiting for that lock gives
 //     up its turn as soon as a chapter build asks for the heap.
 //   - A radio start runs on its own short-lived task. There it calls Host::heap,
-//     Host::releaseCaches (which only ever TRIES the render lock), Host::fileTransferActive,
+//     Rust cache release (which only TRIES the render lock), Host::fileTransferActive,
 //     Host::holdFullSpeed and Host::log.
 //   - holdsHeap and status may be called from any task.
 namespace bleturner {
@@ -47,6 +47,8 @@ struct Config {
   uint8_t remoteCount = 0;
 };
 
+extern "C" uint8_t xp_ble_page_action(const Config*, uint8_t usage, uint8_t mods);
+
 // HID usages of the decoded key path. Keyboard page (0x07): Left 0x50, Right 0x4F, Page Up
 // 0x4B, Page Down 0x4E, Up 0x52, Down 0x51, Space 0x2C, Enter 0x28, Backspace 0x2A. Volume
 // Up/Down and Scan Next/Prev live on the Consumer page (0x0C) and arrive as the low byte of
@@ -70,21 +72,8 @@ inline constexpr uint8_t kUsageScanPrev = 0xB6;
 // keys of its direction, so a wrong mapping can always be undone; with nothing learned the
 // wide default set applies, because cheap remotes send only arrows, Space, Enter or the
 // volume keys. Plain typing and any key with a modifier turn nothing.
-constexpr Action pageActionFor(const Config& c, const uint8_t usage, const uint8_t mods) {
-  if (!c.enabled || usage == kUsageNone || mods != 0) return Action::None;
-  if (c.prevKeyUsage != kUsageNone && usage == c.prevKeyUsage) return Action::PrevPage;
-  if (c.nextKeyUsage != kUsageNone && usage == c.nextKeyUsage) return Action::NextPage;
-  if (c.prevKeyUsage == kUsageNone &&
-      (usage == kUsageLeft || usage == kUsagePageUp || usage == kUsageUp || usage == kUsageBackspace ||
-       usage == kUsageVolumeDown || usage == kUsageScanPrev)) {
-    return Action::PrevPage;
-  }
-  if (c.nextKeyUsage == kUsageNone &&
-      (usage == kUsageRight || usage == kUsagePageDown || usage == kUsageDown || usage == kUsageSpace ||
-       usage == kUsageEnter || usage == kUsageVolumeUp || usage == kUsageScanNext)) {
-    return Action::NextPage;
-  }
-  return Action::None;
+inline Action pageActionFor(const Config& c, const uint8_t usage, const uint8_t mods) {
+  return static_cast<Action>(xp_ble_page_action(&c, usage, mods));
 }
 
 // Why the radio may not be on (Ok: it may). radioVerdict (RadioPolicy.h) is the one place
@@ -103,9 +92,12 @@ enum class Why : uint8_t {
   HeapInPieces,    // enough in total, but no block the stack can take
 };
 
-// Module -> host. Every pointer is required except heapMap.
+// Module -> physical host. Every pointer is required except heapMap.
+// App release/delivery/restart are direct Rust calls; XP_APP_TEST retains the
+// existing injectable host oracle callbacks.
 struct Host {
   Heap (*heap)();
+#ifdef XP_APP_TEST
   // Frees rebuildable caches (fonts from the card) under the host's render lock. Only
   // TRIES the lock: false when it is busy, and the start tries again 10 ms later.
   bool (*releaseCaches)();
@@ -113,15 +105,18 @@ struct Host {
   // ReaderMenu or SaveQuote. False when the book did not take it. The two shortcuts count as
   // user activity whatever the answer.
   bool (*deliver)(Action);
+#endif
   // Asked right before the radio starts on a shown page: the book frees what it can build
   // again (a live layout parser), so the stack does not split the heap around it. False
   // while it cannot yet; the start waits for a later pass.
   bool (*yieldForRadio)();
   // A file transfer owns the radio's heap and the card.
   bool (*fileTransferActive)();
+#ifdef XP_APP_TEST
   // The heap is in pieces (shouldRestart): save the reading place and restart into the book.
   void (*restartIntoBook)();
-  // Keep the CPU at full speed while the radio is up or changing state.
+#endif
+  // Publish the CPU hold flag. Rust owns the following HAL clock decision.
   void (*holdFullSpeed)(bool hold);
   // One log line; `format` ends with "\n".
   void (*log)(bool error, const char* format, va_list args);
@@ -133,7 +128,7 @@ struct Host {
 // (RadioPolicy.h) lets the radio start there.
 enum class Where : uint8_t { Elsewhere, Reader, PairingScreen, Home };
 
-// Host -> module, once per main-loop pass.
+// Rust -> module, once per main-loop pass.
 struct Scene {
   Where where;
   // Changes whenever the screen in front changes (a new visit of the book).
@@ -148,13 +143,6 @@ struct Scene {
 
 void begin(const Host& host, Config& config);
 void requestConnect();
-// Returns true when a remote press acted this pass (the host counts it as user activity).
-bool tick(const Scene& scene);
-// False: the radio is still stopping (or a start is in flight); call again next pass before
-// changing screens. endTimeoutMs: how long the SDK may wait for the stack to stop this call.
-// nextIsReader: the screen about to come is a book. A radio that came up at Home (S3 profile) is kept for
-// it, so the book finds the stack already in and the heap Home had.
-bool beforeScreenChange(uint32_t endTimeoutMs = 0, bool nextIsReader = false);
 // Stops the radio now, waiting up to timeoutMs: a start in flight is cancelled or let finish, then
 // the stack stops. False: it did not stop in time. Main loop. A host that covers the page with a
 // sheet calls it first, and reports the book as Elsewhere while the sheet is up.
@@ -194,7 +182,7 @@ Why why();
 // What the book's status bar says about the remote in place of its title. Connecting from the
 // moment a book is entered until a remote links; Failed when the radio was refused for this
 // visit or ran kLinkNoteFailMs without a link, until the next page turn; None otherwise.
-// nextLinkNote (RadioPolicy.h) decides; tick() and acknowledgeLinkNote() apply it.
+// nextLinkNote (RadioPolicy.h) decides; xp_ble_tick and acknowledgeLinkNote() apply it.
 enum class LinkNote : uint8_t { None, Connecting, Failed, Connected, LowMemory };
 // The note for the book in front. Any task.
 LinkNote linkNote();

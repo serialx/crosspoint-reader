@@ -1,0 +1,124 @@
+#include <FreeInkApp.h>
+#include <algorithm>
+#include <atomic>
+#include <cstdint>
+#include <cstdio>
+#include <functional>
+#include <initializer_list>
+#include <iostream>
+#include <memory>
+#include <sstream>
+#include <string>
+namespace fui = freeink::ui;
+struct Target final : fui::DrawTarget {
+  fui::Size measureText(fui::FontId, const char*, fui::TextStyle) const override { return {8,18}; }
+  int16_t lineHeight(fui::FontId) const override { return 18; }
+  void fill(fui::Rect, fui::Paint, uint8_t, uint8_t) override {}
+  void stroke(fui::Rect, fui::Paint, uint8_t, uint8_t, uint8_t) override {}
+  void line(fui::Point, fui::Point, uint8_t, fui::Paint) override {}
+  void triangle(fui::Point, fui::Point, fui::Point, fui::Paint) override {}
+  void text(fui::Rect, const char*, fui::TextStyle) override {}
+  void bitmap(fui::Rect, fui::BitmapRef, fui::BitmapMode, fui::Paint, fui::Rotation) override {}
+} target;
+struct MappedInputManager {
+  enum class Button { Back, Confirm, NavNext, NavPrevious, Left, Right, Up, Down };
+  enum class SwipeDir { None, Up, Down, Left, Right };
+  uint32_t pressed=0,released=0,held=0,heldMs=0;
+  int x=-1,y=-1,touch=0;
+  SwipeDir swipe=SwipeDir::None;
+  bool wasPressed(Button b) const {return pressed&(1u<<unsigned(b));}
+  bool wasReleased(Button b) const {return released&(1u<<unsigned(b));}
+  bool isPressed(Button b) const {return held&(1u<<unsigned(b));}
+  uint32_t getHeldTime() const {return heldMs;}
+  SwipeDir wasSwipe() const {return swipe;}
+} input;
+uint32_t nowMs=0;
+uint32_t millis(){return nowMs;}
+struct ButtonNavigator {
+  using Callback=std::function<void()>;
+  using Buttons=std::initializer_list<MappedInputManager::Button>;
+  static const MappedInputManager* mappedInput;
+  uint32_t lastContinuousNavTime=0;
+  uint16_t continuousStartMs=500,continuousIntervalMs=500;
+  bool shouldNavigateContinuously() const;
+  void onPressAndContinuous(const Buttons&,const Callback&);
+  static void onPress(const Buttons&,const Callback&);
+  void onContinuous(const Buttons&,const Callback&);
+};
+const MappedInputManager* ButtonNavigator::mappedInput=&input;
+struct {bool edge=false;bool hasEdgeSideButtons() const{return edge;}} gpio;
+namespace haptic_feedback {bool touched=false;void touchAction(bool){touched=true;}}
+fui::InputSnapshot touchSnapshotFrom(const MappedInputManager& input,bool) {
+  fui::InputSnapshot snap{};
+  snap.touchX=input.x;snap.touchY=input.y;
+  snap.touchPressed=input.touch&1;snap.touchReleased=input.touch&2;snap.touchHeld=input.touch&4;
+  return snap;
+}
+struct UiAppHost {
+  fui::FreeInkApp<24,6> app;
+  std::atomic<bool> uiReady{false};
+  UiAppHost():app(target,{}){}
+  struct TouchRoute {
+    fui::ActionEvent event{};fui::InputSnapshot snap{};bool routed=false;
+    explicit operator bool() const{return bool(event);}
+  };
+  TouchRoute routeTouch(const MappedInputManager&,bool,bool);
+  fui::ActionEvent route(const fui::InputSnapshot&);
+  bool routingReady() const{return uiReady.load();}
+};
+struct ActivityResult {bool isCancelled=false;};
+struct PercentResult {int percent;};
+constexpr int kSmallStep=1,kLargeStep=10;
+constexpr fui::ActionId ACTION_SLIDER=1,ACTION_STEP=2,ACTION_OK=4,ACTION_CHROME=5;
+struct EpubReaderPercentSelectionActivity : UiAppHost {
+  MappedInputManager& mappedInput=input;
+  int percent,paintRequests=0,result=-2,shift=0,stage=-1;
+  std::function<void()> during;
+  void checkpoint(int point){if(during && stage==point)during();}
+  ButtonNavigator buttonNavigator;
+  bool draggingSlider=false;
+  explicit EpubReaderPercentSelectionActivity(int initial):percent(initial) {
+    app.on(ACTION_SLIDER,onSliderEvent,this);app.on(ACTION_STEP,onStepEvent,this);app.on(ACTION_OK,onOkEvent,this);
+    app.setScreen([](auto& screen,void* ctx){
+      auto* self=static_cast<EpubReaderPercentSelectionActivity*>(ctx);
+      const int16_t x=self->shift;
+      self->checkpoint(0);
+      screen.frame().hit({x,0,100,100},ACTION_CHROME,0,fui::InputTouch);
+      self->checkpoint(1);
+      screen.frame().hit({int16_t(x+10),20,81,20},ACTION_SLIDER,0,fui::InputTouch|fui::InputDrag);
+      self->checkpoint(2);
+      screen.frame().hit({int16_t(x+10),60,20,20},ACTION_STEP,-1,fui::InputTouch);
+      self->checkpoint(3);
+      screen.frame().hit({int16_t(x+30),60,20,20},ACTION_STEP,1,fui::InputTouch);
+      self->checkpoint(4);
+      screen.frame().hit({int16_t(x+50),60,40,20},ACTION_OK,0,fui::InputTouch);
+      self->checkpoint(5);
+    },this);
+  }
+  void requestUpdate(){++paintRequests;}
+  void finish(){}
+  void setResult(ActivityResult r){result=r.isCancelled?-1:-2;}
+  void setResult(PercentResult r){result=r.percent;}
+  void adjustPercent(int);void setPercent(int);void cancel();void confirm();void loop();
+  static void onSliderEvent(const fui::ActionEvent&,void*);
+  static void onStepEvent(const fui::ActionEvent&,void*);
+  static void onOkEvent(const fui::ActionEvent&,void*);
+};
+@METHODS@
+int main(){
+  std::unique_ptr<EpubReaderPercentSelectionActivity> owner;
+  std::string line;
+  while(std::getline(std::cin,line)){
+    std::istringstream in(line);std::string op;in>>op;
+    if(op=="new"){int value,edge;in>>value>>edge;gpio.edge=edge;owner=std::make_unique<EpubReaderPercentSelectionActivity>(value);}
+    else if(op=="paint"){in>>owner->shift;owner->app.render();owner->uiReady=true;}
+    else if(op=="input" || op=="during"){
+      if(op=="during")in>>owner->shift>>owner->stage;
+      int swipe;in>>input.pressed>>input.released>>input.held>>nowMs>>input.heldMs>>input.x>>input.y>>input.touch>>swipe;
+      input.swipe=static_cast<MappedInputManager::SwipeDir>(swipe);owner->result=-2;haptic_feedback::touched=false;
+      auto observe=[&]{owner->loop();std::cout<<owner->percent<<" "<<owner->result<<" "<<haptic_feedback::touched<<"\n";};
+      if(op=="during"){owner->during=observe;owner->app.render();owner->uiReady=true;owner->during={};}
+      else observe();
+    }else{return 2;}
+  }
+}

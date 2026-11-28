@@ -108,8 +108,8 @@ size keeps showing boxes for that script at that size. Direct TTF/OTF/TTC
 families use the same file at all three UI sizes.
 
 These UI sizes only take effect if the reader-size font also matches one of
-CrossPoint's built-in fallback-detection codepoints — see `kFallbackProbes` in
-`src/SdCardFontSystem.cpp` for the current list. A script outside that list
+CrossPoint's built-in fallback-detection codepoints — see `FALLBACK_PROBES` in
+`rust/crates/xp-core/src/sdfont/control.rs` for the current list. A script outside that list
 gets no UI fallback even with the correct `.cpfont` sizes present.
 
 For `.cpfont` families, **Settings > Reader > Font Size** lists every size the family ships,

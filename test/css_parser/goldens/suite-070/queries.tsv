@@ -1,0 +1,24 @@
+P	BAD		
+P	EM		
+P	KW		
+P	PCT		
+P	PT		
+P	PX		
+P	REL		
+div	a b c d e f g h i	id	
+p			
+p	bad		
+p	bad unrelated		
+p	em		
+p	em unrelated		
+p	kw		
+p	kw unrelated		
+p	pct		
+p	pct unrelated		
+p	pt		
+p	pt unrelated		
+p	px		
+p	px unrelated		
+p	rel		
+p	rel unrelated		
+span	note	target	

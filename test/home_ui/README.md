@@ -1,0 +1,55 @@
+# Home ownership tests
+
+Production Home paints through `app::scene::paint` without the native scene
+round trip. Historical `app-test` owner fixtures retain a test-only `paint_scene`
+observer for command/publication comparisons. The `ui_runtime_abi` direct-scene
+case exercises the production target loan and resource validation path; pixel
+and emulator comparisons remain separate checks.
+
+`differential_oracle.py` compares nine frozen traces for Home input, standard
+and grid layout, touch, cover caching and shared file/library views. The adapters
+call production Rust; typed Home resources are decoded only to print the original
+trace. Do not regenerate the frozen goldens to accommodate a port.
+
+`app_owner` compiles the production `xp-ffi/src/app` module with host allocation
+and fake physical/resource leaves. It checks library duplicate/missing filtering
+before corrupt metadata, prepared-title validation without wrapping, early render
+during entry, and Home build/paint rejection with the original input matrix.
+`home_app_owners` runs these cases through CTest. The portable navigation, owned
+result and Home timing tests live in `xp-ui::app`.
+
+The production-App Home target-retention cases in `app/home_tests.rs` run in the
+ordinary host suite and in the normal strict-Miri suite:
+
+```sh
+MIRIFLAGS=-Zmiri-strict-provenance cargo +nightly miri test \
+  --manifest-path test/home_ui/app_owner/Cargo.toml --locked \
+  -- --test-threads=1
+```
+
+The scoped fake service tables and Home allocation probes retain normal leak
+checking. Their fixed thread-local observer uses the existing toolbar test
+allocator; it adds no allocation inside allocator callbacks.
+
+`facade_oracle.py` retains the FileBrowser/Library native binding assertions and
+runs Home resource validation through the production Rust owner. The USB manager
+and remote-input oracles likewise drive the real Rust application. The real
+xp-ffi host archive enables `app-test` for four read-only probes; these symbols
+must be absent from every firmware image.
+
+Run `python3 test/home_ui/differential_oracle.py`, then the complete host CTest
+suite. These tests do not establish hardware behavior: verify repeated
+Home/book/Home, all themes/polarities, remapping and orientations, touch/held
+input, popup close, sleep/wake and physical Home/power on a device.
+
+The `poll_lite` cases use fail-closed EPUB leaves to check that a cached service
+table still performs consuming input reads, that a new session fetches its own
+table, and that settings reads observe new orientation and long-menu values.
+They also run under the strict-Miri command above; no mock policy replaces the
+input-table accessor.
+
+The link-note polling cases use the real owner state and strict physical leaves,
+without the historical loop-policy hooks. They cover absent and hidden titles,
+empty drawn titles, note changes, enable/disable transitions and an unavailable
+render lock; the status leaf must run only under the render lock, outside the
+model lock.

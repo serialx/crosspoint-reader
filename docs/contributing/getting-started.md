@@ -6,6 +6,7 @@ This guide helps you build and run CrossPoint locally.
 
 - [pioarduino Core](https://github.com/pioarduino/platformio-core) (`pio`) or VS Code + [pioarduino IDE](https://github.com/pioarduino/pioarduino-vscode-ide), using the pinned core below
 - Python 3.13 (matches CI)
+- [Rust setup](./rust.md): C3 needs the pinned Rust toolchain and target; S3 needs the Espressif toolchain.
 - `clang-format` 21+ in your `PATH` (CI uses clang-format 21)
 - USB-C cable
 - A device matching the build profile for hardware testing

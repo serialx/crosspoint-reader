@@ -1,0 +1,220 @@
+From bc2530919b0f2d575cf37b5f237e678ca2b8499b Mon Sep 17 00:00:00 2001
+From: Sung-jin Brian Hong <serialx@serialx.net>
+Date: Sat, 14 Nov 2026 17:00:30 +0900
+Subject: [PATCH] fix: validate JPEG header segments before use
+
+The header parser trusted several file fields: the frame header's
+component count indexed the four-entry JPCI array, segment lengths were
+not checked against the bytes read or the file size, DQT and SOF length
+arithmetic could wrap, Huffman table ids above 0x13 looped past the
+buffer, EXIF offsets were used without a bound and a failed scan header
+check was ignored. Huffman table ids and scan table selectors above the
+two DC and two AC tables the decoder holds, and code-length counts that
+do not form a prefix code, made JPEGMakeHuffTables and the decoder index
+past their tables. Reject such headers with JPEG_DECODE_ERROR; skip a
+malformed EXIF block and keep decoding, because the decoder only reads
+it for orientation and thumbnail fields.
+---
+ src/jpeg.inl | 90 ++++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 74 insertions(+), 16 deletions(-)
+
+diff --git a/src/jpeg.inl b/src/jpeg.inl
+index 147b89e..9a66fe5 100644
+--- a/src/jpeg.inl
++++ b/src/jpeg.inl
+@@ -836,7 +836,7 @@ static int JPEGInit(JPEGIMAGE *pJPEG)
+ //
+ static int JPEGGetHuffTables(uint8_t *pBuf, int iLen, JPEGIMAGE *pJPEG)
+ {
+-    int i, j, iOffset, iTableOffset;
++    int i, j, iOffset, iTableOffset, iCodes;
+     uint8_t ucTable, *pHuffVals;
+     
+     iOffset = 0;
+@@ -844,6 +844,9 @@ static int JPEGGetHuffTables(uint8_t *pBuf, int iLen, JPEGIMAGE *pJPEG)
+     while (iLen > 17)  // while there are tables to copy (we may have combined more than 1 table together)
+     {
+         ucTable = pBuf[iOffset++]; // get table index
++        // CrossPoint: ucHuffDC and usHuffAC hold two tables each: ids 0x00-0x01 (DC), 0x10-0x11 (AC)
++        if ((ucTable & 0xee) != 0)
++            return -1;
+         if (ucTable & 0x10) // convert AC offset of 0x10 into offset of 4
+             ucTable ^= 0x14;
+         pJPEG->ucHuffTableUsed |= (1 << ucTable); // mark this table as being defined
+@@ -861,6 +864,14 @@ static int JPEGGetHuffTables(uint8_t *pBuf, int iLen, JPEGIMAGE *pJPEG)
+             {
+                 return -1;
+             }
++            // CrossPoint: the counts must form a prefix code; JPEGMakeHuffTables indexes its tables by code
++            for (i=0, iCodes=0; i<16; i++)
++            {
++                iCodes += pHuffVals[iTableOffset+i];
++                if (iCodes > (2 << i)) // more codes of length i+1 than fit
++                    return -1;
++                iCodes <<= 1;
++            }
+             iTableOffset += 16;
+             for (i=0; i<j; i++)
+             {  // copy huffman table
+@@ -1298,10 +1309,11 @@ static uint32_t TIFFLONG(unsigned char *p, int bMotorola)
+ {
+     uint32_t l;
+ 
++    // CrossPoint: unsigned top byte, so EXIF values >= 0x80000000 do not overflow int
+     if (bMotorola)
+-        l = *p * 0x1000000 + *(p+1) * 0x10000 + *(p+2) * 0x100 + *(p+3); // big endian
++        l = (uint32_t)*p * 0x1000000 + *(p+1) * 0x10000 + *(p+2) * 0x100 + *(p+3); // big endian
+     else
+-        l = *p + *(p+1) * 0x100 + *(p+2) * 0x10000 + *(p+3) * 0x1000000; // little endian
++        l = *p + *(p+1) * 0x100 + *(p+2) * 0x10000 + (uint32_t)*(p+3) * 0x1000000; // little endian
+     return l;
+ } /* TIFFLONG() */
+ //
+@@ -1343,14 +1355,19 @@ static int TIFFVALUE(unsigned char *p, int bMotorola)
+     return i;
+     
+ } /* TIFFVALUE() */
+-static void GetTIFFInfo(JPEGIMAGE *pPage, int bMotorola, int iOffset)
++static void GetTIFFInfo(JPEGIMAGE *pPage, int bMotorola, int iOffset, int iEnd)
+ {
+     int iTag, iTagCount, i;
+     uint8_t *cBuf = pPage->ucFileBuf;
+     
++    // CrossPoint: skip an IFD whose count or tags lie outside the EXIF bytes in the buffer
++    if (iOffset > iEnd - 2)
++        return;
+     iTagCount = TIFFSHORT(&cBuf[iOffset], bMotorola);  /* Number of tags in this dir */
+     if (iTagCount < 1 || iTagCount > 256) // invalid tag count
+         return; /* Bad header info */
++    if (iTagCount * 12 > iEnd - iOffset - 2)
++        return;
+     /*--- Search the TIFF tags ---*/
+     for (i=0; i<iTagCount; i++)
+     {
+@@ -1407,7 +1424,8 @@ static int JPEGGetSOS(JPEGIMAGE *pJPEG, int *iOff)
+         }
+         if (j == 4) // error, not found
+             return 1;
+-        if ((c & 0xf) > 3 || (c & 0xf0) > 0x30)
++        // CrossPoint: selectors index the two DC and two AC tables the decoder holds
++        if ((c & 0xf) > 1 || (c & 0xf0) > 0x10)
+             return 1; // bogus table numbers
+         pJPEG->JPCI[j].dc_tbl_no = c >> 4;
+         pJPEG->JPCI[j].ac_tbl_no = c & 0xf;
+@@ -1635,6 +1653,12 @@ static int JPEGParseInfo(JPEGIMAGE *pPage, int bExtractThumb)
+             iFilePos += i;
+             iBytesRead += i;
+         }
++        // CrossPoint: the marker and its length field must be in the bytes read
++        if (iOffset > iBytesRead - 4)
++        {
++            pPage->iError = JPEG_DECODE_ERROR;
++            return 0;
++        }
+         usMarker = MOTOSHORT(&s[iOffset]);
+         iOffset += 2;
+         usLen = MOTOSHORT(&s[iOffset]); // marker length
+@@ -1644,6 +1668,19 @@ static int JPEGParseInfo(JPEGIMAGE *pPage, int bExtractThumb)
+             iOffset++;
+             continue; // skip 1 byte and try to resync
+         }
++        // CrossPoint: a segment length counts itself (so each step advances) and must end inside the file
++        if (usLen < 2 || usLen > pPage->JPEGFile.iSize - (iFilePos - iBytesRead + iOffset))
++        {
++            pPage->iError = JPEG_DECODE_ERROR;
++            return 0;
++        }
++        // CrossPoint: segments parsed below must lie wholly in the bytes read
++        if ((usMarker == 0xffc0 || usMarker == 0xffc2 || usMarker == 0xffc4 || usMarker == 0xffdb ||
++             usMarker == 0xffdd || usMarker == 0xffda) && usLen > iBytesRead - iOffset)
++        {
++            pPage->iError = JPEG_DECODE_ERROR;
++            return 0;
++        }
+         switch (usMarker)
+         {
+             case 0xffc1: // extended mode
+@@ -1652,32 +1689,47 @@ static int JPEGParseInfo(JPEGIMAGE *pPage, int bExtractThumb)
+                 return 0; // currently unsupported modes
+                 
+             case 0xffe1: // App1 (EXIF?)
+-                if (s[iOffset+2] == 'E' && s[iOffset+3] == 'x' && (s[iOffset+8] == 'M' || s[iOffset+8] == 'I')) // the EXIF data we want
++            {
++                // CrossPoint: EXIF reads stay inside the segment and the bytes read; bad EXIF is skipped
++                int iEnd = (usLen < iBytesRead - iOffset) ? iOffset + usLen : iBytesRead;
++                if (iEnd - iOffset >= 18 && s[iOffset+2] == 'E' && s[iOffset+3] == 'x' && (s[iOffset+8] == 'M' || s[iOffset+8] == 'I')) // the EXIF data we want
+                 {
+-                    int bMotorola, IFD, iTagCount;
++                    int bMotorola, iTagCount;
++                    uint32_t IFD, iSpan = (uint32_t)(iEnd - iOffset - 8); // TIFF bytes available
+                     pPage->iEXIF = iFilePos - iBytesRead + iOffset + 8; // start of TIFF file
+                     // Get the orientation value (if present)
+                     bMotorola = (s[iOffset+8] == 'M');
+                     IFD = TIFFLONG(&s[iOffset+12], bMotorola);
+                     iTagCount = TIFFSHORT(&s[iOffset+16], bMotorola);
+-                    GetTIFFInfo(pPage, bMotorola, IFD+iOffset+8);
++                    if (IFD < iSpan)
++                        GetTIFFInfo(pPage, bMotorola, (int)IFD+iOffset+8, iEnd);
+                     // The second IFD defines the thumbnail (if present)
+-                    if (iTagCount >= 1 && iTagCount < 32) // valid number of tags for EXIF data 'page'
++                    if (IFD < iSpan && iTagCount >= 1 && iTagCount < 32) // valid number of tags for EXIF data 'page'
+                     {
+                        // point to next IFD
+                         IFD += (12 * iTagCount) + 2;
+-                        IFD = TIFFLONG(&s[IFD + iOffset + 8], bMotorola);
+-                        if (IFD != 0 && IFD + iOffset + 8 < JPEG_FILE_BUF_SIZE) // Thumbnail present?
++                        if (IFD + 4 <= iSpan)
+                         {
+-                            pPage->ucHasThumb = 1;
+-                            GetTIFFInfo(pPage, bMotorola, IFD+iOffset+8); // info for second 'page' of TIFF
+-                            pPage->iThumbData += iOffset + 8; // absolute offset in the file
++                            IFD = TIFFLONG(&s[IFD + iOffset + 8], bMotorola);
++                            if (IFD != 0 && IFD < iSpan) // Thumbnail present?
++                            {
++                                pPage->ucHasThumb = 1;
++                                GetTIFFInfo(pPage, bMotorola, (int)IFD+iOffset+8, iEnd); // info for second 'page' of TIFF
++                                pPage->iThumbData = (int)((uint32_t)pPage->iThumbData + iOffset + 8); // absolute offset in the file
++                            }
+                         }
+                     }
+                 }
+                 break;
++            }
+             case 0xffc0: // SOFx - start of frame (baseline)
+             case 0xffc2: // (progressive)
++                // CrossPoint: 1-4 components (JPCI has four entries) and a length that holds them
++                if (usLen < 8 || s[iOffset+7] < 1 || s[iOffset+7] > MAX_COMPS_IN_SCAN || usLen < 8 + 3 * s[iOffset+7])
++                {
++                    pPage->iError = JPEG_DECODE_ERROR;
++                    return 0;
++                }
+                 pPage->ucMode = (uint8_t)usMarker;
+                 pPage->ucBpp = s[iOffset+2]; // bits per sample
+                 pPage->iCropX = pPage->iCropY = 0; // initialize crop rectangle to full image size
+@@ -1733,7 +1785,8 @@ static int JPEGParseInfo(JPEGIMAGE *pPage, int bExtractThumb)
+                 while (usLen > 0)
+                 {
+                     ucTable = s[iOffset++]; // table number
+-                    if ((ucTable & 0xf) > 3) // invalid table number
++                    // CrossPoint: the remaining length must hold the whole table (no usLen underflow)
++                    if ((ucTable & 0xf) > 3 || usLen < ((ucTable & 0xf0) ? DCTSIZE*2+1 : DCTSIZE+1)) // invalid table number
+                     {
+                         pPage->iError = JPEG_DECODE_ERROR;
+                         return 0;
+@@ -1766,7 +1819,12 @@ static int JPEGParseInfo(JPEGIMAGE *pPage, int bExtractThumb)
+ //        if (pPage->ucBpp != 8) // need to match up table IDs
+ //        {
+             iOffset -= usLen;
+-            JPEGGetSOS(pPage, &iOffset); // get Start-Of-Scan info for decoding
++            // CrossPoint: a malformed scan header fails the open
++            if (JPEGGetSOS(pPage, &iOffset)) // get Start-Of-Scan info for decoding
++            {
++                pPage->iError = JPEG_DECODE_ERROR;
++                return 0;
++            }
+ //        }
+         if (!JPEGMakeHuffTables(pPage, 0)) //int bThumbnail) DEBUG
+         {
+-- 
+2.56.0
+

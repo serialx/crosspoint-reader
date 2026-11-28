@@ -8,6 +8,7 @@
 // recordStart + 128k, so no offset table has to be loaded to find it.
 
 #include <HalStorage.h>
+#include <xp_ffi.h>
 
 #include <cstdint>
 #include <string>
@@ -47,9 +48,6 @@ class LibraryIndexFile {
   // caused by a format bug is visible in the log rather than looking like a slow
   // first boot.
   bool open(const char* path);
-  // Accept an otherwise valid stale fold so a rebuild can preserve arrival
-  // history without exposing stale sort/search keys to the browser.
-  bool openForReconciliation(const char* path);
   void close();
   bool isOpen() const { return opened; }
   bool ioFailed() const { return readFailed; }
@@ -97,6 +95,11 @@ class LibraryIndexFile {
   bool readAt(uint32_t offset, void* dst, size_t len);
   bool readBlobField(const ClixRecord& record, uint8_t field, std::string& out);
 
+  struct RustIoContext {
+    LibraryIndexFile& index;
+    std::string* output = nullptr;
+  };
+  static XpLibraryIndexIo rustIo(RustIoContext& context);
   HalFile file;
   ClixHeader head{};
   bool opened = false;

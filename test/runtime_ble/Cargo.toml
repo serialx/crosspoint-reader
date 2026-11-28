@@ -1,0 +1,13 @@
+[package]
+name = "runtime-ble-tests"
+version = "0.0.0"
+edition = "2021"
+publish = false
+[workspace]
+[features]
+app-test = []
+[lib]
+path = "lib.rs"
+[dependencies]
+xp-core = { path = "../../rust/crates/xp-core" }
+xp-layout = { path = "../../rust/crates/xp-layout" }

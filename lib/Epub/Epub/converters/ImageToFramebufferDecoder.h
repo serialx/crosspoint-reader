@@ -15,9 +15,7 @@ struct ImageDimensions {
 struct RenderConfig {
   int x, y;
   int maxWidth, maxHeight;
-  bool useGrayscale = true;
   bool useDithering = true;
-  bool performanceMode = false;
   bool useExactDimensions = false;  // If true, use maxWidth/maxHeight as exact output size (no recalculation)
   float sourceCropX = 0.0f;         // Fraction cropped equally from the left and right edges
   float sourceCropY = 0.0f;         // Fraction cropped equally from the top and bottom edges
@@ -55,6 +53,4 @@ class ImageToFramebufferDecoder {
   // task's watchdog.
   static constexpr int64_t MAX_SOURCE_DIMENSION = INT16_MAX;
   static constexpr int64_t MAX_SOURCE_PIXELS = 8388608;  // 8 MP (e.g. 2048 * 4096)
-
-  void warnUnsupportedFeature(const std::string& feature, const std::string& imagePath);
 };

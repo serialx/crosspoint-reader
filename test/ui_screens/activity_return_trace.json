@@ -1,0 +1,82 @@
+{
+  "source": "UI-SCENE CP1 parent 0e6e1078, X3 clock capture, 2026-11-12",
+  "console_sha256": "dbd58cbb18bf7aeb43554c3b1c02d1b8baedb601cef94d3a854c768038bd2030",
+  "console": [
+    {
+      "line": "[1161] [DBG] [ACT] Entering activity: Boot",
+      "t": 0.684
+    },
+    {
+      "line": "[3042] [DBG] [ACT] Exiting activity: Boot",
+      "t": 1.359
+    },
+    {
+      "line": "[3042] [DBG] [ACT] Entering activity: Home",
+      "t": 1.359
+    },
+    {
+      "line": "[13097] [DBG] [ACT] Exiting activity: Home",
+      "t": 2.528
+    },
+    {
+      "line": "[13097] [DBG] [ACT] Entering activity: SettingsList",
+      "t": 2.528
+    },
+    {
+      "line": "[14152] [DBG] [ACT] Entering activity: Settings",
+      "t": 2.836
+    },
+    {
+      "line": "[17434] [DBG] [ACT] Entering activity: ClockSettings",
+      "t": 4.018
+    },
+    {
+      "line": "[20788] [DBG] [ACT] Entering activity: TimezonePicker",
+      "t": 4.45
+    },
+    {
+      "line": "[34305] [DBG] [ACT] Exiting activity: TimezonePicker",
+      "t": 8.486
+    },
+    {
+      "line": "[42942] [DBG] [ACT] Entering activity: ClockSync",
+      "t": 10.797
+    },
+    {
+      "line": "[42942] [DBG] [ACT] Entering activity: WifiSelection",
+      "t": 10.797
+    }
+  ],
+  "shots": [
+    {
+      "t": 4.362,
+      "name": "clock-settings",
+      "activity": "ClockSettings"
+    },
+    {
+      "t": 4.808,
+      "name": "timezone",
+      "activity": "TimezonePicker"
+    },
+    {
+      "t": 8.422,
+      "name": "timezone-scroll",
+      "activity": "TimezonePicker"
+    },
+    {
+      "t": 9.401,
+      "name": "clock-dst",
+      "activity": "ClockSettings"
+    },
+    {
+      "t": 10.146,
+      "name": "clock-format",
+      "activity": "ClockSettings"
+    },
+    {
+      "t": 11.198,
+      "name": "clock-sync-wifi",
+      "activity": "WifiSelection"
+    }
+  ]
+}

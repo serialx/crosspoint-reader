@@ -1,0 +1,6 @@
+P	SAME		
+div	a b c d e f g h i	id	
+p			
+p	same		
+p	same unrelated		
+span	note	target	

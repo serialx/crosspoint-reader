@@ -51,18 +51,23 @@ class HalStorage {
   // Write a string to `path` on the SD card. Overwrites existing file.
   // Returns true on success.
   bool writeFile(const char* path, const String& content);
+  // SDK text transaction over borrowed encoded bytes; retains StorageLock throughout.
+  bool writeFileAtomic(const char* path, const uint8_t* bytes, size_t size);
   // Ensure a directory exists, creating it if necessary. Returns true on success.
   bool ensureDirectoryExists(const char* path);
 
   HalFile open(const char* path, const oflag_t oflag = O_RDONLY);
+  HalFile createExclusive(const char* path);
   bool mkdir(const char* path, const bool pFlag = true);
   bool exists(const char* path);
+  bool isDirectory(const char* path);
   bool remove(const char* path);
   bool rename(const char* oldPath, const char* newPath);
   // Move a fully written temp file over `path`, replacing any existing file.
   bool replaceFile(const char* tmpPath, const char* path);
   bool rmdir(const char* path);
 
+  // Read/write opens return false and leave a default handle if the handle allocation fails.
   bool openFileForRead(const char* moduleName, const char* path, HalFile& file);
   bool openFileForRead(const char* moduleName, const std::string& path, HalFile& file);
   bool openFileForRead(const char* moduleName, const String& path, HalFile& file);

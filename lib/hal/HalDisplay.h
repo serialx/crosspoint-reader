@@ -2,11 +2,15 @@
 #include <Arduino.h>
 #include <BoardConfig.h>
 #include <EInkDisplay.h>
+#include <xp_hal.h>
 
 class HalDisplay {
  public:
   using Controller = BoardConfig::DisplayController;
   Controller getController() const;
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  bool setFrameSource(XpDisplaySource* source);
+#endif
 
   using GrayscaleMode = freeink::GrayscaleMode;
   using GrayscaleCapabilities = freeink::GrayscaleCapabilities;
@@ -46,8 +50,6 @@ class HalDisplay {
   void clearScreen(uint8_t color = 0xFF) const;
   void drawImage(const uint8_t* imageData, uint16_t x, uint16_t y, uint16_t w, uint16_t h,
                  bool fromProgmem = false) const;
-  void drawImageTransparent(const uint8_t* imageData, uint16_t x, uint16_t y, uint16_t w, uint16_t h,
-                            bool fromProgmem = false) const;
 
   void displayBuffer(RefreshMode mode = RefreshMode::FAST_REFRESH, bool turnOffScreen = false);
   // Non-blocking refresh (shadow-free): starts the panel waveform and returns
@@ -69,7 +71,6 @@ class HalDisplay {
   // Output polarity. The framebuffer remains in normal polarity; inversion is
   // applied by the display driver while sending it to the panel.
   void setInverted(bool inverted);
-  bool toggleInverted();
   bool isInverted() const;
 
   // Power management
@@ -128,6 +129,7 @@ class HalDisplay {
 
  private:
   EInkDisplay einkDisplay;
+  static uint32_t dispatch(void* ctx, XpHalDisplayOp op, uint32_t refresh, bool off, uint32_t gray);
 };
 
 extern HalDisplay display;

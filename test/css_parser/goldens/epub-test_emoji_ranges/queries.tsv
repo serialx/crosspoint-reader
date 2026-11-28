@@ -1,0 +1,26 @@
+BODY			
+H1			
+H2			
+P			
+P	CODE		
+P	GLYPH		
+P	NOTE		
+P	SAMPLE		
+body			
+body	 unrelated		
+div	a b c d e f g h i	id	
+h1			
+h1	 unrelated		
+h2			
+h2	 unrelated		
+p			
+p	 unrelated		
+p	code		
+p	code unrelated		
+p	glyph		
+p	glyph unrelated		
+p	note		
+p	note unrelated		
+p	sample		
+p	sample unrelated		
+span	note	target	

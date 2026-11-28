@@ -1,0 +1,16 @@
+[package]
+name = "reader-relay-tests"
+version = "0.0.0"
+edition = "2021"
+publish = false
+[workspace]
+[features]
+default = ["sd-font-catalog"]
+sd-font-catalog = []
+app-test = []
+[lib]
+path = "lib.rs"
+
+[dependencies]
+xp-core = { path = "../../rust/crates/xp-core" }
+xp-layout = { path = "../../rust/crates/xp-layout" }

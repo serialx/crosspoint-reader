@@ -1,10 +1,10 @@
 #pragma once
-#include "activities/UiListActivity.h"
+#include "SettingsUiActivity.h"
 
 // Clock configuration under System settings: timezone, 12/24-hour format,
 // home-header display, and manual NTP sync. Only reachable when
 // halClock.isAvailable() — SettingsActivity gates the entry.
-class ClockSettingsActivity final : public UiListActivity {
+class ClockSettingsActivity final : public SettingsUiActivity {
  public:
   explicit ClockSettingsActivity(GfxRenderer& renderer, MappedInputManager& mappedInput);
 
@@ -14,7 +14,8 @@ class ClockSettingsActivity final : public UiListActivity {
 
  private:
   int listCount() const override { return ITEM_COUNT; }
-  void buildScreen(UiScreen& screen) override;
+  const SettingsUiRow* rowAt(int i) const override { return i >= 0 && i < listCount() ? &rowItems_[i] : nullptr; }
+  void prepareRows() override;
   void activateIndex(int index) override;
   const char* headerTitle() const override;
 
@@ -22,5 +23,5 @@ class ClockSettingsActivity final : public UiListActivity {
   // the one formatted value (the sync row's live time) lives here so its
   // pointer stays valid across the frame. Fits "HH:MM PM" + NUL.
   char syncTime_[9] = {0};
-  freeink::ui::ListItem rowItems_[ITEM_COUNT]{};
+  SettingsUiRow rowItems_[ITEM_COUNT]{};
 };

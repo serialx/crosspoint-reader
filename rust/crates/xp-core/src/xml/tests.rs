@@ -1,0 +1,411 @@
+#![allow(clippy::indexing_slicing)]
+extern crate std;
+use super::*;
+use std::{string::String, vec, vec::Vec};
+
+struct Expected {
+    kind: Kind,
+    byte: i64,
+    line: u64,
+    fields: &'static [&'static str],
+}
+struct ExpectedRun {
+    events: &'static [Expected],
+    error: u32,
+    byte: i64,
+    line: u64,
+}
+struct Case {
+    name: &'static str,
+    input: &'static [u8],
+    variants: &'static [ExpectedRun],
+    splits: &'static [(usize, usize)],
+    chunks: &'static [usize],
+}
+#[derive(Debug, PartialEq)]
+struct Recorded {
+    kind: Kind,
+    byte: i64,
+    line: u64,
+    fields: Vec<String>,
+}
+
+fn drain(parser: &mut Parser, events: &mut Vec<Recorded>) -> Option<(u32, i64, u64)> {
+    loop {
+        let e = parser.next();
+        match e.kind {
+            Kind::NeedInput => return None,
+            Kind::Done => return Some((0, e.byte as i64, e.line)),
+            Kind::Error => return Some((e.error, e.byte as i64, e.line)),
+            _ => {}
+        }
+        let fields: Vec<String> = e
+            .fields
+            .iter()
+            .map(|f| String::from_utf8(e.data[f.range.clone()].to_vec()).unwrap())
+            .collect();
+        if e.kind == Kind::Text && events.last().is_some_and(|e| e.kind == Kind::Text) {
+            events.last_mut().unwrap().fields[0].push_str(&fields[0]);
+        } else {
+            events.push(Recorded {
+                kind: e.kind,
+                byte: e.byte as i64,
+                line: e.line,
+                fields,
+            });
+        }
+    }
+}
+fn replay(case: &Case, lengths: &[usize], variant: usize) -> Result<(), String> {
+    let expected = &case.variants[variant];
+    let mut parser = Parser::new();
+    let mut events = vec![];
+    let mut pos = 0;
+    let mut final_state = None;
+    for (index, &length) in lengths.iter().enumerate() {
+        let end = pos + length;
+        loop {
+            let consumed = parser.feed(&case.input[pos..end], index == lengths.len() - 1);
+            pos += consumed;
+            final_state = drain(&mut parser, &mut events);
+            if final_state.is_some() || pos == end {
+                break;
+            }
+            if consumed == 0 {
+                return Err(String::from("no progress"));
+            }
+        }
+        if final_state.is_some() {
+            break;
+        }
+    }
+    let wanted: Vec<_> = expected
+        .events
+        .iter()
+        .map(|e| Recorded {
+            kind: e.kind,
+            byte: e.byte,
+            line: e.line,
+            fields: e.fields.iter().map(|s| String::from(*s)).collect(),
+        })
+        .collect();
+    if events != wanted || final_state != Some((expected.error, expected.byte, expected.line)) {
+        return Err(std::format!(
+            "actual={events:?} state={final_state:?}\nexpected={wanted:?} state={:?}",
+            (expected.error, expected.byte, expected.line)
+        ));
+    }
+    Ok(())
+}
+
+#[test]
+fn oracle_replay() {
+    let cases: &[Case] = include!("../../../../../test/xml_oracle/rust_goldens.rs");
+    replay_cases(cases);
+}
+
+#[test]
+fn regression_oracle_replay() {
+    replay_cases(include!(
+        "../../../../../test/xml_oracle/regression_goldens.rs"
+    ));
+}
+
+fn replay_cases(cases: &[Case]) {
+    let mut failures = 0;
+    let mut schedules = 0;
+    for case in cases {
+        let mut failure = None;
+        let mut split = 0;
+        for &(count, variant) in case.splits {
+            for _ in 0..count {
+                if let Err(error) = replay(case, &[split, case.input.len() - split], variant) {
+                    failure = Some(std::format!("split {split}: {error}"));
+                    break;
+                }
+                schedules += 1;
+                split += 1;
+            }
+            if failure.is_some() {
+                break;
+            }
+        }
+        if failure.is_none() {
+            for (index, size) in [1, 7, 512, 1024].iter().copied().enumerate() {
+                let mut lengths = vec![];
+                let mut left = case.input.len();
+                while left > 0 {
+                    let n = left.min(size);
+                    lengths.push(n);
+                    left -= n;
+                }
+                if lengths.is_empty() {
+                    lengths.push(0);
+                }
+                if let Err(error) = replay(case, &lengths, case.chunks[index]) {
+                    failure = Some(std::format!("chunks {size}: {error}"));
+                    break;
+                }
+                schedules += 1;
+            }
+        }
+        if let Some(error) = failure {
+            std::eprintln!("{}: {}", case.name, error);
+            failures += 1;
+        }
+    }
+    std::eprintln!(
+        "{schedules} schedules matched; {failures}/{} inputs failed",
+        cases.len()
+    );
+    assert_eq!(failures, 0);
+}
+
+#[test]
+fn stop_is_latched_and_completion_does_not_accept_more_input() {
+    let mut parser = Parser::new();
+    assert_eq!(parser.feed(b"<r/>", true), 4);
+    assert_eq!(parser.next().kind, Kind::Start);
+    parser.stop();
+    assert_eq!(parser.next().kind, Kind::Stopped);
+    assert_eq!(parser.feed(b"<more/>", true), 0);
+    assert_eq!(parser.next().kind, Kind::Stopped);
+    let mut parser = Parser::new();
+    parser.feed(b"<r/>", true);
+    assert_eq!(parser.next().kind, Kind::Start);
+    assert_eq!(parser.next().kind, Kind::End);
+    assert_eq!(parser.next().kind, Kind::Done);
+    assert_eq!(parser.feed(b"<more/>", true), 0);
+    assert_eq!(parser.next().kind, Kind::Done);
+}
+
+#[test]
+fn streaming_text_and_cdata_do_not_retain_the_document() {
+    for cdata in [false, true] {
+        let mut parser = Parser::new();
+        parser.feed(if cdata { b"<r><![CDATA[" } else { b"<r>" }, false);
+        while parser.next().kind != Kind::NeedInput {}
+        let block = [b'x'; 1024];
+        for _ in 0..2048 {
+            assert_eq!(parser.feed(&block, false), block.len());
+            let mut text = 0;
+            loop {
+                let event = parser.next();
+                match event.kind {
+                    Kind::Text => text += event.fields[0].range.len(),
+                    Kind::NeedInput => break,
+                    other => panic!("{other:?}"),
+                }
+            }
+            assert_eq!(text, 1024);
+            assert!(parser.input.capacity() <= 4096);
+            assert!(parser.token.capacity() <= 4096);
+        }
+        let tail = if cdata {
+            b"]]></r>".as_slice()
+        } else {
+            b"</r>".as_slice()
+        };
+        parser.feed(tail, true);
+        loop {
+            match parser.next().kind {
+                Kind::CdataEnd | Kind::End => {}
+                Kind::Done => break,
+                other => panic!("{other:?}"),
+            }
+        }
+    }
+}
+
+#[test]
+fn xpath_text_boundaries_keep_literal_newlines_and_cdata_brackets_separate() {
+    let mut parser = Parser::new();
+    let input = b"<r>a\n b\r\nc<![CDATA[x ] y]]>z&#10;q</r>";
+    assert_eq!(parser.feed(input, true), input.len());
+    let mut text = vec![];
+    loop {
+        let event = parser.next();
+        match event.kind {
+            Kind::Text => text.push(event.data[event.fields[0].range.clone()].to_vec()),
+            Kind::Done => break,
+            Kind::Error | Kind::NeedInput => panic!("unexpected event {:?}", event.kind),
+            _ => {}
+        }
+    }
+    let expected: &[&[u8]] = &[
+        b"a", b"\n", b" b", b"\n", b"c", b"x ", b"] y", b"z", b"\n", b"q",
+    ];
+    assert_eq!(text, expected);
+}
+
+#[test]
+fn xpath_partial_token_retry_keeps_following_whitespace_in_the_same_run() {
+    let mut parser = Parser::new();
+    assert_eq!(parser.feed(b"<r>", false), 3);
+    while parser.next().kind != Kind::NeedInput {}
+    assert_eq!(parser.feed(b"<p", false), 2);
+    while parser.next().kind != Kind::NeedInput {}
+    assert_eq!(parser.feed(b">", false), 1);
+    assert_eq!(parser.next().kind, Kind::NeedInput);
+    assert_eq!(parser.feed(b" ", false), 1);
+    assert_eq!(parser.next().kind, Kind::Start);
+    let event = parser.next();
+    assert_eq!(event.kind, Kind::Text);
+    assert_eq!(&event.data[event.fields[0].range.clone()], b" ");
+}
+
+#[test]
+fn seeded_mutations_never_panic_or_escape_the_status_contract() {
+    let corpus: &[Case] = include!("../../../../../test/xml_oracle/rust_goldens.rs");
+    let regressions: &[Case] = include!("../../../../../test/xml_oracle/regression_goldens.rs");
+    let seeds: Vec<&[u8]> = corpus.iter().chain(regressions).map(|c| c.input).collect();
+    let mut rng = 0x6a09_e667_f3bc_c909u64;
+    let mut random = || {
+        rng ^= rng << 13;
+        rng ^= rng >> 7;
+        rng ^= rng << 17;
+        rng as usize
+    };
+    for iteration in 0..200_000 {
+        let mut input = seeds[random() % seeds.len()].to_vec();
+        for _ in 0..1 + random() % 8 {
+            let pos = random() % (input.len() + 1);
+            match random() % 5 {
+                0 => input.insert(pos, random() as u8),
+                1 if pos < input.len() => {
+                    input.remove(pos);
+                }
+                2 if pos < input.len() => input[pos] ^= 1 << (random() % 8),
+                3 => input.truncate(pos),
+                _ => {
+                    let seed = seeds[random() % seeds.len()];
+                    let n = seed.len().min(random() % 32);
+                    input.splice(pos..pos, seed[..n].iter().copied());
+                }
+            }
+        }
+        let chunk = 1 + random() % 1024;
+        let mut parser = Parser::new();
+        let mut pos = 0;
+        let mut budget = input.len().saturating_mul(4) + 1024;
+        'feed: loop {
+            let end = input.len().min(pos + chunk);
+            let consumed = parser.feed(&input[pos..end], end == input.len());
+            assert!(consumed <= end - pos, "iteration {iteration}");
+            pos += consumed;
+            loop {
+                assert!(budget > 0, "no progress, iteration {iteration}: {input:?}");
+                budget -= 1;
+                let e = parser.next();
+                for field in e.fields {
+                    assert!(e.data.get(field.range.clone()).is_some());
+                }
+                match e.kind {
+                    Kind::Start
+                    | Kind::End
+                    | Kind::Text
+                    | Kind::Comment
+                    | Kind::Pi
+                    | Kind::CdataStart
+                    | Kind::CdataEnd
+                    | Kind::Entity => assert_eq!(e.error, 0),
+                    Kind::NeedInput => {
+                        assert!(
+                            pos < input.len(),
+                            "unfinished final input, iteration {iteration}"
+                        );
+                        break;
+                    }
+                    Kind::Done => {
+                        assert_eq!(e.error, 0);
+                        break 'feed;
+                    }
+                    Kind::Error => {
+                        assert!((1..=43).contains(&e.error));
+                        break 'feed;
+                    }
+                    Kind::Stopped => panic!("spontaneous stop, iteration {iteration}"),
+                }
+            }
+        }
+        let status = parser.next().kind;
+        assert!(matches!(status, Kind::Done | Kind::Error));
+        assert_eq!(parser.feed(b"more", true), 0);
+        assert_eq!(parser.next().kind, status);
+    }
+}
+
+#[test]
+fn long_comments_use_one_growing_buffer_and_preserve_following_input() {
+    for size in [16_384, 32_768, 40_960, 65_536] {
+        for encoding in [
+            Encoding::Utf8,
+            Encoding::Utf16Le,
+            Encoding::Utf16Be,
+            Encoding::Latin1,
+        ] {
+            let pattern = if matches!(encoding, Encoding::Utf16Le | Encoding::Utf16Be) {
+                "한\u{800}🙂\r\nx-"
+            } else {
+                "é\r\nx-"
+            };
+            let body = pattern.repeat(size / 5) + ".";
+            let document = std::format!("<r><!--{body}--><p>after</p></r>");
+            let input = match encoding {
+                Encoding::Utf16Le | Encoding::Utf16Be => {
+                    let mut bytes = if encoding == Encoding::Utf16Le {
+                        vec![0xff, 0xfe]
+                    } else {
+                        vec![0xfe, 0xff]
+                    };
+                    for c in document.encode_utf16() {
+                        bytes.extend(if encoding == Encoding::Utf16Le {
+                            c.to_le_bytes()
+                        } else {
+                            c.to_be_bytes()
+                        });
+                    }
+                    bytes
+                }
+                Encoding::Latin1 => {
+                    let mut bytes = b"<?xml version='1.0' encoding='ISO-8859-1'?>".to_vec();
+                    bytes.extend(document.chars().map(|c| c as u8));
+                    bytes
+                }
+                _ => document.into_bytes(),
+            };
+            for chunk in [1, 7, 1024] {
+                let mut parser = Parser::new();
+                let mut events = vec![];
+                let mut pos = 0;
+                while pos < input.len() {
+                    let end = input.len().min(pos + chunk);
+                    pos += parser.feed(&input[pos..end], end == input.len());
+                    let done = drain(&mut parser, &mut events);
+                    if let Some(status) = done {
+                        assert_eq!(status.0, 0, "{size} {chunk} {encoding:?}");
+                        assert_eq!(status.1, input.len() as i64);
+                    }
+                    // Only source storage grows with the comment; projection and token scratch stay small.
+                    assert!(parser.token.capacity() <= 128);
+                    assert!(parser.output.capacity() <= 128);
+                    assert!(parser.input.capacity() <= input.len() * 2 + 1024);
+                }
+                let comment = events.iter().find(|e| e.kind == Kind::Comment).unwrap();
+                assert_eq!(comment.fields, [body.replace("\r\n", "\n")]);
+                assert!(events
+                    .iter()
+                    .any(|e| e.kind == Kind::Text && e.fields == ["after"]));
+                assert_eq!(events.iter().filter(|e| e.kind == Kind::Comment).count(), 1);
+            }
+        }
+    }
+}
+
+#[test]
+fn name_scanning_does_not_validate_unrelated_suffixes() {
+    assert_eq!(name_end(b"name \xff", 0), Some(4));
+    assert_eq!(name_end("é名 rest".as_bytes(), 0), Some(5));
+    assert_eq!(name_end(b"1name", 0), None);
+    assert_eq!(name_end(b"name", usize::MAX), None);
+}

@@ -5,6 +5,7 @@
 #include <InputManager.h>
 #include <Logging.h>
 #include <freertos/semphr.h>
+#include <xp_hal.h>
 
 #include <cassert>
 
@@ -14,17 +15,14 @@ class HalPowerManager;
 extern HalPowerManager powerManager;  // Singleton
 
 class HalPowerManager {
-  int normalFreq = 0;  // MHz
-  bool isLowPower = false;
-
-  mutable int _batteryCachedPercent = 0;         // Last read battery percentage (0-100)
-  mutable unsigned long _batteryLastPollMs = 0;  // Timestamp of last battery read in milliseconds
-
-  enum LockMode { None, NormalSpeed };
-  LockMode currentLockMode = None;
-  SemaphoreHandle_t modeMutex = nullptr;  // Protect access to currentLockMode
+  XpHalPower state{};
+  mutable XpHalBattery batteryState{};
+  SemaphoreHandle_t modeMutex = nullptr;
+  XpHalPowerServices services();
 
  public:
+  // The Rust HAL owns the synchronous borrow and existing synchronization.
+  XpHalPowerContext context() { return {&state, services()}; }
 #if BOARD_HAS_PSRAM
   static constexpr int LOW_POWER_FREQ = 80;  // MHz
 #else
@@ -39,7 +37,7 @@ class HalPowerManager {
   void setPowerSaving(bool enabled);
 
   // Setup wake up GPIO and enter deep sleep
-  // Should be called inside main loop() to handle the currentLockMode
+  // Should be called inside main loop() to coordinate power locks
   // wakeOnHeldButton: arm the wake without waiting for the power button's
   // release, so a press that is still down wakes the device straight back up
   // through the normal power-button wake path.

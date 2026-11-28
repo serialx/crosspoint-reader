@@ -1,6 +1,7 @@
 add_executable(HttpHeaderTest
   HttpHeaderTest.cpp
   ${REPO_ROOT}/lib/HttpHeader/HttpHeader.cpp
+  ${REPO_ROOT}/lib/HttpHeader/HttpText.cpp
 )
 
 target_include_directories(HttpHeaderTest PRIVATE

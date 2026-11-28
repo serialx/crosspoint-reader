@@ -23,26 +23,17 @@ class ButtonNavigator final {
 
   static void setMappedInputManager(const MappedInputManager& mappedInputManager) { mappedInput = &mappedInputManager; }
 
-  void onNext(const Callback& callback);
-  void onPrevious(const Callback& callback);
   void onPressAndContinuous(const Buttons& buttons, const Callback& callback);
 
   static void onNextPress(const Callback& callback);
   static void onPreviousPress(const Callback& callback);
   static void onPress(const Buttons& buttons, const Callback& callback);
-
-  void onPreviousRelease(const Callback& callback);
-  void onRelease(const Buttons& buttons, const Callback& callback);
-
   void onNextContinuous(const Callback& callback);
   void onPreviousContinuous(const Callback& callback);
   void onContinuous(const Buttons& buttons, const Callback& callback);
 
   [[nodiscard]] static int nextIndex(int currentIndex, int totalItems);
   [[nodiscard]] static int previousIndex(int currentIndex, int totalItems);
-
-  [[nodiscard]] static int nextPageIndex(int currentIndex, int totalItems, int itemsPerPage);
-  [[nodiscard]] static int previousPageIndex(int currentIndex, int totalItems, int itemsPerPage);
 
   // Navigation uses the logical NavNext / NavPrevious buttons; MappedInputManager::mapButton resolves
   // them to physical buttons and applies any orientation-based direction swap, so this stays settings-free.

@@ -1,0 +1,33 @@
+void UpdateUiActivity::render(RenderLock&&) {
+  XpUiScene scene{};
+  bool painted = false;
+  {
+    ResourceLock resourceLock(*this);
+    if (buildRustScene(scene)) {
+      const auto paint = rustResources();
+      painted = renderer.drawUiScene(scene, &paint);
+      if (!painted) LOG_ERR("RUI", "Invalid scene in %s", name.c_str());
+    } else {
+      LOG_ERR("RUI", "Cannot build scene in %s", name.c_str());
+    }
+    releaseText();
+    if (painted)
+      publishRustScene(scene);
+    else
+      rejectRustScene();
+  }
+  if (!painted) return;
+  switch (static_cast<XpUiRefresh>(scene.refresh)) {
+    case XP_UI_NONE:
+      break;
+    case XP_UI_FAST:
+      renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+      break;
+    case XP_UI_HALF:
+      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+      break;
+    case XP_UI_FULL:
+      renderer.displayBuffer(HalDisplay::FULL_REFRESH);
+      break;
+  }
+}

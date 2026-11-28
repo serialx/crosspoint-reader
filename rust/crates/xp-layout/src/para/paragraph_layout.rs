@@ -1,0 +1,604 @@
+//! Renderer-dependent paragraph measurements and break selection.
+use super::{
+    layout, layout_split,
+    paragraph::{first, last, Metrics, Paragraph, Span},
+};
+use alloc::vec::Vec;
+use core::{ffi::c_void, ptr};
+extern crate alloc;
+
+pub struct Widths(pub layout::Widths);
+impl Drop for Widths {
+    fn drop(&mut self) {
+        unsafe {
+            self.0.destroy();
+        }
+    }
+}
+pub struct Breaks(pub layout::Breaks);
+impl Drop for Breaks {
+    fn drop(&mut self) {
+        unsafe {
+            self.0.destroy();
+        }
+    }
+}
+
+pub fn scaled(advance: i32, percent: u8) -> i32 {
+    if percent == 100 {
+        advance
+    } else {
+        (advance * i32::from(percent) + 50) / 100
+    }
+}
+
+impl Metrics {
+    /// # Safety
+    /// Storage includes its trailing NUL and remains borrowed through the callback.
+    unsafe fn advance(&self, font: i32, storage: &[u8], style: u8, spacing: i8) -> i32 {
+        debug_assert_eq!(storage.last(), Some(&0));
+        let text = &storage[..storage.len() - 1];
+        if let Some(engine) = self.engine.as_ref() {
+            return engine.advance(
+                font,
+                text,
+                style,
+                spacing,
+                -1,
+                crate::textm::MeasureMode::Layout,
+            );
+        }
+        let span = Span {
+            data: storage.as_ptr(),
+            len: text.len() as u32,
+        };
+        (self.advance.unwrap())(self.context, font, span, style, spacing)
+    }
+    pub fn ascender_value(&self, font: i32) -> i32 {
+        if let Some(e) = unsafe { self.engine.as_ref() } {
+            return crate::textm::font_ascender(&e.face(font));
+        }
+        unsafe { (self.ascender.unwrap())(self.context, font) }
+    }
+    pub fn sd(&self, font: i32) -> bool {
+        if let Some(e) = unsafe { self.engine.as_ref() } {
+            return e.is_sd(font);
+        }
+        unsafe { (self.is_sd.unwrap())(self.context, font) != 0 }
+    }
+    pub fn kern(&self, font: i32, left: u32, right: u32, style: u8, tracking: i8) -> i32 {
+        if let Some(e) = unsafe { self.engine.as_ref() } {
+            return if e.exists(font) {
+                crate::textm::kerning(&mut e.face(font), left, right, style, tracking)
+            } else {
+                0
+            };
+        }
+        unsafe { (self.kerning.unwrap())(self.context, font, left, right, style, tracking) }
+    }
+    pub fn space_gap(&self, font: i32, left: u32, right: u32, style: u8) -> i32 {
+        if let Some(e) = unsafe { self.engine.as_ref() } {
+            return e.gap(font, left, right, style);
+        }
+        unsafe { (self.space_advance.unwrap())(self.context, font, left, right, style) }
+    }
+    pub fn space(&self, font: i32, style: u8) -> i32 {
+        if let Some(engine) = unsafe { self.engine.as_ref() } {
+            return crate::textm::space_width(&mut engine.face(font), style);
+        }
+        unsafe { (self.space.unwrap())(self.context, font, style) }
+    }
+    #[allow(clippy::too_many_arguments)] // Preserves the existing token/metric operation.
+    pub fn gap(
+        &self,
+        font: i32,
+        left: &[u8],
+        right: &[u8],
+        style: u8,
+        flags: u8,
+        tracking: i8,
+        spacing: u8,
+    ) -> i32 {
+        {
+            if flags & 1 != 0 {
+                self.kern(font, last(left), first(right), style, tracking)
+            } else if flags & 2 != 0 {
+                i32::from(tracking)
+            } else {
+                scaled(
+                    self.space_gap(font, last(left), first(right), style),
+                    spacing,
+                )
+            }
+        }
+    }
+    pub fn prefix(&self, font: i32, word: &[u8], style: u8, focus: u8, tracking: i8) -> u16 {
+        let prefix = &word[..usize::from(focus).min(39).min(word.len())];
+        let bold = style | 1;
+        let mut pos = usize::from(focus).min(word.len());
+        let next = crate::utf8::next(word, &mut pos).unwrap_or(0);
+        let last = last(prefix);
+        let kern = if crate::bidi::starts_with_rtl(prefix, 5) {
+            self.kern(font, next, last, style, tracking)
+        } else {
+            self.kern(font, last, next, bold, tracking)
+        };
+        let width = if let Some(engine) = unsafe { self.engine.as_ref() } {
+            engine.advance(
+                font,
+                prefix,
+                bold,
+                tracking,
+                -1,
+                crate::textm::MeasureMode::Layout,
+            )
+        } else {
+            self.callback_prefix_width(font, prefix, bold, tracking)
+        };
+        (width + kern) as u16
+    }
+
+    #[inline(never)]
+    fn callback_prefix_width(&self, font: i32, prefix: &[u8], style: u8, tracking: i8) -> i32 {
+        // Only the native callback adapter needs a NUL after the measured prefix.
+        let mut buffer = [0; 40];
+        buffer[..prefix.len()].copy_from_slice(prefix);
+        unsafe { self.advance(font, &buffer[..=prefix.len()], style, tracking) }
+    }
+    #[allow(clippy::too_many_arguments)] // Preserves the existing token/metric operation.
+    /// # Safety
+    /// When terminated is true, storage includes its trailing NUL.
+    /// Suffix views retain that byte; other views use the existing copying path.
+    pub(super) unsafe fn width(
+        &self,
+        font: i32,
+        storage: &[u8],
+        style: u8,
+        focus: u8,
+        tracking: i8,
+        spacing: u8,
+        hyphen: bool,
+        terminated: bool,
+    ) -> Option<u16> {
+        let word = if terminated {
+            storage.get(..storage.len().checked_sub(1)?)?
+        } else {
+            storage
+        };
+        if focus != 0 && usize::from(focus) < word.len() {
+            let suffix = self.width(
+                font,
+                &storage[usize::from(focus)..],
+                style,
+                0,
+                tracking,
+                spacing,
+                hyphen,
+                terminated,
+            )?;
+            return Some(
+                self.prefix(font, word, style, focus, tracking)
+                    .wrapping_add(suffix),
+            );
+        }
+        let style = style | if focus != 0 { 1 } else { 0 };
+        if word == b" " && !hyphen {
+            return Some(scaled(self.space(font, style), spacing) as u16);
+        }
+        if terminated && !hyphen && !word.windows(2).any(|s| s == b"\xc2\xad") {
+            return Some(self.advance(font, storage, style, tracking) as u16);
+        }
+        let mut sanitized = Vec::new();
+        sanitized
+            .try_reserve_exact(word.len().checked_add(2)?)
+            .ok()?;
+        let mut pos = 0;
+        while pos < word.len() {
+            if word[pos..].starts_with(b"\xc2\xad") {
+                pos += 2;
+            } else {
+                sanitized.push(word[pos]);
+                pos += 1;
+            }
+        }
+        if hyphen {
+            sanitized.push(b'-');
+        }
+        sanitized.push(0);
+        Some(self.advance(font, &sanitized, style, tracking) as u16)
+    }
+}
+impl Paragraph {
+    pub fn first_indent(&self, first: bool, m: &Metrics, font: i32) -> i32 {
+        if self.first_consumed || !first || !self.natural {
+            return 0;
+        }
+        if self.block.text_indent_defined != 0 && self.block.text_indent < 0 {
+            return i32::from(self.block.text_indent);
+        }
+        if self.indent == 0 {
+            return 0;
+        }
+        scaled(m.space(font, 0), self.spacing) * i32::from(self.indent)
+    }
+    pub fn ruby_start(&self, start: usize, end: usize, m: &Metrics, font: i32) -> Option<i32> {
+        if self.ruby_text(start).is_empty()
+            || self.tokens.get(start).unwrap_or_default().style & 64 != 0
+        {
+            return Some(0);
+        }
+        let mut finish = start + 1;
+        while finish < end && self.tokens.get(finish).unwrap_or_default().style & 64 != 0 {
+            finish += 1;
+        }
+        Some(self.ruby_excess(start, finish, m, font)? / (2 * (finish - start) as i32))
+    }
+    pub fn ruby_end(&self, start: usize, end: usize, m: &Metrics, font: i32) -> Option<i32> {
+        if self.ruby.is_empty() || end == 0 || start >= end {
+            return Some(0);
+        }
+        let mut leader = end - 1;
+        while leader > start && self.tokens.get(leader).unwrap_or_default().style & 64 != 0 {
+            leader -= 1;
+        }
+        if self.ruby_text(leader).is_empty()
+            || self.tokens.get(leader).unwrap_or_default().style & 64 != 0
+        {
+            return Some(0);
+        }
+        let units = 2 * (end - leader) as i32;
+        Some((self.ruby_excess(leader, end, m, font)? + units - 1) / units)
+    }
+    fn ruby_excess(&self, start: usize, end: usize, m: &Metrics, font: i32) -> Option<i32> {
+        let mut width = 0;
+        for i in start..end {
+            // WordStore appends a NUL after each word.
+            width += i32::from(unsafe {
+                m.width(
+                    font,
+                    self.word_terminated(i),
+                    self.style(i),
+                    0,
+                    self.block.character_spacing,
+                    self.spacing,
+                    false,
+                    true,
+                )?
+            });
+        }
+        Some(
+            // Ruby Bytes stores a trailing NUL.
+            (unsafe {
+                m.advance(
+                    font,
+                    self.ruby_terminated(start),
+                    16,
+                    self.block.character_spacing,
+                )
+            } - width)
+                .max(0),
+        )
+    }
+    pub fn widths(&mut self, m: &Metrics, font: i32) -> Option<Widths> {
+        let mut widths = Widths(layout::Widths {
+            data: ptr::null_mut(),
+            len: 0,
+            capacity: 0,
+            allocator: self.allocator,
+            failed: 0,
+        });
+        unsafe {
+            if !widths.0.reserve(self.tokens.len()) {
+                return None;
+            }
+        }
+        for i in 0..self.tokens.len() {
+            let t = self.tokens.get(i)?;
+            // WordStore appends a NUL after each word.
+            let width = unsafe {
+                m.width(
+                    self.font(i, font),
+                    self.word_terminated(i),
+                    self.style(i),
+                    t.focus,
+                    self.block.character_spacing,
+                    self.spacing,
+                    false,
+                    true,
+                )?
+            };
+            unsafe {
+                if !widths.0.insert(widths.0.len, width) {
+                    return None;
+                }
+            }
+        }
+        if self.ruby.is_empty() {
+            return Some(widths);
+        }
+        struct Group {
+            start: usize,
+            count: usize,
+            excess: i32,
+        }
+        let mut groups = Vec::new();
+        let mut i = 0;
+        let w = unsafe { core::slice::from_raw_parts_mut(widths.0.data, widths.0.len) };
+        while i < self.tokens.len() {
+            if !self.ruby_text(i).is_empty() && self.tokens.get(i)?.style & 64 == 0 {
+                let mut count = 1;
+                let mut base = i32::from(w[i]);
+                while i + count < self.tokens.len() && self.tokens.get(i + count)?.style & 64 != 0 {
+                    base += i32::from(w[i + count]);
+                    count += 1;
+                }
+                // Ruby Bytes stores a trailing NUL.
+                let ruby = unsafe {
+                    m.advance(
+                        font,
+                        self.ruby_terminated(i),
+                        16,
+                        self.block.character_spacing,
+                    )
+                };
+                groups.try_reserve(1).ok()?;
+                groups.push(Group {
+                    start: i,
+                    count,
+                    excess: (ruby - base).max(0),
+                });
+                i += count;
+            } else {
+                i += 1;
+            }
+        }
+        for (index, g) in groups.iter().enumerate() {
+            let units = 2 * g.count as i32;
+            let left = g.excess / units;
+            let right = (g.excess + units - 1) / units;
+            let next = g.start + g.count;
+            let mut previous = left;
+            for (k, width) in w[g.start..next - 1].iter_mut().enumerate() {
+                let cumulative =
+                    ((i64::from(g.excess) * (3 + 2 * k as i64)) / i64::from(units)) as i32;
+                *width = width.wrapping_add((cumulative - previous) as u16);
+                previous = cumulative;
+            }
+            let edge_advance = |cp: u32| {
+                let mut buf = [0; 5];
+                let n = crate::utf8::encode(cp, (&mut buf[..4]).try_into().unwrap());
+                unsafe { m.advance(font, &buf[..=n], 16, self.block.character_spacing) }
+            };
+            if left > 0
+                && g.start > 0
+                && (index == 0 || groups[index - 1].start + groups[index - 1].count != g.start)
+            {
+                let width = &mut w[g.start - 1];
+                let overhang =
+                    (i32::from(*width) / 4).min(edge_advance(first(self.ruby_text(g.start))) / 2);
+                *width = width.wrapping_add((left - overhang).max(0) as u16);
+            }
+            if next < w.len() {
+                let extra = if let Some(other) = groups.get(index + 1).filter(|g| g.start == next) {
+                    right + other.excess / (2 * other.count as i32)
+                } else if right > 0 {
+                    let overhang = (i32::from(w[next]) / 4)
+                        .min(edge_advance(last(self.ruby_text(g.start))) / 2);
+                    (right - overhang).max(0)
+                } else {
+                    0
+                };
+                w[next - 1] = w[next - 1].wrapping_add(extra as u16);
+            }
+        }
+        Some(widths)
+    }
+}
+struct Breaking<'a> {
+    paragraph: *mut Paragraph,
+    metrics: &'a Metrics,
+    widths: *mut layout::Widths,
+    breaks: *mut layout::Breaks,
+    font: i32,
+    language: i32,
+}
+unsafe extern "C" fn allows(raw: *mut c_void, i: usize) -> u8 {
+    let c = &*raw.cast::<Breaking>();
+    let t = (*c.paragraph).tokens.get(i).unwrap_or_default();
+    u8::from(t.flags & 1 == 0 || t.flags & 2 != 0)
+}
+unsafe extern "C" fn gap(raw: *mut c_void, i: usize) -> i32 {
+    let c = &*raw.cast::<Breaking>();
+    let p = &*c.paragraph;
+    c.metrics.gap(
+        c.font,
+        p.word(i - 1),
+        p.word(i),
+        p.style(i - 1),
+        p.tokens.get(i).unwrap_or_default().flags,
+        p.block.character_spacing,
+        p.spacing,
+    )
+}
+unsafe extern "C" fn ruby_start(raw: *mut c_void, start: usize, end: usize) -> i32 {
+    let c = &*raw.cast::<Breaking>();
+    (*c.paragraph)
+        .ruby_start(start, end, c.metrics, c.font)
+        .unwrap_or_else(|| {
+            (*c.paragraph).dropped = true;
+            0
+        })
+}
+unsafe extern "C" fn ruby_end(raw: *mut c_void, start: usize, end: usize) -> i32 {
+    let c = &*raw.cast::<Breaking>();
+    (*c.paragraph)
+        .ruby_end(start, end, c.metrics, c.font)
+        .unwrap_or_else(|| {
+            (*c.paragraph).dropped = true;
+            0
+        })
+}
+unsafe extern "C" fn emit(raw: *mut c_void, end: usize) -> u8 {
+    let c = &*raw.cast::<Breaking>();
+    (*c.breaks).insert((*c.breaks).len, end) as u8
+}
+struct Splitting<'a> {
+    metrics: &'a Metrics,
+    font: i32,
+    tracking: i8,
+    spacing: u8,
+    failed: bool,
+}
+unsafe extern "C" fn measure_split(
+    raw: *mut c_void,
+    data: *const u8,
+    len: usize,
+    style: u8,
+    focus: u8,
+    hyphen: u8,
+) -> u16 {
+    let c = &mut *raw.cast::<Splitting>();
+    let terminated = *data.add(len) == 0;
+    match c.metrics.width(
+        c.font,
+        core::slice::from_raw_parts(data, len + usize::from(terminated)),
+        style,
+        focus,
+        c.tracking,
+        c.spacing,
+        hyphen != 0,
+        terminated,
+    ) {
+        Some(width) => width,
+        None => {
+            c.failed = true;
+            u16::MAX
+        }
+    }
+}
+unsafe extern "C" fn boundary(left: u32, right: u32) -> u8 {
+    crate::text::boundary(left, right) as u8
+}
+unsafe extern "C" fn inserted(_: *mut c_void, _: usize) {}
+unsafe extern "C" fn split(raw: *mut c_void, i: usize, available: i32, fallback: u8) -> u8 {
+    let c = &mut *raw.cast::<Breaking>();
+    let p = &mut *c.paragraph;
+    if available <= 0 || i >= p.tokens.len() {
+        return 0;
+    }
+    // Reserve before the token transaction so ruby insertion cannot fail afterwards.
+    if i < p.ruby.len() && !p.ruby.reserve(p.ruby.len() + 1) {
+        p.dropped = true;
+        return 0;
+    }
+    let mut context = Splitting {
+        metrics: c.metrics,
+        font: p.font(i, c.font),
+        tracking: p.block.character_spacing,
+        spacing: p.spacing,
+        failed: false,
+    };
+    let request = layout_split::SplitRequest {
+        context: (&mut context as *mut Splitting).cast(),
+        measure: measure_split,
+        boundary,
+        inserted,
+        index: i,
+        available,
+        language: c.language,
+        style: p.style(i),
+        fallback,
+    };
+    let mut result = layout_split::SplitResult::default();
+    #[cfg(feature = "chapter-trace")]
+    let trace_word = if c.metrics.trace.is_some() {
+        p.word(i).to_vec()
+    } else {
+        Vec::new()
+    };
+    let success = layout_split::split(
+        &mut p.store,
+        &mut p.tokens,
+        &mut *c.widths,
+        &request,
+        &mut result,
+    );
+    if success {
+        para_trace!(
+            c.metrics,
+            "split\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+            i,
+            available,
+            fallback,
+            result.offset,
+            result.hyphen,
+            result.width,
+            result.remainder_width,
+            super::paragraph::Hex(&trace_word),
+            result.remainder_offset
+        );
+    }
+    p.dropped |= context.failed;
+    if success && i < p.ruby.len() {
+        p.ruby.insert_reserved(i + 1);
+    }
+    success as u8
+}
+/// # Safety
+/// Paragraph is exclusively borrowed for breaking. Renderer callbacks cannot reenter it.
+pub unsafe fn breaks(
+    p: *mut Paragraph,
+    m: &Metrics,
+    widths: &mut Widths,
+    font: i32,
+    page: i32,
+    max_lines: usize,
+    language: i32,
+) -> Option<Breaks> {
+    let mut breaks = Breaks(layout::Breaks {
+        data: ptr::null_mut(),
+        len: 0,
+        capacity: 0,
+        allocator: (*p).allocator,
+        failed: 0,
+    });
+    let indent = (*p).first_indent(true, m, font);
+    // Split mutates this descriptor; both callback views share the same raw origin.
+    let widths_pointer = ptr::addr_of_mut!(widths.0);
+    let mut context = Breaking {
+        paragraph: p,
+        metrics: m,
+        widths: widths_pointer,
+        breaks: &mut breaks.0,
+        font,
+        language,
+    };
+    let callbacks = layout::Callbacks {
+        context: (&mut context as *mut Breaking).cast(),
+        widths: widths_pointer,
+        has_ruby: u8::from(!(*p).ruby.is_empty()),
+        allows_break: allows,
+        gap,
+        ruby_start,
+        ruby_end,
+        split,
+        emit,
+    };
+    let ok = if (*p).hyphenation || max_lines != usize::MAX {
+        layout::greedy(
+            &callbacks,
+            page,
+            indent,
+            max_lines,
+            (*p).first_consumed,
+            (*p).hyphenation,
+        )
+    } else {
+        layout::optimal(&callbacks, (*p).allocator, page, indent)
+    };
+    if ok && breaks.0.len != 0 && widths.0.failed == 0 {
+        Some(breaks)
+    } else {
+        None
+    }
+}

@@ -25,16 +25,23 @@ std::vector<uint8_t> makeBlob(const uint64_t pathHash, const std::initializer_li
 
 }  // namespace
 
+// The host fakes must reject what production asserts on, or an invalid close passes here
+// and resets the firmware. Every HalFile fake carries the same guard.
+TEST(LibraryIndexFile, FileFakeRejectsAnOperationOnAHandleWithNoImpl) {
+  EXPECT_DEATH(
+      {
+        HalFile file;
+        file.close();
+      },
+      "no impl");
+}
+
 TEST(LibraryIndexFile, MissingIndexDoesNotCloseAnUninitializedHandle) {
   Storage.clearFile();
-  HalFile::resetInvalidCloseCount();
 
-  {
-    library::LibraryIndexFile index;
-    EXPECT_FALSE(index.open("/missing.clx"));
-  }
-
-  EXPECT_EQ(HalFile::invalidCloseCount(), 0);
+  // The HalFile stub aborts on close of a handle with no impl, as production does.
+  library::LibraryIndexFile index;
+  EXPECT_FALSE(index.open("/missing.clx"));
 }
 
 TEST(LibraryIndexFile, ReadsEveryStoredOrderInBothDirections) {

@@ -2,7 +2,7 @@ name: CI (build)
 
 on:
   push:
-    branches: [develop]
+    branches: [develop, serialx/riir-1st]
   pull_request:
 
 permissions:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   clang-format:
-    runs-on: ubuntu-latest
+    runs-on: &ci-runner ${{ github.repository == 'serialx/crosspoint-reader' && github.ref == 'refs/heads/serialx/riir-1st' && 'boat' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -34,7 +34,7 @@ jobs:
           git diff --exit-code || (echo "Please run 'bin/clang-format-fix' to fix formatting issues" && exit 1)
 
   cppcheck:
-    runs-on: ubuntu-latest
+    runs-on: *ci-runner
     steps:
       - uses: actions/checkout@v6
         with:
@@ -97,7 +97,7 @@ jobs:
 
   build:
     name: Build ${{ matrix.env }}
-    runs-on: ubuntu-latest
+    runs-on: *ci-runner
     strategy:
       fail-fast: false
       matrix:
@@ -207,7 +207,7 @@ jobs:
           if-no-files-found: error
 
   unit-tests:
-    runs-on: ubuntu-latest
+    runs-on: *ci-runner
     env:
       RUSTUP_TOOLCHAIN: '1.99.0'
       CC: clang-22
@@ -282,7 +282,7 @@ jobs:
       - cppcheck
       - unit-tests
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: *ci-runner
     steps:
       - name: Fail because needed jobs failed
         # Fail if any job failed or was cancelled (skipped jobs are ok)

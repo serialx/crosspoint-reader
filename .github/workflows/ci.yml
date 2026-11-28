@@ -207,7 +207,7 @@ jobs:
           if-no-files-found: error
 
   unit-tests:
-    runs-on: *ci-runner
+    runs-on: ${{ github.repository == 'serialx/crosspoint-reader' && github.ref == 'refs/heads/serialx/riir-1st' && 'boat-large' || 'ubuntu-latest' }}
     env:
       RUSTUP_TOOLCHAIN: '1.99.0'
       CC: clang-22
